@@ -1,21 +1,27 @@
-
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
+from ..StringIOTree cimport StringIOTree
 
-#cdef class UtilityCodeBase(object):
-#    cdef public object name
-#    cdef public object proto
-#    cdef public object impl
-#    cdef public object init
-#    cdef public object cleanup
-#    cdef public object requires
-#    cdef public dict _cache
-#    cdef public list specialize_list
-#    cdef public object proto_block
-#    cdef public object file
-#
-#    cpdef format_code(self, code_string, replace_empty_lines=*)
+
+cdef class UtilityCodeBase(object):
+    cpdef format_code(self, code_string, replace_empty_lines=*)
+
+
+cdef class UtilityCode(UtilityCodeBase):
+    cdef public object name
+    cdef public object proto
+    cdef public object impl
+    cdef public object init
+    cdef public object cleanup
+    cdef public object proto_block
+    cdef public object requires
+    cdef public dict _cache
+    cdef public list specialize_list
+    cdef public object file
+
+    cpdef none_or_sub(self, s, context)
+
 
 cdef class FunctionState:
     cdef public set names_taken
@@ -33,6 +39,7 @@ cdef class FunctionState:
     cdef public object return_from_error_cleanup_label # not used in __init__ ?
 
     cdef public object exc_vars
+    cdef public object current_except
     cdef public bint in_try_finally
     cdef public bint can_trace
     cdef public bint gil_owned
@@ -40,6 +47,7 @@ cdef class FunctionState:
     cdef public list temps_allocated
     cdef public dict temps_free
     cdef public dict temps_used_type
+    cdef public set zombie_temps
     cdef public size_t temp_counter
     cdef public list collect_temps_stack
 
@@ -88,7 +96,27 @@ cdef class StringConst:
 
 #def funccontext_property(name):
 
-#class CCodeWriter(object):
+cdef class CCodeWriter(object):
+    cdef readonly StringIOTree buffer
+    cdef readonly list pyclass_stack
+    cdef readonly object globalstate
+    cdef readonly object funcstate
+    cdef object code_config
+    cdef object last_pos
+    cdef object last_marked_pos
+    cdef Py_ssize_t level
+    cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
+    cdef bint bol
+
+    cpdef write(self, s)
+    cpdef put(self, code)
+    cpdef put_safe(self, code)
+    cpdef putln(self, code=*, bint safe=*)
+    @cython.final
+    cdef increase_indent(self)
+    @cython.final
+    cdef decrease_indent(self)
+
 
 cdef class PyrexCodeWriter:
     cdef public object f

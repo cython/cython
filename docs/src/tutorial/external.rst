@@ -1,6 +1,9 @@
 Calling C functions
 ====================
 
+.. include::
+    ../two-syntax-variants-used
+
 This tutorial describes shortly what you need to know in order to call
 C library functions from Cython code.  For a longer and more
 comprehensive tutorial about using external C libraries, wrapping them
@@ -13,13 +16,19 @@ functions for you. So you can just cimport and use them.
 
 For example, let's say you need a low-level way to parse a number from
 a ``char*`` value.  You could use the ``atoi()`` function, as defined
-by the ``stdlib.h`` header file.  This can be done as follows::
+by the ``stdlib.h`` header file.  This can be done as follows:
 
-  from libc.stdlib cimport atoi
+.. tabs::
 
-  cdef parse_charptr_to_py_int(char* s):
-      assert s is not NULL, "byte string value is NULL"
-      return atoi(s)   # note: atoi() has no error detection!
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/atoi.py
+            :caption: atoi.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/atoi.pyx
+            :caption: atoi.pyx
 
 You can find a complete list of these standard cimport files in
 Cython's source package
@@ -30,20 +39,35 @@ Cython declarations that can be shared across modules
 
 Cython also has a complete set of declarations for CPython's C-API.
 For example, to test at C compilation time which CPython version
-your code is being compiled with, you can do this::
+your code is being compiled with, you can do this:
 
-  from cpython.version cimport PY_VERSION_HEX
+.. tabs::
 
-  # Python version >= 3.2 final ?
-  print PY_VERSION_HEX >= 0x030200F0
+    .. group-tab:: Pure Python
 
-Cython also provides declarations for the C math library::
+        .. literalinclude:: ../../examples/tutorial/external/py_version_hex.py
+            :caption: py_version_hex.py
 
-  from libc.math cimport sin
+    .. group-tab:: Cython
 
-  cdef double f(double x):
-      return sin(x*x)
+        .. literalinclude:: ../../examples/tutorial/external/py_version_hex.pyx
+            :caption: py_version_hex.pyx
 
+.. _libc.math:
+
+Cython also provides declarations for the C math library:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/libc_sin.py
+            :caption: libc_sin.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/libc_sin.pyx
+            :caption: libc_sin.pyx
 
 Dynamic linking
 ---------------
@@ -51,25 +75,10 @@ Dynamic linking
 The libc math library is special in that it is not linked by default
 on some Unix-like systems, such as Linux. In addition to cimporting the
 declarations, you must configure your build system to link against the
-shared library ``m``.  For distutils, it is enough to add it to the
-``libraries`` parameter of the ``Extension()`` setup::
+shared library ``m``.  For setuptools, it is enough to add it to the
+``libraries`` parameter of the ``Extension()`` setup:
 
-  from distutils.core import setup
-  from distutils.extension import Extension
-  from Cython.Build import cythonize
-
-  ext_modules=[
-      Extension("demo",
-                sources=["demo.pyx"],
-                libraries=["m"] # Unix-like specific
-      )
-  ]
-
-  setup(
-    name = "Demos",
-    ext_modules = cythonize(ext_modules)
-  )
-
+.. literalinclude:: ../../examples/tutorial/external/setup.py
 
 External declarations
 ---------------------
@@ -95,15 +104,9 @@ library.
 Note that you can easily export an external C function from your Cython
 module by declaring it as ``cpdef``.  This generates a Python wrapper
 for it and adds it to the module dict.  Here is a Cython module that
-provides direct access to the C ``sin()`` function for Python code::
+provides direct access to the C ``sin()`` function for Python code:
 
-  """
-  >>> sin(0)
-  0.0
-  """
-
-  cdef extern from "math.h":
-      cpdef double sin(double x)
+.. literalinclude:: ../../examples/tutorial/external/cpdef_sin.pyx
 
 You get the same result when this declaration appears in the ``.pxd``
 file that belongs to the Cython module (i.e. that has the same name,
@@ -111,6 +114,9 @@ see :ref:`sharing-declarations`).
 This allows the C declaration to be reused in other Cython modules,
 while still providing an automatically generated Python wrapper in
 this specific module.
+
+.. note:: External declarations must be placed in a ``.pxd`` file in Pure
+    Python mode.
 
 
 Naming parameters
@@ -123,20 +129,28 @@ names like this::
       char* strstr(const char*, const char*)
 
 However, this prevents Cython code from calling it with keyword
-arguments (supported since Cython 0.19).  It is therefore preferable
-to write the declaration like this instead::
+arguments.  It is therefore preferable
+to write the declaration like this instead:
 
-  cdef extern from "string.h":
-      char* strstr(const char *haystack, const char *needle)
+.. literalinclude:: ../../examples/tutorial/external/keyword_args.pyx
 
 You can now make it clear which of the two arguments does what in
 your call, thus avoiding any ambiguities and often making your code
-more readable::
+more readable:
 
-  cdef char* data = "hfvcakdfagbcffvschvxcdfgccbcfhvgcsnfxjh"
+.. tabs::
 
-  pos = strstr(needle='akd', haystack=data)
-  print pos != NULL
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.py
+            :caption: keyword_args_call.py
+        .. literalinclude:: ../../examples/tutorial/external/strstr.pxd
+            :caption: strstr.pxd
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pyx
+            :caption: keyword_args_call.pyx
 
 Note that changing existing parameter names later is a backwards
 incompatible API modification, just as for Python code.  Thus, if

@@ -1,0 +1,76 @@
+# mode: run
+# tag: asyncio, gh1685, gh2273
+
+PYTHON setup.py build_ext -i
+PYTHON main.py
+
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.pyx"),
+)
+
+
+######## main.py ########
+
+import asyncio
+import cy_test
+import py_test
+from contextlib import closing
+
+async def main():
+    await cy_test.say()
+
+with closing(asyncio.get_event_loop()) as loop:
+    print("Running Python coroutine ...")
+    loop.run_until_complete(main())
+
+    print("Running Cython coroutine ...")
+    loop.run_until_complete(cy_test.say())
+
+assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
+assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
+assert asyncio.iscoroutinefunction(cy_test.cy_def_example) == False
+assert asyncio.iscoroutinefunction(py_test.py_def_example) == False
+
+######## cy_test.pyx ########
+
+import asyncio
+from py_test import py_async
+
+async def cy_async():
+    print("- this one is from Cython")
+
+async def say():
+    await cb()
+
+async def cb():
+    print("awaiting:")
+    await cy_async()
+    await py_async()
+    print("sleeping:")
+    await asyncio.sleep(0.5)
+    print("done!")
+
+async def cy_async_def_example():
+    return 1
+
+def cy_def_example():
+    return 1
+
+######## py_test.py ########
+
+async def py_async():
+    print("- and this one is from Python")
+
+async def py_async_def_example():
+    return 1
+
+def py_def_example():
+    return 1

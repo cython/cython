@@ -8,11 +8,10 @@ from . import Code
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
-    cpp = False
-
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
         self.cython_scope = None
+        self.cpp = kw.pop('cpp', False)
         Symtab.ModuleScope.__init__(self, *args, **kw)
 
     def add_imported_entry(self, name, entry, pos):
@@ -44,7 +43,7 @@ class CythonUtilityCodeContext(StringParseContext):
 
         if self.scope is None:
             self.scope = NonManglingModuleScope(
-                self.prefix, module_name, parent_module=None, context=self)
+                self.prefix, module_name, parent_module=None, context=self, cpp=self.cpp)
 
         return self.scope
 
@@ -77,7 +76,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         #    while the generated node trees can be altered in the compilation of a
         #    single file.
         # Hence, delay any processing until later.
+        context_types = {}
         if context is not None:
+            from .PyrexTypes import BaseType
+            for key, value in context.items():
+                if isinstance(value, BaseType):
+                    context[key] = key
+                    context_types[key] = value
             impl = Code.sub_tempita(impl, context, file, name)
         self.impl = impl
         self.name = name
@@ -87,6 +92,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.from_scope = from_scope
         self.outer_module_scope = outer_module_scope
         self.compiler_directives = compiler_directives
+        self.context_types = context_types
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):
@@ -112,7 +118,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
         from . import Pipeline, ParseTreeTransforms
         context = CythonUtilityCodeContext(
-            self.name, compiler_directives=self.compiler_directives)
+            self.name, compiler_directives=self.compiler_directives,
+            cpp=cython_scope.is_cpp() if cython_scope else False)
         context.prefix = self.prefix
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
@@ -124,7 +131,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             p = []
             for t in pipeline:
                 p.append(t)
-                if isinstance(p, ParseTreeTransforms.AnalyseDeclarationsTransform):
+                if isinstance(t, ParseTreeTransforms.AnalyseDeclarationsTransform):
                     break
 
             pipeline = p
@@ -163,6 +170,18 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 pipeline, scope_transform,
                 before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
+        if self.context_types:
+            # inject types into module scope
+            def scope_transform(module_node):
+                for name, type in self.context_types.items():
+                    entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    entry.in_cinclude = True
+                return module_node
+
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, scope_transform,
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
+
         (err, tree) = Pipeline.run_pipeline(pipeline, tree, printtree=False)
         assert not err, err
         self.tree = tree
@@ -177,10 +196,10 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         Load a utility code as a string. Returns (proto, implementation)
         """
         util = cls.load(util_code_name, from_file, **kwargs)
-        return util.proto, util.impl # keep line numbers => no lstrip()
+        return util.proto, util.impl  # keep line numbers => no lstrip()
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
-                         whitelist=None):
+                         allowlist=None):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries. If module_name is given, declare the
@@ -199,14 +218,35 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True, whitelist=whitelist)
+        dest_scope.merge_in(original_scope, merge_unused=True, allowlist=allowlist)
         tree.scope = dest_scope
 
         for dep in self.requires:
             if dep.is_cython_utility:
-                dep.declare_in_scope(dest_scope)
+                dep.declare_in_scope(dest_scope, cython_scope=cython_scope)
 
         return original_scope
+
+    @staticmethod
+    def filter_inherited_directives(current_directives):
+        """
+        Cython utility code should usually only pick up a few directives from the
+        environment (those that intentionally control its function) and ignore most
+        other compiler directives. This function provides a sensible default list
+        of directives to copy.
+        """
+        from .Options import _directive_defaults
+        utility_code_directives = dict(_directive_defaults)
+        inherited_directive_names = (
+            'binding', 'always_allow_keywords', 'allow_none_for_extension_args',
+            'auto_pickle', 'ccomplex',
+            'c_string_type', 'c_string_encoding',
+            'optimize.inline_defnode_calls', 'optimize.unpack_method_calls',
+            'optimize.unpack_method_calls_in_pyinit', 'optimize.use_switch')
+        for name in inherited_directive_names:
+            if name in current_directives:
+                utility_code_directives[name] = current_directives[name]
+        return utility_code_directives
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

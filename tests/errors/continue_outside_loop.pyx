@@ -26,11 +26,13 @@ else:
 def bool_result():
     return True
 
-_ERRORS = u'''
+
+_ERRORS = '''
 4:0: continue statement not inside loop
 7:4: continue statement not inside loop
 10:4: continue statement not inside loop
 13:4: continue statement not inside loop
+15:5: continue statement not inside loop
 18:5: continue statement not inside loop
 22:4: continue statement not inside loop
 24:4: continue statement not inside loop

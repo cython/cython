@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
 
@@ -11,10 +11,8 @@ cdef class ControlBlock:
      cdef public list stats
      cdef public dict gen
      cdef public set bounded
-     cdef public dict input
-     cdef public dict output
 
-     # Big integer it bitsets
+     # Big integer bitsets
      cdef public object i_input
      cdef public object i_output
      cdef public object i_gen
@@ -107,6 +105,7 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef list stack
     cdef object env
     cdef ControlFlow flow
+    cdef object object_expr
     cdef bint in_inplace_assignment
 
     cpdef mark_assignment(self, lhs, rhs=*)

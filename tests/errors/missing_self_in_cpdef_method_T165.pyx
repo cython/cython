@@ -1,4 +1,4 @@
-# ticket: 165
+# ticket: t165
 # mode: error
 
 cdef class A:

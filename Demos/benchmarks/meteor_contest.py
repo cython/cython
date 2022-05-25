@@ -64,7 +64,7 @@ def get_senh(board, cti):
 
 
 def get_puzzle(w=w, h=h):
-    board = [E*x + S*y + (y%2) for y in range(h) for x in range(w)]
+    board = [E*x + S*y + (y % 2) for y in range(h) for x in range(w)]
     cti = dict((board[i], i) for i in range(len(board)))
 
     idos = [[E, E, E, SE],         # incremental direction offsets
@@ -143,7 +143,7 @@ def main(n):
         tk = time.time()
         times.append(tk - t0)
     return times
-    
+
 if __name__ == "__main__":
     parser = optparse.OptionParser(
         usage="%prog [options]",
@@ -152,4 +152,3 @@ if __name__ == "__main__":
     options, args = parser.parse_args()
 
     util.run_benchmark(options, options.num_runs, main)
-

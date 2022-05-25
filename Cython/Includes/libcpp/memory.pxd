@@ -16,8 +16,8 @@ cdef extern from "<memory>" namespace "std" nogil:
         void construct( T *, const T &) #C++98.  The C++11 version is variadic AND perfect-forwarding
         void destroy(T *) #C++98
         void destroy[U](U *) #unique_ptr unit tests fail w/this
-        
-        
+
+
     cdef cppclass unique_ptr[T,DELETER=*]:
         unique_ptr()
         unique_ptr(nullptr_t)
@@ -59,6 +59,7 @@ cdef extern from "<memory>" namespace "std" nogil:
         shared_ptr(shared_ptr[T]&, T*)
         shared_ptr(unique_ptr[T]&)
         #shared_ptr(weak_ptr[T]&) # Not Supported
+        shared_ptr[T]& operator=[Y](const shared_ptr[Y]& ptr)
 
         # Modifiers
         void reset()
@@ -107,3 +108,9 @@ cdef extern from "<memory>" namespace "std" nogil:
 
     # Temporaries used for exception handling break generated code
     unique_ptr[T] make_unique[T](...) # except +
+
+    # No checking on the compatibility of T and U.
+    cdef shared_ptr[T] static_pointer_cast[T, U](const shared_ptr[U]&)
+    cdef shared_ptr[T] dynamic_pointer_cast[T, U](const shared_ptr[U]&)
+    cdef shared_ptr[T] const_pointer_cast[T, U](const shared_ptr[U]&)
+    cdef shared_ptr[T] reinterpret_pointer_cast[T, U](const shared_ptr[U]&)

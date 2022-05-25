@@ -20,12 +20,7 @@ YEAR = datetime.date.today().strftime('%Y')
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
-sys.path.append(os.path.abspath('sphinxext'))
-
-# Import support for ipython console session syntax highlighting (lives
-# in the sphinxext directory defined above)
-import ipython_console_highlighting
+sys.path.insert(0, os.path.abspath('..'))
 
 # -- General configuration -----------------------------------------------------
 
@@ -39,11 +34,12 @@ highlight_language = 'cython'
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'ipython_console_highlighting',
-    'cython_highlighting',
-    'sphinx.ext.pngmath',
+    'sphinx.ext.imgmath',
     'sphinx.ext.todo',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc',
+    'sphinx_issues',  # if this is missing, pip install sphinx-issues
+    'sphinx_tabs.tabs',  # if this is missing, pip install sphinx-tabs
     ]
 
 try: import rst2pdf
@@ -126,11 +122,21 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 
 # intersphinx for standard :keyword:s (def, for, etc.)
-intersphinx_mapping = {'python': ('http://docs.python.org/3/', None)}
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
+# The output image format. The default is 'png'. It should be either 'png' or 'svg'.
+imgmath_image_format = "svg"
+
+# For sphinx-issues
+
+issues_github_path = "cython/cython"
+
+# For sphinx-tabs
+
+sphinx_tabs_disable_tab_closing = True
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -172,6 +178,14 @@ html_favicon = "_static/favicon.ico"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+html_context = {
+    # Overwriting css from extensions
+    'css_files': ['_static/css/tabs.css'],
+    # "dev version" warning banner
+    'development': 'a' in release or 'b' in release,
+}
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.

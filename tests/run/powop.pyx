@@ -123,9 +123,9 @@ def optimised_pow2(n):
     0.5
     >>> optimised_pow2(0.5) == 2 ** 0.5
     True
-    >>> optimised_pow2('test')
+    >>> optimised_pow2('test') # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unsupported operand type(s) for ** or pow(): 'int' and 'str'
+    TypeError: ...operand... **...
     """
     if isinstance(n, (int, long)) and 0 <= n < 1000:
         assert isinstance(2.0 ** n, float), 'float %s' % n
@@ -153,9 +153,9 @@ def optimised_pow2_inplace(n):
     0.5
     >>> optimised_pow2_inplace(0.5) == 2 ** 0.5
     True
-    >>> optimised_pow2_inplace('test')
+    >>> optimised_pow2_inplace('test') # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unsupported operand type(s) for ** or pow(): 'int' and 'str'
+    TypeError: ...operand... **...
     """
     x = 2
     x **= n

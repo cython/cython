@@ -58,6 +58,36 @@ def single_except_expression(a, x):
         i = 3
     return i
 
+
+exceptions = (ValueError, TypeError)
+
+
+def single_except_global_tuple(x):
+    """
+    >>> single_except_global_tuple(None)
+    2
+    >>> single_except_global_tuple(ValueError('test'))
+    3
+    >>> single_except_global_tuple(TypeError('test'))
+    3
+    >>> class TypeErrorSubtype(TypeError): pass
+    >>> single_except_global_tuple(TypeErrorSubtype('test'))
+    3
+    >>> single_except_global_tuple(AttributeError('test'))
+    Traceback (most recent call last):
+    AttributeError: test
+    """
+    cdef int i
+    try:
+        i = 1
+        if x:
+            raise x
+        i = 2
+    except exceptions:
+        i = 3
+    return i
+
+
 def double_except_no_raise(a,b):
     """
     >>> double_except_no_raise(TypeError, ValueError)
@@ -179,6 +209,10 @@ def normal_and_bare_except_raise(x, a):
     2
     >>> normal_and_bare_except_raise(ValueError('test'), TypeError)
     3
+    >>> normal_and_bare_except_raise(TypeError('test'), (TypeError, ValueError))
+    2
+    >>> normal_and_bare_except_raise(ValueError('test'), (TypeError, ValueError))
+    2
     >>> normal_and_bare_except_raise(None, TypeError)
     1
     """
@@ -467,3 +501,20 @@ def complete_except_as_raise(x, a, b):
     else:
         i = 5
     return i
+
+
+def try_except_raise_new(initial, catch, throw):
+    """
+    >>> try_except_raise_new(None, TypeError, ValueError)
+    >>> try_except_raise_new(TypeError, IndexError, ValueError)
+    Traceback (most recent call last):
+    TypeError
+    >>> try_except_raise_new(TypeError, TypeError, ValueError)
+    Traceback (most recent call last):
+    ValueError
+    """
+    try:
+        if initial is not None:
+            raise initial
+    except catch:
+        raise throw

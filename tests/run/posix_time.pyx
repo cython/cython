@@ -22,7 +22,7 @@ def test_itimer(sec, usec):
     t.it_value.tv_sec = 0
     t.it_value.tv_usec = 0
     ret = setitimer(ITIMER_REAL, &t, NULL)
-    return gtime.it_interval.tv_sec, gtime.it_interval.tv_usec
+    return int(gtime.it_interval.tv_sec), int(gtime.it_interval.tv_usec)
 
 def test_gettimeofday():
     """

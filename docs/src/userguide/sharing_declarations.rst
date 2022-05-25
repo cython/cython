@@ -24,9 +24,9 @@ statement.
 
 A ``.pxd`` file that consists solely of extern declarations does not need
 to correspond to an actual ``.pyx`` file or Python module. This can make it a
-convenient place to put common declarations, for example declarations of 
+convenient place to put common declarations, for example declarations of
 functions from  an :ref:`external library <external-C-code>` that one
-wants to use in several modules. 
+wants to use in several modules.
 
 
 What a Definition File contains
@@ -40,9 +40,9 @@ A definition file can contain:
 * The definition part of an extension type (see below).
 
 It cannot contain the implementations of any C or Python functions, or any
-Python class definitions, or any executable statements. It is needed when one 
-wants to  access :keyword:`cdef` attributes and methods, or to inherit from 
-:keyword:`cdef` classes defined in this module. 
+Python class definitions, or any executable statements. It is needed when one
+wants to  access :keyword:`cdef` attributes and methods, or to inherit from
+:keyword:`cdef` classes defined in this module.
 
 .. note::
 
@@ -57,9 +57,9 @@ What an Implementation File contains
 
 An implementation file can contain any kind of Cython statement, although there
 are some restrictions on the implementation part of an extension type if the
-corresponding definition file also defines that type (see below). 
+corresponding definition file also defines that type (see below).
 If one doesn't need to :keyword:`cimport` anything from this module, then this
-is the only file one needs. 
+is the only file one needs.
 
 
 .. _cimport:
@@ -79,30 +79,15 @@ statement::
 Here is an example. :file:`dishes.pxd` is a definition file which exports a
 C data type. :file:`restaurant.pyx` is an implementation file which imports and
 uses it.
- 
-:file:`dishes.pxd`::
 
-   cdef enum otherstuff:       
-       sausage, eggs, lettuce  
-                               
-   cdef struct spamdish:       
-       int oz_of_spam          
-       otherstuff filler       
-                               
-:file:`restaurant.pyx`::
+:file:`dishes.pxd`:
 
-    cimport dishes
-    from dishes cimport spamdish
+.. literalinclude:: ../../examples/userguide/sharing_declarations/dishes.pxd
 
-    cdef void prepare(spamdish *d):
-        d.oz_of_spam = 42
-        d.filler = dishes.sausage
+:file:`restaurant.pyx`:
 
-    def serve():
-        cdef spamdish d
-        prepare(&d)
-        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler)
-                               
+.. literalinclude:: ../../examples/userguide/sharing_declarations/restaurant.pyx
+
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
 types. It cannot be used to import any Python objects, and (with one
@@ -113,9 +98,9 @@ to include a regular import statement for it as well.
 The exception is that when you use :keyword:`cimport` to import an extension type, its
 type object is imported at run time and made available by the name under which
 you imported it. Using :keyword:`cimport` to import extension types is covered in more
-detail below.  
+detail below.
 
-If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be 
+If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be
 recompiled.  The ``Cython.Build.cythonize`` utility can take care of this for you.
 
 
@@ -137,7 +122,7 @@ include path (but not ``sys.path``), and if found, it is processed before
 processing the ``.pyx`` file.
 
 
-Using cimport to resolve naming conflicts 
+Using cimport to resolve naming conflicts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :keyword:`cimport` mechanism provides a clean and simple way to solve the
@@ -146,24 +131,20 @@ name. All you need to do is put the extern C declarations into a ``.pxd`` file
 for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
- 
-:file:`c_lunch.pxd`::
 
-    cdef extern from "lunch.h":
-        void eject_tomato(float) 	
+:file:`c_lunch.pxd`:
 
-:file:`lunch.pyx`::
+.. literalinclude:: ../../examples/userguide/sharing_declarations/c_lunch.pxd
 
-    cimport c_lunch
+:file:`lunch.pyx`:
 
-    def eject_tomato(float speed):
-        c_lunch.eject_tomato(speed)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.pyx
 
 You don't need any :file:`c_lunch.pyx` file, because the only things defined
 in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
 ``c_lunch`` module at run time, but that doesn't matter; the
 :file:`c_lunch.pxd` file has done its job of providing an additional namespace
-at compile time.  
+at compile time.
 
 
 Sharing C Functions
@@ -173,34 +154,26 @@ C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
 example:
 
-:file:`volume.pxd`::
+:file:`volume.pxd`:
 
-    cdef float cube(float)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pxd
 
-:file:`volume.pyx`::
+:file:`volume.pyx`:
 
-    cdef float cube(float x):
-        return x * x * x
+.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pyx
 
-:file:`spammery.pyx`::
+:file:`spammery.pyx`:
 
-    from volume cimport cube
-
-    def menu(description, size):
-        print description, ":", cube(size), \
-            "cubic metres of spam"
-
-    menu("Entree", 1)
-    menu("Main course", 3)
-    menu("Dessert", 2)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.pyx
 
 .. note::
 
     When a module exports a C function in this way, an object appears in the
     module dictionary under the function's name. However, you can't make use of
     this object from Python, nor can you use it from Cython using a normal import
-    statement; you have to use :keyword:`cimport`.  
+    statement; you have to use :keyword:`cimport`.
 
+.. _sharing_extension_types:
 
 Sharing Extension Types
 =======================
@@ -220,38 +193,23 @@ Python methods.
 Here is an example of a module which defines and exports an extension type,
 and another module which uses it:
 
-:file:`Shrubbing.pxd`::
+:file:`shrubbing.pxd`:
 
-    cdef class Shrubbery:
-        cdef int width
-        cdef int length
+.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pxd
 
-:file:`Shrubbing.pyx`::
+:file:`shrubbing.pyx`:
 
-    cdef class Shrubbery:
-        def __cinit__(self, int w, int l):
-            self.width = w
-            self.length = l
+.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
 
-    def standard_shrubbery():
-        return Shrubbery(3, 7)
+:file:`landscaping.pyx`:
 
-:file:`Landscaping.pyx`::
-
-    cimport Shrubbing
-    import Shrubbing
-
-    cdef Shrubbing.Shrubbery sh
-    sh = Shrubbing.standard_shrubbery()
-    print "Shrubbery size is %d x %d" % (sh.width, sh.length)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
 
 One would then need to compile both of these modules, e.g. using
 
-:file:`setup.py`::
+:file:`setup.py`:
 
-    from distutils.core import setup
-    from Cython.Build import cythonize
-    setup(ext_modules = cythonize(["Landscaping.pyx", "Shrubbing.pyx"]))
+.. literalinclude:: ../../examples/userguide/sharing_declarations/setup.py
 
 Some things to note about this example:
 
@@ -263,3 +221,29 @@ Some things to note about this example:
   doesn't bind the name Shrubbing in Landscaping's module namespace at run
   time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
   ``import Shrubbing``.
+* One caveat if you use setuptools instead of distutils, the default
+  action when running ``python setup.py install`` is to create a zipped
+  ``egg`` file which will not work with ``cimport`` for ``pxd`` files
+  when you try to use them from a dependent package.
+  To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+
+.. _versioning:
+
+Versioning
+==========
+  
+``.pxd`` files can be labelled with a minimum Cython version as part of
+their file name, similar to the version tagging of ``.so`` files in PEP 3149.
+For example a file called :file:`Shrubbing.cython-30.pxd` will only be
+found by ``cimport Shrubbing`` on Cython 3.0 and higher. Cython will use the
+file tagged with the highest compatible version number.
+ 
+Note that versioned files that are distributed across different directories
+will not be found. Only the first directory in the Python module search
+path in which a matching ``.pxd`` file is found will be considered.
+ 
+The purpose of this feature is to allow third-party packages to release
+Cython interfaces to their packages that take advantage of the latest Cython
+features while not breaking compatibility for users with older versions of Cython.
+Users intending to use ``.pxd`` files solely within their own project
+need not produce these tagged files.

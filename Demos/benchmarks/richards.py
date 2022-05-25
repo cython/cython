@@ -102,13 +102,13 @@ class TaskState(object):
         self.task_waiting = False
         self.task_holding = False
         return self
-        
+
     def waitingWithPacket(self):
         self.packet_pending = True
         self.task_waiting = True
         self.task_holding = False
         return self
-        
+
     def isPacketPending(self):
         return self.packet_pending
 
@@ -233,7 +233,7 @@ class Task(TaskState):
         if t is None:
             raise Exception("Bad task id %d" % id)
         return t
-            
+
 
 # DeviceTask
 
@@ -307,7 +307,7 @@ class IdleTask(Task):
         else:
             i.control = i.control//2 ^ 0xd008
             return self.release(I_DEVB)
-            
+
 
 # WorkTask
 
@@ -333,7 +333,7 @@ class WorkTask(Task):
         pkt.ident = dest
         pkt.datum = 0
 
-        for i in BUFSIZE_RANGE: # range(BUFSIZE)
+        for i in BUFSIZE_RANGE:  # range(BUFSIZE)
             w.count += 1
             if w.count > 26:
                 w.count = 1
@@ -382,10 +382,10 @@ class Richards(object):
             wkq = Packet(wkq , I_DEVB, K_DEV)
             HandlerTask(I_HANDLERB, 3000, wkq, TaskState().waitingWithPacket(), HandlerTaskRec())
 
-            wkq = None;
-            DeviceTask(I_DEVA, 4000, wkq, TaskState().waiting(), DeviceTaskRec());
-            DeviceTask(I_DEVB, 5000, wkq, TaskState().waiting(), DeviceTaskRec());
-            
+            wkq = None
+            DeviceTask(I_DEVA, 4000, wkq, TaskState().waiting(), DeviceTaskRec())
+            DeviceTask(I_DEVB, 5000, wkq, TaskState().waiting(), DeviceTaskRec())
+
             schedule()
 
             if taskWorkArea.holdCount == 9297 and taskWorkArea.qpktCount == 23246:
@@ -431,7 +431,7 @@ else:
             for it in item.__dict__.values():
                 if isinstance(it, types.FunctionType):
                     pypyjit.enable(it.func_code)
-    
+
 if __name__ == '__main__':
     import sys
     if len(sys.argv) >= 2:

@@ -1,10 +1,11 @@
-include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt CHANGES.rst
-include COPYING.txt LICENSE.txt 2to3-fixers.txt Makefile
+include MANIFEST.in README.rst INSTALL.txt ToDo.txt USAGE.txt CHANGES.rst
+include COPYING.txt LICENSE.txt Makefile
 include .gitrev
 include pylintrc
 include setup.py
 include setupegg.py
 include bin/*
+include *requirements*.txt
 include cython.py cythonize.py cygdb.py
 recursive-include Cython *.pyx *.pxd
 include Cython/Parser/Grammar Cython/Parser/__init__.py

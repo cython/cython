@@ -43,7 +43,7 @@ def permutations(iterable):
         else:
             return
 
-# From http://code.activestate.com/recipes/576647/
+# From https://code.activestate.com/recipes/576647/
 @cython.locals(queen_count=int, i=int, vec=list)
 def n_queens(queen_count):
     """N-Queens solver.

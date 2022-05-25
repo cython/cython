@@ -65,7 +65,7 @@ changes/contributions they have specific copyright on, they should indicate
 their copyright in the commit message of the change, when they commit the
 change to one of the IPython repositories.
 
-With this in mind, the following banner should be used in any source code file 
+With this in mind, the following banner should be used in any source code file
 to indicate the copyright and license terms:
 
 ::

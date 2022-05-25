@@ -11,8 +11,8 @@ load("@cython//Tools:rules.bzl", "pyx_library")
 
 pyx_library(name = 'mylib',
             srcs = ['a.pyx', 'a.pxd', 'b.py', 'pkg/__init__.py', 'pkg/c.pyx'],
-            py_deps = ['//py_library/dep'],
-            data = ['//other/data'],
+            # python library deps passed to py_library
+            deps = ['//py_library/dep']
 )
 
 The __init__.py file must be in your srcs list so that Cython can resolve
@@ -24,13 +24,14 @@ def pyx_library(
         deps=[],
         srcs=[],
         cython_directives=[],
-        cython_options=[]):
+        cython_options=[],
+        **kwargs):
     # First filter out files that should be run compiled vs. passed through.
     py_srcs = []
     pyx_srcs = []
     pxd_srcs = []
     for src in srcs:
-        if src.endswith('.pyx') or (src.endwith('.py')
+        if src.endswith('.pyx') or (src.endswith('.py')
                                     and src[:-3] + '.pxd' in srcs):
             pyx_srcs.append(src)
         elif src.endswith('.py'):
@@ -47,7 +48,7 @@ def pyx_library(
                            ["-s '%s=%s'" % x for x in cython_options])
     # TODO(robertwb): It might be better to only generate the C files,
     # letting cc_library (or similar) handle the rest, but there isn't yet
-    # suport compiling Python C extensions from bazel.
+    # support compiling Python C extensions from bazel.
     native.genrule(
         name = name + "_cythonize",
         srcs = pyx_srcs,
@@ -64,5 +65,6 @@ def pyx_library(
         name=name,
         srcs=py_srcs,
         deps=deps,
-        data=outs + pyx_srcs + pxd_srcs
+        data=outs + pyx_srcs + pxd_srcs,
+        **kwargs
     )

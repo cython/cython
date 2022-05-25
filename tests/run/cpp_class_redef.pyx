@@ -1,6 +1,7 @@
-# tag: cpp
+# mode: run
+# tag: cpp, warnings, no-cpp-locals
 
-# This gives a warning, but should not give an error.
+# This gives a warning about the previous .pxd definition, but should not give an error.
 cdef cppclass Foo:
     int _foo
     int get_foo():
@@ -20,3 +21,8 @@ def test_Foo(n):
         return foo.get_foo()
     finally:
         del foo
+
+
+_WARNINGS = """
+5:5: 'Foo' already defined  (ignoring second definition)
+"""

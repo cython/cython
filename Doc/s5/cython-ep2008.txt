@@ -51,7 +51,7 @@ Cython is
 
 * an Open-Source project
 
-  * http://cython.org
+  * https://cython.org/
 
 * a Python compiler (almost)
 
@@ -115,7 +115,7 @@ Major Cython Developers
 
 * many, *many* others - see
 
-  * http://cython.org/
+  * https://cython.org/
 
   * the mailing list archives of Cython and Pyrex
 
@@ -398,4 +398,4 @@ Cython
 
   \... use it, and join the project!
 
-  http://cython.org/
+  https://cython.org/

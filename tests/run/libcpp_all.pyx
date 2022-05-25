@@ -1,9 +1,10 @@
-# tag: cpp
+# tag: cpp, no-cpp-locals
 
 import cython
 
 cimport libcpp
 
+# cimport libcpp.atomic
 cimport libcpp.deque
 cimport libcpp.list
 cimport libcpp.map
@@ -15,6 +16,7 @@ cimport libcpp.vector
 cimport libcpp.complex
 cimport libcpp.limits
 
+# from libcpp.atomic cimport *
 from libcpp.deque  cimport *
 from libcpp.list   cimport *
 from libcpp.map    cimport *
@@ -26,6 +28,7 @@ from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
 
+# cdef libcpp.atomic.atomc[int]  a1 = atomic[int]()
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
 cdef libcpp.map.map[int,int]   m1 = map[int,int]()
@@ -94,6 +97,7 @@ cdef const_vector_to_list(const vector[double]& cv):
         cython.operator.preincrement(iter)
     return lst
 
+
 cdef double dmax = numeric_limits[double].max()
 cdef double dmin = numeric_limits[double].min()
 cdef double deps = numeric_limits[double].epsilon()
@@ -124,4 +128,23 @@ def convert_to_vector(I):
     """
     cdef vector[int] x = I
 
-    
+
+def complex_operators():
+    """
+    >>> complex_operators()
+    [-1.0, 0.0, 0.0, 2.0, 0.0, 2.0]
+    """
+    cdef libcpp.complex.complex[double] a = libcpp.complex.complex[double](0.0,1.0)
+    cdef libcpp.complex.complex[double] r1=a*a
+    cdef libcpp.complex.complex[double] r2=a*2.0
+    cdef libcpp.complex.complex[double] r3=2.0*a
+    return [r1.real(), r1.imag(), r2.real(), r2.imag(), r3.real(), r3.imag()]
+
+def pair_comparison():
+    """
+    >>> pair_comparison()
+    [False, True, False, True, False]
+    """
+    cdef pair[double, double] p1 = pair[double, double](1.0,2.0)
+    cdef pair[double, double] p2 = pair[double, double](2.0,2.0)
+    return [p1==p2,p1==p1,p1>p2,p1<p2,p2>p2]

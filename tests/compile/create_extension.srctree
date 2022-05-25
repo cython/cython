@@ -1,0 +1,24 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+ext_modules = [
+    Extension("foo", ["foo.pyx"]),
+]
+
+# Example documented in docs/src/reference/compilation.rst
+from Cython.Build.Dependencies import default_create_extension
+
+def my_create_extension(template, kwds):
+    libs = kwds.get('libraries', []) + ["mylib"]
+    kwds['libraries'] = libs
+    return default_create_extension(template, kwds)
+
+ext_modules = cythonize(ext_modules, create_extension=my_create_extension)
+
+assert ext_modules[0].libraries == ["mylib"]
+
+######## foo.pyx ########

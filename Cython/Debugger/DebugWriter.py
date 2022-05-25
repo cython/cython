@@ -5,8 +5,8 @@ import sys
 import errno
 
 try:
-  from lxml import etree
-  have_lxml = True
+    from lxml import etree
+    have_lxml = True
 except ImportError:
     have_lxml = False
     try:
@@ -42,6 +42,10 @@ class CythonDebugWriter(object):
         self.tb.start(name, attrs or {})
 
     def end(self, name):
+        self.tb.end(name)
+
+    def add_entry(self, name, **attrs):
+        self.tb.start(name, attrs)
         self.tb.end(name)
 
     def serialize(self):

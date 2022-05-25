@@ -1,10 +1,16 @@
-#cython: embedsignature=True
+#cython: embedsignature=True, annotation_typing=False
+
+# signatures here are a little fragile - when they are
+# generated during the build process gives slightly
+# different (but equivalent) forms - therefore tests
+# may need changing occasionally to reflect behaviour
+# and this isn't necessarily a bug
 
 import sys
 
 if sys.version_info >= (3, 4):
     def funcdoc(f):
-        if not f.__text_signature__:
+        if not getattr(f, "__text_signature__", None):
             return f.__doc__
         doc = '%s%s' % (f.__name__, f.__text_signature__)
         if f.__doc__:
@@ -79,6 +85,12 @@ __doc__ = ur"""
 
     >>> print (Ext.m.__doc__)
     Ext.m(self, a=u'spam')
+
+    >>> print (Ext.n.__doc__)
+    Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+
+    >>> print (Ext.o.__doc__)
+    Ext.o(self, a, b=1, /, c=5, *args, **kwargs)
 
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
@@ -185,7 +197,7 @@ __doc__ = ur"""
     f_defexpr4(int x=(Ext.CONST1 + FLAG1) * Ext.CONST2)
 
     >>> print(funcdoc(f_defexpr5))
-    f_defexpr5(int x=4)
+    f_defexpr5(int x=2 + 2)
 
     >>> print(funcdoc(f_charptr_null))
     f_charptr_null(char *s=NULL) -> char *
@@ -257,6 +269,12 @@ cdef class Ext:
         pass
 
     def m(self, a=u'spam'):
+        pass
+
+    def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+        pass
+
+    def o(self, a, b=1, /, c=5, *args, **kwargs):
         pass
 
     cpdef int get_int(self):
@@ -388,3 +406,136 @@ cpdef (char*) f_charptr_null(char* s=NULL):
 # no signatures for lambda functions
 lambda_foo = lambda x: 10
 lambda_bar = lambda x: 20
+
+
+cdef class Foo:
+    def m00(self, a: None) ->  None: pass
+    def m01(self, a: ...) ->  Ellipsis: pass
+    def m02(self, a: True, b: False) ->  bool: pass
+    def m03(self, a: 42, b: +42, c: -42) ->  int : pass  # XXX +42 -> 42
+    def m04(self, a: 3.14, b: +3.14, c: -3.14) -> float : pass
+    def m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex : pass
+    def m06(self, a: "abc", b: b"abc", c: u"abc") -> (str, bytes, unicode) : pass
+    def m07(self, a: [1, 2, 3], b: []) -> list: pass
+    def m08(self, a: (1, 2, 3), b: ()) -> tuple: pass
+    def m09(self, a: {1, 2, 3}, b: {i for i in ()}) -> set: pass
+    def m10(self, a: {1: 1, 2: 2, 3: 3}, b: {}) -> dict: pass
+   #def m11(self, a: [str(i) for i in range(3)]): pass  # Issue 1782
+    def m12(self, a: (str(i) for i in range(3))): pass
+    def m13(self, a: (str(i) for i in range(3) if bool(i))): pass
+    def m14(self, a: {str(i) for i in range(3)}): pass
+    def m15(self, a: {str(i) for i in range(3) if bool(i)}): pass
+    def m16(self, a: {str(i): id(i) for i in range(3)}): pass
+    def m17(self, a: {str(i): id(i) for i in range(3) if bool(i)}): pass
+    def m18(self, a: dict.update(x=42, **dict(), **{})): pass
+    def m19(self, a: sys is None, b: sys is not None): pass
+    def m20(self, a: sys in [], b: sys not in []): pass
+    def m21(self, a: (sys or sys) and sys, b: not (sys or sys)): pass
+    def m22(self, a: 42 if sys else None): pass
+    def m23(self, a: +int(), b: -int(), c: ~int()): pass
+    def m24(self, a: (1+int(2))*3+(4*int(5))**(1+0.0/1)): pass
+    def m25(self, a: list(range(3))[:]): pass
+    def m26(self, a: list(range(3))[1:]): pass
+    def m27(self, a: list(range(3))[:1]): pass
+    def m28(self, a: list(range(3))[::1]): pass
+    def m29(self, a: list(range(3))[0:1:1]): pass
+    def m30(self, a: list(range(3))[7, 3:2:1, ...]): pass
+    def m31(self, double[::1] a): pass
+
+__doc__ += ur"""
+>>> print(Foo.m00.__doc__)
+Foo.m00(self, a: None) -> None
+
+>>> print(Foo.m01.__doc__)
+Foo.m01(self, a: ...) -> Ellipsis
+
+>>> print(Foo.m02.__doc__)
+Foo.m02(self, a: True, b: False) -> bool
+
+>>> print(Foo.m03.__doc__)
+Foo.m03(self, a: 42, b: +42, c: -42) -> int
+
+>>> print(Foo.m04.__doc__)
+Foo.m04(self, a: 3.14, b: +3.14, c: -3.14) -> float
+
+>>> print(Foo.m05.__doc__)
+Foo.m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex
+
+>>> print(Foo.m06.__doc__)
+Foo.m06(self, a: 'abc', b: b'abc', c: 'abc') -> (str, bytes, unicode)
+
+>>> print(Foo.m07.__doc__)
+Foo.m07(self, a: [1, 2, 3], b: []) -> list
+
+>>> print(Foo.m08.__doc__)
+Foo.m08(self, a: (1, 2, 3), b: ()) -> tuple
+
+>>> print(Foo.m09.__doc__)
+Foo.m09(self, a: {1, 2, 3}, b: {i for i in ()}) -> set
+
+>>> print(Foo.m10.__doc__)
+Foo.m10(self, a: {1: 1, 2: 2, 3: 3}, b: {}) -> dict
+
+# >>> print(Foo.m11.__doc__)
+# Foo.m11(self, a: [str(i) for i in range(3)])
+
+>>> print(Foo.m12.__doc__)
+Foo.m12(self, a: (str(i) for i in range(3)))
+
+>>> print(Foo.m13.__doc__)
+Foo.m13(self, a: (str(i) for i in range(3) if bool(i)))
+
+>>> print(Foo.m14.__doc__)
+Foo.m14(self, a: {str(i) for i in range(3)})
+
+>>> print(Foo.m15.__doc__)
+Foo.m15(self, a: {str(i) for i in range(3) if bool(i)})
+
+>>> print(Foo.m16.__doc__)
+Foo.m16(self, a: {str(i): id(i) for i in range(3)})
+
+>>> print(Foo.m17.__doc__)
+Foo.m17(self, a: {str(i): id(i) for i in range(3) if bool(i)})
+
+>>> print(Foo.m18.__doc__)
+Foo.m18(self, a: dict.update(x=42, **dict()))
+
+>>> print(Foo.m19.__doc__)
+Foo.m19(self, a: sys is None, b: sys is not None)
+
+>>> print(Foo.m20.__doc__)
+Foo.m20(self, a: sys in [], b: sys not in [])
+
+>>> print(Foo.m21.__doc__)
+Foo.m21(self, a: (sys or sys) and sys, b: not (sys or sys))
+
+>>> print(Foo.m22.__doc__)
+Foo.m22(self, a: 42 if sys else None)
+
+>>> print(Foo.m23.__doc__)
+Foo.m23(self, a: +int(), b: -int(), c: ~int())
+
+>>> print(Foo.m24.__doc__)
+Foo.m24(self, a: (1 + int(2)) * 3 + (4 * int(5)) ** (1 + 0.0 / 1))
+
+>>> print(Foo.m25.__doc__)
+Foo.m25(self, a: list(range(3))[:])
+
+>>> print(Foo.m26.__doc__)
+Foo.m26(self, a: list(range(3))[1:])
+
+>>> print(Foo.m27.__doc__)
+Foo.m27(self, a: list(range(3))[:1])
+
+>>> print(Foo.m28.__doc__)
+Foo.m28(self, a: list(range(3))[::1])
+
+>>> print(Foo.m29.__doc__)
+Foo.m29(self, a: list(range(3))[0:1:1])
+
+>>> print(Foo.m30.__doc__)
+Foo.m30(self, a: list(range(3))[7, 3:2:1, ...])
+
+>>> print(Foo.m31.__doc__)
+Foo.m31(self, double[::1] a)
+"""

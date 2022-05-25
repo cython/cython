@@ -1,4 +1,4 @@
-# ticket: 241
+# ticket: t241
 # mode: error
 
 cdef some_function(x, y):
@@ -69,35 +69,35 @@ strstr("abc", "abcdef", char="xyz")
 
 
 _ERRORS = u"""
-22:18: argument 'x' passed twice
-23:18: argument 'x' passed twice
-24:23: C function got unexpected keyword argument 'z'
-25:18: C function got unexpected keyword argument 'z'
-26:21: C function got unexpected keyword argument 'z'
-27:25: C function got unexpected keyword argument 'z'
-28:25: argument 'x' passed twice
-29:25: argument 'x' passed twice
-29:30: C function got unexpected keyword argument 'z'
+22:17: argument 'x' passed twice
+23:17: argument 'x' passed twice
+24:22: C function got unexpected keyword argument 'z'
+25:17: C function got unexpected keyword argument 'z'
+26:20: C function got unexpected keyword argument 'z'
+27:24: C function got unexpected keyword argument 'z'
+28:24: argument 'x' passed twice
+29:24: argument 'x' passed twice
+29:29: C function got unexpected keyword argument 'z'
 
-39:18: argument 'x' passed twice
-40:21: argument 'x' passed twice
-41:21: argument 'y' passed twice
-42:21: argument 'x' passed twice
-42:26: argument 'y' passed twice
-43:21: argument 'y' passed twice
-43:26: argument 'x' passed twice
-44:23: argument 'x' passed twice
-45:21: C function got unexpected keyword argument 'z'
-46:23: C function got unexpected keyword argument 'z'
-47:20: argument 'x' passed twice
-48:20: argument 'x' passed twice
-49:25: argument 'x' passed twice
+39:17: argument 'x' passed twice
+40:20: argument 'x' passed twice
+41:20: argument 'y' passed twice
+42:20: argument 'x' passed twice
+42:25: argument 'y' passed twice
+43:20: argument 'y' passed twice
+43:25: argument 'x' passed twice
+44:22: argument 'x' passed twice
+45:20: C function got unexpected keyword argument 'z'
+46:22: C function got unexpected keyword argument 'z'
+47:19: argument 'x' passed twice
+48:19: argument 'x' passed twice
+49:24: argument 'x' passed twice
 
-58:16: argument 's1' passed twice
-59:26: argument 's1' passed twice
-60:29: argument 's1' passed twice
-61:29: argument 's2' passed twice
+58:14: argument 's1' passed twice
+59:24: argument 's1' passed twice
+60:27: argument 's1' passed twice
+61:27: argument 's2' passed twice
 
-67:18: C function got unexpected keyword argument 'char'
-68:28: C function got unexpected keyword argument 'char'
+67:14: C function got unexpected keyword argument 'char'
+68:24: C function got unexpected keyword argument 'char'
 """

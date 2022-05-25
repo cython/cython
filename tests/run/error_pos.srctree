@@ -1,0 +1,24 @@
+PYTHON setup.py build_ext --inplace
+PYTHON test_error_pos.py
+
+######## setup.py ###########
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules=cythonize("error_pos.pyx"))
+
+######## error_pos.pyx ###########
+from os import *
+
+abcdefg(line)
+
+######## test_error_pos.py ###########
+import subprocess
+import sys
+
+cmd = [sys.executable, '-c', 'import error_pos']
+proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+_, err = proc.communicate()
+# The error should contain the line number and the line text where the
+# undefined identifier is used.
+assert b'line 3, in init error_pos' and b'abcdefg(line)' in err, err

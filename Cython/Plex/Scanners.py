@@ -1,17 +1,15 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#
-#   Scanning an input stream
-#
-#=======================================================================
+# cython: language_level=3str
+# cython: auto_pickle=False
+"""
+Python Lexical Analyser
 
+Scanning an input stream
+"""
 from __future__ import absolute_import
 
 import cython
 
-cython.declare(BOL=object, EOL=object, EOF=object, NOT_FOUND=object)
+cython.declare(BOL=object, EOL=object, EOF=object, NOT_FOUND=object)  # noqa:E402
 
 from . import Errors
 from .Regexps import BOL, EOL, EOF
@@ -172,26 +170,28 @@ class Scanner(object):
         buf_len = len(buffer)
         b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
             None, 0, 0, 0, u'', 0, 0
+
         trace = self.trace
         while 1:
-            if trace:  #TRACE#
-                print("State %d, %d/%d:%s -->" % (  #TRACE#
-                    state['number'], input_state, cur_pos, repr(cur_char)))  #TRACE#
+            if trace:
+                print("State %d, %d/%d:%s -->" % (
+                    state['number'], input_state, cur_pos, repr(cur_char)))
+
             # Begin inlined self.save_for_backup()
-            #action = state.action #@slow
-            action = state['action']  #@fast
+            action = state['action']
             if action is not None:
                 b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
                     action, cur_pos, cur_line, cur_line_start, cur_char, input_state, next_pos
             # End inlined self.save_for_backup()
+
             c = cur_char
-            #new_state = state.new_state(c) #@slow
-            new_state = state.get(c, NOT_FOUND)  #@fast
-            if new_state is NOT_FOUND:  #@fast
-                new_state = c and state.get('else')  #@fast
+            new_state = state.get(c, NOT_FOUND)
+            if new_state is NOT_FOUND:
+                new_state = c and state.get('else')
+
             if new_state:
-                if trace:  #TRACE#
-                    print("State %d" % new_state['number'])  #TRACE#
+                if trace:
+                    print("State %d" % new_state['number'])
                 state = new_state
                 # Begin inlined: self.next_char()
                 if input_state == 1:
@@ -239,8 +239,8 @@ class Scanner(object):
                     cur_char = u''
                     # End inlined self.next_char()
             else:  # not new_state
-                if trace:  #TRACE#
-                    print("blocked")  #TRACE#
+                if trace:
+                    print("blocked")
                 # Begin inlined: action = self.back_up()
                 if b_action is not None:
                     (action, cur_pos, cur_line, cur_line_start,
@@ -251,15 +251,16 @@ class Scanner(object):
                     action = None
                 break  # while 1
                 # End inlined: action = self.back_up()
+
         self.cur_pos = cur_pos
         self.cur_line = cur_line
         self.cur_line_start = cur_line_start
         self.cur_char = cur_char
         self.input_state = input_state
         self.next_pos = next_pos
-        if trace:  #TRACE#
-            if action is not None:  #TRACE#
-                print("Doing %s" % action)  #TRACE#
+        if trace:
+            if action is not None:
+                print("Doing %s" % action)
         return action
 
     def next_char(self):
@@ -291,7 +292,7 @@ class Scanner(object):
         else:  # input_state = 5
             self.cur_char = u''
         if self.trace:
-            print("--> [%d] %d %s" % (input_state, self.cur_pos, repr(self.cur_char)))
+            print("--> [%d] %d %r" % (input_state, self.cur_pos, self.cur_char))
 
     def position(self):
         """
@@ -305,7 +306,8 @@ class Scanner(object):
         return (self.name, self.start_line, self.start_col)
 
     def get_position(self):
-        """Python accessible wrapper around position(), only for error reporting.
+        """
+        Python accessible wrapper around position(), only for error reporting.
         """
         return self.position()
 
@@ -335,3 +337,4 @@ class Scanner(object):
         Override this method if you want something to be done at
         end of file.
         """
+        pass

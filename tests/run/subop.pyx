@@ -191,3 +191,27 @@ def sub_large_x(x):
     ... except TypeError: pass
     """
     return 2**30 - x
+
+
+def sub0(x):
+    """
+    >>> sub0(0)
+    (0, 0)
+    >>> sub0(1)
+    (1, -1)
+    >>> sub0(-1)
+    (-1, 1)
+    >>> sub0(99)
+    (99, -99)
+    >>> a, b = sub0(2**32)
+    >>> bigint(a)
+    4294967296
+    >>> bigint(b)
+    -4294967296
+    >>> a, b = sub0(-2**32)
+    >>> bigint(a)
+    -4294967296
+    >>> bigint(b)
+    4294967296
+    """
+    return x - 0, 0 - x

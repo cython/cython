@@ -4,8 +4,10 @@ from .object cimport PyObject
 
 cdef extern from "Python.h":
 
-    # We make these an opague types. If the user wants specific attributes,
+    # We make these an opaque types. If the user wants specific attributes,
     # they can be declared manually.
+
+    ctypedef long PY_INT64_T  # FIXME: Py2.7+, not defined here but used here
 
     ctypedef struct PyInterpreterState:
         pass
@@ -18,7 +20,8 @@ cdef extern from "Python.h":
 
     # This is not actually a struct, but make sure it can never be coerced to
     # an int or used in arithmetic expressions
-    ctypedef struct PyGILState_STATE
+    ctypedef struct PyGILState_STATE:
+        pass
 
     # The type of the trace function registered using PyEval_SetProfile() and
     # PyEval_SetTrace().
@@ -39,13 +42,14 @@ cdef extern from "Python.h":
     PyInterpreterState * PyInterpreterState_New()
     void PyInterpreterState_Clear(PyInterpreterState *)
     void PyInterpreterState_Delete(PyInterpreterState *)
+    PY_INT64_T PyInterpreterState_GetID(PyInterpreterState *)
 
     PyThreadState * PyThreadState_New(PyInterpreterState *)
     void PyThreadState_Clear(PyThreadState *)
     void PyThreadState_Delete(PyThreadState *)
 
     PyThreadState * PyThreadState_Get()
-    PyThreadState * PyThreadState_Swap(PyThreadState *)
+    PyThreadState * PyThreadState_Swap(PyThreadState *)  # NOTE: DO NOT USE IN CYTHON CODE !
     PyObject * PyThreadState_GetDict()
     int PyThreadState_SetAsyncExc(long, PyObject *)
 
@@ -79,6 +83,9 @@ cdef extern from "Python.h":
     # Every call to PyGILState_Ensure must be matched by a call to
     # PyGILState_Release on the same thread.
     void PyGILState_Release(PyGILState_STATE)
+
+    # Return 1 if the current thread holds the GIL and 0 otherwise.
+    int PyGILState_Check()
 
     # Routines for advanced debuggers, requested by David Beazley.
     # Don't use unless you know what you are doing!

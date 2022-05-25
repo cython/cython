@@ -113,13 +113,13 @@ def try_finally_nested(m):
         print f
 
 _ERRORS = """
-12:12: local variable 'e' might be referenced before assignment
-12:15: local variable 'i' might be referenced before assignment
-19:12: local variable 'a' might be referenced before assignment
-63:16: local variable 'x' might be referenced before assignment
-69:16: local variable 'x' might be referenced before assignment
-77:14: local variable 'oops' might be referenced before assignment
-93:16: local variable 'x' might be referenced before assignment
-101:16: local variable 'x' might be referenced before assignment
-113:15: local variable 'f' might be referenced before assignment
+12:11: local variable 'e' might be referenced before assignment
+12:14: local variable 'i' might be referenced before assignment
+19:11: local variable 'a' might be referenced before assignment
+63:15: local variable 'x' might be referenced before assignment
+69:15: local variable 'x' might be referenced before assignment
+77:10: local variable 'oops' might be referenced before assignment
+93:15: local variable 'x' might be referenced before assignment
+101:15: local variable 'x' might be referenced before assignment
+113:14: local variable 'f' might be referenced before assignment
 """

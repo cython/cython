@@ -1,4 +1,4 @@
-# ticket: 255
+# ticket: t255
 
 __doc__ = u""
 
@@ -685,14 +685,13 @@ class MyBadInt2(MyInt2):
 
 def test_convert_pyint(x):
    u"""
-   >>> test_convert_pyint(None)
+   >>> test_convert_pyint(None)  # doctest: +ELLIPSIS
+   Traceback (most recent call last):
+   TypeError:... int...
+   >>> test_convert_pyint("123")  # doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   TypeError: an integer is required
-   >>> test_convert_pyint("123")
-   Traceback (most recent call last):
-       ...
-   TypeError: an integer is required
+   TypeError:... int...
    >>> test_convert_pyint(MyBadInt(0)) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
@@ -733,14 +732,14 @@ class MyBadLong(MyLong):
 
 def test_convert_pylong(x):
    u"""
-   >>> test_convert_pylong(None)
+   >>> test_convert_pylong(None)  # doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   TypeError: an integer is required
-   >>> test_convert_pylong("123")
+   TypeError:... int...
+   >>> test_convert_pylong("123")  # doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   TypeError: an integer is required
+   TypeError:... int...
    >>> test_convert_pylong(MyBadLong(0)) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...

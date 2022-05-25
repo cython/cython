@@ -12,7 +12,6 @@ from . import PyrexTypes
 from . import Naming
 from . import Symtab
 
-
 def dedent(text, reindent=0):
     from textwrap import dedent
     text = dedent(text)
@@ -37,7 +36,6 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         if self.buffers_exists:
             use_bufstruct_declare_code(node.scope)
             use_py2_buffer_functions(node.scope)
-            node.scope.use_utility_code(empty_bufstruct_utility)
 
         return result
 
@@ -87,7 +85,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 aux_var = scope.declare_var(name=None, cname=cname,
                                             type=type, pos=node.pos)
                 if entry.is_arg:
-                    aux_var.used = True # otherwise, NameNode will mark whether it is used
+                    aux_var.used = True  # otherwise, NameNode will mark whether it is used
 
                 return aux_var
 
@@ -113,9 +111,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 # Analysis
 #
-buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast") # ordered!
+buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast")  # ordered!
 buffer_defaults = {"ndim": 1, "mode": "full", "negative_indices": True, "cast": False}
-buffer_positional_options_count = 1 # anything beyond this needs keyword argument
+buffer_positional_options_count = 1  # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
 ERR_BUF_TOO_MANY = 'Too many buffer options'
@@ -148,12 +146,12 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     options = {}
     for name, (value, pos) in dictargs.items():
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value
 
     for name, (value, pos) in zip(buffer_options, posargs):
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         if name in options:
             raise CompileError(pos, ERR_BUF_DUP % name)
@@ -161,7 +159,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     # Check that they are all there and copy defaults
     for name in buffer_options:
-        if not name in options:
+        if name not in options:
             try:
                 options[name] = defaults[name]
             except KeyError:
@@ -300,9 +298,10 @@ def put_unpack_buffer_aux_into_scope(buf_entry, code):
     ln = []
     for i in range(buf_entry.type.ndim):
         for fldname in fldnames:
-            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % \
-                    (pybuffernd_struct, i, fldname,
-                     pybuffernd_struct, fldname, i))
+            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % (
+                pybuffernd_struct, i, fldname,
+                pybuffernd_struct, fldname, i,
+            ))
     code.putln(' '.join(ln))
 
 def put_init_vars(entry, code):
@@ -318,8 +317,8 @@ def put_init_vars(entry, code):
     code.putln("%s.data = NULL;" % pybuffernd_struct)
     code.putln("%s.rcbuffer = &%s;" % (pybuffernd_struct, pybuffer_struct))
 
+
 def put_acquire_arg_buffer(entry, code, pos):
-    code.globalstate.use_utility_code(acquire_utility_code)
     buffer_aux = entry.buffer_aux
     getbuffer = get_getbuffer_call(code, entry.cname, buffer_aux, entry.type)
 
@@ -328,13 +327,15 @@ def put_acquire_arg_buffer(entry, code, pos):
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % entry.type.dtype.struct_nesting_depth())
     code.putln(code.error_goto_if("%s == -1" % getbuffer, pos))
     code.putln("}")
-    # An exception raised in arg parsing cannot be catched, so no
+    # An exception raised in arg parsing cannot be caught, so no
     # need to care about the buffer then.
     put_unpack_buffer_aux_into_scope(entry, code)
+
 
 def put_release_buffer_code(code, entry):
     code.globalstate.use_utility_code(acquire_utility_code)
     code.putln("__Pyx_SafeReleaseBuffer(&%s.rcbuffer->pybuffer);" % entry.buffer_aux.buflocal_nd_var.cname)
+
 
 def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
     ndim = buffer_type.ndim
@@ -344,9 +345,11 @@ def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
 
     dtype_typeinfo = get_type_information_cname(code, buffer_type.dtype)
 
+    code.globalstate.use_utility_code(acquire_utility_code)
     return ("__Pyx_GetBufferAndValidate(&%(pybuffernd_struct)s.rcbuffer->pybuffer, "
             "(PyObject*)%(obj_cname)s, &%(dtype_typeinfo)s, %(flags)s, %(ndim)d, "
             "%(cast)d, __pyx_stack)" % locals())
+
 
 def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
                          is_initialized, pos, code):
@@ -365,14 +368,13 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     """
 
     buffer_aux, buffer_type = buf_entry.buffer_aux, buf_entry.type
-    code.globalstate.use_utility_code(acquire_utility_code)
     pybuffernd_struct = buffer_aux.buflocal_nd_var.cname
     flags = get_flags(buffer_aux, buffer_type)
 
-    code.putln("{")  # Set up necesarry stack for getbuffer
+    code.putln("{")  # Set up necessary stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
 
-    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
+    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type)  # fill in object below
 
     if is_initialized:
         # Release any existing buffer
@@ -385,18 +387,19 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         # before raising the exception. A failure of reacquisition
         # will cause the reacquisition exception to be reported, one
         # can consider working around this later.
-        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
-                           for i in range(3)]
-        code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
+        exc_temps = tuple(code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
+                          for _ in range(3))
+        code.putln('PyErr_Fetch(&%s, &%s, &%s);' % exc_temps)
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
-        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb)) # Do not refnanny these!
+        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % exc_temps)  # Do not refnanny these!
         code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
-        code.putln('PyErr_Restore(%s, %s, %s);' % (type, value, tb))
-        for t in (type, value, tb):
-            code.funcstate.release_temp(t)
+        code.putln('PyErr_Restore(%s, %s, %s);' % exc_temps)
         code.putln('}')
+        code.putln('%s = %s = %s = 0;' % exc_temps)
+        for t in exc_temps:
+            code.funcstate.release_temp(t)
         code.putln('}')
         # Unpack indices
         put_unpack_buffer_aux_into_scope(buf_entry, code)
@@ -417,7 +420,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         put_unpack_buffer_aux_into_scope(buf_entry, code)
         code.putln('}')
 
-    code.putln("}") # Release stack
+    code.putln("}")  # Release stack
 
 
 def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
@@ -490,15 +493,6 @@ def use_bufstruct_declare_code(env):
     env.use_utility_code(buffer_struct_declare_code)
 
 
-def get_empty_bufstruct_code(max_ndim):
-    code = dedent("""
-        static Py_ssize_t __Pyx_zeros[] = {%s};
-        static Py_ssize_t __Pyx_minusones[] = {%s};
-    """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
-    return UtilityCode(proto=code)
-
-empty_bufstruct_utility = get_empty_bufstruct_code(Options.buffer_max_dims)
-
 def buf_lookup_full_code(proto, defin, name, nd):
     """
     Generates a buffer lookup function for the right number
@@ -519,6 +513,7 @@ def buf_lookup_full_code(proto, defin, name, nd):
         """) % (i, i, i, i) for i in range(nd)]
         ) + "\nreturn ptr;\n}")
 
+
 def buf_lookup_strided_code(proto, defin, name, nd):
     """
     Generates a buffer lookup function for the right number
@@ -528,6 +523,7 @@ def buf_lookup_strided_code(proto, defin, name, nd):
     args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
     offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd)])
     proto.putln("#define %s(type, buf, %s) (type)((char*)buf + %s)" % (name, args, offset))
+
 
 def buf_lookup_c_code(proto, defin, name, nd):
     """
@@ -541,6 +537,7 @@ def buf_lookup_c_code(proto, defin, name, nd):
         args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
         offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd - 1)])
         proto.putln("#define %s(type, buf, %s) ((type)((char*)buf + %s) + i%d)" % (name, args, offset, nd - 1))
+
 
 def buf_lookup_fortran_code(proto, defin, name, nd):
     """
@@ -556,6 +553,7 @@ def buf_lookup_fortran_code(proto, defin, name, nd):
 
 def use_py2_buffer_functions(env):
     env.use_utility_code(GetAndReleaseBufferUtilityCode())
+
 
 class GetAndReleaseBufferUtilityCode(object):
     # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
@@ -620,7 +618,7 @@ class GetAndReleaseBufferUtilityCode(object):
 
 
 def mangle_dtype_name(dtype):
-    # Use prefixes to seperate user defined types from builtins
+    # Use prefixes to separate user defined types from builtins
     # (consider "typedef float unsigned_int")
     if dtype.is_pyobject:
         return "object"
@@ -639,7 +637,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
     and return the name of the type info struct.
 
     Structs with two floats of the same size are encoded as complex numbers.
-    One can seperate between complex numbers declared as struct or with native
+    One can separate between complex numbers declared as struct or with native
     encoding by inspecting to see if the fields field of the type is
     filled in.
     """
@@ -671,16 +669,26 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         if dtype.is_simple_buffer_dtype():
             structinfo_name = "NULL"
         elif dtype.is_struct:
-            fields = dtype.scope.var_entries
-            # Must pre-call all used types in order not to recurse utility code
-            # writing.
+            struct_scope = dtype.scope
+            if dtype.is_cv_qualified:
+                struct_scope = struct_scope.base_type_scope
+            # Must pre-call all used types in order not to recurse during utility code writing.
+            fields = struct_scope.var_entries
             assert len(fields) > 0
             types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+
+            if dtype.is_cv_qualified:
+                # roughly speaking, remove "const" from struct_type
+                struct_type = dtype.cv_base_type.empty_declaration_code()
+            else:
+                struct_type = dtype.empty_declaration_code()
+
             for f, typeinfo in zip(fields, types):
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
-                           (typeinfo, f.name, dtype.empty_declaration_code(), f.cname), safe=True)
+                               (typeinfo, f.name, struct_type, f.cname), safe=True)
+
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:
@@ -724,25 +732,18 @@ def load_buffer_utility(util_code_name, context=None, **kwargs):
     else:
         return TempitaUtilityCode.load(util_code_name, "Buffer.c", context=context, **kwargs)
 
-context = dict(max_dims=str(Options.buffer_max_dims))
-buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare",
-                                                 context=context)
-
+context = dict(max_dims=Options.buffer_max_dims)
+buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare", context=context)
+buffer_formats_declare_code = load_buffer_utility("BufferFormatStructs")
 
 # Utility function to set the right exception
 # The caller should immediately goto_error
 raise_indexerror_code = load_buffer_utility("BufferIndexError")
 raise_indexerror_nogil = load_buffer_utility("BufferIndexErrorNogil")
-
 raise_buffer_fallback_code = load_buffer_utility("BufferFallbackError")
-buffer_structs_code = load_buffer_utility(
-        "BufferFormatStructs", proto_block='utility_code_proto_before_types')
-acquire_utility_code = load_buffer_utility("BufferFormatCheck",
-                                           context=context,
-                                           requires=[buffer_structs_code])
+
+acquire_utility_code = load_buffer_utility("BufferGetAndValidate", context=context)
+buffer_format_check_code = load_buffer_utility("BufferFormatCheck", context=context)
 
 # See utility code BufferFormatFromTypeInfo
-_typeinfo_to_format_code = load_buffer_utility("TypeInfoToFormat", context={},
-                                               requires=[buffer_structs_code])
-typeinfo_compare_code = load_buffer_utility("TypeInfoCompare", context={},
-                                            requires=[buffer_structs_code])
+_typeinfo_to_format_code = load_buffer_utility("TypeInfoToFormat")

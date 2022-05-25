@@ -1,7 +1,7 @@
 # cython: warn.maybe_uninitialized=True
 # mode: error
 # tag: werror
-# ticket: 739
+# ticket: t739
 
 def index_lhs(a):
     cdef object idx
@@ -12,6 +12,6 @@ def slice_lhs(a):
     a[:idx] = 1
 
 _ERRORS = """
-8:9: local variable 'idx' referenced before assignment
-12:10: local variable 'idx' referenced before assignment
+8:6: local variable 'idx' referenced before assignment
+12:7: local variable 'idx' referenced before assignment
 """

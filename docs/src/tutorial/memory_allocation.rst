@@ -4,6 +4,9 @@
 Memory Allocation
 *****************
 
+.. include::
+    ../two-syntax-variants-used
+
 Dynamic memory allocation is mostly a non-issue in Python.  Everything is an
 object, and the reference counting system and garbage collector automatically
 return memory to the system when it is no longer being used.
@@ -19,10 +22,10 @@ In some situations, however, these objects can still incur an unacceptable
 amount of overhead, which can then makes a case for doing manual memory
 management in C.
 
-Simple C values and structs (such as a local variable ``cdef double x``) are
-usually allocated on the stack and passed by value, but for larger and more
+Simple C values and structs (such as a local variable ``cdef double x`` / ``x: cython.double``) are
+usually :term:`allocated on the stack<Stack allocation>` and passed by value, but for larger and more
 complicated objects (e.g. a dynamically-sized list of doubles), the memory must
-be manually requested and released.  C provides the functions :c:func:`malloc`,
+be :term:`manually requested and released<Heap allocation>`.  C provides the functions :c:func:`malloc`,
 :c:func:`realloc`, and :c:func:`free` for this purpose, which can be imported
 in cython from ``clibc.stdlib``. Their signatures are:
 
@@ -32,27 +35,17 @@ in cython from ``clibc.stdlib``. Their signatures are:
     void* realloc(void* ptr, size_t size)
     void free(void* ptr)
 
-A very simple example of malloc usage is the following::
+A very simple example of malloc usage is the following:
 
-    import random
-    from libc.stdlib cimport malloc, free
 
-    def random_noise(int number=1):
-        cdef int i
-        # allocate number * sizeof(double) bytes of memory
-        cdef double *my_array = <double *>malloc(number * sizeof(double))
-        if not my_array:
-            raise MemoryError()
+.. tabs::
+    .. group-tab:: Pure Python
 
-        try:
-            ran = random.normalvariate
-            for i in range(number):
-                my_array[i] = ran(0,1)
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.py
 
-            return [ my_array[i] for i in range(number) ]
-        finally:
-            # return the previously allocated memory to the system
-            free(my_array)
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.pyx
 
 Note that the C-API functions for allocating memory on the Python heap
 are generally preferred over the low-level C functions above as the
@@ -62,9 +55,20 @@ smaller memory blocks, which speeds up their allocation by avoiding
 costly operating system calls.
 
 The C-API functions can be found in the ``cpython.mem`` standard
-declarations file::
+declarations file:
 
-    from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from cython.cimports.cpython.mem import PyMem_Malloc, PyMem_Realloc, PyMem_Free
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 Their interface and usage is identical to that of the corresponding
 low-level C functions.
@@ -79,28 +83,13 @@ python process exits.  This is called a memory leak.
 If a chunk of memory needs a larger lifetime than can be managed by a
 ``try..finally`` block, another helpful idiom is to tie its lifetime
 to a Python object to leverage the Python runtime's memory management,
-e.g.::
+e.g.:
 
-  cdef class SomeMemory:
+.. tabs::
+    .. group-tab:: Pure Python
 
-      cdef double* data
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/some_memory.py
 
-      def __cinit__(self, size_t number):
-          # allocate some memory (uninitialised, may contain arbitrary data)
-          self.data = <double*> PyMem_Malloc(number * sizeof(double))
-          if not self.data:
-              raise MemoryError()
+    .. group-tab:: Cython
 
-      def resize(self, size_t new_number):
-          # Allocates new_number * sizeof(double) bytes,
-          # preserving the current content and making a best-effort to
-          # re-use the original data location.
-          mem = <double*> PyMem_Realloc(self.data, new_number * sizeof(double))
-          if not mem:
-              raise MemoryError()
-          # Only overwrite the pointer if the memory was really reallocated.
-          # On error (mem is NULL), the originally memory has not been freed.
-          self.data = mem
-
-      def __dealloc__(self):
-          PyMem_Free(self.data)     # no-op if self.data is NULL
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/some_memory.pyx

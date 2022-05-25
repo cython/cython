@@ -17,7 +17,7 @@ setup(
 ######## callingconvention.pyx ########
 # mode: compile
 
-cdef extern from "external_callingconvention.h":
+cdef extern from "callingconvention.h":
     pass
 
 cdef extern int f1()
@@ -35,10 +35,19 @@ p2 = f2
 p3 = f3
 p4 = f4
 
+
+######## callingconvention.h ########
+
+#define DLL_EXPORT
+#include "external_callingconvention.h"
+
+
 ######## external_callingconvention.h ########
 
 #ifndef DL_IMPORT
   #define DL_IMPORT(t) t
+#elif defined(DLL_EXPORT)
+  #define DL_IMPORT(t) DL_EXPORT(t)
 #endif
 
 #ifdef __cplusplus

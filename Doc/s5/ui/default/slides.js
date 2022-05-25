@@ -1,6 +1,6 @@
 // S5 v1.1 slides.js -- released into the Public Domain
 //
-// Please see http://www.meyerweb.com/eric/tools/s5/credits.html for information 
+// Please see https://meyerweb.com/eric/tools/s5/credits.html for information
 // about all the wonderful and talented contributors to this code!
 
 var undef;
@@ -64,7 +64,7 @@ function nodeValue(node) {
 		var children = node.childNodes;
 		for (var i = 0; i < children.length; ++i) {
 			result += nodeValue(children[i]);
-		}		
+		}
 	}
 	else if (node.nodeType == 3) {
 		result = node.nodeValue;
@@ -106,8 +106,8 @@ function currentSlide() {
 	} else {
 		cs = document.currentSlide;
 	}
-	cs.innerHTML = '<span id="csHere">' + snum + '<\/span> ' + 
-		'<span id="csSep">\/<\/span> ' + 
+	cs.innerHTML = '<span id="csHere">' + snum + '<\/span> ' +
+		'<span id="csSep">\/<\/span> ' +
 		'<span id="csTotal">' + (smax-1) + '<\/span>';
 	if (snum == 0) {
 		cs.style.visibility = 'hidden';
@@ -460,7 +460,7 @@ function notOperaFix() {
 
 function getIncrementals(obj) {
 	var incrementals = new Array();
-	if (!obj) 
+	if (!obj)
 		return incrementals;
 	var children = obj.childNodes;
 	for (var i = 0; i < children.length; i++) {

@@ -1,3 +1,5 @@
+# mode: run
+# tag: all_language_levels
 
 cimport cython
 
@@ -144,6 +146,22 @@ def unpack_tuple_keep_originals(a, b, c):
     return (*a, *b, 2, *c)
 
 
+def unpack_tuple_in_string_formatting(a, *args):
+    """
+    >>> print(unpack_tuple_in_string_formatting(1, 2))
+    1 2
+    >>> print(unpack_tuple_in_string_formatting(1, 'x'))
+    1 'x'
+    >>> unpack_tuple_in_string_formatting(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...format...
+    >>> unpack_tuple_in_string_formatting(1, 2, 3)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...format...
+    """
+    return "%s %r" % (a, *args)
+
+
 #### lists
 
 
@@ -252,6 +270,24 @@ def unpack_list_keep_originals(a, b, c):
     [3, 4]
     """
     return [*a, *b, 2, *c]
+
+
+def unpack_starred_arg_for_in_operator(x, l, m):
+    """
+    >>> l = [1,2,3]
+    >>> m = [4,5,6]
+    >>> x = 1
+    >>> unpack_starred_arg_for_in_operator(x, l, m)
+    True
+    >>> x = 10
+    >>> unpack_starred_arg_for_in_operator(x, l, m)
+    False
+    >>> unpack_starred_arg_for_in_operator(x, l, [])
+    False
+    >>> unpack_starred_arg_for_in_operator(x, [], [])
+    False
+    """
+    return x in [*l, *m]
 
 
 ###### sets
@@ -446,6 +482,10 @@ def unpack_dict_simple(it):
     return {**it}
 
 
+@cython.test_assert_path_exists('//MergedDictNode')
+@cython.test_fail_if_path_exists(
+    '//MergedDictNode//MergedDictNode',
+)
 def unpack_dict_from_iterable(it):
     """
     >>> d = unpack_dict_from_iterable(dict(a=1, b=2, c=3))
@@ -518,3 +558,28 @@ def unpack_dict_keep_originals(a, b, c):
     True
     """
     return {**a, **b, 2: 4, **c}
+
+
+@cython.test_assert_path_exists(
+    '//MergedDictNode',
+    '//MergedDictNode//MergedDictNode',
+    '//MergedDictNode//MergedDictNode//DictNode',
+)
+def unpack_in_call(f):
+    """
+    >>> def f(a=1, test=2, **kwargs):
+    ...     return a, test, sorted(kwargs.items())
+    >>> wrapped = unpack_in_call(f)
+    >>> wrapped(1)
+    (1, 1, [('more', 2)])
+    >>> wrapped(test='overwritten')
+    (1, 1, [('more', 2)])
+    >>> wrapped(b=3)
+    (1, 1, [('b', 3), ('more', 2)])
+    >>> wrapped(more=4)
+    Traceback (most recent call last):
+    TypeError: function() got multiple values for keyword argument 'more'
+    """
+    def wrapper(*args, **kwargs):
+        return f(*args, more=2, **{**kwargs, 'test': 1})
+    return wrapper

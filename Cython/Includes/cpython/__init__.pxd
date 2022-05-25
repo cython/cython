@@ -10,13 +10,13 @@
 #   Read http://docs.python.org/api/refcounts.html which is so
 #   important I've copied it below.
 #
-# For all the declaration below, whenver the Py_ function returns
+# For all the declaration below, whenever the Py_ function returns
 # a *new reference* to a PyObject*, the return type is "object".
 # When the function returns a borrowed reference, the return
 # type is PyObject*.  When Cython sees "object" as a return type
 # it doesn't increment the reference count.  When it sees PyObject*
 # in order to use the result you must explicitly cast to <object>,
-# and when you do that Cython increments the reference count wether
+# and when you do that Cython increments the reference count whether
 # you want it to or not, forcing you to an explicit DECREF (or leak memory).
 # To avoid this we make the above convention.  Note, you can
 # always locally override this convention by putting something like
@@ -178,6 +178,9 @@ from cpython.bytes cimport *
 
 # Python >= 3.0
 from cpython.pycapsule cimport *
+
+# Python >= 3.7
+from cpython.contextvars cimport *
 
 #################################################################
 # END OF DEPRECATED SECTION

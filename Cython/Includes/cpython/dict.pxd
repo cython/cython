@@ -1,6 +1,13 @@
 from .object cimport PyObject
+from .pyport cimport uint64_t
 
 cdef extern from "Python.h":
+    # On Python 2, PyDict_GetItemWithError is called _PyDict_GetItemWithError
+    """
+    #if PY_MAJOR_VERSION <= 2
+    #define PyDict_GetItemWithError _PyDict_GetItemWithError
+    #endif
+    """
 
     ############################################################################
     # 7.4.1 Dictionary Objects
@@ -52,7 +59,7 @@ cdef extern from "Python.h":
     # be hashable; if it isn't, TypeError will be raised. Return 0 on
     # success or -1 on failure.
 
-    int PyDict_SetItemString(object p, char *key, object val) except -1
+    int PyDict_SetItemString(object p, const char *key, object val) except -1
     # Insert value into the dictionary p using key as a key. key
     # should be a char*. The key object is created using
     # PyString_FromString(key). Return 0 on success or -1 on failure.
@@ -62,7 +69,7 @@ cdef extern from "Python.h":
     # hashable; if it isn't, TypeError is raised. Return 0 on success
     # or -1 on failure.
 
-    int PyDict_DelItemString(object p, char *key) except -1
+    int PyDict_DelItemString(object p, const char *key) except -1
     # Remove the entry in dictionary p which has a key specified by
     # the string key. Return 0 on success or -1 on failure.
 
@@ -72,10 +79,24 @@ cdef extern from "Python.h":
     # NULL if the key key is not present, but without setting an
     # exception.
 
-    PyObject* PyDict_GetItemString(object p, char *key)
+    PyObject* PyDict_GetItemWithError(object p, object key) except? NULL
+    # Return value: Borrowed reference.
+    # Variant of PyDict_GetItem() that does not suppress exceptions. Return
+    # NULL with an exception set if an exception occurred. Return NULL
+    # without an exception set if the key wasn’t present.
+
+    PyObject* PyDict_GetItemString(object p, const char *key)
     # Return value: Borrowed reference.
     # This is the same as PyDict_GetItem(), but key is specified as a
     # char*, rather than a PyObject*.
+
+    PyObject* PyDict_SetDefault(object p, object key, object default) except NULL
+    # Return value: Borrowed reference.
+    # This is the same as the Python-level dict.setdefault(). If present, it
+    # returns the value corresponding to key from the dictionary p. If the key
+    # is not in the dict, it is inserted with value defaultobj and defaultobj
+    # is returned. This function evaluates the hash function of key only once,
+    # instead of evaluating it independently for the lookup and the insertion.
 
     list PyDict_Items(object p)
     # Return value: New reference.

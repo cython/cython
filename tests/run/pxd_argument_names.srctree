@@ -1,0 +1,52 @@
+# mode: run
+# ticket: 1888
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules=cythonize("a.pyx"),
+)
+
+######## a.pxd ########
+
+cdef int do_stuff(int foo) except -1
+
+######## a.pyx ########
+
+cdef int do_stuff(int bar) except -1:
+    if bar == 0:
+        raise ValueError()
+    return bar
+
+
+cdef call_do_stuff(int x):
+    # The keyword argument name is surprising, but actually correct.
+    # The caller signature is defined by the .pxd file, not the implementation.
+    return do_stuff(foo=x)
+
+
+def test():
+    assert do_stuff(1) == 1
+    assert do_stuff(foo=1) == 1
+    assert call_do_stuff(1) == 1
+
+    try:
+        do_stuff(0)
+    except ValueError:
+        pass
+    else:
+        assert False, "exception not raised"
+
+    try:
+        call_do_stuff(0)
+    except ValueError:
+        pass
+    else:
+        assert False, "exception not raised"

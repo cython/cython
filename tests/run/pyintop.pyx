@@ -1,5 +1,7 @@
 # mode: run
 
+cimport cython
+
 
 def bigint(x):
     # avoid 'L' postfix in Py2.x
@@ -10,6 +12,7 @@ def bigints(x):
     print(str(x).replace('L', ''))
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
 def or_obj(obj2, obj3):
     """
     >>> or_obj(2, 3)
@@ -19,8 +22,11 @@ def or_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_fail_if_path_exists('//IntBinopNode')
 def or_int(obj2):
     """
+    >>> or_int(0)
+    16
     >>> or_int(1)
     17
     >>> or_int(16)
@@ -30,6 +36,7 @@ def or_int(obj2):
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
 def xor_obj(obj2, obj3):
     """
     >>> xor_obj(2, 3)
@@ -39,8 +46,11 @@ def xor_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_fail_if_path_exists('//IntBinopNode')
 def xor_int(obj2):
     """
+    >>> xor_int(0)
+    16
     >>> xor_int(2)
     18
     >>> xor_int(16)
@@ -50,6 +60,7 @@ def xor_int(obj2):
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
 def and_obj(obj2, obj3):
     """
     >>> and_obj(2, 3)
@@ -59,17 +70,23 @@ def and_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_fail_if_path_exists('//IntBinopNode')
 def and_int(obj2):
     """
+    >>> and_int(0)
+    0
     >>> and_int(1)
     0
     >>> and_int(18)
+    16
+    >>> and_int(-1)
     16
     """
     obj1 = obj2 & 0x10
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
 def lshift_obj(obj2, obj3):
     """
     >>> lshift_obj(2, 3)
@@ -79,6 +96,7 @@ def lshift_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
 def rshift_obj(obj2, obj3):
     """
     >>> rshift_obj(2, 3)
@@ -88,8 +106,30 @@ def rshift_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
+def rshift_int_obj(obj3):
+    """
+    >>> rshift_int_obj(3)
+    0
+    >>> rshift_int_obj(2)
+    0
+    >>> rshift_int_obj(1)
+    1
+    >>> rshift_int_obj(0)
+    2
+    >>> rshift_int_obj(-1)
+    Traceback (most recent call last):
+    ValueError: negative shift count
+    """
+    obj1 = 2 >> obj3
+    return obj1
+
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
 def rshift_int(obj2):
     """
+    >>> rshift_int(0)
+    0
     >>> rshift_int(2)
     0
 
@@ -134,6 +174,10 @@ def rshift_int(obj2):
     return obj1
 
 
+@cython.test_assert_path_exists(
+    '//SingleAssignmentNode//IntBinopNode',
+    '//SingleAssignmentNode//PythonCapiCallNode',
+)
 def lshift_int(obj):
     """
     >>> lshift_int(0)
@@ -159,16 +203,16 @@ def lshift_int(obj):
     >>> bigints(lshift_int(-32))
     (-256, -68719476736, -295147905179352825856, -340282366920938463463374607431768211456)
 
-    >>> (2**28) << 3
+    >>> bigint((2**28) << 3)
     2147483648
     >>> bigints(lshift_int(2**28))
     (2147483648, 576460752303423488, 2475880078570760549798248448, 2854495385411919762116571938898990272765493248)
-    >>> (-2**28) << 3
+    >>> bigint((-2**28) << 3)
     -2147483648
     >>> bigints(lshift_int(-2**28))
     (-2147483648, -576460752303423488, -2475880078570760549798248448, -2854495385411919762116571938898990272765493248)
 
-    >>> (2**30) << 3
+    >>> bigint((2**30) << 3)
     8589934592
     >>> bigints(lshift_int(2**30))
     (8589934592, 2305843009213693952, 9903520314283042199192993792, 11417981541647679048466287755595961091061972992)
@@ -189,6 +233,10 @@ def lshift_int(obj):
     return r1, r2, r3, r4
 
 
+@cython.test_assert_path_exists(
+    '//IntBinopNode',
+    '//IntBinopNode//IntBinopNode',
+)
 def mixed_obj(obj2, obj3):
     """
     >>> mixed_obj(2, 3)
@@ -198,8 +246,17 @@ def mixed_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_assert_path_exists(
+    '//IntBinopNode',
+    '//IntBinopNode//PythonCapiCallNode',
+)
+@cython.test_fail_if_path_exists(
+    '//IntBinopNode//IntBinopNode',
+)
 def mixed_int(obj2):
     """
+    >>> mixed_int(0)
+    16
     >>> mixed_int(2)
     18
     >>> mixed_int(16)
@@ -209,3 +266,244 @@ def mixed_int(obj2):
     """
     obj1 = (obj2 ^ 0x10) | (obj2 & 0x01)
     return obj1
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists(
+    '//IntBinopNode',
+    '//PrimaryCmpNode',
+)
+def equals(obj2):
+    """
+    >>> equals(2)
+    True
+    >>> equals(0)
+    False
+    >>> equals(-1)
+    False
+    """
+    result = obj2 == 2
+    return result
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists(
+    '//IntBinopNode',
+    '//PrimaryCmpNode',
+)
+def not_equals(obj2):
+    """
+    >>> not_equals(2)
+    False
+    >>> not_equals(0)
+    True
+    >>> not_equals(-1)
+    True
+    """
+    result = obj2 != 2
+    return result
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_assert_path_exists('//PrimaryCmpNode')
+def equals_many(obj2):
+    """
+    >>> equals_many(-2)
+    (False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(0)
+    (True, False, False, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(1)
+    (False, True, False, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(-1)
+    (False, False, True, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(2**30)
+    (False, False, False, True, False, False, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(-2**30)
+    (False, False, False, False, True, False, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(2**30-1)
+    (False, False, False, False, False, True, False, False, False, False, False, False, False, False, False)
+    >>> equals_many(-2**30+1)
+    (False, False, False, False, False, False, True, False, False, False, False, False, False, False, False)
+    >>> equals_many(2**32)
+    (False, False, False, False, False, False, False, True, False, False, False, False, False, False, False)
+    >>> equals_many(-2**32)
+    (False, False, False, False, False, False, False, False, True, False, False, False, False, False, False)
+    >>> equals_many(2**45-1)
+    (False, False, False, False, False, False, False, False, False, True, False, False, False, False, False)
+    >>> equals_many(-2**45+1)
+    (False, False, False, False, False, False, False, False, False, False, True, False, False, False, False)
+    >>> equals_many(2**64)
+    (False, False, False, False, False, False, False, False, False, False, False, True, False, False, False)
+    >>> equals_many(-2**64)
+    (False, False, False, False, False, False, False, False, False, False, False, False, True, False, False)
+    >>> equals_many(2**64-1)
+    (False, False, False, False, False, False, False, False, False, False, False, False, False, True, False)
+    >>> equals_many(-2**64+1)
+    (False, False, False, False, False, False, False, False, False, False, False, False, False, False, True)
+    """
+    cdef bint x, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o
+    a = obj2 == 0
+    x = 0 == obj2
+    assert a == x
+    b = obj2 == 1
+    x = 1 == obj2
+    assert b == x
+    c = obj2 == -1
+    x = -1 == obj2
+    assert c == x
+    d = obj2 == 2**30
+    x = 2**30 == obj2
+    assert d == x
+    e = obj2 == -2**30
+    x = -2**30 == obj2
+    assert e == x
+    f = obj2 == 2**30-1
+    x = 2**30-1 == obj2
+    assert f == x
+    g = obj2 == -2**30+1
+    x = -2**30+1 == obj2
+    assert g == x
+    h = obj2 == 2**32
+    x = 2**32 == obj2
+    assert h == x
+    i = obj2 == -2**32
+    x = -2**32 == obj2
+    assert i == x
+    j = obj2 == 2**45-1
+    x = 2**45-1 == obj2
+    assert j == x
+    k = obj2 == -2**45+1
+    x = -2**45+1 == obj2
+    assert k == x
+    l = obj2 == 2**64
+    x = 2**64 == obj2
+    assert l == x
+    m = obj2 == -2**64
+    x = -2**64 == obj2
+    assert m == x
+    n = obj2 == 2**64-1
+    x = 2**64-1 == obj2
+    assert n == x
+    o = obj2 == -2**64+1
+    x = -2**64+1 == obj2
+    assert o == x
+    return (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_assert_path_exists('//PrimaryCmpNode')
+def not_equals_many(obj2):
+    """
+    >>> not_equals_many(-2)
+    (False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(0)
+    (True, False, False, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(1)
+    (False, True, False, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(-1)
+    (False, False, True, False, False, False, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(2**30)
+    (False, False, False, True, False, False, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(-2**30)
+    (False, False, False, False, True, False, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(2**30-1)
+    (False, False, False, False, False, True, False, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(-2**30+1)
+    (False, False, False, False, False, False, True, False, False, False, False, False, False, False, False)
+    >>> not_equals_many(2**32)
+    (False, False, False, False, False, False, False, True, False, False, False, False, False, False, False)
+    >>> not_equals_many(-2**32)
+    (False, False, False, False, False, False, False, False, True, False, False, False, False, False, False)
+    >>> not_equals_many(2**45-1)
+    (False, False, False, False, False, False, False, False, False, True, False, False, False, False, False)
+    >>> not_equals_many(-2**45+1)
+    (False, False, False, False, False, False, False, False, False, False, True, False, False, False, False)
+    >>> not_equals_many(2**64)
+    (False, False, False, False, False, False, False, False, False, False, False, True, False, False, False)
+    >>> not_equals_many(-2**64)
+    (False, False, False, False, False, False, False, False, False, False, False, False, True, False, False)
+    >>> not_equals_many(2**64-1)
+    (False, False, False, False, False, False, False, False, False, False, False, False, False, True, False)
+    >>> not_equals_many(-2**64+1)
+    (False, False, False, False, False, False, False, False, False, False, False, False, False, False, True)
+    """
+    cdef bint a, b, c, d, e, f, g, h, i, j, k, l, m, n, o
+    a = obj2 != 0
+    x = 0 != obj2
+    assert a == x
+    b = obj2 != 1
+    x = 1 != obj2
+    assert b == x
+    c = obj2 != -1
+    x = -1 != obj2
+    assert c == x
+    d = obj2 != 2**30
+    x = 2**30 != obj2
+    assert d == x
+    e = obj2 != -2**30
+    x = -2**30 != obj2
+    assert e == x
+    f = obj2 != 2**30-1
+    x = 2**30-1 != obj2
+    assert f == x
+    g = obj2 != -2**30+1
+    x = -2**30+1 != obj2
+    assert g == x
+    h = obj2 != 2**32
+    x = 2**32 != obj2
+    assert h == x
+    i = obj2 != -2**32
+    x = -2**32 != obj2
+    assert i == x
+    j = obj2 != 2**45-1
+    x = 2**45-1 != obj2
+    assert j == x
+    k = obj2 != -2**45+1
+    x = -2**45+1 != obj2
+    assert k == x
+    l = obj2 != 2**64
+    x = 2**64 != obj2
+    assert l == x
+    m = obj2 != -2**64
+    x = -2**64 != obj2
+    assert m == x
+    n = obj2 != 2**64-1
+    x = 2**64-1 != obj2
+    assert n == x
+    o = obj2 != -2**64+1
+    x = -2**64+1 != obj2
+    assert o == x
+    return tuple(not x for x in (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists(
+    '//IntBinopNode',
+    '//PrimaryCmpNode',
+)
+def equals_zero(obj2):
+    """
+    >>> equals_zero(2)
+    False
+    >>> equals_zero(0)
+    True
+    >>> equals_zero(-1)
+    False
+    """
+    result = obj2 == 0
+    return result
+
+
+def truthy(obj2):
+    """
+    >>> truthy(2)
+    True
+    >>> truthy(0)
+    False
+    >>> truthy(-1)
+    True
+    """
+    if obj2:
+        return True
+    else:
+        return False

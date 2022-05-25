@@ -1,6 +1,7 @@
 # This file contains tests corresponding to unresolved bugs,
 # which will be skipped in the normal testing run.
 
+setuptools_reimport
 class_attribute_init_values_T18
 unsignedbehaviour_T184
 missing_baseclass_in_predecl_T262
@@ -11,6 +12,9 @@ for_from_pyvar_loop_T601
 temp_sideeffects_T654    # not really a bug, Cython warns about it
 inherited_final_method
 cimport_alias_subclass
+
+# PEP-489 is currently disabled
+run.mod__spec__
 
 # CPython regression tests that don't current work:
 pyregr.test_signal

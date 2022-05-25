@@ -1,4 +1,6 @@
 # -*- coding: iso-8859-1 -*-
+# mode: run
+# tag: warnings
 
 cimport cython
 
@@ -121,8 +123,8 @@ def unicode_type_methods(Py_UNICODE uchar):
         uchar.isupper(),
         ]
 
-@cython.test_assert_path_exists('//PythonCapiCallNode')
-@cython.test_fail_if_path_exists('//SimpleCallNode')
+#@cython.test_assert_path_exists('//PythonCapiCallNode')
+#@cython.test_fail_if_path_exists('//SimpleCallNode')
 def unicode_methods(Py_UNICODE uchar):
     """
     >>> unicode_methods(ord('A')) == ['a', 'A', 'A']
@@ -229,3 +231,26 @@ def index_and_in():
     for i in range(1,9):
         if u'abcdefgh'[-i] in u'abCDefGh':
             print i
+
+
+def uchar_lookup_in_dict(obj, Py_UNICODE uchar):
+    """
+    >>> d = {u_KLINGON: 1234, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, u_KLINGON)
+    (1234, 1234)
+    >>> uchar_lookup_in_dict(d, u_A)
+    (2, 2)
+    >>> uchar_lookup_in_dict(d, u0)
+    (0, 0)
+    >>> uchar_lookup_in_dict(d, u1)
+    (1, 1)
+    """
+    cdef dict d = obj
+    dval = d[uchar]
+    objval = obj[uchar]
+    return dval, objval
+
+
+_WARNINGS = """
+250:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+"""

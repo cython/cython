@@ -30,7 +30,9 @@ def runloop(task):
     result = loop.run_until_complete(task())
     assert 3 == result, result
 
-runloop(from_asyncio_import.wait3)
+import sys
+if sys.version_info < (3, 7):
+    runloop(from_asyncio_import.wait3)
 
 
 ######## test_import.py ########
@@ -43,7 +45,9 @@ def runloop(task):
     result = loop.run_until_complete(task())
     assert 3 == result, result
 
-runloop(import_asyncio.wait3)
+import sys
+if sys.version_info < (3, 7):
+    runloop(import_asyncio.wait3)
 
 
 ######## test_async_def.py ########
@@ -89,6 +93,7 @@ import sys
 import asyncio
 
 ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
+ASYNCIO_SUPPORTS_YIELD_FROM = sys.version_info[:2] < (3, 7)
 
 def runloop(task):
     loop = asyncio.get_event_loop()
@@ -96,23 +101,28 @@ def runloop(task):
     assert 3 == result, result
 
 import import_asyncio
-runloop(import_asyncio.wait3)       # 1a)
+if ASYNCIO_SUPPORTS_YIELD_FROM:
+    runloop(import_asyncio.wait3)       # 1a)
 import from_asyncio_import
-runloop(from_asyncio_import.wait3)  # 1b)
+if ASYNCIO_SUPPORTS_YIELD_FROM:
+    runloop(from_asyncio_import.wait3)  # 1b)
 
 import async_def
 if ASYNCIO_SUPPORTS_COROUTINE:
-    runloop(async_def.wait3)        # 1c)
+    runloop(async_def.wait3)            # 1c)
 
-runloop(from_asyncio_import.wait3)  # 2a)
-runloop(import_asyncio.wait3)       # 2b)
+if ASYNCIO_SUPPORTS_YIELD_FROM:
+    runloop(from_asyncio_import.wait3)  # 2a)
+    runloop(import_asyncio.wait3)       # 2b)
 if ASYNCIO_SUPPORTS_COROUTINE:
-    runloop(async_def.wait3)        # 2c)
+    runloop(async_def.wait3)            # 2c)
 
-runloop(from_asyncio_import.wait3)  # 3a)
-runloop(import_asyncio.wait3)       # 3b)
+import sys
+if ASYNCIO_SUPPORTS_YIELD_FROM:
+    runloop(from_asyncio_import.wait3)  # 3a)
+    runloop(import_asyncio.wait3)       # 3b)
 if ASYNCIO_SUPPORTS_COROUTINE:
-    runloop(async_def.wait3)        # 3c)
+    runloop(async_def.wait3)            # 3c)
 
 try:
     from collections.abc import Generator
@@ -160,7 +170,6 @@ except ImportError:
 
 import asyncio
 
-@asyncio.coroutine
 @types_coroutine
 def wait3():
     counter = 0
@@ -179,9 +188,8 @@ try:
 except ImportError:
     types_coroutine = lambda f:f
 
-from asyncio import coroutine, sleep
+from asyncio import sleep
 
-@coroutine
 @types_coroutine
 def wait3():
     counter = 0

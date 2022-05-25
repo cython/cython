@@ -10,7 +10,7 @@ from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
 try:
-    from Cython.Distutils.old_build_ext import old_build_ext as build_ext
+    from Cython.Distutils.build_ext import build_ext
     HAS_CYTHON = True
 except ImportError:
     HAS_CYTHON = False
@@ -53,7 +53,10 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         quiet = "--verbose"
     else:
         quiet = "--quiet"
-    args = [quiet, "build_ext"]
+    if build_in_temp:
+        args = [quiet, "build_ext", '--cython-c-in-temp']
+    else:
+        args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
     if inplace and package_base_dir:
@@ -65,8 +68,6 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
             elif 'set_initial_path' not in ext.cython_directives:
                 ext.cython_directives['set_initial_path'] = 'SOURCEFILE'
 
-    if HAS_CYTHON and build_in_temp:
-        args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
     sargs.update({
         "script_name": None,
@@ -103,7 +104,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         so_path = obj_build_ext.get_outputs()[0]
         if obj_build_ext.inplace:
             # Python distutils get_outputs()[ returns a wrong so_path
-            # when --inplace ; see http://bugs.python.org/issue5977
+            # when --inplace ; see https://bugs.python.org/issue5977
             # workaround:
             so_path = os.path.join(os.path.dirname(filename),
                                    os.path.basename(so_path))
@@ -119,9 +120,9 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                 while count < 100:
                     count += 1
                     r_path = os.path.join(obj_build_ext.build_lib,
-                                          basename + '.reload%s'%count)
+                                          basename + '.reload%s' % count)
                     try:
-                        import shutil # late import / reload_support is: debugging
+                        import shutil  # late import / reload_support is: debugging
                         try:
                             # Try to unlink first --- if the .so file
                             # is mmapped by another process,
@@ -140,7 +141,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                     break
                 else:
                     # used up all 100 slots
-                    raise ImportError("reload count for %s reached maximum"%org_path)
+                    raise ImportError("reload count for %s reached maximum" % org_path)
                 _reloads[org_path]=(timestamp, so_path, count)
         return so_path
     except KeyboardInterrupt:
@@ -157,4 +158,3 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")
     from . import test
-

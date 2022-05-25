@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, no-cpp-locals
 
 from cython.operator cimport dereference as d
 from cython.operator cimport preincrement as incr
@@ -195,3 +195,26 @@ def test_typedef_vector(L):
     vb.insert(vb.begin(), vb2.begin(), vb2.end())
 
     return vi, vi.at(0), vb, vb.at(0)
+
+
+def test_insert():
+    """
+    >>> test_insert()
+    """
+    cdef vector[int] v
+    cdef vector[int].size_type count = 5
+    cdef int value = 0
+
+    v.insert(v.end(), count, value)
+
+    assert v.size() == count
+    for element in v:
+        assert element == value, '%s != %s' % (element, count)
+
+
+#  Tests GitHub issue #1788.
+cdef cppclass MyVector[T](vector):
+    pass
+
+cdef cppclass Ints(MyVector[int]):
+    pass

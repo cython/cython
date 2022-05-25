@@ -17,7 +17,7 @@ setup(
 ######## declarations.pyx ########
 # mode: compile
 
-cdef extern from "external_declarations.h":
+cdef extern from "declarations.h":
     pass
 
 cdef extern char *cp
@@ -48,10 +48,19 @@ cdef char *g():
 f()
 g()
 
+
+######## declarations.h ########
+
+#define DLL_EXPORT
+#include "external_declarations.h"
+
+
 ######## external_declarations.h ########
 
 #ifndef DL_IMPORT
   #define DL_IMPORT(t) t
+#elif defined(DLL_EXPORT)
+  #define DL_IMPORT(t) DL_EXPORT(t)
 #endif
 
 #ifdef __cplusplus

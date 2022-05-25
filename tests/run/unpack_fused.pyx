@@ -47,18 +47,18 @@ def unpack_two_int(sequence it):
     (1, 2)
 
     >>> items = [1, object()]
-    >>> unpack_two_int(items)
+    >>> unpack_two_int(items)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
-    >>> unpack_two_int(iter(items))
+    TypeError: ...int...
+    >>> unpack_two_int(iter(items))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
-    >>> unpack_two_int(list(items))
+    TypeError: ...int...
+    >>> unpack_two_int(list(items))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
-    >>> unpack_two_int(tuple(items))
+    TypeError: ...int...
+    >>> unpack_two_int(tuple(items))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef int b
     a,b = it

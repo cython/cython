@@ -1,7 +1,7 @@
 # tag: pstats
 # cython: profile = True
 
-__doc__ = u"""
+u"""
     >>> import os, tempfile, cProfile as profile, pstats
     >>> statsfile = tempfile.mkstemp()[1]
     >>> profile.runctx("test_profile(100)", locals(), globals(), statsfile)
@@ -12,9 +12,7 @@ __doc__ = u"""
     >>> short_stats['f_cdef']
     100
     >>> short_stats['f_cpdef']
-    200
-    >>> short_stats['f_cpdef (wrapper)']
-    100
+    300
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -49,10 +47,8 @@ __doc__ = u"""
     200
     >>> short_stats['m_cdef']
     100
-    >>> short_stats['m_cpdef']
-    200
-    >>> short_stats['m_cpdef (wrapper)']
-    100
+    >>> short_stats['m_cpdef'] - (200 if CPDEF_METHODS_COUNT_TWICE else 0)  # FIXME!
+    300
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -60,14 +56,75 @@ __doc__ = u"""
     ...    pass
 
     >>> sorted(callees(s, 'test_profile'))  #doctest: +NORMALIZE_WHITESPACE
-    ['f_cdef', 'f_cpdef', 'f_cpdef (wrapper)', 'f_def',
+    ['f_cdef', 'f_cpdef', 'f_def',
      'f_inline', 'f_inline_prof',
      'f_raise',
-     'm_cdef', 'm_cpdef', 'm_cpdef (wrapper)', 'm_def',
+     'm_cdef', 'm_cpdef', 'm_def',
      'withgil_prof']
+
+    >>> profile.runctx("test_generators()", locals(), globals(), statsfile)
+    >>> s = pstats.Stats(statsfile)
+    >>> short_stats = dict([(k[2], v[1]) for k,v in s.stats.items()])
+    >>> short_stats['generator']
+    3
+
+    >>> short_stats['generator_exception']
+    2
+
+    >>> short_stats['genexpr']
+    11
+
+    >>> sorted(callees(s, 'test_generators'))
+    ['call_generator', 'call_generator_exception', 'generator_expr']
+
+    >>> list(callees(s, 'call_generator'))
+    ['generator']
+
+    >>> list(callees(s, 'generator'))
+    []
+
+    >>> list(callees(s, 'generator_exception'))
+    []
+
+    >>> list(callees(s, 'generator_expr'))
+    ['genexpr']
+
+    >>> list(callees(s, 'genexpr'))
+    []
+
+    >>> def python_generator():
+    ...   yield 1
+    ...   yield 2
+    >>> def call_python_generator():
+    ...   list(python_generator())
+
+    >>> profile.runctx("call_python_generator()", locals(), globals(), statsfile)
+    >>> python_stats = pstats.Stats(statsfile)
+    >>> python_stats_dict = dict([(k[2], v[1]) for k,v in python_stats.stats.items()])
+
+    >>> profile.runctx("call_generator()", locals(), globals(), statsfile)
+    >>> cython_stats = pstats.Stats(statsfile)
+    >>> cython_stats_dict = dict([(k[2], v[1]) for k,v in cython_stats.stats.items()])
+
+    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']
+    True
+
+    >>> try:
+    ...    os.unlink(statsfile)
+    ... except:
+    ...    pass
 """
 
 cimport cython
+
+
+# FIXME: With type specs, cpdef methods are currently counted twice.
+# https://github.com/cython/cython/issues/2137
+cdef extern from *:
+    int CYTHON_USE_TYPE_SPECS
+
+CPDEF_METHODS_COUNT_TWICE = CYTHON_USE_TYPE_SPECS
+
 
 def callees(pstats, target_caller):
     pstats.calc_callees()
@@ -77,10 +134,11 @@ def callees(pstats, target_caller):
             if 'pyx' in file:
                 yield callee
 
+
 def test_profile(long N):
     cdef long i, n = 0
     cdef A a = A()
-    for i from 0 <= i < N:
+    for i in range(N):
         n += f_def(i)
         n += f_cdef(i)
         n += f_cpdef(i)
@@ -147,3 +205,29 @@ cdef class A(object):
         return a
     cdef m_cdef(self, long a):
         return a
+
+def test_generators():
+    call_generator()
+    call_generator_exception()
+    generator_expr()
+
+def call_generator():
+    list(generator())
+
+def generator():
+    yield 1
+    yield 2
+
+def call_generator_exception():
+    try:
+        list(generator_exception())
+    except ValueError:
+        pass
+
+def generator_exception():
+    yield 1
+    raise ValueError(2)
+
+def generator_expr():
+    e = (x for x in range(10))
+    return sum(e)

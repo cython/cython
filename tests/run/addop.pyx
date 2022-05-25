@@ -166,3 +166,20 @@ def add_large_x(x):
     ... except TypeError: pass
     """
     return 2**30 + x
+
+
+def add0(x):
+    """
+    >>> add0(0)
+    (0, 0)
+    >>> add0(1)
+    (1, 1)
+    >>> add0(-1)
+    (-1, -1)
+    >>> a, b = add0(2**32)
+    >>> bigint(a)
+    4294967296
+    >>> bigint(b)
+    4294967296
+    """
+    return x + 0, 0 + x

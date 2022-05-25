@@ -12,6 +12,10 @@ import sys
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
+# this specifies which versions of python we support, pip >= 9 knows to skip
+# versions of packages which are not compatible with the running python
+PYTHON_REQUIRES = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*'
+
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -34,20 +38,11 @@ class sdist(sdist_orig):
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
-if sys.version_info[:2] == (3, 2):
-    import lib2to3.refactor
-    from distutils.command.build_py \
-         import build_py_2to3 as build_py
-    # need to convert sources to Py3 on installation
-    with open('2to3-fixers.txt') as f:
-        fixers = [line.strip() for line in f if line.strip()]
-    build_py.fixer_names = fixers
-    add_command_class("build_py", build_py)
-
 pxd_include_dirs = [
-    directory for directory, dirs, files in os.walk('Cython/Includes')
+    directory for directory, dirs, files
+    in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == 'Cython/Includes' or directory == 'Cython/Includes/Deprecated']
+    or directory == os.path.join('Cython', 'Includes')]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
@@ -59,58 +54,57 @@ setup_args['package_data'] = {
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
     'Cython'          : [ p[7:] for p in pxd_include_patterns ],
-    }
+    'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
+}
 
 # This dict is used for passing extra arguments that are setuptools
 # specific to setup
 setuptools_extra_args = {}
 
-# tells whether to include cygdb (the script and the Cython.Debugger package
-include_debugger = sys.version_info[:2] > (2, 5)
-
 if 'setuptools' in sys.modules:
+    setuptools_extra_args['python_requires'] = PYTHON_REQUIRES
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
         'console_scripts': [
             'cython = Cython.Compiler.Main:setuptools_main',
-            'cythonize = Cython.Build.Cythonize:main'
+            'cythonize = Cython.Build.Cythonize:main',
+            'cygdb = Cython.Debugger.Cygdb:main',
         ]
     }
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython", 'bin/cythonize']
+        scripts = ["bin/cython", "bin/cythonize", "bin/cygdb"]
     else:
-        scripts = ["cython.py", "cythonize.py"]
-
-if include_debugger:
-    if 'setuptools' in sys.modules:
-        setuptools_extra_args['entry_points']['console_scripts'].append(
-            'cygdb = Cython.Debugger.Cygdb:main')
-    else:
-        if os.name == "posix":
-            scripts.append('bin/cygdb')
-        else:
-            scripts.append('cygdb.py')
+        scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
-def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
+def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = [
-        "Cython.Plex.Scanners",
         "Cython.Plex.Actions",
-        "Cython.Compiler.Lexicon",
-        "Cython.Compiler.Scanning",
-        "Cython.Compiler.Parsing",
-        "Cython.Compiler.Visitor",
+        "Cython.Plex.Scanners",
         "Cython.Compiler.FlowControl",
-        "Cython.Compiler.Code",
+        "Cython.Compiler.Scanning",
+        "Cython.Compiler.Visitor",
         "Cython.Runtime.refnanny",
-        # "Cython.Compiler.FusedNode",
-        "Cython.Tempita._tempita",
     ]
-    if compile_more:
+    if not compile_minimal:
         compiled_modules.extend([
+            "Cython.Plex.Machines",
+            "Cython.Plex.Transitions",
+            "Cython.Plex.DFA",
+            "Cython.Compiler.FusedNode",
+            "Cython.Tempita._tempita",
+            "Cython.StringIOTree",
+            "Cython.Utils",
+        ])
+    if compile_more and not compile_minimal:
+        compiled_modules.extend([
+            "Cython.Compiler.Code",
+            "Cython.Compiler.Lexicon",
+            "Cython.Compiler.Parsing",
+            "Cython.Compiler.Pythran",
             "Cython.Build.Dependencies",
             "Cython.Compiler.ParseTreeTransforms",
             "Cython.Compiler.Nodes",
@@ -145,92 +139,69 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     defines = []
     if cython_with_refnanny:
         defines.append(('CYTHON_REFNANNY', '1'))
+    if coverage:
+        defines.append(('CYTHON_TRACE', '1'))
 
     extensions = []
     for module in compiled_modules:
         source_file = os.path.join(source_root, *module.split('.'))
-        if os.path.exists(source_file + ".py"):
-            pyx_source_file = source_file + ".py"
-        else:
-            pyx_source_file = source_file + ".pyx"
+        pyx_source_file = source_file + ".py"
+        if not os.path.exists(pyx_source_file):
+            pyx_source_file += "x"  # .py -> .pyx
+
         dep_files = []
         if os.path.exists(source_file + '.pxd'):
             dep_files.append(source_file + '.pxd')
-        if '.refnanny' in module:
-            defines_for_module = []
-        else:
-            defines_for_module = defines
+
         extensions.append(Extension(
             module, sources=[pyx_source_file],
-            define_macros=defines_for_module,
+            define_macros=defines if '.refnanny' not in module else [],
             depends=dep_files))
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    if sys.version_info[:2] == (3, 2):
-        # Python 3.2: can only run Cython *after* running 2to3
-        build_ext = _defer_cython_import_in_py32(source_root, profile)
-    else:
-        from Cython.Distutils import build_ext
-        if profile:
-            from Cython.Compiler.Options import get_directive_defaults
-            get_directive_defaults()['profile'] = True
-            sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    # optimise build parallelism by starting with the largest modules
+    extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
-    # not using cythonize() here to let distutils decide whether building extensions was requested
+    from Cython.Distutils.build_ext import build_ext
+    from Cython.Compiler.Options import get_directive_defaults
+    get_directive_defaults().update(
+        language_level=2,
+        binding=False,
+        always_allow_keywords=False,
+        autotestdict=False,
+    )
+    if profile:
+        get_directive_defaults()['profile'] = True
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    if coverage:
+        get_directive_defaults()['linetrace'] = True
+        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
+
+    # not using cythonize() directly to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)
     setup_args['ext_modules'] = extensions
-
-
-def _defer_cython_import_in_py32(source_root, profile=False):
-    # Python 3.2: can only run Cython *after* running 2to3
-    # => re-import Cython inside of build_ext
-    from distutils.command.build_ext import build_ext as build_ext_orig
-
-    class build_ext(build_ext_orig):
-        # we must keep the original modules alive to make sure
-        # their code keeps working when we remove them from
-        # sys.modules
-        dead_modules = []
-
-        def __reimport(self):
-            if self.dead_modules:
-                return
-            # add path where 2to3 installed the transformed sources
-            # and make sure Python (re-)imports them from there
-            already_imported = [
-                module for module in sys.modules
-                if module == 'Cython' or module.startswith('Cython.')
-            ]
-            keep_alive = self.dead_modules.append
-            for module in already_imported:
-                keep_alive(sys.modules[module])
-                del sys.modules[module]
-            sys.path.insert(0, os.path.join(source_root, self.build_lib))
-
-        def build_extensions(self):
-            self.__reimport()
-            if profile:
-                from Cython.Compiler.Options import directive_defaults
-                directive_defaults['profile'] = True
-                print("Enabled profiling for the Cython binary modules")
-            from Cython.Build.Dependencies import cythonize
-            self.distribution.ext_modules[:] = cythonize(
-                self.distribution.ext_modules)
-            build_ext_orig.build_extensions(self)
-
-    return build_ext
 
 
 cython_profile = '--cython-profile' in sys.argv
 if cython_profile:
     sys.argv.remove('--cython-profile')
 
+cython_coverage = '--cython-coverage' in sys.argv
+if cython_coverage:
+    sys.argv.remove('--cython-coverage')
+
 try:
     sys.argv.remove("--cython-compile-all")
     cython_compile_more = True
 except ValueError:
     cython_compile_more = False
+
+try:
+    sys.argv.remove("--cython-compile-minimal")
+    cython_compile_minimal = True
+except ValueError:
+    cython_compile_minimal = False
 
 try:
     sys.argv.remove("--cython-with-refnanny")
@@ -244,15 +215,10 @@ try:
 except ValueError:
     compile_cython_itself = True
 
-if compile_cython_itself and (is_cpython or cython_compile_more):
-    compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
-
 setup_args.update(setuptools_extra_args)
 
-from Cython import __version__ as version
 
-
-def dev_status():
+def dev_status(version):
     if 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
@@ -269,6 +235,8 @@ packages = [
     'Cython.Compiler',
     'Cython.Runtime',
     'Cython.Distutils',
+    'Cython.Debugger',
+    'Cython.Debugger.Tests',
     'Cython.Plex',
     'Cython.Tests',
     'Cython.Build.Tests',
@@ -278,60 +246,75 @@ packages = [
     'pyximport',
 ]
 
-if include_debugger:
-    packages.append('Cython.Debugger')
-    packages.append('Cython.Debugger.Tests')
-    # it's enough to do this for Py2.5+:
-    setup_args['package_data']['Cython.Debugger.Tests'] = ['codefile', 'cfuncs.c']
 
-setup(
-    name='Cython',
-    version=version,
-    url='http://cython.org/',
-    author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
-    author_email='cython-devel@python.org',
-    description="The Cython compiler for writing C extensions for the Python language.",
-    long_description=textwrap.dedent("""\
-    The Cython language makes writing C extensions for the Python language as
-    easy as Python itself.  Cython is a source code translator based on Pyrex_,
-    but supports more cutting edge functionality and optimizations.
+def run_build():
+    if compile_cython_itself and (is_cpython or cython_compile_more or cython_compile_minimal):
+        compile_cython_modules(cython_profile, cython_coverage, cython_compile_minimal, cython_compile_more, cython_with_refnanny)
 
-    The Cython language is a superset of the Python language (almost all Python
-    code is also valid Cython code), but Cython additionally supports optional
-    static typing to natively call C functions, operate with C++ classes and
-    declare fast C types on variables and class attributes.  This allows the
-    compiler to generate very efficient C code from Cython code.
+    from Cython import __version__ as version
+    setup(
+        name='Cython',
+        version=version,
+        url='https://cython.org/',
+        author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
+        author_email='cython-devel@python.org',
+        description="The Cython compiler for writing C extensions in the Python language.",
+        long_description=textwrap.dedent("""\
+        The Cython language makes writing C extensions for the Python language as
+        easy as Python itself.  Cython is a source code translator based on Pyrex_,
+        but supports more cutting edge functionality and optimizations.
 
-    This makes Cython the ideal language for writing glue code for external
-    C/C++ libraries, and for fast C modules that speed up the execution of
-    Python code.
+        The Cython language is a superset of the Python language (almost all Python
+        code is also valid Cython code), but Cython additionally supports optional
+        static typing to natively call C functions, operate with C++ classes and
+        declare fast C types on variables and class attributes.  This allows the
+        compiler to generate very efficient C code from Cython code.
 
-    Note that for one-time builds, e.g. for CI/testing, on platforms that are not
-    covered by one of the wheel packages provided on PyPI, it is substantially faster
-    than a full source build to install an uncompiled (slower) version of Cython with::
+        This makes Cython the ideal language for writing glue code for external
+        C/C++ libraries, and for fast C modules that speed up the execution of
+        Python code.
 
-        pip install Cython --install-option="--no-cython-compile"
+        Note that for one-time builds, e.g. for CI/testing, on platforms that are not
+        covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
+        that we provide is not used, it is substantially faster than a full source build
+        to install an uncompiled (slower) version of Cython with::
 
-    .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
-    """),
-    license='Apache',
-    classifiers=[
-        dev_status(),
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: C",
-        "Programming Language :: Cython",
-        "Topic :: Software Development :: Code Generators",
-        "Topic :: Software Development :: Compilers",
-        "Topic :: Software Development :: Libraries :: Python Modules"
-    ],
+            pip install Cython --install-option="--no-cython-compile"
 
-    scripts=scripts,
-    packages=packages,
-    py_modules=["cython"],
-    **setup_args
-)
+        .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+        """),
+        license='Apache',
+        classifiers=[
+            dev_status(version),
+            "Intended Audience :: Developers",
+            "License :: OSI Approved :: Apache Software License",
+            "Operating System :: OS Independent",
+            "Programming Language :: Python",
+            "Programming Language :: Python :: 2",
+            "Programming Language :: Python :: 2.7",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.4",
+            "Programming Language :: Python :: 3.5",
+            "Programming Language :: Python :: 3.6",
+            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: Implementation :: CPython",
+            "Programming Language :: Python :: Implementation :: PyPy",
+            "Programming Language :: C",
+            "Programming Language :: Cython",
+            "Topic :: Software Development :: Code Generators",
+            "Topic :: Software Development :: Compilers",
+            "Topic :: Software Development :: Libraries :: Python Modules"
+        ],
+
+        scripts=scripts,
+        packages=packages,
+        py_modules=["cython"],
+        **setup_args
+    )
+
+
+if __name__ == '__main__':
+    run_build()

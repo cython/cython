@@ -12,9 +12,7 @@ operate on values of multiple types. Thus fused types allow `generic
 programming`_ and are akin to templates in C++ or generics in languages like
 Java / C#.
 
-.. _generic programming: http://en.wikipedia.org/wiki/Generic_programming
-
-.. Note:: Support is still somewhat experimental, there may be bugs!
+.. _generic programming: https://en.wikipedia.org/wiki/Generic_programming
 
 .. Note:: Fused types are not currently supported as attributes of extension
           types.  Only variables and function/method arguments can be declared
@@ -24,25 +22,7 @@ Java / C#.
 Quickstart
 ==========
 
-::
-
-    cimport cython
-
-    ctypedef fused char_or_float:
-        cython.char
-        cython.float
-
-
-    cpdef char_or_float plus_one(char_or_float var):
-        return var + 1
-
-
-    def show_me():
-        cdef:
-            cython.char a = 127
-            cython.float b = 127
-        print 'char', plus_one(a)
-        print 'float', plus_one(b)
+.. literalinclude:: ../../examples/userguide/fusedtypes/char_or_float.pyx
 
 This gives::
 
@@ -83,24 +63,40 @@ Fused types can be used to declare parameters of functions or methods::
     cdef cfunc(my_fused_type arg):
         return arg + 1
 
-If the you use the same fused type more than once in an argument list, then each
-specialization of the fused type must be the same::
+If the same fused type appears more than once in the function arguments,
+then they will all have the same specialised type::
 
     cdef cfunc(my_fused_type arg1, my_fused_type arg2):
-        return cython.typeof(arg1) == cython.typeof(arg2)
+        # arg1 and arg2 always have the same type here
+        return arg1 + arg2
 
-In this case, the type of both parameters is either an int, or a double
-(according to the previous examples). However, because these arguments use the
-same fused type ``my_fused_type``, both ``arg1`` and ``arg2`` are
-specialized to the same type.  Therefore this function returns True for every
-possible valid invocation. You are allowed to mix fused types however::
+Here, the type of both parameters is either an int, or a double
+(according to the previous examples), because they use the same fused type
+name ``my_fused_type``.  Mixing different fused types (or differently named
+fused types) in the arguments will specialise them independently::
 
     def func(A x, B y):
         ...
 
-where ``A`` and ``B`` are different fused types.  This will result in
-specialized code paths for all combinations of types contained in ``A``
-and ``B``.
+This will result in specialized code paths for all combinations of types
+contained in ``A`` and ``B``, e.g.::
+
+    ctypedef fused my_fused_type:
+        cython.int
+        cython.double
+
+    ctypedef fused my_fused_type2:
+        cython.int
+        cython.double
+
+    cdef func(my_fused_type a, my_fused_type2 b):
+        # a and b may have the same or different types here
+        print("SAME!" if my_fused_type is my_fused_type2 else "NOT SAME!)
+        return a + b
+
+Note that a simple typedef to rename the fused type does not currently work here.
+See Github issue :issue:`4302`.
+
 
 Fused types and arrays
 ----------------------
@@ -267,7 +263,35 @@ to figure out whether a specialization is part of another set of types
             long_pointer = &i
 
         if bunch_of_types in string_t:
-            print "s is a string!"
+            print("s is a string!")
+
+.. _fused_gil_conditional:
+
+Conditional GIL Acquiring / Releasing
+=====================================
+
+Acquiring and releasing the GIL can be controlled by a condition
+which is known at compile time (see :ref:`gil_conditional`).
+
+This is most useful when combined with fused types.
+A fused type function may have to handle both cython native types
+(e.g. cython.int or cython.double) and python types (e.g. object or bytes).
+Conditional Acquiring / Releasing the GIL provides a method for running
+the same piece of code either with the GIL released (for cython native types)
+and with the GIL held (for python types).::
+
+    cimport cython
+
+    ctypedef fused double_or_object:
+        cython.double
+        object
+
+    def increment(double_or_object x):
+        with nogil(double_or_object is cython.double):
+            # Same code handles both cython.double (GIL is released)
+            # and python object (GIL is not released).
+            x = x + 1
+        return x
 
 __signatures__
 ==============

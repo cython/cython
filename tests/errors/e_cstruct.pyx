@@ -27,7 +27,7 @@ _ERRORS = u"""
 7:39: C struct/union member cannot be a Python object
 17:9: Object of type 'Spam' has no attribute 'k'
 18:9: Cannot assign type 'float (*)[42]' to 'int'
-19:24: Cannot assign type 'int' to 'float (*)[42]'
+19:10: Cannot assign type 'int' to 'float (*)[42]'
 22:10: Cannot select attribute of incomplete type 'Grail'
 23:6: Cannot select attribute of incomplete type 'Grail'
 """

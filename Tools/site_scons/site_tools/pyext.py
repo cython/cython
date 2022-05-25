@@ -116,7 +116,7 @@ def pyext_coms(platform):
     return pyext_cccom, pyext_cxxcom, pyext_linkcom
 
 def set_basic_vars(env):
-    # Set construction variables which are independant on whether we are using
+    # Set construction variables which are independent on whether we are using
     # distutils or not.
     env['PYEXTCPPPATH'] = SCons.Util.CLVar('$PYEXTINCPATH')
 
@@ -133,7 +133,7 @@ def set_basic_vars(env):
     # this work, we need to know whether PYEXTCC accepts /c and /Fo or -c -o.
     # This is difficult with the current way tools work in scons.
     pycc, pycxx, pylink = pyext_coms(sys.platform)
-                            
+
     env['PYEXTLINKFLAGSEND'] = SCons.Util.CLVar('$LINKFLAGSEND')
 
     env['PYEXTCCCOM'] = pycc
@@ -157,7 +157,7 @@ def _set_configuration_nodistutils(env):
     for k, v in def_cfg.items():
         ifnotset(env, k, v)
 
-    ifnotset(env, 'PYEXT_ALLOW_UNDEFINED', 
+    ifnotset(env, 'PYEXT_ALLOW_UNDEFINED',
              SCons.Util.CLVar('$ALLOW_UNDEFINED'))
     ifnotset(env, 'PYEXTLINKFLAGS', SCons.Util.CLVar('$LDMODULEFLAGS'))
 
@@ -178,12 +178,12 @@ def set_configuration(env, use_distutils):
     # We define commands as strings so that we can either execute them using
     # eval (same python for scons and distutils) or by executing them through
     # the shell.
-    dist_cfg = {'PYEXTCC': ("sysconfig.get_config_var('CC')", False), 
-                'PYEXTCFLAGS': ("sysconfig.get_config_var('CFLAGS')", True), 
-                'PYEXTCCSHARED': ("sysconfig.get_config_var('CCSHARED')", False), 
-                'PYEXTLINKFLAGS': ("sysconfig.get_config_var('LDFLAGS')", True), 
-                'PYEXTLINK': ("sysconfig.get_config_var('LDSHARED')", False), 
-                'PYEXTINCPATH': ("sysconfig.get_python_inc()", False), 
+    dist_cfg = {'PYEXTCC': ("sysconfig.get_config_var('CC')", False),
+                'PYEXTCFLAGS': ("sysconfig.get_config_var('CFLAGS')", True),
+                'PYEXTCCSHARED': ("sysconfig.get_config_var('CCSHARED')", False),
+                'PYEXTLINKFLAGS': ("sysconfig.get_config_var('LDFLAGS')", True),
+                'PYEXTLINK': ("sysconfig.get_config_var('LDSHARED')", False),
+                'PYEXTINCPATH': ("sysconfig.get_python_inc()", False),
                 'PYEXTSUFFIX': ("sysconfig.get_config_var('SO')", False)}
 
     from distutils import sysconfig
@@ -208,7 +208,7 @@ def generate(env):
     if 'PYEXT_USE_DISTUTILS' not in env:
         env['PYEXT_USE_DISTUTILS'] = False
 
-    # This sets all constructions variables used for pyext builders. 
+    # This sets all constructions variables used for pyext builders.
     set_basic_vars(env)
 
     set_configuration(env, env['PYEXT_USE_DISTUTILS'])

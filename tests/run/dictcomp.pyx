@@ -57,3 +57,35 @@ def sorted(it):
     l = list(it)
     l.sort()
     return l
+
+
+# Copied from sre_compile.py in CPython 3.7.  Previously failed to detect variable initialisation.
+_equivalences = (
+    # LATIN SMALL LETTER I, LATIN SMALL LETTER DOTLESS I
+    (0x69, 0x131), # iı
+    # LATIN SMALL LETTER S, LATIN SMALL LETTER LONG S
+    (0x73, 0x17f), # sſ
+    # MICRO SIGN, GREEK SMALL LETTER MU
+    (0xb5, 0x3bc), # µμ
+    # COMBINING GREEK YPOGEGRAMMENI, GREEK SMALL LETTER IOTA, GREEK PROSGEGRAMMENI
+    (0x345, 0x3b9, 0x1fbe), # \u0345ιι
+    # ...
+)
+
+_ignorecase_fixes = {
+    i: tuple(j for j in t if i != j)
+    for t in _equivalences for i in t
+}
+
+def nested_tuple():
+    """
+    >>> modlevel, funclevel = nested_tuple()
+    >>> modlevel == funclevel or (modlevel, funclevel)
+    True
+    """
+    inner_ignorecase_fixes = {
+        i: tuple(j for j in t if i != j)
+        for t in _equivalences for i in t
+    }
+
+    return sorted(_ignorecase_fixes.items()), sorted(inner_ignorecase_fixes.items())

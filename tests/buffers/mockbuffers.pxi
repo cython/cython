@@ -1,5 +1,4 @@
 from libc cimport stdlib
-from libc cimport stdio
 cimport cpython.buffer
 
 import sys
@@ -18,35 +17,36 @@ cdef class MockBuffer:
     cdef object format, offset
     cdef void* buffer
     cdef Py_ssize_t len, itemsize
-    cdef int ndim
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
     cdef Py_ssize_t* suboffsets
     cdef object label, log
+    cdef int ndim
+    cdef bint writable
 
-    cdef readonly object recieved_flags, release_ok
+    cdef readonly object received_flags, release_ok
     cdef public object fail
 
-    def __init__(self, label, data, shape=None, strides=None, format=None, offset=0):
+    def __init__(self, label, data, shape=None, strides=None, format=None, writable=True, offset=0):
         # It is important not to store references to data after the constructor
         # as refcounting is checked on object buffers.
+        cdef Py_ssize_t x, s, cumprod, itemsize
         self.label = label
         self.release_ok = True
-        self.log = ""
+        self.log = u""
         self.offset = offset
-        self.itemsize = self.get_itemsize()
+        self.itemsize = itemsize = self.get_itemsize()
+        self.writable = writable
         if format is None: format = self.get_default_format()
         if shape is None: shape = (len(data),)
         if strides is None:
             strides = []
             cumprod = 1
-            rshape = list(shape)
-            rshape.reverse()
-            for s in rshape:
+            for s in shape[::-1]:
                 strides.append(cumprod)
                 cumprod *= s
             strides.reverse()
-        strides = [x * self.itemsize for x in strides]
+        strides = [x * itemsize for x in strides]
         suboffsets = [-1] * len(shape)
         datashape = [len(data)]
         p = data
@@ -59,8 +59,10 @@ cdef class MockBuffer:
             self.ndim = <int>len(datashape)
             shape = datashape
             self.buffer = self.create_indirect_buffer(data, shape)
-            suboffsets = [0] * (self.ndim-1) + [-1]
-            strides = [sizeof(void*)] * (self.ndim-1) + [self.itemsize]
+            suboffsets = [0] * self.ndim
+            suboffsets[-1] = -1
+            strides = [sizeof(void*)] * self.ndim
+            strides[-1] = itemsize
             self.suboffsets = self.list_to_sizebuf(suboffsets)
         else:
             # strided and/or simple access
@@ -73,7 +75,7 @@ cdef class MockBuffer:
         except AttributeError:
             pass
         self.format = format
-        self.len = len(data) * self.itemsize
+        self.len = len(data) * itemsize
 
         self.strides = self.list_to_sizebuf(strides)
         self.shape = self.list_to_sizebuf(shape)
@@ -117,6 +119,7 @@ cdef class MockBuffer:
             return buf
 
     cdef Py_ssize_t* list_to_sizebuf(self, l):
+        cdef Py_ssize_t i, x
         cdef size_t n = <size_t>len(l) * sizeof(Py_ssize_t)
         cdef Py_ssize_t* buf = <Py_ssize_t*>stdlib.malloc(n)
         for i, x in enumerate(l):
@@ -127,16 +130,19 @@ cdef class MockBuffer:
         if self.fail:
             raise ValueError("Failing on purpose")
 
-        self.recieved_flags = []
+        self.received_flags = []
         cdef int value
         for name, value in available_flags:
             if (value & flags) == value:
-                self.recieved_flags.append(name)
+                self.received_flags.append(name)
+
+        if flags & cpython.buffer.PyBUF_WRITABLE and not self.writable:
+            raise BufferError(f"Writable buffer requested from read-only mock: {' | '.join(self.received_flags)}")
 
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
         buffer.obj = self
         buffer.len = self.len
-        buffer.readonly = 0
+        buffer.readonly = not self.writable
         buffer.format = <char*>self.format
         buffer.ndim = self.ndim
         buffer.shape = self.shape
@@ -145,29 +151,29 @@ cdef class MockBuffer:
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
         if self.label:
-            msg = "acquired %s" % self.label
-            print msg
-            self.log += msg + "\n"
+            msg = f"acquired {self.label}"
+            print(msg)
+            self.log += msg + u"\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         if buffer.suboffsets != self.suboffsets:
             self.release_ok = False
         if self.label:
-            msg = "released %s" % self.label
-            print msg
-            self.log += msg + "\n"
+            msg = f"released {self.label}"
+            print(msg)
+            self.log += msg + u"\n"
 
     def printlog(self):
-        print self.log[:-1]
+        print(self.log[:-1])
 
     def resetlog(self):
-        self.log = ""
+        self.log = u""
 
     cdef int write(self, char* buf, object value) except -1: raise Exception()
     cdef get_itemsize(self):
-        print "ERROR, not subclassed", self.__class__
+        print(f"ERROR, not subclassed: {self.__class__}")
     cdef get_default_format(self):
-        print "ERROR, not subclassed", self.__class__
+        print(f"ERROR, not subclassed {self.__class__}")
 
 cdef class CharMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
@@ -239,10 +245,10 @@ cdef class ErrorBuffer:
         self.label = label
 
     def __getbuffer__(ErrorBuffer self, Py_buffer* buffer, int flags):
-        raise Exception("acquiring %s" % self.label)
+        raise Exception(f"acquiring {self.label}")
 
     def __releasebuffer__(ErrorBuffer self, Py_buffer* buffer):
-        raise Exception("releasing %s" % self.label)
+        raise Exception(f"releasing {self.label}")
 
 #
 # Structs
@@ -329,12 +335,11 @@ cdef class LongComplexMockBuffer(MockBuffer):
 
 
 def print_offsets(*args, size, newline=True):
-    sys.stdout.write(' '.join([str(item // size) for item in args]))
-    if newline:
-        sys.stdout.write('\n')
+    sys.stdout.write(' '.join([str(item // size) for item in args]) + ('\n' if newline else ''))
 
 def print_int_offsets(*args, newline=True):
     print_offsets(*args, size=sizeof(int), newline=newline)
+
 
 shape_5_3_4_list = [[list(range(k * 12 + j * 4, k * 12 + j * 4 + 4))
                         for j in range(3)]

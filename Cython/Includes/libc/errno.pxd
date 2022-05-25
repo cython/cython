@@ -61,6 +61,7 @@ cdef extern from "<errno.h>" nogil:
         EBFONT
         ENOSTR
         ENODATA
+        ENOATTR
         ETIME
         ENOSR
         ENONET

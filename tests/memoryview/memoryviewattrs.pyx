@@ -1,13 +1,6 @@
 # mode: run
 # tag: numpy
 
-__test__ = {}
-
-def testcase(func):
-    __test__[func.__name__] = func.__doc__
-    return func
-
-
 cimport cython
 from cython.view cimport array
 
@@ -15,7 +8,6 @@ import numpy as np
 cimport numpy as np
 
 
-@testcase
 def test_shape_stride_suboffset():
     u'''
     >>> test_shape_stride_suboffset()
@@ -49,7 +41,6 @@ def test_shape_stride_suboffset():
     print c_contig.suboffsets[0], c_contig.suboffsets[1], c_contig.suboffsets[2]
 
 
-@testcase
 def test_copy_to():
     u'''
     >>> test_copy_to()
@@ -72,7 +63,6 @@ def test_copy_to():
     print ' '.join(str(to_data[i]) for i in range(2*2*2))
 
 
-@testcase
 def test_overlapping_copy():
     """
     >>> test_overlapping_copy()
@@ -88,7 +78,6 @@ def test_overlapping_copy():
         assert slice[i] == 10 - 1 - i
 
 
-@testcase
 def test_copy_return_type():
     """
     >>> test_copy_return_type()
@@ -103,7 +92,6 @@ def test_copy_return_type():
     print(f_contig[2, 2])
 
 
-@testcase
 def test_partly_overlapping():
     """
     >>> test_partly_overlapping()
@@ -119,7 +107,6 @@ def test_partly_overlapping():
     for i in range(5):
         assert slice2[i] == i + 4
 
-@testcase
 @cython.nonecheck(True)
 def test_nonecheck1():
     u'''
@@ -131,7 +118,6 @@ def test_nonecheck1():
     cdef int[:,:,:] uninitialized
     print uninitialized.is_c_contig()
 
-@testcase
 @cython.nonecheck(True)
 def test_nonecheck2():
     u'''
@@ -143,7 +129,6 @@ def test_nonecheck2():
     cdef int[:,:,:] uninitialized
     print uninitialized.is_f_contig()
 
-@testcase
 @cython.nonecheck(True)
 def test_nonecheck3():
     u'''
@@ -155,7 +140,6 @@ def test_nonecheck3():
     cdef int[:,:,:] uninitialized
     uninitialized.copy()
 
-@testcase
 @cython.nonecheck(True)
 def test_nonecheck4():
     u'''
@@ -167,7 +151,6 @@ def test_nonecheck4():
     cdef int[:,:,:] uninitialized
     uninitialized.copy_fortran()
 
-@testcase
 @cython.nonecheck(True)
 def test_nonecheck5():
     u'''
@@ -179,7 +162,6 @@ def test_nonecheck5():
     cdef int[:,:,:] uninitialized
     uninitialized._data
 
-@testcase
 def test_copy_mismatch():
     u'''
     >>> test_copy_mismatch()
@@ -193,7 +175,6 @@ def test_copy_mismatch():
     mv1[...] = mv2
 
 
-@testcase
 def test_is_contiguous():
     u"""
     >>> test_is_contiguous()
@@ -222,7 +203,6 @@ def test_is_contiguous():
     print 'strided', strided[::2].is_c_contig()
 
 
-@testcase
 def call():
     u'''
     >>> call()
@@ -260,7 +240,11 @@ def call():
 
     print (<int*>mv3._data)[0] , (<int*>mv2._data)[0] , (<int*>mv1._data)[0]
 
-@testcase
+    assert len(mv1) == 3
+    assert len(mv2) == 3
+    assert len(mv3) == 3
+
+
 def two_dee():
     u'''
     >>> two_dee()
@@ -271,6 +255,15 @@ def two_dee():
     '''
     cdef long[:,::1] mv1, mv2, mv3
     cdef array arr = array((2,2), sizeof(long), 'l')
+
+    assert len(arr) == 2
+
+    try:
+        _ = len(mv1)
+    except UnboundLocalError:
+        pass
+    else:
+        assert False, "UnboundLocalError not raised for uninitialised memory view"
 
     cdef long *arr_data
     arr_data = <long*>arr.data
@@ -299,7 +292,6 @@ def two_dee():
     print (<long*>mv3._data)[0] , (<long*>mv3._data)[1] , (<long*>mv3._data)[2] , (<long*>mv3._data)[3]
 
 
-@testcase
 def fort_two_dee():
     u'''
     >>> fort_two_dee()

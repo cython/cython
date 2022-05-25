@@ -10,16 +10,22 @@ from __future__ import absolute_import
 
 import re
 import operator
+import sys
+
+if sys.version_info[0] >= 3:
+    _unicode = str
+else:
+    _unicode = unicode
 
 path_tokenizer = re.compile(
-    "("
-    "'[^']*'|\"[^\"]*\"|"
-    "//?|"
-    "\(\)|"
-    "==?|"
-    "[/.*\[\]\(\)@])|"
-    "([^/\[\]\(\)@=\s]+)|"
-    "\s+"
+    r"("
+    r"'[^']*'|\"[^\"]*\"|"
+    r"//?|"
+    r"\(\)|"
+    r"==?|"
+    r"[/.*\[\]()@])|"
+    r"([^/\[\]()@=\s]+)|"
+    r"\s+"
     ).findall
 
 def iterchildren(node, attr_name):
@@ -167,6 +173,11 @@ def handle_attribute(next, token):
                     continue
                 if attr_value == value:
                     yield attr_value
+                elif (isinstance(attr_value, bytes) and isinstance(value, _unicode) and
+                        attr_value == value.encode()):
+                    # allow a bytes-to-string comparison too
+                    yield attr_value
+
     return select
 
 
@@ -180,6 +191,8 @@ def parse_path_value(next):
             return int(value)
         except ValueError:
             pass
+    elif token[1].isdigit():
+        return int(token[1])
     else:
         name = token[1].lower()
         if name == 'true':

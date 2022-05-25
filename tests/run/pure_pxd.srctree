@@ -1,5 +1,5 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import a; a.test()"
+PYTHON -c "import a; a.test(a)"
 
 ######## setup.py ########
 
@@ -37,7 +37,37 @@ class ExtTypeAttributes(object):
         self.b = [1, 2, 3]
 
 
-def test():
+class TypedMethod():
+    """
+    >>> t = TypedMethod()
+    >>> t.meth()
+    97
+    """
+    def meth(self):
+        x = bytearray(b'abcdefg')
+        return x[0]
+
+
+def func(a, b, c):
+    """
+    >>> func(1, 2, 3)
+    6
+    """
+    return a + b + c
+
+def sum_generator_expression(a):
+    # GH-3477 - closure variables incorrectly captured in functions transformed to cdef
+    return sum(i for i in range(a))
+
+def run_sum_generator_expression(a):
+    """
+    >>> run_sum_generator_expression(5)
+    10
+    """
+    return sum_generator_expression(a)
+
+
+def test(module):
     import os.path
     assert not os.path.basename(__file__).endswith('.py'), __file__
     assert not os.path.basename(__file__).endswith('.pyc'), __file__
@@ -46,12 +76,16 @@ def test():
     assert not ExtTypePass().__doc__, ExtTypePass().__doc__
     assert ExtTypeDocstring().__doc__ == "huhu!", ExtTypeDocstring().__doc__
     assert ExtTypePxdDocstring().__doc__ == "ho, ho, ho!", ExtTypePxdDocstring().__doc__
+    assert '>>> ' in func.__doc__
 
     import doctest
-    doctest.testmod(verbose=True)
+    result = doctest.testmod(module, verbose=True)
+    assert not result.failed, result.failed
 
 
 ######## a.pxd ########
+
+cimport cython
 
 cdef class ExtTypePass:
     pass
@@ -64,3 +98,14 @@ cdef class ExtTypePxdDocstring:
 cdef class ExtTypeAttributes:
     cdef int a
     cdef readonly list b
+
+
+cdef class TypedMethod:
+    @cython.locals(x='char[:]')
+    cpdef meth(self)
+
+
+cpdef int func(x, int y, z) except? -1  # argument names should not matter, types should
+
+
+cdef int sum_generator_expression(int a)

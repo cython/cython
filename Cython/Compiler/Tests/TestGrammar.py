@@ -27,7 +27,15 @@ VALID_UNDERSCORE_LITERALS = [
     '1e1_0',
     '.1_4',
     '.1_4e1',
+    '0b_0',
+    '0x_f',
+    '0o_5',
+    '1_00_00j',
+    '1_00_00.5j',
+    '1_00_00e5_1j',
     '.1_4j',
+    '(1_2.5+3_3j)',
+    '(.5_6j)',
 ]
 
 # Copied from CPython's test_grammar.py
@@ -36,22 +44,29 @@ INVALID_UNDERSCORE_LITERALS = [
     '0_',
     '42_',
     '1.4j_',
+    '0x_',
     '0b1_',
     '0xf_',
     '0o5_',
+    '0 if 1_Else 1',
     # Underscores in the base selector:
     '0_b0',
     '0_xf',
     '0_o5',
-    # Underscore right after the base selector:
-    '0b_0',
-    '0x_f',
-    '0o_5',
     # Old-style octal, still disallowed:
-    #'0_7',
-    #'09_99',
-    # Special case with exponent:
-    '0 if 1_Else 1',
+    # FIXME: still need to support PY_VERSION_HEX < 3
+    '0_7',
+    '09_99',
+    # Multiple consecutive underscores:
+    '4_______2',
+    '0.1__4',
+    '0.1__4j',
+    '0b1001__0100',
+    '0xffff__ffff',
+    '0x___',
+    '0o5__77',
+    '1e1__0',
+    '1e1__0j',
     # Underscore right before a dot:
     '1_.4',
     '1_.4j',
@@ -59,24 +74,24 @@ INVALID_UNDERSCORE_LITERALS = [
     '1._4',
     '1._4j',
     '._5',
+    '._5j',
     # Underscore right after a sign:
     '1.0e+_1',
-    # Multiple consecutive underscores:
-    '4_______2',
-    '0.1__4',
-    '0b1001__0100',
-    '0xffff__ffff',
-    '0o5__77',
-    '1e1__0',
+    '1.0e+_1j',
     # Underscore right before j:
     '1.4_j',
     '1.4e5_j',
     # Underscore right before e:
     '1_e1',
     '1.4_e1',
+    '1.4_e1j',
     # Underscore right after e:
     '1e_1',
     '1.4e_1',
+    '1.4e_1j',
+    # Complex cases with parens:
+    '(1+1.5_j_)',
+    '(1+1.5_j)',
     # Whitespace in literals
     '1_ 2',
     '1 _2',
@@ -117,11 +132,15 @@ class TestGrammar(CythonTest):
                     # Add/MulNode() -> literal is first or second operand
                     literal_node = literal_node.operand2 if i % 2 else literal_node.operand1
                 if 'j' in literal or 'J' in literal:
-                    assert isinstance(literal_node, ExprNodes.ImagNode)
+                    if '+' in literal:
+                        # FIXME: tighten this test
+                        assert isinstance(literal_node, ExprNodes.AddNode), (literal, literal_node)
+                    else:
+                        assert isinstance(literal_node, ExprNodes.ImagNode), (literal, literal_node)
                 elif '.' in literal or 'e' in literal or 'E' in literal and not ('0x' in literal or '0X' in literal):
-                    assert isinstance(literal_node, ExprNodes.FloatNode)
+                    assert isinstance(literal_node, ExprNodes.FloatNode), (literal, literal_node)
                 else:
-                    assert isinstance(literal_node, ExprNodes.IntNode)
+                    assert isinstance(literal_node, ExprNodes.IntNode), (literal, literal_node)
 
 
 if __name__ == "__main__":

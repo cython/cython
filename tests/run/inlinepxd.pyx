@@ -1,9 +1,18 @@
+# mode: run
+# tag: inline, pxd
+
+# cython: wraparound = False
+
 __doc__ = u"""
 >>> f()
 3
 >>> g()
 6
 >>> h()
+6
+>>> i()
+6
+>>> j()
 6
 """
 
@@ -18,3 +27,18 @@ def g():
 
 def h():
     return my_add3(1, 2, 3)
+
+def i():
+    return my_add3(5)
+
+def j():
+    return my_add3(2, 4)
+
+def test_wraparound():
+    """
+    >>> test_wraparound()
+    1.0
+    """
+    # the wraparound directive from this scope should not affect the inline pxd
+    a = [ 0.0, 1.0 ]
+    return inlinepxd_support.index(a)

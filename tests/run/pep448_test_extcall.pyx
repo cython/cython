@@ -224,10 +224,10 @@ def call_g_positional():
 
 def call_nonseq_positional1():
     """
-    >>> call_nonseq_positional1()
+    >>> call_nonseq_positional1()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'Nothing' object is not iterable
+    TypeError: ...Nothing...
 
     # TypeError: g() argument after * must be a sequence, not Nothing
     """
@@ -237,10 +237,10 @@ def call_nonseq_positional1():
 
 def call_nonseq_positional2():
     """
-    >>> call_nonseq_positional2()
+    >>> call_nonseq_positional2()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'Nothing' object is not iterable
+    TypeError: ...Nothing...
 
     # TypeError: g() argument after * must be a sequence, not Nothing
     """
@@ -326,7 +326,7 @@ def errors_non_string_kwarg():
     """
     >>> errors_non_string_kwarg()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     """
     f(**{1:2})
 
@@ -463,10 +463,10 @@ def call_builtin_empty_dict():
 
 def call_builtin_nonempty_dict():
     """
-    >>> call_builtin_nonempty_dict()
+    >>> call_builtin_nonempty_dict() # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: id() takes no keyword arguments
+    TypeError: id() ... keyword argument...
     """
     return id(1, **{'foo': 1})
 
@@ -474,7 +474,7 @@ def call_builtin_nonempty_dict():
 ''' Cython: currently just passes empty kwargs into f() while CPython keeps the content
 
 # A corner case of keyword dictionary items being deleted during
-# the function call setup. See <http://bugs.python.org/issue2016>.
+# the function call setup. See <https://bugs.python.org/issue2016>.
 
 def call_kwargs_modified_while_building():
     """

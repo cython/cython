@@ -7,9 +7,34 @@ def modobj(obj2, obj3):
     1
     >>> modobj('%d', 5)
     '5'
+    >>> modobj(1, 0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: integer... by zero
     """
     obj1 = obj2 % obj3
     return obj1
+
+
+def mod_10_obj(int2):
+    """
+    >>> mod_10_obj(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ... by zero
+    >>> 10 % 1
+    0
+    >>> mod_10_obj(1)
+    0
+    >>> mod_10_obj(3)
+    1
+    >>> 10 % -1
+    0
+    >>> mod_10_obj(-1)
+    0
+    >>> mod_10_obj(-10)
+    0
+    """
+    int1 = 10 % int2
+    return int1
 
 
 def mod_obj_10(int2):
@@ -154,6 +179,53 @@ def mod_obj_17(int2):
     return int1
 
 
+def mod_int_17(int int2):
+    """
+    >>> 0 % 17
+    0
+    >>> mod_int_17(0)
+    0
+    >>> 1 % 17
+    1
+    >>> mod_int_17(1)
+    1
+    >>> (-1) % 17
+    16
+    >>> mod_int_17(-1)
+    16
+    >>> 9 % 17
+    9
+    >>> mod_int_17(16)
+    16
+    >>> 17 % 17
+    0
+    >>> mod_int_17(17)
+    0
+    >>> (-17) % 17
+    0
+    >>> mod_int_17(-17)
+    0
+    >>> (-18) % 17
+    16
+    >>> mod_int_17(-18)
+    16
+    >>> 10002 % 17
+    6
+    >>> mod_int_17(10002)
+    6
+    >>> int((2**25) % 17)
+    2
+    >>> int(mod_int_17(2**25))
+    2
+    >>> int((-2**25) % 17)
+    15
+    >>> int(mod_int_17(-2**25))
+    15
+    """
+    int1 = int2 % 17
+    return int1
+
+
 def mod_obj_m2(int2):
     """
     >>> 0 % -2
@@ -212,3 +284,12 @@ def modptr():
     str3 = "eggs"
     obj1 = str2 % str3  # '%' operator doesn't work on byte strings in Py3
     return obj1
+
+
+def mod_bigint(obj):
+    """
+    >>> print(mod_bigint(3316000000000))
+    319
+    """
+    result = obj % 999
+    return result

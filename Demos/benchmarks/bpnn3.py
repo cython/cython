@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # Back-Propagation Neural Networks
-# 
-# Written in Python.  See http://www.python.org/
+#
+# Written in Python.  See https://www.python.org/
 #
 # Neil Schemenauer <nascheme@enme.ucalgary.ca>
 
@@ -26,10 +26,10 @@ def makeMatrix(I, J, fill=0.0):
         return m
 
 class NN(object):
-#    print 'class NN'    
+#    print 'class NN'
     def __init__(self, ni, nh, no):
         # number of input, hidden, and output nodes
-        self.ni = ni + 1 # +1 for bias node
+        self.ni = ni + 1  # +1 for bias node
         self.nh = nh
         self.no = no
 
@@ -37,11 +37,11 @@ class NN(object):
         self.ai = [1.0]*self.ni
         self.ah = [1.0]*self.nh
         self.ao = [1.0]*self.no
-        
+
         # create weights
         self.wi = makeMatrix(self.ni, self.nh)
         self.wo = makeMatrix(self.nh, self.no)
-        # set them to random vaules
+        # set them to random values
         for i in range(self.ni):
             for j in range(self.nh):
                 self.wi[i][j] = rand(-2.0, 2.0)
@@ -49,7 +49,7 @@ class NN(object):
             for k in range(self.no):
                 self.wo[j][k] = rand(-2.0, 2.0)
 
-        # last change in weights for momentum   
+        # last change in weights for momentum
         self.ci = makeMatrix(self.ni, self.nh)
         self.co = makeMatrix(self.nh, self.no)
 
@@ -67,7 +67,7 @@ class NN(object):
         for j in range(self.nh):
             sum = 0.0
             for i in range(self.ni):
-                 sum = sum + self.ai[i] * self.wi[i][j]
+                sum = sum + self.ai[i] * self.wi[i][j]
             self.ah[j] = 1.0/(1.0+math.exp(-sum))
 
         # output activations

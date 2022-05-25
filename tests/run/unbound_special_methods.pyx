@@ -14,11 +14,11 @@ text = u'ab jd  sdflk as sa  sadas asdas fsdf '
     "//AttributeNode[@entry.cname = 'PyUnicode_Contains']")
 def unicode_contains(unicode s, substring):
     """
-    >>> unicode_contains(text, 'fl')
+    >>> unicode_contains(text, u'fl')
     True
-    >>> unicode_contains(text, 'XYZ')
+    >>> unicode_contains(text, u'XYZ')
     False
-    >>> unicode_contains(None, 'XYZ')
+    >>> unicode_contains(None, u'XYZ')
     Traceback (most recent call last):
     AttributeError: 'NoneType' object has no attribute '__contains__'
     """
@@ -32,11 +32,11 @@ def unicode_contains(unicode s, substring):
     "//NameNode[@entry.cname = 'PyUnicode_Contains']")
 def unicode_contains_unbound(unicode s, substring):
     """
-    >>> unicode_contains_unbound(text, 'fl')
+    >>> unicode_contains_unbound(text, u'fl')
     True
-    >>> unicode_contains_unbound(text, 'XYZ')
+    >>> unicode_contains_unbound(text, u'XYZ')
     False
-    >>> unicode_contains_unbound(None, 'XYZ')   # doctest: +ELLIPSIS
+    >>> unicode_contains_unbound(None, u'XYZ')   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: descriptor '__contains__' requires a '...' object but received a 'NoneType'
     """
@@ -46,17 +46,17 @@ def unicode_contains_unbound(unicode s, substring):
 cdef class UnicodeSubclass(unicode):
     """
     >>> u = UnicodeSubclass(text)
-    >>> 'fl' in u
+    >>> u'fl' in u
     False
-    >>> 'XYZ' in u
+    >>> u'XYZ' in u
     True
-    >>> u.method('fl')
+    >>> u.method(u'fl')
     False
-    >>> u.method('XYZ')
+    >>> u.method(u'XYZ')
     True
-    >>> u.operator('fl')
+    >>> u.operator(u'fl')
     False
-    >>> u.operator('XYZ')
+    >>> u.operator(u'XYZ')
     True
     """
     def __contains__(self, substring):

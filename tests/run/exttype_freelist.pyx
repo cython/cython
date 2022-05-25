@@ -451,3 +451,19 @@ cdef class ExtTypeWithRefCycle:
 
     def __init__(self, obj=None):
         self.attribute = obj
+
+
+@cython.freelist(3)
+@cython.cclass
+class DecoratedPyClass(object):
+    """
+    >>> obj1 = DecoratedPyClass()
+    >>> obj2 = DecoratedPyClass()
+    >>> obj3 = DecoratedPyClass()
+    >>> obj4 = DecoratedPyClass()
+
+    >>> obj1 = DecoratedPyClass()
+    >>> obj2 = DecoratedPyClass()
+    >>> obj3 = DecoratedPyClass()
+    >>> obj4 = DecoratedPyClass()
+    """

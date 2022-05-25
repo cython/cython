@@ -1,5 +1,13 @@
 cimport cython
 
+cdef extern from *:
+    cdef Py_ssize_t PY_SSIZE_T_MIN
+    cdef Py_ssize_t PY_SSIZE_T_MAX
+
+SSIZE_T_MAX = PY_SSIZE_T_MAX
+SSIZE_T_MIN = PY_SSIZE_T_MIN
+
+
 b_a = b'a'
 b_b = b'b'
 
@@ -114,6 +122,14 @@ def bytes_decode(bytes s, start=None, stop=None):
     <BLANKLINE>
     >>> print(bytes_decode(s, -300, -500))
     <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MIN, SSIZE_T_MIN))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MIN, SSIZE_T_MAX))
+    abaab
+    >>> print(bytes_decode(s, SSIZE_T_MAX, SSIZE_T_MIN))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MAX, SSIZE_T_MAX))
+    <BLANKLINE>
 
     >>> s[:'test']                       # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -150,6 +166,47 @@ def bytes_decode(bytes s, start=None, stop=None):
         return s[start:].decode('utf8')
     else:
         return s[start:stop].decode('utf8')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode_utf16(bytes s):
+    """
+    >>> s = 'abc'.encode('UTF-16')
+    >>> print(bytes_decode_utf16(s))
+    abc
+    """
+    return s.decode('utf16')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode_utf16_le(bytes s):
+    """
+    >>> s = 'abc'.encode('UTF-16LE')
+    >>> assert s != 'abc'.encode('UTF-16BE')
+    >>> print(bytes_decode_utf16_le(s))
+    abc
+    """
+    return s.decode('utf_16_le')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode_utf16_be(bytes s):
+    """
+    >>> s = 'abc'.encode('UTF-16BE')
+    >>> assert s != 'abc'.encode('UTF-16LE')
+    >>> print(bytes_decode_utf16_be(s))
+    abc
+    """
+    return s.decode('utf_16_be')
 
 
 @cython.test_assert_path_exists(

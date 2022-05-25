@@ -2,7 +2,7 @@
 # tag: coverage,trace
 
 """
-PYTHON -c 'import shutil; shutil.copy("pkg/coverage_test_pyx.pyx", "pkg/coverage_test_pyx.pxi")'
+PYTHON -c "import shutil; shutil.copy('pkg/coverage_test_pyx.pyx', 'pkg/coverage_test_pyx.pxi')"
 PYTHON setup.py build_ext -i
 PYTHON coverage_test.py
 """
@@ -14,7 +14,8 @@ from Cython.Build import cythonize
 
 setup(ext_modules = cythonize([
     'coverage_test_*.py*',
-    'pkg/coverage_test_*.py*'
+    'pkg/coverage_test_*.py*',
+    'Package2/CoverageTest_*.py*'
 ]))
 
 
@@ -68,6 +69,52 @@ def main_func(int x):                            # 11
     return cfunc1(x) + func1(x, 4) + func2(x)    # 12
 
 
+######## Package2/__init__.py ########
+# Add MixedCase package and filenames to test if the files are found
+
+######## Package2/CoverageTest_py.py ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+def func1(a, b):
+    x = 1               #  5
+    c = func2(a) + b    #  6
+    return x + c        #  7
+
+
+def func2(a):
+    return a * 2        # 11
+
+
+######## Package2/CoverageTest_pyx.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+def func1(int a, int b):
+    cdef int x = 1      #  5
+    c = func2(a) + b    #  6
+    return x + c        #  7
+
+
+def func2(int a):
+    return a * 2        # 11
+
+
+######## coverage_test_include_pyx.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+cdef int x = 5                                   #  4
+
+cdef int cfunc1(int x):                          #  6
+    return x * 3                                 #  7
+
+include "pkg/coverage_test_pyx.pxi"              #  9
+
+def main_func(int x):                            # 11
+    return cfunc1(x) + func1(x, 4) + func2(x)    # 12
+
+
 ######## coverage_test.py ########
 
 import re
@@ -84,8 +131,12 @@ from pkg import coverage_test_py
 from pkg import coverage_test_pyx
 import coverage_test_include_pyx
 
+# test the MixedCase Files and packages
+from Package2 import CoverageTest_py
+from Package2 import CoverageTest_pyx
 
-for module in [coverage_test_py, coverage_test_pyx, coverage_test_include_pyx]:
+for module in [coverage_test_py, coverage_test_pyx, coverage_test_include_pyx,
+               CoverageTest_py, CoverageTest_pyx]:
     assert not any(module.__file__.endswith(ext) for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
         module.__file__
 
@@ -93,10 +144,18 @@ for module in [coverage_test_py, coverage_test_pyx, coverage_test_include_pyx]:
 def source_file_for(module):
     module_name = module.__name__
     path, ext = os.path.splitext(module.__file__)
-    platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[^.]*$', path, re.I)
-    if platform_suffix:
-        path = path[:platform_suffix.start()]
-    return path + '.' + module_name.rsplit('_', 1)[-1]
+    if ext == '.so':
+        # Linux/Unix/Mac extension module
+        platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$', path, re.I)
+        if platform_suffix:
+            path = path[:platform_suffix.start()]
+    elif ext == '.pyd':
+        # Windows extension module
+        platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', path, re.I)
+        if platform_suffix:
+            path = path[:platform_suffix.start()]
+    source_filepath = path + '.' + module_name.rsplit('_', 1)[-1]
+    return source_filepath
 
 
 def run_coverage(module):
@@ -137,3 +196,5 @@ if __name__ == '__main__':
     run_coverage(coverage_test_py)
     run_coverage(coverage_test_pyx)
     run_coverage(coverage_test_include_pyx)
+    run_coverage(CoverageTest_py)
+    run_coverage(CoverageTest_pyx)

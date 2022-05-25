@@ -6,14 +6,14 @@
 Differences between Cython and Pyrex
 **************************************
 
-.. warning:: 
-    Both Cython and Pyrex are moving targets. It has come to the point 
-    that an explicit list of all the differences between the two 
-    projects would be laborious to list and track, but hopefully 
-    this high-level list gives an idea of the differences that 
+.. warning::
+    Both Cython and Pyrex are moving targets. It has come to the point
+    that an explicit list of all the differences between the two
+    projects would be laborious to list and track, but hopefully
+    this high-level list gives an idea of the differences that
     are present. It should be noted that both projects make an effort
-    at mutual compatibility, but Cython's goal is to be as close to 
-    and complete as Python as reasonable. 
+    at mutual compatibility, but Cython's goal is to be as close to
+    and complete as Python as reasonable.
 
 
 Python 3 Support
@@ -21,10 +21,14 @@ Python 3 Support
 
 Cython creates ``.c`` files that can be built and used with both
 Python 2.x and Python 3.x. In fact, compiling your module with
-Cython may very well be the easiest way to port code to Python 3.
-We are also working to make the compiler run in both Python 2.x and 3.x.
+Cython may very well be an easy way to port code to Python 3.
 
-Many Python 3 constructs are already supported by Cython.
+Cython also supports various syntax additions that came with
+Python 3.0 and later major Python releases.  If they do not conflict
+with existing Python 2.x syntax or semantics, they are usually just
+accepted by the compiler.  Everything else depends on the
+compiler directive ``language_level=3``
+(see :ref:`compiler directives<compiler-directives>`).
 
 List/Set/Dict Comprehensions
 ----------------------------
@@ -67,15 +71,14 @@ extra positional arguments, e.g.::
 takes exactly two positional parameters and has two required keyword parameters.
 
 
-
 Conditional expressions "x if b else y"
 =========================================
 
 Conditional expressions as described in
-http://www.python.org/dev/peps/pep-0308/::
+https://www.python.org/dev/peps/pep-0308/::
 
     X if C else Y
-       
+
 Only one of ``X`` and ``Y`` is evaluated (depending on the value of C).
 
 
@@ -89,10 +92,10 @@ keyword passed on to the C compiler. These can be as fast as macros.::
 
     cdef inline int something_fast(int a, int b):
         return a*a + b
-       
+
 Note that class-level :keyword:`cdef` functions are handled via a virtual
 function table, so the compiler won't be able to inline them in almost all
-cases. 
+cases.
 
 Assignment on declaration (e.g. "cdef int spam = 5")
 ======================================================
@@ -103,24 +106,24 @@ In Pyrex, one must write::
     i = 2
     j = 5
     k = 7
-    
+
 Now, with cython, one can write::
 
     cdef int i = 2, j = 5, k = 7
-    
+
 The expression on the right hand side can be arbitrarily complicated, e.g.::
 
     cdef int n = python_call(foo(x,y), a + b + c) - 32
-       
+
 
 'by' expression in for loop (e.g. "for i from 0 <= i < 10 by 2")
 ==================================================================
-    
+
 ::
 
     for i from 0 <= i < 10 by 2:
         print i
-       
+
 
 yields::
 
@@ -207,7 +210,7 @@ method on the class directly, e.g.::
     x.foo()  # will check to see if overridden
     A.foo(x) # will call A's implementation whether overridden or not
 
-See :ref:`early-binding-for-speed` for explanation and usage tips. 
+See :ref:`early-binding-for-speed` for explanation and usage tips.
 
 .. _automatic-range-conversion:
 
@@ -216,9 +219,9 @@ Automatic range conversion
 
 This will convert statements of the form ``for i in range(...)`` to ``for i
 from ...`` when ``i`` is any cdef'd integer type, and the direction (i.e. sign
-of step) can be determined. 
+of step) can be determined.
 
-.. warning:: 
+.. warning::
 
     This may change the semantics if the range causes
     assignment to ``i`` to overflow. Specifically, if this option is set, an error
@@ -256,30 +259,17 @@ functions in the ``.pxd`` file by writing ``cdef foo(x=*)``. The number of
 arguments may increase on subclassing, but the argument types and order must
 remain the same. There is a slight performance penalty in some cases when a
 cdef/cpdef function without any optional is overridden with one that does have
-default argument values. 
+default argument values.
 
-For example, one can have the ``.pxd`` file::
+For example, one can have the ``.pxd`` file:
 
-    cdef class A:
-        cdef foo(self)
-    cdef class B(A)
-        cdef foo(self, x=*)
-    cdef class C(B):
-        cpdef foo(self, x=*, int k=*)
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pxd
 
-with corresponding ``.pyx`` file::
+with corresponding ``.pyx`` file:
 
-    cdef class A:
-        cdef foo(self):
-            print "A"
-    cdef class B(A)
-        cdef foo(self, x=None)
-            print "B", x
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3)
-            print "C", x, k
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
-.. note:: 
+.. note::
 
     this also demonstrates how :keyword:`cpdef` functions can override
     :keyword:`cdef` functions.
@@ -320,7 +310,7 @@ Automatic ``typecheck``
 
 Rather than introducing a new keyword ``typecheck`` as explained in the
 `Pyrex docs
-<http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
+<https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
 Cython emits a (non-spoofable and faster) typecheck whenever
 :func:`isinstance` is used with an extension type as the second parameter.
 
@@ -330,13 +320,13 @@ From __future__ directives
 Cython supports several ``from __future__ import ...`` directives, namely
 ``absolute_import``, ``unicode_literals``, ``print_function`` and ``division``.
 
-With statements are always enabled. 
+With statements are always enabled.
 
 Pure Python mode
 ================
 
-Cython has support for compiling ``.py`` files, and 
+Cython has support for compiling ``.py`` files, and
 accepting type annotations using decorators and other
-valid Python syntax. This allows the same source to 
-be interpreted as straight Python, or compiled for 
+valid Python syntax. This allows the same source to
+be interpreted as straight Python, or compiled for
 optimized results. See :ref:`pure-mode` for more details.

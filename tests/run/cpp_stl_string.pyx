@@ -1,13 +1,47 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, warnings
 
 cimport cython
 
-from libcpp.string cimport string
+from libcpp.string cimport string, npos, to_string, stoi, stof
 
 b_asdf = b'asdf'
 b_asdg = b'asdg'
 b_s = b's'
+
+
+cdef int compare_to_asdf_ref(string& s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_ref():
+    """
+    >>> test_coerced_literal_ref()
+    0
+    """
+    return compare_to_asdf_ref("asdf")
+
+
+cdef int compare_to_asdf_const_ref(const string& s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_const_ref():
+    """
+    >>> test_coerced_literal_const_ref()
+    0
+    """
+    return compare_to_asdf_const_ref("asdf")
+
+
+cdef int compare_to_asdf_const(const string s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_const():
+    """
+    >>> test_coerced_literal_const()
+    0
+    """
+    return compare_to_asdf_const("asdf")
+
 
 def test_conversion(py_obj):
     """
@@ -68,6 +102,15 @@ def test_push_back(char *a):
     s.push_back(<char>ord('s'))
     return s.c_str()
 
+def test_pop_back(char *a):
+    """
+    >>> test_pop_back(b'abc') == b'ab' or test_pop_back(b'abc')
+    True
+    """
+    cdef string s = string(a)
+    s.pop_back()
+    return s
+
 def test_insert(char *a, char *b, int i):
     """
     >>> test_insert('AAAA'.encode('ASCII'), 'BBBB'.encode('ASCII'), 2) == 'AABBBBAA'.encode('ASCII')
@@ -99,6 +142,17 @@ def test_find(char *a, char *b):
     cdef size_t i = s.find(t)
     return i
 
+def test_npos(char *a, char *b):
+    """
+    >>> test_npos(b'abc', b'x')
+    True
+    >>> test_npos(b'abc', b'a')
+    False
+    """
+    cdef string s = string(a)
+    cdef string st = string(b)
+    return s.find(st) == npos
+
 def test_clear():
     """
     >>> test_clear() == ''.encode('ASCII')
@@ -107,6 +161,18 @@ def test_clear():
     cdef string s = string(<char *>"asdf")
     s.clear()
     return s.c_str()
+
+def test_erase(char *a, size_t pos=0, size_t count=npos):
+    """
+    >>> test_erase(b'abc') == b'' or test_erase(b'abc')
+    True
+    >>> test_erase(b'abc', 1) == b'a' or test_erase(b'abc', 1)
+    True
+    >>> test_erase(b'abc', 1, 1) == b'ac' or test_erase(b'abc', 1, 1)
+    True
+    """
+    cdef string s = string(a)
+    return s.erase(pos, count)
 
 def test_assign(char *a):
     """
@@ -310,3 +376,78 @@ def test_iteration(string s):
     []
     """
     return [c for c in s]
+
+def test_to_string(x):
+    """
+    >>> print(test_to_string(5))
+    si=5 sl=5 ss=5 sss=5
+    >>> print(test_to_string(-5))
+    si=-5 sl=-5 ss=5 sss=-5
+    """
+    si = to_string(<int>x).decode('ascii')
+    sl = to_string(<long>x).decode('ascii')
+    ss = to_string(<size_t>abs(x)).decode('ascii')
+    sss = to_string(<ssize_t>x).decode('ascii')
+    return f"si={si} sl={sl} ss={ss} sss={sss}"
+
+def test_stoi(char *a):
+    """
+    >>> test_stoi(b'5')
+    5
+    """
+    cdef string s = string(a)
+    return stoi(s)
+
+def test_stof(char *a):
+    """
+    >>> test_stof(b'5.5')
+    5.5
+    """
+    cdef string s = string(a)
+    return stof(s)
+
+def test_to_string(x):
+    """
+    >>> print(test_to_string(5))
+    si=5 sl=5 ss=5 sss=5
+    >>> print(test_to_string(-5))
+    si=-5 sl=-5 ss=5 sss=-5
+    """
+    si = to_string(<int>x).decode('ascii')
+    sl = to_string(<long>x).decode('ascii')
+    ss = to_string(<size_t>abs(x)).decode('ascii')
+    sss = to_string(<ssize_t>x).decode('ascii')
+    return f"si={si} sl={sl} ss={ss} sss={sss}"
+
+
+def test_stoi(char *a):
+    """
+    >>> test_stoi(b'5')
+    5
+    """
+    cdef string s = string(a)
+    return stoi(s)
+
+
+def test_stof(char *a):
+    """
+    >>> test_stof(b'5.5')
+    5.5
+    """
+    cdef string s = string(a)
+    return stof(s)
+
+
+def test_swap():
+    """
+    >>> test_swap()
+    """
+    cdef string s1 = b_asdf, s_asdf = b_asdf
+    cdef string s2 = b_asdg, s_asdg = b_asdg
+    s1.swap(s2)
+    assert s1 == s_asdg and s2 == s_asdf
+
+
+_WARNINGS = """
+21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
+"""

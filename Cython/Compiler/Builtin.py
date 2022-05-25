@@ -4,11 +4,11 @@
 
 from __future__ import absolute_import
 
-from .Symtab import BuiltinScope, StructOrUnionScope
+from .StringEncoding import EncodedString
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
-from . import Options
 
 
 # C-level implementations of builtin types, functions and methods
@@ -21,6 +21,7 @@ pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
 builtin_utility_code = {
+    'StopAsyncIteration': UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"),
 }
 
 
@@ -29,17 +30,19 @@ builtin_utility_code = {
 class _BuiltinOverride(object):
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
                  utility_code=None, sig=None, func_type=None,
-                 is_strict_signature=False, builtin_return_type=None):
+                 is_strict_signature=False, builtin_return_type=None,
+                 nogil=None):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
         self.builtin_return_type = builtin_return_type
         self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
+        self.nogil = nogil
 
     def build_func_type(self, sig=None, self_arg=None):
         if sig is None:
-            sig = Signature(self.args, self.ret_type)
+            sig = Signature(self.args, self.ret_type, nogil=self.nogil)
             sig.exception_check = False  # not needed for the current builtins
         func_type = sig.function_type(self_arg)
         if self.is_strict_signature:
@@ -53,7 +56,7 @@ class BuiltinAttribute(object):
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
-        self.field_type_name = field_type_name # can't do the lookup before the type is declared!
+        self.field_type_name = field_type_name  # can't do the lookup before the type is declared!
         self.field_type = field_type
 
     def declare_in_type(self, self_type):
@@ -91,31 +94,40 @@ class BuiltinMethod(_BuiltinOverride):
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
     BuiltinFunction('abs',        "d",    "d",     "fabs",
-                    is_strict_signature = True),
+                    is_strict_signature=True, nogil=True),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
-                    is_strict_signature = True),
-    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_int",
-                    utility_code = UtilityCode.load("abs_int", "Builtins.c"),
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_uint_type, [
-                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_int_type, None)
-                            ],
-                        is_strict_signature = True)),
-    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_long",
-                    utility_code = UtilityCode.load("abs_long", "Builtins.c"),
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_ulong_type, [
-                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)
-                            ],
-                        is_strict_signature = True)),
+                    is_strict_signature=True, nogil=True),
+    BuiltinFunction('abs',        "i",    "i",     "abs",
+                    is_strict_signature=True, nogil=True),
+    BuiltinFunction('abs',        "l",    "l",     "labs",
+                    is_strict_signature=True, nogil=True),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
-                    utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_ulonglong_type, [
-                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longlong_type, None)
+                utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.c_longlong_type, [
+                        PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longlong_type, None)
                         ],
-                        is_strict_signature = True)),
-    BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
+                    is_strict_signature = True, nogil=True)),
+    ] + list(
+        BuiltinFunction('abs',        None,    None,   "/*abs_{0}*/".format(t.specialization_name()),
+                    func_type = PyrexTypes.CFuncType(
+                        t,
+                        [PyrexTypes.CFuncTypeArg("arg", t, None)],
+                        is_strict_signature = True, nogil=True))
+                            for t in (PyrexTypes.c_uint_type, PyrexTypes.c_ulong_type, PyrexTypes.c_ulonglong_type)
+             ) + list(
+        BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(t.funcsuffix),
+                    func_type = PyrexTypes.CFuncType(
+                        t.real_type, [
+                            PyrexTypes.CFuncTypeArg("arg", t, None)
+                            ],
+                            is_strict_signature = True, nogil=True))
+                        for t in (PyrexTypes.c_float_complex_type,
+                                  PyrexTypes.c_double_complex_type,
+                                  PyrexTypes.c_longdouble_complex_type)
+                        ) + [
+    BuiltinFunction('abs',        "O",    "O",     "__Pyx_PyNumber_Absolute",
+                    utility_code=UtilityCode.load("py_abs", "Builtins.c")),
     #('all',       "",     "",      ""),
     #('any',       "",     "",      ""),
     #('ascii',     "",     "",      ""),
@@ -143,7 +155,8 @@ builtin_function_table = [
                     utility_code=getattr3_utility_code),
     BuiltinFunction('getattr',    "OO",   "O",     "__Pyx_GetAttr",
                     utility_code=getattr_utility_code),
-    BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
+    BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
+                    utility_code = UtilityCode.load("HasAttr", "Builtins.c")),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
@@ -192,13 +205,13 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr"),  # , builtin_return_type='str'),  # add in Cython 3.1
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    #('unichr',    "",     "",      ""),
+    BuiltinFunction('unichr',     "l",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
@@ -260,12 +273,10 @@ builtin_types_table = [
                                     ]),
     ("bytearray", "PyByteArray_Type", [
                                     ]),
-    ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
+    ("bytes",   "PyBytes_Type",    [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
-    ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
+    ("str",     "PyString_Type",   [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
                                                   builtin_return_type='basestring',
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
@@ -273,11 +284,9 @@ builtin_types_table = [
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     ]),
 
-    ("tuple",   "PyTuple_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    ]),
+    ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
+    ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
                                     BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
@@ -315,28 +324,32 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
+    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
-#                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
-                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
-                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
+                                    BuiltinMethod("discard", "TO", "r", "__Pyx_PySet_Discard",
+                                                  utility_code=UtilityCode.load("py_set_discard", "Optimize.c")),
+                                    BuiltinMethod("remove",  "TO", "r", "__Pyx_PySet_Remove",
+                                                  utility_code=UtilityCode.load("py_set_remove", "Optimize.c")),
+                                    # update is actually variadic (see Github issue #1645)
+#                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
+#                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
+    ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)[0]", []),
 ]
 
 
-types_that_construct_their_instance = set([
+types_that_construct_their_instance = frozenset({
     # some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'long', 'float', 'complex',
     'bytes', 'unicode', 'bytearray',
-    'tuple', 'list', 'dict', 'set', 'frozenset'
+    'tuple', 'list', 'dict', 'set', 'frozenset',
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
-])
+})
 
 
 builtin_structs_table = [
@@ -376,9 +389,13 @@ def init_builtin_types():
         utility = builtin_utility_code.get(name)
         if name == 'frozenset':
             objstruct_cname = 'PySetObject'
+        elif name == 'bytearray':
+            objstruct_cname = 'PyByteArrayObject'
         elif name == 'bool':
             objstruct_cname = None
         elif name == 'Exception':
+            objstruct_cname = "PyBaseExceptionObject"
+        elif name == 'StopAsyncIteration':
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
@@ -398,6 +415,7 @@ def init_builtin_structs():
 
 
 def init_builtins():
+    #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
     init_builtin_funcs()
@@ -406,14 +424,9 @@ def init_builtins():
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
 
-    entry = builtin_scope.declare_var(
-        'StopAsyncIteration', PyrexTypes.py_object_type,
-        pos=None, cname='__Pyx_PyExc_StopAsyncIteration')
-    entry.utility_code = UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c")
-
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
-    global float_type, bool_type, type_type, complex_type, bytearray_type
+    global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -427,8 +440,62 @@ def init_builtins():
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
     float_type = builtin_scope.lookup('float').type
+    long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 
 
 init_builtins()
+
+##############################
+# Support for a few standard library modules that Cython understands (currently typing and dataclasses)
+##############################
+_known_module_scopes = {}
+
+def get_known_standard_library_module_scope(module_name):
+    mod = _known_module_scopes.get(module_name)
+    if mod:
+        return mod
+
+    if module_name == "typing":
+        mod = ModuleScope(module_name, None, None)
+        for name, tp in [
+                ('Dict', dict_type),
+                ('List', list_type),
+                ('Tuple', tuple_type),
+                ('Set', set_type),
+                ('FrozenSet', frozenset_type),
+                ]:
+            name = EncodedString(name)
+            if name == "Tuple":
+                indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
+            else:
+                indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
+            entry = mod.declare_type(name, indexed_type, pos = None)
+
+        for name in ['ClassVar', 'Optional']:
+            indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
+            entry = mod.declare_type(name, indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    elif module_name == "dataclasses":
+        mod = ModuleScope(module_name, None, None)
+        indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
+        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    return mod
+
+
+def get_known_standard_library_entry(qualified_name):
+    name_parts = qualified_name.split(".")
+    module_name = EncodedString(name_parts[0])
+    rest = name_parts[1:]
+
+    if len(rest) > 1:  # for now, we don't know how to deal with any nested modules
+        return None
+
+    mod = get_known_standard_library_module_scope(module_name)
+
+    # eventually handle more sophisticated multiple lookups if needed
+    if mod and rest:
+        return mod.lookup_here(rest[0])
+    return None

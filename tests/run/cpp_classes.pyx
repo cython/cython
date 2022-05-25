@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, no-cpp-locals
 
 from libcpp.vector cimport vector
 
@@ -9,7 +9,7 @@ cdef extern from "shapes.h" namespace "shapes":
         float area()
 
     cdef cppclass Ellipse(Shape):
-        Ellipse(int a, int b) except +
+        Ellipse(int a, int b) nogil except +
 
     cdef cppclass Circle(Ellipse):
         int radius
@@ -30,7 +30,14 @@ cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Empty(Shape):
         pass
 
+    cdef cppclass EmptyWithDocstring(Shape):
+        """
+        This is a docstring !
+        """
+
+
     int constructor_count, destructor_count
+
 
 def test_new_del():
     """
@@ -45,6 +52,7 @@ def test_new_del():
     del rect, circ
     print constructor_count-c, destructor_count-d
 
+
 def test_default_constructor():
     """
     >>> test_default_constructor()
@@ -56,6 +64,20 @@ def test_default_constructor():
     finally:
         del shape
 
+
+def test_constructor_nogil():
+    """
+    >>> test_constructor_nogil()
+    True
+    """
+    with nogil:
+        shape = new Ellipse(4, 5)
+    try:
+        return 62 < shape.area() < 63 or shape.area()
+    finally:
+        del shape
+
+
 def test_rect_area(w, h):
     """
     >>> test_rect_area(3, 4)
@@ -66,6 +88,7 @@ def test_rect_area(w, h):
         return rect.area()
     finally:
         del rect
+
 
 def test_overload_bint_int():
     """
@@ -83,6 +106,7 @@ def test_overload_bint_int():
         del rect1
         del rect2
 
+
 def test_square_area(w):
     """
     >>> test_square_area(15)
@@ -94,6 +118,7 @@ def test_square_area(w):
         return rect.area(), sqr.area()
     finally:
         del sqr
+
 
 cdef double get_area(Rectangle s):
     return s.area()
@@ -109,6 +134,11 @@ def test_value_call(int w):
         return get_area(sqr[0]), get_area(rect[0])
     finally:
         del sqr
+
+
+cdef struct StructWithEmpty:
+    Empty empty
+
 
 def get_destructor_count():
     return destructor_count
@@ -126,11 +156,24 @@ def test_stack_allocation(int w, int h):
     print rect.method(<int>5)
     return destructor_count
 
+def test_stack_allocation_in_struct():
+    """
+    >>> d = test_stack_allocation_in_struct()
+    >>> get_destructor_count() - d
+    1
+    """
+    cdef StructWithEmpty swe
+    sizeof(swe.empty) # use it for something
+    return destructor_count
+
 cdef class EmptyHolder:
     cdef Empty empty
 
 cdef class AnotherEmptyHolder(EmptyHolder):
     cdef Empty another_empty
+
+cdef class EmptyViaStructHolder:
+    cdef StructWithEmpty swe
 
 def test_class_member():
     """
@@ -148,6 +191,7 @@ def test_class_member():
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
 
+
 def test_derived_class_member():
     """
     >>> test_derived_class_member()
@@ -159,6 +203,19 @@ def test_derived_class_member():
            constructor_count - start_constructor_count
     del e
     assert destructor_count - start_destructor_count == 2, \
+           destructor_count - start_destructor_count
+
+def test_class_in_struct_member():
+    """
+    >>> test_class_in_struct_member()
+    """
+    start_constructor_count = constructor_count
+    start_destructor_count = destructor_count
+    e = EmptyViaStructHolder()
+    #assert constructor_count - start_constructor_count == 1, \
+    #       constructor_count - start_constructor_count
+    del e
+    assert destructor_count - start_destructor_count == 1, \
            destructor_count - start_destructor_count
 
 cdef class TemplateClassMember:
@@ -179,3 +236,34 @@ def test_template_class_member():
     del o
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
+
+
+ctypedef vector[int]* vector_int_ptr
+cdef vector[vector_int_ptr] create_to_delete() except *:
+    cdef vector[vector_int_ptr] v
+    v.push_back(new vector[int]())
+    return v
+cdef int f(int x):
+    return x
+
+
+def test_nested_del():
+    """
+    >>> test_nested_del()
+    """
+    cdef vector[vector_int_ptr] v
+    v.push_back(new vector[int]())
+    del v[0]
+    del create_to_delete()[f(f(0))]
+
+
+def test_nested_del_repeat():
+    """
+    >>> test_nested_del_repeat()
+    """
+    cdef vector[vector_int_ptr] v
+    v.push_back(new vector[int]())
+    del v[0]
+    del create_to_delete()[f(f(0))]
+    del create_to_delete()[f(f(0))]
+    del create_to_delete()[f(f(0))]

@@ -4,6 +4,9 @@
 Working with Python arrays
 ==========================
 
+.. include::
+    ../two-syntax-variants-used
+
 Python has a builtin array module supporting dynamic 1-dimensional arrays of
 primitive types. It is possible to access the underlying C array of a Python
 array from within Cython. At the same time they are ordinary Python objects
@@ -18,41 +21,39 @@ module is built into both Python and Cython.
 Safe usage with memory views
 ----------------------------
 
-::
 
-    from cpython cimport array
-    import array
-    cdef array.array a = array.array('i', [1, 2, 3])
-    cdef int[:] ca = a
+.. tabs::
+    .. group-tab:: Pure Python
 
-    print ca[0]
+        .. literalinclude:: ../../examples/tutorial/array/safe_usage.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/safe_usage.pyx
+
 
 NB: the import brings the regular Python array object into the namespace
 while the cimport adds functions accessible from Cython.
 
 A Python array is constructed with a type signature and sequence of
 initial values. For the possible type signatures, refer to the Python
-documentation for the `array module <http://docs.python.org/library/array.html>`_.
+documentation for the `array module <https://docs.python.org/library/array.html>`_.
 
 Notice that when a Python array is assigned to a variable typed as
 memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
-functions without overhead, so long as it is typed::
+functions without overhead, so long as it is typed:
 
-    from cpython cimport array
-    import array
-    cdef array.array a = array.array('i', [1, 2, 3])
-    cdef int[:] ca = a
 
-    cdef int overhead(object a):
-        cdef int[:] ca = a
-        return ca[0]
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef int no_overhead(int[:] ca):
-        return ca[0]
+        .. literalinclude:: ../../examples/tutorial/array/overhead.py
 
-    print overhead(a)  # new memory view will be constructed, overhead
-    print no_overhead(ca)  # ca is already a memory view, so no overhead
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/overhead.pyx
+
 
 Zero-overhead, unsafe access to raw C pointer
 ---------------------------------------------
@@ -61,18 +62,16 @@ functions, it is possible to access the underlying contiguous array as a
 pointer. There is no type or bounds checking, so be careful to use the
 right type and signedness.
 
-::
 
-    from cpython cimport array
-    import array
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef array.array a = array.array('i', [1, 2, 3])
+        .. literalinclude:: ../../examples/tutorial/array/unsafe_usage.py
 
-    # access underlying pointer:
-    print a.data.as_ints[0]
+    .. group-tab:: Cython
 
-    from libc.string cimport memset
-    memset(a.data.as_voidptr, 0, len(a) * sizeof(int))
+        .. literalinclude:: ../../examples/tutorial/array/unsafe_usage.pyx
+
 
 Note that any length-changing operation on the array object may invalidate the
 pointer.
@@ -85,33 +84,30 @@ it is possible to create a new array with the same type as a template,
 and preallocate a given number of elements. The array is initialized to
 zero when requested.
 
-::
 
-    from cpython cimport array
-    import array
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef array.array int_array_template = array.array('i', [])
-    cdef array.array newarray
+        .. literalinclude:: ../../examples/tutorial/array/clone.py
 
-    # create an array with 3 elements with same type as template
-    newarray = array.clone(int_array_template, 3, zero=False)
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/clone.pyx
+
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
 one by one.
 
-::
 
-    from cpython cimport array
-    import array
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef array.array a = array.array('i', [1, 2, 3])
-    cdef array.array b = array.array('i', [4, 5, 6])
+        .. literalinclude:: ../../examples/tutorial/array/resize.py
 
-    # extend a with b, resize as needed
-    array.extend(a, b)
-    # resize a, leaving just original three elements
-    array.resize(a, len(a) - len(b))
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/resize.pyx
 
 
 API reference
@@ -132,6 +128,8 @@ Data fields
     data.as_uints
     data.as_longs
     data.as_ulongs
+    data.as_longlongs  # requires Python >=3
+    data.as_ulonglongs  # requires Python >=3
     data.as_floats
     data.as_doubles
     data.as_pyunicodes
@@ -142,48 +140,142 @@ e.g., ``myarray.data.as_ints``.
 
 Functions
 ~~~~~~~~~
-The following functions are available to Cython from the array module::
+The following functions are available to Cython from the array module
 
-    int resize(array self, Py_ssize_t n) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(-1)
+            def resize(self: array.array, n: cython.Py_ssize_t) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int resize(array.array self, Py_ssize_t n) except -1
 
 Fast resize / realloc. Not suitable for repeated, small increments; resizes
 underlying array to exactly the requested amount.
 
-::
+----
 
-    int resize_smart(array self, Py_ssize_t n) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(-1)
+            def resize_smart(self: array.array, n: cython.Py_ssize_t) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int resize_smart(array.array self, Py_ssize_t n) except -1
 
 Efficient for small increments; uses growth pattern that delivers
 amortized linear-time appends.
 
-::
+----
 
-    cdef inline array clone(array template, Py_ssize_t length, bint zero)
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            def clone(template: array.array, length: cython.Py_ssize_t, zero: cython.bint) -> array.array
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline array.array clone(array.array template, Py_ssize_t length, bint zero)
+
 
 Fast creation of a new array, given a template array. Type will be same as
 ``template``. If zero is ``True``, new array will be initialized with zeroes.
 
-::
+----
 
-    cdef inline array copy(array self)
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            def copy(self: array.array) -> array.array
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline array.array copy(array.array self)
 
 Make a copy of an array.
 
-::
+----
 
-    cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            @cython.exceptval(-1)
+            def extend_buffer(self: array.array, stuff: cython.p_char, n: cython.Py_ssize_t) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline int extend_buffer(array.array self, char* stuff, Py_ssize_t n) except -1
 
 Efficient appending of new data of same type (e.g. of same array type)
 ``n``: number of elements (not number of bytes!)
 
-::
+----
 
-    cdef inline int extend(array self, array other) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            @cython.exceptval(-1)
+            def extend(self: array.array, other: array.array) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline int extend(array.array self, array.array other) except -1
 
 Extend array with data from another array; types must match.
 
-::
+----
 
-    cdef inline void zero(array self)
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            def zero(self: array.array) -> cython.void
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline void zero(array.array self)
 
 Set all elements of array to zero.

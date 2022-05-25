@@ -1,3 +1,6 @@
+# mode: run
+# tag: nogil, withgil
+
 """
 Test the 'with gil:' statement.
 """
@@ -276,9 +279,11 @@ cdef void void_nogil_nested_gil() nogil:
 def test_nogil_void_funcs_with_gil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_gil)  # doctest: +ELLIPSIS
+    with_gil.ExceptionWithMsg: This is swallowed
     Exception... ignored...
     Inner gil section
     nogil section
+    ...
     Exception... ignored...
     """
     void_nogil_ignore_exception()
@@ -287,9 +292,11 @@ def test_nogil_void_funcs_with_gil():
 def test_nogil_void_funcs_with_nogil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_nogil)  # doctest: +ELLIPSIS
+    with_gil.ExceptionWithMsg: This is swallowed
     Exception... ignored...
     Inner gil section
     nogil section
+    with_gil.ExceptionWithMsg: Swallow this
     Exception... ignored...
     """
     with nogil:
@@ -454,3 +461,48 @@ def test_nogil_try_finally_error_label():
                 with gil: print "print me first"
     except Exception, e:
         print e.args[0]
+
+
+def void_with_python_objects():
+    """
+    >>> void_with_python_objects()
+    """
+    with nogil:
+        _void_with_python_objects()
+
+
+cdef void _void_with_python_objects() nogil:
+    c = 123
+    with gil:
+        obj1 = [123]
+        obj2 = [456]
+
+
+def void_with_py_arg_reassigned(x):
+    """
+    >>> void_with_py_arg_reassigned(123)
+    """
+    with nogil:
+        _void_with_py_arg_reassigned(x)
+
+
+cdef void _void_with_py_arg_reassigned(x) nogil:
+    c = 123
+    with gil:
+        x = [456]
+
+
+cdef void test_timing_callback() with gil:
+  pass
+
+def test_timing(long N):
+  """
+  >>> sorted([test_timing(10000) for _ in range(10)])  # doctest: +ELLIPSIS
+  [...]
+  """
+  import time
+  t = time.time()
+  with nogil:
+    for _ in range(N):
+      test_timing_callback()
+  return time.time() - t

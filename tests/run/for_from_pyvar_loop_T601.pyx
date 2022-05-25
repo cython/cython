@@ -1,4 +1,4 @@
-# ticket: 601
+# ticket: t601
 
 cdef unsigned long size2():
     return 3
@@ -26,7 +26,8 @@ def for_in_plain_ulong():
         print j
 
 
-cdef extern from "for_from_pyvar_loop_T601_extern_def.h":
+cdef extern from *:
+    """typedef unsigned long Ulong;"""
     ctypedef unsigned long Ulong
 
 cdef Ulong size():

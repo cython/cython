@@ -2,6 +2,7 @@
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
+from cython.view cimport array
 from libc.stdlib cimport malloc, calloc, free, abort
 from libc.stdio cimport puts
 
@@ -59,7 +60,7 @@ def test_prange_matches_range(int start, int stop, int step):
     >>> test_prange_matches_range(2, -10, -3)
     >>> test_prange_matches_range(3, -10, -3)
     """
-    cdef int i, range_last, prange_last
+    cdef int i = -765432, range_last = -876543, prange_last = -987654
     prange_set = set()
     for i in prange(start, stop, step, nogil=True, num_threads=3):
         prange_last = i
@@ -377,11 +378,7 @@ def test_prange_continue():
 
 def test_nested_break_continue():
     """
-    DISABLED. For some reason this fails intermittently on jenkins, with
-    the first line of output being '0 0 0 0'. The generated code looks
-    awfully correct though... needs investigation
-
-    >> test_nested_break_continue()
+    >>> test_nested_break_continue()
     6 7 6 7
     8
     """
@@ -659,7 +656,7 @@ def outer_parallel_section():
         sum += inner_parallel_section()
     return sum
 
-cdef int nogil_cdef_except_clause() nogil except 0:
+cdef int nogil_cdef_except_clause() nogil except -1:
     return 1
 
 cdef void nogil_cdef_except_star() nogil except *:
@@ -737,3 +734,85 @@ def test_clean_temps():
     except Exception, e:
         print e.args[0]
 
+
+def test_pointer_temps(double x):
+    """
+    >>> test_pointer_temps(1.0)
+    4.0
+    """
+    cdef Py_ssize_t i
+    cdef double* f
+    cdef double[:] arr = array(format="d", shape=(10,), itemsize=sizeof(double))
+    arr[0] = 4.0
+    arr[1] = 3.0
+
+    for i in prange(10, nogil=True, num_threads=1):
+        f = &arr[0]
+
+    return f[0]
+
+
+def test_prange_in_with(int x, ctx):
+    """
+    >>> from contextlib import contextmanager
+    >>> @contextmanager
+    ... def ctx(l): yield l
+    >>> test_prange_in_with(4, ctx([0]))
+    6
+    """
+    cdef int i
+    with ctx as l:
+        for i in prange(x, nogil=True):
+            with gil:
+                l[0] += i
+        return l[0]
+
+
+cdef extern from *:
+    """
+    #ifdef _OPENMP
+    #define _get_addr(_x, _idx) &_x
+    #else
+    #define _get_addr(_x, _idx) (&_x+_idx)
+    #endif
+    #define address_of_temp(store, temp, idx) store = _get_addr(temp, idx)
+    #define address_of_temp2(store, ignore, temp, idx) store = _get_addr(temp, idx)
+
+    double get_value() {
+        return 1.0;
+    }
+    """
+    void address_of_temp(...) nogil
+    void address_of_temp2(...) nogil
+    double get_value() nogil except -1.0  # will generate a temp for exception checking
+
+def test_inner_private():
+    """
+    Determines if a temp variable is private by taking its address in multiple threads
+    and seeing if they're the same (thread private variables should have different
+    addresses
+    >>> test_inner_private()
+    ok
+    """
+    cdef double* not_parallel[2]
+    cdef double* inner_vals[2]
+    cdef double* outer_vals[2]
+    cdef Py_ssize_t n, m
+
+    for n in range(2):
+        address_of_temp(not_parallel[n], get_value(), 0)
+    assert not_parallel[0] == not_parallel[1], "Addresses should be the same since they come from the same temp"
+
+    for n in prange(2, num_threads=2, schedule='static', chunksize=1, nogil=True):
+        address_of_temp(outer_vals[n], get_value(), n)
+        for m in prange(1):
+            # second temp just ensures different numbering
+            address_of_temp2(inner_vals[n], get_value(), get_value(), n)
+
+    inner_are_the_same = inner_vals[0] == inner_vals[1]
+    outer_are_the_same = outer_vals[0] == outer_vals[1]
+
+    assert outer_are_the_same == False, "Temporary variables in outer loop should be private"
+    assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
+
+    print('ok')

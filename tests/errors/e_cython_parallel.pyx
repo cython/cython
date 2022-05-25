@@ -149,38 +149,39 @@ with nogil, cython.parallel.parallel():
     with cython.parallel.parallel():
         pass
 
+
 _ERRORS = u"""
-e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
-e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
-e_cython_parallel.pyx:6:7: cython.parallel.parallel is not a module
-e_cython_parallel.pyx:7:0: No such directive: cython.parallel.something
-e_cython_parallel.pyx:13:6: prange() can only be used as part of a for loop
-e_cython_parallel.pyx:13:6: prange() can only be used without the GIL
-e_cython_parallel.pyx:18:19: Invalid schedule argument to prange: invalid_schedule
-c_cython_parallel.pyx:21:29: The parallel section may only be used without the GIL
-e_cython_parallel.pyx:27:10: target may not be a Python object as we don't have the GIL
-e_cython_parallel.pyx:30:9: Can only iterate over an iteration variable
-e_cython_parallel.pyx:33:10: Must be of numeric type, not int *
-e_cython_parallel.pyx:36:33: Nested parallel with blocks are disallowed
-e_cython_parallel.pyx:39:12: The parallel directive must be called
-e_cython_parallel.pyx:45:10: local variable 'y' referenced before assignment
-e_cython_parallel.pyx:55:9: local variable 'y' referenced before assignment
-e_cython_parallel.pyx:60:6: Reduction operator '*' is inconsistent with previous reduction operator '+'
-e_cython_parallel.pyx:62:36: cython.parallel.parallel() does not take positional arguments
-e_cython_parallel.pyx:65:36: Invalid keyword argument: invalid
-e_cython_parallel.pyx:73:12: Yield not allowed in parallel sections
-e_cython_parallel.pyx:77:16: Yield not allowed in parallel sections
-e_cython_parallel.pyx:97:19: Cannot assign to private of outer parallel block
-e_cython_parallel.pyx:98:19: Cannot assign to private of outer parallel block
-e_cython_parallel.pyx:104:6: Reductions not allowed for parallel blocks
-e_cython_parallel.pyx:110:7: local variable 'i' referenced before assignment
-e_cython_parallel.pyx:119:17: Cannot read reduction variable in loop body
-e_cython_parallel.pyx:121:20: stop argument must be numeric
-e_cython_parallel.pyx:121:19: prange() can only be used without the GIL
-e_cython_parallel.pyx:131:8: Memoryview slices can only be shared in parallel sections
-e_cython_parallel.pyx:133:42: Must provide schedule with chunksize
-e_cython_parallel.pyx:136:62: Chunksize must not be negative
-e_cython_parallel.pyx:139:62: Chunksize not valid for the schedule runtime
-e_cython_parallel.pyx:145:70: Calling gil-requiring function not allowed without gil
-e_cython_parallel.pyx:149:33: Nested parallel with blocks are disallowed
+3:8: cython.parallel.parallel is not a module
+4:0: No such directive: cython.parallel.something
+6:7: cython.parallel.parallel is not a module
+7:0: No such directive: cython.parallel.something
+13:6: prange() can only be used as part of a for loop
+13:6: prange() can only be used without the GIL
+18:19: Invalid schedule argument to prange: invalid_schedule
+21:29: The parallel section may only be used without the GIL
+27:8: target may not be a Python object as we don't have the GIL
+30:9: Can only iterate over an iteration variable
+33:8: Must be of numeric type, not int *
+36:33: Nested parallel with blocks are disallowed
+39:12: The parallel directive must be called
+45:8: local variable 'y' referenced before assignment
+55:8: local variable 'y' referenced before assignment
+60:4: Reduction operator '*' is inconsistent with previous reduction operator '+'
+62:36: cython.parallel.parallel() does not take positional arguments
+65:36: Invalid keyword argument: invalid
+73:12: 'yield' not allowed in parallel sections
+77:16: 'yield' not allowed in parallel sections
+97:8: Cannot assign to private of outer parallel block
+98:8: Cannot assign to private of outer parallel block
+104:4: Reductions not allowed for parallel blocks
+110:6: local variable 'i' referenced before assignment
+119:14: Cannot read reduction variable in loop body
+121:19: prange() can only be used without the GIL
+121:20: stop argument must be numeric
+131:4: Memoryview slices can only be shared in parallel sections
+133:42: Must provide schedule with chunksize
+136:62: Chunksize must not be negative
+139:62: Chunksize not valid for the schedule runtime
+145:70: Calling gil-requiring function not allowed without gil
+149:33: Nested parallel with blocks are disallowed
 """

@@ -10,6 +10,14 @@ except ImportError:
     any_string_type = (bytes, str)
 
 import sys
+from contextlib import contextmanager
+
+try:
+    from threading import local as _threadlocal
+except ImportError:
+    class _threadlocal(object): pass
+
+threadlocal = _threadlocal()
 
 from ..Utils import open_new_file
 from . import DebugFlags
@@ -23,6 +31,8 @@ class PyrexError(Exception):
 class PyrexWarning(Exception):
     pass
 
+class CannotSpecialize(PyrexError):
+    pass
 
 def context(position):
     source = position[0]
@@ -59,11 +69,9 @@ class CompileError(PyrexError):
         self.message_only = message
         self.formatted_message = format_error(message, position)
         self.reported = False
-    # Deprecated and withdrawn in 2.6:
-    #   self.message = message
         Exception.__init__(self, self.formatted_message)
         # Python Exception subclass pickling is broken,
-        # see http://bugs.python.org/issue1692335
+        # see https://bugs.python.org/issue1692335
         self.args = (position, message)
 
     def __str__(self):
@@ -73,8 +81,6 @@ class CompileWarning(PyrexWarning):
 
     def __init__(self, position = None, message = ""):
         self.position = position
-    # Deprecated and withdrawn in 2.6:
-    #   self.message = message
         Exception.__init__(self, format_position(position) + message)
 
 class InternalError(Exception):
@@ -113,7 +119,7 @@ class CompilerCrash(CompileError):
             message += u'%s: %s' % (cause.__class__.__name__, cause)
         CompileError.__init__(self, pos, message)
         # Python Exception subclass pickling is broken,
-        # see http://bugs.python.org/issue1692335
+        # see https://bugs.python.org/issue1692335
         self.args = (pos, context, message, cause, stacktrace)
 
 class NoElementTreeInstalledException(PyrexError):
@@ -121,35 +127,29 @@ class NoElementTreeInstalledException(PyrexError):
     implementation was found
     """
 
-listing_file = None
-num_errors = 0
-echo_file = None
-
-def open_listing_file(path, echo_to_stderr = 1):
+def open_listing_file(path, echo_to_stderr=True):
     # Begin a new error listing. If path is None, no file
     # is opened, the error counter is just reset.
-    global listing_file, num_errors, echo_file
     if path is not None:
-        listing_file = open_new_file(path)
+        threadlocal.cython_errors_listing_file = open_new_file(path)
     else:
-        listing_file = None
+        threadlocal.cython_errors_listing_file = None
     if echo_to_stderr:
-        echo_file = sys.stderr
+        threadlocal.cython_errors_echo_file = sys.stderr
     else:
-        echo_file = None
-    num_errors = 0
+        threadlocal.cython_errors_echo_file = None
+    threadlocal.cython_errors_count = 0
 
 def close_listing_file():
-    global listing_file
-    if listing_file:
-        listing_file.close()
-        listing_file = None
+    if threadlocal.cython_errors_listing_file:
+        threadlocal.cython_errors_listing_file.close()
+        threadlocal.cython_errors_listing_file = None
 
-def report_error(err):
-    if error_stack:
+def report_error(err, use_stack=True):
+    error_stack = threadlocal.cython_errors_stack
+    if error_stack and use_stack:
         error_stack[-1].append(err)
     else:
-        global num_errors
         # See Main.py for why dual reporting occurs. Quick fix for now.
         if err.reported: return
         err.reported = True
@@ -158,41 +158,50 @@ def report_error(err):
             # Python <= 2.5 does this for non-ASCII Unicode exceptions
             line = format_error(getattr(err, 'message_only', "[unprintable exception message]"),
                                 getattr(err, 'position', None)) + u'\n'
+        listing_file = threadlocal.cython_errors_listing_file
         if listing_file:
             try: listing_file.write(line)
             except UnicodeEncodeError:
                 listing_file.write(line.encode('ASCII', 'replace'))
+        echo_file = threadlocal.cython_errors_echo_file
         if echo_file:
             try: echo_file.write(line)
             except UnicodeEncodeError:
                 echo_file.write(line.encode('ASCII', 'replace'))
-        num_errors += 1
+        threadlocal.cython_errors_count += 1
         if Options.fast_fail:
             raise AbortError("fatal errors")
-
 
 def error(position, message):
     #print("Errors.error:", repr(position), repr(message)) ###
     if position is None:
         raise InternalError(message)
     err = CompileError(position, message)
-    if DebugFlags.debug_exception_on_error: raise Exception(err) # debug
+    if DebugFlags.debug_exception_on_error: raise Exception(err)  # debug
     report_error(err)
     return err
 
 
-LEVEL = 1 # warn about all errors level 1 or higher
+LEVEL = 1  # warn about all errors level 1 or higher
+
+def _write_file_encode(file, line):
+    try:
+        file.write(line)
+    except UnicodeEncodeError:
+        file.write(line.encode('ascii', 'replace'))
 
 
 def message(position, message, level=1):
     if level < LEVEL:
         return
     warn = CompileWarning(position, message)
-    line = "note: %s\n" % warn
+    line = u"note: %s\n" % warn
+    listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
-        listing_file.write(line)
+        _write_file_encode(listing_file, line)
+    echo_file = threadlocal.cython_errors_echo_file
     if echo_file:
-        echo_file.write(line)
+        _write_file_encode(echo_file, line)
     return warn
 
 
@@ -202,48 +211,76 @@ def warning(position, message, level=0):
     if Options.warning_errors and position:
         return error(position, message)
     warn = CompileWarning(position, message)
-    line = "warning: %s\n" % warn
+    line = u"warning: %s\n" % warn
+    listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
-        listing_file.write(line)
+        _write_file_encode(listing_file, line)
+    echo_file = threadlocal.cython_errors_echo_file
     if echo_file:
-        echo_file.write(line)
+        _write_file_encode(echo_file, line)
     return warn
 
 
-_warn_once_seen = {}
 def warn_once(position, message, level=0):
-    if level < LEVEL or message in _warn_once_seen:
+    if level < LEVEL:
+        return
+    warn_once_seen = threadlocal.cython_errors_warn_once_seen
+    if message in warn_once_seen:
         return
     warn = CompileWarning(position, message)
-    line = "warning: %s\n" % warn
+    line = u"warning: %s\n" % warn
+    listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
-        listing_file.write(line)
+        _write_file_encode(listing_file, line)
+    echo_file = threadlocal.cython_errors_echo_file
     if echo_file:
-        echo_file.write(line)
-    _warn_once_seen[message] = True
+        _write_file_encode(echo_file, line)
+    warn_once_seen[message] = True
     return warn
 
 
 # These functions can be used to momentarily suppress errors.
 
-error_stack = []
-
 def hold_errors():
-    error_stack.append([])
+    errors = []
+    threadlocal.cython_errors_stack.append(errors)
+    return errors
+
 
 def release_errors(ignore=False):
-    held_errors = error_stack.pop()
+    held_errors = threadlocal.cython_errors_stack.pop()
     if not ignore:
         for err in held_errors:
             report_error(err)
 
+
 def held_errors():
-    return error_stack[-1]
+    return threadlocal.cython_errors_stack[-1]
 
 
-# this module needs a redesign to support parallel cythonisation, but
-# for now, the following works at least in sequential compiler runs
+# same as context manager:
+
+@contextmanager
+def local_errors(ignore=False):
+    errors = hold_errors()
+    try:
+        yield errors
+    finally:
+        release_errors(ignore=ignore)
+
+
+# Keep all global state in thread local storage to support parallel cythonisation in distutils.
+
+def init_thread():
+    threadlocal.cython_errors_count = 0
+    threadlocal.cython_errors_listing_file = None
+    threadlocal.cython_errors_echo_file = None
+    threadlocal.cython_errors_warn_once_seen = set()
+    threadlocal.cython_errors_stack = []
 
 def reset():
-    _warn_once_seen.clear()
-    del error_stack[:]
+    threadlocal.cython_errors_warn_once_seen.clear()
+    del threadlocal.cython_errors_stack[:]
+
+def get_errors_count():
+    return threadlocal.cython_errors_count

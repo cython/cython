@@ -1,4 +1,5 @@
 # mode: error
+# cython: auto_pickle=False
 
 ctypedef int[1] int_array
 ctypedef int[2] int_array2
@@ -30,6 +31,6 @@ d = z  # not an error
 
 
 _ERRORS = u"""
-20:2: Assignment to slice of wrong length, expected 2, got 1
-21:2: Assignment to slice of wrong length, expected 1, got 2
+21:0: Assignment to slice of wrong length, expected 2, got 1
+22:0: Assignment to slice of wrong length, expected 1, got 2
 """

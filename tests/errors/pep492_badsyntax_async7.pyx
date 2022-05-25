@@ -6,5 +6,4 @@ async def foo():
 
 _ERRORS = """
 5:4: 'yield from' not supported here
-5:4: 'yield' not allowed in async coroutines (use 'await')
 """

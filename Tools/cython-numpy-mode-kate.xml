@@ -9,14 +9,14 @@
 
 <!--
 
-Disclaimer: IANAL. This file is a derivative work of KDE's Python 
-syntax file. KDE does not specify a license for the syntax file python.xml 
-in it's katepart component. However, katepart and KATE as a whole is 
-released with LGPL v2. Assuing python.xml is LGPL'd, this file is hereby 
-released with the same license. Note that this only applies to this XML 
+Disclaimer: IANAL. This file is a derivative work of KDE's Python
+syntax file. KDE does not specify a license for the syntax file python.xml
+in it's katepart component. However, katepart and KATE as a whole is
+released with LGPL v2. Assuing python.xml is LGPL'd, this file is hereby
+released with the same license. Note that this only applies to this XML
 file. It does not apply to any work written using this file to highlighting
-syntax. Any changes  you make to this file will be covered by the LGPL, 
-but it does not to my knowledge taint your source code. At least not 
+syntax. Any changes  you make to this file will be covered by the LGPL,
+but it does not to my knowledge taint your source code. At least not
 any more than using KDE would do. Sturla Molden
 
 Thus:
@@ -69,10 +69,10 @@ Boston, MA  02110-1301, USA.
         </list>
         <list name="keyw" >
 			<item> extern </item>
-            <item> api </item>			 
+            <item> api </item>
 			<item> del </item>
 			<item> global </item>
-			<item> property </item>			
+			<item> property </item>
             <item> nogil </item>
 			<item> gil </item>
             <item> inline </item>
@@ -80,7 +80,7 @@ Boston, MA  02110-1301, USA.
         <list name="access">
             <item> readonly </item>
             <item> public </item>
-        </list>        
+        </list>
 		<list name="operators">
 			<item> and </item>
 			<item> assert </item>
@@ -89,7 +89,7 @@ Boston, MA  02110-1301, USA.
             <item> by </item>
 			<item> not </item>
 			<item> or </item>
-            <item> sizeof </item> 
+            <item> sizeof </item>
 		</list>
 		<list name="commands">
 			<!-- <item> exec </item> -->
@@ -216,7 +216,7 @@ Boston, MA  02110-1301, USA.
         </list>
         <list name="cythonmodule">
             <item> cython </item>
-        </list>        
+        </list>
         <list name="numpytypes">
             <item>  dtype </item>
             <item>  flatiter </item>
@@ -244,48 +244,48 @@ Boston, MA  02110-1301, USA.
             <item>  cfloat_t </item>
             <item>  cdouble_t </item>
             <item>  clongdouble_t </item>
-            <item>  complex_t </item>            
-            <item>  npy_int8 </item> 
-            <item>  npy_int16 </item> 
-            <item>  npy_int32 </item> 
-            <item>  npy_int64 </item> 
-            <item>  npy_int96 </item> 
-            <item>  npy_int128 </item> 
-            <item>  npy_uint8 </item> 
-            <item>  npy_uint16 </item> 
-            <item>  npy_uint32 </item> 
-            <item>  npy_uint64 </item> 
-            <item>  npy_uint96 </item> 
-            <item>  npy_uint128 </item> 
-            <item>  npy_float32 </item> 
-            <item>  npy_float64 </item> 
-            <item>  npy_float80 </item> 
-            <item>  npy_float96 </item> 
-            <item>  npy_float128 </item> 
-            <item>  npy_complex64 </item> 
-            <item>  npy_complex128 </item> 
-            <item>  npy_complex120 </item> 
-            <item>  npy_complex192 </item> 
-            <item>  npy_complex256 </item> 
-            <item>  npy_cfloat </item> 
-            <item>  npy_cdouble </item> 
-            <item>  npy_clongdouble </item> 
-            <item>  npy_bool </item> 
-            <item>  npy_byte </item> 
-            <item>  npy_short </item> 
-            <item>  npy_int </item> 
-            <item>  npy_long </item> 
-            <item>  npy_longlong </item> 
-            <item>  npy_ubyte </item> 
-            <item>  npy_ushort </item> 
-            <item>  npy_uint </item> 
-            <item>  npy_ulong </item> 
-            <item>  npy_ulonglong </item> 
-            <item>  npy_float </item> 
-            <item>  npy_double </item> 
-            <item>  npy_longdouble </item> 
+            <item>  complex_t </item>
+            <item>  npy_int8 </item>
+            <item>  npy_int16 </item>
+            <item>  npy_int32 </item>
+            <item>  npy_int64 </item>
+            <item>  npy_int96 </item>
+            <item>  npy_int128 </item>
+            <item>  npy_uint8 </item>
+            <item>  npy_uint16 </item>
+            <item>  npy_uint32 </item>
+            <item>  npy_uint64 </item>
+            <item>  npy_uint96 </item>
+            <item>  npy_uint128 </item>
+            <item>  npy_float32 </item>
+            <item>  npy_float64 </item>
+            <item>  npy_float80 </item>
+            <item>  npy_float96 </item>
+            <item>  npy_float128 </item>
+            <item>  npy_complex64 </item>
+            <item>  npy_complex128 </item>
+            <item>  npy_complex120 </item>
+            <item>  npy_complex192 </item>
+            <item>  npy_complex256 </item>
+            <item>  npy_cfloat </item>
+            <item>  npy_cdouble </item>
+            <item>  npy_clongdouble </item>
+            <item>  npy_bool </item>
+            <item>  npy_byte </item>
+            <item>  npy_short </item>
+            <item>  npy_int </item>
+            <item>  npy_long </item>
+            <item>  npy_longlong </item>
+            <item>  npy_ubyte </item>
+            <item>  npy_ushort </item>
+            <item>  npy_uint </item>
+            <item>  npy_ulong </item>
+            <item>  npy_ulonglong </item>
+            <item>  npy_float </item>
+            <item>  npy_double </item>
+            <item>  npy_longdouble </item>
             <item>  npy_intp </item>
-   		</list>        
+   		</list>
         <list name="numpyfuncs">
             <item> DataSource </item>
             <item> MachAr </item>
@@ -868,43 +868,43 @@ Boston, MA  02110-1301, USA.
             <item>WindowsError</item>
             <item>ZeroDivisionError</item>
         </list>
-        
+
         <contexts>
-                      
+
 			<context name="Normal" attribute="Normal Text" lineEndContext="#stay">
-                
+
                 <keyword attribute="Definition Keyword" String="cdef" context="cdefname"/>
                 <keyword attribute="Definition Keyword" String="defs" context="defname"/>
                 <keyword attribute="Definition Keyword" String="keyw" context="#stay"/>
-                
+
 				<keyword attribute="Import Keyword" String="imports" context="#stay"/>
                 <keyword attribute="Preprocessor" String="prep" context="#stay"/>
 				<keyword attribute="Operator" String="operators" context="#stay"/>
 				<keyword attribute="Command Keyword" String="commands" context="#stay"/>
 				<keyword attribute="Flow Control Keyword" String="flow" context="#stay"/>
 				<keyword attribute="Builtin Function" String="builtinfuncs" context="#stay"/>
-                
+
 				<keyword attribute="Special Variable" String="specialvars" context="#stay"/>
 				<keyword attribute="Special Variable" String="exceptions" context="#stay"/>
                 <keyword attribute="Special Variable" String="overloaders" context="#stay"/>
-                
+
                 <keyword attribute="C Type" context="#stay" String="ctypes" />
 				<keyword attribute="Python Type" context="#stay" String="pytypes" />
-                                                                                
+
                 <RegExpr attribute="Hex" String="0[Xx][0-9a-fA-F]+" context="#stay"/>
                 <RegExpr attribute="Octal" String="0[1-9][0-9]*" context="#stay"/>
                 <RegExpr attribute="Binary" String="0[Bb][0-9a-fA-F]+" context="#stay"/>
-                
+
 				<RegExpr attribute="Complex" String=" ((([0-9]*\.[0-9]+|[0-9]+\.)|([0-9]+|([0-9]*\.[0-9]+|[0-9]+\.))[eE](\+|-)?[0-9]+)|[0-9]+)[jJ]" context="#stay"/>
 				<RegExpr attribute="Float" String="([0-9]+\.[0-9]*|\.[0-9]+)([eE][0-9]+)?" context="#stay"/>
-				
+
                 <RegExpr attribute="Int" String="([1-9][0-9]*([eE][0-9]+)?|0)" context="#stay"/>
 				<RegExpr attribute="Long" String="[1-9][0-9]*([eE][0-9.]+)?[Ll]" context="#stay"/>
-				
+
                 <keyword attribute="NumPyAttr" String="numpyselector" context="numpy"/>
-                
+
                 <RegExpr attribute="Decorator" String="@[a-zA-Z_][a-zA-Z_0-9\.]+" context="#stay"/>
-                
+
                 <RegExpr attribute="Normal" String="[a-zA-Z_][a-zA-Z_0-9]+" context="#stay"/>
 
 				<RegExpr attribute="Raw String" String="[rR]'''" context="Raw Tripple A-string"/>
@@ -916,115 +916,115 @@ Boston, MA  02110-1301, USA.
 				<RegExpr attribute="Comment" String="#.*$" context="#stay"/>
 				<RegExpr attribute="Comment" String="^\s*'''" context="Tripple A-comment" beginRegion="Tripple A-region"/>
 				<RegExpr attribute="Comment" String="^\s*&quot;&quot;&quot;" context="Tripple Q-comment" beginRegion="Tripple Q-region"/>
-       
+
   				<StringDetect attribute="String" String="'''" context="Tripple A-string" beginRegion="Tripple A-region"/>
 				<StringDetect attribute="String" String="&quot;&quot;&quot;" context="Tripple Q-string" beginRegion="Tripple Q-region"/>
 				<DetectChar attribute="String" char="'" context="Single A-string"/>
 				<DetectChar attribute="String" char="&quot;" context="Single Q-string"/>
-                
-                
+
+
                 <DetectChar attribute="Operator" char="(" context="parenthesis" />
-				
+
                 <DetectChar attribute="Operator" char="[" context="bracet" />
-                
+
                 <DetectChar attribute="Operator" char="{" context="dict" />
-                              
+
 				<RegExpr attribute="Operator" String="[+*/%\|=;\!&lt;&gt;!^&amp;~-]" context="#stay"/>
-                
+
 				<RegExpr attribute="String Substitution" String="%[a-zA-Z]" context="#stay"/>
-			
+
             </context>
-            
+
              <context name="numpy" attribute="Normal Text" lineEndContext="#pop" noIndentationBasedFolding="True">
-                <!-- highlight types in numpy.pxd after cimport numpy --> 
+                <!-- highlight types in numpy.pxd after cimport numpy -->
                 <keyword attribute="Import Keyword" context="#pop" String="as" />
                 <DetectChar attribute="Dot" context="#stay" char="." />
                 <keyword attribute="NumPy Type" context="#pop" String="numpytypes" />
                 <keyword attribute="NumPy Function" context="#pop" String="numpyfuncs" />
             </context>
-                                    
+
 			<context name="parenthesis" attribute="Normal Text" lineEndContext="#stay" noIndentationBasedFolding="True">
-                <DetectChar attribute="Operator" char=")" context="#pop" /> 
+                <DetectChar attribute="Operator" char=")" context="#pop" />
 				<IncludeRules context="Normal" />
 			</context>
-            
+
             <context name="bracet" attribute="Normal Text" lineEndContext="#stay" noIndentationBasedFolding="True">
-                <StringDetect attribute="Normal" String="readonly" context="#stay" />   
-                <DetectChar attribute="Operator" char="]" context="#pop" /> 
+                <StringDetect attribute="Normal" String="readonly" context="#stay" />
+                <DetectChar attribute="Operator" char="]" context="#pop" />
                 <IncludeRules context="Normal" />
             </context>
-            
+
             <context name="dict" attribute="Normal Text" lineEndContext="#stay" noIndentationBasedFolding="True">
                 <DetectChar attribute="Operator" char="}" context="#pop" />
                 <IncludeRules context="Normal" />
             </context>
-            
+
             <context name="defname" attribute="Normal Text" lineEndContext="#pop" noIndentationBasedFolding="True">
                 <RegExpr attribute="Definition Name" String="[a-zA-Z_][a-zA-Z_0-9]+" context="#stay"/>
                 <DetectChar attribute="Operator" char="(" context="callargs" />
                 <DetectChar attribute="Operator" char="[" context="callbracket" />
                 <IncludeRules context="Normal" />
             </context>
-            
+
             <context name="callargs" attribute="Normal Text" lineEndContext="#stay" noIndentationBasedFolding="True">
                 <DetectChar attribute="Operator" char=")" context="#pop#pop" />
                 <IncludeRules context="Normal" />
             </context>
-            
+
             <context name="callbracket" attribute="Normal Text" lineEndContext="#stay" noIndentationBasedFolding="True">
                 <DetectChar attribute="Operator" char="]" context="#pop#pop" />
                 <IncludeRules context="Normal" />
             </context>
-            
-            
+
+
             <context name="cdefname" attribute="Normal Text" lineEndContext="#pop" noIndentationBasedFolding="True">
                 <keyword attribute="Definition Keyword" String="defs" context="defname"/>
                 <keyword attribute="Definition Keyword" String="keyw" context="#stay"/>
                 <keyword attribute="Definition Keyword" String="access" context="#stay"/>
                 <keyword attribute="Import Keyword" String="imports" context="#stay"/>
                 <keyword attribute="Special Variable" String="specialvars" context="#stay"/>
-                
+
                 <keyword attribute="C Type" context="#pop" String="ctypes" />
                 <keyword attribute="Python Type" context="#pop" String="pytypes" />
-                                                                                
+
                 <RegExpr attribute="Hex" String="0[Xx][0-9a-fA-F]+" context="#stay"/>
                 <RegExpr attribute="Octal" String="0[1-9][0-9]*" context="#stay"/>
                 <RegExpr attribute="Binary" String="0[Bb][0-9a-fA-F]+" context="#stay"/>
-                
+
                 <RegExpr attribute="Complex" String=" ((([0-9]*\.[0-9]+|[0-9]+\.)|([0-9]+|([0-9]*\.[0-9]+|[0-9]+\.))[eE](\+|-)?[0-9]+)|[0-9]+)[jJ]" context="#stay"/>
                 <RegExpr attribute="Float" String="([0-9]+\.[0-9]*|\.[0-9]+)([eE][0-9]+)?" context="#stay"/>
-                
+
                 <RegExpr attribute="Int" String="([1-9][0-9]*([eE][0-9]+)?|0)" context="#stay"/>
                 <RegExpr attribute="Long" String="[1-9][0-9]*([eE][0-9.]+)?[Ll]" context="#stay"/>
-                
+
                 <keyword attribute="NumPyAttr" String="numpyselector" context="numpy2"/>
-                                
+
                 <RegExpr attribute="C Definition Name" String="[a-zA-Z_][a-zA-Z_0-9]+" context="#stay"/>
                 <DetectChar attribute="Operator" char="(" context="callargs" />
                 <IncludeRules context="Normal" />
             </context>
-            
+
             <context name="callargs" attribute="Normal Text" lineEndContext="#stay" noIndentationBasedFolding="True">
                 <DetectChar attribute="Operator" char=")" context="#pop#pop" />
                 <IncludeRules context="Normal" />
             </context>
-            
-            
-            
-            
-            
-            
-            
-            
+
+
+
+
+
+
+
+
             <context name="numpy2" attribute="Normal Text" lineEndContext="#pop" noIndentationBasedFolding="True">
                 <!-- highlight types in numpy.pxd after cimport numpy -->
                 <DetectChar attribute="Dot" context="#stay" char="." />
                 <keyword attribute="NumPy Type" context="#pop#pop" String="numpytypes" />
             </context>
-            
-            
-            
-            
+
+
+
+
 			<context name="Tripple A-comment" attribute="Comment" lineEndContext="#stay" noIndentationBasedFolding="True">
 				<StringDetect attribute="Comment" String="'''" context="#pop" endRegion="Tripple A-region"/>
 			</context>

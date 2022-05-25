@@ -49,10 +49,10 @@ def unused_in_closure(a,b,c):
 
 
 _ERRORS = """
-6:6: Unused entry 'a'
-9:9: Unused entry 'b'
+6:4: Unused entry 'a'
+9:7: Unused entry 'b'
 12:15: Unused argument 'arg'
-16:6: Unused result in 'r'
+16:4: Unused result in 'r'
 21:4: Unused entry '_unused_one'
 25:4: Unused entry 'Unused'
 35:16: Unused entry 'foo'
@@ -61,6 +61,6 @@ _ERRORS = """
 38:28: Unused argument 'kwargs'
 41:26: Unused argument 'c'
 41:26: Unused entry 'c'
-42:6: Unused entry 'x'
-46:10: Unused entry 'y'
+42:4: Unused entry 'x'
+46:8: Unused entry 'y'
 """

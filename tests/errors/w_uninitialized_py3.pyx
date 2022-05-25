@@ -19,6 +19,6 @@ def dict_comp(a):
 
 
 _ERRORS = """
-10:9: local variable 'i' referenced before assignment
-16:9: local variable 'i' referenced before assignment
+10:8: local variable 'i' referenced before assignment
+16:8: local variable 'i' referenced before assignment
 """

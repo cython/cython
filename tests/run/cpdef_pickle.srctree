@@ -1,0 +1,70 @@
+# mode: run
+# tag: pickle
+
+PYTHON main.py build_ext -i
+
+######################### lib/__init__.py #########################
+
+######################### lib/cy.pyx #########################
+# cython: binding=True
+
+cdef class WithoutC:
+    def hello(self):
+        return "Hello, World"
+
+cdef class WithCPDef:
+    cpdef str hello(self):
+        return "Hello, World"
+
+cdef class WithCDefWrapper:
+    def hello(self):
+        return _helloC(self)
+
+cpdef _helloC(object caller):
+    return "Hello, World"
+
+
+######################### lib/cy.pxd #########################
+# cython:language_level=3
+
+cdef class WithoutCPDef:
+    pass
+
+cdef class WithCPDef:
+    cpdef str hello(self)
+
+cdef class WithCDefWrapper:
+    pass
+
+cpdef _helloC(object caller)
+
+
+######################### main.py #########################
+#!/usr/bin/env python3
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize(["lib/*.pyx"]),
+)
+
+import pickle as pkl
+import os
+from lib.cy import WithoutC, WithCPDef, WithCDefWrapper
+
+def tryThis(obj):
+    print("Pickling %s ..." % obj.__class__.__name__)
+    try:
+        with open("test.pkl", "wb") as fid:
+            pkl.dump(obj, fid)
+        print("\t... OK")
+    except Exception as e:
+        print("\t... KO: %s" % str(e))
+
+try:
+    for t in WithoutC(), WithCPDef(), WithCDefWrapper():
+        tryThis(t)
+finally:
+    if os.path.exists("test.pkl"):
+        os.remove("test.pkl")

@@ -6,10 +6,7 @@ cdef extern from *:
     int PY_VERSION_HEX
 
 cdef object __Pyx_OrderedDict
-if PY_VERSION_HEX >= 0x02070000:
-    from collections import OrderedDict as __Pyx_OrderedDict
-else:
-    __Pyx_OrderedDict = dict
+from collections import OrderedDict as __Pyx_OrderedDict
 
 @cython.internal
 cdef class __Pyx_EnumMeta(type):
@@ -23,8 +20,7 @@ cdef class __Pyx_EnumMeta(type):
 
 # @cython.internal
 cdef object __Pyx_EnumBase
-class __Pyx_EnumBase(int):
-    __metaclass__ = __Pyx_EnumMeta
+class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
     def __new__(cls, value, name=None):
         for v in cls:
             if v == value:
@@ -55,12 +51,38 @@ if PY_VERSION_HEX >= 0x03040000:
         ('{{item}}', {{item}}),
         {{endfor}}
     ]))
+    {{if enum_doc is not None}}
+    {{name}}.__doc__ = {{ repr(enum_doc) }}
+    {{endif}}
+
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}.{{item}}
     {{endfor}}
 else:
     class {{name}}(__Pyx_EnumBase):
-        pass
+        {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}({{item}}, '{{item}}')
     {{endfor}}
+
+#################### CppScopedEnumType ####################
+#@requires: EnumBase
+cdef dict __Pyx_globals = globals()
+
+if PY_VERSION_HEX >= 0x03040000:
+    # create new IntEnum()
+    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+        {{for item in items}}
+        ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
+        {{endfor}}
+    ]))
+
+else:
+    __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
+    {{for item in items}}
+    __Pyx_globals["{{name}}"](<{{underlying_type}}>({{name}}.{{item}}), '{{item}}')
+    {{endfor}}
+
+{{if enum_doc is not None}}
+__Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
+{{endif}}

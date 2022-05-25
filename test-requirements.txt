@@ -1,0 +1,4 @@
+numpy
+coverage
+pycodestyle
+setuptools<60

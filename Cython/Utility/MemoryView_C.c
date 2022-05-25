@@ -1,4 +1,5 @@
 ////////// MemviewSliceStruct.proto //////////
+//@proto_block: utility_code_proto_before_types
 
 /* memoryview slice struct */
 struct {{memview_struct_name}};
@@ -11,8 +12,12 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
+// used for "len(memviewslice)"
+#define __Pyx_MemoryView_Len(m)  (m.shape[0])
+
 
 /////////// Atomics.proto /////////////
+//@proto_block: utility_code_proto_before_types
 
 #include <pythread.h>
 
@@ -77,7 +82,7 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 
 /////////////// ObjectToMemviewSlice.proto ///////////////
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable_flag);
 
 
 ////////// MemviewSliceInit.proto //////////
@@ -108,9 +113,9 @@ static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
 #define __pyx_get_slice_count_pointer(memview) (memview->acquisition_count_aligned_p)
 #define __pyx_get_slice_count(memview) (*__pyx_get_slice_count_pointer(memview))
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
-#define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
+#define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
-static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
+static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
 
 
 /////////////// MemviewSliceIndex.proto ///////////////
@@ -122,7 +127,7 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(
 /////////////// ObjectToMemviewSlice ///////////////
 //@requires: MemviewSliceValidateAndInit
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj, int writable_flag) {
     {{memviewslice_name}} result = {{memslice_init}};
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
@@ -135,7 +140,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     }
 
     retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, {{c_or_f_flag}},
-                                                 {{buf_flag}}, {{ndim}},
+                                                 {{buf_flag}} | writable_flag, {{ndim}},
                                                  &{{dtype_typeinfo}}, stack,
                                                  &result, obj);
 
@@ -164,6 +169,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
 /////////////// MemviewSliceValidateAndInit ///////////////
 //@requires: Buffer.c::TypeInfoCompare
+//@requires: Buffer.c::BufferFormatStructs
+//@requires: Buffer.c::BufferFormatCheck
 
 static int
 __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
@@ -174,13 +181,13 @@ __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
     if (buf->strides) {
         if (spec & __Pyx_MEMVIEW_CONTIG) {
             if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL)) {
-                if (buf->strides[dim] != sizeof(void *)) {
+                if (unlikely(buf->strides[dim] != sizeof(void *))) {
                     PyErr_Format(PyExc_ValueError,
                                  "Buffer is not indirectly contiguous "
                                  "in dimension %d.", dim);
                     goto fail;
                 }
-            } else if (buf->strides[dim] != buf->itemsize) {
+            } else if (unlikely(buf->strides[dim] != buf->itemsize)) {
                 PyErr_SetString(PyExc_ValueError,
                                 "Buffer and memoryview are not contiguous "
                                 "in the same dimension.");
@@ -192,7 +199,7 @@ __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
             Py_ssize_t stride = buf->strides[dim];
             if (stride < 0)
                 stride = -stride;
-            if (stride < buf->itemsize) {
+            if (unlikely(stride < buf->itemsize)) {
                 PyErr_SetString(PyExc_ValueError,
                                 "Buffer and memoryview are not contiguous "
                                 "in the same dimension.");
@@ -200,17 +207,17 @@ __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
             }
         }
     } else {
-        if (spec & __Pyx_MEMVIEW_CONTIG && dim != ndim - 1) {
+        if (unlikely(spec & __Pyx_MEMVIEW_CONTIG && dim != ndim - 1)) {
             PyErr_Format(PyExc_ValueError,
                          "C-contiguous buffer is not contiguous in "
                          "dimension %d", dim);
             goto fail;
-        } else if (spec & (__Pyx_MEMVIEW_PTR)) {
+        } else if (unlikely(spec & (__Pyx_MEMVIEW_PTR))) {
             PyErr_Format(PyExc_ValueError,
                          "C-contiguous buffer is not indirect in "
                          "dimension %d", dim);
             goto fail;
-        } else if (buf->suboffsets) {
+        } else if (unlikely(buf->suboffsets)) {
             PyErr_SetString(PyExc_ValueError,
                             "Buffer exposes suboffsets but no strides");
             goto fail;
@@ -223,12 +230,13 @@ fail:
 }
 
 static int
-__pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec)
+__pyx_check_suboffsets(Py_buffer *buf, int dim, int ndim, int spec)
 {
+    CYTHON_UNUSED_VAR(ndim);
     // Todo: without PyBUF_INDIRECT we may not have suboffset information, i.e., the
     //       ptr may not be set to NULL but may be uninitialized?
     if (spec & __Pyx_MEMVIEW_DIRECT) {
-        if (buf->suboffsets && buf->suboffsets[dim] >= 0) {
+        if (unlikely(buf->suboffsets && buf->suboffsets[dim] >= 0)) {
             PyErr_Format(PyExc_ValueError,
                          "Buffer not compatible with direct access "
                          "in dimension %d.", dim);
@@ -237,7 +245,7 @@ __pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec
     }
 
     if (spec & __Pyx_MEMVIEW_PTR) {
-        if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[dim] < 0)) {
+        if (unlikely(!buf->suboffsets || (buf->suboffsets[dim] < 0))) {
             PyErr_Format(PyExc_ValueError,
                          "Buffer is not indirectly accessible "
                          "in dimension %d.", dim);
@@ -258,9 +266,7 @@ __pyx_verify_contig(Py_buffer *buf, int ndim, int c_or_f_flag)
     if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
         Py_ssize_t stride = 1;
         for (i = 0; i < ndim; i++) {
-            if (stride * buf->itemsize != buf->strides[i] &&
-                    buf->shape[i] > 1)
-            {
+            if (unlikely(stride * buf->itemsize != buf->strides[i]  &&  buf->shape[i] > 1)) {
                 PyErr_SetString(PyExc_ValueError,
                     "Buffer not fortran contiguous.");
                 goto fail;
@@ -270,8 +276,7 @@ __pyx_verify_contig(Py_buffer *buf, int ndim, int c_or_f_flag)
     } else if (c_or_f_flag & __Pyx_IS_C_CONTIG) {
         Py_ssize_t stride = 1;
         for (i = ndim - 1; i >- 1; i--) {
-            if (stride * buf->itemsize != buf->strides[i] &&
-                    buf->shape[i] > 1) {
+            if (unlikely(stride * buf->itemsize != buf->strides[i]  &&  buf->shape[i] > 1)) {
                 PyErr_SetString(PyExc_ValueError,
                     "Buffer not C contiguous.");
                 goto fail;
@@ -318,7 +323,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     buf = &memview->view;
-    if (buf->ndim != ndim) {
+    if (unlikely(buf->ndim != ndim)) {
         PyErr_Format(PyExc_ValueError,
                 "Buffer has wrong number of dimensions (expected %d, got %d)",
                 ndim, buf->ndim);
@@ -327,10 +332,10 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
     if (new_memview) {
         __Pyx_BufFmt_Init(&ctx, stack, dtype);
-        if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
+        if (unlikely(!__Pyx_BufFmt_CheckString(&ctx, buf->format))) goto fail;
     }
 
-    if ((unsigned) buf->itemsize != dtype->size) {
+    if (unlikely((unsigned) buf->itemsize != dtype->size)) {
         PyErr_Format(PyExc_ValueError,
                      "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "u byte%s) "
                      "does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "u byte%s)",
@@ -343,17 +348,21 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     /* Check axes */
-    for (i = 0; i < ndim; i++) {
-        spec = axes_specs[i];
-        if (!__pyx_check_strides(buf, i, ndim, spec))
-            goto fail;
-        if (!__pyx_check_suboffsets(buf, i, ndim, spec))
+    if (buf->len > 0) {
+        // 0-sized arrays do not undergo these checks since their strides are
+        // irrelevant and they are always both C- and F-contiguous.
+        for (i = 0; i < ndim; i++) {
+            spec = axes_specs[i];
+            if (unlikely(!__pyx_check_strides(buf, i, ndim, spec)))
+                goto fail;
+            if (unlikely(!__pyx_check_suboffsets(buf, i, ndim, spec)))
+                goto fail;
+        }
+
+        /* Check contiguity */
+        if (unlikely(buf->strides && !__pyx_verify_contig(buf, ndim, c_or_f_flag)))
             goto fail;
     }
-
-    /* Check contiguity */
-    if (buf->strides && !__pyx_verify_contig(buf, ndim, c_or_f_flag))
-        goto fail;
 
     /* Initialize */
     if (unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice,
@@ -387,11 +396,7 @@ __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
     Py_buffer *buf = &memview->view;
     __Pyx_RefNannySetupContext("init_memviewslice", 0);
 
-    if (!buf) {
-        PyErr_SetString(PyExc_ValueError,
-            "buf is NULL.");
-        goto fail;
-    } else if (memviewslice->memview || memviewslice->data) {
+    if (unlikely(memviewslice->memview || memviewslice->data)) {
         PyErr_SetString(PyExc_ValueError,
             "memviewslice is already initialized!");
         goto fail;
@@ -437,8 +442,12 @@ no_fail:
     return retval;
 }
 
+#ifndef Py_NO_RETURN
+// available since Py3.3
+#define Py_NO_RETURN
+#endif
 
-static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
+static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
     va_list vargs;
     char msg[200];
 
@@ -447,11 +456,10 @@ static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
 #else
     va_start(vargs);
 #endif
-
     vsnprintf(msg, 200, fmt, vargs);
-    Py_FatalError(msg);
-
     va_end(vargs);
+
+    Py_FatalError(msg);
 }
 
 static CYTHON_INLINE int
@@ -480,47 +488,49 @@ __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 static CYTHON_INLINE void
 __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
-    int first_time;
+    __pyx_atomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
-    if (!memview || (PyObject *) memview == Py_None)
-        return; /* allow uninitialized memoryview assignment */
+    if (unlikely(!memview || (PyObject *) memview == Py_None)) {
+        // Allow uninitialized memoryview assignment and do not ref-count None.
+        return;
+    }
 
-    if (__pyx_get_slice_count(memview) < 0)
-        __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
-
-    first_time = __pyx_add_acquisition_count(memview) == 0;
-
-    if (first_time) {
-        if (have_gil) {
-            Py_INCREF((PyObject *) memview);
+    old_acquisition_count = __pyx_add_acquisition_count(memview);
+    if (unlikely(old_acquisition_count <= 0)) {
+        if (likely(old_acquisition_count == 0)) {
+            // First acquisition => keep the memoryview object alive.
+            if (have_gil) {
+                Py_INCREF((PyObject *) memview);
+            } else {
+                PyGILState_STATE _gilstate = PyGILState_Ensure();
+                Py_INCREF((PyObject *) memview);
+                PyGILState_Release(_gilstate);
+            }
         } else {
-            PyGILState_STATE _gilstate = PyGILState_Ensure();
-            Py_INCREF((PyObject *) memview);
-            PyGILState_Release(_gilstate);
+            __pyx_fatalerror("Acquisition count is %d (line %d)",
+                             __pyx_get_slice_count(memview), lineno);
         }
     }
 }
 
-static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
+static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
-    int last_time;
+    __pyx_atomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
-    if (!memview ) {
-        return;
-    } else if ((PyObject *) memview == Py_None) {
+    if (unlikely(!memview || (PyObject *) memview == Py_None)) {
+        // Do not ref-count None.
         memslice->memview = NULL;
         return;
     }
 
-    if (__pyx_get_slice_count(memview) <= 0)
-        __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
-
-    last_time = __pyx_sub_acquisition_count(memview) == 1;
+    old_acquisition_count = __pyx_sub_acquisition_count(memview);
     memslice->data = NULL;
-    if (last_time) {
+    if (likely(old_acquisition_count > 1)) {
+        // Still other slices out there => we do not own the reference.
+        memslice->memview = NULL;
+    } else if (likely(old_acquisition_count == 1)) {
+        // Last slice => discard owned Python reference to memoryview object.
         if (have_gil) {
             Py_CLEAR(memslice->memview);
         } else {
@@ -529,7 +539,8 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
             PyGILState_Release(_gilstate);
         }
     } else {
-        memslice->memview = NULL;
+        __pyx_fatalerror("Acquisition count is %d (line %d)",
+                         __pyx_get_slice_count(memview), lineno);
     }
 }
 
@@ -564,7 +575,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig", 0);
 
     for (i = 0; i < ndim; i++) {
-        if (from_mvs->suboffsets[i] >= 0) {
+        if (unlikely(from_mvs->suboffsets[i] >= 0)) {
             PyErr_Format(PyExc_ValueError, "Cannot copy memoryview slice with "
                                            "indirect dimensions (axis %d)", i);
             goto fail;
@@ -689,29 +700,21 @@ __pyx_slices_overlap({{memviewslice_name}} *slice1,
 }
 
 
-////////// MemviewSliceIsCContig.proto //////////
+////////// MemviewSliceCheckContig.proto //////////
 
-#define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(slice, 'C', {{ndim}})
-
-
-////////// MemviewSliceIsFContig.proto //////////
-
-#define __pyx_memviewslice_is_f_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(slice, 'F', {{ndim}})
+#define __pyx_memviewslice_is_contig_{{contig_type}}{{ndim}}(slice) \
+    __pyx_memviewslice_is_contig(slice, '{{contig_type}}', {{ndim}})
 
 
 ////////// MemviewSliceIsContig.proto //////////
 
-static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
-                                        char order, int ndim);
+static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim);/*proto*/
 
 
 ////////// MemviewSliceIsContig //////////
 
 static int
-__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
-                             char order, int ndim)
+__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim)
 {
     int i, index, step, start;
     Py_ssize_t itemsize = mvs.memview->view.itemsize;
@@ -775,7 +778,7 @@ static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
 {{if from_py_function}}
 static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
-    if ({{error_condition}})
+    if (unlikely({{error_condition}}))
         return 0;
     *({{dtype}} *) itemp = value;
     return 1;
@@ -850,28 +853,37 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
 
 {
     Py_ssize_t __pyx_tmp_idx = {{idx}};
-    Py_ssize_t __pyx_tmp_shape = {{src}}.shape[{{dim}}];
+
+    {{if wraparound or boundscheck}}
+        Py_ssize_t __pyx_tmp_shape = {{src}}.shape[{{dim}}];
+    {{endif}}
+
     Py_ssize_t __pyx_tmp_stride = {{src}}.strides[{{dim}}];
-    if ({{wraparound}} && (__pyx_tmp_idx < 0))
-        __pyx_tmp_idx += __pyx_tmp_shape;
+    {{if wraparound}}
+        if (__pyx_tmp_idx < 0)
+            __pyx_tmp_idx += __pyx_tmp_shape;
+    {{endif}}
 
-    if ({{boundscheck}} && (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= __pyx_tmp_shape)) {
-        {{if not have_gil}}
-            #ifdef WITH_THREAD
-            PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
-            #endif
-        {{endif}}
+    {{if boundscheck}}
+        if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
+            {{if not have_gil}}
+                #ifdef WITH_THREAD
+                PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
+                #endif
+            {{endif}}
 
-        PyErr_SetString(PyExc_IndexError, "Index out of bounds (axis {{dim}})");
+            PyErr_SetString(PyExc_IndexError,
+                            "Index out of bounds (axis {{dim}})");
 
-        {{if not have_gil}}
-            #ifdef WITH_THREAD
-            PyGILState_Release(__pyx_gilstate_save);
-            #endif
-        {{endif}}
+            {{if not have_gil}}
+                #ifdef WITH_THREAD
+                PyGILState_Release(__pyx_gilstate_save);
+                #endif
+            {{endif}}
 
-        {{error_goto}}
-    }
+            {{error_goto}}
+        }
+    {{endif}}
 
     {{if all_dimensions_direct}}
         {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
@@ -917,7 +929,7 @@ __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t 
 ////////// FillStrided1DScalar //////////
 
 /* Fill a slice with a scalar value. The dimension is direct and strided or contiguous */
-/* This can be used as a callback for the memoryview object to efficienty assign a scalar */
+/* This can be used as a callback for the memoryview object to efficiently assign a scalar */
 /* Currently unused */
 static void
 __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,

@@ -1,4 +1,4 @@
-# mode: test
+# mode: run
 
 def f(x, y):
     x = y

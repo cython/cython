@@ -112,22 +112,26 @@ def class_py3k_args():
     args = []
     kwargs = {}
 
+def uninitialized_in_sizeof():
+    cdef int i
+    print sizeof(i)
+
 _ERRORS = """
-6:11: local variable 'a' referenced before assignment
-12:12: local variable 'a' might be referenced before assignment
-29:12: local variable 'a' might be referenced before assignment
-35:15: local variable 'b' might be referenced before assignment
-58:11: local variable 'a' referenced before assignment
-58:14: local variable 'b' referenced before assignment
-62:13: local variable 'bar' referenced before assignment
-66:13: local variable 'foo' referenced before assignment
-71:17: local variable 'exc' referenced before assignment
-71:22: local variable 'msg' referenced before assignment
+6:10: local variable 'a' referenced before assignment
+12:11: local variable 'a' might be referenced before assignment
+29:11: local variable 'a' might be referenced before assignment
+35:14: local variable 'b' might be referenced before assignment
+58:10: local variable 'a' referenced before assignment
+58:13: local variable 'b' referenced before assignment
+62:10: local variable 'bar' referenced before assignment
+66:10: local variable 'foo' referenced before assignment
+71:14: local variable 'exc' referenced before assignment
+71:19: local variable 'msg' referenced before assignment
 78:4: local variable 'decorator' referenced before assignment
-85:23: local variable 'default' referenced before assignment
-91:17: local variable 'bar' referenced before assignment
+85:16: local variable 'default' referenced before assignment
+91:14: local variable 'bar' referenced before assignment
 97:4: local variable 'decorator' referenced before assignment
-104:28: local variable 'Meta' referenced before assignment
-110:19: local variable 'args' referenced before assignment
-110:29: local variable 'kwargs' referenced before assignment
+104:24: local variable 'Meta' referenced before assignment
+110:15: local variable 'args' referenced before assignment
+110:23: local variable 'kwargs' referenced before assignment
 """

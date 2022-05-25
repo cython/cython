@@ -5,6 +5,7 @@ cimport cython
 
 cdef extern from "cpp_references_helper.h":
     cdef int& ref_func(int&)
+    cdef int& except_ref_func "ref_func" (int&) except +
 
     cdef int ref_var_value
     cdef int& ref_var
@@ -27,6 +28,16 @@ def test_ref_func_address(int x):
     7
     """
     cdef int* i_ptr = &ref_func(x)
+    return i_ptr[0]
+
+def test_except_ref_func_address(int x):
+    """
+    >>> test_except_ref_func_address(5)
+    5
+    >>> test_except_ref_func_address(7)
+    7
+    """
+    cdef int* i_ptr = &except_ref_func(x)
     return i_ptr[0]
 
 def test_ref_var(int x):

@@ -7,6 +7,9 @@ Test Python def functions without extern types
 cy = __import__("cython")
 cimport cython
 
+cdef extern from *:
+    int __Pyx_CyFunction_Check(object)
+
 cdef class Base(object):
     def __repr__(self):
         return type(self).__name__
@@ -51,17 +54,30 @@ f = 5.6
 i = 9
 
 
-def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
+def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7,
+             another_opt = 2, yet_another_opt=3):
     """
-    Test runtime dispatch, indexing of various kinds and optional arguments
+    Test runtime dispatch, indexing of various kinds and optional arguments.
+    Use 5 arguments because at one point the optional argument from the
+    5th argument was overwriting that of the __pyx_fused dispatcher.
+    https://github.com/cython/cython/issues/3511
 
     >>> opt_func("spam", f, i)
+    str object double long
+    spam 5.60 9 5.60 9
+    >>> opt_func("spam", f, myi=i)
+    str object double long
+    spam 5.60 9 5.60 9
+    >>> opt_func("spam", myf=f, myi=i)
     str object double long
     spam 5.60 9 5.60 9
     >>> opt_func[str, float, int]("spam", f, i)
     str object float int
     spam 5.60 9 5.60 9
     >>> opt_func[str, cy.double, cy.long]("spam", f, i)
+    str object double long
+    spam 5.60 9 5.60 9
+    >>> opt_func[str, cy.double, cy.long]("spam", f, myi=i)
     str object double long
     spam 5.60 9 5.60 9
     >>> opt_func[str, float, cy.int]("spam", f, i)
@@ -105,16 +121,30 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
 
     >>> opt_func(object(), f)
     Traceback (most recent call last):
-      ...
     TypeError: Function call with ambiguous argument types
+    >>> opt_func()
+    Traceback (most recent call last):
+    TypeError: Expected at least 1 argument, got 0
+    >>> opt_func("abc", f, i, 5, 5, 5)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...at most 5...
     >>> opt_func[ExtClassA, cy.float, cy.long](object(), f)
     Traceback (most recent call last):
-      ...
     TypeError: Argument 'obj' has incorrect type (expected fused_def.ExtClassA, got object)
     """
     print cython.typeof(obj), cython.typeof(myf), cython.typeof(myi)
     print obj, "%.2f" % myf, myi, "%.2f" % f, i
 
+def run_cyfunction_check():
+    """
+    tp_base of the fused function was being set incorrectly meaning
+    it wasn't being identified as a CyFunction
+    >>> run_cyfunction_check()
+    fused_cython_function
+    1
+    """
+    print(type(opt_func).__name__.rsplit('.', 1)[-1])
+    print(__Pyx_CyFunction_Check(opt_func))  # should be True
 
 def test_opt_func():
     """
@@ -123,6 +153,28 @@ def test_opt_func():
     ham 5.60 4 5.60 9
     """
     opt_func("ham", f, entry4)
+
+
+def test_opt_func_introspection():
+    """
+    >>> opt_func.__defaults__
+    (1.2, 7, 2, 3)
+    >>> opt_func.__kwdefaults__
+    >>> opt_func.__annotations__
+    {}
+
+    >>> opt_func[str, float, int].__defaults__
+    (1.2, 7, 2, 3)
+    >>> opt_func[str, float, int].__kwdefaults__
+    >>> opt_func[str, float, int].__annotations__
+    {}
+
+    >>> opt_func[str, cy.double, cy.long].__defaults__
+    (1.2, 7, 2, 3)
+    >>> opt_func[str, cy.double, cy.long].__kwdefaults__
+    >>> opt_func[str, cy.double, cy.long].__annotations__
+    {}
+    """
 
 
 def func_with_object(fused_with_object obj, cython.integral myi = 7):
@@ -370,3 +422,31 @@ def test_decorators(cython.floating arg):
     >>> test_decorators.order
     [3, 2, 1]
     """
+
+@cython.binding(True)
+def bind_me(self, cython.floating a=1.):
+    return a
+
+cdef class HasBound:
+    """
+    Using default arguments of bound specialized fused functions used to cause a segfault
+    https://github.com/cython/cython/issues/3370
+    >>> inst = HasBound()
+    >>> inst.func()
+    1.0
+    >>> inst.func(2)
+    2.0
+    >>> inst.func_fused()
+    1.0
+    >>> inst.func_fused(2.)
+    2.0
+    >>> bind_me.__defaults__
+    (1.0,)
+    >>> inst.func.__defaults__
+    (1.0,)
+    >>> inst.func_fused.__defaults__
+    (1.0,)
+    """
+    func = bind_me[float]
+
+    func_fused = bind_me

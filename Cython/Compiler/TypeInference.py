@@ -140,7 +140,6 @@ class MarkParallelAssignments(EnvTransform):
                                                      '+',
                                                      sequence.args[0],
                                                      sequence.args[2]))
-
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
@@ -178,7 +177,7 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        pass # Can't be assigned to...
+        return node  # Can't be assigned to...
 
     def visit_FromImportStatNode(self, node):
         for name, target in node.items:
@@ -250,8 +249,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_YieldExprNode(self, node):
         if self.parallel_block_stack:
-            error(node.pos, "Yield not allowed in parallel sections")
-
+            error(node.pos, "'%s' not allowed in parallel sections" % node.expr_keyword)
         return node
 
     def visit_ReturnStatNode(self, node):
@@ -307,6 +305,13 @@ class MarkOverflowingArithmetic(CythonTransform):
         else:
             return self.visit_dangerous_node(node)
 
+    def visit_SimpleCallNode(self, node):
+        if node.function.is_name and node.function.name == 'abs':
+            # Overflows for minimum value of fixed size ints.
+            return self.visit_dangerous_node(node)
+        else:
+            return self.visit_neutral_node(node)
+
     visit_UnopNode = visit_neutral_node
 
     visit_UnaryMinusNode = visit_dangerous_node
@@ -353,10 +358,17 @@ class SimpleAssignmentTypeInferer(object):
     Note: in order to support cross-closure type inference, this must be
     applies to nested scopes in top-down order.
     """
-    def set_entry_type(self, entry, entry_type):
-        entry.type = entry_type
+    def set_entry_type(self, entry, entry_type, scope):
         for e in entry.all_entries():
             e.type = entry_type
+            if e.type.is_memoryviewslice:
+                # memoryview slices crash if they don't get initialized
+                e.init = e.type.default_value
+            if e.type.is_cpp_class:
+                if scope.directives['cpp_locals']:
+                    e.make_cpp_optional()
+                else:
+                    e.type.check_nullary_constructor(entry.pos)
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
@@ -364,15 +376,15 @@ class SimpleAssignmentTypeInferer(object):
 
         if enabled == True:
             spanning_type = aggressive_spanning_type
-        elif enabled is None: # safe mode
+        elif enabled is None:  # safe mode
             spanning_type = safe_spanning_type
         else:
             for entry in scope.entries.values():
                 if entry.type is unspecified_type:
-                    self.set_entry_type(entry, py_object_type)
+                    self.set_entry_type(entry, py_object_type, scope)
             return
 
-        # Set of assignemnts
+        # Set of assignments
         assignments = set()
         assmts_resolved = set()
         dependencies = {}
@@ -398,7 +410,7 @@ class SimpleAssignmentTypeInferer(object):
             else:
                 entry = node.entry
                 node_type = spanning_type(
-                    types, entry.might_overflow, entry.pos, scope)
+                    types, entry.might_overflow, scope)
             node.inferred_type = node_type
 
         def infer_name_node_type_partial(node):
@@ -407,7 +419,25 @@ class SimpleAssignmentTypeInferer(object):
             if not types:
                 return
             entry = node.entry
-            return spanning_type(types, entry.might_overflow, entry.pos, scope)
+            return spanning_type(types, entry.might_overflow, scope)
+
+        def inferred_types(entry):
+            has_none = False
+            has_pyobjects = False
+            types = []
+            for assmt in entry.cf_assignments:
+                if assmt.rhs.is_none:
+                    has_none = True
+                else:
+                    rhs_type = assmt.inferred_type
+                    if rhs_type and rhs_type.is_pyobject:
+                        has_pyobjects = True
+                    types.append(rhs_type)
+            # Ignore None assignments as long as there are concrete Python type assignments.
+            # but include them if None is the only assigned Python object.
+            if has_none and not has_pyobjects:
+                types.append(py_object_type)
+            return types
 
         def resolve_assignments(assignments):
             resolved = set()
@@ -461,21 +491,22 @@ class SimpleAssignmentTypeInferer(object):
                 continue
             entry_type = py_object_type
             if assmts_resolved.issuperset(entry.cf_assignments):
-                types = [assmt.inferred_type for assmt in entry.cf_assignments]
+                types = inferred_types(entry)
                 if types and all(types):
                     entry_type = spanning_type(
-                        types, entry.might_overflow, entry.pos, scope)
+                        types, entry.might_overflow, scope)
                     inferred.add(entry)
-            self.set_entry_type(entry, entry_type)
+            self.set_entry_type(entry, entry_type, scope)
 
         def reinfer():
             dirty = False
             for entry in inferred:
-                types = [assmt.infer_type()
-                         for assmt in entry.cf_assignments]
-                new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
+                for assmt in entry.cf_assignments:
+                    assmt.infer_type()
+                types = inferred_types(entry)
+                new_type = spanning_type(types, entry.might_overflow, scope)
                 if new_type != entry.type:
-                    self.set_entry_type(entry, new_type)
+                    self.set_entry_type(entry, new_type, scope)
                     dirty = True
             return dirty
 
@@ -505,22 +536,20 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def simply_type(result_type, pos):
+def simply_type(result_type):
     if result_type.is_reference:
         result_type = result_type.ref_base_type
-    if result_type.is_const:
-        result_type = result_type.const_base_type
-    if result_type.is_cpp_class:
-        result_type.check_nullary_constructor(pos)
+    if result_type.is_cv_qualified:
+        result_type = result_type.cv_base_type
     if result_type.is_array:
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type
 
-def aggressive_spanning_type(types, might_overflow, pos, scope):
-    return simply_type(reduce(find_spanning_type, types), pos)
+def aggressive_spanning_type(types, might_overflow, scope):
+    return simply_type(reduce(find_spanning_type, types))
 
-def safe_spanning_type(types, might_overflow, pos, scope):
-    result_type = simply_type(reduce(find_spanning_type, types), pos)
+def safe_spanning_type(types, might_overflow, scope):
+    result_type = simply_type(reduce(find_spanning_type, types))
     if result_type.is_pyobject:
         # In theory, any specific Python type is always safe to
         # infer. However, inferring str can cause some existing code
@@ -538,6 +567,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
         return result_type
+    elif result_type.is_pythran_expr:
+        return result_type
     elif result_type.is_ptr:
         # Any pointer except (signed|unsigned|) char* can't implicitly
         # become a PyObject, and inferring char* is now accepted, too.
@@ -549,6 +580,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         # Though we have struct -> object for some structs, this is uncommonly
         # used, won't arise in pure Python, and there shouldn't be side
         # effects, so I'm declaring this safe.
+        return result_type
+    elif result_type.is_memoryviewslice:
         return result_type
     # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.

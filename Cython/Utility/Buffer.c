@@ -52,6 +52,7 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 }
 
 /////////////// BufferFormatStructs.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 #define IS_UNSIGNED(type) (((type) -1) > 0)
 
@@ -95,7 +96,9 @@ typedef struct {
   char is_valid_array;
 } __Pyx_BufFmt_Context;
 
+
 /////////////// GetAndReleaseBuffer.proto ///////////////
+
 #if PY_MAJOR_VERSION < 3
     static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
     static void __Pyx_ReleaseBuffer(Py_buffer *view);
@@ -105,17 +108,23 @@ typedef struct {
 #endif
 
 /////////////// GetAndReleaseBuffer ///////////////
+
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+    __Pyx_TypeName obj_type_name;
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if getbuffer}}
-        if (PyObject_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
+        if (__Pyx_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
       {{endif}}
     {{endfor}}
 
-    PyErr_Format(PyExc_TypeError, "'%.200s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+                 "'" __Pyx_FMT_TYPENAME "' does not have the buffer interface",
+                 obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return -1;
 }
 
@@ -128,49 +137,111 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         return;
     }
 
+    if ((0)) {}
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if releasebuffer}}
-        if (PyObject_TypeCheck(obj, {{type_ptr}})) { {{releasebuffer}}(obj, view); return; }
+        else if (__Pyx_TypeCheck(obj, {{type_ptr}})) {{releasebuffer}}(obj, view);
       {{endif}}
     {{endfor}}
 
-    Py_DECREF(obj);
     view->obj = NULL;
+    Py_DECREF(obj);
 }
 
 #endif /*  PY_MAJOR_VERSION < 3 */
 
-/////////////// BufferFormatCheck.proto ///////////////
-{{#
 
-    Buffer format string checking
+/////////////// BufferGetAndValidate.proto ///////////////
 
-    Buffer type checking. Utility code for checking that acquired
-    buffers match our assumptions. We only need to check ndim and
-    the format string; the access mode/flags is checked by the
-    exporter. See:
+#define __Pyx_GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack) \
+    ((obj == Py_None || obj == NULL) ? \
+    (__Pyx_ZeroBuffer(buf), 0) : \
+    __Pyx__GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack))
 
-    http://docs.python.org/3/library/struct.html
-    http://legacy.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
-
-    The alignment code is copied from _struct.c in Python.
-}}
-
-static CYTHON_INLINE int  __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
+static int  __Pyx__GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
     __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
-static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
+static void __Pyx_ZeroBuffer(Py_buffer* buf);
+static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);/*proto*/
+
+static Py_ssize_t __Pyx_minusones[] = { {{ ", ".join(["-1"] * max_dims) }} };
+static Py_ssize_t __Pyx_zeros[] = { {{ ", ".join(["0"] * max_dims) }} };
+
+
+/////////////// BufferGetAndValidate ///////////////
+//@requires: BufferFormatCheck
+
+static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
+  if (unlikely(info->buf == NULL)) return;
+  if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
+  __Pyx_ReleaseBuffer(info);
+}
+
+static void __Pyx_ZeroBuffer(Py_buffer* buf) {
+  buf->buf = NULL;
+  buf->obj = NULL;
+  buf->strides = __Pyx_zeros;
+  buf->shape = __Pyx_zeros;
+  buf->suboffsets = __Pyx_minusones;
+}
+
+static int __Pyx__GetBufferAndValidate(
+        Py_buffer* buf, PyObject* obj,  __Pyx_TypeInfo* dtype, int flags,
+        int nd, int cast, __Pyx_BufFmt_StackElem* stack)
+{
+  buf->buf = NULL;
+  if (unlikely(__Pyx_GetBuffer(obj, buf, flags) == -1)) {
+    __Pyx_ZeroBuffer(buf);
+    return -1;
+  }
+  // From this point on, we have acquired the buffer and must release it on errors.
+  if (unlikely(buf->ndim != nd)) {
+    PyErr_Format(PyExc_ValueError,
+                 "Buffer has wrong number of dimensions (expected %d, got %d)",
+                 nd, buf->ndim);
+    goto fail;
+  }
+  if (!cast) {
+    __Pyx_BufFmt_Context ctx;
+    __Pyx_BufFmt_Init(&ctx, stack, dtype);
+    if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
+  }
+  if (unlikely((size_t)buf->itemsize != dtype->size)) {
+    PyErr_Format(PyExc_ValueError,
+      "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "d byte%s) does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "d byte%s)",
+      buf->itemsize, (buf->itemsize > 1) ? "s" : "",
+      dtype->name, (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
+    goto fail;
+  }
+  if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
+  return 0;
+fail:;
+  __Pyx_SafeReleaseBuffer(buf);
+  return -1;
+}
+
+
+/////////////// BufferFormatCheck.proto ///////////////
+
+//  Buffer format string checking
+//
+//  Buffer type checking. Utility code for checking that acquired
+//  buffers match our assumptions. We only need to check ndim and
+//  the format string; the access mode/flags is checked by the
+//  exporter. See:
+//
+//  https://docs.python.org/3/library/struct.html
+//  https://www.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
+//
+//  The alignment code is copied from _struct.c in Python.
+
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts);
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               __Pyx_BufFmt_StackElem* stack,
-                              __Pyx_TypeInfo* type); // PROTO
-
+                              __Pyx_TypeInfo* type); /*proto*/
 
 /////////////// BufferFormatCheck ///////////////
-static CYTHON_INLINE int __Pyx_IsLittleEndian(void) {
-  unsigned int n = 1;
-  return *(unsigned char*)(&n) != 0;
-}
-
+//@requires: ModuleSetupCode.c::IsLittleEndian
+//@requires: BufferFormatStructs
 
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               __Pyx_BufFmt_StackElem* stack,
@@ -207,7 +278,7 @@ static int __Pyx_BufFmt_ParseNumber(const char** ts) {
       return -1;
     } else {
         count = *t++ - '0';
-        while (*t >= '0' && *t < '9') {
+        while (*t >= '0' && *t <= '9') {
             count *= 10;
             count += *t++ - '0';
         }
@@ -232,6 +303,7 @@ static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
 
 static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
   switch (ch) {
+    case '?': return "'bool'";
     case 'c': return "'char'";
     case 'b': return "'signed char'";
     case 'B': return "'unsigned char'";
@@ -276,7 +348,7 @@ static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
 
 static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'B': case 's': case 'p': return 1;
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
@@ -305,7 +377,8 @@ typedef struct { char c; void *x; } __Pyx_st_void_p;
 typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 #endif
 
-static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
@@ -339,7 +412,8 @@ typedef struct { void *x; char c; } __Pyx_pad_void_p;
 typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
 #endif
 
-static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
@@ -365,7 +439,7 @@ static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
     case 'b': case 'h': case 'i':
     case 'l': case 'q': case 's': case 'p':
         return 'I';
-    case 'B': case 'H': case 'I': case 'L': case 'Q':
+    case '?': case 'B': case 'H': case 'I': case 'L': case 'Q':
         return 'U';
     case 'f': case 'd': case 'g':
         return (is_complex ? 'C' : 'R');
@@ -531,13 +605,12 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
 }
 
 /* Parse an array in the format string (e.g. (1,2,3)) */
-static CYTHON_INLINE PyObject *
+static PyObject *
 __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 {
     const char *ts = *tsp;
-    int i = 0, number;
-    int ndim = ctx->head->field->type->ndim;
-;
+    int i = 0, number, ndim;
+
     ++ts;
     if (ctx->new_count != 1) {
         PyErr_SetString(PyExc_ValueError,
@@ -547,6 +620,9 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 
     /* Process the previous element */
     if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+
+    // store ndim now, as field advanced by __Pyx_BufFmt_ProcessTypeChunk call
+    ndim = ctx->head->field->type->ndim;
 
     /* Parse all numbers in the format string */
     while (*ts && *ts != ')') {
@@ -611,7 +687,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         ++ts;
         break;
       case '<':
-        if (!__Pyx_IsLittleEndian()) {
+        if (!__Pyx_Is_Little_Endian()) {
           PyErr_SetString(PyExc_ValueError, "Little-endian buffer not supported on big-endian compiler");
           return NULL;
         }
@@ -620,7 +696,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         break;
       case '>':
       case '!':
-        if (__Pyx_IsLittleEndian()) {
+        if (__Pyx_Is_Little_Endian()) {
           PyErr_SetString(PyExc_ValueError, "Big-endian buffer not supported on little-endian compiler");
           return NULL;
         }
@@ -685,13 +761,13 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           __Pyx_BufFmt_RaiseUnexpectedChar('Z');
           return NULL;
         }
-        /* fall through */
-      case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
+        CYTHON_FALLTHROUGH;
+      case '?': case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
       case 'O': case 'p':
-        if (ctx->enc_type == *ts && got_Z == ctx->is_complex &&
-            ctx->enc_packmode == ctx->new_packmode) {
+        if ((ctx->enc_type == *ts) && (got_Z == ctx->is_complex) &&
+            (ctx->enc_packmode == ctx->new_packmode) && (!ctx->is_valid_array)) {
           /* Continue pooling same type */
           ctx->enc_count += ctx->new_count;
           ctx->new_count = 1;
@@ -699,7 +775,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           ++ts;
           break;
         }
-        /* fall through */
+        CYTHON_FALLTHROUGH;
       case 's':
         /* 's' or new type (cannot be added to current pool) */
         if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
@@ -729,60 +805,13 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
   }
 }
 
-static CYTHON_INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
-  buf->buf = NULL;
-  buf->obj = NULL;
-  buf->strides = __Pyx_zeros;
-  buf->shape = __Pyx_zeros;
-  buf->suboffsets = __Pyx_minusones;
-}
-
-static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
-        Py_buffer* buf, PyObject* obj,  __Pyx_TypeInfo* dtype, int flags,
-        int nd, int cast, __Pyx_BufFmt_StackElem* stack)
-{
-  if (obj == Py_None || obj == NULL) {
-    __Pyx_ZeroBuffer(buf);
-    return 0;
-  }
-  buf->buf = NULL;
-  if (__Pyx_GetBuffer(obj, buf, flags) == -1) goto fail;
-  if (buf->ndim != nd) {
-    PyErr_Format(PyExc_ValueError,
-                 "Buffer has wrong number of dimensions (expected %d, got %d)",
-                 nd, buf->ndim);
-    goto fail;
-  }
-  if (!cast) {
-    __Pyx_BufFmt_Context ctx;
-    __Pyx_BufFmt_Init(&ctx, stack, dtype);
-    if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
-  }
-  if ((unsigned)buf->itemsize != dtype->size) {
-    PyErr_Format(PyExc_ValueError,
-      "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "d byte%s) does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "d byte%s)",
-      buf->itemsize, (buf->itemsize > 1) ? "s" : "",
-      dtype->name, (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
-    goto fail;
-  }
-  if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
-  return 0;
-fail:;
-  __Pyx_ZeroBuffer(buf);
-  return -1;
-}
-
-static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
-  if (info->buf == NULL) return;
-  if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  __Pyx_ReleaseBuffer(info);
-}
-
 /////////////// TypeInfoCompare.proto ///////////////
 static int __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b);
 
 /////////////// TypeInfoCompare ///////////////
-/* See if two dtypes are equal */
+//@requires: BufferFormatStructs
+
+// See if two dtypes are equal
 static int
 __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
 {
@@ -841,7 +870,6 @@ __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
 }
 
 
-
 /////////////// TypeInfoToFormat.proto ///////////////
 struct __pyx_typeinfo_string {
     char string[3];
@@ -849,7 +877,9 @@ struct __pyx_typeinfo_string {
 static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type);
 
 /////////////// TypeInfoToFormat ///////////////
-{{# See also MemoryView.pyx:BufferFormatFromTypeInfo }}
+//@requires: BufferFormatStructs
+
+// See also MemoryView.pyx:BufferFormatFromTypeInfo
 
 static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type) {
     struct __pyx_typeinfo_string result = { {0} };

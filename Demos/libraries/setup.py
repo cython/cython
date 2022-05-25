@@ -18,7 +18,7 @@ except:
         print("Error building external library, please create libmymath.a manually.")
         sys.exit(1)
 
-# Here is how to use the library built above. 
+# Here is how to use the library built above.
 ext_modules = cythonize([
     Extension("call_mymath",
               sources=["call_mymath.pyx"],

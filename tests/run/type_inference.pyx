@@ -137,15 +137,21 @@ def multiple_assignments():
     a = 3
     a = 4
     a = 5
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
     b = a
     b = 3.1
     b = 3.14159
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
     c = a
     c = b
     c = [1,2,3]
-    assert typeof(c) == "Python object"
+    assert typeof(c) == "Python object", typeof(c)
+    d = b'abc'
+    d = bytes()
+    d = bytes(b'xyz')
+    d = None
+    assert typeof(d) == "bytes object", typeof(d)
+
 
 def arithmetic():
     """
@@ -270,6 +276,9 @@ def cascade():
     assert typeof(e) == "double"
 
 def cascaded_assignment():
+    """
+    >>> cascaded_assignment()
+    """
     a = b = c = d = 1.0
     assert typeof(a) == "double"
     assert typeof(b) == "double"
@@ -277,6 +286,36 @@ def cascaded_assignment():
     assert typeof(d) == "double"
     e = a + b + c + d
     assert typeof(e) == "double"
+
+
+def unpacking(x):
+    """
+    >>> unpacking(0)
+    """
+    a, b, c, (d, e) = x, 1, 2.0, [3, [5, 6]]
+    assert typeof(a) == "Python object", typeof(a)
+    assert typeof(b) == "long", typeof(b)
+    assert typeof(c) == "double", typeof(c)
+    assert typeof(d) == "long", typeof(d)
+    assert typeof(e) == "list object", typeof(e)
+
+
+def star_unpacking(*x):
+    """
+    >>> star_unpacking(1, 2)
+    """
+    a, b = x
+    c, *d = x
+    *e, f = x
+    *g, g = x  # re-assignment
+    assert typeof(a) == "Python object", typeof(a)
+    assert typeof(b) == "Python object", typeof(b)
+    assert typeof(c) == "Python object", typeof(c)
+    assert typeof(d) == "list object", typeof(d)
+    assert typeof(e) == "list object", typeof(e)
+    assert typeof(f) == "Python object", typeof(f)
+    assert typeof(g) == "Python object", typeof(f)
+
 
 def increment():
     """
@@ -486,6 +525,11 @@ def safe_only():
     for j in range(10):
         res = -j
     assert typeof(j) == "Python object", typeof(j)
+    h = 1
+    res = abs(h)
+    assert typeof(h) == "Python object", typeof(h)
+    cdef int c_int = 1
+    assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
 @infer_types(None)
 def safe_c_functions():
@@ -722,3 +766,39 @@ cdef class InferInProperties:
             d = enum_y
             c = d
             return typeof(a), typeof(b), typeof(c), typeof(d)
+
+cdef class WithMethods:
+    cdef int offset
+    def __init__(self, offset):
+        self.offset = offset
+    cpdef int one_arg(self, int x):
+        return x + self.offset
+    cpdef int default_arg(self, int x, int y=0):
+        return x + y + self.offset
+
+def test_bound_methods():
+  """
+  >>> test_bound_methods()
+  """
+  o = WithMethods(10)
+  assert typeof(o) == 'WithMethods', typeof(o)
+
+  one_arg = o.one_arg
+  assert one_arg(2) == 12, one_arg(2)
+
+  default_arg = o.default_arg
+  assert default_arg(2) == 12, default_arg(2)
+  assert default_arg(2, 3) == 15, default_arg(2, 2)
+
+def test_builtin_max():
+    """
+    # builtin max is slightly complicated because it gets transformed to EvalWithTempExprNode
+    # See https://github.com/cython/cython/issues/4155
+    >>> test_builtin_max()
+    """
+    class C:
+        a = 2
+        def get_max(self):
+            a = max(self.a, self.a)
+            assert typeof(a) == "Python object", typeof(a)
+    C().get_max()

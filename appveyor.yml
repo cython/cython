@@ -4,57 +4,107 @@ environment:
 
   global:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
-    # /E:ON and /V:ON options are not enabled in the batch script intepreter
-    # See: http://stackoverflow.com/a/13751649/163740
+    # /E:ON and /V:ON options are not enabled in the batch script interpreter
+    # See: https://stackoverflow.com/questions/11267463/compiling-python-modules-on-windows-x64/13751649#13751649
     WITH_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
+    BACKEND: c
+    PARALLEL: "-j4"
+    EXTRA_CFLAGS: ""
 
   matrix:
-    - PYTHON: "C:\\Python26"
-      PYTHON_VERSION: "2.6.6"
-      PYTHON_ARCH: "32"
-
     - PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7.9"
+      PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python33"
-      PYTHON_VERSION: "3.3.5"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python34"
-      PYTHON_VERSION: "3.4.3"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python35"
-      PYTHON_VERSION: "3.5.0"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python26-x64"
-      PYTHON_VERSION: "2.6.6"
-      PYTHON_ARCH: "64"
+      PYTHONIOENCODING: "utf-8"
+      PARALLEL: ""
 
     - PYTHON: "C:\\Python27-x64"
-      PYTHON_VERSION: "2.7.9"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      PYTHONIOENCODING: "utf-8"
+      PARALLEL: ""
+
+    - PYTHON: "C:\\Python39"
+      PYTHON_VERSION: "3.9"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python39-x64"
+      PYTHON_VERSION: "3.9"
       PYTHON_ARCH: "64"
 
-    - PYTHON: "C:\\Python33-x64"
-      PYTHON_VERSION: "3.3.5"
+    - PYTHON: "C:\\Python38"
+      PYTHON_VERSION: "3.8"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8"
+      PYTHON_ARCH: "64"
+      EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1"
+
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8"
+      PYTHON_ARCH: "64"
+      BACKEND: c,cpp
+
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "32"
+      BACKEND: c,cpp
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
       PYTHON_ARCH: "64"
 
-    - PYTHON: "C:\\Python34-x64"
-      PYTHON_VERSION: "3.4.3"
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
       PYTHON_ARCH: "64"
+      EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      BACKEND: cpp
+
+    - PYTHON: "C:\\Python36"
+      PYTHON_VERSION: "3.6"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "32"
 
     - PYTHON: "C:\\Python35-x64"
-      PYTHON_VERSION: "3.5.0"
+      PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4"
+      PYTHON_ARCH: "32"
+      PARALLEL: ""
+
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4"
+      PYTHON_ARCH: "64"
+      PARALLEL: ""
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      BACKEND: cpp
+      PYTHONIOENCODING: "utf-8"
+      PARALLEL: ""
 
 clone_depth: 5
 
 branches:
   only:
     - master
-    - 0.23.x
+    - release
+    - 0.29.x
 
 init:
   - "ECHO Python %PYTHON_VERSION% (%PYTHON_ARCH%bit) from %PYTHON%"
@@ -67,11 +117,16 @@ install:
 
 build: off
 build_script:
+  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext %PARALLEL%"
+  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext --inplace"
   - "%WITH_ENV% %PYTHON%\\python.exe setup.py bdist_wheel"
 
 test: off
 test_script:
-  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp"
+  - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
+  - "%PYTHON%\\Scripts\\pip.exe install win_unicode_console"
+  - "set CFLAGS=/Od /W3 %EXTRA_CFLAGS%"
+  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --backend=%BACKEND% --no-code-style -j5"
 
 artifacts:
   - path: dist\*

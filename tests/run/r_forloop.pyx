@@ -71,7 +71,7 @@ def go_c_all_exprs(x):
     Spam!
     Spam!
     """
-    cdef int i
+    cdef long i
     for i in range(4*x,2*x,-3):
         print u"Spam!"
 
@@ -94,7 +94,7 @@ def go_c_calc(x):
     Spam!
     Spam!
     """
-    cdef int i
+    cdef long i
     for i in range(2*f(x),f(x), -2):
         print u"Spam!"
 
@@ -103,7 +103,7 @@ def go_c_calc_ret(x):
     >>> go_c_calc_ret(2)
     6
     """
-    cdef int i
+    cdef long i
     for i in range(2*f(x),f(x), -2):
         if i < 2*f(x):
             return i

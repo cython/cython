@@ -21,6 +21,13 @@ __doc__ = br"""
     u'\udc00'
     >>> h
     u'\ud800'
+    >>> q
+    u'\udc00\ud800'
+
+    # The output of surrogate pairs differs between 16/32bit Unicode runtimes.
+    #>>> p
+    #u'\ud800\udc00'
+
     >>> add
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
@@ -44,6 +51,10 @@ __doc__ = br"""
     1
     >>> len(h)
     1
+    >>> len(q)
+    2
+    >>> len(q)
+    2
     >>> len(add)
     12
     >>> len(null)
@@ -75,19 +86,23 @@ __doc__ = br"""
     True
     >>> h == u'\\ud800' # unescaped by Python (required by doctest)
     True
-    >>> k == u'\\N{SNOWMAN}' == u'\\u2603'
+    >>> p == (u'\\ud800\\udc00' if sys.maxunicode == 1114111 else u'\\U00010000')  or  p  # unescaped by Python (required by doctest)
     True
-    >>> add == u'Søk ik' + u'üÖä' + 'abc'
+    >>> q == u'\\udc00\\ud800'  or  q  # unescaped by Python (required by doctest)
+    True
+    >>> k == u'\\N{SNOWMAN}' == u'\\u2603'  or  k
+    True
+    >>> m == u'abc\\\\xf8\\\\t\\u00f8\\U000000f8'  or  m  # unescaped by Python (required by doctest)
+    True
+    >>> add == u'Søk ik' + u'üÖä' + 'abc'  or  add
     True
     >>> null == u'\\x00' # unescaped by Python (required by doctest)
     True
     >>> wide_literal == u'\\U00101234'   # unescaped by Python
     True
-"""
+    >>> ustring_in_constant_tuple == ('a', u'abc', u'\\N{SNOWMAN}', u'x' * 3, u'\\N{SNOWMAN}' * 4 + u'O')  or  ustring_in_constant_tuple  # unescaped by Python
+    True
 
-if sys.version_info >= (2,6,5):
-    # this doesn't work well in older Python versions
-    __doc__ += u"""\
     >>> expected = u'\U00101234'    # unescaped by Cython
     >>> if wide_literal == expected: print(True)
     ... else: print(repr(wide_literal), repr(expected), sys.maxunicode)
@@ -110,8 +125,13 @@ f = u'\xf8'
 g = u'\udc00'   # lone trail surrogate
 h = u'\ud800'   # lone lead surrogate
 k = u'\N{SNOWMAN}'
+m = ur'abc\xf8\t\u00f8\U000000f8'
+p = u'\ud800\udc00'  # surrogate pair
+q = u'\udc00\ud800'  # reversed surrogate pair
 
 add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'
 
 wide_literal = u'\U00101234'
+
+ustring_in_constant_tuple = ('a', u'abc', u'\N{SNOWMAN}', u'x' * 3, u'\N{SNOWMAN}' * 4 + u'O')

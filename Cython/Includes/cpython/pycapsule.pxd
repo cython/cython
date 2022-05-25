@@ -1,7 +1,6 @@
 
-# available since Python 3.1!
+# available since Python 2.7!
 
-# note all char* in the below functions are actually const char*
 
 cdef extern from "Python.h":
 
@@ -25,7 +24,7 @@ cdef extern from "Python.h":
     # Return true if its argument is a PyCapsule.
 
 
-    object PyCapsule_New(void *pointer, char *name,
+    object PyCapsule_New(void *pointer, const char *name,
                          PyCapsule_Destructor destructor)
     # Return value: New reference.
     #
@@ -48,7 +47,7 @@ cdef extern from "Python.h":
     # PyCapsule_Import().
 
 
-    void* PyCapsule_GetPointer(object capsule, char *name) except? NULL
+    void* PyCapsule_GetPointer(object capsule, const char *name) except? NULL
     # Retrieve the pointer stored in the capsule. On failure, set an
     # exception and return NULL.
     #
@@ -67,7 +66,7 @@ cdef extern from "Python.h":
     # or PyErr_Occurred() to disambiguate.
 
 
-    char* PyCapsule_GetName(object capsule) except? NULL
+    const char* PyCapsule_GetName(object capsule) except? NULL
     # Return the current name stored in the capsule. On failure, set
     # an exception and return NULL.
     #
@@ -85,7 +84,7 @@ cdef extern from "Python.h":
     # PyErr_Occurred() to disambiguate.
 
 
-    bint PyCapsule_IsValid(object capsule, char *name)
+    bint PyCapsule_IsValid(object capsule, const char *name)
     # Determines whether or not capsule is a valid capsule. A valid
     # capsule is non-NULL, passes PyCapsule_CheckExact(), has a
     # non-NULL pointer stored in it, and its internal name matches the
@@ -115,7 +114,7 @@ cdef extern from "Python.h":
     # failure.
 
 
-    int PyCapsule_SetName(object capsule, char *name) except -1
+    int PyCapsule_SetName(object capsule, const char *name) except -1
     # Set the name inside capsule to name. If non-NULL, the name must
     # outlive the capsule. If the previous name stored in the capsule
     # was not NULL, no attempt is made to free it.
@@ -129,7 +128,7 @@ cdef extern from "Python.h":
     # success. Return nonzero and set an exception on failure.
 
 
-    void* PyCapsule_Import(char *name, int no_block) except? NULL
+    void* PyCapsule_Import(const char *name, int no_block) except? NULL
     # Import a pointer to a C object from a capsule attribute in a
     # module. The name parameter should specify the full name to the
     # attribute, as in module.attribute. The name stored in the

@@ -1,9 +1,17 @@
-Cython's entire documentation suite is currently being overhauled.
+Welcome to Cython's documentation.
 
-For the time being, I'll use this page to post notes.
+To build the documentation on Linux, you need Make and Sphinx installed on your system. Then execute::
 
-The previous Cython documentation files are hosted at
-http://hg.cython.org/cython-docs
+	make html
+
+On windows systems, you only need Sphinx. Open PowerShell and type::
+
+	./make.bat html
+
+You can then see the documentation by opening in a browser ``cython/docs/build/html/index.html``.
+
+The current Cython documentation files are hosted at
+https://cython.readthedocs.io/
 
 
 Notes

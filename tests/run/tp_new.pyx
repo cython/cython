@@ -1,4 +1,6 @@
-# ticket: 808
+# mode: run
+# tag: exttype, tpnew
+# ticket: t808
 
 cimport cython
 

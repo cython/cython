@@ -1,91 +1,97 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
-from . import PyrexTypes, ExprNodes
+from . import PyrexTypes
+from ..CodeWriter import ExpressionWriter
+from .Errors import warning
+
+
+class AnnotationWriter(ExpressionWriter):
+    """
+    A Cython code writer for Python expressions in argument/variable annotations.
+    """
+    def __init__(self, description=None):
+        """description is optional. If specified it is used in
+        warning messages for the nodes that don't convert to string properly.
+        If not specified then no messages are generated.
+        """
+        ExpressionWriter.__init__(self)
+        self.description = description
+        self.incomplete = False
+
+    def visit_Node(self, node):
+        self.put(u"<???>")
+        self.incomplete = True
+        if self.description:
+            warning(node.pos,
+                    "Failed to convert code to string representation in {0}".format(
+                        self.description), level=1)
+
+    def visit_LambdaNode(self, node):
+        # XXX Should we do better?
+        self.put("<lambda>")
+        self.incomplete = True
+        if self.description:
+            warning(node.pos,
+                    "Failed to convert lambda to string representation in {0}".format(
+                        self.description), level=1)
+
+    def visit_UnicodeNode(self, node):
+        # Discard Unicode prefix in annotations. Any tool looking at them
+        # would probably expect Py3 string semantics.
+        self.emit_string(node, "")
+
+    def visit_AnnotationNode(self, node):
+        self.put(node.string.unicode_value)
+
 
 class EmbedSignature(CythonTransform):
 
     def __init__(self, context):
         super(EmbedSignature, self).__init__(context)
-        self.denv = None # XXX
         self.class_name = None
         self.class_node = None
 
-    unop_precedence = 11
-    binop_precedence = {
-        'or': 1,
-        'and': 2,
-        'not': 3,
-        'in': 4, 'not in': 4, 'is': 4, 'is not': 4, '<': 4, '<=': 4, '>': 4, '>=': 4, '!=': 4, '==': 4,
-        '|': 5,
-        '^': 6,
-        '&': 7,
-        '<<': 8, '>>': 8,
-        '+': 9, '-': 9,
-        '*': 10, '/': 10, '//': 10, '%': 10,
-        # unary: '+': 11, '-': 11, '~': 11
-        '**': 12}
-
-    def _fmt_expr_node(self, node, precedence=0):
-        if isinstance(node, ExprNodes.BinopNode) and not node.inplace:
-            new_prec = self.binop_precedence.get(node.operator, 0)
-            result = '%s %s %s' % (self._fmt_expr_node(node.operand1, new_prec),
-                                   node.operator,
-                                   self._fmt_expr_node(node.operand2, new_prec))
-            if precedence > new_prec:
-                result = '(%s)' % result
-        elif isinstance(node, ExprNodes.UnopNode):
-            result = '%s%s' % (node.operator,
-                               self._fmt_expr_node(node.operand, self.unop_precedence))
-            if precedence > self.unop_precedence:
-                result = '(%s)' % result
-        elif isinstance(node, ExprNodes.AttributeNode):
-            result = '%s.%s' % (self._fmt_expr_node(node.obj), node.attribute)
-        else:
-            result = node.name
+    def _fmt_expr(self, node):
+        writer = ExpressionWriter()
+        result = writer.write(node)
+        # print(type(node).__name__, '-->', result)
         return result
 
-    def _fmt_arg_defv(self, arg):
-        default_val = arg.default
-        if not default_val:
-            return None
-        if isinstance(default_val, ExprNodes.NullNode):
-            return 'NULL'
-        try:
-            denv = self.denv  # XXX
-            ctval = default_val.compile_time_value(self.denv)
-            repr_val = repr(ctval)
-            if isinstance(default_val, ExprNodes.UnicodeNode):
-                if repr_val[:1] != 'u':
-                    return u'u%s' % repr_val
-            elif isinstance(default_val, ExprNodes.BytesNode):
-                if repr_val[:1] != 'b':
-                    return u'b%s' % repr_val
-            elif isinstance(default_val, ExprNodes.StringNode):
-                if repr_val[:1] in 'ub':
-                    return repr_val[1:]
-            return repr_val
-        except Exception:
-            try:
-                return self._fmt_expr_node(default_val)
-            except AttributeError:
-                return '<???>'
+    def _fmt_annotation(self, node):
+        writer = AnnotationWriter()
+        result = writer.write(node)
+        # print(type(node).__name__, '-->', result)
+        return result
 
     def _fmt_arg(self, arg):
         if arg.type is PyrexTypes.py_object_type or arg.is_self_arg:
             doc = arg.name
         else:
             doc = arg.type.declaration_code(arg.name, for_display=1)
-        if arg.default:
-            arg_defv = self._fmt_arg_defv(arg)
-            if arg_defv:
-                doc = doc + ('=%s' % arg_defv)
+
+        if arg.annotation:
+            annotation = self._fmt_annotation(arg.annotation)
+            doc = doc + (': %s' % annotation)
+            if arg.default:
+                default = self._fmt_expr(arg.default)
+                doc = doc + (' = %s' % default)
+        elif arg.default:
+            default = self._fmt_expr(arg.default)
+            doc = doc + ('=%s' % default)
         return doc
 
+    def _fmt_star_arg(self, arg):
+        arg_doc = arg.name
+        if arg.annotation:
+            annotation = self._fmt_annotation(arg.annotation)
+            arg_doc = arg_doc + (': %s' % annotation)
+        return arg_doc
+
     def _fmt_arglist(self, args,
-                     npargs=0, pargs=None,
+                     npoargs=0, npargs=0, pargs=None,
                      nkargs=0, kargs=None,
                      hide_self=False):
         arglist = []
@@ -94,11 +100,15 @@ class EmbedSignature(CythonTransform):
                 arg_doc = self._fmt_arg(arg)
                 arglist.append(arg_doc)
         if pargs:
-            arglist.insert(npargs, '*%s' % pargs.name)
+            arg_doc = self._fmt_star_arg(pargs)
+            arglist.insert(npargs + npoargs, '*%s' % arg_doc)
         elif nkargs:
-            arglist.insert(npargs, '*')
+            arglist.insert(npargs + npoargs, '*')
+        if npoargs:
+            arglist.insert(npoargs, '/')
         if kargs:
-            arglist.append('**%s' % kargs.name)
+            arg_doc = self._fmt_star_arg(kargs)
+            arglist.append('**%s' % arg_doc)
         return arglist
 
     def _fmt_ret_type(self, ret):
@@ -108,21 +118,25 @@ class EmbedSignature(CythonTransform):
             return ret.declaration_code("", for_display=1)
 
     def _fmt_signature(self, cls_name, func_name, args,
-                       npargs=0, pargs=None,
+                       npoargs=0, npargs=0, pargs=None,
                        nkargs=0, kargs=None,
+                       return_expr=None,
                        return_type=None, hide_self=False):
         arglist = self._fmt_arglist(args,
-                                    npargs, pargs,
+                                    npoargs, npargs, pargs,
                                     nkargs, kargs,
                                     hide_self=hide_self)
         arglist_doc = ', '.join(arglist)
         func_doc = '%s(%s)' % (func_name, arglist_doc)
         if cls_name:
             func_doc = '%s.%s' % (cls_name, func_doc)
-        if return_type:
+        ret_doc = None
+        if return_expr:
+            ret_doc = self._fmt_annotation(return_expr)
+        elif return_type:
             ret_doc = self._fmt_ret_type(return_type)
-            if ret_doc:
-                func_doc = '%s -> %s' % (func_doc, ret_doc)
+        if ret_doc:
+            func_doc = '%s -> %s' % (func_doc, ret_doc)
         return func_doc
 
     def _embed_signature(self, signature, node_doc):
@@ -171,12 +185,14 @@ class EmbedSignature(CythonTransform):
         else:
             class_name, func_name = self.class_name, node.name
 
+        npoargs = getattr(node, 'num_posonly_args', 0)
         nkargs = getattr(node, 'num_kwonly_args', 0)
-        npargs = len(node.args) - nkargs
+        npargs = len(node.args) - nkargs - npoargs
         signature = self._fmt_signature(
             class_name, func_name, node.args,
-            npargs, node.star_arg,
+            npoargs, npargs, node.star_arg,
             nkargs, node.starstar_arg,
+            return_expr=node.return_type_annotation,
             return_type=None, hide_self=hide_self)
         if signature:
             if is_constructor:
@@ -199,7 +215,7 @@ class EmbedSignature(CythonTransform):
     def visit_CFuncDefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
-        if not node.overridable: # not cpdef FOO(...):
+        if not node.overridable:  # not cpdef FOO(...):
             return node
 
         signature = self._fmt_signature(
@@ -215,8 +231,9 @@ class EmbedSignature(CythonTransform):
                 old_doc = None
             new_doc = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
-            if hasattr(node, 'py_func') and node.py_func is not None:
-                node.py_func.entry.doc = EncodedString(new_doc)
+            py_func = getattr(node, 'py_func', None)
+            if py_func is not None:
+                py_func.entry.doc = EncodedString(new_doc)
         return node
 
     def visit_PropertyNode(self, node):

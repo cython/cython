@@ -4,7 +4,10 @@
 
 import inspect
 
-sig = inspect.Signature.from_function
+try:
+    sig = inspect.Signature.from_callable
+except AttributeError:
+    sig = inspect.Signature.from_function
 
 
 def signatures_match(f1, f2):
@@ -88,4 +91,27 @@ def n(a, *, b, c = 88):
     """
     >>> def py_n(a, *, b, c = 88): pass
     >>> signatures_match(n, py_n)
+    """
+
+
+cpdef cp1(a, b):
+    """
+    >>> def py_cp1(a, b): pass
+    >>> signatures_match(cp1, py_cp1)
+    """
+
+
+cpdef cp2(a, b=True):
+    """
+    >>> def py_cp2(a, b=True): pass
+
+    >>> signatures_match(cp2, py_cp2)
+    """
+
+
+cpdef cp3(a=1, b=True):
+    """
+    >>> def py_cp3(a=1, b=True): pass
+
+    >>> signatures_match(cp3, py_cp3)
     """

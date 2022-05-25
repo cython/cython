@@ -6,13 +6,27 @@ initial_file_path
 package_compilation
 
 carray_coercion
-ctuple
 int_float_builtins_as_casts_T400
+int_float_builtins_as_casts_T400_long_double
 list_pop
 test_coroutines_pep492
 type_inference
 
 parallel
+numpy_parallel
 py_unicode_type
 
 test_grammar
+
+# Those tests don't work because MSVC wants to link to the c-algorithms library
+# when compiling and we don't want to download c-algorithms just for those tests.
+queue
+queue2
+queue3
+lunch
+
+# "C linkage function cannot return C++ class" (uses public C++ cdef function)
+cpp_template_subclasses
+
+# MSVC lacks "complex.h"
+complex_numbers_cmath_T2891

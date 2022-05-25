@@ -393,3 +393,13 @@ def unpack_literal_none_to_exttype():
     cdef ExtType a,b,c,d
     a, b = c, d = None, None
     return a,b,c,d
+
+
+# Github issue #1523
+def test_unpack_resultref():
+    """
+    >>> test_unpack_resultref() == ((1, set()), 1, set())
+    True
+    """
+    a = b, c = 1, set()
+    return a, b, c

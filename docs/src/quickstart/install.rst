@@ -1,13 +1,13 @@
+.. _install:
+
 Installing Cython
 =================
 
 Many scientific Python distributions, such as Anaconda [Anaconda]_,
-Enthought Canopy [Canopy]_, Python(x,y) [Pythonxy]_, and Sage [Sage]_,
+Enthought Canopy [Canopy]_, and Sage [Sage]_,
 bundle Cython and no setup is needed.  Note however that if your
 distribution ships a version of Cython which is too old you can still
-use the instructions below to update Cython.  Everything in this
-tutorial should work with Cython 0.11.2 and newer, unless a footnote
-says otherwise.
+use the instructions below to update Cython.
 
 Unlike most Python software, Cython requires a C compiler to be
 present on the system. The details of getting a C compiler varies
@@ -20,32 +20,33 @@ according to the system used:
 
  - **Mac OS X** To retrieve gcc, one option is to install Apple's
    XCode, which can be retrieved from the Mac OS X's install DVDs or
-   from http://developer.apple.com.
+   from https://developer.apple.com/.
 
- - **Windows** A popular option is to use the open source MinGW (a
+ - **Windows** The CPython project recommends building extension modules 
+   (including Cython modules) with the same compiler that Python was
+   built with. This is usually a specific version of Microsoft Visual
+   C/C++ (MSVC) - see https://wiki.python.org/moin/WindowsCompilers. 
+   MSVC is the only compiler that Cython is currently tested with on 
+   Windows.  A possible alternative is the open source MinGW (a
    Windows distribution of gcc). See the appendix for instructions for
    setting up MinGW manually. Enthought Canopy and Python(x,y) bundle
    MinGW, but some of the configuration steps in the appendix might
-   still be necessary.  Another option is to use Microsoft's Visual C.
-   One must then use the same version which the installed Python was
-   compiled with.
+   still be necessary.
 
 .. dagss tried other forms of ReST lists and they didn't look nice
 .. with rst2latex.
 
+The simplest way of installing Cython is by using ``pip``::
+
+  pip install Cython
+
+
 The newest Cython release can always be downloaded from
-http://cython.org.  Unpack the tarball or zip file, enter the
+https://cython.org/.  Unpack the tarball or zip file, enter the
 directory, and then run::
 
   python setup.py install
 
-If you have ``pip`` set up on your system (e.g. in a virtualenv or a
-recent Python version), you should be able to fetch Cython from PyPI
-and install it using
-
-::
-
-  pip install Cython
 
 For one-time builds, e.g. for CI/testing, on platforms that are not covered
 by one of the wheel packages provided on PyPI, it is substantially faster
@@ -57,7 +58,6 @@ with
     pip install Cython --install-option="--no-cython-compile"
 
 
-.. [Anaconda] http://docs.continuum.io/anaconda/
-.. [Canopy] https://enthought.com/products/canopy/
-.. [Pythonxy] http://www.pythonxy.com/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
+.. [Anaconda] https://docs.anaconda.com/anaconda/
+.. [Canopy] https://www.enthought.com/product/canopy/
+.. [Sage] W. Stein et al., Sage Mathematics Software, https://www.sagemath.org/

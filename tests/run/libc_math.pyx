@@ -2,8 +2,8 @@
 
 from libc.math cimport (M_E, M_LOG2E, M_LOG10E, M_LN2, M_LN10, M_PI, M_PI_2,
         M_PI_4, M_1_PI, M_2_PI, M_2_SQRTPI, M_SQRT2, M_SQRT1_2)
-from libc.math cimport (acos, asin, atan, atan2, cos, sin, tan, cosh, sinh,
-        tanh, acosh, asinh, atanh, exp, log, log10, pow, sqrt)
+from libc.math cimport (acos, asin, atan, atan2, cos, modf, sin, sinf, sinl,
+        tan, cosh, sinh, tanh, acosh, asinh, atanh, exp, log, log10, pow, sqrt)
 cimport libc.math as libc_math
 
 
@@ -34,3 +34,21 @@ def test_sin(x):
     [True, True, True, True, True, True, True, True, True, True]
     """
     return sin(x)
+
+
+def test_sin_kwarg(x):
+    """
+    >>> test_sin_kwarg(0)
+    0.0
+    """
+    return sin(x=x)
+
+
+def test_modf(x):
+    """
+    >>> test_modf(2.5)
+    (0.5, 2.0)
+    """
+    cdef double i
+    cdef double f = modf(x, &i)
+    return (f, i)

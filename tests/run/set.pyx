@@ -65,6 +65,32 @@ def test_set_add():
     return s1
 
 
+def test_set_contains(v):
+    """
+    >>> test_set_contains(1)
+    True
+    >>> test_set_contains(2)
+    False
+    >>> test_set_contains(frozenset([1, 2, 3]))
+    True
+    >>> test_set_contains(frozenset([1, 2]))
+    False
+    >>> test_set_contains(set([1, 2, 3]))
+    True
+    >>> test_set_contains(set([1, 2]))
+    False
+    >>> try: test_set_contains([1, 2])
+    ... except TypeError: pass
+    ... else: print("NOT RAISED!")
+    """
+    cdef set s1
+    s1 = set()
+    s1.add(1)
+    s1.add('a')
+    s1.add(frozenset([1, 2, 3]))
+    return v in s1
+
+
 def test_set_update(v=None):
     """
     >>> type(test_set_update()) is set
@@ -85,6 +111,18 @@ def test_set_update(v=None):
     s1.update(frozenset((1,2)))
     if v is not None:
         s1.update(v)
+    return s1
+
+
+def test_set_multi_update():
+    """
+    >>> type(test_set_multi_update()) is set
+    True
+    >>> sorted(test_set_multi_update())
+    ['a', 'b', 'c', 1, 2, 3]
+    """
+    cdef set s1 = set()
+    s1.update('abc', set([1, 3]), frozenset([1, 2]))
     return s1
 
 
@@ -379,7 +417,8 @@ def test_empty_frozenset():
     True
     >>> len(s)
     0
-    >>> s is frozenset()   # singleton!
+    >>> import sys
+    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
     True
     """
     return frozenset()
@@ -392,7 +431,8 @@ def test_empty_frozenset():
 )
 def test_singleton_empty_frozenset():
     """
-    >>> test_singleton_empty_frozenset()  # from CPython's test_set.py
+    >>> import sys
+    >>> test_singleton_empty_frozenset() if sys.version_info < (3, 10) else 1  # from CPython's test_set.py
     1
     """
     f = frozenset()
@@ -400,7 +440,7 @@ def test_singleton_empty_frozenset():
            frozenset(), frozenset([]), frozenset(()), frozenset(''),
            frozenset(range(0)), frozenset(frozenset()),
            frozenset(f), f]
-    return len(set(map(id, efs)))
+    return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
 
 
 def sorted(it):

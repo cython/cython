@@ -555,3 +555,19 @@ def for_in_iteritems_of_expression(*args, **kwargs):
     for k, v in dict(*args, **kwargs).iteritems():
         result.append((k, v))
     return result
+
+
+cdef class NotADict:
+    """
+    >>> NotADict().listvalues()  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: descriptor 'values' for 'mappingproxy' objects doesn't apply to a 'iterdict.NotADict' object
+    """
+    cdef long v
+    def __cinit__(self):
+        self.v = 1
+    itervalues = type(object.__dict__).values
+
+    def listvalues(self):
+        return [v for v in self.itervalues()]

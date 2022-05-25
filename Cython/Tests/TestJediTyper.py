@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 
 from Cython.Compiler.ParseTreeTransforms import NormalizeTree, InterpretCompilerDirectives
-from Cython.Compiler import Main, Symtab, Visitor
+from Cython.Compiler import Main, Symtab, Visitor, Options
 from Cython.TestUtils import TransformTest
 
 TOOLS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Tools'))
@@ -129,7 +129,7 @@ class TestJediTyper(TransformTest):
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['list']), 'b': set(['list']), 'c': set(['list']), 'd': set(['list'])}, variables)
-        
+
     def test_typing_function_list(self):
         code = '''\
         def func(x):
@@ -149,14 +149,14 @@ class TestJediTyper(TransformTest):
         code = '''\
         a = dict()
         b = {i: i**2 for i in range(10)}
-        c = a        
+        c = a
         '''
         types = self._test(code)
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['dict']), 'b': set(['dict']), 'c': set(['dict'])}, variables)
-        
+
     def test_typing_function_dict(self):
         code = '''\
         def func(x):
@@ -186,7 +186,7 @@ class TestJediTyper(TransformTest):
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['set']), 'c': set(['set']), 'd': set(['set']), 'e': set(['set'])}, variables)
-        
+
     def test_typing_function_set(self):
         code = '''\
         def func(x):
@@ -210,8 +210,8 @@ class TestTypeInjection(TestJediTyper):
     """
     def setUp(self):
         super(TestTypeInjection, self).setUp()
-        compilation_options = Main.CompilationOptions(Main.default_options)
-        ctx = compilation_options.create_context()
+        compilation_options = Options.CompilationOptions(Options.default_options)
+        ctx = Main.Context.from_options(compilation_options)
         transform = InterpretCompilerDirectives(ctx, ctx.compiler_directives)
         transform.module_scope = Symtab.ModuleScope('__main__', None, ctx)
         self.declarations_finder = DeclarationsFinder()

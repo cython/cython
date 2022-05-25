@@ -1,14 +1,10 @@
-
-from __future__ import absolute_import
+# cython: language_level=3str
 
 cimport cython
 
 from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
-
-cdef class NameNodeCollector(TreeVisitor):
-    cdef list name_nodes
 
 cdef class SkipDeclarations: # (object):
     pass
@@ -33,7 +29,7 @@ cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs
 
 #class PxdPostParse(CythonTransform, SkipDeclarations):
 #class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
-#class WithTransform(CythonTransform, SkipDeclarations):
+#class WithTransform(VisitorTransform, SkipDeclarations):
 #class DecoratorTransform(CythonTransform, SkipDeclarations):
 
 #class AnalyseDeclarationsTransform(EnvTransform):
@@ -46,21 +42,35 @@ cdef class ExpandInplaceOperators(EnvTransform):
 
 cdef class AlignFunctionDefinitions(CythonTransform):
     cdef dict directives
-    cdef scope
+    cdef set imported_names
+    cdef object scope
 
+@cython.final
 cdef class YieldNodeCollector(TreeVisitor):
     cdef public list yields
     cdef public list returns
+    cdef public list finallys
+    cdef public list excepts
     cdef public bint has_return_value
+    cdef public bint has_yield
+    cdef public bint has_await
 
+@cython.final
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
 
+@cython.final
 cdef class CreateClosureClasses(CythonTransform):
     cdef list path
     cdef bint in_lambda
     cdef module_scope
     cdef generator_class
+
+    cdef create_class_from_scope(self, node, target_module_scope, inner_node=*)
+    cdef find_entries_used_in_closures(self, node)
+
+#cdef class InjectGilHandling(VisitorTransform, SkipDeclarations):
+#    cdef bint nogil
 
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack

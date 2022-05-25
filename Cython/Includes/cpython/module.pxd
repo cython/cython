@@ -6,7 +6,7 @@ cdef extern from "Python.h":
     #####################################################################
     # 5.3 Importing Modules
     #####################################################################
-    object PyImport_ImportModule(char *name)
+    object PyImport_ImportModule(const char *name)
     # Return value: New reference.
     # This is a simplified interface to PyImport_ImportModuleEx()
     # below, leaving the globals and locals arguments set to
@@ -20,7 +20,7 @@ cdef extern from "Python.h":
     # loaded.) Return a new reference to the imported module, or NULL
     # with an exception set on failure.
 
-    object PyImport_ImportModuleEx(char *name, object globals, object locals, object fromlist)
+    object PyImport_ImportModuleEx(const char *name, object globals, object locals, object fromlist)
     # Return value: New reference.
 
     # Import a module. This is best described by referring to the
@@ -34,6 +34,19 @@ cdef extern from "Python.h":
     # of a package was requested is normally the top-level package,
     # unless a non-empty fromlist was given. Changed in version 2.4:
     # failing imports remove incomplete module objects.
+
+    object PyImport_ImportModuleLevel(char *name, object globals, object locals, object fromlist, int level)
+    # Return value: New reference.
+
+    # Import a module. This is best described by referring to the
+    # built-in Python function __import__(), as the standard
+    # __import__() function calls this function directly.
+
+    # The return value is a new reference to the imported module or
+    # top-level package, or NULL with an exception set on failure. Like
+    # for __import__(), the return value when a submodule of a package
+    # was requested is normally the top-level package, unless a
+    # non-empty fromlist was given.
 
     object PyImport_Import(object name)
     # Return value: New reference.
@@ -51,7 +64,7 @@ cdef extern from "Python.h":
     # the reloaded module, or NULL with an exception set on failure
     # (the module still exists in this case).
 
-    PyObject* PyImport_AddModule(char *name) except NULL
+    PyObject* PyImport_AddModule(const char *name) except NULL
     # Return value: Borrowed reference.
     # Return the module object corresponding to a module name. The
     # name argument may be of the form package.module. First check the
@@ -132,7 +145,13 @@ cdef extern from "Python.h":
     bint PyModule_CheckExact(object p)
     # Return true if p is a module object, but not a subtype of PyModule_Type.
 
-    object PyModule_New(char *name)
+    object PyModule_NewObject(object name)
+    # Return a new module object with the __name__ attribute set to name.
+    # The module’s __name__, __doc__, __package__, and __loader__
+    # attributes are filled in (all but __name__ are set to None); the caller
+    # is responsible for providing a __file__ attribute.
+
+    object PyModule_New(const char *name)
     # Return value: New reference.
     # Return a new module object with the __name__ attribute set to
     # name. Only the module's __doc__ and __name__ attributes are
@@ -147,28 +166,42 @@ cdef extern from "Python.h":
     # use other PyModule_*() and PyObject_*() functions rather than
     # directly manipulate a module's __dict__.
 
+    object PyModule_GetNameObject(object module)
+    # Return module’s __name__ value. If the module does not provide one, or if
+    # it is not a string, SystemError is raised and NULL is returned.
+
     char* PyModule_GetName(object module) except NULL
-    # Return module's __name__ value. If the module does not provide
-    # one, or if it is not a string, SystemError is raised and NULL is
-    # returned.
+    # Similar to PyModule_GetNameObject() but return the name encoded
+    # to 'utf-8'.
+
+    void* PyModule_GetState(object module)
+    # Return the “state” of the module, that is, a pointer to the block of
+    # memory allocated at module creation time, or NULL.
+    # See PyModuleDef.m_size.
+
+    object PyModule_GetFilenameObject(object module)
+    # Return the name of the file from which module was loaded using module’s
+    # __file__ attribute. If this is not defined, or if it is not a unicode
+    # string, raise SystemError and return NULL; otherwise return a reference
+    # to a Unicode object.
 
     char* PyModule_GetFilename(object module) except NULL
-    # Return the name of the file from which module was loaded using
-    # module's __file__ attribute. If this is not defined, or if it is
-    # not a string, raise SystemError and return NULL.
+    # Similar to PyModule_GetFilenameObject() but return the filename encoded
+    # to ‘utf-8’.
 
-    int PyModule_AddObject(object module,  char *name, object value) except -1
+    int PyModule_AddObject(object module,  const char *name, object value) except -1
     # Add an object to module as name. This is a convenience function
-    # which can be used from the module's initialization
-    # function. This steals a reference to value. Return -1 on error,
-    # 0 on success.
+    # which can be used from the module's initialization function.
+    # Return -1 on error, 0 on success.
+    #
+    # WARNING: This _steals_ a reference to value.
 
-    int PyModule_AddIntConstant(object module,  char *name, long value) except -1
+    int PyModule_AddIntConstant(object module,  const char *name, long value) except -1
     # Add an integer constant to module as name. This convenience
     # function can be used from the module's initialization
     # function. Return -1 on error, 0 on success.
 
-    int PyModule_AddStringConstant(object module,  char *name,  char *value) except -1
+    int PyModule_AddStringConstant(object module,  const char *name,  const char *value) except -1
     # Add a string constant to module as name. This convenience
     # function can be used from the module's initialization
     # function. The string value must be null-terminated. Return -1 on

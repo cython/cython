@@ -1,0 +1,368 @@
+# mode: run
+# tag: cgetter, property
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON run_failure_tests.py
+PYTHON runner.py
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+# Enforce the right build order
+setup(ext_modules = cythonize("foo_extension.pyx", language_level=3))
+setup(ext_modules = cythonize("getter[0-9].pyx", language_level=3))
+
+
+######## run_failure_tests.py ########
+
+import glob
+import sys
+
+from Cython.Build.Dependencies import cythonize
+from Cython.Compiler.Errors import CompileError
+
+# Run the failure tests
+failed_tests = []
+passed_tests = []
+
+def run_test(name):
+    title = name
+    with open(name, 'r') as f:
+        for line in f:
+            if 'TEST' in line:
+                title = line.partition('TEST:')[2].strip()
+                break
+    sys.stderr.write("\n### TESTING: %s\n" % title)
+
+    try:
+        cythonize(name, language_level=3)
+    except CompileError as e:
+        sys.stderr.write("\nOK: got expected exception\n")
+        passed_tests.append(name)
+    else:
+        sys.stderr.write("\nFAIL: compilation did not detect the error\n")
+        failed_tests.append(name)
+
+for name in sorted(glob.glob("getter_fail*.pyx")):
+    run_test(name)
+
+assert not failed_tests, "Failed tests: %s" % failed_tests
+assert passed_tests  # check that tests were found at all
+
+
+######## foo.h ########
+
+#include <Python.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    PyObject_HEAD
+    int f0;
+    int f1;
+    int f2;
+    int v[10];
+} FooStructNominal;
+
+typedef struct {
+    PyObject_HEAD
+} FooStructOpaque;
+
+
+#define PyFoo_GET0M(a) (((FooStructNominal*)a)->f0)
+#define PyFoo_GET1M(a) (((FooStructNominal*)a)->f1)
+#define PyFoo_GET2M(a) (((FooStructNominal*)a)->f2)
+
+int PyFoo_Get0F(FooStructOpaque *f)
+{
+    return PyFoo_GET0M(f);
+}
+
+int PyFoo_Get1F(FooStructOpaque *f)
+{
+    return PyFoo_GET1M(f);
+}
+
+int PyFoo_Get2F(FooStructOpaque *f)
+{
+    return PyFoo_GET2M(f);
+}
+
+int *PyFoo_GetV(FooStructOpaque *f)
+{
+    return ((FooStructNominal*)f)->v;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+
+######## foo_extension.pyx ########
+
+cdef class Foo:
+    cdef public int _field0, _field1, _field2;
+    cdef public int _vector[10];
+
+    @property
+    def field0(self):
+        return self._field0
+
+    @property
+    def field1(self):
+        return self._field1
+
+    @property
+    def field2(self):
+        return self._field2
+
+    def __init__(self, f0, f1, f2, vec=None):
+        if vec is None:
+            vec = ()
+        if not isinstance(vec, tuple):
+            raise ValueError("v must be None or a tuple")
+        self._field0 = f0
+        self._field1 = f1
+        self._field2 = f2
+        i = 0
+        for v in vec:
+            self._vector[i] = v
+            if i > 9:
+                break
+            i += 1
+        for j in range(i,10):
+            self._vector[j] = 0
+
+# A pure-python class that disallows direct access to fields
+class OpaqueFoo(Foo):
+
+    @property
+    def field0(self):
+        raise AttributeError('no direct access to field0')
+
+    @property
+    def field1(self):
+        raise AttributeError('no direct access to field1')
+
+    @property
+    def field2(self):
+        raise AttributeError('no direct access to field2')
+
+
+######## getter0.pyx ########
+
+# Access base Foo fields from C via aliased field names
+
+cdef extern from "foo.h":
+
+    ctypedef class foo_extension.Foo [object FooStructNominal]:
+        cdef:
+            int field0 "f0"
+            int field1 "f1"
+            int field2 "f2"
+
+def sum(Foo f):
+    # Note - not a cdef function but compiling the f.__getattr__('field0')
+    # notices the alias and replaces the __getattr__ in c by f->f0 anyway
+    return f.field0 + f.field1 + f.field2
+
+def check_pyobj(Foo f):
+    # compare the c code to the check_pyobj in getter2.pyx
+    return bool(f.field1)
+
+
+######## getter.pxd ########
+
+# Access base Foo fields from C via getter functions
+
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque, check_size ignore]:
+        @property
+        cdef inline int fieldM0(self):
+            return PyFoo_GET0M(self)
+
+        @property
+        cdef inline int fieldF1(self) except -123:
+            return PyFoo_Get1F(self)
+
+        @property
+        cdef inline int fieldM2(self):
+            return PyFoo_GET2M(self)
+
+        @property
+        cdef inline int *vector(self):
+            return PyFoo_GetV(self)
+
+        @property
+        cdef inline int meaning_of_life(self) except -99:
+            cdef int ret = 21
+            ret *= 2
+            return ret
+
+    int PyFoo_GET0M(Foo);  # this is actually a macro !
+    int PyFoo_Get1F(Foo);
+    int PyFoo_GET2M(Foo);  # this is actually a macro !
+    int *PyFoo_GetV(Foo);
+
+
+######## getter1.pyx ########
+
+cimport getter
+
+def sum(getter.Foo f):
+    # Note - not a cdef function but compiling the f.__getattr__('field0')
+    # notices the getter and replaces the __getattr__ in c by PyFoo_GET anyway
+    return f.fieldM0 + f.fieldF1 + f.fieldM2
+
+def check_10(getter.Foo f):
+    return f.fieldF1 != 10
+
+def vec0(getter.Foo f):
+    return f.vector[0]
+
+def check_binop(getter.Foo f):
+    return f.fieldF1 / 10
+
+
+######## getter2.pyx ########
+
+cimport getter
+
+def check_pyobj(getter.Foo f):
+    return bool(f.fieldF1)
+ 
+def check_unary(getter.Foo f):
+    return -f.fieldF1
+
+def check_meaning_of_life(getter.Foo f):
+    return f.meaning_of_life
+
+
+######## getter_fail_classmethod.pyx ########
+
+# TEST: Make sure not all decorators are accepted.
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @property
+        @classmethod
+        cdef inline int field0(cls):
+            print('in classmethod of Foo')
+
+
+######## getter_fail_dot_getter.pyx ########
+
+# TEST: Make sure not all decorators are accepted.
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @property
+        cdef inline int field0(self):
+            pass
+
+        @field0.getter
+        cdef inline void field1(self):
+            pass
+
+
+######## getter_fail_no_inline.pyx ########
+
+# TEST: Properties must be declared "inline".
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @property
+        cdef int field0(self):
+            pass
+
+
+######## getter_fail_void.pyx ########
+
+# TEST: Properties must have a non-void return type.
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @property
+        cdef void field0(self):
+            pass
+
+
+######## getter_fail_no_args.pyx ########
+
+# TEST: Properties must have the right signature.
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @property
+        cdef int field0():
+            pass
+
+
+######## getter_fail_too_many_args.pyx ########
+
+# TEST: Properties must have the right signature.
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @property
+        cdef int field0(x, y):
+            pass
+
+
+######## runner.py ########
+
+import warnings
+import foo_extension, getter0, getter1, getter2
+
+def sum(f):
+    # pure python field access, but code is identical to cython cdef sum
+    return f.field0 + f.field1 + f.field2
+
+# Baseline test: if this fails something else is wrong
+foo = foo_extension.Foo(23, 123, 1023)
+
+assert foo.field0 == 23
+assert foo.field1 == 123
+assert foo.field2 == 1023
+
+ret =  getter0.sum(foo)
+assert ret == sum(foo)
+
+# Aliasing test. Check 'cdef int field0 "f0" works as advertised:
+# - C can access the fields through the aliases
+# - Python cannot access the fields at all
+
+opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023)
+
+opaque_ret = getter0.sum(opaque_foo)
+assert opaque_ret == ret
+
+val = getter2.check_pyobj(opaque_foo)
+assert val is True
+val = getter2.check_unary(opaque_foo)
+assert val == -123
+val = getter2.check_meaning_of_life(opaque_foo)
+assert val == 42
+
+try:
+    f0 = opaque_ret.field0
+    assert False
+except AttributeError as e:
+    pass
+
+# Getter test. Check C-level getter works as advertised:
+# - C accesses the fields through getter calls (maybe macros)
+# - Python accesses the fields through attribute lookup
+
+opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023, (1, 2, 3))
+
+opaque_ret = getter1.sum(opaque_foo)
+assert opaque_ret == ret
+

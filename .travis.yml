@@ -1,60 +1,5 @@
+os: linux
 language: python
-
-sudo: false
-cache:
-  pip: true
-  directories:
-    - $HOME/.ccache
-
-python:
-  - 2.7
-  - 3.5
-  - 3.2
-  - 3.3
-  - 3.4
-  - 2.6
-  - 3.5-dev
-  - 3.6-dev
-  - pypy
-  - pypy3
-
-env:
-  global:
-    - USE_CCACHE=1
-    - CCACHE_SLOPPINESS=pch_defines,time_macros
-    - CCACHE_COMPRESS=1
-    - CCACHE_MAXSIZE=100M
-    - PATH="/usr/lib/ccache:$PATH"
-  matrix:
-    - BACKEND=c
-    - BACKEND=cpp
-
-branches:
-  only:
-    - master
-
-install:
-  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
-
-before_script: ccache -s
-
-script:
-  - PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
-  - if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv Debugger --backends=$BACKEND; fi
-  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND -j4
-
-matrix:
-  allow_failures:
-    - python: pypy
-    - python: pypy3
-    - python: 3.5-dev
-    - python: 3.6-dev
-  exclude:
-    - python: pypy
-      env: BACKEND=cpp
-    - python: pypy3
-      env: BACKEND=cpp
 
 addons:
   apt:
@@ -62,3 +7,42 @@ addons:
       - gdb
       - python-dbg
       - python3-dbg
+      - libzmq-dev  # needed by IPython/Tornado
+      #- gcc-8
+      #- g++-8
+
+cache:
+  pip: true
+  directories:
+    - $HOME/.ccache
+
+env:
+  global:
+    - USE_CCACHE=1
+    - CCACHE_SLOPPINESS=pch_defines,time_macros
+    - CCACHE_COMPRESS=1
+    - CCACHE_MAXSIZE=250M
+    - PATH="/usr/lib/ccache:$PATH"
+    - PYTHON_VERSION=3.8
+    - OS_NAME=ubuntu
+
+python: 3.8
+
+matrix:
+  include:
+    - arch: arm64
+      env: BACKEND=c
+    - arch: arm64
+      env: BACKEND=cpp
+    - arch: ppc64le
+      env: BACKEND=c
+    - arch: ppc64le
+      env: BACKEND=cpp
+    # Disabled due to test errors
+    # - arch: s390x
+    #   env: BACKEND=c
+    # - arch: s390x
+    #   env: BACKEND=cpp
+
+script:
+  - bash ./Tools/ci-run.sh

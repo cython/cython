@@ -1,7 +1,7 @@
 Cython - an overview
 ====================
 
-[Cython] is a programming language that makes writing C extensions
+[Cython]_ is a programming language that makes writing C extensions
 for the Python language as easy as Python itself.  It aims to become
 a superset of the [Python]_ language which gives it high-level,
 object-oriented, functional, and dynamic programming.  Its main feature
@@ -25,7 +25,7 @@ Originally based on the well-known Pyrex [Pyrex]_, the Cython project
 has approached this problem by means of a source code compiler that
 translates Python code to equivalent C code.  This code is executed
 within the CPython runtime environment, but at the speed of compiled C
-and with the ability to call directly into C libraries. 
+and with the ability to call directly into C libraries.
 At the same time, it keeps the original interface of the Python
 source code, which makes it directly usable from Python code.  These
 two-fold characteristics enable Cython's two major use cases:
@@ -44,13 +44,13 @@ thus merges the two worlds into a very broadly applicable programming
 language.
 
 .. [Cython] G. Ewing, R. W. Bradshaw, S. Behnel, D. S. Seljebotn et al.,
-   The Cython compiler, http://cython.org.
-.. [IronPython] Jim Hugunin et al., http://www.codeplex.com/IronPython.
+   The Cython compiler, https://cython.org/.
+.. [IronPython] Jim Hugunin et al., https://archive.codeplex.com/?p=IronPython.
 .. [Jython] J. Huginin, B. Warsaw, F. Bock, et al.,
-   Jython: Python for the Java platform, http://www.jython.org.
-.. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python, 
-   http://pypy.org.
+   Jython: Python for the Java platform, https://www.jython.org.
+.. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python,
+   https://pypy.org/.
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
-   http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+   https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [Python] G. van Rossum et al., The Python programming language,
-   http://python.org.
+   https://www.python.org/.

@@ -59,6 +59,13 @@ def call_static_cdef2(int x, int y):
     """
     return A.static_cdef2(&x, &y)
 
+def call_static_list_comprehension_GH1540(int x):
+    """
+    >>> call_static_list_comprehension_GH1540(5)
+    [('cdef', 5), ('cdef', 5), ('cdef', 5)]
+    """
+    return [A.static_cdef(&x) for _ in range(3)]
+
 # BROKEN
 #def call_static_cdef_untyped(a, b):
 #    """
@@ -67,6 +74,7 @@ def call_static_cdef2(int x, int y):
 #    """
 #    return A.static_cdef_untyped(a, b)
 
+# UNIMPLEMENTED
 # def call_static_cpdef(int x):
 #     """
 #     >>> call_static_cpdef(2)
@@ -79,6 +87,10 @@ cdef class FromPxd:
     cdef static_cdef(int* x):
         return 'pxd_cdef', x[0]
 
+    @staticmethod
+    cdef static_cdef_with_implicit_object(obj):
+        return obj+1
+
 def call_static_pxd_cdef(int x):
     """
     >>> call_static_pxd_cdef(2)
@@ -86,3 +98,11 @@ def call_static_pxd_cdef(int x):
     """
     cdef int *x_ptr = &x
     return FromPxd.static_cdef(x_ptr)
+
+def call_static_pxd_cdef_with_implicit_object(int x):
+    """
+    # https://github.com/cython/cython/issues/3174
+    >>> call_static_pxd_cdef_with_implicit_object(2)
+    3
+    """
+    return FromPxd.static_cdef_with_implicit_object(x)

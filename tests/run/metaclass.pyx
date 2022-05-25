@@ -69,8 +69,8 @@ class Py3ClassMCOnly(object, metaclass=Py3MetaclassPlusAttr):
     321
     >>> obj.metaclass_was_here
     True
-    >>> obj._order
-    ['__module__', '__qualname__', '__doc__', 'bar', 'metaclass_was_here']
+    >>> [n for n in obj._order if n not in {"__qualname__", "__annotations__"}]
+    ['__module__', '__doc__', 'bar', 'metaclass_was_here']
     """
     bar = 321
 
@@ -81,8 +81,8 @@ class Py3InheritedMetaclass(Py3ClassMCOnly):
     345
     >>> obj.metaclass_was_here
     True
-    >>> obj._order
-    ['__module__', '__qualname__', '__doc__', 'bar', 'metaclass_was_here']
+    >>> [n for n in obj._order if n not in {"__qualname__", "__annotations__"}]
+    ['__module__', '__doc__', 'bar', 'metaclass_was_here']
     """
     bar = 345
 
@@ -109,8 +109,8 @@ class Py3Foo(object, metaclass=Py3Base, foo=123):
     123
     >>> obj.bar
     321
-    >>> obj._order
-    ['__module__', '__qualname__', '__doc__', 'bar', 'foo']
+    >>> [n for n in obj._order if n not in {"__qualname__", "__annotations__"}]
+    ['__module__', '__doc__', 'bar', 'foo']
     """
     bar = 321
 
@@ -122,8 +122,8 @@ class Py3FooInherited(Py3Foo, foo=567):
     567
     >>> obj.bar
     321
-    >>> obj._order
-    ['__module__', '__qualname__', '__doc__', 'bar', 'foo']
+    >>> [n for n in obj._order if n not in {"__qualname__", "__annotations__"}]
+    ['__module__', '__doc__', 'bar', 'foo']
     """
     bar = 321
 

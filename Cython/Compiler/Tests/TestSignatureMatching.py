@@ -16,8 +16,7 @@ class SignatureMatcherTest(unittest.TestCase):
     Test the signature matching algorithm for overloaded signatures.
     """
     def assertMatches(self, expected_type, arg_types, functions):
-        args = [ NameNode(None, type=arg_type) for arg_type in arg_types ]
-        match = pt.best_match(args, functions)
+        match = pt.best_match(arg_types, functions)
         if expected_type is not None:
             self.assertNotEqual(None, match)
         self.assertEqual(expected_type, match.type)
@@ -48,7 +47,7 @@ class SignatureMatcherTest(unittest.TestCase):
         self.assertMatches(function_types[1], [pt.c_long_type, pt.c_int_type], functions)
 
     def test_cpp_reference_cpp_class(self):
-        classes = [ cppclasstype("Test%d"%i, []) for i in range(2) ]
+        classes = [ cppclasstype("Test%d" % i, []) for i in range(2) ]
         function_types = [
             cfunctype(pt.CReferenceType(classes[0])),
             cfunctype(pt.CReferenceType(classes[1])),
@@ -59,7 +58,7 @@ class SignatureMatcherTest(unittest.TestCase):
         self.assertMatches(function_types[1], [classes[1]], functions)
 
     def test_cpp_reference_cpp_class_and_int(self):
-        classes = [ cppclasstype("Test%d"%i, []) for i in range(2) ]
+        classes = [ cppclasstype("Test%d" % i, []) for i in range(2) ]
         function_types = [
             cfunctype(pt.CReferenceType(classes[0]), pt.c_int_type),
             cfunctype(pt.CReferenceType(classes[0]), pt.c_long_type),

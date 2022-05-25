@@ -1,4 +1,5 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/resource.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_resource.h.html
+# https://man7.org/linux/man-pages/man2/getrusage.2.html
 
 from posix.time  cimport timeval
 from posix.types cimport id_t
@@ -33,6 +34,7 @@ cdef extern from "<sys/resource.h>" nogil:
     cdef struct rusage:
         timeval ru_utime
         timeval ru_stime
+        # Linux-specific
         long    ru_maxrss
         long    ru_ixrss
         long    ru_idrss

@@ -1,6 +1,6 @@
 # mode: run
 # tag: exttype
-# ticket: 677
+# ticket: t677
 
 """
 >>> str(Foo(4))

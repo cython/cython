@@ -1,4 +1,4 @@
-# ticket: 400
+# ticket: t400
 
 cimport cython
 
@@ -10,6 +10,9 @@ def double_to_short_int(double x):
     4
     >>> double_to_short_int(4)
     4
+    >>> double_to_short_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef short r = int(x)
     return r
@@ -22,6 +25,9 @@ def double_to_pyssizet_int(double x):
     4
     >>> double_to_pyssizet_int(4)
     4
+    >>> double_to_pyssizet_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef Py_ssize_t r = int(x)
     return r
@@ -34,6 +40,9 @@ def int_to_pyssizet_int(int x):
     4
     >>> int_to_pyssizet_int(4)
     4
+    >>> int_to_pyssizet_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef Py_ssize_t r = int(x)
     return r
@@ -56,6 +65,9 @@ def int_to_short_int(int x):
     """
     >>> int_to_short_int(4)
     4
+    >>> int_to_short_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
     """
     cdef short r = int(x)
     return r
@@ -66,6 +78,9 @@ def short_to_float_float(short x):
     """
     >>> short_to_float_float(4)
     4.0
+    >>> short_to_float_float('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
     """
     cdef float r = float(x)
     return r
@@ -76,6 +91,9 @@ def short_to_double_float(short x):
     """
     >>> short_to_double_float(4)
     4.0
+    >>> short_to_double_float('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
     """
     cdef double r = float(x)
     return r
@@ -86,6 +104,9 @@ def short_to_double_int(short x):
     """
     >>> short_to_double_int(4)
     4.0
+    >>> short_to_double_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
     """
     cdef double r = int(x)
     return r
@@ -97,6 +118,9 @@ def float_to_float_float(float x):
     True
     >>> float_to_float_float(4)
     4.0
+    >>> float_to_float_float('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef float r = float(x)
     return r
@@ -109,6 +133,9 @@ def double_to_double_float(double x):
     True
     >>> double_to_double_float(4)
     4.0
+    >>> double_to_double_float('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef double r = float(x)
     return r
@@ -123,6 +150,9 @@ def double_to_py_int(double x):
     4
     >>> double_to_py_int(4)
     4
+    >>> double_to_py_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     return int(x)
 
@@ -134,6 +164,9 @@ def double_to_double_int(double x):
     4.0
     >>> double_to_double_int(4)
     4.0
+    >>> double_to_double_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef double r = int(x)
     return r
@@ -150,6 +183,9 @@ def float_to_float_int(float x):
     4.0
     >>> float_to_float_int(4)
     4.0
+    >>> float_to_float_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef float r = int(x)
     return r
@@ -166,6 +202,9 @@ def float_to_double_int(float x):
     4.0
     >>> float_to_double_int(4)
     4.0
+    >>> float_to_double_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef double r = int(x)
     return r
@@ -182,24 +221,9 @@ def double_to_float_int(double x):
     4.0
     >>> double_to_float_int(4)
     4.0
-    """
-    cdef float r = int(x)
-    return r
-
-
-@cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
-@cython.test_assert_path_exists(
-    "//PythonCapiCallNode",
-    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = '__Pyx_truncl'",
-)
-def long_double_to_float_int(long double x):
-    """
-    >>> long_double_to_float_int(4.1)
-    4.0
-    >>> long_double_to_float_int(-4.1)
-    -4.0
-    >>> long_double_to_float_int(4)
-    4.0
+    >>> double_to_float_int('4')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     cdef float r = int(x)
     return r

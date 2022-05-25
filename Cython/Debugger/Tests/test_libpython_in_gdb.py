@@ -6,16 +6,13 @@ Lib/test/test_gdb.py in the Python source. These tests are run in gdb and
 called from test_libcython_in_gdb.main()
 """
 
-import os
-import sys
-
 import gdb
 
 from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 
 from . import test_libcython_in_gdb
-from .test_libcython_in_gdb import _debug, inferior_python_version
+from .test_libcython_in_gdb import inferior_python_version
 
 
 class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
@@ -56,28 +53,28 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         else:
             funcname = 'PyBytes_FromStringAndSize'
 
-        assert '"' not in string
+        assert b'"' not in string
 
         # ensure double quotes
-        code = '(PyObject *) %s("%s", %d)' % (funcname, string, len(string))
+        code = '(PyObject *) %s("%s", %d)' % (funcname, string.decode('iso8859-1'), len(string))
         return self.pyobject_fromcode(code, gdbvar=gdbvar)
 
     def alloc_unicodestring(self, string, gdbvar=None):
-        self.alloc_bytestring(string.encode('UTF-8'), gdbvar='_temp')
-
         postfix = libpython.get_inferior_unicode_postfix()
-        funcname = 'PyUnicode%s_FromEncodedObject' % (postfix,)
+        funcname = 'PyUnicode%s_DecodeUnicodeEscape' % (postfix,)
 
+        data = string.encode("unicode_escape").decode('iso8859-1')
         return self.pyobject_fromcode(
-            '(PyObject *) %s($_temp, "UTF-8", "strict")' % funcname,
+            '(PyObject *) %s("%s", %d, "strict")' % (
+                funcname, data.replace('"', r'\"').replace('\\', r'\\'), len(data)),
             gdbvar=gdbvar)
 
     def test_bytestring(self):
-        bytestring = self.alloc_bytestring("spam")
+        bytestring = self.alloc_bytestring(b"spam")
 
         if inferior_python_version < (3, 0):
             bytestring_class = libpython.PyStringObjectPtr
-            expected = repr("spam")
+            expected = repr(b"spam")
         else:
             bytestring_class = libpython.PyBytesObjectPtr
             expected = "b'spam'"
@@ -88,7 +85,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     def test_unicode(self):
         unicode_string = self.alloc_unicodestring(u"spam ἄλφα")
 
-        expected = "'spam ἄλφα'"
+        expected = u"'spam ἄλφα'"
         if inferior_python_version < (3, 0):
             expected = 'u' + expected
 

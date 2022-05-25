@@ -39,12 +39,13 @@ is that it has no support for calling the Python/C API for operations
 it does not support natively, and supports very few of the standard
 Python modules.
 
-.. [ctypes] http://docs.python.org/library/ctypes.html.
+.. [ctypes] https://docs.python.org/library/ctypes.html.
 .. there's also the original ctypes home page: http://python.net/crew/theller/ctypes/
-.. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
-   http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+..
+   [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
+   https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [ShedSkin] M. Dufour, J. Coughlan, ShedSkin,
-   http://code.google.com/p/shedskin/
-.. [SWIG] David M. Beazley et al., 
-   SWIG: An Easy to Use Tool for Integrating Scripting Languages with C and C++, 
+   https://github.com/shedskin/shedskin
+.. [SWIG] David M. Beazley et al.,
+   SWIG: An Easy to Use Tool for Integrating Scripting Languages with C and C++,
    http://www.swig.org.

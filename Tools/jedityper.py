@@ -31,7 +31,7 @@ def analyse(source_path=None, code=None):
         raise ValueError("Either 'source_path' or 'code' is required.")
     scoped_names = {}
     statement_iter = jedi.names(source=code, path=source_path, all_scopes=True)
-    
+
     for statement in statement_iter:
         parent = statement.parent()
         scope = parent._definition
@@ -45,7 +45,7 @@ def analyse(source_path=None, code=None):
             names = scoped_names[key]
         except KeyError:
             names = scoped_names[key] = defaultdict(set)
-                
+
         position = statement.start_pos if statement.name in names else None
 
         for name_type in evaluator.find_types(scope, statement.name, position=position ,search_global=True):
@@ -60,8 +60,8 @@ def analyse(source_path=None, code=None):
                 type_name = None
             else:
                 try:
-                    type_name = type(name_type.obj).__name__                
-                except AttributeError as error:                    
+                    type_name = type(name_type.obj).__name__
+                except AttributeError as error:
                     type_name = None
             if type_name is not None:
                 names[str(statement.name)].add(type_name)

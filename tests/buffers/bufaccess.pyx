@@ -13,8 +13,6 @@ from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_DECREF
 cimport cython
 
-__test__ = {}
-
 import sys
 #import re
 exclude = []#re.compile('object').search]
@@ -27,8 +25,7 @@ if getattr(sys, 'pypy_version_info', None) is not None:
 def testcase(func):
     for e in exclude:
         if e(func.__name__):
-            return func
-    __test__[func.__name__] = func.__doc__
+            func.__doc__ = ""  # disable the test
     return func
 
 
@@ -599,7 +596,7 @@ def readonly(obj):
     acquired R
     25
     released R
-    >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
+    >>> [str(x) for x in R.received_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
     cdef object[unsigned short int, ndim=3] buf = obj
@@ -612,7 +609,7 @@ def writable(obj):
     >>> writable(R)
     acquired R
     released R
-    >>> [str(x) for x in R.recieved_flags] # Py2/3
+    >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
     cdef object[unsigned short int, ndim=3] buf = obj
@@ -626,7 +623,7 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     acquired A
     released A
     2
-    >>> [str(x) for x in A.recieved_flags] # Py2/3
+    >>> [str(x) for x in A.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES']
 
     Check that the suboffsets were patched back prior to release.
@@ -641,7 +638,7 @@ def c_contig(object[int, ndim=1, mode='c'] buf):
     >>> A = IntMockBuffer(None, range(4))
     >>> c_contig(A)
     2
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[2]
@@ -649,12 +646,12 @@ def c_contig(object[int, ndim=1, mode='c'] buf):
 @testcase
 def c_contig_2d(object[int, ndim=2, mode='c'] buf):
     """
-    Multi-dim has seperate implementation
+    Multi-dim has separate implementation
 
     >>> A = IntMockBuffer(None, range(12), shape=(3,4))
     >>> c_contig_2d(A)
     7
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[1, 3]
@@ -665,7 +662,7 @@ def f_contig(object[int, ndim=1, mode='fortran'] buf):
     >>> A = IntMockBuffer(None, range(4))
     >>> f_contig(A)
     2
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
     """
     return buf[2]
@@ -678,7 +675,7 @@ def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
     >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
     >>> f_contig_2d(A)
     7
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
     """
     return buf[3, 1]
@@ -959,6 +956,8 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -991,15 +990,16 @@ def assign_to_object(object[object] buf, int idx, obj):
     See comments on printbuf_object above.
 
     >>> a, b = [1, 2, 3], [4, 5, 6]
-    >>> get_refcount(a), get_refcount(b)
-    (2, 2)
+    >>> rca1, rcb1 = get_refcount(a), get_refcount(b)
+    >>> rca1 == rcb1
+    True
     >>> addref(a)
     >>> A = ObjectMockBuffer(None, [1, a]) # 1, ...,otherwise it thinks nested lists...
-    >>> get_refcount(a), get_refcount(b)
-    (3, 2)
+    >>> get_refcount(a) == rca1+1, get_refcount(b) == rcb1
+    (True, True)
     >>> assign_to_object(A, 1, b)
-    >>> get_refcount(a), get_refcount(b)
-    (2, 3)
+    >>> get_refcount(a) == rca1, get_refcount(b) == rcb1+1
+    (True, True)
     >>> decref(b)
     """
     buf[idx] = obj
@@ -1010,15 +1010,14 @@ def assign_temporary_to_object(object[object] buf):
     See comments on printbuf_object above.
 
     >>> a, b = [1, 2, 3], {4:23}
-    >>> get_refcount(a)
-    2
+    >>> rc1 = get_refcount(a)
     >>> addref(a)
     >>> A = ObjectMockBuffer(None, [b, a])
-    >>> get_refcount(a)
-    3
+    >>> get_refcount(a) == rc1+1
+    True
     >>> assign_temporary_to_object(A)
-    >>> get_refcount(a)
-    2
+    >>> get_refcount(a) == rc1
+    True
 
     >>> printbuf_object(A, (2,))
     {4: 23} 2
@@ -1103,7 +1102,7 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     >>> bufdefaults1(A)
     acquired A
     released A
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES']
     """
     pass
