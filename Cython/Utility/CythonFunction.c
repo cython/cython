@@ -1018,7 +1018,11 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     __pyx_CyFunction_methods,           /*tp_methods*/
     __pyx_CyFunction_members,           /*tp_members*/
     __pyx_CyFunction_getsets,           /*tp_getset*/
+#if PY_VERSION_HEX < 0x030900B1
     0,                                  /*tp_base*/
+#else
+    &PyCMethod_Type,                    /*tp_base*/
+#endif
     0,                                  /*tp_dict*/
     __Pyx_PyMethod_New,                 /*tp_descr_get*/
     0,                                  /*tp_descr_set*/
