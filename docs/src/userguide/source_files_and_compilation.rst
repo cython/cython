@@ -168,7 +168,7 @@ to find the ``.h`` and library files when linking to external libraries.
 Often, Python packages that offer a C-level API provide a way to find
 the necessary include files, e.g. for NumPy::
 
-    extension_options={'include_path': numpy.get_include()}
+    extension_options = {'include_path': numpy.get_include()}
 
 .. note::
 
