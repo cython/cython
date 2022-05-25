@@ -749,7 +749,7 @@ def default_create_extension(template, kwds):
 
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
-                          exclude_failures=False, ext_opts={}):
+                          exclude_failures=False, extension_options=None):
     if language is not None:
         print('Warning: passing language={0!r} to cythonize() is deprecated. '
               'Instead, put "# distutils: language={0}" in your .pyx or .pxd file(s)'.format(language))
@@ -759,6 +759,8 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         return [], {}
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
+    if extension_options is None:
+        extension_options = {}
     explicit_modules = {m.name for m in patterns if isinstance(m, Extension)}
     seen = set()
     deps = create_dependency_tree(ctx, quiet=quiet)
@@ -840,7 +842,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                     for key, value in base.values.items():
                         if key not in kwds:
                             kwds[key] = value
-                for key, value in ext_opts.items():
+                for key, value in extension_options.items():
                     if key not in kwds:
                         kwds[key] = value
                     elif isinstance(kwds[key], list):
@@ -888,7 +890,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=None, language=None,
-              exclude_failures=False, show_all_warnings=False, ext_opts={}, **options):
+              exclude_failures=False, show_all_warnings=False, extension_options={}, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -941,9 +943,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     :param show_all_warnings: By default, not all Cython warnings are printed.
                               Set to true to show all warnings.
 
-    :param ext_opts: To add C/C++ compilation options to all generated Extension objects, pass
-                     a dictionary object as 'ext_opts'. For example:
-                     'ext_opts={"include_dirs":numpy.get_include()}'
+    :param extension_options: To add C/C++ compilation options to all generated Extension objects,
+                              pass a dictionary object as 'extension_options'. For example:
+                              'extension_options={"include_dirs":numpy.get_include()}'
 
     :param annotate: If ``True``, will produce a HTML file for each of the ``.pyx`` or ``.py``
                      files compiled. The HTML file gives an indication
@@ -999,7 +1001,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         exclude_failures=exclude_failures,
         language=language,
         aliases=aliases,
-        ext_opts=ext_opts)
+        extension_options=extension_options)
 
     fix_windows_unicode_modules(module_list)
     deps = create_dependency_tree(ctx, quiet=quiet)

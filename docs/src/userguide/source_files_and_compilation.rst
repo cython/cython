@@ -158,7 +158,7 @@ If you have Cython include files in non-standard places you can pass an
     )
 
 To add C/C++ compiler options, e.g. the search path for C header files,
-pass a dictionary object as ``ext_opts`` parameter. The dictionary
+pass a dictionary object as ``extension_options`` parameter. The dictionary
 values will be appended to the options of the generated Extension
 objects. Check the `distutils documentation`_ for a description of
 possible options.  Some useful options to know about
@@ -168,7 +168,7 @@ to find the ``.h`` and library files when linking to external libraries.
 Often, Python packages that offer a C-level API provide a way to find
 the necessary include files, e.g. for NumPy::
 
-    ext_opts={'include_path' = numpy.get_include()}
+    extension_options={'include_path' = numpy.get_include()}
 
 .. note::
 
