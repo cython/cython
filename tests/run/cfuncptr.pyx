@@ -84,9 +84,9 @@ def call_noexcept_func1():
     fptr = noexcept_func  # exception specifications are compatible
     return fptr()
 
-def call_noexcept_func1():
+def call_noexcept_func2():
     """
-    >>> call_noexcept_func1()
+    >>> call_noexcept_func2()
     0
     """
     cdef int (*fptr)() except ?-1
