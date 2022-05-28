@@ -8,12 +8,13 @@ from Cython.Compiler.Errors import init_thread
 
 # generate some fake code - just a bunch of lines of the form "a0 a1 ..."
 code = []
-for ch in range(ord('a'), ord('z')):
+for ch in range(ord("a"), ord("z")):
     line = " ".join(["%s%s" % (chr(ch), n) for n in range(10)])
     code.append(line)
 code = "\n".join(code)
 
 init_thread()
+
 
 class TestScanning(unittest.TestCase):
     def make_scanner(self):
@@ -33,7 +34,7 @@ class TestScanning(unittest.TestCase):
         self.assertEqual(scanner.sy, "IDENT")
         self.assertEqual(scanner.systring, "a1")
         a1pos = scanner.position()
-        self.assertEqual(a1pos[1:], (1,3))
+        self.assertEqual(a1pos[1:], (1, 3))
         a2peek = scanner.peek()  # shouldn't mess up the position
         self.assertEqual(a1pos, scanner.position())
         scanner.next()
@@ -54,7 +55,9 @@ class TestScanning(unittest.TestCase):
             line_pos.append(scanner.position())
             scanner.next()
 
-        for sy, systring, pos in zip(line_sy[::-1], line_systring[::-1], line_pos[::-1]):
+        for sy, systring, pos in zip(
+            line_sy[::-1], line_systring[::-1], line_pos[::-1]
+        ):
             scanner.put_back(sy, systring, pos)
 
         n = 0
@@ -63,7 +66,7 @@ class TestScanning(unittest.TestCase):
             self.assertEqual(scanner.systring, line_systring[n])
             self.assertEqual(scanner.position(), line_pos[n])
             scanner.next()
-            n+=1
+            n += 1
 
         self.assertEqual(n, len(line_pos))
 
@@ -81,7 +84,8 @@ class TestScanning(unittest.TestCase):
             while scanner.sy != "NEWLINE":
                 scanner.next()
                 if not pos:
-                    pos = scanner.position()  # position of first tentatively scanned part
+                    # record position of first tentatively scanned part
+                    pos = scanner.position()
                 if scanner.systring == "b7":
                     scanner.error("Oh no not b7!")
                     break
@@ -92,7 +96,6 @@ class TestScanning(unittest.TestCase):
         self.assertEqual(scanner.systring, "b2")  # and we can keep going again
         scanner.next()
         self.assertEqual(scanner.systring, "b3")  # and we can keep going again
-
 
 
 if __name__ == "__main__":
