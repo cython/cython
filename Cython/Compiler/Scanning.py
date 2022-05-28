@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
-from .Errors import error, warning, hold_errors, release_errors
+from .Errors import error, warning, hold_errors, release_errors, CompileError
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
 
@@ -455,8 +455,8 @@ class PyrexScanner(Scanner):
                 else:
                     sy = systring
             systring = self.context.intern_ustring(systring)
-        if self.put_back_on_failure:
-            self.put_back_on_failure.append((sy, systring)+self.position())
+        if self.put_back_on_failure is not None:
+            self.put_back_on_failure.append((sy, systring, self.position()))
         self.sy = sy
         self.systring = systring
         if False:  # debug_scanner:
@@ -469,20 +469,20 @@ class PyrexScanner(Scanner):
 
     def peek(self):
         saved = self.sy, self.systring
+        saved_pos = self.position()
         self.next()
         next = self.sy, self.systring
-        pos = self.position()
-        self.unread(*(next+pos[1:]))
+        next_pos = self.position()
+        self.unread(*(next+next_pos[1:]))
         self.sy, self.systring = saved
+        self.last_token_line, self.last_token_col = saved_pos[1:]
         return next
 
-    def put_back(self, sy, systring):
-        self.put_back_with_position(sy, systring, self.position())
-
-    def put_back_with_position(self, sy, systring, pos):
-        self.unread(self.sy, self.systring, *pos[1:])
+    def put_back(self, sy, systring, pos):
+        self.unread(self.sy, self.systring, self.last_token_line, self.last_token_col)
         self.sy = sy
         self.systring = systring
+        self.last_token_line, self.last_token_col = pos[1:]
 
 
     def error(self, message, pos=None, fatal=True):
@@ -555,10 +555,12 @@ def tentatively_scan(scanner):
         scanner.put_back_on_failure = []
         try:
             yield errors
+        except CompileError as e:
+            errors.append(e)
         finally:
             if errors:
                 for put_back in reversed(scanner.put_back_on_failure):
-                    scanner.put_back(put_back)
+                    scanner.put_back(*put_back)
             scanner.put_back_on_failure = put_back_on_failure
     finally:
         release_errors(ignore=True)
