@@ -2251,6 +2251,10 @@ class CClassScope(ClassScope):
             self._namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
         return self._namespace_cname
 
+    @namespace_cname.setter
+    def namespace_cname(self, value):
+        self._namespace_cname = value
+
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
