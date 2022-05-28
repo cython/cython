@@ -1,6 +1,6 @@
 # cython: binding=True
 # mode: run
-# tag: cyfunction,qualname
+# tag: cyfunction, qualname, pure3.5
 
 from __future__ import print_function
 
