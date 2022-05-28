@@ -2699,7 +2699,7 @@ def is_memoryviewslice_access(s):
     # a memoryview slice declaration is distinguishable from a buffer access
     # declaration by the first entry in the bracketed list.  The buffer will
     # not have an unnested colon in the first entry; the memoryview slice will.
-    saved = [(s.sy, s.systring)]
+    saved = [(s.sy, s.systring, s.position())]
     s.next()
     retval = False
     if s.systring == ':':
@@ -2740,7 +2740,7 @@ def looking_at_expr(s):
     elif s.sy == 'IDENT':
         is_type = False
         name = s.systring
-        name_pos = name.position()
+        name_pos = s.position()
         dotted_path = []
         s.next()
 
