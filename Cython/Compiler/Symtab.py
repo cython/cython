@@ -349,6 +349,8 @@ class Scope(object):
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
+    # scope_predefined_names  list of str   Class variable containing special names defined by
+    #                                      this type of scope (e.g. __builtins__, __qualname__)
 
     is_builtin_scope = 0
     is_py_class_scope = 0
@@ -366,6 +368,7 @@ class Scope(object):
     nogil = 0
     fused_to_specific = None
     return_type = None
+    scope_predefined_names = []
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -400,6 +403,8 @@ class Scope(object):
         self.buffer_entries = []
         self.lambda_defs = []
         self.id_counters = {}
+        for var_name in self.scope_predefined_names:
+            self.declare_var(EncodedString(var_name), py_object_type, None)
 
     def __deepcopy__(self, memo):
         return self
@@ -1268,6 +1273,8 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
+    scope_predefined_names = ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
+                         '__spec__', '__loader__', '__package__', '__cached__']
 
     def __init__(self, name, parent_module, context):
         from . import Builtin
@@ -1302,9 +1309,6 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
-        for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
-                         '__spec__', '__loader__', '__package__', '__cached__']:
-            self.declare_var(EncodedString(var_name), py_object_type, None)
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
@@ -2129,6 +2133,8 @@ class ClassScope(Scope):
     #                          declared in the class
     #  doc    string or None   Doc string
 
+    scope_predefined_names = ['__module__', '__qualname__']
+
     def mangle_class_private_name(self, name):
         # a few utilitycode names need to specifically be ignored
         if name and name.lower().startswith("__pyx_"):
@@ -2237,6 +2243,13 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
+    _namespace_cname = None  # lazily calculated attribute
+
+    @property
+    def namespace_cname(self):
+        if not self._namespace_cname:
+            self._namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+        return self._namespace_cname
 
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
@@ -2374,7 +2387,6 @@ class CClassScope(ClassScope):
             # xxx: is_pyglobal changes behaviour in so many places that I keep it in for now.
             # is_member should be enough later on
             entry.is_pyglobal = 1
-            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
             return entry
 

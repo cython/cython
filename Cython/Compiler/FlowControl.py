@@ -585,7 +585,8 @@ def check_definitions(flow, compiler_directives):
     for node, entry in references.items():
         if Uninitialized in node.cf_state:
             node.cf_maybe_null = True
-            if not entry.from_closure and len(node.cf_state) == 1:
+            if (not entry.from_closure and len(node.cf_state) == 1
+                    and entry.name not in entry.scope.scope_predefined_names):
                 node.cf_is_null = True
             if (node.allow_null or entry.from_closure
                     or entry.is_pyclass_attr or entry.type.is_error):

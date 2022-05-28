@@ -2545,6 +2545,26 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
+    def visit_NameNode(self, node):
+        scope = self.current_env()
+        if scope.is_c_class_scope:
+            # unlike for a PyClass scope, these attributes aren't defined in the
+            # dictionary when the class definition is executed, so they need
+            # replacing with compile-time constants
+            if node.name=="__qualname__":
+                name = EncodedString(".".join(self.qualified_name))
+                return ExprNodes.StringNode(
+                    node.pos,
+                    value=name.as_utf8_string(),
+                    unicode_value=name)
+            elif node.name=="__module__":
+                name = EncodedString(self.module_name)
+                return ExprNodes.StringNode(
+                    node.pos,
+                    value=name.as_utf8_string(),
+                    unicode_value=name)
+        return node
+
 
 class AnalyseExpressionsTransform(CythonTransform):
 
