@@ -53,6 +53,8 @@ class Scanner(object):
     #  stream = None         # file-like object
     #  name = ''
     #  buffer = ''
+    #
+    #  These positions are used by the scanner to track its internal state:
     #  buf_start_pos = 0     # position in input of start of buffer
     #  next_pos = 0          # position in input of next char to read
     #  cur_pos = 0           # position in input of current char
@@ -61,10 +63,14 @@ class Scanner(object):
     #  start_pos = 0         # position in input of start of token
     #  start_line = 0        # line number of start of token
     #  start_col = 0         # position in line of start of token
+    #  These positions are used to track what was read from the queue
+    #   (which may differ from the internal state when tokens are replaced onto the queue)
+    #  last_token_line       # line number of the last token taken from the queue
+    #  last_token_col        # position in line of the last token taken from the queue
     #  text = None           # text of last token read
     #  initial_state = None  # Node
     #  state_name = ''       # Name of initial state
-    #  queue = None          # list of tokens to be returned
+    #  queue = None          # list of tokens and positions to be returned
     #  trace = 0
 
     def __init__(self, lexicon, stream, name='', initial_pos=None):
@@ -92,6 +98,8 @@ class Scanner(object):
         self.start_col = 0
         self.text = None
         self.state_name = None
+        self.last_token_line = 1
+        self.last_token_col = 0
 
         self.lexicon = lexicon
         self.stream = stream
@@ -124,9 +132,14 @@ class Scanner(object):
                 value = action.perform(self, self.text)
                 if value is not None:
                     self.produce(value)
-        result = queue[0]
+        result, result_pos = queue[0]
+        self.last_token_line, self.last_token_col = result_pos
         del queue[0]
         return result
+
+    def unread(self, token, value, pos_line, pos_col):
+        # This method should be added to Plex
+        self.queue.insert(0, ((token, value), (pos_line, pos_col)))
 
     def scan_a_token(self):
         """
@@ -303,7 +316,7 @@ class Scanner(object):
         position within the line of the first character of the token
         (0-based).
         """
-        return (self.name, self.start_line, self.start_col)
+        return (self.name, self.last_token_line, self.last_token_col)
 
     def get_position(self):
         """
@@ -330,7 +343,7 @@ class Scanner(object):
         """
         if text is None:
             text = self.text
-        self.queue.append((value, text))
+        self.queue.append(((value, text), (self.start_line, self.start_col)))
 
     def eof(self):
         """

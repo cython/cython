@@ -13,11 +13,12 @@ cython.declare(make_lexicon=object, lexicon=object,
 import os
 import platform
 from unicodedata import normalize
+from contextlib import contextmanager
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
-from .Errors import error, warning
+from .Errors import error, warning, hold_errors, release_errors
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
 
@@ -300,6 +301,8 @@ class PyrexScanner(Scanner):
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
+    #  put_back_on_failure  list or None  If set, this records states so the tentatively_scan
+    #                                       contextmanager can restore it
 
     def __init__(self, file, filename, parent_scanner=None,
                  scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
@@ -337,6 +340,8 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
+
+        self.put_back_on_failure = None
 
         self.begin('INDENT')
         self.sy = ''
@@ -450,6 +455,8 @@ class PyrexScanner(Scanner):
                 else:
                     sy = systring
             systring = self.context.intern_ustring(systring)
+        if self.put_back_on_failure:
+            self.put_back_on_failure.append((sy, systring)+self.position())
         self.sy = sy
         self.systring = systring
         if False:  # debug_scanner:
@@ -464,18 +471,19 @@ class PyrexScanner(Scanner):
         saved = self.sy, self.systring
         self.next()
         next = self.sy, self.systring
-        self.unread(*next)
+        pos = self.position()
+        self.unread(*(next+pos[1:]))
         self.sy, self.systring = saved
         return next
 
     def put_back(self, sy, systring):
-        self.unread(self.sy, self.systring)
+        self.put_back_with_position(sy, systring, self.position())
+
+    def put_back_with_position(self, sy, systring, pos):
+        self.unread(self.sy, self.systring, *pos[1:])
         self.sy = sy
         self.systring = systring
 
-    def unread(self, token, value):
-        # This method should be added to Plex
-        self.queue.insert(0, (token, value))
 
     def error(self, message, pos=None, fatal=True):
         if pos is None:
@@ -538,3 +546,19 @@ class PyrexScanner(Scanner):
             self.keywords.discard('async')
             if self.sy in ('async', 'await'):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
+
+@contextmanager
+def tentatively_scan(scanner):
+    errors = hold_errors()
+    try:
+        put_back_on_failure = scanner.put_back_on_failure
+        scanner.put_back_on_failure = []
+        try:
+            yield errors
+        finally:
+            if errors:
+                for put_back in reversed(scanner.put_back_on_failure):
+                    scanner.put_back(put_back)
+            scanner.put_back_on_failure = put_back_on_failure
+    finally:
+        release_errors(ignore=True)

@@ -36,6 +36,7 @@ cdef class PyrexScanner(Scanner):
     cdef readonly bint async_enabled
     cdef public unicode sy
     cdef public systring  # EncodedString
+    cdef public object put_back_on_failure
 
     cdef Py_ssize_t current_level(self)
     #cpdef commentline(self, text)
@@ -51,7 +52,6 @@ cdef class PyrexScanner(Scanner):
     ##cdef next(self)
     ##cdef peek(self)
     #cpdef put_back(self, sy, systring)
-    #cdef unread(self, token, value)
     ##cdef bint expect(self, what, message = *) except -2
     ##cdef expect_keyword(self, what, message = *)
     ##cdef expected(self, what, message = *)
