@@ -61,10 +61,12 @@ class Scanner(object):
     #  cur_line = 1          # line number of current char
     #  cur_line_start = 0    # position in input of start of current line
     #  start_pos = 0         # position in input of start of token
+    #  current_scanner_position_tuple = ("", 0, 0)  
+    #        tuple of filename, line number and position in line, really mainly for error reporting
 
     #  These positions are used to track what was read from the queue
     #   (which may differ from the internal state when tokens are replaced onto the queue)
-    #  last_token_position_tuple = ("", 0, 0)  # tuple of line number and position in line
+    #  last_token_position_tuple = ("", 0, 0)  # tuple of filename, line number and position in line
 
     #  text = None           # text of last token read
     #  initial_state = None  # Node
@@ -93,6 +95,7 @@ class Scanner(object):
         self.cur_pos = 0
         self.cur_line = 1
         self.start_pos = 0
+        self.current_scanner_position_tuple = ("", 0, 0)
         self.last_token_position_tuple = ("", 0, 0)
         self.text = None
         self.state_name = None
@@ -137,7 +140,7 @@ class Scanner(object):
 
     def get_current_scan_pos(self):
         # distinct from the position of the last token due to the queue
-        return (self.name, self.cur_line, self.cur_pos - self.cur_line_start)
+        return self.current_scanner_position_tuple
 
     def scan_a_token(self):
         """
@@ -146,7 +149,10 @@ class Scanner(object):
         file.
         """
         self.start_pos = self.cur_pos
-        self.last_token_position_tuple = self.get_current_scan_pos()
+        self.current_scanner_position_tuple = (
+            self.name, self.cur_line, self.cur_pos - self.cur_line_start
+        )
+        print(self.current_scanner_position_tuple)
         action = self.run_machine_inlined()
         if action is not None:
             if self.trace:
@@ -155,6 +161,7 @@ class Scanner(object):
             text = self.buffer[
                 self.start_pos - self.buf_start_pos:
                 self.cur_pos - self.buf_start_pos]
+            print(repr(text), action)
             return (text, action)
         else:
             if self.cur_pos == self.start_pos:
@@ -340,7 +347,7 @@ class Scanner(object):
         """
         if text is None:
             text = self.text
-        self.queue.append(((value, text), self.last_token_position_tuple))
+        self.queue.append(((value, text), self.current_scanner_position_tuple))
 
     def eof(self):
         """
