@@ -2584,9 +2584,9 @@ class CalculateQualifiedNamesTransform(EnvTransform):
             # the compiler to generate an assignment to them at the start of the
             # body.
             # NOTE: this doesn't put them in locals()
-            if node.name=="__qualname__":
+            if node.name == "__qualname__":
                 self.needs_qualname_assignment = True
-            elif node.name=="__module__":
+            elif node.name == "__module__":
                 self.needs_module_assignment = True
         return node
 
