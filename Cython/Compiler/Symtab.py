@@ -2253,7 +2253,9 @@ class CClassScope(ClassScope):
         self.property_entries = []
         self.inherited_var_entries = []
         self.parent_type = parent_type  # needs to be initialized
-        self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+        if hasattr(self.parent_type, "typeptr_cname"):
+            # otherwise, namespace_cname will remain unset
+            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
