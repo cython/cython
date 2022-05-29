@@ -60,3 +60,4 @@ cdef class PyrexScanner(Scanner):
     ##cdef expect_newline(self, message=*, bint ignore_semicolon=*)
     ##cdef int enter_async(self) except -1
     ##cdef int exit_async(self) except -1
+    cdef void error_at_scanpos(self, str message) except *

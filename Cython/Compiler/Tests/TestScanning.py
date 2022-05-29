@@ -2,16 +2,17 @@ from __future__ import unicode_literals
 
 import unittest
 from io import StringIO
+import string
 
-from Cython.Compiler import Scanning
-from Cython.Compiler.Symtab import ModuleScope
-from Cython.Compiler.TreeFragment import StringParseContext
-from Cython.Compiler.Errors import init_thread
+from .. import Scanning
+from ..Symtab import ModuleScope
+from ..TreeFragment import StringParseContext
+from ..Errors import init_thread
 
 # generate some fake code - just a bunch of lines of the form "a0 a1 ..."
 code = []
-for ch in range(ord("a"), ord("z")):
-    line = " ".join(["%s%s" % (chr(ch), n) for n in range(10)])
+for ch in string.ascii_lowercase:
+    line = " ".join(["%s%s" % (ch, n) for n in range(10)])
     code.append(line)
 code = "\n".join(code)
 

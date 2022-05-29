@@ -15,11 +15,7 @@ cdef class Scanner:
     cdef public Py_ssize_t cur_pos
     cdef public Py_ssize_t cur_line
     cdef public Py_ssize_t cur_line_start
-    cdef public Py_ssize_t start_pos
-    cdef public Py_ssize_t start_line
-    cdef public Py_ssize_t start_col
-    cdef public Py_ssize_t last_token_line
-    cdef public Py_ssize_t last_token_col
+    cdef public tuple last_token_positon_tuple
     cdef public text
     cdef public initial_state # int?
     cdef public state_name

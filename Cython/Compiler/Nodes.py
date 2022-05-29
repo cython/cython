@@ -1236,7 +1236,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                         type = error_type
                     # for indexed_pytype we can be a bit more flexible and pass None
                     template_types.append(type)
-                self.type = base_type.specialize_here(self.pos, env, template_types)
+                self.type = base_type.specialize_here(template_node.pos, env, template_types)
 
         elif base_type.is_pyobject:
             # Buffer
@@ -2562,10 +2562,10 @@ class CFuncDefNode(FuncDefNode):
                 # it really is impossible to reason about what the user wants to happens
                 # if they've specified a C++ exception translation function. Therefore,
                 # raise an error.
-                error(self.cfunc_declarator.pos,
+                error(self.pos,
                     "Only extern functions can throw C++ exceptions.")
             else:
-                warning(self.cfunc_declarator.pos,
+                warning(self.pos,
                     "Only extern functions can throw C++ exceptions.", 2)
 
         for formal_arg, type_arg in zip(self.args, typ.args):
