@@ -396,7 +396,7 @@ class PyrexScanner(Scanner):
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
-        self.error("Unclosed string literal")
+        self.error_in_action("Unclosed string literal")
 
     def indentation_action(self, text):
         self.begin('')
@@ -412,9 +412,9 @@ class PyrexScanner(Scanner):
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
                 if self.indentation_char != c:
-                    self.error("Mixed use of tabs and spaces")
+                    self.error_in_action("Mixed use of tabs and spaces")
             if text.replace(c, "") != "":
-                self.error("Mixed use of tabs and spaces")
+                self.error_in_action("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
         current_level = self.current_level()
         new_level = len(text)
@@ -432,7 +432,7 @@ class PyrexScanner(Scanner):
                 self.produce('DEDENT', '')
             #print "...current level now", self.current_level() ###
             if new_level != self.current_level():
-                self.error("Inconsistent indentation")
+                self.error_in_action("Inconsistent indentation")
 
     def eof_action(self, text):
         while len(self.indentation_stack) > 1:
@@ -444,7 +444,7 @@ class PyrexScanner(Scanner):
         try:
             sy, systring = self.read()
         except UnrecognizedInput:
-            self.error("Unrecognized character")
+            self.error_in_action("Unrecognized character")
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
@@ -492,6 +492,13 @@ class PyrexScanner(Scanner):
             error(pos, "Possible inconsistent indentation")
         err = error(pos, message)
         if fatal: raise err
+
+    def error_in_action(self, message, pos=None, fatal=True):
+        # like error, but gets the current scanning position rather than
+        # the position of the last token read
+        if pos is None:
+            pos = (self.name, self.start_line, self.start_col)
+        self.error(message, pos, fatal)
 
     def expect(self, what, message=None):
         if self.sy == what:
