@@ -2551,13 +2551,13 @@ class CalculateQualifiedNamesTransform(EnvTransform):
             # unlike for a PyClass scope, these attributes aren't defined in the
             # dictionary when the class definition is executed, so they need
             # replacing with compile-time constants
-            if node.name=="__qualname__":
+            if node.name == "__qualname__":
                 name = EncodedString(".".join(self.qualified_name))
                 return ExprNodes.StringNode(
                     node.pos,
                     value=name.as_utf8_string(),
                     unicode_value=name)
-            elif node.name=="__module__":
+            elif node.name == "__module__":
                 name = EncodedString(self.module_name)
                 return ExprNodes.StringNode(
                     node.pos,
