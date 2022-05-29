@@ -92,12 +92,18 @@ class TestScanning(unittest.TestCase):
                     scanner.error("Oh no not b7!")
                     break
         self.assertTrue(errors)
-        self.assertEqual(scanner.systring, "b1")  # state has been restored
+        self.assertEqual(scanner.systring, "b0")  # state has been restored
         self.assertEqual(scanner.position(), pos)
         scanner.next()
-        self.assertEqual(scanner.systring, "b2")  # and we can keep going again
+        self.assertEqual(scanner.systring, "b1")  # and we can keep going again
         scanner.next()
-        self.assertEqual(scanner.systring, "b3")  # and we can keep going again
+        self.assertEqual(scanner.systring, "b2")  # and we can keep going again
+
+        with Scanning.tentatively_scan(scanner) as error:
+            scanner.error("Something has gone wrong with the current symbol")
+        self.assertEqual(scanner.systring, "b2")
+        scanner.next()
+        self.assertEqual(scanner.systring, "b3")
 
 
 if __name__ == "__main__":

@@ -10026,6 +10026,57 @@ class CnameDecoratorNode(StatNode):
         self.node.generate_execution_code(code)
 
 
+class MatchNode(Node):
+    """
+    subject  ExprNode    The expression to be matched
+    cases    [CaseNode]  list of cases
+    """
+    pass
+
+
+class CaseNode(Node):
+    """
+    patterns   list of PatternNodes
+    body       StatListNode
+    guard      ExprNode or None
+    """
+    child_attrs = ['patterns', 'body', 'guard']
+
+
+class PatternNode(Node):
+    pass
+
+
+class MatchConstantPatternNode(PatternNode):
+    """
+    value   ExprNode        # todo be more specific
+    """
+    child_attrs = ['value']
+
+
+class MatchStarPatternNode(PatternNode):
+    """
+    target   NameNode or None  the target to assign to
+    """
+    target = None
+
+    child_attrs = ['target']
+
+
+class MatchSequencePatternNode(PatternNode):
+    """
+    patterns   list of PatternNodes
+    """
+    child_attrs = ['patterns']
+
+
+class MatchMappingPatternNode(PatternNode):
+    key_values = []
+    double_star_capture_target = None
+    
+    child_attrs = ['key_values', 'double_star_capture_target']
+
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
