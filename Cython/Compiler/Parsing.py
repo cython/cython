@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -393,8 +393,9 @@ def p_sizeof(s):
     # Here we decide if we are looking at an expression or type
     # If it is actually a type, but parsable as an expression,
     # we treat it as an expression here.
-    if looking_at_expr(s):
+    with tentatively_scan(s) as errors:
         operand = p_test(s)
+    if not errors:
         node = ExprNodes.SizeofVarNode(pos, operand = operand)
     else:
         base_type = p_c_base_type(s)
@@ -2496,9 +2497,9 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
             ident = s.systring
             s.next()  # s.sy is '='
             s.next()
-            if looking_at_expr(s):
+            with tentatively_scan(s) as errors:
                 arg = p_test(s)
-            else:
+            if errors:
                 base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
@@ -2509,9 +2510,9 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
             was_keyword = True
 
         else:
-            if looking_at_expr(s):
+            with tentatively_scan(s) as errors:
                 arg = p_test(s)
-            else:
+            if errors:
                 base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
@@ -2762,47 +2763,6 @@ def p_memoryviewslice_access(s, base_type_node):
 def looking_at_name(s):
     return s.sy == 'IDENT' and s.systring not in calling_convention_words
 
-def looking_at_expr(s):
-    if s.systring in base_type_start_words:
-        return False
-    elif s.sy == 'IDENT':
-        is_type = False
-        name = s.systring
-        name_pos = s.position()
-        dotted_path = []
-        s.next()
-
-        while s.sy == '.':
-            s.next()
-            dotted_path.append((s.systring, s.position()))
-            s.expect('IDENT')
-
-        saved = s.sy, s.systring, s.position()
-        if s.sy == 'IDENT':
-            is_type = True
-        elif s.sy == '*' or s.sy == '**':
-            s.next()
-            is_type = s.sy in (')', ']')
-            s.put_back(*saved)
-        elif s.sy == '(':
-            s.next()
-            is_type = s.sy == '*'
-            s.put_back(*saved)
-        elif s.sy == '[':
-            s.next()
-            is_type = s.sy == ']' or not looking_at_expr(s)  # could be a nested template type
-            s.put_back(*saved)
-
-        dotted_path.reverse()
-        for p in dotted_path:
-            s.put_back(u'IDENT', *p)
-            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
-
-        s.put_back(u'IDENT', name, name_pos)
-        return not is_type and saved[0]
-    else:
-        return True
-
 def looking_at_base_type(s):
     #print "looking_at_base_type?", s.sy, s.systring, s.position()
     return s.sy == 'IDENT' and s.systring in base_type_start_words
@@ -2817,17 +2777,6 @@ def looking_at_dotted_name(s):
         return result
     else:
         return 0
-
-def looking_at_call(s):
-    "See if we're looking at a.b.c("
-    # Don't mess up the original position, so save and restore it.
-    # Unfortunately there's no good way to handle this, as a subsequent call
-    # to next() will not advance the position until it reads a new token.
-    position = s.start_line, s.start_col
-    result = looking_at_expr(s) == u'('
-    if not result:
-        s.start_line, s.start_col = position
-    return result
 
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
