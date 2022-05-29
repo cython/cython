@@ -18,7 +18,7 @@ cdef extern from *:
     # define this as extern since Cython converts internal "except*" to "except -1"
     cdef int exceptstar(int bad) except *
 
-def fail_exceptmaybeminus2(bad):
+def fail_exceptstar(bad):
     cdef int (*fptr_a)(int) # noexcept
     cdef int (*fptr_b)(int) except -1
     cdef int (*fptr_c)(int) except ?-1

@@ -46,26 +46,26 @@ cdef int exceptminus2(int bad) except -2:
     else:
         return 0
 
-def call_exceptminus2_1(bad):
+def call_exceptminus2_through_exceptstar_pointer(bad):
     """
-    >>> call_exceptminus2_1(True)
+    >>> call_exceptminus2_through_exceptstar_pointer(True)
     Traceback (most recent call last):
     ...
     RuntimeError
-    >>> call_exceptminus2_1(False)
+    >>> call_exceptminus2_through_exceptstar_pointer(False)
     0
     """
     cdef int (*fptr)(int) except *  # GH4770 - should not be treated as except? -1
     fptr = exceptminus2
     return fptr(bad)
 
-def call_exceptminus2_2(bad):
+def call_exceptminus2_through_exceptmaybeminus2_pointer(bad):
     """
-    >>> call_exceptminus2_2(True)
+    >>> call_exceptminus2_through_exceptmaybeminus2_pointer(True)
     Traceback (most recent call last):
     ...
     RuntimeError
-    >>> call_exceptminus2_2(False)
+    >>> call_exceptminus2_through_exceptmaybeminus2_pointer(False)
     0
     """
     cdef int (*fptr)(int) except ?-2  # exceptions should be compatible
