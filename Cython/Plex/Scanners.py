@@ -61,7 +61,7 @@ class Scanner(object):
     #  cur_line = 1          # line number of current char
     #  cur_line_start = 0    # position in input of start of current line
     #  start_pos = 0         # position in input of start of token
-    #  current_scanner_position_tuple = ("", 0, 0)  
+    #  current_scanner_position_tuple = ("", 0, 0)
     #        tuple of filename, line number and position in line, really mainly for error reporting
 
     #  These positions are used to track what was read from the queue
@@ -161,7 +161,6 @@ class Scanner(object):
             text = self.buffer[
                 self.start_pos - self.buf_start_pos:
                 self.cur_pos - self.buf_start_pos]
-            print(repr(text), action)
             return (text, action)
         else:
             if self.cur_pos == self.start_pos:
