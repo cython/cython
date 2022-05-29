@@ -43,7 +43,7 @@ class Scanner(object):
       begin(state_name)
         Causes scanner to change state.
 
-      produce(value, [, text])
+      produce(value [, text])
         Causes return of a token value to the caller of the
         Scanner.
 
