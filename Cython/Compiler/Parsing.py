@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -2144,6 +2144,55 @@ def p_with_statement(s):
 
 
 def p_with_items(s, is_async=False):
+    """
+    Copied from CPython:
+    | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+        _PyAST_With(a, b, NULL, EXTRA) }
+    | 'with' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+        _PyAST_With(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    Therefore the first thing to try is the bracket-enclosed
+    version and if that fails try the regular version
+    """
+    brackets_succeeded=False
+    if s.sy == '(':
+        items = []
+        with tentatively_scan(s) as errors:
+            s.next()
+            while True:
+                items.append(p_with_item(s, is_async))
+                if s.sy == ")":
+                    s.next()
+                    break
+                s.expect(",")
+                if s.sy == ")":
+                    # trailing commas allowed
+                    s.next()
+                    break
+        brackets_succeeded = not errors
+    if not brackets_succeeded:
+        # try the non-bracket version
+        items = []
+        while True:
+            items.append(p_with_item(s, is_async))
+            #if (s.position()[1] > 1850):
+            #    import pdb; pdb.set_trace()
+            if s.sy == ",":
+                s.next()
+            else:
+                break
+    body = p_suite(s)
+    for item in reversed(items):
+        if item[0] == "gil":
+            pos, state, condition = item[1:]
+            body = Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
+        else:
+            pos, manager, target = item[1:]
+            assert item[0] == "with", item[0]
+            body = Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+    return body
+
+
+def p_with_item(s, is_async):
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         if is_async:
@@ -2158,24 +2207,14 @@ def p_with_items(s, is_async=False):
             condition = p_test(s)
             s.expect(')')
 
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s)
-        else:
-            body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
+        return "gil", pos, state, condition
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s, is_async=is_async)
-        else:
-            body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+    return "with", pos, manager, target
 
 
 def p_with_template(s):
