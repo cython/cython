@@ -102,6 +102,58 @@ class CdefClass:
     CdefClass qualname
     >>> print(CdefClass.__qualname__, CdefClass.__module__)
     CdefClass qualname
+
+    #>>> print(CdefClass.l["__qualname__"], CdefClass.l["__module__"])
+    #CdefClass qualname
     """
     qn = __qualname__
     m = __module__
+
+    # TODO - locals and cdef classes is unreliable, irrespective of qualname
+    # l = locals().copy()
+
+
+# TODO - locals and cdef classes is unreliable, irrespective of qualname
+#@cython.cclass
+#class CdefOnlyLocals:
+#    """
+#    >>> print(CdefOnlyLocals.l["__qualname__"], CdefOnlyLocals.l["__module__"])
+#    CdefOnlyLocals qualname
+#    """
+#    l = locals().copy()
+
+@cython.cclass
+class CdefModifyNames:
+    """
+    >>> print(CdefModifyNames.qn_reassigned, CdefModifyNames.m_reassigned)
+    I'm not a qualname I'm not a module
+
+    # TODO - enable when https://github.com/cython/cython/issues/4815 is fixed
+    #>>> hasattr(CdefModifyNames, "qn_deleted")
+    #False
+    #>>> hasattr(CdefModifyNames, "m_deleted")
+    #False
+
+    #>>> print(CdefModifyNames.l["__qualname__"], CdefModifyNames.l["__module__"])
+    #I'm not a qualname I'm not a module
+    """
+    __qualname__ = "I'm not a qualname"
+    __module__ = "I'm not a module"
+    qn_reassigned = __qualname__
+    m_reassigned = __module__
+    # TODO - locals and cdef classes is unreliable, irrespective of qualname
+    #l = locals().copy()
+    # TODO del inside cdef class scope is broken
+    # https://github.com/cython/cython/issues/4815
+    #del __qualname__
+    #del __module__
+    #try:
+    #    qn_deleted = __qualname__
+    #except NameError:
+    #    pass
+    #try:
+    #    m_deleted = __module__
+    #except NameError:
+    #    pass
+
+

@@ -1182,7 +1182,7 @@ class BuiltinScope(Scope):
     def declare_builtin_type(self, name, cname, utility_code = None, objstruct_cname = None):
         name = EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname, objstruct_cname)
-        scope = CClassScope(name, outer_scope=None, visibility='extern')
+        scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
         if name == 'bool':
             type.is_final_type = True
@@ -1688,7 +1688,8 @@ class ModuleScope(Scope):
         if not type.scope:
             if defining or implementing:
                 scope = CClassScope(name = name, outer_scope = self,
-                    visibility = visibility)
+                    visibility = visibility,
+                    parent_type=type)
                 scope.directives = self.directives.copy()
                 if base_type and base_type.scope:
                     scope.declare_inherited_c_attributes(base_type.scope)
@@ -2243,25 +2244,16 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
-    _namespace_cname = None  # lazily calculated attribute
 
-    @property
-    def namespace_cname(self):
-        if not self._namespace_cname:
-            self._namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
-        return self._namespace_cname
-
-    @namespace_cname.setter
-    def namespace_cname(self, value):
-        self._namespace_cname = value
-
-    def __init__(self, name, outer_scope, visibility):
+    def __init__(self, name, outer_scope, visibility, parent_type):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
         self.property_entries = []
         self.inherited_var_entries = []
+        self.parent_type = parent_type  # needs to be initialized
+        self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
