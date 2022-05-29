@@ -75,18 +75,18 @@ def call_exceptminus2_2(bad):
 cdef int noexcept_func():  # noexcept
     return 0
 
-def call_noexcept_func1():
+def call_noexcept_func_except_star():
     """
-    >>> call_noexcept_func1()
+    >>> call_noexcept_func_except_star()
     0
     """
     cdef int (*fptr)() except *
     fptr = noexcept_func  # exception specifications are compatible
     return fptr()
 
-def call_noexcept_func2():
+def call_noexcept_func_except_check():
     """
-    >>> call_noexcept_func2()
+    >>> call_noexcept_func_except_check()
     0
     """
     cdef int (*fptr)() except ?-1
