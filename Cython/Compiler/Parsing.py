@@ -2174,8 +2174,6 @@ def p_with_items(s, is_async=False):
         items = []
         while True:
             items.append(p_with_item(s, is_async))
-            #if (s.position()[1] > 1850):
-            #    import pdb; pdb.set_trace()
             if s.sy == ",":
                 s.next()
             else:
