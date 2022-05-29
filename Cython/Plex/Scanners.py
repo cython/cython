@@ -152,7 +152,6 @@ class Scanner(object):
         self.current_scanner_position_tuple = (
             self.name, self.cur_line, self.cur_pos - self.cur_line_start
         )
-        print(self.current_scanner_position_tuple)
         action = self.run_machine_inlined()
         if action is not None:
             if self.trace:

@@ -4,6 +4,7 @@
 #
 
 from __future__ import absolute_import
+from ast import Expression
 
 # This should be done automatically
 import cython
@@ -2404,8 +2405,6 @@ def p_statement(s, ctx, first_statement = 0):
                     match_statement = p_match_statement(s, ctx)
                     if match_statement:
                         return match_statement
-                    else:
-                        print("MS", s.sy, s.queue)
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -3952,20 +3951,29 @@ def p_match_statement(s, ctx):
     with tentatively_scan(s) as errors:
         s.next()
         subject = p_test(s)
+        subjects = None
+        if s.sy == ",":
+            subjects = [subject]
+        while s.sy == ",":
+            s.next()
+            if s.sy == ":":
+                break
+            subjects.append(p_test(s))
+        if subjects is not None:
+            subject = ExprNodes.TupleNode(pos, args=subjects)
         s.expect(":")
     if errors:
-        print("XXXXXXXX", errors, s.sy)
         return None
     # at this stage were commited to it being a match block so continue
     # outside "with tentatively_scan"
     # (I think this deviates from the PEG parser slightly, and it'd
     # backtrack on the whole thing)
-    s.expect("NEWLINE")
-    s.expect("INDENT")
+    s.expect_newline()
+    s.expect_indent()
     cases = []
     while not cases or s.sy != "DEDENT":
         cases.append(p_case_block(s, ctx))
-    s.expect("DEDENT")
+    s.expect_dedent()
     return Nodes.MatchNode(pos, subject=subject, cases=cases)
 
 def p_case_block(s, ctx):
@@ -3979,18 +3987,32 @@ def p_case_block(s, ctx):
         s.next()
         guard = p_test(s)
     body = p_suite(s, ctx)
-    
-    print("P", patterns)
-    print(s.sy, s.systring)
+
     return Nodes.CaseNode(pos, patterns=patterns, body=body, guard=guard)
 
 def p_patterns(s):
-    pattern = p_maybe_star_pattern(s)
-    return pattern
+    patterns = []
+    while True:
+        with tentatively_scan(s) as errors:
+            pattern = p_maybe_star_pattern(s)
+        if errors:
+            if patterns:
+                break  # all is good provided we have at least 1 pattern
+            else:
+                e = errors[0]
+                s.error(e.args[1], pos = e.args[0])
+        patterns.append(pattern)
+        
+        if s.sy == ",":
+            s.next()
+            if s.sy in [":", "if"]:
+                break  # common reasons to break
+        else:
+            break
+    return patterns
 
 def p_maybe_star_pattern(s):
     # For match case. Either star_pattern or pattern
-    print("Maybe star", s.sy)
     if s.sy == "*":
         # star pattern
         s.next()
@@ -4026,24 +4048,33 @@ def p_pattern(s):
 
 
 def p_closed_pattern(s):
-    """| literal_pattern
+    """
+    | literal_pattern
     | capture_pattern
     | wildcard_pattern
     | value_pattern
     | group_pattern
     | sequence_pattern
     | mapping_pattern
-    | class_pattern"""
+    | class_pattern
+    """
     with tentatively_scan(s) as errors:
         result = p_literal_pattern(s)
     if not errors:
         return result
-    # ...
+    with tentatively_scan(s) as errors:
+        result = p_capture_pattern(s)
+    if not errors:
+        return result
+    with tentatively_scan(s) as errors:
+        result = p_wildcard_pattern(s)
+    if not errors:
+        return result
     with tentatively_scan(s) as errors:
         result = p_value_pattern(s)
     if not errors:
         return result
-    # ...
+    # TODO - group_pattern - single pattern in brackets
     with tentatively_scan(s) as errors:
         result = p_sequence_pattern(s)
     if not errors:
@@ -4052,8 +4083,7 @@ def p_closed_pattern(s):
         result = p_mapping_pattern(s)
     if not errors:
         return result
-    s.error("No valid case statement found")
-
+    return p_class_pattern(s)
 
 def p_literal_pattern(s):
     next_must_be_a_number = False
@@ -4109,12 +4139,18 @@ def p_literal_pattern(s):
             res = ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
         else:
             s.error("invalid string kind '%s'" % kind)
-        return Nodes.MatchMappingPatternNode(pos, value = res)
+        return Nodes.MatchConstantPatternNode(pos, value = res)
 
     
 
     s.error("NOT YET IMPLEMENTED")
     # TODO None, True, False
+
+def p_capture_pattern(s):
+    return Nodes.MatchConstantPatternNode(
+        s.position(),
+        value = p_pattern_capture_target(s)
+    )
 
 def p_value_pattern(s):
     if s.sy != "IDENT":
@@ -4122,6 +4158,8 @@ def p_value_pattern(s):
     pos = s.position()
     res = p_name(s, s.systring)
     s.next()
+    if s.sy != '.':
+        s.error("Expected '.'")
     while s.sy == '.':
         s.next()
         attr = p_ident(s)
@@ -4129,6 +4167,13 @@ def p_value_pattern(s):
     if s.sy in ['(', '=']:
         s.error("Unexpected symbol '%s'" % s.sy)
     return Nodes.MatchConstantPatternNode(pos, value = res)
+
+def p_wildcard_pattern(s):
+    if s.sy != "IDENT" or s.systring != "_":
+        s.error("Expected '_'")
+    pos = s.position()
+    s.next()
+    return Nodes.WildcardPatternNode(pos)
 
 def p_sequence_pattern(s):
     opener = s.sy
@@ -4194,14 +4239,63 @@ def p_mapping_pattern(s):
         double_star_capture_target = double_star_capture_target
     )
 
+def p_class_pattern(s):
+    # name_or_attr
+    pos = s.position()
+    res = p_name(s, s.systring)
+    s.next()
+    while s.sy == '.':
+        s.next()
+        attr = p_ident(s)
+        res = ExprNodes.AttributeNode(s.position, obj = res, attribute=attr)
+    class_ = res
+    s.expect("(")
+    if s.sy == ")":
+        s.next()
+        return Nodes.ClassPatternNode(pos, class_=class_)
+    positional_patterns = []
+    keyword_patterns = []
+    while True:
+        with tentatively_scan(s) as errors:
+            positional_patterns.append(p_pattern(s))
+        if not errors:
+            if keyword_patterns:
+                s.error("Positional patterns follow keyword patterns")
+        else:
+            with tentatively_scan(s) as errors:
+                keyword_patterns.append(p_keyword_pattern(s))
+        if s.sy == ",":
+            s.next()
+            if s.sy == ")":
+                break
+        else:
+            break
+    s.expect(")")
+    return Nodes.ClassPatternNode(
+        pos, class_ = class_,
+        positional_patterns = positional_patterns,
+        keyword_patterns = keyword_patterns
+    )
+
+def p_keyword_pattern(s):
+    if s.sy != "IDENT":
+        s.error("Expected identifier")
+    arg = p_name(s, s.systring)
+    s.next()
+    s.expect("=")
+    value = p_pattern(s)
+    return arg, value
+
 def p_pattern_capture_target(s):
     # any name but '_', and with some constraints on what follows
-    if s.systring=='_':
+    if s.sy != 'IDENT':
+        s.error("Expected identifier")
+    if s.systring == '_':
         s.error("Pattern capture target cannot be '_'")
     target = p_name(s, s.systring)
     s.next()
     if s.sy in ['.', '(', '=']:
-        s.error("Illegal next sy '%s'" % s.sy)
+        s.error("Illegal next symbol '%s'" % s.sy)
     return target
 
 

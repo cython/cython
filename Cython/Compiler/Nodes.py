@@ -10031,7 +10031,7 @@ class MatchNode(Node):
     subject  ExprNode    The expression to be matched
     cases    [CaseNode]  list of cases
     """
-    pass
+    child_attrs = ['subject', 'cases']
 
 
 class CaseNode(Node):
@@ -10042,8 +10042,16 @@ class CaseNode(Node):
     """
     child_attrs = ['patterns', 'body', 'guard']
 
+    def __init__(self, pos, **kwds):
+        print(type(self), kwds["patterns"])
+        super().__init__(pos, **kwds)
+
 
 class PatternNode(Node):
+    pass
+
+
+class WildcardPatternNode(PatternNode):
     pass
 
 
@@ -10075,6 +10083,17 @@ class MatchMappingPatternNode(PatternNode):
     double_star_capture_target = None
     
     child_attrs = ['key_values', 'double_star_capture_target']
+
+
+class ClassPatternNode(PatternNode):
+    """
+    class_  NameNode or AttributeNode
+    positional_patterns  list
+    keyword_patterns    list of pairs
+    """
+    class_ = None
+    positional_patterns = []
+    keyword_patterns = []
 
 
 #------------------------------------------------------------------------------------
