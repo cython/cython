@@ -43,7 +43,7 @@ class Scanner(object):
       begin(state_name)
         Causes scanner to change state.
 
-      produce(value [, text])
+      produce(value, [, text])
         Causes return of a token value to the caller of the
         Scanner.
 
@@ -61,12 +61,13 @@ class Scanner(object):
     #  cur_line = 1          # line number of current char
     #  cur_line_start = 0    # position in input of start of current line
     #  start_pos = 0         # position in input of start of token
-    #  start_line = 0        # line number of start of token
-    #  start_col = 0         # position in line of start of token
+    #  current_scanner_position_tuple = ("", 0, 0)
+    #        tuple of filename, line number and position in line, really mainly for error reporting
+
     #  These positions are used to track what was read from the queue
     #   (which may differ from the internal state when tokens are replaced onto the queue)
-    #  last_token_line       # line number of the last token taken from the queue
-    #  last_token_col        # position in line of the last token taken from the queue
+    #  last_token_position_tuple = ("", 0, 0)  # tuple of filename, line number and position in line
+
     #  text = None           # text of last token read
     #  initial_state = None  # Node
     #  state_name = ''       # Name of initial state
@@ -94,12 +95,10 @@ class Scanner(object):
         self.cur_pos = 0
         self.cur_line = 1
         self.start_pos = 0
-        self.start_line = 0
-        self.start_col = 0
+        self.current_scanner_position_tuple = ("", 0, 0)
+        self.last_token_position_tuple = ("", 0, 0)
         self.text = None
         self.state_name = None
-        self.last_token_line = 1
-        self.last_token_col = 0
 
         self.lexicon = lexicon
         self.stream = stream
@@ -132,14 +131,16 @@ class Scanner(object):
                 value = action.perform(self, self.text)
                 if value is not None:
                     self.produce(value)
-        result, result_pos = queue[0]
-        self.last_token_line, self.last_token_col = result_pos
+        result, self.last_token_position_tuple = queue[0]
         del queue[0]
         return result
 
-    def unread(self, token, value, pos_line, pos_col):
-        # This method should be added to Plex
-        self.queue.insert(0, ((token, value), (pos_line, pos_col)))
+    def unread(self, token, value, position):
+        self.queue.insert(0, ((token, value), position))
+
+    def get_current_scan_pos(self):
+        # distinct from the position of the last token due to the queue
+        return self.current_scanner_position_tuple
 
     def scan_a_token(self):
         """
@@ -148,8 +149,10 @@ class Scanner(object):
         file.
         """
         self.start_pos = self.cur_pos
-        self.start_line = self.cur_line
-        self.start_col = self.cur_pos - self.cur_line_start
+        self.current_scanner_position_tuple = (
+            self.name, self.cur_line, self.cur_pos - self.cur_line_start
+        )
+        print(self.current_scanner_position_tuple)
         action = self.run_machine_inlined()
         if action is not None:
             if self.trace:
@@ -316,7 +319,7 @@ class Scanner(object):
         position within the line of the first character of the token
         (0-based).
         """
-        return (self.name, self.last_token_line, self.last_token_col)
+        return self.last_token_position_tuple
 
     def get_position(self):
         """
@@ -343,7 +346,7 @@ class Scanner(object):
         """
         if text is None:
             text = self.text
-        self.queue.append(((value, text), (self.start_line, self.start_col)))
+        self.queue.append(((value, text), self.current_scanner_position_tuple))
 
     def eof(self):
         """
@@ -351,3 +354,7 @@ class Scanner(object):
         end of file.
         """
         pass
+
+    @property
+    def start_line(self):
+        return self.last_token_position_tuple[1]

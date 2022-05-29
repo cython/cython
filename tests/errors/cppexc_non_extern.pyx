@@ -14,9 +14,9 @@ cdef test_func2(self) except +:
     pass
 
 _ERRORS = """
-9:15: Only extern functions can throw C++ exceptions.
+9:5: Only extern functions can throw C++ exceptions.
 """
 
 _WARNINGS = """
-13:15: Only extern functions can throw C++ exceptions.
+13:5: Only extern functions can throw C++ exceptions.
 """

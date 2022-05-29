@@ -396,7 +396,7 @@ class PyrexScanner(Scanner):
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
-        self.error_in_action("Unclosed string literal")
+        self.error_at_scanpos("Unclosed string literal")
 
     def indentation_action(self, text):
         self.begin('')
@@ -412,9 +412,9 @@ class PyrexScanner(Scanner):
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
                 if self.indentation_char != c:
-                    self.error_in_action("Mixed use of tabs and spaces")
+                    self.error_at_scanpos("Mixed use of tabs and spaces")
             if text.replace(c, "") != "":
-                self.error_in_action("Mixed use of tabs and spaces")
+                self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
         current_level = self.current_level()
         new_level = len(text)
@@ -432,7 +432,7 @@ class PyrexScanner(Scanner):
                 self.produce('DEDENT', '')
             #print "...current level now", self.current_level() ###
             if new_level != self.current_level():
-                self.error_in_action("Inconsistent indentation")
+                self.error_at_scanpos("Inconsistent indentation")
 
     def eof_action(self, text):
         while len(self.indentation_stack) > 1:
@@ -444,7 +444,7 @@ class PyrexScanner(Scanner):
         try:
             sy, systring = self.read()
         except UnrecognizedInput:
-            self.error_in_action("Unrecognized character")
+            self.error_at_scanpos("Unrecognized character")
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
@@ -473,16 +473,16 @@ class PyrexScanner(Scanner):
         self.next()
         next = self.sy, self.systring
         next_pos = self.position()
-        self.unread(*(next+next_pos[1:]))
+        self.unread(self.sy, self.systring, next_pos)
         self.sy, self.systring = saved
-        self.last_token_line, self.last_token_col = saved_pos[1:]
+        self.last_token_position_tuple = saved_pos
         return next
 
     def put_back(self, sy, systring, pos):
-        self.unread(self.sy, self.systring, self.last_token_line, self.last_token_col)
+        self.unread(self.sy, self.systring, self.last_token_position_tuple)
         self.sy = sy
         self.systring = systring
-        self.last_token_line, self.last_token_col = pos[1:]
+        self.last_token_position_tuple = pos
 
 
     def error(self, message, pos=None, fatal=True):
@@ -493,12 +493,11 @@ class PyrexScanner(Scanner):
         err = error(pos, message)
         if fatal: raise err
 
-    def error_in_action(self, message, pos=None, fatal=True):
-        # like error, but gets the current scanning position rather than
-        # the position of the last token read
-        if pos is None:
-            pos = (self.name, self.start_line, self.start_col)
-        self.error(message, pos, fatal)
+    def error_at_scanpos(self, message):
+        # Like error(fatal=True), but gets the current scanning position rather than
+        # the position of the last token read.
+        pos = self.get_current_scan_pos()
+        self.error(message, pos, True)
 
     def expect(self, what, message=None):
         if self.sy == what:
@@ -568,10 +567,8 @@ def tentatively_scan(scanner):
         finally:
             if errors:
                 for put_back in reversed(scanner.put_back_on_failure[:-1]):
-                    print("Putting back:", put_back)
                     scanner.put_back(*put_back)
                 if scanner.put_back_on_failure:
-                    print("Putting back:", initial_state)
                     # we need to restore the initial state too
                     scanner.put_back(*initial_state)
             scanner.put_back_on_failure = put_back_on_failure
