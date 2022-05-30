@@ -558,12 +558,12 @@ def tentatively_scan(scanner):
     errors = hold_errors()
     try:
         put_back_on_failure = scanner.put_back_on_failure
-        initial_state = (scanner.sy, scanner.systring, scanner.position())
         scanner.put_back_on_failure = []
+        initial_state = (scanner.sy, scanner.systring, scanner.position())
         try:
             yield errors
         except CompileError as e:
-            errors.append(e)
+            pass
         finally:
             if errors:
                 for put_back in reversed(scanner.put_back_on_failure[:-1]):
@@ -571,6 +571,10 @@ def tentatively_scan(scanner):
                 if scanner.put_back_on_failure:
                     # we need to restore the initial state too
                     scanner.put_back(*initial_state)
+            elif put_back_on_failure is not None:
+                # the outer "tentatively_scan" block that we're in might still
+                # want to undo this block
+                put_back_on_failure.extend(scanner.put_back_on_failure)
             scanner.put_back_on_failure = put_back_on_failure
     finally:
         release_errors(ignore=True)

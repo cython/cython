@@ -103,6 +103,34 @@ class TestScanning(unittest.TestCase):
         scanner.next()
         self.assertEqual(scanner.systring, "b3")
 
+        # test a few combinations of nested scanning
+        sy1, systring1 = scanner.sy, scanner.systring
+        pos1 = scanner.position()
+        with Scanning.tentatively_scan(scanner):
+            scanner.next()
+            sy2, systring2 = scanner.sy, scanner.systring
+            pos2 = scanner.position()
+            with Scanning.tentatively_scan(scanner):
+                with Scanning.tentatively_scan(scanner):
+                    scanner.next()
+                    scanner.next()
+                    scanner.error("Ooops")
+                self.assertEqual((scanner.sy, scanner.systring), (sy2, systring2))
+            self.assertEqual((scanner.sy, scanner.systring), (sy2, systring2))
+            scanner.error("eee")
+        self.assertEqual((scanner.sy, scanner.systring), (sy1, systring1))
+        with Scanning.tentatively_scan(scanner):
+            scanner.next()
+            scanner.next()
+            with Scanning.tentatively_scan(scanner):
+                scanner.next()
+                # no error - but this block should be unwound by the outer block too
+            scanner.next()
+            scanner.error("Oooops")
+        self.assertEqual((scanner.sy, scanner.systring), (sy1, systring1))
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
