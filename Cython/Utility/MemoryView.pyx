@@ -971,6 +971,24 @@ cdef class _memoryviewslice(memoryview):
         return self.from_object
 
 
+@cname('__pyx_register_memviewtypes_as_sequence')
+cdef void register_memviewtypes_as_sequence():
+    try:
+        import sys
+        if sys.version_info >= (3, 3):
+            from collections.abc import Sequence
+        else:
+            from collections import Sequence
+        # The main value of registering _memoryviewslice as a
+        # Sequence is that it can be used in strucutal pattern
+        # matching in Python 3.10+
+        Sequence.register(_memoryviewslice)
+        Sequence.register(array)
+    except:
+        pass  # ignore failure, it's a minor issue
+
+register_memviewtypes_as_sequence()
+
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,

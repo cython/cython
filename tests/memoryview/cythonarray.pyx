@@ -286,3 +286,17 @@ def test_char_array_in_python_api(*shape):
     arr = array(shape=shape, itemsize=sizeof(char), format='c', mode='c')
     arr[:] = b'x'
     return arr
+
+def test_is_Sequence():
+    """
+    >>> test_is_Sequence()
+    True
+    """
+    import sys
+    if sys.version_info < (3, 3):
+        from collections import Sequence
+    else:
+        from collections.abc import Sequence
+    arr = array(shape=(5,), itemsize=sizeof(char), format='c', mode='c')
+    return isinstance(arr, Sequence)
+

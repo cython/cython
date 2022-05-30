@@ -1205,3 +1205,14 @@ def test_conversion_failures():
                 assert get_refcount(dmb) == dmb_before, "before %s after %s" % (dmb_before, get_refcount(dmb))
             else:
                 assert False, "Conversion should fail!"
+
+def test_is_Sequence(double[:] a):
+    """
+    >>> test_is_Sequence(DoubleMockBuffer(None, range(6), shape=(6,)))
+    True
+    """
+    if sys.version_info < (3, 3):
+        from collections import Sequence
+    else:
+        from collections.abc import Sequence
+    return isinstance(<object>a, Sequence)
