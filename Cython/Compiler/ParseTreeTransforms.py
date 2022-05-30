@@ -383,6 +383,10 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+    def visit_ErrorNode(self, node):
+        error(node.pos, node.what)
+        return None
+
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
         super(_AssignmentExpressionTargetNameFinder, self).__init__()

@@ -10026,7 +10026,7 @@ class CnameDecoratorNode(StatNode):
         self.node.generate_execution_code(code)
 
 
-class MatchNode(Node):
+class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
     cases    [CaseNode]  list of cases
@@ -10034,7 +10034,7 @@ class MatchNode(Node):
     child_attrs = ['subject', 'cases']
 
 
-class CaseNode(Node):
+class CaseNode(StatNode):
     """
     patterns   list of PatternNodes
     body       StatListNode
@@ -10042,13 +10042,14 @@ class CaseNode(Node):
     """
     child_attrs = ['patterns', 'body', 'guard']
 
-    def __init__(self, pos, **kwds):
-        print(type(self), kwds["patterns"])
-        super().__init__(pos, **kwds)
-
 
 class PatternNode(Node):
-    pass
+    """
+    as_target   None or NameNode
+    """
+    as_target = None
+
+    child_attrs = ["as_target"]
 
 
 class WildcardPatternNode(PatternNode):
@@ -10059,7 +10060,7 @@ class MatchConstantPatternNode(PatternNode):
     """
     value   ExprNode        # todo be more specific
     """
-    child_attrs = ['value']
+    child_attrs = PatternNode.child_attrs + ['value']
 
 
 class MatchStarPatternNode(PatternNode):
@@ -10068,32 +10069,61 @@ class MatchStarPatternNode(PatternNode):
     """
     target = None
 
-    child_attrs = ['target']
+    child_attrs = PatternNode.child_attrs + ['target']
+
+
+class OrPatternNode(PatternNode):
+    """
+    alternatives   
+    """
+    child_attrs = PatternNode.child_attrs + ["alternatives"]
 
 
 class MatchSequencePatternNode(PatternNode):
     """
     patterns   list of PatternNodes
     """
-    child_attrs = ['patterns']
+    child_attrs =  PatternNode.child_attrs + ['patterns']
 
 
 class MatchMappingPatternNode(PatternNode):
-    key_values = []
+    keys = []
+    value_patterns = []
     double_star_capture_target = None
     
-    child_attrs = ['key_values', 'double_star_capture_target']
+    child_attrs = PatternNode.child_attrs + [
+        'keys', 'value_patterns', 'double_star_capture_target'
+    ]
 
 
 class ClassPatternNode(PatternNode):
     """
     class_  NameNode or AttributeNode
-    positional_patterns  list
-    keyword_patterns    list of pairs
+    positional_patterns  list of PatternNodes
+    keyword_pattern_names    list of NameNodes
+    keyword_pattern_patterns    list of PatternNodes
+                                (same length as keyword_pattern_names)
     """
     class_ = None
     positional_patterns = []
-    keyword_patterns = []
+    keyword_pattern_names = []
+    keyword_pattern_patterns = []
+
+    child_attrs =  PatternNode.child_attrs + [
+        "class_", "positional_patterns",
+        "keyword_pattern_names", "keyword_pattern_patterns",
+    ]
+
+
+class ErrorNode(Node):
+    """
+    Node type for things that we want to get throught the parser
+    (especially for things that are being scanned in "tentative_scan"
+    blocks), but should immediately raise and error afterwards.
+
+    what    str
+    """
+    pass
 
 
 #------------------------------------------------------------------------------------
