@@ -980,7 +980,7 @@ cdef void register_memviewtypes_as_sequence():
         else:
             from collections import Sequence
         # The main value of registering _memoryviewslice as a
-        # Sequence is that it can be used in strucutal pattern
+        # Sequence is that it can be used in structural pattern
         # matching in Python 3.10+
         Sequence.register(_memoryviewslice)
         Sequence.register(array)
