@@ -1209,10 +1209,32 @@ def test_conversion_failures():
 def test_is_Sequence(double[:] a):
     """
     >>> test_is_Sequence(DoubleMockBuffer(None, range(6), shape=(6,)))
+    1
+    1
     True
     """
     if sys.version_info < (3, 3):
         from collections import Sequence
     else:
         from collections.abc import Sequence
+
+    for i in range(a.shape[0]):
+        a[i] = i
+    print(a.count(1.0))  # test for presence of added collection method
+    print(a.index(1.0))  # test for presence of added collection method
+
+    if sys.version_info >= (3, 10):
+        # test structural pattern match in Python
+        # (because Cython hasn't implemented it yet, and because the details
+        # of what Python considers a sequence are important)
+        globs = {'arr': a}
+        exec("""
+match arr:
+    case [*_]:
+        res = True
+    case _:
+        res = False
+""", globs)
+        assert globs['res']
+
     return isinstance(<object>a, Sequence)
