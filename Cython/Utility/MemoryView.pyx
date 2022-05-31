@@ -242,7 +242,6 @@ cdef class array:
     except:
         pass
 
-
 @cname("__pyx_array_allocate_buffer")
 cdef int _allocate_buffer(array self) except -1:
     # use malloc() for backwards compatibility
@@ -995,21 +994,15 @@ cdef class _memoryviewslice(memoryview):
     except:
         pass
 
-
-@cname('__pyx_register_memviewtypes_as_sequence')
-cdef void register_memviewtypes_as_sequence():
-    try:
-        Sequence = __pyx_collections_abc_Sequence
-        if Sequence:
-            # The main value of registering _memoryviewslice as a
-            # Sequence is that it can be used in structural pattern
-            # matching in Python 3.10+
-            Sequence.register(_memoryviewslice)
-            Sequence.register(array)
-    except:
-        pass  # ignore failure, it's a minor issue
-
-register_memviewtypes_as_sequence()
+try:
+    if __pyx_collections_abc_Sequence:
+        # The main value of registering _memoryviewslice as a
+        # Sequence is that it can be used in structural pattern
+        # matching in Python 3.10+
+        __pyx_collections_abc_Sequence.register(_memoryviewslice)
+        __pyx_collections_abc_Sequence.register(array)
+except:
+    pass  # ignore failure, it's a minor issue
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
