@@ -387,6 +387,16 @@ class PostParse(ScopeTrackingTransform):
         error(node.pos, node.what)
         return None
 
+    def visit_MatchCaseNode(self, node):
+        node.validate_targets()
+        self.visitchildren(node)
+        return node
+
+    def visit_MatchNode(self, node):
+        node.validate_irrefutable()
+        self.visitchildren(node)
+        return node
+
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
         super(_AssignmentExpressionTargetNameFinder, self).__init__()

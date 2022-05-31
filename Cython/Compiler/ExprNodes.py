@@ -14169,3 +14169,155 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
+
+
+class PatternNode(ExprNode):
+    """
+    as_target   None or NameNode
+    """
+    as_target = None
+    is_irrefutable = False
+
+    # PatternNodes always return a bint to indicate if they've match
+    type = PyrexTypes.c_bint_type
+
+    child_attrs = ["as_target"]
+
+    def get_targets(self):
+        return {self.as_target.name} if self.as_target else set()
+
+    def validate_irrefutable(self):
+        for attr in self.child_attrs:
+            child = getattr(self, attr)
+            if isinstance(child, PatternNode):
+                child.validate_irrefutable()
+
+
+class MatchValuePatternNode(PatternNode):
+    """
+    value   ExprNode        # todo be more specific
+    is_check   bool     Picks "is" or equality check
+    """
+    child_attrs = PatternNode.child_attrs + ['value']
+    is_check = False
+
+
+class MatchAndAssignPatternNode(PatternNode):
+    """
+    target   NameNode or None  the target to assign to (None = wildcard)
+    is_star  bool
+    """
+    target = None
+    is_star = False
+
+    @property
+    def is_irrefutable(self):
+        return not self.is_star
+
+    def irrefutable_message(self):
+        if self.target:
+            return "name capture '%s'" % self.target.name
+        else:
+            return "wildcard"
+
+    child_attrs = PatternNode.child_attrs + ['target'] 
+
+    def get_targets(self):
+        targets = super(MatchAndAssignPatternNode, self).get_targets()
+        if self.target:
+            targets.add(self.target.name)
+        return targets
+
+
+class OrPatternNode(PatternNode):
+    """
+    alternatives   list of PatternNodes
+    """
+    child_attrs = PatternNode.child_attrs + ["alternatives"]
+
+    def get_targets(self):
+        base_targets = super(OrPatternNode, self).get_targets()
+        child_targets = None
+        for ch in self.alternatives:
+            ch_targets = ch.get_targets()
+            if child_targets is not None and child_targets != ch_targets:
+                error(self.pos, "alternative patterns bind different names")
+            child_targets = ch_targets
+        base_targets.update(child_targets)
+        return base_targets
+
+    def validate_irrefutable(self):
+        super(OrPatternNode, self).validate_irrefutable()
+        found_irrefutable_case = None
+        for a in self.alternatives:
+            if found_irrefutable_case:
+                error(
+                    found_irrefutable_case.pos,
+                    ("%s makes remaining patterns unreachable" %
+                        found_irrefutable_case.irrefutable_message())
+                )
+                break
+            if a.is_irrefutable:
+                found_irrefutable_case = a
+            a.validate_irrefutable()
+
+
+class MatchSequencePatternNode(PatternNode):
+    """
+    patterns   list of PatternNodes
+    """
+    child_attrs =  PatternNode.child_attrs + ['patterns']
+
+    def get_targets(self):
+        targets = super(MatchSequencePatternNode, self).get_targets()
+        for p in self.patterns:
+            targets.update(p.get_targets())
+        return targets
+
+
+class MatchMappingPatternNode(PatternNode):
+    """
+    keys   list of NameNodes
+    value_patterns  list of PatternNodes of equal length to keys
+    double_star_capture_target  NameNode or None
+    """
+    keys = []
+    value_patterns = []
+    double_star_capture_target = None
+    
+    child_attrs = PatternNode.child_attrs + [
+        'keys', 'value_patterns', 'double_star_capture_target'
+    ]
+
+    def get_targets(self):
+        targets = super(MatchMappingPatternNode, self).get_targets()
+        for p in self.value_patterns:
+            targets.update(p.get_targets())
+        if self.double_star_capture_target:
+            targets.add(self.double_star_capture_target.name)
+        return targets
+
+
+class ClassPatternNode(PatternNode):
+    """
+    class_  NameNode or AttributeNode
+    positional_patterns  list of PatternNodes
+    keyword_pattern_names    list of NameNodes
+    keyword_pattern_patterns    list of PatternNodes
+                                (same length as keyword_pattern_names)
+    """
+    class_ = None
+    positional_patterns = []
+    keyword_pattern_names = []
+    keyword_pattern_patterns = []
+
+    child_attrs =  PatternNode.child_attrs + [
+        "class_", "positional_patterns",
+        "keyword_pattern_names", "keyword_pattern_patterns",
+    ]
+
+    def get_targets(self):
+        targets = super(ClassPatternNode, self).get_targets()
+        for p in self.positional_patterns + self.keyword_pattern_patterns:
+            targets.update(p.get_targets())
+        return targets

@@ -3971,27 +3971,30 @@ def p_match_statement(s, ctx):
     s.expect_newline()
     s.expect_indent()
     cases = []
-    while not cases or s.sy != "DEDENT":
+    while s.sy != "DEDENT":
         cases.append(p_case_block(s, ctx))
     s.expect_dedent()
-    return Nodes.MatchNode(pos, subject=subject, cases=cases)
+    return Nodes.MatchNode(pos, subject = subject, cases = cases)
 
 def p_case_block(s, ctx):
     if not (s.sy=="IDENT" and s.systring == "case"):
         s.error("Expected 'case'")
     s.next()
     pos = s.position()
-    patterns = p_patterns(s)
+    pattern = p_patterns(s)
     guard = None
     if s.sy == 'if':
         s.next()
         guard = p_test(s)
     body = p_suite(s, ctx)
 
-    return Nodes.CaseNode(pos, patterns=patterns, body=body, guard=guard)
+    return Nodes.MatchCaseNode(pos, pattern=pattern, body=body, guard=guard)
 
 def p_patterns(s):
+    # note - in slight contrast to the name, returns a single pattern
     patterns = []
+    seq = False
+    pos = s.position()
     while True:
         with tentatively_scan(s) as errors:
             pattern = p_maybe_star_pattern(s)
@@ -4004,12 +4007,16 @@ def p_patterns(s):
         patterns.append(pattern)
         
         if s.sy == ",":
+            seq = True
             s.next()
             if s.sy in [":", "if"]:
                 break  # common reasons to break
         else:
             break
-    return patterns
+    if seq:
+        return ExprNodes.MatchSequencePatternNode(pos, patterns = patterns)
+    else:
+        return patterns[0]
 
 def p_maybe_star_pattern(s):
     # For match case. Either star_pattern or pattern
@@ -4021,7 +4028,9 @@ def p_maybe_star_pattern(s):
             target = p_pattern_capture_target(s)
         else:
             s.next()
-        pattern = Nodes.MatchStarPatternNode(s.position(), target=target)
+        pattern = ExprNodes.MatchAndAssignPatternNode(
+            s.position(), target = target, is_star = True
+        )
         return pattern
     else:
         p = p_pattern(s)
@@ -4039,7 +4048,7 @@ def p_pattern(s):
         else:
             break
     if len(patterns) > 1:
-        pattern = Nodes.OrPatternNode(
+        pattern = ExprNodes.OrPatternNode(
             pos,
             alternatives = patterns
         )
@@ -4054,9 +4063,10 @@ def p_pattern(s):
             # make this a specific error
             return Nodes.ErrorNode(errors[0].args[0], what = errors[0].args[1])
         elif errors:
-            with tentatively_scan:
+            with tentatively_scan(s):
                 expr = p_test(s)
                 return Nodes.ErrorNode(expr.pos, what = "Invalid pattern target")
+            s.error(errors[0])
     return pattern
 
 
@@ -4139,7 +4149,7 @@ def p_literal_pattern(s):
         res = ExprNodes.ImagNode(pos, value = value)
 
     if res:
-        return Nodes.MatchConstantPatternNode(pos, value = res)
+        return ExprNodes.MatchValuePatternNode(pos, value = res)
 
     if sy == 'BEGIN_STRING':
         if next_must_be_a_number:
@@ -4157,7 +4167,7 @@ def p_literal_pattern(s):
             res = ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
         else:
             s.error("invalid string kind '%s'" % kind)
-        return Nodes.MatchConstantPatternNode(pos, value = res)
+        return ExprNodes.MatchValuePatternNode(pos, value = res)
     elif sy == 'IDENT':
         name = s.systring
         result = None
@@ -4172,14 +4182,14 @@ def p_literal_pattern(s):
             result = ExprNodes.NullNode(pos)
         if result:
             s.next()
-            return Nodes.MatchConstantPatternNode(pos, value = result)   
+            return ExprNodes.MatchValuePatternNode(pos, value = result, is_check = True)   
 
     s.error("Failed to match literal")
 
 def p_capture_pattern(s):
-    return Nodes.MatchConstantPatternNode(
+    return ExprNodes.MatchAndAssignPatternNode(
         s.position(),
-        value = p_pattern_capture_target(s)
+        target = p_pattern_capture_target(s)
     )
 
 def p_value_pattern(s):
@@ -4197,7 +4207,7 @@ def p_value_pattern(s):
         res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute=attr)
     if s.sy in ['(', '=']:
         s.error("Unexpected symbol '%s'" % s.sy)
-    return Nodes.MatchConstantPatternNode(pos, value = res)
+    return ExprNodes.MatchValuePatternNode(pos, value = res)
 
 def p_group_pattern(s):
     s.expect("(")
@@ -4210,7 +4220,7 @@ def p_wildcard_pattern(s):
         s.error("Expected '_'")
     pos = s.position()
     s.next()
-    return Nodes.WildcardPatternNode(pos)
+    return ExprNodes.MatchAndAssignPatternNode(pos)
 
 def p_sequence_pattern(s):
     opener = s.sy
@@ -4234,7 +4244,7 @@ def p_sequence_pattern(s):
                         s.error("tuple-like pattern of length 1 must finish with ','")
                     break
             s.expect(closer)
-        return Nodes.MatchSequencePatternNode(pos, patterns=patterns)
+        return ExprNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
         s.error("Expected '[' or '('") 
 
@@ -4243,7 +4253,7 @@ def p_mapping_pattern(s):
     s.expect('{')
     if s.sy == '}':
         s.next()
-        return Nodes.MatchMappingPatternNode(pos)
+        return ExprNodes.MatchMappingPatternNode(pos)
     double_star_capture_target = None
     items_patterns = []
     double_star_set_twice = None
@@ -4275,7 +4285,7 @@ def p_mapping_pattern(s):
     s.next()
     if double_star_set_twice is not None:
         return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
-    return Nodes.MatchMappingPatternNode(
+    return ExprNodes.MatchMappingPatternNode(
         pos,
         keys = [kv[0] for kv in items_patterns],
         value_patterns = [kv[1] for kv in items_patterns],
@@ -4296,7 +4306,7 @@ def p_class_pattern(s):
     s.expect("(")
     if s.sy == ")":
         s.next()
-        return Nodes.ClassPatternNode(pos, class_=class_)
+        return ExprNodes.ClassPatternNode(pos, class_=class_)
     positional_patterns = []
     keyword_patterns = []
     keyword_patterns_error = None
@@ -4321,11 +4331,11 @@ def p_class_pattern(s):
             keyword_patterns_error,
             what = "Positional patterns follow keyword patterns"
         )
-    return Nodes.ClassPatternNode(
+    return ExprNodes.ClassPatternNode(
         pos, class_ = class_,
         positional_patterns = positional_patterns,
         keyword_pattern_names = [kv[0] for kv in keyword_patterns],
-        keyword_pattern_patterns = [kv[0] for kv in keyword_patterns],
+        keyword_pattern_patterns = [kv[1] for kv in keyword_patterns],
     )
 
 def p_keyword_pattern(s):

@@ -10029,90 +10029,45 @@ class CnameDecoratorNode(StatNode):
 class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
-    cases    [CaseNode]  list of cases
+    cases    [MatchCaseNode]  list of cases
     """
     child_attrs = ['subject', 'cases']
 
+    def validate_irrefutable(self):
+        found_irrefutable_case = None
+        for c in self.cases:
+            if found_irrefutable_case:
+                error(
+                    found_irrefutable_case.pos,
+                    ("%s makes remaining patterns unreachable" %
+                        found_irrefutable_case.pattern.irrefutable_message())
+                )
+                break
+            if c.is_irrefutable():
+                found_irrefutable_case = c
+            c.validate_irrefutable()
+        
+    def analyse_expressions(self, env):
+        error(self.pos, "Structural pattern match is not yet implemented")
+        return self
 
-class CaseNode(StatNode):
+
+class MatchCaseNode(Node):
     """
-    patterns   list of PatternNodes
+    pattern    PatternNode
     body       StatListNode
     guard      ExprNode or None
     """
-    child_attrs = ['patterns', 'body', 'guard']
+    child_attrs = ['pattern', 'body', 'guard']
 
+    def is_irrefutable(self):
+        return self.pattern.is_irrefutable and not self.guard
 
-class PatternNode(Node):
-    """
-    as_target   None or NameNode
-    """
-    as_target = None
+    def validate_targets(self):
+        self.pattern.get_targets()
 
-    child_attrs = ["as_target"]
-
-
-class WildcardPatternNode(PatternNode):
-    pass
-
-
-class MatchConstantPatternNode(PatternNode):
-    """
-    value   ExprNode        # todo be more specific
-    """
-    child_attrs = PatternNode.child_attrs + ['value']
-
-
-class MatchStarPatternNode(PatternNode):
-    """
-    target   NameNode or None  the target to assign to
-    """
-    target = None
-
-    child_attrs = PatternNode.child_attrs + ['target']
-
-
-class OrPatternNode(PatternNode):
-    """
-    alternatives   
-    """
-    child_attrs = PatternNode.child_attrs + ["alternatives"]
-
-
-class MatchSequencePatternNode(PatternNode):
-    """
-    patterns   list of PatternNodes
-    """
-    child_attrs =  PatternNode.child_attrs + ['patterns']
-
-
-class MatchMappingPatternNode(PatternNode):
-    keys = []
-    value_patterns = []
-    double_star_capture_target = None
-    
-    child_attrs = PatternNode.child_attrs + [
-        'keys', 'value_patterns', 'double_star_capture_target'
-    ]
-
-
-class ClassPatternNode(PatternNode):
-    """
-    class_  NameNode or AttributeNode
-    positional_patterns  list of PatternNodes
-    keyword_pattern_names    list of NameNodes
-    keyword_pattern_patterns    list of PatternNodes
-                                (same length as keyword_pattern_names)
-    """
-    class_ = None
-    positional_patterns = []
-    keyword_pattern_names = []
-    keyword_pattern_patterns = []
-
-    child_attrs =  PatternNode.child_attrs + [
-        "class_", "positional_patterns",
-        "keyword_pattern_names", "keyword_pattern_patterns",
-    ]
+    def validate_irrefutable(self):
+        self.pattern.validate_irrefutable()
 
 
 class ErrorNode(Node):
