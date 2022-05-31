@@ -36,7 +36,7 @@ cdef class PyrexScanner(Scanner):
     cdef readonly bint async_enabled
     cdef public unicode sy
     cdef public systring  # EncodedString
-    cdef public object put_back_on_failure
+    cdef public list put_back_on_failure
 
     cdef Py_ssize_t current_level(self)
     #cpdef commentline(self, text)

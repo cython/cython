@@ -472,8 +472,7 @@ class PyrexScanner(Scanner):
         saved_pos = self.position()
         self.next()
         next = self.sy, self.systring
-        next_pos = self.position()
-        self.unread(self.sy, self.systring, next_pos)
+        self.unread(self.sy, self.systring, self.position())
         self.sy, self.systring = saved
         self.last_token_position_tuple = saved_pos
         return next
@@ -554,6 +553,7 @@ class PyrexScanner(Scanner):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 
 @contextmanager
+@cython.locals(scanner=Scanner)
 def tentatively_scan(scanner):
     errors = hold_errors()
     try:
