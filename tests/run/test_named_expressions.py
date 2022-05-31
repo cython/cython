@@ -1,9 +1,8 @@
 # mode: run
-# tag: pure38, no-cpp
+# tag: pure3.8, no-cpp
 
 # copied from cpython with minimal modifications (mainly exec->cython_inline, and a few exception strings)
 # This is not currently run in C++ because all the cython_inline compilations fail for reasons that are unclear
-# FIXME pure38 seems to be ignored
 # cython: language_level=3
 
 import os
