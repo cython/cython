@@ -61,6 +61,7 @@ else:
         y: int
 
 # TestCompiler removed - it's very CPython-specific
+# TestTracing also removed - doesn't seem like a core test
 
 # FIXME - return all the "return"s added to cause code to be dropped
 ############## ORIGINAL PART FROM CPYTHON
