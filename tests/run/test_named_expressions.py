@@ -5,7 +5,6 @@
 # This is not currently run in C++ because all the cython_inline compilations fail for reasons that are unclear
 # cython: language_level=3
 
-import os
 import unittest
 import cython
 from Cython.Compiler.Main import CompileError
