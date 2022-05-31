@@ -63,7 +63,7 @@ class Scanner(object):
     #  start_pos = 0         # position in input of start of token
     #  current_scanner_position_tuple = ("", 0, 0)
     #        tuple of filename, line number and position in line, really mainly for error reporting
-
+    #
     #  These positions are used to track what was read from the queue
     #   (which may differ from the internal state when tokens are replaced onto the queue)
     #  last_token_position_tuple = ("", 0, 0)  # tuple of filename, line number and position in line
@@ -152,7 +152,6 @@ class Scanner(object):
         self.current_scanner_position_tuple = (
             self.name, self.cur_line, self.cur_pos - self.cur_line_start
         )
-        print(self.current_scanner_position_tuple)
         action = self.run_machine_inlined()
         if action is not None:
             if self.trace:

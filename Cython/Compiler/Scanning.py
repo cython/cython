@@ -566,9 +566,9 @@ def tentatively_scan(scanner):
             pass
         finally:
             if errors:
-                for put_back in reversed(scanner.put_back_on_failure[:-1]):
-                    scanner.put_back(*put_back)
                 if scanner.put_back_on_failure:
+                    for put_back in reversed(scanner.put_back_on_failure[:-1]):
+                        scanner.put_back(*put_back)
                     # we need to restore the initial state too
                     scanner.put_back(*initial_state)
             elif put_back_on_failure is not None:
