@@ -63,7 +63,7 @@ class Scanner(object):
     #  start_pos = 0         # position in input of start of token
     #  current_scanner_position_tuple = ("", 0, 0)
     #        tuple of filename, line number and position in line, really mainly for error reporting
-
+    #
     #  These positions are used to track what was read from the queue
     #   (which may differ from the internal state when tokens are replaced onto the queue)
     #  last_token_position_tuple = ("", 0, 0)  # tuple of filename, line number and position in line
