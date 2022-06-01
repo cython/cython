@@ -14182,6 +14182,9 @@ class PatternNode(ExprNode):
     # PatternNodes always return a bint to indicate if they've match
     type = PyrexTypes.c_bint_type
 
+    def is_simple_value_comparison(self):
+        return False
+
     def is_irrefutable(self):
         return False
 
@@ -14217,9 +14220,20 @@ class MatchValuePatternNode(PatternNode):
     """
     value   ExprNode        # todo be more specific
     is_check   bool     Picks "is" or equality check
+
+    Generated
+    comparison   ExprNode   The comparison to be executed for this pattern
     """
     subexprs = PatternNode.subexprs + ['value']
     is_is_check = False
+
+    def is_simple_value_comparison(self):
+        return True
+
+    def get_comparison_node(self, subject_node):
+        op = "is" if self.is_is_check else "=="
+        return PrimaryCmpNode(self.pos,
+            operator = op, operand1 = subject_node, operand2 = self.value)
 
     def get_main_pattern_targets(self):
         return set()
@@ -14237,6 +14251,15 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def is_irrefutable(self):
         return not self.is_star
+
+    def is_simple_value_comparison(self):
+        return self.is_irrefutable()  # the comparison is to "True"
+
+    def get_comparison_node(self, subject_node):
+        if self.is_irrefutable():
+            return BoolNode(self.pos, value = True)
+        else:
+            error(self.pos, "Not yet implemented")
 
     def irrefutable_message(self):
         if self.target:
@@ -14256,6 +14279,38 @@ class OrPatternNode(PatternNode):
     alternatives   list of PatternNodes
     """
     subexprs = PatternNode.subexprs + ["alternatives"]
+
+    def get_first_irrefutable(self):
+        for a in self.alternatives:
+            if a.is_irrefutable():
+                return a
+        return None
+
+    def is_irrefutable(self):
+        return self.get_first_irrefutable() is not None
+
+    def is_simple_value_comparison(self):
+        return all(a.is_simple_value_comparison() for a in self.alternatives)
+
+    def irrefutable_message(self):
+        return self.get_first_irrefutable().irrefutable_message()
+
+    def get_comparison_node(self, subject_node):
+        assert self.is_simple_value_comparison()
+        assert len(self.alternatives) >= 2
+        binop = BoolBinopNode(
+            self.pos,
+            operator = "or",
+            operand1 = self.alternatives[0].get_comparison_node(subject_node),
+            operand2 = self.alternatives[1].get_comparison_node(subject_node))
+        for a in self.alternatives[2:]:
+            binop = BoolBinopNode(
+                self.pos,
+                operator = "or",
+                operand1 = binop,
+                operand2 = a.get_comparison_node(subject_node)
+            )
+        return binop
 
     def get_main_pattern_targets(self):
         child_targets = None
@@ -14288,6 +14343,8 @@ class MatchSequencePatternNode(PatternNode):
     """
     subexprs =  PatternNode.subexprs + ['patterns']
 
+    # TODO a sequence with a single star pattern can be is_simple_value_comparison
+
     def get_main_pattern_targets(self):
         targets = set()
         for p in self.patterns:
@@ -14308,6 +14365,8 @@ class MatchMappingPatternNode(PatternNode):
     subexprs = PatternNode.subexprs + [
         'keys', 'value_patterns', 'double_star_capture_target'
     ]
+
+    # TODO an empty mapping can be is_simple_value_comparison
 
     def get_main_pattern_targets(self):
         targets = set()
@@ -14330,6 +14389,8 @@ class ClassPatternNode(PatternNode):
     positional_patterns = []
     keyword_pattern_names = []
     keyword_pattern_patterns = []
+
+    # TODO an empty class can be is_simple_value_comparison
 
     subexprs =  PatternNode.subexprs + [
         "class_", "positional_patterns",

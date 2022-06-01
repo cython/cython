@@ -10029,9 +10029,11 @@ class CnameDecoratorNode(StatNode):
 class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
-    cases    [MatchCaseNode]  list of cases
+    cases    [MatchCaseBaseNode]  list of cases
     """
     child_attrs = ['subject', 'cases']
+
+    subject_clonenode = None  # set to a value if we require a temp
 
     def validate_irrefutable(self):
         found_irrefutable_case = None
@@ -10046,13 +10048,94 @@ class MatchNode(StatNode):
             if c.is_irrefutable():
                 found_irrefutable_case = c
             c.validate_irrefutable()
+
+    def refactor_cases(self):
+        # An early transform - changes cases that can be represented as
+        # a simple if/else statement into them (giving them maximum chance
+        # to be optimized by the existing mechanisms). Leaves other cases
+        # unchanged
+        from .ExprNodes import CloneNode, ProxyNode, NameNode
+        subject = self.subject
+        if not self.subject.is_literal:
+            self.subject = ProxyNode(self.subject)
+            subject = self.subject_clonenode = CloneNode(self.subject)
+        current_if_statement = None
+        for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
+            if c is not None and c.is_simple_value_comparison():
+                if_clause = IfClauseNode(
+                    c.pos, condition = c.pattern.get_comparison_node(subject),
+                    body = c.body
+                )
+                for t in c.pattern.get_targets():
+                    # generate an assignment at the start of the body
+                    if_clause.body.stats.insert(0,
+                        SingleAssignmentNode(
+                            c.pos,
+                            lhs = NameNode(c.pos, name = t),
+                            rhs = subject
+                        )                    
+                    )
+                if not current_if_statement:
+                    current_if_statement = IfStatNode(
+                        c.pos, if_clauses = [], else_clause=None)
+                current_if_statement.if_clauses.append(if_clause)
+                self.cases[n] = None  # remove case
+            elif current_if_statement:
+                # this cannot be simplified, but previous case(s) were
+                self.cases[n-1] = SubstitutedMatchCaseNode(
+                    current_if_statement.pos, body = current_if_statement
+                )
+                current_if_statement = None
+        # eliminate optimized cases
+        self.cases = [ c for c in self.cases if c is not None ]
+               
+
+    def analyse_declarations(self, env):
+        self.subject.analyse_declarations(env)
+        for c in self.cases:
+            c.analyse_declarations(env)
         
     def analyse_expressions(self, env):
-        error(self.pos, "Structural pattern match is not yet implemented")
+        self.subject = self.subject.analyse_expressions(env)
+        if self.subject.is_simple():
+            subject = self.subject
+            if self.subject_clonenode:
+                # if we've already generated a clone node, just replace it
+                # because we've now worked out we can optimize further
+                from .Visitor import recursively_replace_node
+                subject = self.subject = subject.arg  # remove from proxy node
+                for c in self.cases:
+                    recursively_replace_node(c, self.subject_clonenode, subject)
+                self.subject_clonenode = None
+        else:
+            from .ExprNodes import ProxyNode, CloneNode
+            if isinstance(self.subject, ProxyNode):
+                self.subject.arg = self.subject.arg.coerce_to_simple(env)
+            else:
+                self.subject = ProxyNode(self.subject.coerce_to_simple(env))
+            subject = self.subject_clonenode = CloneNode(self.subject)
+        self.cases = [ c.analyse_case_expressions(subject, env) for c in self.cases ]
         return self
 
+    def generate_execution_code(self, code):
+        if self.subject_clonenode:
+            self.subject.generate_evaluation_code(code)
+        for c in self.cases:
+            c.generate_execution_code(code)
+        if self.subject_clonenode:
+            self.subject.generate_disposal_code(code)
+            self.subject.free_temps(code)
 
-class MatchCaseNode(Node):
+
+class MatchCaseBaseNode(Node):
+    """
+    Common base for a MatchCaseNode and a
+    substituted node
+    """
+    pass
+
+
+class MatchCaseNode(MatchCaseBaseNode):
     """
     pattern    PatternNode
     body       StatListNode
@@ -10063,11 +10146,46 @@ class MatchCaseNode(Node):
     def is_irrefutable(self):
         return self.pattern.is_irrefutable() and not self.guard
 
+    def is_simple_value_comparison(self):
+        if self.guard:
+            return False
+        return self.pattern.is_simple_value_comparison()
+
     def validate_targets(self):
         self.pattern.get_targets()
 
     def validate_irrefutable(self):
         self.pattern.validate_irrefutable()
+
+    def analyse_declarations(self, env):
+        self.pattern.analyse_declarations(env)
+        if self.guard:
+            self.guard.analyse_declarations(env)
+        self.body.analyse_declarations(env)
+
+    def analyse_case_expressions(self, subject_node, env):
+        if self.guard:
+            error(self.pos, "Cases with guards are currently not supported")
+            return self
+        self.error(self.pos, "This case statement is not yet supported")
+
+    def generate_execution_code(self, code):
+        error(self.pos, "This case statement is not yet supported")
+
+
+class SubstitutedMatchCaseNode(MatchCaseBaseNode):
+    # body  - Node -  The (probably) if statement that it's replaced with
+    child_attrs = ["body"]
+
+    def analyse_declarations(self, env):
+        self.body.analyse_declarations(env)
+    
+    def analyse_case_expressions(self, subject_node, env):
+        self.body = self.body.analyse_expressions(env)
+        return self
+
+    def generate_execution_code(self, code):
+        self.body.generate_execution_code(code)
 
 
 class ErrorNode(Node):

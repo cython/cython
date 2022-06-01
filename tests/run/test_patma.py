@@ -181,7 +181,6 @@ class TestInheritance(unittest.TestCase):
 class TestPatma(unittest.TestCase):
 
     def test_patma_000(self):
-        return
         match 0:
             case 0:
                 x = True
@@ -197,7 +196,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_002(self):
-        return
         match 0:
             case 0:
                 x = True
@@ -206,7 +204,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_003(self):
-        return
         x = False
         match 0:
             case 0 | 1 | 2 | 3:
@@ -214,7 +211,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_004(self):
-        return
         x = False
         match 1:
             case 0 | 1 | 2 | 3:
@@ -222,7 +218,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_005(self):
-        return
         x = False
         match 2:
             case 0 | 1 | 2 | 3:
@@ -230,7 +225,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_006(self):
-        return
         x = False
         match 3:
             case 0 | 1 | 2 | 3:
@@ -238,7 +232,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_007(self):
-        return
         x = False
         match 4:
             case 0 | 1 | 2 | 3:
@@ -246,7 +239,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, False)
 
     def test_patma_008(self):
-        return
         x = 0
         class A:
             y = 1

@@ -1526,6 +1526,9 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
 
 class WithTransform(VisitorTransform, SkipDeclarations):
+    # also includes some transforms for MatchCase
+    # (because this is a convenient time to do them, before constant folding and
+    # branch elimination)
     def visit_WithStatNode(self, node):
         self.visitchildren(node, 'body')
         pos = node.pos
@@ -1585,6 +1588,10 @@ class WithTransform(VisitorTransform, SkipDeclarations):
                     await_expr=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
             handle_error_case=False,
         )
+        return node
+
+    def visit_MatchNode(self, node):
+        node.refactor_cases()
         return node
 
     def visit_ExprNode(self, node):
