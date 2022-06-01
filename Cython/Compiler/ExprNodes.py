@@ -14176,12 +14176,14 @@ class PatternNode(ExprNode):
     as_target   None or NameNode
     """
     as_target = None
-    is_irrefutable = False
+
+    subexprs = ["as_target"]
 
     # PatternNodes always return a bint to indicate if they've match
     type = PyrexTypes.c_bint_type
 
-    child_attrs = ["as_target"]
+    def is_irrefutable(self):
+        return False
 
     def get_targets(self):
         return {self.as_target.name} if self.as_target else set()
@@ -14198,8 +14200,8 @@ class MatchValuePatternNode(PatternNode):
     value   ExprNode        # todo be more specific
     is_check   bool     Picks "is" or equality check
     """
-    child_attrs = PatternNode.child_attrs + ['value']
-    is_check = False
+    subexprs = PatternNode.subexprs + ['value']
+    is_is_check = False
 
 
 class MatchAndAssignPatternNode(PatternNode):
@@ -14210,7 +14212,8 @@ class MatchAndAssignPatternNode(PatternNode):
     target = None
     is_star = False
 
-    @property
+    subexprs = PatternNode.subexprs + ['target'] 
+
     def is_irrefutable(self):
         return not self.is_star
 
@@ -14219,8 +14222,6 @@ class MatchAndAssignPatternNode(PatternNode):
             return "name capture '%s'" % self.target.name
         else:
             return "wildcard"
-
-    child_attrs = PatternNode.child_attrs + ['target'] 
 
     def get_targets(self):
         targets = super(MatchAndAssignPatternNode, self).get_targets()
@@ -14233,7 +14234,7 @@ class OrPatternNode(PatternNode):
     """
     alternatives   list of PatternNodes
     """
-    child_attrs = PatternNode.child_attrs + ["alternatives"]
+    subexprs = PatternNode.subexprs + ["alternatives"]
 
     def get_targets(self):
         base_targets = super(OrPatternNode, self).get_targets()
@@ -14257,7 +14258,7 @@ class OrPatternNode(PatternNode):
                         found_irrefutable_case.irrefutable_message())
                 )
                 break
-            if a.is_irrefutable:
+            if a.is_irrefutable():
                 found_irrefutable_case = a
             a.validate_irrefutable()
 
@@ -14266,7 +14267,7 @@ class MatchSequencePatternNode(PatternNode):
     """
     patterns   list of PatternNodes
     """
-    child_attrs =  PatternNode.child_attrs + ['patterns']
+    subexprs =  PatternNode.subexprs + ['patterns']
 
     def get_targets(self):
         targets = super(MatchSequencePatternNode, self).get_targets()
@@ -14285,7 +14286,7 @@ class MatchMappingPatternNode(PatternNode):
     value_patterns = []
     double_star_capture_target = None
     
-    child_attrs = PatternNode.child_attrs + [
+    subexprs = PatternNode.subexprs + [
         'keys', 'value_patterns', 'double_star_capture_target'
     ]
 
@@ -14311,7 +14312,7 @@ class ClassPatternNode(PatternNode):
     keyword_pattern_names = []
     keyword_pattern_patterns = []
 
-    child_attrs =  PatternNode.child_attrs + [
+    subexprs =  PatternNode.subexprs + [
         "class_", "positional_patterns",
         "keyword_pattern_names", "keyword_pattern_patterns",
     ]

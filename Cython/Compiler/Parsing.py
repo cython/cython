@@ -4182,7 +4182,7 @@ def p_literal_pattern(s):
             result = ExprNodes.NullNode(pos)
         if result:
             s.next()
-            return ExprNodes.MatchValuePatternNode(pos, value = result, is_check = True)   
+            return ExprNodes.MatchValuePatternNode(pos, value = result, is_is_check = True)   
 
     s.error("Failed to match literal")
 

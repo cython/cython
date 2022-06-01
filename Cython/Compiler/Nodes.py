@@ -10061,7 +10061,7 @@ class MatchCaseNode(Node):
     child_attrs = ['pattern', 'body', 'guard']
 
     def is_irrefutable(self):
-        return self.pattern.is_irrefutable and not self.guard
+        return self.pattern.is_irrefutable() and not self.guard
 
     def validate_targets(self):
         self.pattern.get_targets()
