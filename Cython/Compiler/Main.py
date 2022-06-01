@@ -309,11 +309,10 @@ class Context(object):
     def read_dependency_file(self, source_path):
         dep_path = Utils.replace_suffix(source_path, ".dep")
         if os.path.exists(dep_path):
-            f = open(dep_path, "rU")
-            chunks = [ line.strip().split(" ", 1)
-                       for line in f.readlines()
-                       if " " in line.strip() ]
-            f.close()
+            with open(dep_path, "rU") as f:
+                chunks = [ line.split(" ", 1)
+                           for line in (l.strip() for l in f)
+                           if " " in line ]
             return chunks
         else:
             return ()

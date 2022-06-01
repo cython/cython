@@ -18,7 +18,7 @@ Features added
 
 * Some C++ library declarations were extended and fixed.
   Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion.
-  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`)
+  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`, :issue:`4751`)
 
 * The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
   files for the compilation unit.  This can be used by external build tools to track
@@ -31,11 +31,9 @@ Features added
 * The environment variable ``CYTHON_FORCE_REGEN=1`` can be used to force ``cythonize``
   to regenerate the output files regardless of modification times and changes.
 
-* The generated C code failed to compile in CPython 3.11a4 and later.
-  (Github issue :issue:`4500`)
-
 * A new Cython build option ``--cython-compile-minimal`` was added to compile only a
-  smaller set of Cython modules, which can be used to reduce the package and install size.
+  smaller set of Cython's own modules, which can be used to reduce the package
+  and install size.
 
 Bugs fixed
 ----------
@@ -56,15 +54,18 @@ Bugs fixed
   since it is relevant when passing them e.g. as argument into other fused functions.
   Patch by David Woods.  (Github issue :issue:`4644`)
 
+* The generated C code failed to compile in CPython 3.11a4 and later.
+  (Github issue :issue:`4500`)
+
 * A case of undefined C behaviour was resolved in the list slicing code.
   Patch by Richard Barnes.  (Github issue :issue:`4734`)
 
 * Using the Limited API could report incorrect line numbers in tracebacks.
 
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
-  (Github issue :issue:4329)
+  (Github issue :issue:`4329`)
 
-* Includes all bug-fixes from the :ref:`0.29.29` release.
+* Includes all bug-fixes from the :ref:`0.29.30` release.
 
 Other changes
 -------------
@@ -977,10 +978,31 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.30:
+
+0.29.30 (2022-05-16)
+====================
+
+Bugs fixed
+----------
+
+* The GIL handling changes in 0.29.29 introduced a regression where
+  objects could be deallocated without holding the GIL.
+  (Github issue :issue`4796`)
+
+
 .. _0.29.29:
 
-0.29.29 (2022-??-??)
+0.29.29 (2022-05-16)
 ====================
+
+Features added
+--------------
+
+* Avoid acquiring the GIL at the end of nogil functions.
+  This change was backported in order to avoid generating wrong C code
+  that would trigger C compiler warnings with tracing support enabled.
+  Backport by Oleksandr Pavlyk.  (Github issue :issue`4637`)
 
 Bugs fixed
 ----------
@@ -994,6 +1016,18 @@ Bugs fixed
 * Pickles can now be exchanged again with those generated from Cython 3.0 modules.
   (Github issue :issue:`4680`)
 
+* Cython now correctly generates Python methods for both the provided regular and
+  reversed special numeric methods of extension types.
+  Patch by David Woods.  (Github issue :issue`4750`)
+
+* Calling unbound extension type methods without arguments could raise an
+  ``IndexError`` instead of a ``TypeError``.
+  Patch by David Woods.  (Github issue :issue`4779`)
+
+* Calling unbound ``.__contains__()`` super class methods on some builtin base
+  types could trigger an infinite recursion.
+  Patch by David Woods.  (Github issue :issue`4785`)
+
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue :issue:`4727`)
 
@@ -1002,7 +1036,7 @@ Bugs fixed
 
 * Improved compatibility with CPython 3.10/11.
   Patches by Thomas Caswell, David Woods.
-  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`)
+  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`, :issue:`4777`)
 
 * Docstrings of descriptors are now provided in PyPy 7.3.9.
   Patch by Matti Picus.  (Github issue :issue:`4701`)
