@@ -10114,17 +10114,21 @@ class MatchNode(StatNode):
             else:
                 self.subject = ProxyNode(self.subject.coerce_to_simple(env))
             subject = self.subject_clonenode = CloneNode(self.subject)
+        self.subject = self.subject.analyse_expressions(env)
         self.cases = [ c.analyse_case_expressions(subject, env) for c in self.cases ]
         return self
 
     def generate_execution_code(self, code):
+        end_label = code.new_label()
         if self.subject_clonenode:
             self.subject.generate_evaluation_code(code)
         for c in self.cases:
-            c.generate_execution_code(code)
+            c.generate_execution_code(code, end_label)
         if self.subject_clonenode:
             self.subject.generate_disposal_code(code)
             self.subject.free_temps(code)
+        if code.label_used(end_label):
+            code.put_label(end_label)
 
 
 class MatchCaseBaseNode(Node):
@@ -10140,6 +10144,9 @@ class MatchCaseNode(MatchCaseBaseNode):
     pattern    PatternNode
     body       StatListNode
     guard      ExprNode or None
+
+    generated:
+    original_pattern  PatternNode  (not coerced to temp)
     """
     child_attrs = ['pattern', 'body', 'guard']
 
@@ -10164,13 +10171,34 @@ class MatchCaseNode(MatchCaseBaseNode):
         self.body.analyse_declarations(env)
 
     def analyse_case_expressions(self, subject_node, env):
+        
+        self.pattern = self.pattern.analyse_pattern_expressions(
+            subject_node, env)
+        self.original_pattern = self.pattern
+        self.pattern = self.pattern.coerce_to_boolean(env).coerce_to_simple(env)
         if self.guard:
-            error(self.pos, "Cases with guards are currently not supported")
-            return self
-        self.error(self.pos, "This case statement is not yet supported")
+            self.guard = self.guard.analyse_temp_boolean_expression(env)
+        self.body = self.body.analyse_expressions(env)
+        return self
 
-    def generate_execution_code(self, code):
-        error(self.pos, "This case statement is not yet supported")
+    def generate_execution_code(self, code, end_label):
+        self.pattern.generate_evaluation_code(code)
+        code.putln("if (%s) { /* pattern */" % self.pattern.result())
+        self.pattern.free_temps(code)
+        self.pattern.generate_disposal_code(code)
+        if self.original_pattern.get_targets():
+            error(self.pos, "Cannot currently handle patterns with targets")
+        if self.guard:
+            self.guard.generate_evaluation_code(code)
+            code.putln("if (%s) { /* guard */" % self.guard.result())
+            self.guard.generate_disposal_code(code)
+            self.guard.free_temps(code)
+        self.body.generate_execution_code(code)
+        if not self.body.is_terminator:
+            code.put_goto(end_label)
+        if self.guard:
+            code.putln("} /* guard */")
+        code.putln("} /* pattern */")
 
 
 class SubstitutedMatchCaseNode(MatchCaseBaseNode):
@@ -10184,7 +10212,7 @@ class SubstitutedMatchCaseNode(MatchCaseBaseNode):
         self.body = self.body.analyse_expressions(env)
         return self
 
-    def generate_execution_code(self, code):
+    def generate_execution_code(self, code, end_label):
         self.body.generate_execution_code(code)
 
 

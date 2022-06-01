@@ -187,7 +187,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(x, True)
 
     def test_patma_001(self):
-        return
         match 0:
             case 0 if False:
                 x = False

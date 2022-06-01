@@ -14174,13 +14174,17 @@ class AssignmentExpressionNode(ExprNode):
 class PatternNode(ExprNode):
     """
     as_target   None or NameNode
+
+    Generated in analysis:
+    comp_node   ExprNode     node to evaluate for the pattern
     """
     as_target = None
-
-    subexprs = ["as_target"]
+    comp_node = None
 
     # PatternNodes always return a bint to indicate if they've match
     type = PyrexTypes.c_bint_type
+
+    subexprs = ["as_target", "comp_node"]
 
     def is_simple_value_comparison(self):
         return False
@@ -14215,16 +14219,55 @@ class PatternNode(ExprNode):
             if isinstance(child, PatternNode):
                 child.validate_irrefutable()
 
+    def analyse_pattern_expressions(self, subject_node, env):
+        error(self.pos, "This type of pattern is not currently supported")
+
+    def calculate_result_code(self):
+        return self.comp_node.result()
+
+    def generate_result_code(self, code):
+        pass
+
+    def generate_subexpr_disposal_code(self, code):
+        #  Generate code to dispose of temporary results
+        #  of all sub-expressions.
+        # Exclude comp_node for later
+        subexprs = self.subexpr_nodes()
+        subexprs.remove(self.comp_node)
+        for node in subexprs:
+            node.generate_disposal_code(code)
+
+    def free_subexpr_temps(self, code):
+        #  Generate code to dispose of temporary results
+        #  of all sub-expressions.
+        # Exclude comp_node for later
+        subexprs = self.subexpr_nodes()
+        subexprs.remove(self.comp_node)
+        for node in subexprs:
+            node.free_temps(code)
+
+    def generate_disposal_code(self, code):
+        super(PatternNode, self).generate_disposal_code(code)
+        self.comp_node.generate_disposal_code(code)
+
+    def free_temps(self, code):
+        super(PatternNode, self).free_temps(code)
+        self.comp_node.free_temps(code)
+
 
 class MatchValuePatternNode(PatternNode):
     """
     value   ExprNode        # todo be more specific
-    is_check   bool     Picks "is" or equality check
-
-    Generated
-    comparison   ExprNode   The comparison to be executed for this pattern
+    is_is_check   bool     Picks "is" or equality check
     """
-    subexprs = PatternNode.subexprs + ['value']
+    @property
+    def subexprs(self):
+        attrs = list(PatternNode.subexprs)
+        if not self.comp_node:
+            # once we have comparison, hide value (because it's in the comparison)
+            attrs.append('value')
+        return attrs
+
     is_is_check = False
 
     def is_simple_value_comparison(self):
@@ -14238,6 +14281,18 @@ class MatchValuePatternNode(PatternNode):
     def get_main_pattern_targets(self):
         return set()
 
+    def analyse_declarations(self, env):
+        super(MatchValuePatternNode, self).analyse_declarations(env)
+        if self.value:
+            self.value.analyse_declarations(env)
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        if self.value:
+            self.value = self.value.analyse_expressions(env)
+        self.comp_node = self.get_comparison_node(
+            subject_node).analyse_expressions(env)
+        return self
+
 
 class MatchAndAssignPatternNode(PatternNode):
     """
@@ -14247,7 +14302,7 @@ class MatchAndAssignPatternNode(PatternNode):
     target = None
     is_star = False
 
-    subexprs = PatternNode.subexprs + ['target'] 
+    subexprs = PatternNode.subexprs + ['target']
 
     def is_irrefutable(self):
         return not self.is_star
@@ -14273,12 +14328,17 @@ class MatchAndAssignPatternNode(PatternNode):
         else:
             return set()
 
-
 class OrPatternNode(PatternNode):
     """
     alternatives   list of PatternNodes
     """
-    subexprs = PatternNode.subexprs + ["alternatives"]
+    @property
+    def subexprs(self):
+        if self.comp_node:
+            return PatternNode.subexprs
+        else:
+            # the alternatives are already in the comp_node
+            return PatternNode.subexprs + ["alternatives"]
 
     def get_first_irrefutable(self):
         for a in self.alternatives:
@@ -14335,6 +14395,18 @@ class OrPatternNode(PatternNode):
             if a.is_irrefutable():
                 found_irrefutable_case = a
             a.validate_irrefutable()
+
+    def analyse_declarations(self, env):
+        super(OrPatternNode, self).analyse_declarations(env)
+        for a in self.alternatives:
+            a.analyse_declarations(env)
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        for a in self.alternatives:
+            a = a.analyse_pattern_expressions(subject_node, env)
+        self.comp_node = self.get_comparison_node(
+            subject_node).analyse_temp_boolean_expression(env)
+        return self
 
 
 class MatchSequencePatternNode(PatternNode):
