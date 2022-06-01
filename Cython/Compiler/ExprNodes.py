@@ -14186,7 +14186,25 @@ class PatternNode(ExprNode):
         return False
 
     def get_targets(self):
-        return {self.as_target.name} if self.as_target else set()
+        targets = self.get_main_pattern_targets()
+        if self.as_target:
+            self.add_target_to_targets(targets, self.as_target.name)
+        return targets
+
+    def update_targets_with_targets(self, targets, other_targets):
+        intersection = targets.intersection(other_targets)
+        for i in intersection:
+            error(self.pos, "multiple assignments to name '%s' in pattern" % i)
+        targets.update(other_targets)
+
+    def add_target_to_targets(self, targets, target):
+        if target in targets:
+            error(self.pos, "multiple assignments to name '%s in pattern" % target)
+        targets.add(target)
+
+    def get_main_pattern_targets(self):
+        # exclude "as" target
+        raise NotImplementedError
 
     def validate_irrefutable(self):
         for attr in self.child_attrs:
@@ -14202,6 +14220,9 @@ class MatchValuePatternNode(PatternNode):
     """
     subexprs = PatternNode.subexprs + ['value']
     is_is_check = False
+
+    def get_main_pattern_targets(self):
+        return set()
 
 
 class MatchAndAssignPatternNode(PatternNode):
@@ -14223,11 +14244,11 @@ class MatchAndAssignPatternNode(PatternNode):
         else:
             return "wildcard"
 
-    def get_targets(self):
-        targets = super(MatchAndAssignPatternNode, self).get_targets()
+    def get_main_pattern_targets(self):
         if self.target:
-            targets.add(self.target.name)
-        return targets
+            return { self.target.name }
+        else:
+            return set()
 
 
 class OrPatternNode(PatternNode):
@@ -14236,16 +14257,14 @@ class OrPatternNode(PatternNode):
     """
     subexprs = PatternNode.subexprs + ["alternatives"]
 
-    def get_targets(self):
-        base_targets = super(OrPatternNode, self).get_targets()
+    def get_main_pattern_targets(self):
         child_targets = None
         for ch in self.alternatives:
             ch_targets = ch.get_targets()
             if child_targets is not None and child_targets != ch_targets:
                 error(self.pos, "alternative patterns bind different names")
             child_targets = ch_targets
-        base_targets.update(child_targets)
-        return base_targets
+        return child_targets
 
     def validate_irrefutable(self):
         super(OrPatternNode, self).validate_irrefutable()
@@ -14269,10 +14288,10 @@ class MatchSequencePatternNode(PatternNode):
     """
     subexprs =  PatternNode.subexprs + ['patterns']
 
-    def get_targets(self):
-        targets = super(MatchSequencePatternNode, self).get_targets()
+    def get_main_pattern_targets(self):
+        targets = set()
         for p in self.patterns:
-            targets.update(p.get_targets())
+            self.update_targets_with_targets(targets, p.get_targets())
         return targets
 
 
@@ -14290,12 +14309,12 @@ class MatchMappingPatternNode(PatternNode):
         'keys', 'value_patterns', 'double_star_capture_target'
     ]
 
-    def get_targets(self):
-        targets = super(MatchMappingPatternNode, self).get_targets()
+    def get_main_pattern_targets(self):
+        targets = set()
         for p in self.value_patterns:
-            targets.update(p.get_targets())
+            self.update_targets_with_targets(targets, p.get_targets())
         if self.double_star_capture_target:
-            targets.add(self.double_star_capture_target.name)
+            self.add_target_to_targets(targets, self.double_star_capture_target.name)
         return targets
 
 
@@ -14317,8 +14336,8 @@ class ClassPatternNode(PatternNode):
         "keyword_pattern_names", "keyword_pattern_patterns",
     ]
 
-    def get_targets(self):
-        targets = super(ClassPatternNode, self).get_targets()
+    def get_main_pattern_targets(self):
+        targets = set()
         for p in self.positional_patterns + self.keyword_pattern_patterns:
-            targets.update(p.get_targets())
+            self.update_targets_with_targets(targets, p.get_targets())
         return targets
