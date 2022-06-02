@@ -451,7 +451,11 @@ static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
     va_list vargs;
     char msg[200];
 
+#if PY_VERSION_HEX >= 0x030A0000 || defined(HAVE_STDARG_PROTOTYPES)
     va_start(vargs, fmt);
+#else
+    va_start(vargs);
+#endif
     vsnprintf(msg, 200, fmt, vargs);
     va_end(vargs);
 
