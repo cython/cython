@@ -451,7 +451,6 @@ static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
     va_list vargs;
     char msg[200];
 
-
     va_start(vargs, fmt);
     vsnprintf(msg, 200, fmt, vargs);
     va_end(vargs);
