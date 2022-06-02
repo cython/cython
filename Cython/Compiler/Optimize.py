@@ -2165,6 +2165,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type in (PyrexTypes.py_object_type, Builtin.bool_type):
                 return arg.arg.coerce_to_boolean(self.current_env())
+        if isinstance(arg, ExprNodes.PythonCapiCallNode):
+            alt_call = getattr(arg, "alternative_call_options", {}).get(
+                PyrexTypes.c_bint_type
+            )
+            if alt_call:
+                return alt_call
         return node
 
     PyNumber_Float_func_type = PyrexTypes.CFuncType(
@@ -2233,6 +2239,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 index_node = index_node.arg
             if index_node.type.is_int:
                 return self._optimise_int_indexing(node, arg, index_node)
+        elif isinstance(arg, ExprNodes.PythonCapiCallNode):
+            # TODO - alternative functions aren't currently generated for
+            # non bint binops, but this'll let it work if/when they are
+            alt_call_node = getattr(arg, "alternative_call_options", {}).get(
+                node.type
+            )
+            if alt_call_node:
+                return alt_call_node
         return node
 
     PyBytes_GetItemInt_func_type = PyrexTypes.CFuncType(
@@ -3505,6 +3519,33 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             may_return_none=True,
             with_none_check=False,
             utility_code=utility_code)
+
+        if ret_type is PyrexTypes.py_object_type and operator in ('Eq', 'Ne'):
+            # also generate the call for the c_bint version so we can swap it out
+            # in the likely case that we're in a coerce to bool node
+            # TODO - should be possible to generate similar versions returning
+            # float and int (but the C functions don't currently exist)
+            alternative_return_type = PyrexTypes.c_bint_type
+            alternative_util_code = TempitaUtilityCode.load_cached(
+                "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
+                "Optimize.c",
+                context=dict(op=operator, order=arg_order, ret_type=alternative_return_type))
+
+            alt_call_node = self._substitute_method_call(
+                node, function,
+                "__Pyx_Py%s_%s%s%s" % (
+                    'Float' if is_float else 'Int',
+                    'Bool',
+                    operator,
+                    arg_order),
+                self.Pyx_BinopInt_func_types[(num_type, alternative_return_type)],
+                '__%s__' % operator[:3].lower(), is_unbound_method, args,
+                may_return_none=True,
+                with_none_check=False,
+                utility_code=alternative_util_code)
+            call_node.alternative_call_options = {
+                alternative_return_type: alt_call_node
+            }
 
         if node.type.is_pyobject and not ret_type.is_pyobject:
             call_node = ExprNodes.CoerceToPyTypeNode(call_node, self.current_env(), node.type)
