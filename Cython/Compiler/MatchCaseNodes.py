@@ -7,6 +7,7 @@ from .Nodes import Node, StatNode
 from . import Nodes
 from .Errors import error
 from . import ExprNodes
+from .Code import UtilityCode
 
 
 class MatchNode(StatNode):
@@ -524,6 +525,12 @@ class MatchSequencePatternNode(PatternNode):
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["patterns"]
 
+    Pyx_sequence_check_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+        ],
+        exception_value="-1")
+
     def get_main_pattern_targets(self):
         targets = set()
         for p in self.patterns:
@@ -555,6 +562,65 @@ class MatchMappingPatternNode(PatternNode):
         if self.double_star_capture_target:
             self.add_target_to_targets(targets, self.double_star_capture_target.name)
         return targets
+
+    def get_comparison_node(self, subject):
+        # assert for now..
+        assert (len(self.patterns) == 1 and isinstance(self.patterns[0], MatchAndAssignPatternNode)
+                and self.patterns[0].is_star)
+        return self.make_sequence_check(subject)
+
+    def generate_main_pattern_assignment_list(self, subject_node):
+        # assert for now..
+        assert (len(self.patterns) == 1 and isinstance(self.patterns[0], MatchAndAssignPatternNode)
+                and self.patterns[0].is_star)
+        if isinstance(self.patterns[0], MatchAndAssignPatternNode) and self.patterns[0].is_star:
+            p0_subject = ExprNodes.SimpleCallNode(
+                self.pos,
+                function=ExprNodes.NameNode(self.pos, name="list"),
+                args=[subject_node]
+            )
+            return self.patterns[0].generate_target_assignments(p0_subject).stats
+
+    def make_sequence_check(self, subject_node):
+        # Note: the sequence check code is very quick on Python 3.10+
+        # but potentially quite slow on lower versions (although should
+        # be medium quick for common types). It'd be nice to cache the
+        # results of it where it's been called on the same object
+        # multiple times.
+        # DW has decided that that's too complicated to implement 
+        # for now.
+
+        from . import Builtin 
+        utility_code = UtilityCode.load_cached(
+            "IsSequence",
+            "MatchCase.c"
+        )
+        call = ExprNodes.PythonCapiCallNode(
+            self.pos, "__Pyx_MatchCase_IsSequence", self.Pyx_sequence_check_type,
+            utility_code= utility_code, args=[subject_node]
+        )
+        def type_check(type):
+            # type-check need not be perfect, it's an optimization
+            if type in [ Builtin.list_type, Builtin.tuple_type ]:
+                return True
+            if type.is_memoryviewslice or type.is_ctuple:
+                return True
+            if type in [ Builtin.str_type, Builtin.bytes_type,
+                         Builtin.unicode_type, Builtin.bytearray_type,
+                         Builtin.dict_type, Builtin.set_type ]:
+                # non-exhaustive list at this stage, but returning "False" is
+                # an optimization so it's allowed to be non-exchaustive
+                return False
+            if type.is_numeric or type.is_struct or type.is_enum:
+                # again, not exhaustive
+                return False
+            return None
+        return StaticTypeCheckNode(
+            self.pos,
+            arg = subject_node,
+            fallback = call,
+            check = type_check
+        )
 
 
 class ClassPatternNode(PatternNode):
@@ -597,3 +663,43 @@ class SubstitutedIfStatListNode(Nodes.StatListNode):
         if not self.is_terminator:
             code.put_goto(self.match_node.end_label)
 
+
+class StaticTypeCheckNode(ExprNodes.ExprNode):
+    """
+    Useful for structural pattern matching, where we
+    can skip the "is_seqeunce/is_mapping" checks if
+    we know the type in advantage (or reduce it to a
+    None check).
+
+    This should optimize itself out at the analyse_expressions
+    stage
+
+    arg        ExprNode
+    fallback   ExprNode   Function to be called if the static 
+                            typecheck isn't optimized out
+    check      callable   Returns True, False, or None (for "can't tell")
+    """
+    child_attrs = ['fallback']  # arg in not included since it's in "fallback"
+
+    def analyse_types(self, env):
+        check = self.check(self.arg.type)
+        if check:
+            if self.arg.may_be_none():
+                return ExprNodes.PrimaryCmpNode(
+                    self.pos,
+                    operand1 = self.arg,
+                    operand2 = ExprNodes.NoneNode(self.pos),
+                    operator = "is not"
+                ).analyse_expressions(env)
+            else:
+                return ExprNodes.BoolNode(
+                    pos = self.pos,
+                    value = True
+                )
+        elif check is None:
+            return self.fallback.analyse_expressions(env)
+        else:
+            return ExprNodes.BoolNode(
+                pos = self.pos,
+                value = False
+            )
