@@ -4,11 +4,9 @@
 # for much else
 
 from .Nodes import Node, StatNode
-from . import Nodes
 from .Errors import error
-from . import ExprNodes
+from . import Nodes, ExprNodes, PyrexTypes, Builtin
 from .Code import UtilityCode
-
 
 class MatchNode(StatNode):
     """
@@ -163,23 +161,35 @@ class MatchCaseNode(Node):
         return self
 
     def generate_execution_code(self, code, end_label):
+        self.pattern.allocate_subject_temps(code)
         self.pattern.generate_comparison_evaluation_code(code)
-        code.putln("if (%s) { /* pattern */" % self.pattern.comparison_result())
+
+        end_of_case_label = code.new_label()
+
+        code.putln("if (!%s) { /* pattern */" % self.pattern.comparison_result())
+        self.pattern.dispose_of_subject_temps(code)  # failed, don't need the subjects
+        code.put_goto(end_of_case_label)
+
+        code.putln("} else { /* pattern */")
         self.pattern.generate_comparison_disposal_code(code)
         self.pattern.free_comparison_temps(code)
         if self.target_assignments:
             self.target_assignments.generate_execution_code(code)
+        self.pattern.dispose_of_subject_temps(code)
+        self.pattern.release_subject_temps(code)  # we're done with the subjects here
         if self.guard:
             self.guard.generate_evaluation_code(code)
             code.putln("if (%s) { /* guard */" % self.guard.result())
             self.guard.generate_disposal_code(code)
             self.guard.free_temps(code)
+        #body_insertion_point = code.insertion_point()
         self.body.generate_execution_code(code)
         if not self.body.is_terminator:
             code.put_goto(end_label)
         if self.guard:
             code.putln("} /* guard */")
         code.putln("} /* pattern */")
+        code.put_label(end_of_case_label)
 
 
 class SubstitutedMatchCaseNode(MatchCaseBaseNode):
@@ -329,6 +339,15 @@ class PatternNode(Node):
         # Returns a list of Nodes
         return []
 
+    def allocate_subject_temps(self, code):
+        pass  # Implement in nodes that need it
+
+    def release_subject_temps(self, code):
+        pass  # Implement in nodes that need it
+
+    def dispose_of_subject_temps(self, code):
+        pass  # Implement in nodes that need it
+
 
 class MatchValuePatternNode(PatternNode):
     """
@@ -400,10 +419,11 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
-        return ExprNodes.BoolNode(self.pos, value=True)
+        return self.get_comparison_node(subject_node)
+        
 
     def get_comparison_node(self, subject_node):
-        return self.get_simple_comparison_node(subject_node)
+        return ExprNodes.BoolNode(self.pos, value=True)
 
     def generate_main_pattern_assignment_list(self, subject_node):
         if self.target:
@@ -416,7 +436,8 @@ class MatchAndAssignPatternNode(PatternNode):
             return []
 
     def analyse_pattern_expressions(self, subject_node, env):
-        if self.is_star:
+        if self.is_star and False:
+            # TODO investigate?
             return super(MatchAndAssignPatternNode, self).analyse_pattern_expressions(
                 subject_node, env
             )
@@ -521,7 +542,11 @@ class OrPatternNode(PatternNode):
 class MatchSequencePatternNode(PatternNode):
     """
     patterns   list of PatternNodes
+
+    generated: 
+    subjects    [TempNode]  individual subsubjects can be assigned to these
     """
+    subjects = None
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["patterns"]
 
@@ -537,49 +562,156 @@ class MatchSequencePatternNode(PatternNode):
             self.update_targets_with_targets(targets, p.get_targets())
         return targets
 
+    def get_comparison_node(self, subject_node):
+        if self.is_simple_value_comparison():
+            return self.make_sequence_check(subject_node)
+        else:
+            from .UtilNodes import TempResultFromStatNode, ResultRefNode
 
-class MatchMappingPatternNode(PatternNode):
-    """
-    keys   list of NameNodes
-    value_patterns  list of PatternNodes of equal length to keys
-    double_star_capture_target  NameNode or None
-    """
+            test = None
+            subjects_temps = self.generate_subjects(subject_node) # temp-nodes
+            for n, pattern in enumerate(self.patterns):
+                p_test = pattern.get_comparison_node(subjects_temps[n])
+                if test is not None:
+                    p_test = ExprNodes.BoolBinopNode(self.pos,
+                        operator = "and",
+                        operand1 = test,
+                        operand2 = p_test
+                    )
+                if not pattern.get_targets() and pattern.is_irrefutable():
+                    test = p_test
+                    # the subject isn't actually needed, don't evaluate it
+                    subjects_temps[n] = None
+                    continue  
+                    
+                result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+                subject_assignment = Nodes.SingleAssignmentNode(
+                    self.pos,
+                    lhs = subjects_temps[n],  # the temp node
+                    rhs = self.subjects[n]  # the regular node
+                )
+                test_assignment = Nodes.SingleAssignmentNode(
+                    self.pos,
+                    lhs = result_ref,
+                    rhs = p_test
+                )
+                stats = Nodes.StatListNode(
+                    self.pos,
+                    stats = [ subject_assignment, test_assignment ]
+                )
+                test = TempResultFromStatNode(result_ref, stats)
 
-    keys = []
-    value_patterns = []
-    double_star_capture_target = None
+            seq_len_test = self.make_sequence_check(subject_node)
+            has_star = False
+            for pattern in self.patterns:
+                if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
+                    has_star = True
+                    break
+            len_test = len(self.patterns)
+            if has_star:
+                len_test -= 1
+            seq_len_test = ExprNodes.BoolBinopNode(
+                self.pos,
+                operator = "and",
+                operand1 = seq_len_test,
+                operand2 = ExprNodes.PrimaryCmpNode(
+                    self.pos,
+                    operator = ">=" if has_star else "==",
+                    # FIXME - make sure this is properly optimized and cannot be
+                    # overridden by the outer scope!
+                    operand1 = ExprNodes.SimpleCallNode(
+                        self.pos,
+                        function = ExprNodes.NameNode(self.pos, name="len"),
+                        args = [ subject_node ]
+                    ),
+                    operand2 = ExprNodes.IntNode(
+                        self.pos,
+                        value = str(len_test),
+                        constant_result = len_test
+                    ),
+                )
+            )
+            if test is None:
+                test = seq_len_test
+            else:
+                test = ExprNodes.BoolBinopNode(
+                    self.pos,
+                    operator = "and",
+                    operand1 = seq_len_test,
+                    operand2 = test
+                )
+            return test
 
-    initial_child_attrs = PatternNode.initial_child_attrs + [
-        "keys",
-        "value_patterns",
-        "double_star_capture_target",
-    ]
+    def generate_subjects(self, subject_node):
+        from .ExprNodes import SliceIndexNode, IndexNode, IntNode
 
-    def get_main_pattern_targets(self):
-        targets = set()
-        for p in self.value_patterns:
-            self.update_targets_with_targets(targets, p.get_targets())
-        if self.double_star_capture_target:
-            self.add_target_to_targets(targets, self.double_star_capture_target.name)
-        return targets
-
-    def get_comparison_node(self, subject):
-        # assert for now..
-        assert (len(self.patterns) == 1 and isinstance(self.patterns[0], MatchAndAssignPatternNode)
-                and self.patterns[0].is_star)
-        return self.make_sequence_check(subject)
+        if self.subjects is not None:
+            # already calculated
+            return self.subject_temps
+        star_idx = None
+        for n, pattern in enumerate(self.patterns):
+            if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
+                star_idx = n
+        if star_idx is None:
+            idxs = list(range(len(self.patterns)))
+        else:
+            fwd_idxs = list(range(star_idx))
+            backward_idxs = list(range(star_idx-len(self.patterns)+1, 0))
+            star_idx = (
+                fwd_idxs[-1]+1 if fwd_idxs else None,
+                backward_idxs[0] if backward_idxs else None
+            )
+            idxs = fwd_idxs + [star_idx] + backward_idxs
+        subjects = []
+        for pattern, idx in zip(self.patterns, idxs):
+            if isinstance(idx, tuple):
+                if idx[0] is None:
+                    start = None
+                else:
+                    start = IntNode(pattern.pos, value = str(idx[0]))
+                if idx[1] is None:
+                    stop = None
+                else:
+                    stop = IntNode(pattern.pos, value=str(idx[1]))
+                subjects.append(ExprNodes.MergedSequenceNode(
+                    pattern.pos,
+                    args = [SliceIndexNode(
+                        pattern.pos,
+                        base = subject_node,
+                        start = start,
+                        stop = stop
+                    )],
+                    type = Builtin.list_type
+                ))
+            else:
+                subjects.append(IndexNode(
+                    pattern.pos,
+                    base = subject_node,
+                    index = IntNode(pattern.pos, value = str(idx))
+                ))
+        self.subjects = subjects
+        self.subject_temps = [ ExprNodes.TrackTypeTempNode(self.pos, s) for s in self.subjects ]
+        return self.subject_temps
 
     def generate_main_pattern_assignment_list(self, subject_node):
-        # assert for now..
-        assert (len(self.patterns) == 1 and isinstance(self.patterns[0], MatchAndAssignPatternNode)
-                and self.patterns[0].is_star)
-        if isinstance(self.patterns[0], MatchAndAssignPatternNode) and self.patterns[0].is_star:
-            p0_subject = ExprNodes.SimpleCallNode(
-                self.pos,
-                function=ExprNodes.NameNode(self.pos, name="list"),
-                args=[subject_node]
-            )
-            return self.patterns[0].generate_target_assignments(p0_subject).stats
+        from .ExprNodes import SimpleCallNode, NameNode
+
+        if self.is_simple_value_comparison():
+            if isinstance(self.patterns[0], MatchAndAssignPatternNode) and self.patterns[0].is_star:
+                p0_subject = SimpleCallNode(
+                    self.pos,
+                    function=NameNode(self.pos, name="list"),
+                    args=[subject_node]
+                )
+                return self.patterns[0].generate_target_assignments(p0_subject).stats
+        else:
+            subjects = self.generate_subjects(subject_node)
+            assignments = []
+            for subject, pattern in zip(subjects, self.patterns):
+                p_assignments = pattern.generate_target_assignments(subject)
+                if p_assignments:
+                    assignments.extend(p_assignments.stats)
+            return assignments
 
     def make_sequence_check(self, subject_node):
         # Note: the sequence check code is very quick on Python 3.10+
@@ -589,8 +721,8 @@ class MatchMappingPatternNode(PatternNode):
         # multiple times.
         # DW has decided that that's too complicated to implement 
         # for now.
-
         from . import Builtin 
+
         utility_code = UtilityCode.load_cached(
             "IsSequence",
             "MatchCase.c"
@@ -621,6 +753,71 @@ class MatchMappingPatternNode(PatternNode):
             fallback = call,
             check = type_check
         )
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        for n in range(len(self.subjects)):
+            self.subjects[n] = self.subjects[n].analyse_types(env)
+        for n in range(len(self.patterns)):
+            self.patterns[n] = self.patterns[n].analyse_pattern_expressions(
+                self.subject_temps[n], env
+            )
+        self.comp_node = self.get_comparison_node(
+            subject_node).analyse_temp_boolean_expression(env)
+        return self
+
+    def generate_evaluation_code(self, code):
+        for s in self.subject_temps:
+            s.allocate(code)
+        super(MatchSequencePatternNode, self).generate_evaluation_code(code)
+        for s in self.subject_temps:
+            s.release(code)
+
+    def allocate_subject_temps(self, code):
+        for temp in self.subject_temps:
+            if temp is not None:
+                temp.allocate(code)
+        for pattern in self.patterns:
+            pattern.allocate_subject_temps(code)
+    
+    def release_subject_temps(self, code):
+        for temp in self.subject_temps:
+            if temp is not None:
+                temp.release(code)
+        for pattern in self.patterns:
+            pattern.release_subject_temps(code)
+
+    def dispose_of_subject_temps(self, code):
+        for temp in self.subject_temps:
+            if temp is not None:
+                temp.generate_disposal_code(code)
+        for pattern in self.patterns:
+            pattern.dispose_of_subject_temps(code)
+
+
+class MatchMappingPatternNode(PatternNode):
+    """
+    keys   list of NameNodes
+    value_patterns  list of PatternNodes of equal length to keys
+    double_star_capture_target  NameNode or None
+    """
+
+    keys = []
+    value_patterns = []
+    double_star_capture_target = None
+
+    initial_child_attrs = PatternNode.initial_child_attrs + [
+        "keys",
+        "value_patterns",
+        "double_star_capture_target",
+    ]
+
+    def get_main_pattern_targets(self):
+        targets = set()
+        for p in self.value_patterns:
+            self.update_targets_with_targets(targets, p.get_targets())
+        if self.double_star_capture_target:
+            self.add_target_to_targets(targets, self.double_star_capture_target.name)
+        return targets
 
 
 class ClassPatternNode(PatternNode):

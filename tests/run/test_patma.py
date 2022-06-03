@@ -263,14 +263,12 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, 2)
 
     def test_patma_010(self):
-        return
         match ():
             case []:
                 x = 0
         self.assertEqual(x, 0)
 
     def test_patma_011(self):
-        return
         match (0, 1, 2):
             case [*x]:
                 y = 0
@@ -278,7 +276,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_012(self):
-        return
         match (0, 1, 2):
             case [0, *x]:
                 y = 0
@@ -286,7 +283,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_013(self):
-        return
         match (0, 1, 2):
             case [0, 1, *x,]:
                 y = 0
@@ -294,7 +290,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_014(self):
-        return
         match (0, 1, 2):
             case [0, 1, 2, *x]:
                 y = 0
@@ -302,7 +297,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_015(self):
-        return
         match (0, 1, 2):
             case [*x, 2,]:
                 y = 0
@@ -310,7 +304,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_016(self):
-        return
         match (0, 1, 2):
             case [*x, 1, 2]:
                 y = 0
@@ -318,7 +311,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_017(self):
-        return
         match (0, 1, 2):
             case [*x, 0, 1, 2,]:
                 y = 0
@@ -326,7 +318,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_018(self):
-        return
         match (0, 1, 2):
             case [0, *x, 2]:
                 y = 0
@@ -334,7 +325,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_019(self):
-        return
         match (0, 1, 2):
             case [0, 1, *x, 2,]:
                 y = 0
@@ -342,7 +332,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_020(self):
-        return
         match (0, 1, 2):
             case [0, *x, 1, 2]:
                 y = 0
@@ -350,7 +339,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_021(self):
-        return
         match (0, 1, 2):
             case [*x,]:
                 y = 0

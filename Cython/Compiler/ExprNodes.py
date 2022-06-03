@@ -3310,6 +3310,55 @@ class PyTempNode(TempNode):
     def __init__(self, pos, env):
         TempNode.__init__(self, pos, PyrexTypes.py_object_type, env)
 
+class TrackTypeTempNode(TempNode):
+    #  Like a temp node, but type is set from arg
+
+    is_temp = True
+
+    lhs_of_first_assignment = True  # assume it can be assigned to once
+    _assigned_twice = False
+
+    @property
+    def type(self):
+        return getattr(self.arg, "type", None)
+
+    def __init__(self, pos, arg):
+        ExprNode.__init__(self, pos)
+        self.arg = arg
+
+    def infer_type(self, env):
+        return self.type
+
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+        assert not self._assigned_twice  # if this happens it's not a disaster but it needs a refactor
+        self._assigned_twice = True
+        if self.type.is_pyobject:
+            rhs.make_owned_reference(code)
+            if not self.lhs_of_first_assignment:
+                code.put_decref(self.result(), self.ctype())
+        code.putln('%s = %s;' % (
+            self.result(),
+            rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
+        ))
+        rhs.generate_post_assignment_code(code)
+        rhs.free_temps(code)
+
+    def generate_post_assignment_code(self, code):
+        code.put_incref(self.result(), self.type)
+
+    def generate_disposal_code(self, code):
+        assert not self.has_temp_moved
+        assert self.is_temp
+        if self.type.is_string or self.type.is_pyunicode_ptr:
+            # postponed from self.generate_evaluation_code()
+            self.generate_subexpr_disposal_code(code)
+            self.free_subexpr_temps(code)
+        if self.result():
+            # for pattern matching subject temps we aren't confident
+            # that they're set - it may have failed to match
+            code.put_xdecref_clear(self.result(), self.ctype(),
+                                    have_gil=not self.in_nogil_context)
+
 class RawCNameExprNode(ExprNode):
     subexprs = []
 
