@@ -210,7 +210,17 @@ class PatternNode(Node):
     as_target = None
     comp_node = None
 
-    child_attrs = ["as_target", "comp_node"]
+    # When pattern nodes are analysed it changes which children are important.
+    # Therefore have two different list of child_attrs and switch
+    initial_child_attrs = ["as_target"]
+    post_analysis_child_attrs = ["comp_node"]
+
+    @property
+    def child_attrs(self):
+        if self.comp_node is None:
+            return self.initial_child_attrs
+        else:
+            return self.post_analysis_child_attrs
 
     def is_irrefutable(self):
         return False
@@ -285,13 +295,7 @@ class MatchValuePatternNode(PatternNode):
     is_is_check   bool     Picks "is" or equality check
     """
 
-    @property
-    def child_attrs(self):
-        attrs = list(PatternNode.child_attrs)
-        if not self.comp_node:
-            # once we have comparison, hide value (because it's in the comparison)
-            attrs.append("value")
-        return attrs
+    initial_child_attrs = PatternNode.initial_child_attrs + ["value"]
 
     is_is_check = False
 
@@ -332,7 +336,7 @@ class MatchAndAssignPatternNode(PatternNode):
     target = None
     is_star = False
 
-    child_atts = PatternNode.child_attrs + ["target"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["target"]
 
     def is_irrefutable(self):
         return not self.is_star
@@ -362,13 +366,7 @@ class OrPatternNode(PatternNode):
     alternatives   list of PatternNodes
     """
 
-    @property
-    def child_attrs(self):
-        if self.comp_node:
-            return PatternNode.child_attrs
-        else:
-            # the alternatives are already in the comp_node
-            return PatternNode.child_attrs + ["alternatives"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["alternatives"]
 
     def get_first_irrefutable(self):
         for a in self.alternatives:
@@ -448,7 +446,7 @@ class MatchSequencePatternNode(PatternNode):
     patterns   list of PatternNodes
     """
 
-    child_attrs = PatternNode.child_attrs + ["patterns"]
+    initial_child_attrs = PatternNode.initial_child_attrs + ["patterns"]
 
     def get_main_pattern_targets(self):
         targets = set()
@@ -468,7 +466,7 @@ class MatchMappingPatternNode(PatternNode):
     value_patterns = []
     double_star_capture_target = None
 
-    child_atts = PatternNode.child_attrs + [
+    initial_child_attrs = PatternNode.initial_child_attrs + [
         "keys",
         "value_patterns",
         "double_star_capture_target",
@@ -497,7 +495,7 @@ class ClassPatternNode(PatternNode):
     keyword_pattern_names = []
     keyword_pattern_patterns = []
 
-    child_attrs = PatternNode.child_attrs + [
+    initial_child_attrs = PatternNode.initial_child_attrs + [
         "class_",
         "positional_patterns",
         "keyword_pattern_names",
