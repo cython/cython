@@ -12,7 +12,8 @@ class MatchNode(StatNode):
     subject  ExprNode    The expression to be matched
     cases    [MatchCaseNode]  list of cases
     """
-    child_attrs = ['subject', 'cases']
+
+    child_attrs = ["subject", "cases"]
 
     def validate_irrefutable(self):
         found_irrefutable_case = None
@@ -20,14 +21,16 @@ class MatchNode(StatNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    ("%s makes remaining patterns unreachable" %
-                        found_irrefutable_case.pattern.irrefutable_message())
+                    (
+                        "%s makes remaining patterns unreachable"
+                        % found_irrefutable_case.pattern.irrefutable_message()
+                    ),
                 )
                 break
             if c.is_irrefutable():
                 found_irrefutable_case = c
             c.validate_irrefutable()
-        
+
     def analyse_expressions(self, env):
         error(self.pos, "Structural pattern match is not yet implemented")
         return self
@@ -39,7 +42,8 @@ class MatchCaseNode(Node):
     body       StatListNode
     guard      ExprNode or None
     """
-    child_attrs = ['pattern', 'body', 'guard']
+
+    child_attrs = ["pattern", "body", "guard"]
 
     def is_irrefutable(self):
         return self.pattern.is_irrefutable() and not self.guard
@@ -50,6 +54,7 @@ class MatchCaseNode(Node):
     def validate_irrefutable(self):
         self.pattern.validate_irrefutable()
 
+
 class PatternNode(Node):
     """
     DW decided that PatternNode shouldn't be an expression because
@@ -59,6 +64,7 @@ class PatternNode(Node):
 
     as_target   None or NameNode    any target assign by "as"
     """
+
     as_target = None
 
     child_attrs = ["as_target"]
@@ -99,7 +105,8 @@ class MatchValuePatternNode(PatternNode):
     value   ExprNode        # todo be more specific
     is_check   bool     Picks "is" or equality check
     """
-    child_attrs = PatternNode.child_attrs + ['value']
+
+    child_attrs = PatternNode.child_attrs + ["value"]
     is_is_check = False
 
     def get_main_pattern_targets(self):
@@ -111,10 +118,11 @@ class MatchAndAssignPatternNode(PatternNode):
     target   NameNode or None  the target to assign to (None = wildcard)
     is_star  bool
     """
+
     target = None
     is_star = False
 
-    child_atts = PatternNode.child_attrs + ['target'] 
+    child_atts = PatternNode.child_attrs + ["target"]
 
     def is_irrefutable(self):
         return not self.is_star
@@ -127,7 +135,7 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def get_main_pattern_targets(self):
         if self.target:
-            return { self.target.name }
+            return {self.target.name}
         else:
             return set()
 
@@ -136,6 +144,7 @@ class OrPatternNode(PatternNode):
     """
     alternatives   list of PatternNodes
     """
+
     child_attrs = PatternNode.child_attrs + ["alternatives"]
 
     def get_main_pattern_targets(self):
@@ -154,8 +163,10 @@ class OrPatternNode(PatternNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    ("%s makes remaining patterns unreachable" %
-                        found_irrefutable_case.irrefutable_message())
+                    (
+                        "%s makes remaining patterns unreachable"
+                        % found_irrefutable_case.irrefutable_message()
+                    ),
                 )
                 break
             if a.is_irrefutable():
@@ -167,7 +178,8 @@ class MatchSequencePatternNode(PatternNode):
     """
     patterns   list of PatternNodes
     """
-    child_attrs =  PatternNode.child_attrs + ['patterns']
+
+    child_attrs = PatternNode.child_attrs + ["patterns"]
 
     def get_main_pattern_targets(self):
         targets = set()
@@ -182,12 +194,15 @@ class MatchMappingPatternNode(PatternNode):
     value_patterns  list of PatternNodes of equal length to keys
     double_star_capture_target  NameNode or None
     """
+
     keys = []
     value_patterns = []
     double_star_capture_target = None
-    
+
     child_atts = PatternNode.child_attrs + [
-        'keys', 'value_patterns', 'double_star_capture_target'
+        "keys",
+        "value_patterns",
+        "double_star_capture_target",
     ]
 
     def get_main_pattern_targets(self):
@@ -207,14 +222,17 @@ class ClassPatternNode(PatternNode):
     keyword_pattern_patterns    list of PatternNodes
                                 (same length as keyword_pattern_names)
     """
+
     class_ = None
     positional_patterns = []
     keyword_pattern_names = []
     keyword_pattern_patterns = []
 
-    child_attrs =  PatternNode.child_attrs + [
-        "class_", "positional_patterns",
-        "keyword_pattern_names", "keyword_pattern_patterns",
+    child_attrs = PatternNode.child_attrs + [
+        "class_",
+        "positional_patterns",
+        "keyword_pattern_names",
+        "keyword_pattern_patterns",
     ]
 
     def get_main_pattern_targets(self):
