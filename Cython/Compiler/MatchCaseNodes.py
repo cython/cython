@@ -41,6 +41,7 @@ class MatchNode(StatNode):
         # to be optimized by the existing mechanisms). Leaves other cases
         # unchanged
         from .ExprNodes import CloneNode, ProxyNode, NameNode
+
         subject = self.subject
         if not self.subject.is_literal:
             self.subject = ProxyNode(self.subject)
@@ -49,32 +50,32 @@ class MatchNode(StatNode):
         for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
             if c is not None and c.is_simple_value_comparison():
                 if_clause = Nodes.IfClauseNode(
-                    c.pos, condition = c.pattern.get_simple_comparison_node(subject),
-                    body = c.body
+                    c.pos,
+                    condition=c.pattern.get_simple_comparison_node(subject),
+                    body=c.body,
                 )
                 for t in c.pattern.get_targets():
                     # generate an assignment at the start of the body
-                    if_clause.body.stats.insert(0,
+                    if_clause.body.stats.insert(
+                        0,
                         Nodes.SingleAssignmentNode(
-                            c.pos,
-                            lhs = NameNode(c.pos, name = t),
-                            rhs = subject
-                        )                    
+                            c.pos, lhs=NameNode(c.pos, name=t), rhs=subject
+                        ),
                     )
                 if not current_if_statement:
                     current_if_statement = Nodes.IfStatNode(
-                        c.pos, if_clauses = [], else_clause=None)
+                        c.pos, if_clauses=[], else_clause=None
+                    )
                 current_if_statement.if_clauses.append(if_clause)
                 self.cases[n] = None  # remove case
             elif current_if_statement:
                 # this cannot be simplified, but previous case(s) were
-                self.cases[n-1] = SubstitutedMatchCaseNode(
-                    current_if_statement.pos, body = current_if_statement
+                self.cases[n - 1] = SubstitutedMatchCaseNode(
+                    current_if_statement.pos, body=current_if_statement
                 )
                 current_if_statement = None
         # eliminate optimized cases
-        self.cases = [ c for c in self.cases if c is not None ]
-               
+        self.cases = [c for c in self.cases if c is not None]
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
@@ -84,14 +85,15 @@ class MatchNode(StatNode):
     def analyse_expressions(self, env):
         self.subject = self.subject.analyse_expressions(env)
         from .ExprNodes import ProxyNode, CloneNode
+
         if isinstance(self.subject, ProxyNode):
             self.subject.arg = self.subject.arg.coerce_to_simple(env)
         else:
             self.subject = ProxyNode(self.subject.coerce_to_simple(env))
         subject = self.subject_clonenode = CloneNode(self.subject)
-        self.cases = [ c.analyse_case_expressions(subject, env) for c in self.cases ]
+        self.cases = [c.analyse_case_expressions(subject, env) for c in self.cases]
         return self
- 
+
     def generate_execution_code(self, code):
         if self.subject_clonenode:
             self.subject.generate_evaluation_code(code)
@@ -107,6 +109,7 @@ class MatchCaseBaseNode(Node):
     Common base for a MatchCaseNode and a
     substituted node
     """
+
     pass
 
 
@@ -155,7 +158,7 @@ class SubstitutedMatchCaseNode(MatchCaseBaseNode):
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
-    
+
     def analyse_case_expressions(self, subject_node, env):
         self.body = self.body.analyse_expressions(env)
         return self
@@ -240,8 +243,9 @@ class MatchValuePatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         op = "is" if self.is_is_check else "=="
-        return ExprNodes.PrimaryCmpNode(self.pos,
-            operator = op, operand1 = subject_node, operand2 = self.value)
+        return ExprNodes.PrimaryCmpNode(
+            self.pos, operator=op, operand1=subject_node, operand2=self.value
+        )
 
 
 class MatchAndAssignPatternNode(PatternNode):
@@ -275,7 +279,7 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
-        return ExprNodes.BoolNode(self.pos, value = True)
+        return ExprNodes.BoolNode(self.pos, value=True)
 
 
 class OrPatternNode(PatternNode):
@@ -331,15 +335,16 @@ class OrPatternNode(PatternNode):
         assert len(self.alternatives) >= 2
         binop = ExprNodes.BoolBinopNode(
             self.pos,
-            operator = "or",
-            operand1 = self.alternatives[0].get_simple_comparison_node(subject_node),
-            operand2 = self.alternatives[1].get_simple_comparison_node(subject_node))
+            operator="or",
+            operand1=self.alternatives[0].get_simple_comparison_node(subject_node),
+            operand2=self.alternatives[1].get_simple_comparison_node(subject_node),
+        )
         for a in self.alternatives[2:]:
             binop = ExprNodes.BoolBinopNode(
                 self.pos,
-                operator = "or",
-                operand1 = binop,
-                operand2 = a.get_simple_comparison_node(subject_node)
+                operator="or",
+                operand1=binop,
+                operand2=a.get_simple_comparison_node(subject_node),
             )
         return binop
 
