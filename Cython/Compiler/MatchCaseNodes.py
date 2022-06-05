@@ -84,7 +84,8 @@ class MatchNode(StatNode):
 
     def analyse_expressions(self, env):
         from .ExprNodes import ProxyNode, CloneNode
-        self.subject = self.subject.analyse_expressions(env)      
+
+        self.subject = self.subject.analyse_expressions(env)
         if isinstance(self.subject, ProxyNode):
             self.subject.arg = self.subject.arg.coerce_to_simple(env)
         else:
@@ -148,10 +149,11 @@ class MatchCaseNode(Node):
         self.body.analyse_declarations(env)
 
     def analyse_case_expressions(self, subject_node, env):
-        self.pattern = self.pattern.analyse_pattern_expressions(
-            subject_node, env)
+        self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env)
         self.original_pattern = self.pattern
-        self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(env).coerce_to_simple(env)
+        self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(
+            env
+        ).coerce_to_simple(env)
         if self.guard:
             self.guard = self.guard.analyse_temp_boolean_expression(env)
         self.body = self.body.analyse_expressions(env)
@@ -288,7 +290,7 @@ class MatchValuePatternNode(PatternNode):
         attrs = list(PatternNode.child_attrs)
         if not self.comp_node:
             # once we have comparison, hide value (because it's in the comparison)
-            attrs.append('value')
+            attrs.append("value")
         return attrs
 
     is_is_check = False
@@ -317,8 +319,7 @@ class MatchValuePatternNode(PatternNode):
     def analyse_pattern_expressions(self, subject_node, env):
         if self.value:
             self.value = self.value.analyse_expressions(env)
-        self.comp_node = self.get_comparison_node(
-            subject_node).analyse_expressions(env)
+        self.comp_node = self.get_comparison_node(subject_node).analyse_expressions(env)
         return self
 
 
@@ -437,7 +438,8 @@ class OrPatternNode(PatternNode):
         for a in self.alternatives:
             a = a.analyse_pattern_expressions(subject_node, env)
         self.comp_node = self.get_comparison_node(
-            subject_node).analyse_temp_boolean_expression(env)
+            subject_node
+        ).analyse_temp_boolean_expression(env)
         return self
 
 
