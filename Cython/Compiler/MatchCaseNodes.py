@@ -57,14 +57,9 @@ class MatchNode(StatNode):
                     condition=c.pattern.get_simple_comparison_node(subject),
                     body=body,
                 )
-                for t in c.pattern.get_targets():
-                    # generate an assignment at the start of the body
-                    if_clause.body.stats.insert(
-                        0,
-                        Nodes.SingleAssignmentNode(
-                            c.pos, lhs=NameNode(c.pos, name=t), rhs=subject
-                        ),
-                    )
+                assignments = c.pattern.generate_target_assignments(subject)
+                if assignments:
+                    if_clause.body.stats.insert(0, assignments)
                 if not current_if_statement:
                     current_if_statement = Nodes.IfStatNode(
                         c.pos, if_clauses=[], else_clause=None
@@ -82,8 +77,9 @@ class MatchNode(StatNode):
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
+        subject = self.get_or_setup_clonenode()
         for c in self.cases:
-            c.analyse_declarations(env)
+            c.analyse_case_declarations(subject, env)
 
     def analyse_expressions(self, env):
         self.subject = self.subject.analyse_expressions(env)
@@ -124,9 +120,11 @@ class MatchCaseNode(Node):
 
     generated:
     original_pattern  PatternNode  (not coerced to temp)
+    target_assignments  [ SingleAssignmentNodes ]
     """
 
-    child_attrs = ["pattern", "body", "guard"]
+    target_assignments = None
+    child_attrs = ["pattern", "target_assignments", "guard", "body"]
 
     def is_irrefutable(self):
         return self.pattern.is_irrefutable() and not self.guard
@@ -142,8 +140,11 @@ class MatchCaseNode(Node):
     def validate_irrefutable(self):
         self.pattern.validate_irrefutable()
 
-    def analyse_declarations(self, env):
+    def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
+        self.target_assignments = self.pattern.generate_target_assignments(subject_node)
+        if self.target_assignments:
+            self.target_assignments.analyse_declarations(env)
         if self.guard:
             self.guard.analyse_declarations(env)
         self.body.analyse_declarations(env)
@@ -154,6 +155,8 @@ class MatchCaseNode(Node):
         self.pattern.comp_node = self.pattern.comp_node.coerce_to_boolean(
             env
         ).coerce_to_simple(env)
+        if self.target_assignments:
+            self.target_assignments = self.target_assignments.analyse_expressions(env)
         if self.guard:
             self.guard = self.guard.analyse_temp_boolean_expression(env)
         self.body = self.body.analyse_expressions(env)
@@ -164,8 +167,8 @@ class MatchCaseNode(Node):
         code.putln("if (%s) { /* pattern */" % self.pattern.comparison_result())
         self.pattern.generate_comparison_disposal_code(code)
         self.pattern.free_comparison_temps(code)
-        if self.original_pattern.get_targets():
-            error(self.pos, "Cannot currently handle patterns with targets")
+        if self.target_assignments:
+            self.target_assignments.generate_execution_code(code)
         if self.guard:
             self.guard.generate_evaluation_code(code)
             code.putln("if (%s) { /* guard */" % self.guard.result())
@@ -182,6 +185,9 @@ class MatchCaseNode(Node):
 class SubstitutedMatchCaseNode(MatchCaseBaseNode):
     # body  - Node -  The (probably) if statement that it's replaced with
     child_attrs = ["body"]
+
+    def analyse_case_declarations(self, subject_node, env):
+        self.analyse_declarations(env)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -293,6 +299,35 @@ class PatternNode(Node):
     def free_comparison_temps(self, code):
         self.comp_node.free_temps(code)
 
+    def generate_target_assignments(self, subject_node):
+        # Generates the assignment code needed to initialize all the targets.
+        # Returns either a StatListNode or None
+        assignments = []
+        if self.as_target:
+            if (
+                isinstance(self, MatchValuePatternNode)
+                and self.value
+                and self.value.is_simple()
+            ):
+                # in this case we can optimize slightly and just take the value
+                subject_node = self.value.clone_node()
+            assignments.append(
+                Nodes.SingleAssignmentNode(
+                    self.pos, lhs=self.as_target.clone_node(), rhs=subject_node
+                )
+            )
+        assignments.extend(self.generate_main_pattern_assignment_list(subject_node))
+        if assignments:
+            return Nodes.StatListNode(self.pos, stats=assignments)
+        else:
+            return None
+
+    def generate_main_pattern_assignment_list(self, subject_node):
+        # generates assignments for everything except the "as_target".
+        # Override in subclasses.
+        # Returns a list of Nodes
+        return []
+
 
 class MatchValuePatternNode(PatternNode):
     """
@@ -365,6 +400,30 @@ class MatchAndAssignPatternNode(PatternNode):
         assert self.is_simple_value_comparison()
         return ExprNodes.BoolNode(self.pos, value=True)
 
+    def get_comparison_node(self, subject_node):
+        return self.get_simple_comparison_node(subject_node)
+
+    def generate_main_pattern_assignment_list(self, subject_node):
+        if self.target:
+            return [
+                Nodes.SingleAssignmentNode(
+                    self.pos, lhs=self.target.clone_node(), rhs=subject_node
+                )
+            ]
+        else:
+            return []
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        if self.is_star:
+            return super(MatchAndAssignPatternNode, self).analyse_pattern_expressions(
+                subject_node, env
+            )
+        else:
+            self.comp_node = self.get_comparison_node(subject_node).analyse_expressions(
+                env
+            )
+            return self
+
 
 class OrPatternNode(PatternNode):
     """
@@ -416,7 +475,7 @@ class OrPatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
-        assert len(self.alternatives) >= 2
+        assert len(self.alternatives) >= 2, self.alternatives
         binop = ExprNodes.BoolBinopNode(
             self.pos,
             operator="or",
@@ -438,12 +497,23 @@ class OrPatternNode(PatternNode):
             a.analyse_declarations(env)
 
     def analyse_pattern_expressions(self, subject_node, env):
-        for a in self.alternatives:
-            a = a.analyse_pattern_expressions(subject_node, env)
+        self.alternatives = [
+            a.analyse_pattern_expressions(subject_node, env) for a in self.alternatives
+        ]
         self.comp_node = self.get_comparison_node(
             subject_node
         ).analyse_temp_boolean_expression(env)
         return self
+
+    def generate_main_pattern_assignment_list(self, subject_node):
+        assignments = []
+        for a in self.alternatives:
+            a_assignment = a.generate_target_assignments(subject_node)
+            if a_assignment:
+                # Switch code paths depending on which node gets assigned
+                error(self.pos, "Need to handle assignments in or nodes correctly")
+                assignments.append(a_assignment)
+        return assignments
 
 
 class MatchSequencePatternNode(PatternNode):

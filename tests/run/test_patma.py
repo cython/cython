@@ -248,7 +248,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(A.y, 1)
 
     def test_patma_009(self):
-        return
         class A:
             B = 0
         match 0:
