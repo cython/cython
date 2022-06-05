@@ -615,6 +615,7 @@ class MatchSequencePatternNode(PatternNode):
             len_test = len(self.patterns)
             if has_star:
                 len_test -= 1
+            len_entry = Builtin.builtin_scope.lookup("len")
             seq_len_test = ExprNodes.BoolBinopNode(
                 self.pos,
                 operator = "and",
@@ -622,11 +623,9 @@ class MatchSequencePatternNode(PatternNode):
                 operand2 = ExprNodes.PrimaryCmpNode(
                     self.pos,
                     operator = ">=" if has_star else "==",
-                    # FIXME - make sure this is properly optimized and cannot be
-                    # overridden by the outer scope!
                     operand1 = ExprNodes.SimpleCallNode(
                         self.pos,
-                        function = ExprNodes.NameNode(self.pos, name="len"),
+                        function = ExprNodes.NameNode(self.pos, name="len", entry=len_entry),
                         args = [ subject_node ]
                     ),
                     operand2 = ExprNodes.IntNode(
