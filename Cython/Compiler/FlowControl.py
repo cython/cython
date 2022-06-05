@@ -972,6 +972,12 @@ class ControlFlowAnalysis(CythonTransform):
                 parent = self.flow.block
             else:
                 assert False, case
+
+        parent.add_child(next_block)
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
         return node
 
     def visit_PatternNode(self, node):
