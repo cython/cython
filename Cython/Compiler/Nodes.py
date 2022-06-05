@@ -10026,50 +10026,6 @@ class CnameDecoratorNode(StatNode):
         self.node.generate_execution_code(code)
 
 
-class MatchNode(StatNode):
-    """
-    subject  ExprNode    The expression to be matched
-    cases    [MatchCaseNode]  list of cases
-    """
-    child_attrs = ['subject', 'cases']
-
-    def validate_irrefutable(self):
-        found_irrefutable_case = None
-        for c in self.cases:
-            if found_irrefutable_case:
-                error(
-                    found_irrefutable_case.pos,
-                    ("%s makes remaining patterns unreachable" %
-                        found_irrefutable_case.pattern.irrefutable_message())
-                )
-                break
-            if c.is_irrefutable():
-                found_irrefutable_case = c
-            c.validate_irrefutable()
-        
-    def analyse_expressions(self, env):
-        error(self.pos, "Structural pattern match is not yet implemented")
-        return self
-
-
-class MatchCaseNode(Node):
-    """
-    pattern    PatternNode
-    body       StatListNode
-    guard      ExprNode or None
-    """
-    child_attrs = ['pattern', 'body', 'guard']
-
-    def is_irrefutable(self):
-        return self.pattern.is_irrefutable() and not self.guard
-
-    def validate_targets(self):
-        self.pattern.get_targets()
-
-    def validate_irrefutable(self):
-        self.pattern.validate_irrefutable()
-
-
 class ErrorNode(Node):
     """
     Node type for things that we want to get throught the parser
