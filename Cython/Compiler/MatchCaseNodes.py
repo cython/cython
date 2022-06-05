@@ -558,8 +558,13 @@ class MatchSequencePatternNode(PatternNode):
 
     def get_main_pattern_targets(self):
         targets = set()
+        star_count = 0
         for p in self.patterns:
+            if isinstance(p, MatchAndAssignPatternNode) and p.is_star:
+                star_count += 1
             self.update_targets_with_targets(targets, p.get_targets())
+        if star_count > 1:
+            error(self.pos,  "multiple starred names in sequence pattern")
         return targets
 
     def get_comparison_node(self, subject_node):
@@ -684,6 +689,8 @@ class MatchSequencePatternNode(PatternNode):
                     type = Builtin.list_type
                 ))
             else:
+                # FIXME - turn off boundscheck and wraparound
+                # boundscheck should be safe. wraparound needs small refactoring
                 subjects.append(IndexNode(
                     pattern.pos,
                     base = subject_node,
