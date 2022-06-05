@@ -103,7 +103,7 @@ class PatternNode(Node):
 class MatchValuePatternNode(PatternNode):
     """
     value   ExprNode        # todo be more specific
-    is_check   bool     Picks "is" or equality check
+    is_is_check   bool     Picks "is" or equality check
     """
 
     child_attrs = PatternNode.child_attrs + ["value"]
