@@ -147,6 +147,18 @@ class OrPatternNode(PatternNode):
 
     child_attrs = PatternNode.child_attrs + ["alternatives"]
 
+    def get_first_irrefutable(self):
+        for a in self.alternatives:
+            if a.is_irrefutable():
+                return a
+        return None
+
+    def is_irrefutable(self):
+        return self.get_first_irrefutable() is not None
+
+    def irrefutable_message(self):
+        return self.get_first_irrefutable().irrefutable_message()
+
     def get_main_pattern_targets(self):
         child_targets = None
         for ch in self.alternatives:
