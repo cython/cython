@@ -396,7 +396,11 @@ class SimpleAssignmentTypeInferer(object):
                 assmt_to_names[assmt] = names
                 assmts = set()
                 for node in names:
-                    assmts.update(node.cf_state)
+                    try:
+                        assmts.update(node.cf_state)
+                    except:
+                        import pdb; pdb.set_trace()
+                        raise
                 dependencies[assmt] = assmts
             if entry.type is unspecified_type:
                 assignments.update(entry.cf_assignments)
