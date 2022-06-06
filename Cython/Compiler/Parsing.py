@@ -4058,7 +4058,7 @@ def p_pattern(s):
     if s.sy == 'IDENT' and s.systring == 'as':
         s.next()
         with tentatively_scan(s) as errors:
-            pattern.as_target = p_pattern_capture_target(s)
+            pattern.as_targets.append(p_pattern_capture_target(s))
         if errors and s.sy == "_":
             s.next()
             # make this a specific error
@@ -4175,9 +4175,9 @@ def p_literal_pattern(s):
         if name == "None":
             result = ExprNodes.NoneNode(pos)
         elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True)
+            result = ExprNodes.BoolNode(pos, value=True, type=Builtin.bool_type)
         elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False)
+            result = ExprNodes.BoolNode(pos, value=False, type=Builtin.bool_type)
         elif name == "NULL" and not s.in_python_file:
             # Included Null as an exactly matched constant here
             result = ExprNodes.NullNode(pos)

@@ -42,10 +42,8 @@ class MatchNode(StatNode):
         # unchanged
         from .ExprNodes import CloneNode, ProxyNode, NameNode
 
-        subject = self.subject
-        if not self.subject.is_literal:
-            self.subject = ProxyNode(self.subject)
-            subject = self.subject_clonenode = CloneNode(self.subject)
+        self.subject = ProxyNode(self.subject)
+        subject = self.subject_clonenode = CloneNode(self.subject)
         current_if_statement = None
         for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
             if c is not None and c.is_simple_value_comparison():
@@ -83,14 +81,11 @@ class MatchNode(StatNode):
             c.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        from .ExprNodes import ProxyNode, CloneNode
-
         self.subject = self.subject.analyse_expressions(env)
-        if isinstance(self.subject, ProxyNode):
-            self.subject.arg = self.subject.arg.coerce_to_simple(env)
-        else:
-            self.subject = ProxyNode(self.subject.coerce_to_simple(env))
-        subject = self.subject_clonenode = CloneNode(self.subject)
+        assert isinstance(self.subject, ExprNodes.ProxyNode)
+        if not self.subject.arg.is_literal:
+            self.subject.arg = self.subject.arg.coerce_to_temp(env)
+        subject = self.subject_clonenode
         self.cases = [c.analyse_case_expressions(subject, env) for c in self.cases]
         return self
 
@@ -201,7 +196,7 @@ class PatternNode(Node):
     assignment of targets), and they need to be done at different
     times.
 
-    as_target   None or NameNode    any target assign by "as"
+    as_targets   [NameNode]    any target assign by "as"
 
     Generated in analysis:
     comp_node   ExprNode     node to evaluate for the pattern
@@ -212,8 +207,13 @@ class PatternNode(Node):
 
     # When pattern nodes are analysed it changes which children are important.
     # Therefore have two different list of child_attrs and switch
-    initial_child_attrs = ["as_target"]
+    initial_child_attrs = ["as_targets"]
     post_analysis_child_attrs = ["comp_node"]
+
+    def __init__(self, pos, **kwds):
+        super(PatternNode, self).__init__(pos, **kwds)
+        if not hasattr(self, "as_targets"):
+            self.as_targets = []
 
     @property
     def child_attrs(self):
@@ -227,8 +227,8 @@ class PatternNode(Node):
 
     def get_targets(self):
         targets = self.get_main_pattern_targets()
-        if self.as_target:
-            self.add_target_to_targets(targets, self.as_target.name)
+        for t in self.as_targets:
+            self.add_target_to_targets(targets, t.name)
         return targets
 
     def update_targets_with_targets(self, targets, other_targets):
