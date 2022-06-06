@@ -830,7 +830,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_068(self):
-        return
         x = 0
         match x:
             case 0 if False:
@@ -841,7 +840,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_069(self):
-        return
         x = 0
         y = None
         match x:
@@ -853,7 +851,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(y, None)
 
     def test_patma_070(self):
-        return
         x = 0
         match x:
             case 0 if True:
@@ -864,7 +861,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_071(self):
-        return
         x = 0
         match x:
             case 0 if 1:
@@ -875,7 +871,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_072(self):
-        return
         x = 0
         match x:
             case 0 if True:
@@ -887,7 +882,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 2)
 
     def test_patma_073(self):
-        return
         x = 0
         match x:
             case 0 if 0:
@@ -899,7 +893,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 2)
 
     def test_patma_074(self):
-        return
         x = 0
         y = None
         match x:
@@ -1125,7 +1118,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(y, None)
 
     def test_patma_095(self):
-        return
         x = 0
         match x:
             case -0:
@@ -1707,7 +1699,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(v, y)
 
     def test_patma_154(self):
-        return
         x = 0
         y = None
         match x:
@@ -1717,7 +1708,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(y, None)
 
     def test_patma_155(self):
-        return
         x = 0
         y = None
         match x:
@@ -1756,7 +1746,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_159(self):
-        return
         x = 0
         match x:
             case 0 if not x:
@@ -1790,7 +1779,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_162(self):
-        return
         x = 0
         match x:
             case 1 if x:
@@ -1801,7 +1789,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_163(self):
-        return
         x = 0
         y = None
         match x:
@@ -1824,7 +1811,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_165(self):
-        return
         x = 0
         match x:
             case 1 if x:
