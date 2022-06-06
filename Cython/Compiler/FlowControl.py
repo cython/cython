@@ -951,6 +951,8 @@ class ControlFlowAnalysis(CythonTransform):
         # if blocks
         from .MatchCaseNodes import MatchCaseNode, SubstitutedMatchCaseNode
 
+        self._visit(node.subject)
+
         next_block = self.flow.newblock()
         parent = self.flow.block
         for case in node.cases:
