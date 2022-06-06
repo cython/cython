@@ -42,10 +42,8 @@ class MatchNode(StatNode):
         # unchanged
         from .ExprNodes import CloneNode, ProxyNode, NameNode
 
-        subject = self.subject
-        if not self.subject.is_literal:
-            self.subject = ProxyNode(self.subject)
-            subject = self.subject_clonenode = CloneNode(self.subject)
+        self.subject = ProxyNode(self.subject)
+        subject = self.subject_clonenode = CloneNode(self.subject)
         current_if_statement = None
         for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
             if c is not None and c.is_simple_value_comparison():
@@ -84,13 +82,10 @@ class MatchNode(StatNode):
 
     def analyse_expressions(self, env):
         self.subject = self.subject.analyse_expressions(env)
-        from .ExprNodes import ProxyNode, CloneNode
-
-        if isinstance(self.subject, ProxyNode):
-            self.subject.arg = self.subject.arg.coerce_to_simple(env)
-        else:
-            self.subject = ProxyNode(self.subject.coerce_to_simple(env))
-        subject = self.subject_clonenode = CloneNode(self.subject)
+        assert isinstance(self.subject, ExprNodes.ProxyNode)
+        if not self.subject.arg.is_literal:
+            self.subject.arg = self.subject.arg.coerce_to_temp(env)
+        subject = self.subject_clonenode
         self.cases = [c.analyse_case_expressions(subject, env) for c in self.cases]
         return self
 

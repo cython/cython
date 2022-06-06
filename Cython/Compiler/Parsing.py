@@ -4175,9 +4175,9 @@ def p_literal_pattern(s):
         if name == "None":
             result = ExprNodes.NoneNode(pos)
         elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True)
+            result = ExprNodes.BoolNode(pos, value=True, type=Builtin.bool_type)
         elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False)
+            result = ExprNodes.BoolNode(pos, value=False, type=Builtin.bool_type)
         elif name == "NULL" and not s.in_python_file:
             # Included Null as an exactly matched constant here
             result = ExprNodes.NullNode(pos)
