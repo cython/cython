@@ -4058,7 +4058,7 @@ def p_pattern(s):
     if s.sy == 'IDENT' and s.systring == 'as':
         s.next()
         with tentatively_scan(s) as errors:
-            pattern.as_target = p_pattern_capture_target(s)
+            pattern.as_targets.append(p_pattern_capture_target(s))
         if errors and s.sy == "_":
             s.next()
             # make this a specific error

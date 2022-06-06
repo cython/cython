@@ -62,20 +62,23 @@ class PatternNode(Node):
     assignment of targets), and they need to be done at different
     times.
 
-    as_target   None or NameNode    any target assign by "as"
+    as_targets   [NameNode]    any target assign by "as"
     """
 
-    as_target = None
+    child_attrs = ["as_targets"]
 
-    child_attrs = ["as_target"]
+    def __init__(self, pos, **kwds):
+        super(PatternNode, self).__init__(pos, **kwds)
+        if not hasattr(self, "as_targets"):
+            self.as_targets = []
 
     def is_irrefutable(self):
         return False
 
     def get_targets(self):
         targets = self.get_main_pattern_targets()
-        if self.as_target:
-            self.add_target_to_targets(targets, self.as_target.name)
+        for t in self.as_targets:
+            self.add_target_to_targets(targets, t.name)
         return targets
 
     def update_targets_with_targets(self, targets, other_targets):
