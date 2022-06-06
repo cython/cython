@@ -77,9 +77,8 @@ class MatchNode(StatNode):
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
-        subject = self.get_or_setup_clonenode()
         for c in self.cases:
-            c.analyse_case_declarations(subject, env)
+            c.analyse_case_declarations(self.subject_clonenode, env)
 
     def analyse_expressions(self, env):
         self.subject = self.subject.analyse_expressions(env)
@@ -212,8 +211,9 @@ class PatternNode(Node):
     Generated in analysis:
     comp_node   ExprNode     node to evaluate for the pattern
     """
+    # useful for type tests
+    is_match_value_pattern = False
 
-    as_target = None
     comp_node = None
 
     # When pattern nodes are analysed it changes which children are important.
@@ -303,9 +303,9 @@ class PatternNode(Node):
         # Generates the assignment code needed to initialize all the targets.
         # Returns either a StatListNode or None
         assignments = []
-        if self.as_target:
+        for target in self.as_targets:
             if (
-                isinstance(self, MatchValuePatternNode)
+                self.is_match_value_pattern
                 and self.value
                 and self.value.is_simple()
             ):
@@ -313,7 +313,7 @@ class PatternNode(Node):
                 subject_node = self.value.clone_node()
             assignments.append(
                 Nodes.SingleAssignmentNode(
-                    self.pos, lhs=self.as_target.clone_node(), rhs=subject_node
+                    target.pos, lhs=target.clone_node(), rhs=subject_node
                 )
             )
         assignments.extend(self.generate_main_pattern_assignment_list(subject_node))
@@ -334,6 +334,7 @@ class MatchValuePatternNode(PatternNode):
     value   ExprNode
     is_is_check   bool     Picks "is" or equality check
     """
+    is_match_value_pattern = True
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["value"]
 

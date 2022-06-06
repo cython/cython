@@ -975,7 +975,8 @@ class ControlFlowAnalysis(CythonTransform):
             else:
                 assert False, case
 
-        parent.add_child(next_block)
+        if parent is not None:
+            parent.add_child(next_block)
         if next_block.parents:
             self.flow.block = next_block
         else:
@@ -985,7 +986,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_PatternNode(self, node):
         # avoid visiting anything that might be a target (since they're
         # handled elsewhere)
-        self.visitchildren(node, exclude=["as_target", "target"])
+        self.visitchildren(node, exclude=["as_targets", "target"])
         return node
 
     def visit_AssertStatNode(self, node):
