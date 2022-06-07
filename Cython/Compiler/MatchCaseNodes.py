@@ -854,10 +854,10 @@ class MatchSequencePatternNode(PatternNode):
 
     def dispose_of_subject_temps(self, code):
         if self.needs_length_temp:
-            self.length_temp.generate_disposal_code(code)
+            code.put_xdecref_clear(self.length_temp.result(), self.length_temp.type)
         for temp in self.subject_temps:
             if temp is not None:
-                temp.generate_disposal_code(code)
+                code.put_xdecref_clear(temp.result(), temp.type)
         for pattern in self.patterns:
             pattern.dispose_of_subject_temps(code)
 
@@ -994,24 +994,9 @@ class AssignableTempNode(ExprNodes.TempNode):
     def generate_post_assignment_code(self, code):
         code.put_incref(self.result(), self.type)
 
-    def generate_disposal_code(self, code):
-        assert not self.has_temp_moved
-        assert self.is_temp
-        if self.type.is_string or self.type.is_pyunicode_ptr:
-            # postponed from self.generate_evaluation_code()
-            self.generate_subexpr_disposal_code(code)
-            self.free_subexpr_temps(code)
-        if self.result():
-            # for pattern matching subject temps we aren't confident
-            # that they're set - it may have failed to match
-            code.put_xdecref_clear(self.result(), self.ctype(),
-                                    have_gil=not self.in_nogil_context)
-
 
 class TrackTypeTempNode(AssignableTempNode):
     #  Like a temp node, but type is set from arg
-
-    is_temp = True
 
     lhs_of_first_assignment = True  # assume it can be assigned to once
     _assigned_twice = False

@@ -2527,7 +2527,6 @@ class TestPatma(unittest.TestCase):
 
     def test_patma_226(self):
         def f(x):
-            return
             match x:
                 case 0:
                     return 0
