@@ -47,10 +47,15 @@ class MatchNode(StatNode):
         current_if_statement = None
         for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
             if c is not None and c.is_simple_value_comparison():
+                body = SubstitutedIfStatListNode(
+                    c.body.pos,
+                    stats = c.body.stats,
+                    match_node = self
+                )
                 if_clause = Nodes.IfClauseNode(
                     c.pos,
                     condition=c.pattern.get_simple_comparison_node(subject),
-                    body=c.body,
+                    body=body,
                 )
                 for t in c.pattern.get_targets():
                     # generate an assignment at the start of the body
@@ -69,7 +74,7 @@ class MatchNode(StatNode):
             elif current_if_statement:
                 # this cannot be simplified, but previous case(s) were
                 self.cases[n - 1] = SubstitutedMatchCaseNode(
-                    current_if_statement.pos, body=current_if_statement
+                    current_if_statement.pos, body = current_if_statement
                 )
                 current_if_statement = None
         # eliminate optimized cases
@@ -90,16 +95,16 @@ class MatchNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        end_label = code.new_label()
+        end_label = self.end_label = code.new_label()
         if self.subject_clonenode:
             self.subject.generate_evaluation_code(code)
         for c in self.cases:
             c.generate_execution_code(code, end_label)
+        if code.label_used(end_label):
+            code.put_label(end_label)
         if self.subject_clonenode:
             self.subject.generate_disposal_code(code)
             self.subject.free_temps(code)
-        if code.label_used(end_label):
-            code.put_label(end_label)
 
 
 class MatchCaseBaseNode(Node):
@@ -507,3 +512,17 @@ class ClassPatternNode(PatternNode):
         for p in self.positional_patterns + self.keyword_pattern_patterns:
             self.update_targets_with_targets(targets, p.get_targets())
         return targets
+
+
+class SubstitutedIfStatListNode(Nodes.StatListNode):
+    """
+    Like StatListNode but with a "goto end of match" at the
+    end of it
+
+    match_node   - the enclosing match statement
+    """
+    def generate_execution_code(self, code):
+        super(SubstitutedIfStatListNode, self).generate_execution_code(code)
+        if not self.is_terminator:
+            code.put_goto(self.match_node.end_label)
+
