@@ -5436,7 +5436,11 @@ class CClassDefNode(ClassDefNode):
                         ))
                         code.putln("}")
                 code.putln("#else")
-                code.putln("#warning The buffer protocol is not supported in the Limited C-API.")
+                code.putln("    #ifdef _MSC_VER")
+                code.putln("        #pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
+                code.putln("    #else")
+                code.putln("        #warning \"The buffer protocol is not supported in the Limited C-API.\"")
+                code.putln("    #endif")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
