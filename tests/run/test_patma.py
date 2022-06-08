@@ -355,7 +355,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_023(self):
-        return
         x = {0: 0}
         match x:
             case {}:
@@ -364,7 +363,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_024(self):
-        return
         x = {}
         y = None
         match x:
@@ -414,7 +412,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(y, None)
 
     def test_patma_029(self):
-        return
         x = {}
         y = None
         match x:
@@ -428,7 +425,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(y, None)
 
     def test_patma_030(self):
-        return
         x = {False: (True, 2.0, {})}
         match x:
             case {0: [1, 2, {}]}:
@@ -441,7 +437,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_031(self):
-        return
         x = {False: (True, 2.0, {}), 1: [[]], 2: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -454,7 +449,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_032(self):
-        return
         x = {False: (True, 2.0, {}), 1: [[]], 2: 0}
         match x:
             case {0: [1, 2]}:
@@ -467,7 +461,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_033(self):
-        return
         x = []
         match x:
             case {0: [1, 2, {}]}:
@@ -480,7 +473,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 2)
 
     def test_patma_034(self):
-        return
         x = {0: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -493,7 +485,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_035(self):
-        return
         x = {0: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -1311,7 +1302,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_119(self):
-        return
         x = collections.defaultdict(int)
         match x:
             case {0: 0}:
@@ -1322,7 +1312,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_120(self):
-        return
         x = collections.defaultdict(int)
         match x:
             case {0: 0}:
@@ -1417,7 +1406,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_133(self):
-        return
         x = collections.defaultdict(int, {0: 1})
         match x:
             case {1: 0}:
@@ -1430,7 +1418,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 2)
 
     def test_patma_134(self):
-        return
         x = collections.defaultdict(int, {0: 1})
         match x:
             case {1: 0}:
@@ -1444,7 +1431,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, {0: 1})
 
     def test_patma_135(self):
-        return
         x = collections.defaultdict(int, {0: 1})
         match x:
             case {1: 0}:
@@ -1458,7 +1444,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, {})
 
     def test_patma_136(self):
-        return
         x = {0: 1}
         match x:
             case {1: 0}:
@@ -1471,7 +1456,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_137(self):
-        return
         x = {0: 1}
         match x:
             case {1: 0}:
@@ -1485,7 +1469,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, {0: 1})
 
     def test_patma_138(self):
-        return
         x = {0: 1}
         match x:
             case {1: 0}:
@@ -2114,7 +2097,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, 0)
 
     def test_patma_193(self):
-        return
         x = {"bandwidth": 0, "latency": 1}
         match x:
             case {"bandwidth": b, "latency": l}:
@@ -2125,7 +2107,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_194(self):
-        return
         x = {"bandwidth": 0, "latency": 1, "key": "value"}
         match x:
             case {"latency": l, "bandwidth": b}:
@@ -2136,7 +2117,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_195(self):
-        return
         x = {"bandwidth": 0, "latency": 1, "key": "value"}
         match x:
             case {"bandwidth": b, "latency": l, **rest}:
@@ -2148,7 +2128,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_196(self):
-        return
         x = {"bandwidth": 0, "latency": 1}
         match x:
             case {"latency": l, "bandwidth": b, **rest}:
@@ -2379,7 +2358,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(f(bytearray(b"abc")), None)
 
     def test_patma_211(self):
-        return
         def f(w):
             match w:
                 case {"x": x, "y": "y", "z": z}:
@@ -2449,7 +2427,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(set(f()), {"a", "b"})
 
     def test_patma_219(self):
-        return
         def f():
             match {"k": ..., "l": ...}:
                 case {"k": a, "l": b}:
