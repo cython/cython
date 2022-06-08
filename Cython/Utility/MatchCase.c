@@ -11,7 +11,7 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o) {
     PyObject *o_module_name, *abc_module, *Sequence;
     int result;
     // Py_TPFLAGS_SEQUENCE doesn't exit. Check a known list of types
-    if (PyUnicode_Check(o) || PyBytes_Check(o) || PyByteArray_Check(o)) {
+    if (PyUnicode_Check(o) || PyBytes_Check(o) || PyByteArray_Check(o) || o == Py_None) {
         return 0;  // these types are deliberately excluded and treated not as a sequence
     }
     if (PyList_Check(o) || PyTuple_Check(o) || PyRange_Check(o) || PyMemoryView_Check(o)) {
