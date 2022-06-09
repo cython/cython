@@ -259,7 +259,7 @@ def run_build():
         url='https://cython.org/',
         author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
-        description="The Cython compiler for writing C extensions for the Python language.",
+        description="The Cython compiler for writing C extensions in the Python language.",
         long_description=textwrap.dedent("""\
         The Cython language makes writing C extensions for the Python language as
         easy as Python itself.  Cython is a source code translator based on Pyrex_,

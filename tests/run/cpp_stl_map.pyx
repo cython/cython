@@ -30,6 +30,18 @@ def test_map_insert_it(vals):
     m.insert(um.begin(), um.end())
     return [ (item.first, item.second) for item in m ]
 
+def test_const_map_insert_it(vals):
+    """
+    >>> test_const_map_insert_it([(1,1),(2,2),(2,2),(3,3),(-1,-1)])
+    [(-1, -1), (1, 1), (2, 2), (3, 3)]
+    """
+    cdef unordered_map[int,int] um = unordered_map[int,int]()
+    cdef map[int,int] m = map[int,int]()
+    for k, v in vals:
+        um.insert(pair[int,int](k, v))
+    m.insert(um.cbegin(), um.cend())
+    return [ (item.first, item.second) for item in m ]
+
 def test_map_count(vals, to_find):
     """
     >>> test_map_count([(1,1),(2,2),(2,2),(3,3),(-1,-1)], 1)
@@ -95,6 +107,18 @@ def test_unordered_map_insert_it(vals):
     um.insert(m.begin(), m.end())
     return sorted([ (item.first, item.second) for item in um ])
 
+def test_const_unordered_map_insert_it(vals):
+    """
+    >>> test_const_unordered_map_insert_it([(1,1),(2,2),(2,2),(3,3),(-1,-1)])
+    [(-1, -1), (1, 1), (2, 2), (3, 3)]
+    """
+    cdef map[int,int] m = map[int,int]()
+    cdef unordered_map[int,int] um = unordered_map[int,int]()
+    for v in vals:
+        m.insert(v)
+    um.insert(m.cbegin(), m.cend())
+    return sorted([ (item.first, item.second) for item in um ])
+
 def test_unordered_map_count(vals, to_find):
     """
     >>> test_unordered_map_count([(1,1),(2,2),(2,2),(3,3),(-1,-1)], 1)
@@ -135,3 +159,17 @@ def test_unordered_map_find_erase(vals, to_remove):
     it = um.find(to_remove)
     it = um.erase(it)
     return sorted([ item for item in um ])
+
+def test_iterator_stack_allocated():
+    """
+    https://github.com/cython/cython/issues/4657 - mainly a compile test showing
+    that const iterators can be stack allocated
+    >>> test_iterator_stack_allocated()
+    """
+    cdef map[int,int] mymap = map[int,int]()
+    cdef unordered_map[int,int] myumap = unordered_map[int,int]()
+    cdef int ckey = 5
+    it = mymap.const_find(ckey)
+    assert it == mymap.const_end()
+    uit = myumap.const_find(ckey)
+    assert uit == myumap.const_end()

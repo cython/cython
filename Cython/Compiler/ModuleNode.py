@@ -3265,18 +3265,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # packages require __path__, so all we can do is try to figure
             # out the module path at runtime by rerunning the import lookup
             code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT) {")
-            package_name, _ = self.full_module_name.rsplit('.', 1)
-            if '.' in package_name:
-                parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
-            else:
-                parent_name = 'NULL'
             code.globalstate.use_utility_code(UtilityCode.load(
                 "SetPackagePathFromImportLib", "ImportExport.c"))
             code.putln(code.error_goto_if_neg(
-                '__Pyx_SetPackagePathFromImportLib(%s, %s)' % (
-                    parent_name,
+                '__Pyx_SetPackagePathFromImportLib(%s)' % (
                     code.globalstate.get_py_string_const(
-                        EncodedString(env.module_name)).cname),
+                        EncodedString(self.full_module_name)).cname),
                 self.pos))
             code.putln("}")
 
@@ -4029,5 +4023,3 @@ packed_struct_utility_code = UtilityCode(proto="""
 #define __Pyx_PACKED
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
-
-capsule_utility_code = UtilityCode.load("Capsule", "Capsule.c")
