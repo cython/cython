@@ -162,8 +162,8 @@ class MatchCaseNode(Node):
     def generate_execution_code(self, code, end_label):
         self.pattern.generate_comparison_evaluation_code(code)
         code.putln("if (%s) { /* pattern */" % self.pattern.comparison_result())
-        self.pattern.free_comparison_temps(code)
         self.pattern.generate_comparison_disposal_code(code)
+        self.pattern.free_comparison_temps(code)
         if self.original_pattern.get_targets():
             error(self.pos, "Cannot currently handle patterns with targets")
         if self.guard:
