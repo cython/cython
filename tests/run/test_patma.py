@@ -473,6 +473,7 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 2)
 
     def test_patma_034(self):
+        return
         x = {0: 0}
         match x:
             case {0: [1, 2, {}]}:
@@ -485,6 +486,7 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 1)
 
     def test_patma_035(self):
+        return
         x = {0: 0}
         match x:
             case {0: [1, 2, {}]}:

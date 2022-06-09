@@ -636,6 +636,7 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixe
             }
         }
     }
+    result = 1;
 
     end:
     Py_XDECREF(dummy);
