@@ -584,87 +584,84 @@ class MatchSequencePatternNode(PatternNode):
         return targets
 
     def get_comparison_node(self, subject_node, env):
-        if self.is_simple_value_comparison():
-            return self.make_sequence_check(subject_node)
+        from .UtilNodes import TempResultFromStatNode, ResultRefNode
+
+        test = None
+        subjects_temps = self.generate_subjects(subject_node, env) # temp-nodes
+        for n, pattern in enumerate(self.patterns):
+            p_test = pattern.get_comparison_node(subjects_temps[n], env)
+            if test is not None:
+                p_test = ExprNodes.BoolBinopNode(self.pos,
+                    operator = "and",
+                    operand1 = test,
+                    operand2 = p_test
+                )
+            if not pattern.get_targets() and pattern.is_irrefutable():
+                test = p_test
+                # the subject isn't actually needed, don't evaluate it
+                subjects_temps[n] = None
+                continue  
+                
+            result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+            subject_assignment = Nodes.SingleAssignmentNode(
+                self.pos,
+                lhs = subjects_temps[n],  # the temp node
+                rhs = self.subjects[n]  # the regular node
+            )
+            test_assignment = Nodes.SingleAssignmentNode(
+                self.pos,
+                lhs = result_ref,
+                rhs = p_test
+            )
+            stats = Nodes.StatListNode(
+                self.pos,
+                stats = [ subject_assignment, test_assignment ]
+            )
+            test = TempResultFromStatNode(result_ref, stats)
+
+        seq_test = self.make_sequence_check(subject_node)
+        if isinstance(seq_test, ExprNodes.BoolNode) and not seq_test.value:
+            return seq_test  # no point in proceeding further!
+        has_star = False
+        for pattern in self.patterns:
+            if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
+                has_star = True
+                self.needs_length_temp = True
+                break
+        len_test = len(self.patterns)
+        if has_star:
+            len_test -= 1
+        length_call = self.make_length_call_node(subject_node)
+
+        if (length_call.is_literal and 
+                ((has_star and len_test < length_call.constant_result) or
+                (not has_star and len_test != length_call.constant_result))):
+            # definitely failed!
+            return ExprNodes.BoolNode(self.pos, value=False)
+        seq_len_test = ExprNodes.BoolBinopNode(
+            self.pos,
+            operator = "and",
+            operand1 = seq_test,
+            operand2 = ExprNodes.PrimaryCmpNode(
+                self.pos,
+                operator = ">=" if has_star else "==",
+                operand1 = length_call,
+                operand2 = ExprNodes.IntNode(
+                    self.pos,
+                    value = str(len_test)
+                ),
+            )
+        )
+        if test is None:
+            test = seq_len_test
         else:
-            from .UtilNodes import TempResultFromStatNode, ResultRefNode
-
-            test = None
-            subjects_temps = self.generate_subjects(subject_node, env) # temp-nodes
-            for n, pattern in enumerate(self.patterns):
-                p_test = pattern.get_comparison_node(subjects_temps[n], env)
-                if test is not None:
-                    p_test = ExprNodes.BoolBinopNode(self.pos,
-                        operator = "and",
-                        operand1 = test,
-                        operand2 = p_test
-                    )
-                if not pattern.get_targets() and pattern.is_irrefutable():
-                    test = p_test
-                    # the subject isn't actually needed, don't evaluate it
-                    subjects_temps[n] = None
-                    continue  
-                    
-                result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
-                subject_assignment = Nodes.SingleAssignmentNode(
-                    self.pos,
-                    lhs = subjects_temps[n],  # the temp node
-                    rhs = self.subjects[n]  # the regular node
-                )
-                test_assignment = Nodes.SingleAssignmentNode(
-                    self.pos,
-                    lhs = result_ref,
-                    rhs = p_test
-                )
-                stats = Nodes.StatListNode(
-                    self.pos,
-                    stats = [ subject_assignment, test_assignment ]
-                )
-                test = TempResultFromStatNode(result_ref, stats)
-
-            seq_test = self.make_sequence_check(subject_node)
-            if isinstance(seq_test, ExprNodes.BoolNode) and not seq_test.value:
-                return seq_test  # no point in proceeding further!
-            has_star = False
-            for pattern in self.patterns:
-                if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
-                    has_star = True
-                    self.needs_length_temp = True
-                    break
-            len_test = len(self.patterns)
-            if has_star:
-                len_test -= 1
-            length_call = self.make_length_call_node(subject_node)
-
-            if (length_call.is_literal and 
-                    ((has_star and len_test < length_call.constant_result) or
-                    (not has_star and len_test != length_call.constant_result))):
-                # definitely failed!
-                return ExprNodes.BoolNode(self.pos, value=False)
-            seq_len_test = ExprNodes.BoolBinopNode(
+            test = ExprNodes.BoolBinopNode(
                 self.pos,
                 operator = "and",
-                operand1 = seq_test,
-                operand2 = ExprNodes.PrimaryCmpNode(
-                    self.pos,
-                    operator = ">=" if has_star else "==",
-                    operand1 = length_call,
-                    operand2 = ExprNodes.IntNode(
-                        self.pos,
-                        value = str(len_test)
-                    ),
-                )
+                operand1 = seq_len_test,
+                operand2 = test
             )
-            if test is None:
-                test = seq_len_test
-            else:
-                test = ExprNodes.BoolBinopNode(
-                    self.pos,
-                    operator = "and",
-                    operand1 = seq_len_test,
-                    operand2 = test
-                )
-            return test
+        return test
 
     def generate_subjects(self, subject_node, env):
         if self.subjects is not None:
@@ -695,22 +692,13 @@ class MatchSequencePatternNode(PatternNode):
     def generate_main_pattern_assignment_list(self, subject_node, env):
         from .ExprNodes import SimpleCallNode, NameNode
 
-        if self.is_simple_value_comparison():
-            if isinstance(self.patterns[0], MatchAndAssignPatternNode) and self.patterns[0].is_star:
-                p0_subject = SimpleCallNode(
-                    self.pos,
-                    function=NameNode(self.pos, name="list"),
-                    args=[subject_node]
-                )
-                return self.patterns[0].generate_target_assignments(p0_subject, env).stats
-        else:
-            subjects = self.generate_subjects(subject_node, env)
-            assignments = []
-            for subject, pattern in zip(subjects, self.patterns):
-                p_assignments = pattern.generate_target_assignments(subject, env)
-                if p_assignments:
-                    assignments.extend(p_assignments.stats)
-            return assignments
+        subjects = self.generate_subjects(subject_node, env)
+        assignments = []
+        for subject, pattern in zip(subjects, self.patterns):
+            p_assignments = pattern.generate_target_assignments(subject, env)
+            if p_assignments:
+                assignments.extend(p_assignments.stats)
+        return assignments
 
     def make_sequence_check(self, subject_node):
         # Note: the sequence check code is very quick on Python 3.10+
@@ -845,15 +833,6 @@ class MatchSequencePatternNode(PatternNode):
         if not self.comp_node.is_literal:
             self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
         return self
-
-    def generate_evaluation_code(self, code):
-        for s in self.subject_temps:
-            if s is not None:
-                s.allocate(code)
-        super(MatchSequencePatternNode, self).generate_evaluation_code(code)
-        for s in self.subject_temps:
-            if s is not None:
-                s.release(code)
 
     def allocate_subject_temps(self, code):
         if self.needs_length_temp:
