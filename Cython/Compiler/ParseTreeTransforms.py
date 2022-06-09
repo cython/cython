@@ -1592,6 +1592,7 @@ class WithTransform(VisitorTransform, SkipDeclarations):
 
     def visit_MatchNode(self, node):
         node.refactor_cases()
+        self.visitchildren(node)
         return node
 
     def visit_ExprNode(self, node):
