@@ -922,20 +922,44 @@ class MatchSequencePatternNode(PatternNode):
 
 class MatchMappingPatternNode(PatternNode):
     """
-    keys   list of NameNodes
+    keys   list of Literals or AttributeNodes
     value_patterns  list of PatternNodes of equal length to keys
     double_star_capture_target  NameNode or None
+
+    needs_runtime_keycheck  - bool  - are there any keys which can only be resolved at runtime
     """
 
     keys = []
     value_patterns = []
     double_star_capture_target = None
 
+    needs_runtime_keycheck = False
+
     initial_child_attrs = PatternNode.initial_child_attrs + [
         "keys",
         "value_patterns",
         "double_star_capture_target",
     ]
+
+    Pyx_mapping_check_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+        ],
+        exception_value="-1")
+    Pyx_mapping_check_duplicates_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+        ],
+        exception_value="-1")
+    Pyx_mapping_extract_subjects_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+        ],
+        exception_value="-1",
+        has_varargs=True)
 
     def get_main_pattern_targets(self):
         targets = set()
@@ -944,6 +968,198 @@ class MatchMappingPatternNode(PatternNode):
         if self.double_star_capture_target:
             self.add_target_to_targets(targets, self.double_star_capture_target.name)
         return targets
+
+    def validate_keys(self):
+        # called after constant folding
+        seen_keys = set()
+        for k in self.keys:
+            if k.has_constant_result():
+                value = k.constant_result
+                if k.is_string_literal:
+                    value = repr(value)
+                if value in seen_keys:
+                    error(k.pos, "mapping pattern checks duplicate key (%s)" % value)
+                seen_keys.add(value)
+            else:
+                self.needs_runtime_keycheck = True
+
+        # it's very useful to sort keys early so the literal keys
+        # come first
+        sorted_keys = sorted(
+            zip(self.keys, self.value_patterns),
+            key = lambda kvp: (not kvp[0].is_literal)
+        )
+        self.keys, self.value_patterns = [ list(l) for l in zip(*sorted_keys) ]
+
+    def analyse_declarations(self, env):
+        super(MatchMappingPatternNode, self).analyse_declarations(env)
+        self.validate_keys()
+        for k in self.keys:
+            k.analyse_declarations(env)
+        for vp in self.value_patterns:
+            vp.analyse_declarations(env)
+        if self.double_star_capture_target:
+            self.double_star_capture_target.analyse_declarations(env)
+
+    def make_mapping_check(self, subject_node):
+        # Note: the mapping check code is very quick on Python 3.10+
+        # but potentially quite slow on lower versions (although should
+        # be medium quick for common types). It'd be nice to cache the
+        # results of it where it's been called on the same object
+        # multiple times.
+        # DW has decided that that's too complicated to implement 
+        # for now.
+        from . import Builtin 
+
+        utility_code = UtilityCode.load_cached(
+            "IsMapping",
+            "MatchCase.c"
+        )
+        call = ExprNodes.PythonCapiCallNode(
+            self.pos, "__Pyx_MatchCase_IsMapping", self.Pyx_mapping_check_type,
+            utility_code= utility_code, args=[subject_node]
+        )
+        def type_check(type):
+            # type-check need not be perfect, it's an optimization
+            if type is Builtin.dict_type:
+                return True
+            if type in Builtin.builtin_types:
+                # all other builtin types aren't mappings (except DictProxyType, but 
+                # Cython doesn't know about that)
+                return False
+            if not type.is_pyobject:
+                # for now any non-pyobject type is False
+                return False
+            return None
+        return StaticTypeCheckNode(
+            self.pos,
+            arg = subject_node,
+            fallback = call,
+            check = type_check
+        )
+
+    def make_duplicate_keys_check(self, static_keys_tuple, var_keys_tuple):
+        utility_code = UtilityCode.load_cached(
+            "MappingKeyCheck",
+            "MatchCase.c"
+        )
+
+        return Nodes.ExprStatNode(
+            self.pos,
+            expr=ExprNodes.PythonCapiCallNode(
+                self.pos, "__Pyx_MatchCase_CheckDuplicateKeys", self.Pyx_mapping_check_duplicates_type,
+                utility_code= utility_code,
+                args=[static_keys_tuple.clone_node(), var_keys_tuple]
+            )
+        )
+
+    def check_all_keys(self, subject_node, const_keys_tuple, var_keys_tuple):
+        # It's debatable here whether to go for individual unpacking or a function.
+        # Current implementation is a function
+        if subject_node.type is Builtin.dict_type:
+            util_code = UtilityCode.load_cached(
+                "ExtractExactDict",
+                "MatchCase.c"
+            )
+            func_name = "__Pyx_MatchCase_Mapping_ExtractDict"
+        elif subject_node.type.is_pyobject and not subject_node.type is PyrexTypes.py_object_type:
+            # For any other non-generic PyObject type
+            util_code = UtilityCode.load_cached(
+                "ExtractNonDict",
+                "MatchCase.c"
+            )
+            func_name = "__Pyx_MatchCase_Mapping_ExtractNonDict"
+        else:
+            util_code = UtilityCode.load_cached(
+                "ExtractGeneric",
+                "MatchCase.c"
+            )
+            func_name = "__Pyx_MatchCase_Mapping_Extract"
+
+        return ExprNodes.PythonCapiCallNode(
+            self.pos, func_name, self.Pyx_mapping_extract_subjects_type,
+            utility_code=util_code,
+            args=[ subject_node, const_keys_tuple.clone_node(), var_keys_tuple ] + [ExprNodes.NullNode(self.pos) for k in self.keys]
+        )
+
+
+    def get_comparison_node(self, subject_node, env):
+        from . import UtilNodes
+
+        if self.double_star_capture_target or any(not p.is_irrefutable for p in self.value_patterns):
+            error(self.pos, "Patterns not currently supported")
+            return ExprNodes.BoolNode(self.pos, value=False)
+
+        const_keys = []
+        var_keys = []
+        for k in self.keys:
+            if not k.arg.is_literal:
+                k = UtilNodes.ResultRefNode(k)
+                var_keys.append(k)
+            else:
+                const_keys.append(k.arg.clone_node())
+        const_keys_tuple = ExprNodes.TupleNode(
+            self.pos,
+            args = const_keys
+        )
+        var_keys_tuple = ExprNodes.TupleNode(
+            self.pos,
+            args = var_keys
+        )
+        if var_keys:
+            var_keys_tuple = UtilNodes.ResultRefNode(var_keys_tuple)
+            
+        
+        test = self.make_mapping_check(subject_node)
+        key_check = self.check_all_keys(subject_node, const_keys_tuple, var_keys_tuple)
+        test = ExprNodes.binop_node(
+            self.pos,
+            operator="and",
+            operand1=test,
+            operand2=key_check
+        )
+
+        test_result = UtilNodes.ResultRefNode(pos = self.pos, type = PyrexTypes.c_bint_type)
+        body = Nodes.StatListNode(
+            self.pos,
+            stats = [
+                self.make_duplicate_keys_check(const_keys_tuple, var_keys_tuple),
+                Nodes.SingleAssignmentNode(
+                    self.pos,
+                    lhs = test_result,
+                    rhs = test
+                )
+            ]
+        )
+
+        if var_keys:
+            body = UtilNodes.TempResultFromStatNode(test_result, body)
+            body = UtilNodes.EvalWithTempExprNode(var_keys_tuple, body)
+            for k in var_keys:
+                if isinstance(k, UtilNodes.ResultRefNode):
+                    body = UtilNodes.EvalWithTempExprNode(
+                        k, body
+                    )
+            return body
+        else:
+            return test
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        def to_temp_or_literal(node):
+            if node.is_literal:
+                return node
+            else:
+                return node.coerce_to_temp(env)
+        self.keys = [
+            ExprNodes.ProxyNode(to_temp_or_literal(k.analyse_expressions(env)))
+            for k in self.keys
+        ]
+
+        self.comp_node = self.get_comparison_node(subject_node, env)
+        self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
+        return self
+
+
 
 
 class ClassPatternNode(PatternNode):

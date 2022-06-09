@@ -403,6 +403,7 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o) {
     // the isinstance(o, Mapping) check
     if (PyDict_Check(o)) {
         return 1;
+    }
 
     // otherwise check against collections.abc.Mapping
     abc_module = PyImport_ImportModule(
@@ -424,4 +425,252 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o) {
     Py_DECREF(Mapping);
     return result;
 #endif
+}
+
+//////////////////////// MappingKeyCheck.proto /////////////////////////
+
+static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys); /*proto */
+
+/////////////////////// MappingKeyCheck ////////////////////////////////
+
+static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys) {
+    // Inputs are tuples, and typically fairly small. It may be more efficient to
+    // loop over the tuple than create a set.
+
+    // The CPython implementation (match_keys in ceval.c) does this concurrently with
+    // taking the keys out of the dictionary. I'm choosing to do it separately since the
+    // majority of the time the keys will be known at compile-time so Cython can skip
+    // this step completely.
+
+    PyObject *var_keys_set;
+    PyObject *key;
+    Py_ssize_t n;
+    int contains;
+
+    var_keys_set = PySet_New(NULL);
+    if (!var_keys_set) return -1;
+
+    for (n=0; n < PyTuple_GET_SIZE(var_keys); ++n) {
+        key = PyTuple_GET_ITEM(var_keys, n);
+        contains = PySet_Contains(var_keys_set, key);
+        if (contains < 0) {
+            goto bad;
+        } else if (contains == 1) {
+            goto raise_error;
+        } else {
+            if (PySet_Add(var_keys_set, key)) {
+                goto bad;
+            }
+        }
+    }
+    for (n=0; n < PyTuple_GET_SIZE(fixed_keys); ++n) {
+        key = PyTuple_GET_ITEM(fixed_keys, n);
+        contains = PySet_Contains(var_keys_set, key);
+        if (contains < 0) {
+            goto bad;
+        } else if (contains == 1) {
+            goto raise_error;
+        }
+    }
+    Py_DECREF(var_keys_set);
+    return 0;
+
+    raise_error:
+    PyErr_Format(PyExc_ValueError,
+                 "mapping pattern checks duplicate key (%R)", key);
+    bad:
+    Py_DECREF(var_keys_set);
+    return -1;
+}
+
+/////////////////////////// ExtractExactDict.proto ////////////////
+
+#include <stdarg.h>
+
+// the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
+// in which case they're ignored.
+//
+// This is a specialized version for when we have an exact dict (which is likely to be pretty common)
+
+#if CYTHON_REFNANNY
+CYTHON_INLINE static int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static int __Pyx__MatchCase_Mapping_ExtractDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
+#define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, __VA_ARGS__)
+#define __Pyx_MatchCase_Mapping_ExtractDictV(...) __Pyx__MatchCase_Mapping_ExtractDictV(__pyx_refnanny, __VA_ARGS__)
+#else
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
+#endif
+
+/////////////////////////// ExtractExactDict ////////////////
+
+#if CYTHON_REFNANNY
+CYTHON_INLINE static int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
+#else
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
+#endif
+{
+    int result;
+    va_list subjects;
+
+    va_start(subjects, var_keys);
+    result = __Pyx_MatchCase_Mapping_ExtractDictV(dict, fixed_keys, var_keys, subjects);
+    va_end(subjects);
+    return result;
+}
+
+#if CYTHON_REFNANNY
+static int __Pyx__MatchCase_Mapping_ExtractDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
+#else
+static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
+#endif
+{
+    PyObject *keys[] = {fixed_keys, var_keys};
+    Py_ssize_t i, j;
+
+    for (i=0; i<2; ++i) {
+        PyObject *tuple = keys[i];
+        for (j=0; j<PyTuple_GET_SIZE(tuple); ++j) {
+            PyObject *key = PyTuple_GET_ITEM(tuple, j);
+            PyObject *value = PyDict_GetItemWithError(dict, key);
+            PyObject **subject;
+            if (!value) {
+                if (PyErr_Occurred()) {
+                    return -1; // any set subjects will be cleaned up externally
+                } else {
+                    return 0; // any set subjects will be cleaned up externally
+                }
+            }
+            subject = va_arg(subjects, PyObject**);
+            if (subject) {
+                __Pyx_XDECREF_SET(*subject, value);
+                __Pyx_INCREF(*subject);  // capture this incref with refnanny!
+            }
+        }
+    }
+    return 1;  // success
+}
+
+///////////////////////// ExtractNonDict.proto ////////////////////////////////
+
+// the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
+// in which case they're ignored.
+//
+// This is a specialized version for the rarer case when the type isn't an exact dict.
+
+#if CYTHON_REFNANNY
+CYTHON_INLINE static int __Pyx__MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static int __Pyx__MatchCase_Mapping_ExtractNonDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
+#define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, __VA_ARGS__)
+#define __Pyx_MatchCase_Mapping_ExtractNonDictV(...) __Pyx__MatchCase_Mapping_ExtractNonDictV(__pyx_refnanny, __VA_ARGS__)
+#else
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
+#endif
+
+///////////////////////// ExtractNonDict //////////////////////////////////////
+//@requires: ObjectHandling.c::PyObjectCall2Args
+
+
+// largely adapter from match_keys in CPython ceval.c
+
+#if CYTHON_REFNANNY
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+#else
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+#endif
+{
+    int result;
+    va_list subjects;
+
+    va_start(subjects, var_keys);
+    result = __Pyx_MatchCase_Mapping_ExtractNonDictV(map, fixed_keys, var_keys, subjects);
+    va_end(subjects);
+    return result;
+}
+
+#if CYTHON_REFNANNY
+static int __Pyx__MatchCase_Mapping_ExtractNonDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
+#else
+static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
+#endif
+{
+    PyObject *dummy=NULL, *get=NULL;
+    PyObject *keys[] = {fixed_keys, var_keys};
+    Py_ssize_t i, j;
+    int result = 0;
+
+    dummy = PyObject_CallObject((PyObject *)&PyBaseObject_Type, NULL);
+    if (!dummy) {
+        return -1;
+    }
+    get = PyObject_GetAttrString(map, "get");
+    if (!get) {
+        result = -1;
+        goto end;
+    }
+
+
+    for (i=0; i<2; ++i) {
+        PyObject *tuple = keys[i];
+        for (j=0; j<PyTuple_GET_SIZE(tuple); ++j) {
+            PyObject **subject;
+            PyObject *value = NULL;
+            PyObject *key = PyTuple_GET_ITEM(tuple, j);
+
+            value = __Pyx_PyObject_Call2Args(get, key, dummy);
+            if (!value) {
+                result = -1;
+                goto end;
+            } else if (value == dummy) {
+                Py_DECREF(value);
+                goto end;  // failed
+            } else {
+                subject = va_arg(subjects, PyObject**);
+                if (subject) {
+                    __Pyx_XDECREF_SET(*subject, value);
+                    __Pyx_GOTREF(*subject);
+                } else {
+                    Py_DECREF(value);
+                }
+            }
+        }
+    }
+
+    end:
+    Py_XDECREF(dummy);
+    Py_XDECREF(get);
+    return result;
+}
+
+///////////////////////// ExtractGeneric.proto ////////////////////////////////
+
+#if CYTHON_REFNANNY
+CYTHON_INLINE static int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+#define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(__pyx_refnanny, __VA_ARGS__)
+#else
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+#endif
+
+////////////////////// ExtractGeneric //////////////////////////////////////
+//@requires: ExtractExactDict
+//@requires: ExtractNonDict
+
+#if CYTHON_REFNANNY
+CYTHON_INLINE static int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+#else
+CYTHON_INLINE static int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+#endif
+{
+    va_list subjects;
+    int result;
+
+    va_start(subjects, var_keys);
+    if (PyDict_CheckExact(map)) {
+        result = __Pyx_MatchCase_Mapping_ExtractDictV(map, fixed_keys, var_keys, subjects);
+    } else {
+        result = __Pyx_MatchCase_Mapping_ExtractNonDictV(map, fixed_keys, var_keys, subjects);
+    }
+    va_end(subjects);
+    return result;
 }
