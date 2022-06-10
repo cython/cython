@@ -587,9 +587,9 @@ class MatchSequencePatternNode(PatternNode):
         from .UtilNodes import TempResultFromStatNode, ResultRefNode
 
         test = None
-        subjects_temps = self.generate_subjects(subject_node, env) # temp-nodes
+        assert getattr(self, "subject_temps", None) is not None
         for n, pattern in enumerate(self.patterns):
-            p_test = pattern.get_comparison_node(subjects_temps[n], env)
+            p_test = pattern.get_comparison_node(self.subject_temps[n], env)
             if test is not None:
                 p_test = ExprNodes.BoolBinopNode(self.pos,
                     operator = "and",
@@ -599,13 +599,13 @@ class MatchSequencePatternNode(PatternNode):
             if not pattern.get_targets() and pattern.is_irrefutable():
                 test = p_test
                 # the subject isn't actually needed, don't evaluate it
-                subjects_temps[n] = None
+                self.subject_temps[n] = None
                 continue  
                 
             result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
             subject_assignment = Nodes.SingleAssignmentNode(
                 self.pos,
-                lhs = subjects_temps[n],  # the temp node
+                lhs = self.subject_temps[n],  # the temp node
                 rhs = self.subjects[n]  # the regular node
             )
             test_assignment = Nodes.SingleAssignmentNode(
@@ -664,9 +664,7 @@ class MatchSequencePatternNode(PatternNode):
         return test
 
     def generate_subjects(self, subject_node, env):
-        if self.subjects is not None:
-            # already calculated
-            return self.subject_temps
+        assert self.subjects is None  # not called twice
         star_idx = None
         for n, pattern in enumerate(self.patterns):
             if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
@@ -687,14 +685,11 @@ class MatchSequencePatternNode(PatternNode):
             subjects.append(ExprNodes.ProxyNode(indexer) if indexer else None)
         self.subjects = subjects
         self.subject_temps = [ TrackTypeTempNode(self.pos, s) for s in self.subjects ]
-        return self.subject_temps
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
-        from .ExprNodes import SimpleCallNode, NameNode
-
-        subjects = self.generate_subjects(subject_node, env)
         assignments = []
-        for subject, pattern in zip(subjects, self.patterns):
+        self.generate_subjects(subject_node, env)
+        for subject, pattern in zip(self.subject_temps, self.patterns):
             p_assignments = pattern.generate_target_assignments(subject, env)
             if p_assignments:
                 assignments.extend(p_assignments.stats)
@@ -708,8 +703,6 @@ class MatchSequencePatternNode(PatternNode):
         # multiple times.
         # DW has decided that that's too complicated to implement 
         # for now.
-        from . import Builtin 
-
         utility_code = UtilityCode.load_cached(
             "IsSequence",
             "MatchCase.c"
