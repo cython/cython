@@ -150,7 +150,7 @@ class MatchCaseNode(Node):
     def analyse_case_expressions(self, subject_node, env):
         with local_errors(True) as errors:
             self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env)
-        if self.pattern.comp_node.is_literal:
+        if self.pattern.comp_node and self.pattern.comp_node.is_literal:
             self.pattern.comp_node.calculate_constant_result()
             if not self.pattern.comp_node.constant_result:
                 # we know this pattern can't succeed. Ignore any errors and return None
@@ -296,7 +296,7 @@ class PatternNode(Node):
                 child.validate_irrefutable()
 
     def analyse_pattern_expressions(self, subject_node, env):
-        error(self.pos, "This type of pattern is not currently supported")
+        error(self.pos, "This type of pattern is not currently supported %s" % self)
         return self
 
     def calculate_result_code(self):
@@ -631,27 +631,32 @@ class MatchSequencePatternNode(PatternNode):
         len_test = len(self.patterns)
         if has_star:
             len_test -= 1
-        length_call = self.make_length_call_node(subject_node)
+        # check whether we need a length call...
+        if self.patterns and not (len(self.patterns) == 1 and has_star):
+            length_call = self.make_length_call_node(subject_node)
 
-        if (length_call.is_literal and 
-                ((has_star and len_test < length_call.constant_result) or
-                (not has_star and len_test != length_call.constant_result))):
-            # definitely failed!
-            return ExprNodes.BoolNode(self.pos, value=False)
-        seq_len_test = ExprNodes.BoolBinopNode(
-            self.pos,
-            operator = "and",
-            operand1 = seq_test,
-            operand2 = ExprNodes.PrimaryCmpNode(
+            if (length_call.is_literal and 
+                    ((has_star and len_test < length_call.constant_result) or
+                    (not has_star and len_test != length_call.constant_result))):
+                # definitely failed!
+                return ExprNodes.BoolNode(self.pos, value=False)
+            seq_len_test = ExprNodes.BoolBinopNode(
                 self.pos,
-                operator = ">=" if has_star else "==",
-                operand1 = length_call,
-                operand2 = ExprNodes.IntNode(
+                operator = "and",
+                operand1 = seq_test,
+                operand2 = ExprNodes.PrimaryCmpNode(
                     self.pos,
-                    value = str(len_test)
-                ),
+                    operator = ">=" if has_star else "==",
+                    operand1 = length_call,
+                    operand2 = ExprNodes.IntNode(
+                        self.pos,
+                        value = str(len_test)
+                    ),
+                )
             )
-        )
+        else:
+            self.needs_length_temp = False
+            seq_len_test = seq_test
         if test is None:
             test = seq_len_test
         else:
@@ -660,11 +665,12 @@ class MatchSequencePatternNode(PatternNode):
                 operator = "and",
                 operand1 = seq_len_test,
                 operand2 = test
-            )
+            )            
         return test
 
     def generate_subjects(self, subject_node, env):
         assert self.subjects is None  # not called twice
+
         star_idx = None
         for n, pattern in enumerate(self.patterns):
             if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
@@ -679,6 +685,7 @@ class MatchSequencePatternNode(PatternNode):
                 backward_idxs[0] if backward_idxs else None
             )
             idxs = fwd_idxs + [star_idx] + backward_idxs
+            
         subjects = []
         for pattern, idx in zip(self.patterns, idxs):
             indexer = self.make_indexing_node(pattern, subject_node, idx, env)
