@@ -1477,7 +1477,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, {})
 
     def test_patma_139(self):
-        return
         x = False
         match x:
             case bool(z):
@@ -1487,7 +1486,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_140(self):
-        return
         x = True
         match x:
             case bool(z):
@@ -1497,7 +1495,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_141(self):
-        return
         x = bytearray()
         match x:
             case bytearray(z):
@@ -1507,7 +1504,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_142(self):
-        return
         x = b""
         match x:
             case bytes(z):
@@ -1517,7 +1513,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_143(self):
-        return
         x = {}
         match x:
             case dict(z):
@@ -1527,7 +1522,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_144(self):
-        return
         x = 0.0
         match x:
             case float(z):
@@ -1537,7 +1531,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_145(self):
-        return
         x = frozenset()
         match x:
             case frozenset(z):
@@ -1547,7 +1540,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_146(self):
-        return
         x = 0
         match x:
             case int(z):
@@ -1557,7 +1549,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_147(self):
-        return
         x = []
         match x:
             case list(z):
@@ -1567,7 +1558,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_148(self):
-        return
         x = set()
         match x:
             case set(z):
@@ -1577,7 +1567,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_149(self):
-        return
         x = ""
         match x:
             case str(z):
@@ -1587,7 +1576,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_150(self):
-        return
         x = ()
         match x:
             case tuple(z):
@@ -1878,7 +1866,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(http_error(401 | 403 | 404), None)  # 407
 
     def test_patma_176(self):
-        return
         def whereis(point):
             match point:
                 case (0, 0):
@@ -1898,7 +1885,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(whereis(42), "Not a point")
 
     def test_patma_177(self):
-        return
         def whereis(point):
             match point:
                 case Point(0, 0):
@@ -1922,7 +1908,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(whereis(42), "Not a point")
 
     def test_patma_178(self):
-        return
         def whereis(point):
             match point:
                 case Point(1, var):
@@ -1931,7 +1916,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_179(self):
-        return
         def whereis(point):
             match point:
                 case Point(1, y=var):
@@ -1940,7 +1924,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_180(self):
-        return
         def whereis(point):
             match point:
                 case Point(x=1, y=var):
@@ -1949,7 +1932,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_181(self):
-        return
         def whereis(point):
             match point:
                 case Point(y=var, x=1):
@@ -1958,7 +1940,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(whereis(Point(0, 0)), None)
 
     def test_patma_182(self):
-        return
         def whereis(points):
             match points:
                 case []:
@@ -1981,7 +1962,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(whereis([Point(0, 1), Point(0, 1), Point(0, 1)]), "Something else")
 
     def test_patma_183(self):
-        return
         def whereis(point):
             match point:
                 case Point(x, y) if x == y:
@@ -2134,7 +2114,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_197(self):
-        return
         w = [Point(-1, 0), Point(1, 2)]
         match w:
             case (Point(x1, y1), Point(x2, y2) as p2):
@@ -2200,7 +2179,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(f(3.0), None)
 
     def test_patma_200(self):
-        return
         class Class:
             __match_args__ = ("a", "b")
         c = Class()
@@ -2214,7 +2192,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, 0)
 
     def test_patma_201(self):
-        return
         class Class:
             __match_args__ = ("a", "b")
         c = Class()
@@ -2228,7 +2205,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, 0)
 
     def test_patma_202(self):
-        return
         class Parent:
             __match_args__ = "a", "b"
         class Child(Parent):
@@ -2244,7 +2220,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, 0)
 
     def test_patma_203(self):
-        return
         class Parent:
             __match_args__ = ("a", "b")
         class Child(Parent):
@@ -2365,7 +2340,6 @@ class TestPatma(unittest.TestCase):
         self.assertIs(f(({"x": "x", "y": "y"})), None)
 
     def test_patma_212(self):
-        return
         def f(w):
             match w:
                 case Point(int(xx), y="hello"):
@@ -3051,7 +3025,6 @@ class TestSyntaxErrors(unittest.TestCase):
 class TestTypeErrors(unittest.TestCase):
 
     def test_accepts_positional_subpatterns_0(self):
-        return
         class Class:
             __match_args__ = ()
         x = Class()
@@ -3064,7 +3037,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
     def test_accepts_positional_subpatterns_1(self):
-        return
         x = range(10)
         y = None
         with self.assertRaises(TypeError):
@@ -3075,7 +3047,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(y, None)
 
     def test_got_multiple_subpatterns_for_attribute_0(self):
-        return
         class Class:
             __match_args__ = ("a", "a")
             a = None
@@ -3090,7 +3061,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
     def test_got_multiple_subpatterns_for_attribute_1(self):
-        return
         class Class:
             __match_args__ = ("a",)
             a = None
@@ -3105,7 +3075,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
     def test_match_args_elements_must_be_strings(self):
-        return
         class Class:
             __match_args__ = (None,)
         x = Class()
@@ -3118,7 +3087,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
     def test_match_args_must_be_a_tuple_0(self):
-        return
         class Class:
             __match_args__ = None
         x = Class()
@@ -3131,7 +3099,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
     def test_match_args_must_be_a_tuple_1(self):
-        return
         class Class:
             __match_args__ = "XYZ"
         x = Class()
@@ -3144,7 +3111,6 @@ class TestTypeErrors(unittest.TestCase):
         self.assertIs(z, None)
 
     def test_match_args_must_be_a_tuple_2(self):
-        return
         class Class:
             __match_args__ = ["spam", "eggs"]
             spam = 0
