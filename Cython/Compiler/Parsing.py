@@ -4266,6 +4266,7 @@ def p_mapping_pattern(s):
     double_star_capture_target = None
     items_patterns = []
     double_star_set_twice = None
+    pattern_after_double_star = None
     while True:
         if s.sy == '**':
             if double_star_capture_target:
@@ -4283,6 +4284,8 @@ def p_mapping_pattern(s):
             s.expect(':')
             value = p_pattern(s)
             items_patterns.append((key, value))
+            if double_star_capture_target:
+                pattern_after_double_star = value.pos
         if s.sy==',':
             s.next()
         else:
@@ -4294,6 +4297,8 @@ def p_mapping_pattern(s):
     s.next()
     if double_star_set_twice is not None:
         return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
+    if pattern_after_double_star:
+        return Nodes.ErrorNode(pattern_after_double_star, what = "pattern follows ** capture")
     return MatchCaseNodes.MatchMappingPatternNode(
         pos,
         keys = [kv[0] for kv in items_patterns],

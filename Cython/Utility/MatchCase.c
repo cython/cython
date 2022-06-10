@@ -493,21 +493,21 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *va
 // This is a specialized version for when we have an exact dict (which is likely to be pretty common)
 
 #if CYTHON_REFNANNY
-CYTHON_INLINE static int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 static int __Pyx__MatchCase_Mapping_ExtractDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
 #define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, __VA_ARGS__)
 #define __Pyx_MatchCase_Mapping_ExtractDictV(...) __Pyx__MatchCase_Mapping_ExtractDictV(__pyx_refnanny, __VA_ARGS__)
 #else
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
 #endif
 
 /////////////////////////// ExtractExactDict ////////////////
 
 #if CYTHON_REFNANNY
-CYTHON_INLINE static int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
 #else
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
 #endif
 {
     int result;
@@ -559,12 +559,12 @@ static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_
 // This is a specialized version for the rarer case when the type isn't an exact dict.
 
 #if CYTHON_REFNANNY
-CYTHON_INLINE static int __Pyx__MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 static int __Pyx__MatchCase_Mapping_ExtractNonDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
 #define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, __VA_ARGS__)
 #define __Pyx_MatchCase_Mapping_ExtractNonDictV(...) __Pyx__MatchCase_Mapping_ExtractNonDictV(__pyx_refnanny, __VA_ARGS__)
 #else
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
 #endif
 
@@ -575,9 +575,9 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *mapping, PyObject *
 // largely adapter from match_keys in CPython ceval.c
 
 #if CYTHON_REFNANNY
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #else
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #endif
 {
     int result;
@@ -647,10 +647,10 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixe
 ///////////////////////// ExtractGeneric.proto ////////////////////////////////
 
 #if CYTHON_REFNANNY
-CYTHON_INLINE static int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 #define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(__pyx_refnanny, __VA_ARGS__)
 #else
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 #endif
 
 ////////////////////// ExtractGeneric //////////////////////////////////////
@@ -658,9 +658,9 @@ CYTHON_INLINE static int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject
 //@requires: ExtractNonDict
 
 #if CYTHON_REFNANNY
-CYTHON_INLINE static int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #else
-CYTHON_INLINE static int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #endif
 {
     va_list subjects;
@@ -674,4 +674,65 @@ CYTHON_INLINE static int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject
     }
     va_end(subjects);
     return result;
+}
+
+///////////////////////////// DoubleStarCapture.proto //////////////////////
+
+static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *map, PyObject *const_temps, PyObject *var_temps); /* proto */
+
+//////////////////////////// DoubleStarCapture //////////////////////////////
+
+// The implementation is largely copied from the original COPY_DICT_WITHOUT_KEYS opcode
+// implementation of CPython
+// https://github.com/python/cpython/blob/145bf269df3530176f6ebeab1324890ef7070bf8/Python/ceval.c#L3977
+// (now removed in favour of building the same thing from a combination of opcodes)
+// The differences are:
+//  1. We loop over separate tuples for constant and runtime keys
+//  2. We add a shortcut for when there will be no left over keys (because I'm guess it's pretty common)
+//
+// Tempita variable 'tag' can be "NonDict", "ExactDict" or empty
+
+static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *map, PyObject *const_temps, PyObject *var_temps) {
+    PyObject *dict_out;
+    PyObject *tuples[] = { const_temps, var_temps };
+    Py_ssize_t i, j;
+
+    {{if tag != "NonDict"}}
+    // shortcut for when there are no left-over keys
+    if ({{if tag=="ExactDict"}}PyDict_CheckExact(map){{else}}(1){{endif}}) {
+        Py_ssize_t s = PyDict_Size(map);
+        if (s == -1) {
+            return NULL;
+        }
+        if (s == (PyTuple_GET_SIZE(const_temps) + PyTuple_GET_SIZE(var_temps))) {
+            return PyDict_New();
+        }
+    }
+    {{endif}}
+
+    {{if tag=="ExactDict"}}
+    dict_out = PyDict_Copy(map);
+    {{else}}
+    dict_out = PyDict_New();
+    {{endif}}
+    if (!dict_out) {
+        return NULL;
+    }
+    {{if tag!="ExactDict"}}
+    if (PyDict_Update(dict_out, map)) {
+        Py_DECREF(dict_out);
+        return NULL;
+    }
+    {{endif}}
+
+    for (i=0; i<2; ++i) {
+        PyObject *keys = tuples[i];
+        for (j=0; j<PyTuple_GET_SIZE(keys); ++j) {
+            if (PyDict_DelItem(dict_out, PyTuple_GET_ITEM(keys, j))) {
+                Py_DECREF(dict_out);
+                return NULL;
+            }
+        }
+    }
+    return dict_out;
 }

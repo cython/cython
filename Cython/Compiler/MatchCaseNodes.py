@@ -6,7 +6,7 @@
 from .Nodes import Node, StatNode
 from .Errors import error, local_errors, report_error
 from . import Nodes, ExprNodes, PyrexTypes, Builtin
-from .Code import UtilityCode
+from .Code import UtilityCode, TempitaUtilityCode
 from .Options import copy_inherited_directives
 from contextlib import contextmanager
 
@@ -929,13 +929,14 @@ class MatchMappingPatternNode(PatternNode):
     double_star_capture_target  NameNode or None
 
     needs_runtime_keycheck  - bool  - are there any keys which can only be resolved at runtime
-    subjects    [PyTempNode or None]  individual subsubjects can be assigned to these
+    subjects    [temp nodes or None]  individual subsubjects can be assigned to these
     """
 
     keys = []
     value_patterns = []
     double_star_capture_target = None
     subject_temps = None
+    double_star_temp = None
 
     needs_runtime_keycheck = False
 
@@ -952,18 +953,24 @@ class MatchMappingPatternNode(PatternNode):
         exception_value="-1")
     Pyx_mapping_check_duplicates_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+            PyrexTypes.CFuncTypeArg("fixed_keys", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("var_keys", PyrexTypes.py_object_type, None)
         ],
         exception_value="-1")
     Pyx_mapping_extract_subjects_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("map", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("fixed_keys", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("var_keys", PyrexTypes.py_object_type, None),
         ],
         exception_value="-1",
         has_varargs=True)
+    Pyx_mapping_doublestar_type = PyrexTypes.CFuncType(
+        Builtin.dict_type, [
+            PyrexTypes.CFuncTypeArg("map", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("fixed_keys", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("var_keys", PyrexTypes.py_object_type, None),
+        ])
 
     def get_main_pattern_targets(self):
         targets = set()
@@ -1007,28 +1014,49 @@ class MatchMappingPatternNode(PatternNode):
             self.double_star_capture_target.analyse_declarations(env)
 
     def generate_subjects(self, subject_node, env):
-        if self.subject_temps is not None:
-            # already calculated
-            return self.subject_temps
+        assert self.subject_temps is None  # already calculated
         subject_temps = []
         for pattern in self.value_patterns:
             if pattern.is_match_and_assign_pattern and not pattern.target:
                 subject_temps.append(None)
             else:
                 subject_temps.append(
-                    ExprNodes.PyTempNode(pattern.pos, env)
+                    AssignableTempNode(pattern.pos, PyrexTypes.py_object_type)
                 )
         self.subject_temps = subject_temps
-        return self.subject_temps
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
-        subjects_temps = self.generate_subjects(subject_node, env)
+        self.generate_subjects(subject_node, env)
         assignments = []
-        for subject, pattern in zip(subjects_temps, self.value_patterns):
+        for subject, pattern in zip(self.subject_temps, self.value_patterns):
             p_assignments = pattern.generate_target_assignments(subject, env)
             if p_assignments:
                 assignments.extend(p_assignments.stats)
+        if self.double_star_capture_target:
+            self.double_star_temp = AssignableTempNode(self.pos, Builtin.dict_type)
+            assignments.append(
+                Nodes.SingleAssignmentNode(
+                    self.double_star_temp.pos,
+                    lhs = self.double_star_capture_target,
+                    rhs = self.double_star_temp
+                )
+            )
         return assignments
+
+    def is_dict_type_check(self, type):
+        # Returns true if it's an exact dict, False if it's definitely not
+        # an exact dict, None if it might be
+        # type-check need not be perfect, it's an optimization
+        if type is Builtin.dict_type:
+            return True
+        if type in Builtin.builtin_types:
+            # all other builtin types aren't mappings (except DictProxyType, but 
+            # Cython doesn't know about that)
+            return False
+        if not type.is_pyobject:
+            # for now any non-pyobject type is False
+            return False
+        return None
 
     def make_mapping_check(self, subject_node):
         # Note: the mapping check code is very quick on Python 3.10+
@@ -1048,23 +1076,12 @@ class MatchMappingPatternNode(PatternNode):
             self.pos, "__Pyx_MatchCase_IsMapping", self.Pyx_mapping_check_type,
             utility_code= utility_code, args=[subject_node]
         )
-        def type_check(type):
-            # type-check need not be perfect, it's an optimization
-            if type is Builtin.dict_type:
-                return True
-            if type in Builtin.builtin_types:
-                # all other builtin types aren't mappings (except DictProxyType, but 
-                # Cython doesn't know about that)
-                return False
-            if not type.is_pyobject:
-                # for now any non-pyobject type is False
-                return False
-            return None
+        
         return StaticTypeCheckNode(
             self.pos,
             arg = subject_node,
             fallback = call,
-            check = type_check
+            check = self.is_dict_type_check
         )
 
     def make_duplicate_keys_check(self, static_keys_tuple, var_keys_tuple):
@@ -1088,13 +1105,15 @@ class MatchMappingPatternNode(PatternNode):
         # For small numbers of keys it might be better to generate the code instead.
         # There's three versions depending on if we know that the type is exactly
         # a dict, definitely not or dict, or unknown.
-        if subject_node.type is Builtin.dict_type:
+
+        is_dict = self.is_dict_type_check(subject_node.type)
+        if is_dict:
             util_code = UtilityCode.load_cached(
                 "ExtractExactDict",
                 "MatchCase.c"
             )
             func_name = "__Pyx_MatchCase_Mapping_ExtractDict"
-        elif subject_node.type.is_pyobject and not subject_node.type is PyrexTypes.py_object_type:
+        elif is_dict is False:  # exact False... None indicates "might be dict"
             # For any other non-generic PyObject type
             util_code = UtilityCode.load_cached(
                 "ExtractNonDict",
@@ -1120,19 +1139,41 @@ class MatchMappingPatternNode(PatternNode):
             args=[ subject_node, const_keys_tuple.clone_node(), var_keys_tuple ] + subject_derefs
         )
 
+    def make_double_star_capture(self, subject_node, const_tuple, var_tuple):
+        is_dict = self.is_dict_type_check(subject_node.type)
+        if is_dict:
+            tag = "ExactDict"
+        elif is_dict is False:
+            tag = "NotDict"
+        else:
+            tag = ""
+        utility_code = TempitaUtilityCode.load_cached(
+            "DoubleStarCapture", "MatchCase.c",
+            context={"tag": tag}
+        )
+        func = ExprNodes.PythonCapiCallNode(
+            self.double_star_capture_target.pos, "__Pyx_MatchCase_DoubleStarCapture",
+            self.Pyx_mapping_doublestar_type,
+            utility_code=utility_code,
+            args=[subject_node, const_tuple, var_tuple]
+        )
+        return Nodes.SingleAssignmentNode(
+            self.double_star_capture_target.pos,
+            lhs = self.double_star_temp,
+            rhs = func
+        )
 
     def get_comparison_node(self, subject_node, env):
-        from . import UtilNodes
+        if self.comp_node:
+            return self.comp_node
 
-        if self.double_star_capture_target or any(not p.is_irrefutable for p in self.value_patterns):
-            error(self.pos, "Patterns not currently supported")
-            return ExprNodes.BoolNode(self.pos, value=False)
+        from . import UtilNodes
 
         const_keys = []
         var_keys = []
         for k in self.keys:
             if not k.arg.is_literal:
-                k = UtilNodes.ResultRefNode(k)
+                k = UtilNodes.ResultRefNode(k, is_temp=False)
                 var_keys.append(k)
             else:
                 const_keys.append(k.arg.clone_node())
@@ -1145,7 +1186,7 @@ class MatchMappingPatternNode(PatternNode):
             args = var_keys
         )
         if var_keys:
-            var_keys_tuple = UtilNodes.ResultRefNode(var_keys_tuple)
+            var_keys_tuple = UtilNodes.ResultRefNode(var_keys_tuple, is_temp=True)
         
         test = self.make_mapping_check(subject_node)
         key_check = self.check_all_keys(subject_node, const_keys_tuple, var_keys_tuple)
@@ -1155,6 +1196,29 @@ class MatchMappingPatternNode(PatternNode):
             operand1=test,
             operand2=key_check
         )
+
+        pattern_test = None
+        for pattern, subject in zip(self.value_patterns, self.subject_temps):
+            if pattern.is_irrefutable():
+                continue
+            assert subject
+            pattern_test2 = pattern.get_comparison_node(subject, env)
+            if pattern_test:
+                pattern_test = ExprNodes.binop_node(
+                    pattern.pos,
+                    operator="and",
+                    operand1=pattern_test,
+                    operand2=pattern_test2
+                )
+            else:
+                pattern_test = pattern_test2
+        if pattern_test:
+            test = ExprNodes.binop_node(
+                self.pos,
+                operator="and",
+                operand1=test,
+                operand2=pattern_test
+            )
 
         test_result = UtilNodes.ResultRefNode(pos = self.pos, type = PyrexTypes.c_bint_type)
         body = Nodes.StatListNode(
@@ -1168,10 +1232,17 @@ class MatchMappingPatternNode(PatternNode):
                 )
             ]
         )
+        if self.double_star_capture_target:
+            assert self.double_star_temp
+            body.stats.append(self.make_double_star_capture(
+                subject_node,
+                const_keys_tuple, var_keys_tuple
+            ))
 
-        if var_keys:
+        if var_keys or self.double_star_capture_target:
             body = UtilNodes.TempResultFromStatNode(test_result, body)
-            body = UtilNodes.EvalWithTempExprNode(var_keys_tuple, body)
+            if var_keys:
+                body = UtilNodes.EvalWithTempExprNode(var_keys_tuple, body)
             for k in var_keys:
                 if isinstance(k, UtilNodes.ResultRefNode):
                     body = UtilNodes.EvalWithTempExprNode(
@@ -1192,6 +1263,10 @@ class MatchMappingPatternNode(PatternNode):
             for k in self.keys
         ]
 
+        for idx in range(len(self.value_patterns)):
+            subject = self.subject_temps[idx]
+            self.value_patterns[idx] = self.value_patterns[idx].analyse_pattern_expressions(subject, env)
+
         self.comp_node = self.get_comparison_node(subject_node, env)
         self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
         return self
@@ -1202,6 +1277,8 @@ class MatchMappingPatternNode(PatternNode):
                 temp.allocate(code)
         for pattern in self.value_patterns:
             pattern.allocate_subject_temps(code)
+        if self.double_star_temp:
+            self.double_star_temp.allocate(code)
     
     def release_subject_temps(self, code):
         for temp in self.subject_temps:
@@ -1209,6 +1286,8 @@ class MatchMappingPatternNode(PatternNode):
                 temp.release(code)
         for pattern in self.value_patterns:
             pattern.release_subject_temps(code)
+        if self.double_star_temp:
+            self.double_star_temp.release(code)
 
     def dispose_of_subject_temps(self, code):
         for temp in self.subject_temps:
@@ -1216,6 +1295,8 @@ class MatchMappingPatternNode(PatternNode):
                 code.put_xdecref_clear(temp.result(), temp.type)
         for pattern in self.value_patterns:
             pattern.dispose_of_subject_temps(code)
+        if self.double_star_temp:
+            code.put_xdecref_clear(self.double_star_temp.result(), self.double_star_temp.type)
 
 
 class ClassPatternNode(PatternNode):
@@ -1328,6 +1409,9 @@ class AssignableTempNode(ExprNodes.TempNode):
 
     def generate_post_assignment_code(self, code):
         code.put_incref(self.result(), self.type)
+
+    def generate_disposal_code(self, code):
+        pass  # handled elsewhere - we expect to use this temp multiple times
 
     def clone_node(self):
         return self  # temps break if you make a copy!
@@ -1608,3 +1692,4 @@ class AddressOfPyObjectNode(ExprNodes.ExprNode):
 
     def calculate_result_code(self):
         return "&%s" % self.obj.result()
+
