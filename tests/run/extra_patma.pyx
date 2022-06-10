@@ -8,7 +8,7 @@ import array
 # goes via .shape instead
 @cython.test_fail_if_path_exists("//CallNode//NameNode[@name = 'len']")
 # No need for "is Sequence check"
-@cython.test_fail_if_path_exists("//PythonCapiCallNode[@function_name = '__Pyx_MatchCase_IsSequence']")
+@cython.test_fail_if_path_exists("//PythonCapiCallNode//PythonCapiFunctionNode[@cname = '__Pyx_MatchCase_IsSequence']")
 def test_memoryview(int[:] x):
     """
     >>> print(test_memoryview(array.array('i', [0, 1, 2])))
@@ -29,7 +29,7 @@ def test_memoryview(int[:] x):
             return f"c {z}"
     return "no!"
 
-@cython.test_fail_if_path_exists("//PythonCapiCallNode[@function_name = '__Pyx_MatchCase_IsSequence']")
+@cython.test_fail_if_path_exists("//PythonCapiCallNode//PythonCapiFunctionNode[@cname = '__Pyx_MatchCase_IsSequence']")
 def test_list_to_sequence(list x):
     """
     >>> test_list_to_sequence([1,2,3])
@@ -43,7 +43,7 @@ def test_list_to_sequence(list x):
         case _:
             return False
 
-@cython.test_fail_if_path_exists("//PythonCapiCallNode[@function_name = '__Pyx_MatchCase_IsSequence']")
+@cython.test_fail_if_path_exists("//PythonCapiCallNode//PythonCapiFunctionNode[@cname = '__Pyx_MatchCase_IsSequence']")
 @cython.test_fail_if_path_exists("//CmpNode")  # There's nothing to compare - it always succeeds!
 def test_list_not_None_to_sequence(list x not None):
     """
@@ -56,7 +56,7 @@ def test_list_not_None_to_sequence(list x not None):
         case _:
             return False
 
-@cython.test_fail_if_path_exists("//PythonCapiCallNode[@function_name = '__Pyx_MatchCase_IsSequence']")
+@cython.test_fail_if_path_exists("//PythonCapiCallNode//PythonCapiFunctionNode[@cname = '__Pyx_MatchCase_IsSequence']")
 @cython.test_fail_if_path_exists("//CmpNode")  # There's nothing to compare - it always succeeds!
 def test_ctuple_to_sequence((int, int) x):
     """
@@ -68,9 +68,3 @@ def test_ctuple_to_sequence((int, int) x):
             return a, b, c
         case [a, b]:
             return a, b
-
-@cython.test_fail_if_path_exists("//PythonCapiCallNode[@function_name = '__Pyx_MatchCase_IsSequence']")
-def test_this_should_fail(x):
-    match x:
-        case [1]:
-            pass
