@@ -475,8 +475,8 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *va
 // This is a specialized version for when we have an exact dict (which is likely to be pretty common)
 
 #if CYTHON_REFNANNY
-static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
-static int __Pyx__MatchCase_Mapping_ExtractDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static int __Pyx__MatchCase_Mapping_ExtractDictV(void *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
 #define __Pyx_MatchCase_Mapping_ExtractDict(...) __Pyx__MatchCase_Mapping_ExtractDict(__pyx_refnanny, __VA_ARGS__)
 #define __Pyx_MatchCase_Mapping_ExtractDictV(...) __Pyx__MatchCase_Mapping_ExtractDictV(__pyx_refnanny, __VA_ARGS__)
 #else
@@ -487,7 +487,7 @@ static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_
 /////////////////////////// ExtractExactDict ////////////////
 
 #if CYTHON_REFNANNY
-static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
 #else
 static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, ...)
 #endif
@@ -502,7 +502,7 @@ static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractDict(PyObject *dict, PyO
 }
 
 #if CYTHON_REFNANNY
-static int __Pyx__MatchCase_Mapping_ExtractDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
+static int __Pyx__MatchCase_Mapping_ExtractDictV(void *__pyx_refnanny, PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
 #else
 static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
 #endif
@@ -541,8 +541,8 @@ static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_
 // This is a specialized version for the rarer case when the type isn't an exact dict.
 
 #if CYTHON_REFNANNY
-static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
-static int __Pyx__MatchCase_Mapping_ExtractNonDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static int __Pyx__MatchCase_Mapping_ExtractNonDictV(void *__pyx_refnanny, PyObject *mapping, PyObject *fixed_keys, PyObject *var_keys, va_list subjects); /* proto */
 #define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, __VA_ARGS__)
 #define __Pyx_MatchCase_Mapping_ExtractNonDictV(...) __Pyx__MatchCase_Mapping_ExtractNonDictV(__pyx_refnanny, __VA_ARGS__)
 #else
@@ -557,7 +557,7 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *mapping, PyObject *
 // largely adapter from match_keys in CPython ceval.c
 
 #if CYTHON_REFNANNY
-static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #else
 static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #endif
@@ -572,7 +572,7 @@ static CYTHON_INLINE int __Pyx_MatchCase_Mapping_ExtractNonDict(PyObject *map, P
 }
 
 #if CYTHON_REFNANNY
-static int __Pyx__MatchCase_Mapping_ExtractNonDictV(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
+static int __Pyx__MatchCase_Mapping_ExtractNonDictV(void *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
 #else
 static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, va_list subjects)
 #endif
@@ -629,7 +629,7 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixe
 ///////////////////////// ExtractGeneric.proto ////////////////////////////////
 
 #if CYTHON_REFNANNY
-static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
 #define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(__pyx_refnanny, __VA_ARGS__)
 #else
 static CYTHON_INLINE int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...); /* proto */
@@ -640,7 +640,7 @@ static CYTHON_INLINE int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject
 //@requires: ExtractNonDict
 
 #if CYTHON_REFNANNY
-static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(__Pyx_RefNannyAPIStruct *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
+static CYTHON_INLINE int __Pyx__MatchCase_Mapping_Extract(void *__pyx_refnanny, PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #else
 static CYTHON_INLINE int __Pyx_MatchCase_Mapping_Extract(PyObject *map, PyObject *fixed_keys, PyObject *var_keys, ...)
 #endif
