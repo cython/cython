@@ -1105,6 +1105,8 @@ class MatchMappingPatternNode(PatternNode):
         # For small numbers of keys it might be better to generate the code instead.
         # There's three versions depending on if we know that the type is exactly
         # a dict, definitely not or dict, or unknown.
+        if not self.keys:
+            return ExprNodes.BoolNode(self.pos, value=True)
 
         is_dict = self.is_dict_type_check(subject_node.type)
         if is_dict:

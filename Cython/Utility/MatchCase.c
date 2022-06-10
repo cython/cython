@@ -391,13 +391,12 @@ static PyObject *__Pyx_MatchCase_TupleToList(PyObject *x, Py_ssize_t start, Py_s
 static int __Pyx_MatchCase_IsMapping(PyObject *o); /* proto */
 
 //////////////////////////// IsMapping /////////////////////////
+//@requires: ABCCheck
 
 static int __Pyx_MatchCase_IsMapping(PyObject *o) {
 #if PY_VERSION_HEX >= 0x030A0000
     return PyType_GetFlags(Py_TYPE(o)) & Py_TPFLAGS_MAPPING;
 #else
-    PyObject *abc_module, *Mapping;
-    int result;
     // Py_Dict is the only regularly used mapping type
     // "types.MappingProxyType" also exists but is correctly covered by
     // the isinstance(o, Mapping) check
@@ -406,24 +405,7 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o) {
     }
 
     // otherwise check against collections.abc.Mapping
-    abc_module = PyImport_ImportModule(
-#if PY_VERSION_HEX > 0x03030000
-        "collections.abc"
-#else
-        "collections"
-#endif
-                 );
-    if (!abc_module) {
-        return -1;
-    }
-    Mapping = PyObject_GetAttrString(abc_module, "Mapping");
-    Py_DECREF(abc_module);
-    if (!Mapping) {
-        return -1;
-    }
-    result = PyObject_IsInstance(o, Mapping);
-    Py_DECREF(Mapping);
-    return result;
+    return __Pyx_MatchCase_ABCCheck(o, "Mapping", "Sequence");
 #endif
 }
 
