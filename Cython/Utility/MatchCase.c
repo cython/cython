@@ -681,7 +681,7 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *map, PyObjec
 
     {{if tag != "NonDict"}}
     // shortcut for when there are no left-over keys
-    if ({{if tag=="ExactDict"}}PyDict_CheckExact(map){{else}}(1){{endif}}) {
+    if ({{if tag=="ExactDict"}}(1){{else}}PyDict_CheckExact(map){{endif}}) {
         Py_ssize_t s = PyDict_Size(map);
         if (s == -1) {
             return NULL;

@@ -347,7 +347,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_022(self):
-        return
         x = {}
         match x:
             case {}:
@@ -2633,7 +2632,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(z, (2, 3))
 
     def test_patma_239(self):
-        return
         x = collections.UserDict({0: 1, 2: 3})
         match x:
             case {2: 3}:
@@ -2642,7 +2640,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(y, 0)
 
     def test_patma_240(self):
-        return
         x = collections.UserDict({0: 1, 2: 3})
         match x:
             case {2: 3, **z}:
@@ -2750,7 +2747,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(f((False, range(10, 20), True)), alts[4])
 
     def test_patma_248(self):
-        return
         class C(dict):
             @staticmethod
             def get(key, default=None):
@@ -3174,7 +3170,6 @@ class TestTypeErrors(unittest.TestCase):
 class TestValueErrors(unittest.TestCase):
 
     def test_mapping_pattern_checks_duplicate_key_1(self):
-        return
         class Keys:
             KEY = "a"
         x = {"a": 0, "b": 1}
