@@ -1375,7 +1375,8 @@ class ClassPatternNode(PatternNode):
         assignments = []
         for pattern, temp in zip(self.keyword_pattern_patterns, self.keyword_subject_temps):
             pattern_assignments = pattern.generate_target_assignments(temp, env)
-            assignments.extend(pattern_assignments.stats)
+            if pattern_assignments:
+                assignments.extend(pattern_assignments.stats)
         return assignments
 
     def make_typecheck_call(self, subject_node, class_node):
@@ -1461,14 +1462,33 @@ class ClassPatternNode(PatternNode):
         )
         return TempResultFromStatNode(passed_rr, try_except)
 
-    def get_comparison_node(self, subject_node):
+    def make_subpattern_checks(self, env):
+        cmp_node = None
+        for temp, pattern in zip(self.keyword_subject_temps, self.keyword_pattern_patterns):
+            if temp:
+                p_cmp_node = pattern.get_comparison_node(temp, env)
+                if cmp_node:
+                    cmp_node = ExprNodes.binop_node(
+                        self.pos,
+                        operator="and",
+                        operand1=cmp_node,
+                        operand2=p_cmp_node
+                    )
+                else:
+                    cmp_node = p_cmp_node
+        return cmp_node
+    
+    def get_comparison_node(self, subject_node, env):
         from .UtilNodes import ResultRefNode, EvalWithTempExprNode
+
+        if self.comp_node:
+            return self.comp_node
 
         class_node = ResultRefNode(self.class_)
         if self.class_known_type:
             class_node = self.class_.clone_node()
             class_node.entry = self.class_known_type.entry
-            
+
         call = self.make_typecheck_call(subject_node, class_node)
 
         if self.class_known_type:
@@ -1485,6 +1505,15 @@ class ClassPatternNode(PatternNode):
                 operator="and",
                 operand1 = call,
                 operand2 = self.make_keyword_pattern_lookups()
+            )
+
+        subpattern_checks = self.make_subpattern_checks(env)
+        if subpattern_checks:
+            call = ExprNodes.binop_node(
+                self.pos,
+                operator="and",
+                operand1 = call,
+                operand2 = subpattern_checks
             )
 
         if isinstance(class_node, ResultRefNode) and not call.is_literal:
@@ -1505,7 +1534,15 @@ class ClassPatternNode(PatternNode):
 
     def analyse_pattern_expressions(self, subject_node, env):
         self.class_ = self.class_.analyse_types(env)
-        self.comp_node = self.get_comparison_node(subject_node).analyse_expressions(env)
+
+        for idx in range(len(self.keyword_subject_attrs)):
+            self.keyword_subject_attrs[idx] = self.keyword_subject_attrs[idx].analyse_types(env)
+
+        for idx in range(len(self.keyword_pattern_patterns)):
+            subject = self.keyword_subject_temps[idx]
+            self.keyword_pattern_patterns[idx] = self.keyword_pattern_patterns[idx].analyse_pattern_expressions(subject, env)
+
+        self.comp_node = self.get_comparison_node(subject_node, env).analyse_expressions(env)
 
         if self.positional_patterns:
             return super(ClassPatternNode, self).analyse_pattern_expressions(subject_node, env)
