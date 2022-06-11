@@ -48,36 +48,43 @@ static int __Pyx_MatchCase_ABCCheck(PyObject *o, const char* test_for_string, co
         goto end;
     } else {
         // It's an instance of both types. Look up the MRO order
-        PyObject *idx_test_for, *idx_test_for_not;
         PyObject *mro = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__mro__");
+        Py_ssize_t i;
         if (!mro) {
             PyErr_Clear();
             goto end;
         }
-        idx_test_for_not = PyObject_CallMethod(mro, "index", "O", test_for_not_type);
-        if (!idx_test_for_not) {
-            // most likely it just isn't in the MRO
-            PyErr_Clear();
+        //PyObject_Print(mro, stdout, 0);
+        //printf("\n");
+        if (!PyTuple_Check(mro)) {
+            Py_DECREF(mro);
             goto end;
         }
-        idx_test_for = PyObject_CallMethod(mro, "index", "O", test_for_type);
-        Py_DECREF(mro);
-        if (!idx_test_for) {
-            Py_DECREF(idx_test_for_not);
-            PyErr_Clear();
-            if (PyErr_ExceptionMatches(PyExc_ValueError)) {
-                // We haven't found "test_for" but we have found "test_for_not" in the MRO.
-                // Therefore, "test_for_not" comes first
+        for (i=1; i < PyTuple_GET_SIZE(mro); ++i) {
+            int is_subclass_test_for, is_subclass_test_not_for;
+            PyObject *mro_item = PyTuple_GET_ITEM(mro, i);
+            is_subclass_test_for = PyObject_IsSubclass(mro_item, test_for_type);
+            if (is_subclass_test_for < 0) goto loop_error;
+            is_subclass_test_not_for = PyObject_IsSubclass(mro_item, test_for_not_type);
+            if (is_subclass_test_not_for < 0) goto loop_error;
+            //printf("%d %d\n", is_subclass_test_for, is_subclass_test_not_for);
+            if (is_subclass_test_for && !is_subclass_test_not_for) {
+                // The "good" type is earlier in the MRO. Success
+                break;
+            } else if (is_subclass_test_not_for && !is_subclass_test_for) {
+                // The "bad" type is earlier in the MRO
                 result = 0;
-                goto end;
-            } else {
-                // continue the broad policy of treating failures as OK
-                goto end;
+                break;
             }
         }
-        result = PyObject_RichCompareBool(idx_test_for, idx_test_for_not, Py_LT);
-        Py_DECREF(idx_test_for);
-        Py_DECREF(idx_test_for_not);
+        // If we get to the end of the loop without breaking then neither type is in
+        // the MRO, so they've both been registered manually. We don't know which was
+        // registered first, but returning "1" is an OK answer
+        if (0) {
+            loop_error:
+            PyErr_Clear();
+        }
+        Py_DECREF(mro);
     }
 
     end:
@@ -99,21 +106,45 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o) {
     return PyType_GetFlags(Py_TYPE(o)) & Py_TPFLAGS_SEQUENCE;
 #else
     PyObject *o_module_name;
+    int abc_result;
     // Py_TPFLAGS_SEQUENCE doesn't exit. Check a known list of types
     if (PyUnicode_Check(o) || PyBytes_Check(o) || PyByteArray_Check(o) || o == Py_None) {
         return 0;  // these types are deliberately excluded and treated not as a sequence
     }
-    if (PyList_Check(o) || PyTuple_Check(o) || PyRange_Check(o) || PyMemoryView_Check(o)) {
+    if (PyList_CheckExact(o) || PyTuple_CheckExact(o)) {
+        // Use exact type match for these checks. I in the event of inheritence we need to make sure
+        // that it isn't a mapping too
         return 1;
     }
+    if (PyRange_Check(o) || PyMemoryView_Check(o)) {
+        // Exact check isn't possible so do exact check in another way
+        PyObject *mro = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__mro__");
+        if (mro) {
+            Py_ssize_t len = PyObject_Length(mro);
+            Py_DECREF(mro);
+            if (len < 0) {
+                PyErr_Clear(); // doesn't really matter, just proceed with other checks
+            } else if (len == 2) {
+                return 1; // the type and "object" and no other bases
+            }
+        } else {
+            PyErr_Clear(); // doesn't really matter, just proceed with other checks
+        }
+    }
+
+    abc_result = __Pyx_MatchCase_ABCCheck(o, "Sequence", "Mapping");
+    if (abc_result) {  // either success or error
+        return abc_result;
+    }
+
     // array.array is a more complicated check (and unfortunately isn't covered by
     // collections.abc.Sequence on Python <3.10).
     // Do the test by checking the module name, and then importing/testing the class
+    // It also doesn't give perfect results for classes that inherit from both array.array
+    // and a mapping
     o_module_name = PyObject_GetAttrString((PyObject*)Py_TYPE(o), "__module__");
     if (!o_module_name) {
-        // This test seems pretty non-essentially - just jump to the abc test
-        PyErr_Clear();
-        goto abc_test;
+        return -1;
     }
 #if PY_MAJOR_VERSION >= 3
     if (PyUnicode_Check(o_module_name) && PyUnicode_CompareWithASCIIString(o_module_name, "array") == 0)
@@ -130,13 +161,13 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o) {
         array_module = PyImport_ImportModule("array");
         if (!array_module) {
             PyErr_Clear();
-            goto abc_test;
+            return 0;  // treat these tests as "soft" and don't cause an exception
         }
         array_object = PyObject_GetAttrString(array_module, "array");
         Py_DECREF(array_module);
         if (!array_object) {
             PyErr_Clear();
-            goto abc_test;
+            return 0;
         }
         is_array = PyObject_IsInstance(o, array_object);
         Py_DECREF(array_object);
@@ -147,8 +178,6 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o) {
     } else {
         Py_DECREF(o_module_name);
     }
-
-    abc_test:
-    return __Pyx_MatchCase_ABCCheck(o, "Sequence", "Mapping");
+    return 0;
 #endif
 }
