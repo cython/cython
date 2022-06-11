@@ -1154,7 +1154,7 @@ class MatchMappingPatternNode(PatternNode):
             context={"tag": tag}
         )
         func = ExprNodes.PythonCapiCallNode(
-            self.double_star_capture_target.pos, "__Pyx_MatchCase_DoubleStarCapture",
+            self.double_star_capture_target.pos, "__Pyx_MatchCase_DoubleStarCapture"+tag,
             self.Pyx_mapping_doublestar_type,
             utility_code=utility_code,
             args=[subject_node, const_tuple, var_tuple]
