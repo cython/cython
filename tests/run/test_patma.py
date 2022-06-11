@@ -98,13 +98,8 @@ class TestInheritance(unittest.TestCase):
             pass
         self.assertEqual(self.check_sequence_then_mapping(M1()), "map")
         self.assertEqual(self.check_sequence_then_mapping(M2()), "map")
-        if sys.version_info >= (3,10):
-            # These tests are quite difficult to get right on versions of Python that
-            # don't provide built-in support. They would be achievable, but it'd make
-            # the tests pretty slow (searching the MRO) even for basic built-in
-            # types like dict and list. Therefore we've sacrificed accuracy for speed
-            self.assertEqual(self.check_sequence_then_mapping(M3()), "map")
-            self.assertEqual(self.check_sequence_then_mapping(M4()), "map")
+        self.assertEqual(self.check_sequence_then_mapping(M3()), "map")
+        self.assertEqual(self.check_sequence_then_mapping(M4()), "map")
         self.assertEqual(self.check_mapping_then_sequence(M1()), "map")
         self.assertEqual(self.check_mapping_then_sequence(M2()), "map")
         self.assertEqual(self.check_mapping_then_sequence(M3()), "map")
@@ -127,10 +122,8 @@ class TestInheritance(unittest.TestCase):
         self.assertEqual(self.check_sequence_then_mapping(S4()), "seq")
         self.assertEqual(self.check_mapping_then_sequence(S1()), "seq")
         self.assertEqual(self.check_mapping_then_sequence(S2()), "seq")
-        if sys.version_info >= (3,10):
-            # See comment above about difficult to fix issue
-            self.assertEqual(self.check_mapping_then_sequence(S3()), "seq")
-            self.assertEqual(self.check_mapping_then_sequence(S4()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(S3()), "seq")
+        self.assertEqual(self.check_mapping_then_sequence(S4()), "seq")
 
     def test_late_registration_mapping(self):
         class Parent:

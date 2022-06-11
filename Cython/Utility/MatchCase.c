@@ -400,7 +400,7 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o) {
     // Py_Dict is the only regularly used mapping type
     // "types.MappingProxyType" also exists but is correctly covered by
     // the isinstance(o, Mapping) check
-    if (PyDict_Check(o)) {
+    if (PyDict_CheckExact(o)) {
         return 1;
     }
 
