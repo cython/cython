@@ -108,3 +108,55 @@ def test_duplicate_keys(key1, key2):
             return True
         case _:
             return False
+
+cdef class C:
+    cdef double x
+    def __init__(self, x):
+        self.x = x
+
+def class_attr_lookup(x):
+    """
+    >>> class_attr_lookup(C(5))
+    5.0
+    >>> class_attr_lookup([1])
+    >>> class_attr_lookup(None)
+    """
+    match x:
+        case C(x=y):  # This can only work with cdef attribute lookup
+            assert cython.typeof(y) == "double", cython.typeof(y)
+            return y
+
+class PyClass:
+    pass
+
+@cython.test_assert_path_exists("//SimpleCallNode//NameNode[@name='isinstance']")
+def class_typecheck_exists(x):
+    """
+    Test exists to confirm that the unoptimized case makes an isinstance check
+    (and thus the optimized class_typecheck_exists is testing the right thing).
+    If the implementation changes to not use a call to "isinstance" this test
+    can happily be deleted
+    >>> class_typecheck_exists(5)
+    False
+    >>> class_typecheck_exists(PyClass())
+    True
+    """
+    match x:
+        case PyClass():
+            return True
+        case _:
+            return False
+
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name='isinstance']")
+def class_typecheck_doesnt_exist(C x):
+    """
+    >>> class_typecheck_doesnt_exist(C(5))
+    True
+    >>> class_typecheck_doesnt_exist(None)  # it is None-safe though!
+    False
+    """
+    match x:
+        case C():
+            return True
+        case _:
+            return False

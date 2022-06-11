@@ -1324,6 +1324,8 @@ class ClassPatternNode(PatternNode):
     keyword_pattern_names = []
     keyword_pattern_patterns = []
 
+    # TODO infer type of "as_target" if possible?
+
     initial_child_attrs = PatternNode.initial_child_attrs + [
         "class_",
         "positional_patterns",
@@ -1331,11 +1333,204 @@ class ClassPatternNode(PatternNode):
         "keyword_pattern_patterns",
     ]
 
+    def generate_subjects(self, subject_node):
+        assert not hasattr(self, "keyword_subject_temps")
+
+        if self.class_known_type:
+            # maximizes type inference
+            subject_node = ExprNodes.TypecastNode(
+                subject_node.pos,
+                operand = subject_node,
+                type = self.class_known_type,
+                typecheck = False
+            )
+
+        self.keyword_subject_temps = []
+        self.keyword_subject_attrs = []
+        for p, p_name in zip(self.keyword_pattern_patterns, self.keyword_pattern_names):
+            # The attribute lookups are calculated here to maximize chance of type interference
+            attr_lookup = ExprNodes.AttributeNode(
+                p_name.pos,
+                obj = subject_node,
+                attribute = p_name.name
+            )
+            self.keyword_subject_attrs.append(attr_lookup)
+            if not p.get_targets() and p.is_irrefutable():
+                self.keyword_subject_temps.append(None)
+            else:
+                # Hopefully the type can be assigned later
+                self.keyword_subject_temps.append(TrackTypeTempNode(p.pos, attr_lookup))
+
     def get_main_pattern_targets(self):
         targets = set()
-        for p in self.positional_patterns + self.keyword_pattern_patterns:
+        for p in self.keyword_pattern_patterns:
+            self.update_targets_with_targets(targets, p.get_targets())
+
+        for p in self.positional_patterns:
             self.update_targets_with_targets(targets, p.get_targets())
         return targets
+
+    def generate_main_pattern_assignment_list(self, subject_node, env):
+        self.generate_subjects(subject_node)
+        assignments = []
+        for pattern, temp in zip(self.keyword_pattern_patterns, self.keyword_subject_temps):
+            pattern_assignments = pattern.generate_target_assignments(temp, env)
+            assignments.extend(pattern_assignments.stats)
+        return assignments
+
+    def make_typecheck_call(self, subject_node, class_node):
+        if not subject_node.type.is_pyobject:
+            return ExprNodes.BoolNode(self.pos, value=False)
+        if self.class_known_type:
+            if not self.class_known_type.is_pyobject:
+                error(self.pos, "class must be a Python object")
+                return ExprNodes.BoolNode(self.pos, value=False)
+
+            if subject_node.type.subtype_of_resolved_type(self.class_known_type):
+                if subject_node.may_be_none():
+                    return ExprNodes.PrimaryCmpNode(
+                        self.pos,
+                        operator="is_not",
+                        operand1 = subject_node,
+                        operand2 = ExprNodes.NoneNode(self.pos)
+                    )
+                else:
+                    return ExprNodes.BoolNode(self.pos, value=True)
+            # if subject_node.type is not PyrexTypes.py_object_type
+            # I suspect the value is false, but possibly can't prove it
+
+        return ExprNodes.SimpleCallNode(
+            self.pos,
+            function = ExprNodes.NameNode(
+                self.pos,
+                name="isinstance",
+                entry=Builtin.builtin_scope.lookup("isinstance")
+            ),
+            args=[subject_node, class_node]
+        )
+
+    def make_keyword_pattern_lookups(self):
+        # These are always looking up fixed names.
+        # Therefore, get best efficiency by letting Cython do the lookup
+        # and so infer the types
+        assert self.keyword_pattern_names
+
+        from .UtilNodes import ResultRefNode, TempResultFromStatNode
+        passed_rr = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
+        stats = []
+        for pattern_name, subject_temp, lookup in zip(
+            self.keyword_pattern_names, self.keyword_subject_temps, self.keyword_subject_attrs):
+            if subject_temp:
+                subject_temp.arg = lookup  # it should now know the type
+                stat = Nodes.SingleAssignmentNode(
+                    pattern_name.pos,
+                    lhs = subject_temp,
+                    rhs = lookup
+                )
+            else:
+                stat = Nodes.ExprStatNode(
+                    pattern_name.pos,
+                    expr = lookup
+                )
+            stats.append(stat)
+        except_clause = Nodes.ExceptClauseNode(
+            self.pos,
+            pattern = [ExprNodes.NameNode(self.pos, name="AttributeError", entry=Builtin.builtin_scope.lookup("AttributeError"))],
+            body = Nodes.StatListNode(
+                self.pos,
+                stats=[
+                    Nodes.SingleAssignmentNode(
+                        self.pos,
+                        lhs = passed_rr,
+                        rhs = ExprNodes.BoolNode(self.pos, value=False)
+                    )
+                ]
+            ),
+            target = None
+        )
+        else_clause = Nodes.SingleAssignmentNode(
+            self.pos,
+            lhs = passed_rr,
+            rhs = ExprNodes.BoolNode(self.pos, value=True)
+        )
+        try_except = Nodes.TryExceptStatNode(
+            self.pos,
+            body = Nodes.StatListNode(self.pos, stats=stats),
+            except_clauses=[except_clause],
+            else_clause=else_clause
+        )
+        return TempResultFromStatNode(passed_rr, try_except)
+
+    def get_comparison_node(self, subject_node):
+        from .UtilNodes import ResultRefNode, EvalWithTempExprNode
+
+        class_node = ResultRefNode(self.class_)
+        if self.class_known_type:
+            class_node = self.class_.clone_node()
+            class_node.entry = self.class_known_type.entry
+            
+        call = self.make_typecheck_call(subject_node, class_node)
+
+        if self.class_known_type:
+            # From this point on we know the type of the subject
+            subject_node = ExprNodes.TypecastNode(
+                self.class_.pos,
+                operand = subject_node,
+                type = self.class_known_type,
+                typecheck = False
+            )
+        if self.keyword_pattern_names:
+            call = ExprNodes.binop_node(
+                self.pos,
+                operator="and",
+                operand1 = call,
+                operand2 = self.make_keyword_pattern_lookups()
+            )
+
+        if isinstance(class_node, ResultRefNode) and not call.is_literal:
+            return EvalWithTempExprNode(class_node, call)
+        else:
+            return call
+
+    def analyse_declarations(self, env):
+        # Try to work out the type early
+        self.class_.analyse_declarations(env)
+        self.class_known_type = self.class_.analyse_as_type(env)
+        for p in self.positional_patterns:
+            p.analyse_declarations(env)
+        for p_name, p in zip(self.keyword_pattern_names, self.keyword_pattern_patterns):
+            p_name.analyse_declarations(env)
+            p.analyse_declarations(env)
+        super(ClassPatternNode, self).analyse_declarations(env)
+
+    def analyse_pattern_expressions(self, subject_node, env):
+        self.class_ = self.class_.analyse_types(env)
+        self.comp_node = self.get_comparison_node(subject_node).analyse_expressions(env)
+
+        if self.positional_patterns:
+            return super(ClassPatternNode, self).analyse_pattern_expressions(subject_node, env)
+        return self
+
+    def allocate_subject_temps(self, code):
+        for temp in self.keyword_subject_temps:
+            if temp is not None:
+                temp.allocate(code)
+        for pattern in self.keyword_pattern_patterns:
+            pattern.allocate_subject_temps(code)
+    
+    def release_subject_temps(self, code):
+        for temp in self.keyword_subject_temps:
+            if temp is not None:
+                temp.release(code)
+        for pattern in self.keyword_pattern_patterns:
+            pattern.release_subject_temps(code)
+
+    def dispose_of_subject_temps(self, code):
+        for temp in self.keyword_subject_temps:
+            if temp is not None:
+                code.put_xdecref_clear(temp.result(), temp.type)
+        for pattern in self.keyword_pattern_patterns:
+            pattern.dispose_of_subject_temps(code)
 
 
 class SubstitutedIfStatListNode(Nodes.StatListNode):
