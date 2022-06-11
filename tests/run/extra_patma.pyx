@@ -22,6 +22,7 @@ def test_memoryview(int[:] x):
     """
     match x:
         case [0, y, 2]:
+            assert cython.typeof(y) == "int", cython.typeof(y)  # type inference works
             return f"a {y}"
         case []:
             return "b"
@@ -67,4 +68,5 @@ def test_ctuple_to_sequence((int, int) x):
         case [a, b, c]:  # can't possibly succeed!
             return a, b, c
         case [a, b]:
+            assert cython.typeof(a) == "int", cython.typeof(a)  # test that types have inferred
             return a, b

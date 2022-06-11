@@ -632,7 +632,7 @@ class MatchSequencePatternNode(PatternNode):
         if has_star:
             len_test -= 1
         # check whether we need a length call...
-        if self.patterns and not (len(self.patterns) == 1 and has_star):
+        if not (self.patterns and len(self.patterns) == 1 and has_star):
             length_call = self.make_length_call_node(subject_node)
 
             if (length_call.is_literal and 
@@ -1008,5 +1008,8 @@ class TrackTypeTempNode(AssignableTempNode):
     def __init__(self, pos, arg):
         ExprNodes.ExprNode.__init__(self, pos)  # skip a level
         self.arg = arg
+
+    def infer_type(self, env):
+        return self.arg.infer_type(env)
 
 
