@@ -8,6 +8,7 @@ from .Errors import error, local_errors, report_error
 from . import Nodes, ExprNodes, PyrexTypes, Builtin, Options
 from .Code import UtilityCode
 
+
 class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
@@ -50,9 +51,7 @@ class MatchNode(StatNode):
         for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
             if c is not None and c.is_simple_value_comparison():
                 body = SubstitutedIfStatListNode(
-                    c.body.pos,
-                    stats = c.body.stats,
-                    match_node = self
+                    c.body.pos, stats=c.body.stats, match_node=self
                 )
                 if_clause = Nodes.IfClauseNode(
                     c.pos,
@@ -71,7 +70,7 @@ class MatchNode(StatNode):
             elif current_if_statement:
                 # this cannot be simplified, but previous case(s) were
                 self.cases[n - 1] = SubstitutedMatchCaseNode(
-                    current_if_statement.pos, body = current_if_statement
+                    current_if_statement.pos, body=current_if_statement
                 )
                 current_if_statement = None
         # eliminate optimized cases
@@ -88,7 +87,9 @@ class MatchNode(StatNode):
             if c.is_sequence_or_mapping():
                 sequence_mapping_count += 1
         if sequence_mapping_count >= 2:
-            self.sequence_mapping_temp = AssignableTempNode(self.pos, PyrexTypes.c_uint_type)
+            self.sequence_mapping_temp = AssignableTempNode(
+                self.pos, PyrexTypes.c_uint_type
+            )
             self.sequence_mapping_temp.is_addressable = lambda: True
 
         self.subject = self.subject.analyse_expressions(env)
@@ -96,15 +97,20 @@ class MatchNode(StatNode):
         if not self.subject.arg.is_literal:
             self.subject.arg = self.subject.arg.coerce_to_temp(env)
         subject = self.subject_clonenode.analyse_expressions(env)
-        self.cases = [c.analyse_case_expressions(subject, env, self.sequence_mapping_temp) for c in self.cases]
+        self.cases = [
+            c.analyse_case_expressions(subject, env, self.sequence_mapping_temp)
+            for c in self.cases
+        ]
         self.cases = [c for c in self.cases if c is not None]
         return self
 
     def generate_execution_code(self, code):
         if self.sequence_mapping_temp:
             self.sequence_mapping_temp.allocate(code)
-            code.putln("%s = 0; /* sequence/mapping test temp */" 
-                        % self.sequence_mapping_temp.result())
+            code.putln(
+                "%s = 0; /* sequence/mapping test temp */"
+                % self.sequence_mapping_temp.result()
+            )
         end_label = self.end_label = code.new_label()
         if self.subject_clonenode:
             self.subject.generate_evaluation_code(code)
@@ -156,11 +162,15 @@ class MatchCaseNode(Node):
         self.pattern.validate_irrefutable()
 
     def is_sequence_or_mapping(self):
-        return isinstance(self.pattern, (MatchSequencePatternNode, MatchMappingPatternNode))
+        return isinstance(
+            self.pattern, (MatchSequencePatternNode, MatchMappingPatternNode)
+        )
 
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
-        self.target_assignments = self.pattern.generate_target_assignments(subject_node, env)
+        self.target_assignments = self.pattern.generate_target_assignments(
+            subject_node, env
+        )
         if self.target_assignments:
             self.target_assignments.analyse_declarations(env)
         if self.guard:
@@ -169,7 +179,9 @@ class MatchCaseNode(Node):
 
     def analyse_case_expressions(self, subject_node, env, sequence_mapping_temp):
         with local_errors(True) as errors:
-            self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env, sequence_mapping_temp)
+            self.pattern = self.pattern.analyse_pattern_expressions(
+                subject_node, env, sequence_mapping_temp
+            )
         if self.pattern.comp_node and self.pattern.comp_node.is_literal:
             self.pattern.comp_node.calculate_constant_result()
             if not self.pattern.comp_node.constant_result:
@@ -209,7 +221,7 @@ class MatchCaseNode(Node):
             code.putln("if (%s) { /* guard */" % self.guard.result())
             self.guard.generate_disposal_code(code)
             self.guard.free_temps(code)
-        #body_insertion_point = code.insertion_point()
+        # body_insertion_point = code.insertion_point()
         self.body.generate_execution_code(code)
         if not self.body.is_terminator:
             code.put_goto(end_label)
@@ -252,6 +264,7 @@ class PatternNode(Node):
     Generated in analysis:
     comp_node   ExprNode     node to evaluate for the pattern
     """
+
     # useful for type tests
     is_match_value_pattern = False
 
@@ -345,11 +358,7 @@ class PatternNode(Node):
         # Returns either a StatListNode or None
         assignments = []
         for target in self.as_targets:
-            if (
-                self.is_match_value_pattern
-                and self.value
-                and self.value.is_simple()
-            ):
+            if self.is_match_value_pattern and self.value and self.value.is_simple():
                 # in this case we can optimize slightly and just take the value
                 subject_node = self.value.clone_node()
             assignments.append(
@@ -357,7 +366,9 @@ class PatternNode(Node):
                     target.pos, lhs=target.clone_node(), rhs=subject_node
                 )
             )
-        assignments.extend(self.generate_main_pattern_assignment_list(subject_node, env))
+        assignments.extend(
+            self.generate_main_pattern_assignment_list(subject_node, env)
+        )
         if assignments:
             return Nodes.StatListNode(self.pos, stats=assignments)
         else:
@@ -384,6 +395,7 @@ class MatchValuePatternNode(PatternNode):
     value   ExprNode
     is_is_check   bool     Picks "is" or equality check
     """
+
     is_match_value_pattern = True
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["value"]
@@ -414,7 +426,9 @@ class MatchValuePatternNode(PatternNode):
     def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         if self.value:
             self.value = self.value.analyse_expressions(env)
-        self.comp_node = self.get_comparison_node(subject_node, env).analyse_expressions(env)
+        self.comp_node = self.get_comparison_node(
+            subject_node, env
+        ).analyse_expressions(env)
         return self
 
 
@@ -450,7 +464,7 @@ class MatchAndAssignPatternNode(PatternNode):
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
         return self.get_comparison_node(subject_node, None)
-        
+
     def get_comparison_node(self, subject_node, env):
         return ExprNodes.BoolNode(self.pos, value=True)
 
@@ -555,7 +569,8 @@ class OrPatternNode(PatternNode):
 
     def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         self.alternatives = [
-            a.analyse_pattern_expressions(subject_node, env, None) for a in self.alternatives
+            a.analyse_pattern_expressions(subject_node, env, None)
+            for a in self.alternatives
         ]
         self.comp_node = self.get_comparison_node(
             subject_node, env
@@ -577,20 +592,27 @@ class MatchSequencePatternNode(PatternNode):
     """
     patterns   list of PatternNodes
 
-    generated: 
+    generated:
     subjects    [TrackTypeTempNode]  individual subsubjects can be assigned to these
     """
+
     subjects = None
     needs_length_temp = False
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["patterns"]
 
     Pyx_sequence_check_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_bint_type, [
+        PyrexTypes.c_bint_type,
+        [
             PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("sequence_mapping_temp", PyrexTypes.c_ptr_type(PyrexTypes.c_uint_type), None)
+            PyrexTypes.CFuncTypeArg(
+                "sequence_mapping_temp",
+                PyrexTypes.c_ptr_type(PyrexTypes.c_uint_type),
+                None,
+            ),
         ],
-        exception_value="-1")
+        exception_value="-1",
+    )
 
     def __init__(self, pos, **kwds):
         super(MatchSequencePatternNode, self).__init__(pos, **kwds)
@@ -604,7 +626,7 @@ class MatchSequencePatternNode(PatternNode):
                 star_count += 1
             self.update_targets_with_targets(targets, p.get_targets())
         if star_count > 1:
-            error(self.pos,  "multiple starred names in sequence pattern")
+            error(self.pos, "multiple starred names in sequence pattern")
         return targets
 
     def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
@@ -615,31 +637,26 @@ class MatchSequencePatternNode(PatternNode):
         for n, pattern in enumerate(self.patterns):
             p_test = pattern.get_comparison_node(self.subject_temps[n], env)
             if test is not None:
-                p_test = ExprNodes.BoolBinopNode(self.pos,
-                    operator = "and",
-                    operand1 = test,
-                    operand2 = p_test
+                p_test = ExprNodes.BoolBinopNode(
+                    self.pos, operator="and", operand1=test, operand2=p_test
                 )
             if not pattern.get_targets() and pattern.is_irrefutable():
                 test = p_test
                 # the subject isn't actually needed, don't evaluate it
                 self.subject_temps[n] = None
-                continue  
-                
+                continue
+
             result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
             subject_assignment = Nodes.SingleAssignmentNode(
                 self.pos,
-                lhs = self.subject_temps[n],  # the temp node
-                rhs = self.subjects[n]  # the regular node
+                lhs=self.subject_temps[n],  # the temp node
+                rhs=self.subjects[n],  # the regular node
             )
             test_assignment = Nodes.SingleAssignmentNode(
-                self.pos,
-                lhs = result_ref,
-                rhs = p_test
+                self.pos, lhs=result_ref, rhs=p_test
             )
             stats = Nodes.StatListNode(
-                self.pos,
-                stats = [ subject_assignment, test_assignment ]
+                self.pos, stats=[subject_assignment, test_assignment]
             )
             test = TempResultFromStatNode(result_ref, stats)
 
@@ -659,24 +676,22 @@ class MatchSequencePatternNode(PatternNode):
         if not (self.patterns and len(self.patterns) == 1 and has_star):
             length_call = self.make_length_call_node(subject_node)
 
-            if (length_call.is_literal and 
-                    ((has_star and len_test < length_call.constant_result) or
-                    (not has_star and len_test != length_call.constant_result))):
+            if length_call.is_literal and (
+                (has_star and len_test < length_call.constant_result)
+                or (not has_star and len_test != length_call.constant_result)
+            ):
                 # definitely failed!
                 return ExprNodes.BoolNode(self.pos, value=False)
             seq_len_test = ExprNodes.BoolBinopNode(
                 self.pos,
-                operator = "and",
-                operand1 = seq_test,
-                operand2 = ExprNodes.PrimaryCmpNode(
+                operator="and",
+                operand1=seq_test,
+                operand2=ExprNodes.PrimaryCmpNode(
                     self.pos,
-                    operator = ">=" if has_star else "==",
-                    operand1 = length_call,
-                    operand2 = ExprNodes.IntNode(
-                        self.pos,
-                        value = str(len_test)
-                    ),
-                )
+                    operator=">=" if has_star else "==",
+                    operand1=length_call,
+                    operand2=ExprNodes.IntNode(self.pos, value=str(len_test)),
+                ),
             )
         else:
             self.needs_length_temp = False
@@ -685,11 +700,8 @@ class MatchSequencePatternNode(PatternNode):
             test = seq_len_test
         else:
             test = ExprNodes.BoolBinopNode(
-                self.pos,
-                operator = "and",
-                operand1 = seq_len_test,
-                operand2 = test
-            )            
+                self.pos, operator="and", operand1=seq_len_test, operand2=test
+            )
         return test
 
     def generate_subjects(self, subject_node, env):
@@ -703,19 +715,19 @@ class MatchSequencePatternNode(PatternNode):
             idxs = list(range(len(self.patterns)))
         else:
             fwd_idxs = list(range(star_idx))
-            backward_idxs = list(range(star_idx-len(self.patterns)+1, 0))
+            backward_idxs = list(range(star_idx - len(self.patterns) + 1, 0))
             star_idx = (
-                fwd_idxs[-1]+1 if fwd_idxs else None,
-                backward_idxs[0] if backward_idxs else None
+                fwd_idxs[-1] + 1 if fwd_idxs else None,
+                backward_idxs[0] if backward_idxs else None,
             )
             idxs = fwd_idxs + [star_idx] + backward_idxs
-            
+
         subjects = []
         for pattern, idx in zip(self.patterns, idxs):
             indexer = self.make_indexing_node(pattern, subject_node, idx, env)
             subjects.append(ExprNodes.ProxyNode(indexer) if indexer else None)
         self.subjects = subjects
-        self.subject_temps = [ TrackTypeTempNode(self.pos, s) for s in self.subjects ]
+        self.subject_temps = [TrackTypeTempNode(self.pos, s) for s in self.subjects]
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
@@ -732,12 +744,9 @@ class MatchSequencePatternNode(PatternNode):
         # be medium quick for common types). It'd be nice to cache the
         # results of it where it's been called on the same object
         # multiple times.
-        # DW has decided that that's too complicated to implement 
+        # DW has decided that that's too complicated to implement
         # for now.
-        utility_code = UtilityCode.load_cached(
-            "IsSequence",
-            "MatchCase.c"
-        )
+        utility_code = UtilityCode.load_cached("IsSequence", "MatchCase.c")
         if sequence_mapping_temp is not None:
             sequence_mapping_temp = ExprNodes.AmpersandNode(
                 self.pos, operand=sequence_mapping_temp
@@ -745,18 +754,27 @@ class MatchSequencePatternNode(PatternNode):
         else:
             sequence_mapping_temp = ExprNodes.NullNode(self.pos)
         call = ExprNodes.PythonCapiCallNode(
-            self.pos, "__Pyx_MatchCase_IsSequence", self.Pyx_sequence_check_type,
-            utility_code= utility_code, args=[subject_node, sequence_mapping_temp]
+            self.pos,
+            "__Pyx_MatchCase_IsSequence",
+            self.Pyx_sequence_check_type,
+            utility_code=utility_code,
+            args=[subject_node, sequence_mapping_temp],
         )
+
         def type_check(type):
             # type-check need not be perfect, it's an optimization
-            if type in [ Builtin.list_type, Builtin.tuple_type ]:
+            if type in [Builtin.list_type, Builtin.tuple_type]:
                 return True
             if type.is_memoryviewslice or type.is_ctuple:
                 return True
-            if type in [ Builtin.str_type, Builtin.bytes_type,
-                         Builtin.unicode_type, Builtin.bytearray_type,
-                         Builtin.dict_type, Builtin.set_type ]:
+            if type in [
+                Builtin.str_type,
+                Builtin.bytes_type,
+                Builtin.unicode_type,
+                Builtin.bytearray_type,
+                Builtin.dict_type,
+                Builtin.set_type,
+            ]:
                 # non-exhaustive list at this stage, but returning "False" is
                 # an optimization so it's allowed to be non-exchaustive
                 return False
@@ -764,11 +782,9 @@ class MatchSequencePatternNode(PatternNode):
                 # again, not exhaustive
                 return False
             return None
+
         return StaticTypeCheckNode(
-            self.pos,
-            arg = subject_node,
-            fallback = call,
-            check = type_check
+            self.pos, arg=subject_node, fallback=call, check=type_check
         )
 
     def make_length_call_node(self, subject_node):
@@ -776,32 +792,24 @@ class MatchSequencePatternNode(PatternNode):
         if subject_node.type.is_memoryviewslice:
             len_call = ExprNodes.IndexNode(
                 self.pos,
-                base = ExprNodes.AttributeNode(
-                    self.pos,
-                    obj = subject_node,
-                    attribute = "shape"
+                base=ExprNodes.AttributeNode(
+                    self.pos, obj=subject_node, attribute="shape"
                 ),
-                index = ExprNodes.IntNode(
-                    self.pos,
-                    value = "0"
-                )
+                index=ExprNodes.IntNode(self.pos, value="0"),
             )
         elif subject_node.type.is_ctuple:
             len_call = ExprNodes.IntNode(
-                self.pos,
-                value = str(len(subject_node.type.components))
+                self.pos, value=str(len(subject_node.type.components))
             )
         else:
             len_call = ExprNodes.SimpleCallNode(
                 self.pos,
-                function = ExprNodes.NameNode(self.pos, name="len", entry=len_entry),
-                args = [ subject_node ]
+                function=ExprNodes.NameNode(self.pos, name="len", entry=len_entry),
+                args=[subject_node],
             )
         if self.needs_length_temp:
             return ExprNodes.AssignmentExpressionNode(
-                self.pos,
-                lhs = self.length_temp,
-                rhs = len_call
+                self.pos, lhs=self.length_temp, rhs=len_call
             )
         else:
             return len_call
@@ -815,7 +823,7 @@ class MatchSequencePatternNode(PatternNode):
             if i is None:
                 return None
             else:
-                int_node = ExprNodes.IntNode(pattern.pos, value = str(i))
+                int_node = ExprNodes.IntNode(pattern.pos, value=str(i))
                 if i >= 0:
                     return int_node
                 else:
@@ -824,7 +832,8 @@ class MatchSequencePatternNode(PatternNode):
                         pattern.pos,
                         operator="+",
                         operand1=self.length_temp,
-                        operand2=int_node)
+                        operand2=int_node,
+                    )
 
         if isinstance(idx, tuple):
             start = get_index_from_int(idx[0])
@@ -834,21 +843,20 @@ class MatchSequencePatternNode(PatternNode):
             # directly.
             indexer = ExprNodes.MergedSequenceNode(
                 pattern.pos,
-                args = [ExprNodes.SliceIndexNode(
-                    pattern.pos,
-                    base = subject_node,
-                    start = start,
-                    stop = stop
-                )],
-                type = Builtin.list_type
+                args=[
+                    ExprNodes.SliceIndexNode(
+                        pattern.pos, base=subject_node, start=start, stop=stop
+                    )
+                ],
+                type=Builtin.list_type,
             )
         else:
             indexer = ExprNodes.IndexNode(
                 pattern.pos,
-                base = subject_node,
-                index = get_index_from_int(idx),
-                force_boundscheck_off = True,
-                force_wraparound_off = True,
+                base=subject_node,
+                index=get_index_from_int(idx),
+                force_boundscheck_off=True,
+                force_wraparound_off=True,
             )
 
         return indexer
@@ -867,7 +875,8 @@ class MatchSequencePatternNode(PatternNode):
                 self.subject_temps[n], env, None
             )
         self.comp_node = self.get_comparison_node(
-            subject_node, env, sequence_mapping_temp)
+            subject_node, env, sequence_mapping_temp
+        )
         if not self.comp_node.is_literal:
             self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
         return self
@@ -880,7 +889,7 @@ class MatchSequencePatternNode(PatternNode):
                 temp.allocate(code)
         for pattern in self.patterns:
             pattern.allocate_subject_temps(code)
-    
+
     def release_subject_temps(self, code):
         if self.needs_length_temp:
             self.length_temp.release(code)
@@ -961,6 +970,7 @@ class SubstitutedIfStatListNode(Nodes.StatListNode):
 
     match_node   - the enclosing match statement
     """
+
     def generate_execution_code(self, code):
         super(SubstitutedIfStatListNode, self).generate_execution_code(code)
         if not self.is_terminator:
@@ -978,11 +988,12 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
     stage
 
     arg        ExprNode
-    fallback   ExprNode   Function to be called if the static 
+    fallback   ExprNode   Function to be called if the static
                             typecheck isn't optimized out
     check      callable   Returns True, False, or None (for "can't tell")
     """
-    child_attrs = ['fallback']  # arg in not included since it's in "fallback"
+
+    child_attrs = ["fallback"]  # arg in not included since it's in "fallback"
 
     def analyse_types(self, env):
         check = self.check(self.arg.type)
@@ -990,22 +1001,20 @@ class StaticTypeCheckNode(ExprNodes.ExprNode):
             if self.arg.may_be_none():
                 return ExprNodes.PrimaryCmpNode(
                     self.pos,
-                    operand1 = self.arg,
-                    operand2 = ExprNodes.NoneNode(self.pos),
-                    operator = "is_not"
+                    operand1=self.arg,
+                    operand2=ExprNodes.NoneNode(self.pos),
+                    operator="is_not",
                 ).analyse_expressions(env)
             else:
-                return ExprNodes.BoolNode(
-                    pos = self.pos,
-                    value = True
-                ).analyse_expressions(env)
+                return ExprNodes.BoolNode(pos=self.pos, value=True).analyse_expressions(
+                    env
+                )
         elif check is None:
             return self.fallback.analyse_expressions(env)
         else:
-            return ExprNodes.BoolNode(
-                pos = self.pos,
-                value = False
-            ).analyse_expressions(env)
+            return ExprNodes.BoolNode(pos=self.pos, value=False).analyse_expressions(
+                env
+            )
 
 
 class AssignableTempNode(ExprNodes.TempNode):
@@ -1013,22 +1022,27 @@ class AssignableTempNode(ExprNodes.TempNode):
     _assigned_twice = False
 
     def infer_type(self, env):
-        return self.type 
+        return self.type
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
-        assert not self._assigned_twice  # if this happens it's not a disaster but it needs a refactor
+        assert (
+            not self._assigned_twice
+        )  # if this happens it's not a disaster but it needs a refactor
         self._assigned_twice = True
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
             if not self.lhs_of_first_assignment:
                 code.put_decref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (
-            self.result(),
-            rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
-        ))
+        code.putln(
+            "%s = %s;"
+            % (
+                self.result(),
+                rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
+            )
+        )
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
-    
+
     def generate_post_assignment_code(self, code):
         code.put_incref(self.result(), self.type)
 
@@ -1049,5 +1063,3 @@ class TrackTypeTempNode(AssignableTempNode):
 
     def infer_type(self, env):
         return self.arg.infer_type(env)
-
-
