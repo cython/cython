@@ -12,11 +12,14 @@ class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
     cases    [MatchCaseBaseNode]  list of cases
+
+    sequence_mapping_temp  None or AssignableTempNode  an int temp to store result of sequence/mapping tests
     """
 
     child_attrs = ["subject", "cases"]
 
     subject_clonenode = None  # set to a value if we require a temp
+    sequence_mapping_temp = None
 
     def validate_irrefutable(self):
         found_irrefutable_case = None
@@ -80,21 +83,35 @@ class MatchNode(StatNode):
             c.analyse_case_declarations(self.subject_clonenode, env)
 
     def analyse_expressions(self, env):
+        sequence_mapping_count = 0
+        for c in self.cases:
+            if c.is_sequence_or_mapping():
+                sequence_mapping_count += 1
+        if sequence_mapping_count >= 2:
+            self.sequence_mapping_temp = AssignableTempNode(self.pos, PyrexTypes.c_uint_type)
+            self.sequence_mapping_temp.is_addressable = lambda: True
+
         self.subject = self.subject.analyse_expressions(env)
         assert isinstance(self.subject, ExprNodes.ProxyNode)
         if not self.subject.arg.is_literal:
             self.subject.arg = self.subject.arg.coerce_to_temp(env)
         subject = self.subject_clonenode.analyse_expressions(env)
-        self.cases = [c.analyse_case_expressions(subject, env) for c in self.cases]
+        self.cases = [c.analyse_case_expressions(subject, env, self.sequence_mapping_temp) for c in self.cases]
         self.cases = [c for c in self.cases if c is not None]
         return self
 
     def generate_execution_code(self, code):
+        if self.sequence_mapping_temp:
+            self.sequence_mapping_temp.allocate(code)
+            code.putln("%s = 0; /* sequence/mapping test temp */" 
+                        % self.sequence_mapping_temp.result())
         end_label = self.end_label = code.new_label()
         if self.subject_clonenode:
             self.subject.generate_evaluation_code(code)
         for c in self.cases:
             c.generate_execution_code(code, end_label)
+        if self.sequence_mapping_temp:
+            self.sequence_mapping_temp.release(code)
         if code.label_used(end_label):
             code.put_label(end_label)
         if self.subject_clonenode:
@@ -138,6 +155,9 @@ class MatchCaseNode(Node):
     def validate_irrefutable(self):
         self.pattern.validate_irrefutable()
 
+    def is_sequence_or_mapping(self):
+        return isinstance(self.pattern, (MatchSequencePatternNode, MatchMappingPatternNode))
+
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
         self.target_assignments = self.pattern.generate_target_assignments(subject_node, env)
@@ -147,9 +167,9 @@ class MatchCaseNode(Node):
             self.guard.analyse_declarations(env)
         self.body.analyse_declarations(env)
 
-    def analyse_case_expressions(self, subject_node, env):
+    def analyse_case_expressions(self, subject_node, env, sequence_mapping_temp):
         with local_errors(True) as errors:
-            self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env)
+            self.pattern = self.pattern.analyse_pattern_expressions(subject_node, env, sequence_mapping_temp)
         if self.pattern.comp_node and self.pattern.comp_node.is_literal:
             self.pattern.comp_node.calculate_constant_result()
             if not self.pattern.comp_node.constant_result:
@@ -203,13 +223,16 @@ class SubstitutedMatchCaseNode(MatchCaseBaseNode):
     # body  - Node -  The (probably) if statement that it's replaced with
     child_attrs = ["body"]
 
+    def is_sequence_or_mapping(self):
+        return False
+
     def analyse_case_declarations(self, subject_node, env):
         self.analyse_declarations(env)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
-    def analyse_case_expressions(self, subject_node, env):
+    def analyse_case_expressions(self, subject_node, env, sequence_mapping_temp):
         self.body = self.body.analyse_expressions(env)
         return self
 
@@ -295,7 +318,7 @@ class PatternNode(Node):
             if isinstance(child, PatternNode):
                 child.validate_irrefutable()
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         error(self.pos, "This type of pattern is not currently supported %s" % self)
         return self
 
@@ -388,7 +411,7 @@ class MatchValuePatternNode(PatternNode):
         if self.value:
             self.value.analyse_declarations(env)
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         if self.value:
             self.value = self.value.analyse_expressions(env)
         self.comp_node = self.get_comparison_node(subject_node, env).analyse_expressions(env)
@@ -441,7 +464,7 @@ class MatchAndAssignPatternNode(PatternNode):
         else:
             return []
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         if self.is_star and False:
             # TODO investigate?
             return super(MatchAndAssignPatternNode, self).analyse_pattern_expressions(
@@ -521,7 +544,7 @@ class OrPatternNode(PatternNode):
             )
         return binop
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp):
         error(self.pos, "'or' cases aren't fully implemented yet")
         return ExprNodes.BoolNode(self.pos, value=False)
 
@@ -530,9 +553,9 @@ class OrPatternNode(PatternNode):
         for a in self.alternatives:
             a.analyse_declarations(env)
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         self.alternatives = [
-            a.analyse_pattern_expressions(subject_node, env) for a in self.alternatives
+            a.analyse_pattern_expressions(subject_node, env, None) for a in self.alternatives
         ]
         self.comp_node = self.get_comparison_node(
             subject_node, env
@@ -564,7 +587,8 @@ class MatchSequencePatternNode(PatternNode):
 
     Pyx_sequence_check_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("sequence_mapping_temp", PyrexTypes.c_ptr_type(PyrexTypes.c_uint_type), None)
         ],
         exception_value="-1")
 
@@ -583,7 +607,7 @@ class MatchSequencePatternNode(PatternNode):
             error(self.pos,  "multiple starred names in sequence pattern")
         return targets
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
         from .UtilNodes import TempResultFromStatNode, ResultRefNode
 
         test = None
@@ -619,7 +643,7 @@ class MatchSequencePatternNode(PatternNode):
             )
             test = TempResultFromStatNode(result_ref, stats)
 
-        seq_test = self.make_sequence_check(subject_node)
+        seq_test = self.make_sequence_check(subject_node, sequence_mapping_temp)
         if isinstance(seq_test, ExprNodes.BoolNode) and not seq_test.value:
             return seq_test  # no point in proceeding further!
         has_star = False
@@ -702,7 +726,7 @@ class MatchSequencePatternNode(PatternNode):
                 assignments.extend(p_assignments.stats)
         return assignments
 
-    def make_sequence_check(self, subject_node):
+    def make_sequence_check(self, subject_node, sequence_mapping_temp):
         # Note: the sequence check code is very quick on Python 3.10+
         # but potentially quite slow on lower versions (although should
         # be medium quick for common types). It'd be nice to cache the
@@ -714,9 +738,15 @@ class MatchSequencePatternNode(PatternNode):
             "IsSequence",
             "MatchCase.c"
         )
+        if sequence_mapping_temp is not None:
+            sequence_mapping_temp = ExprNodes.AmpersandNode(
+                self.pos, operand=sequence_mapping_temp
+            )
+        else:
+            sequence_mapping_temp = ExprNodes.NullNode(self.pos)
         call = ExprNodes.PythonCapiCallNode(
             self.pos, "__Pyx_MatchCase_IsSequence", self.Pyx_sequence_check_type,
-            utility_code= utility_code, args=[subject_node]
+            utility_code= utility_code, args=[subject_node, sequence_mapping_temp]
         )
         def type_check(type):
             # type-check need not be perfect, it's an optimization
@@ -820,16 +850,21 @@ class MatchSequencePatternNode(PatternNode):
 
         return indexer
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_declarations(self, env):
+        for p in self.patterns:
+            p.analyse_declarations(env)
+        return super(MatchSequencePatternNode, self).analyse_declarations(env)
+
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         for n in range(len(self.subjects)):
             if self.subjects[n]:
                 self.subjects[n] = self.subjects[n].analyse_types(env)
         for n in range(len(self.patterns)):
             self.patterns[n] = self.patterns[n].analyse_pattern_expressions(
-                self.subject_temps[n], env
+                self.subject_temps[n], env, None
             )
         self.comp_node = self.get_comparison_node(
-            subject_node, env)
+            subject_node, env, sequence_mapping_temp)
         if not self.comp_node.is_literal:
             self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
         return self
