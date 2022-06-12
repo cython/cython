@@ -948,7 +948,8 @@ class MatchMappingPatternNode(PatternNode):
 
     Pyx_mapping_check_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [
-            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("sequence_mapping_temp", PyrexTypes.c_ptr_type(PyrexTypes.c_uint_type), None)
         ],
         exception_value="-1")
     Pyx_mapping_check_duplicates_type = PyrexTypes.CFuncType(
@@ -1058,7 +1059,7 @@ class MatchMappingPatternNode(PatternNode):
             return False
         return None
 
-    def make_mapping_check(self, subject_node):
+    def make_mapping_check(self, subject_node, sequence_mapping_temp):
         # Note: the mapping check code is very quick on Python 3.10+
         # but potentially quite slow on lower versions (although should
         # be medium quick for common types). It'd be nice to cache the
@@ -1072,9 +1073,16 @@ class MatchMappingPatternNode(PatternNode):
             "IsMapping",
             "MatchCase.c"
         )
+        if sequence_mapping_temp is not None:
+            sequence_mapping_temp = ExprNodes.AmpersandNode(
+                self.pos,
+                operand = sequence_mapping_temp
+            )
+        else:
+            sequence_mapping_temp = ExprNodes.NullNode(self.pos)
         call = ExprNodes.PythonCapiCallNode(
             self.pos, "__Pyx_MatchCase_IsMapping", self.Pyx_mapping_check_type,
-            utility_code= utility_code, args=[subject_node]
+            utility_code= utility_code, args=[subject_node, sequence_mapping_temp]
         )
         
         return StaticTypeCheckNode(
@@ -1141,7 +1149,8 @@ class MatchMappingPatternNode(PatternNode):
             args=[ subject_node, const_keys_tuple.clone_node(), var_keys_tuple ] + subject_derefs
         )
 
-    def make_double_star_capture(self, subject_node, const_tuple, var_tuple):
+    def make_double_star_capture(self, subject_node, const_tuple, var_tuple, test_result):
+        # test_result being the variable that holds "case check passed until now"
         is_dict = self.is_dict_type_check(subject_node.type)
         if is_dict:
             tag = "ExactDict"
@@ -1159,13 +1168,23 @@ class MatchMappingPatternNode(PatternNode):
             utility_code=utility_code,
             args=[subject_node, const_tuple, var_tuple]
         )
-        return Nodes.SingleAssignmentNode(
+        assignment = Nodes.SingleAssignmentNode(
             self.double_star_capture_target.pos,
             lhs = self.double_star_temp,
             rhs = func
         )
+        if_clause = Nodes.IfClauseNode(
+            self.double_star_capture_target.pos,
+            condition = test_result,
+            body = assignment
+        )
+        return Nodes.IfStatNode(
+            self.double_star_capture_target.pos,
+            if_clauses = [if_clause],
+            else_clause = None
+        )
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
         if self.comp_node:
             return self.comp_node
 
@@ -1190,7 +1209,7 @@ class MatchMappingPatternNode(PatternNode):
         if var_keys:
             var_keys_tuple = UtilNodes.ResultRefNode(var_keys_tuple, is_temp=True)
         
-        test = self.make_mapping_check(subject_node)
+        test = self.make_mapping_check(subject_node, sequence_mapping_temp)
         key_check = self.check_all_keys(subject_node, const_keys_tuple, var_keys_tuple)
         test = ExprNodes.binop_node(
             self.pos,
@@ -1236,9 +1255,12 @@ class MatchMappingPatternNode(PatternNode):
         )
         if self.double_star_capture_target:
             assert self.double_star_temp
-            body.stats.append(self.make_double_star_capture(
-                subject_node,
-                const_keys_tuple, var_keys_tuple
+            body.stats.append(
+                # make_double_star_capture wraps itself in an if                
+                self.make_double_star_capture(
+                    subject_node,
+                    const_keys_tuple, var_keys_tuple,
+                    test_result
             ))
 
         if var_keys or self.double_star_capture_target:
@@ -1254,7 +1276,7 @@ class MatchMappingPatternNode(PatternNode):
         else:
             return test
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         def to_temp_or_literal(node):
             if node.is_literal:
                 return node
@@ -1267,9 +1289,9 @@ class MatchMappingPatternNode(PatternNode):
 
         for idx in range(len(self.value_patterns)):
             subject = self.subject_temps[idx]
-            self.value_patterns[idx] = self.value_patterns[idx].analyse_pattern_expressions(subject, env)
+            self.value_patterns[idx] = self.value_patterns[idx].analyse_pattern_expressions(subject, env, None)
 
-        self.comp_node = self.get_comparison_node(subject_node, env)
+        self.comp_node = self.get_comparison_node(subject_node, env, sequence_mapping_temp)
         self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
         return self
 

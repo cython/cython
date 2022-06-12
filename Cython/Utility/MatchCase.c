@@ -388,24 +388,51 @@ static PyObject *__Pyx_MatchCase_TupleToList(PyObject *x, Py_ssize_t start, Py_s
 
 ///////////////////////////// IsMapping.proto //////////////////////
 
-static int __Pyx_MatchCase_IsMapping(PyObject *o); /* proto */
+static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp); /* proto */
 
 //////////////////////////// IsMapping /////////////////////////
 //@requires: ABCCheck
 
-static int __Pyx_MatchCase_IsMapping(PyObject *o) {
+static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping_temp) {
 #if PY_VERSION_HEX >= 0x030A0000
     return PyType_GetFlags(Py_TYPE(o)) & Py_TPFLAGS_MAPPING;
 #else
-    // Py_Dict is the only regularly used mapping type
-    // "types.MappingProxyType" also exists but is correctly covered by
-    // the isinstance(o, Mapping) check
-    if (PyDict_CheckExact(o)) {
+    unsigned int abc_result, dummy=0;
+    if (sequence_mapping_temp) {
+        // do we already know the answer?
+        if (*sequence_mapping_temp & __PYX_DEFINITELY_MAPPING_FLAG) {
+            return 1;
+        } else if (*sequence_mapping_temp & __PYX_DEFINITELY_NOT_MAPPING_FLAG) {
+            return 0;
+        }
+    } else {
+        sequence_mapping_temp = &dummy; // just so we can assign freely without checking
+    }
+
+    if (__Pyx_MatchCase_IsExactMapping(o)) {
+        *sequence_mapping_temp |= (__PYX_DEFINITELY_MAPPING_FLAG | __PYX_DEFINITELY_NOT_SEQUENCE_FLAG);
         return 1;
+    }
+    if (__Pyx_MatchCase_IsExactSequence(o)) {
+        *sequence_mapping_temp |= (__PYX_DEFINITELY_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+        return 0;
+    }
+    if (__Pyx_MatchCase_IsExactNeitherSequenceNorMapping(o)) {
+        *sequence_mapping_temp |= (__PYX_DEFINITELY_NOT_SEQUENCE_FLAG | __PYX_DEFINITELY_NOT_MAPPING_FLAG);
+        return 0;
     }
 
     // otherwise check against collections.abc.Mapping
-    return __Pyx_MatchCase_ABCCheck(o, "Mapping", "Sequence");
+    abc_result = __Pyx_MatchCase_ABCCheck(
+        o, 0,
+        *sequence_mapping_temp & __PYX_DEFINITELY_NOT_SEQUENCE_FLAG,
+        *sequence_mapping_temp & __PYX_DEFINITELY_NOT_MAPPING_FLAG
+    );
+    if (abc_result & __PYX_SEQUENCE_MAPPING_ERROR) {
+        return -1;
+    }
+    *sequence_mapping_temp = abc_result;
+    return *sequence_mapping_temp & __PYX_DEFINITELY_MAPPING_FLAG;
 #endif
 }
 
