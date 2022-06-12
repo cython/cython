@@ -59,6 +59,13 @@ else:
         __match_args__ = ("x", "y")
         x: int
         y: int
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+        def __eq__(self, other):
+            if not isinstance(other, Point):
+                return False
+            return self.x == other.x and self.y == other.y
 
 # TestCompiler removed - it's very CPython-specific
 # TestTracing also removed - doesn't seem like a core test
@@ -1522,7 +1529,8 @@ class TestPatma(unittest.TestCase):
         self.assertIs(z, x)
 
     def test_patma_144(self):
-        x = 0.0
+        x : object = 0.0  # Cython-specific change. Otherwise x is inferred as int 
+                          # which makes assertIs(z, x) fail
         match x:
             case float(z):
                 y = 0

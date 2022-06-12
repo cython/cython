@@ -436,13 +436,15 @@ static int __Pyx_MatchCase_IsMapping(PyObject *o, unsigned int *sequence_mapping
 #endif
 }
 
-//////////////////////// MappingKeyCheck.proto /////////////////////////
+//////////////////////// DuplicateKeyCheck.proto ///////////////////////
 
-static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys); /*proto */
+// Returns an new reference to any duplicate key.
+// NULL can indicate no duplicate keys or an error (so use PyErr_Occurred)
+static PyObject* __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys, Py_ssize_t n_var_keys); /*proto*/
 
-/////////////////////// MappingKeyCheck ////////////////////////////////
+//////////////////////// DuplicateKeyCheck /////////////////////////////
 
-static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys) {
+static PyObject* __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys, Py_ssize_t n_var_keys) {
     // Inputs are tuples, and typically fairly small. It may be more efficient to
     // loop over the tuple than create a set.
 
@@ -452,23 +454,27 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *va
     // this step completely.
 
     PyObject *var_keys_set;
-    PyObject *key;
+    PyObject *key = NULL;
     Py_ssize_t n;
     int contains;
 
     var_keys_set = PySet_New(NULL);
-    if (!var_keys_set) return -1;
+    if (!var_keys_set) return NULL;
 
-    for (n=0; n < PyTuple_GET_SIZE(var_keys); ++n) {
+    n_var_keys = (n_var_keys < 0) ? PyTuple_GET_SIZE(var_keys) : n_var_keys;
+    for (n=0; n < n_var_keys; ++n) {
         key = PyTuple_GET_ITEM(var_keys, n);
         contains = PySet_Contains(var_keys_set, key);
         if (contains < 0) {
-            goto bad;
+            key = NULL;
+            goto end;
         } else if (contains == 1) {
-            goto raise_error;
+            Py_INCREF(key);
+            goto end;
         } else {
             if (PySet_Add(var_keys_set, key)) {
-                goto bad;
+                key = NULL;
+                goto end;
             }
         }
     }
@@ -476,20 +482,37 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *fixed_keys, PyObject *va
         key = PyTuple_GET_ITEM(fixed_keys, n);
         contains = PySet_Contains(var_keys_set, key);
         if (contains < 0) {
-            goto bad;
+            key = NULL;
+            goto end;
         } else if (contains == 1) {
-            goto raise_error;
+            Py_INCREF(key);
+            goto end;
         }
     }
+    key = NULL;
+    end:
     Py_DECREF(var_keys_set);
-    return 0;
+    return key;
+}
 
-    raise_error:
-    PyErr_Format(PyExc_ValueError,
-                 "mapping pattern checks duplicate key (%R)", key);
-    bad:
-    Py_DECREF(var_keys_set);
-    return -1;
+//////////////////////// MappingKeyCheck.proto /////////////////////////
+
+static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys); /* proto */
+
+//////////////////////// MappingKeyCheck ///////////////////////////////
+//@requires: DuplicateKeyCheck
+
+static int __Pyx_MatchCase_CheckMappingDuplicateKeys(PyObject *fixed_keys, PyObject *var_keys) {
+    PyObject *key = __Pyx_MatchCase_CheckDuplicateKeys(fixed_keys, var_keys, -1);
+    if (key) {
+        PyErr_Format(PyExc_ValueError, "mapping pattern checks duplicate key (%R)", key);
+        Py_DECREF(key);
+        return -1;
+    } else if (PyErr_Occurred()) {
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
 /////////////////////////// ExtractExactDict.proto ////////////////
@@ -724,4 +747,160 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *map, PyObjec
         }
     }
     return dict_out;
+}
+
+////////////////////////////// ClassPositionalPatterns.proto ////////////////////////
+
+#if CYTHON_REFNANNY
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...); /* proto */
+#define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(__pyx_refnanny, __VA_ARGS__)
+#else
+static int __Pyx_MatchCase_ClassPositional(PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...); /* proto */
+#endif
+
+/////////////////////////////// ClassPositionalPatterns //////////////////////////////
+//@requires: DuplicateKeyCheck
+
+// Adapted from ceval.c "match_class" in CPython
+//
+// The argument match_self can equal 1 for "known to be true"
+//                                   0 for "known to be false"
+//                                  -1 for "unknown", runtime test
+
+#if CYTHON_REFNANNY
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...)
+#else
+static int __Pyx_MatchCase_ClassPositional(PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...)
+#endif
+{
+    PyObject *match_args, *dup_key;
+    Py_ssize_t allowed, i;
+    int result;
+    va_list subjects;
+
+    match_args = PyObject_GetAttrString((PyObject*)type, "__match_args__");
+    if (!match_args) {
+        if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            PyErr_Clear();
+
+            if (match_self == -1) {
+                #if defined(_Py_TPFLAGS_MATCH_SELF)
+                match_self = PyType_HasFeature(type,
+                                            _Py_TPFLAGS_MATCH_SELF);
+                #else
+                // probably an earlier version of Python. Go off the known list in the specification
+                match_self = (PyType_IsSubtype(type, &PyByteArray_Type) ||
+                              PyType_IsSubtype(type, &PyBytes_Type) ||
+                              PyType_IsSubtype(type, &PyDict_Type) ||
+                              PyType_IsSubtype(type, &PyFloat_Type) ||
+                              PyType_IsSubtype(type, &PyFrozenSet_Type) ||
+                              PyType_IsSubtype(type, &PyLong_Type) || // This should capture bool too
+                              #if PY_MAJOR_VERSION < 3
+                              PyType_IsSubtype(type, &PyInt_Type) ||
+                              #endif
+                              PyType_IsSubtype(type, &PyList_Type) ||
+                              PyType_IsSubtype(type, &PySet_Type) ||
+                              PyType_IsSubtype(type, &PyUnicode_Type) ||
+                              PyType_IsSubtype(type, &PyTuple_Type)
+                              );
+                #endif
+            }
+        } else {
+            return -1;
+        }
+    } else {
+        match_self = 0;
+        if (!PyTuple_CheckExact(match_args)) {
+            PyErr_Format(PyExc_TypeError, "%s.__match_args__ must be a tuple (got %s)",
+                type->tp_name,
+                Py_TYPE(match_args)->tp_name
+            );
+            Py_DECREF(match_args);
+            return -1;
+        }
+    }
+
+    allowed = match_self ?
+        1 : (match_args ? PyTuple_GET_SIZE(match_args) : 0);
+    if (allowed < num_args) {
+        const char *plural = (allowed == 1) ? "" : "s";
+        PyErr_Format(PyExc_TypeError,
+                     "%s() accepts %d positional sub-pattern%s (%d given)",
+                     type->tp_name,
+                     allowed, plural, num_args);
+        Py_XDECREF(match_args);
+        return -1;
+    }
+    va_start(subjects, num_args);
+    if (match_self) {
+        PyObject **self_subject = va_arg(subjects, PyObject**);
+        if (self_subject) {
+            // Easy. Copy the subject itself, and move on to kwargs.
+            __Pyx_XDECREF_SET(*self_subject, subject);
+            __Pyx_INCREF(*self_subject);
+        }
+        result = 1;
+        goto end_match_self;
+    }
+    // next stage is to check for duplicate keys. Reuse code from mapping  
+    dup_key = __Pyx_MatchCase_CheckDuplicateKeys(keysnames_tuple, match_args, num_args);
+    if (dup_key) {
+        PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute %R",
+                     type->tp_name, dup_key);
+        Py_DECREF(dup_key);
+        result = -1;
+        goto end;
+    } else if (PyErr_Occurred()) {
+        result = -1;
+        goto end;
+    }
+
+    for (i = 0; i < num_args; i++) {
+        PyObject *attr;
+        PyObject **subject_i;
+        PyObject *name = PyTuple_GET_ITEM(match_args, i);
+        if (!PyUnicode_CheckExact(name)) {
+            PyErr_Format(PyExc_TypeError,
+                         "__match_args__ elements must be strings "
+                         "(got %s)", Py_TYPE(name)->tp_name);
+            result = -1;
+            goto end;
+        }
+
+        attr = PyObject_GetAttr(subject, name);
+        if (attr == NULL && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            PyErr_Clear();
+            result = 0;
+            goto end;
+        }
+        subject_i = va_arg(subjects, PyObject**);
+        if (subject_i) {
+            __Pyx_XDECREF_SET(*subject_i, attr);
+            __Pyx_GOTREF(attr);
+        } else {
+            Py_DECREF(attr);
+        }
+    }
+    result = 1;
+
+    end:
+    Py_DECREF(match_args);
+    end_match_self:  // because match_args isn't set
+    va_end(subjects);
+    return result;
+}
+
+//////////////////////// MatchClassTypeCheck.proto /////////////////////////////
+
+static PyTypeObject* __Pyx_MatchCase_ClassTypeCheck(PyObject* type); /* proto */
+
+//////////////////////// MatchClassTypeCheck /////////////////////////////
+
+static PyTypeObject* __Pyx_MatchCase_ClassTypeCheck(PyObject* type) {
+    if (!PyType_Check(type)) {
+        PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
+        return NULL;
+    }
+    Py_INCREF(type);
+    return (PyTypeObject*)type;
 }
