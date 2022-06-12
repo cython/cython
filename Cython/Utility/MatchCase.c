@@ -890,13 +890,13 @@ static int __Pyx_MatchCase_ClassPositional(PyObject *subject, PyTypeObject *type
     return result;
 }
 
-//////////////////////// MatchClassTypeCheck.proto /////////////////////////////
+//////////////////////// MatchClassIsType.proto /////////////////////////////
 
-static PyTypeObject* __Pyx_MatchCase_ClassTypeCheck(PyObject* type); /* proto */
+static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type); /* proto */
 
-//////////////////////// MatchClassTypeCheck /////////////////////////////
+//////////////////////// MatchClassIsType /////////////////////////////
 
-static PyTypeObject* __Pyx_MatchCase_ClassTypeCheck(PyObject* type) {
+static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type) {
     if (!PyType_Check(type)) {
         PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
         return NULL;

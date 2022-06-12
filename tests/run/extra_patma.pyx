@@ -129,7 +129,7 @@ def class_attr_lookup(x):
 class PyClass:
     pass
 
-@cython.test_assert_path_exists("//SimpleCallNode//NameNode[@name='isinstance']")
+@cython.test_assert_path_exists("//PythonCapiFunctionNode[@cname='__Pyx_TypeCheck']")
 def class_typecheck_exists(x):
     """
     Test exists to confirm that the unoptimized case makes an isinstance check
@@ -147,7 +147,8 @@ def class_typecheck_exists(x):
         case _:
             return False
 
-@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name='isinstance']")
+@cython.test_fail_if_path_exists("//NameNode[@name='isinstance']")
+@cython.test_fail_if_path_exists("//PythonCapiFunctionNode[@cname='__Pyx_TypeCheck']")
 def class_typecheck_doesnt_exist(C x):
     """
     >>> class_typecheck_doesnt_exist(C(5))

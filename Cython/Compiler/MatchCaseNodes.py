@@ -1338,7 +1338,7 @@ class ClassPatternNode(PatternNode):
         has_varargs=True,
         exception_value="-1")
 
-    Pyx_typecheck_type = PyrexTypes.CFuncType(
+    Pyx_istype_type = PyrexTypes.CFuncType(
         Builtin.type_type, [
             PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None),
         ],)
@@ -1568,11 +1568,11 @@ class ClassPatternNode(PatternNode):
         else:
             if not self.class_.type is Builtin.type_type:
                 util_code = UtilityCode.load_cached(
-                    "MatchClassTypeCheck",
+                    "MatchClassIsType",
                     "MatchCase.c"
                 )
                 class_node = ExprNodes.PythonCapiCallNode(
-                    self.pos, "__Pyx_MatchCase_ClassTypeCheck", self.Pyx_typecheck_type,
+                    self.pos, "__Pyx_MatchCase_IsType", self.Pyx_istype_type,
                     utility_code= util_code, args=[self.class_]
                 )
             class_node = ResultRefNode(class_node)
@@ -1628,7 +1628,7 @@ class ClassPatternNode(PatternNode):
             p.analyse_declarations(env)
         super(ClassPatternNode, self).analyse_declarations(env)
 
-    def analyse_pattern_expressions(self, subject_node, env):
+    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
         self.class_ = self.class_.analyse_types(env)
 
         for idx in range(len(self.keyword_subject_attrs)):
@@ -1636,10 +1636,10 @@ class ClassPatternNode(PatternNode):
 
         for idx in range(len(self.keyword_pattern_patterns)):
             subject = self.keyword_subject_temps[idx]
-            self.keyword_pattern_patterns[idx] = self.keyword_pattern_patterns[idx].analyse_pattern_expressions(subject, env)
+            self.keyword_pattern_patterns[idx] = self.keyword_pattern_patterns[idx].analyse_pattern_expressions(subject, env, None)
         for idx in range(len(self.positional_patterns)):
             subject = self.positional_subject_temps[idx]
-            self.positional_patterns[idx] = self.positional_patterns[idx].analyse_pattern_expressions(subject, env)
+            self.positional_patterns[idx] = self.positional_patterns[idx].analyse_pattern_expressions(subject, env, None)
 
         self.comp_node = self.get_comparison_node(subject_node, env).analyse_expressions(env)
 
