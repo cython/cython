@@ -829,6 +829,9 @@ class MatchSequencePatternNode(PatternNode):
         if isinstance(idx, tuple):
             start = get_index_from_int(idx[0])
             stop = get_index_from_int(idx[1])
+            # TODO - there's a worthwhile optimization here
+            # to skip the intermediate sliced object and fill in the list
+            # directly.
             indexer = ExprNodes.MergedSequenceNode(
                 pattern.pos,
                 args = [ExprNodes.SliceIndexNode(
