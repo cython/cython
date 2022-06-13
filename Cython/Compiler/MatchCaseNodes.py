@@ -5,8 +5,10 @@
 
 from .Nodes import Node, StatNode
 from .Errors import error, local_errors, report_error
-from . import Nodes, ExprNodes, PyrexTypes, Builtin, Options
+from . import Nodes, ExprNodes, PyrexTypes, Builtin
 from .Code import UtilityCode
+from .Options import copy_inherited_directives
+from contextlib import contextmanager
 
 
 class MatchNode(StatNode):
@@ -841,24 +843,22 @@ class MatchSequencePatternNode(PatternNode):
             # TODO - there's a worthwhile optimization here
             # to skip the intermediate sliced object and fill in the list
             # directly.
-            indexer = ExprNodes.MergedSequenceNode(
-                pattern.pos,
-                args=[
-                    ExprNodes.SliceIndexNode(
-                        pattern.pos, base=subject_node, start=start, stop=stop
-                    )
-                ],
-                type=Builtin.list_type,
+            indexer = SliceToListNode(
+                pattern.pos, base=subject_node, start=start, stop=stop
             )
         else:
-            indexer = ExprNodes.IndexNode(
-                pattern.pos,
-                base=subject_node,
-                index=get_index_from_int(idx),
-                force_boundscheck_off=True,
-                force_wraparound_off=True,
+            indexer = CompilerDirectivesExprNode(
+                arg = ExprNodes.IndexNode(
+                    pattern.pos,
+                    base=subject_node,
+                    index=get_index_from_int(idx)
+                ),
+                directives=copy_inherited_directives(
+                    env.directives,
+                    boundscheck=False,
+                    wraparound=False
+                )
             )
-
         return indexer
 
     def analyse_declarations(self, env):
@@ -1046,6 +1046,9 @@ class AssignableTempNode(ExprNodes.TempNode):
     def generate_post_assignment_code(self, code):
         code.put_incref(self.result(), self.type)
 
+    def clone_node(self):
+        return self  # temps break if you make a copy!
+
 
 class TrackTypeTempNode(AssignableTempNode):
     #  Like a temp node, but type is set from arg
@@ -1063,3 +1066,143 @@ class TrackTypeTempNode(AssignableTempNode):
 
     def infer_type(self, env):
         return self.arg.infer_type(env)
+
+
+class SliceToListNode(ExprNodes.ExprNode):
+    """
+    Used as a brief temporary node to optimize
+    case [..., *_, ...].
+    Always reduces to something else after analyse_types
+
+    # This class is written to leave room for future optimizations
+
+    TODO - specific implementation for tuple???
+    """
+    subexprs = ["base", "start", "stop"]
+
+    type = Builtin.list_type
+
+    def generate_for_object(self, env):
+        # The best option is slightly variable depending on the type and the length.
+        # list(base[start:stop]) is usually pretty competitive but generates an expensive
+        # intermediate. A custom-written function based on PyObject_GetIter is
+        # essentially what CPython's "unpack_iterable" in ceval.c does. It tends to be
+        # very slightly slower, but avoids the intermediate.
+        #
+        # For simplicity we use list(base[start:stop]) but further optimizations
+        # might be worthwhile
+        
+        res = CompilerDirectivesExprNode(
+            arg = ExprNodes.SliceIndexNode(
+                self.pos, base=self.base, start=self.start, stop=self.stop
+            ),
+            directives = copy_inherited_directives(
+                env.directives,
+                boundcheck=False,
+                wraparound=False
+            )
+        )
+        if self.base.type is not Builtin.list_type:
+            res = ExprNodes.SimpleCallNode(
+                self.pos,
+                function = ExprNodes.NameNode(
+                    self.pos,
+                    name="list",
+                    entry = Builtin.builtin_scope.lookup("list"),
+                ),
+                args = [res]
+            )
+        return res
+
+    def generate_for_memoryview(self, env):
+        # Requires Cython code generation...
+        # A list comprehension with indexing turns out to be a good option
+        from .UtilityCode import CythonUtilityCode
+        suffix = self.base.type.specialization_suffix()
+        util_code = CythonUtilityCode.load(
+            "MemoryviewSliceToList", "MatchCase_Cy.pyx",
+            context={
+                "decl_code": self.base.type.empty_declaration_code(pyrex=True),
+                "suffix": suffix
+            }
+        )
+        func_type = PyrexTypes.CFuncType(
+            Builtin.list_type,
+            [
+                PyrexTypes.CFuncTypeArg("x", self.base.type, None),
+                PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+                PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
+            ]
+        )
+        env.use_utility_code(util_code)  # attaching it to the call node doesn't seem enough
+        return ExprNodes.PythonCapiCallNode(
+            self.pos, "__Pyx_MatchCase_SliceMemoryview_%s" % suffix, func_type,
+            utility_code=util_code,
+            args = [
+                self.base,
+                self.start if self.start else ExprNodes.IntNode(self.pos, value="0"),
+                self.stop if self.stop else ExprNodes.IntNode(self.pos, value="-1")
+            ]
+        )
+
+    def analyse_types(self, env):
+        self.base = self.base.analyse_types(env)
+        if self.base.type.is_memoryviewslice:
+            return self.generate_for_memoryview(env).analyse_types(env)
+        elif self.base.type.is_pyobject or self.base.type.is_ctuple:
+            return self.generate_for_object(env).analyse_types(env)
+        else:
+            assert False, self.base.type
+
+class CompilerDirectivesExprNode(ExprNodes.ProxyNode):
+    # Like compiler directives node, but for an expression
+    #  directives     {string:value}  A dictionary holding the right value for
+    #                                 *all* possible directives.
+    #  arg           ExprNode
+
+    def __init__(self, arg, directives):
+        super(CompilerDirectivesExprNode, self).__init__(arg)
+        self.directives = directives
+
+    @contextmanager
+    def _apply_directives(self, obj):
+        old = obj.directives
+        obj.directives = self.directives
+        yield
+        obj.directives = old
+
+    @property
+    def is_temp(self):
+        return self.arg.is_temp
+
+    def infer_type(self, env):
+        with self._apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).infer_type(env)
+
+    def analyse_declarations(self, env):
+        with self._apply_directives(env):
+            self.arg.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        with self._apply_directives(env):
+            return super(CompilerDirectivesExprNode, self).analyse_types(env)
+
+    def generate_result_code(self, code):
+        with self._apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_result_code(code)
+
+    def generate_evaluation_code(self, code):
+        with self._apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_evaluation_code(code)
+
+    def generate_disposal_code(self, code):
+        with self._apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).generate_disposal_code(code)
+
+    def free_temps(self, code):
+        with self._apply_directives(code.globalstate):
+            super(CompilerDirectivesExprNode, self).free_temps(code)
+
+    def annotate(self, code):
+        with self._apply_directives(code.globalstate):
+            self.arg.annotate(code)

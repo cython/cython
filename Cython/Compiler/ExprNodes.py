@@ -3632,16 +3632,12 @@ class IndexNode(_IndexingBaseNode):
     #
     #  is_fused_index boolean   Whether the index is used to specialize a
     #                           c(p)def function
-    #  force_boundscheck_off   boolean   Useful for generating code in optimizations
-    #  force_wraparound_off    boolean   Useful for generating code in optimizations
 
     subexprs = ['base', 'index']
     type_indices = None
 
     is_subscript = True
     is_fused_index = False
-    force_boundscheck_off = False
-    force_wraparound_off = False
 
     def calculate_constant_result(self):
         self.constant_result = self.base.constant_result[self.index.constant_result]
@@ -3835,7 +3831,7 @@ class IndexNode(_IndexingBaseNode):
             return self
 
         is_slice = self.index.is_slice
-        if (not env.directives['wraparound'] or self.force_wraparound_off):
+        if not env.directives['wraparound']:
             if is_slice:
                 check_negative_indices(self.index.start, self.index.stop)
             else:
@@ -3903,10 +3899,10 @@ class IndexNode(_IndexingBaseNode):
             self.is_temp = 1
         elif self.index.type.is_int and base_type is not dict_type:
             if (getting
-                    and ((not env.directives['boundscheck']) or self.force_boundscheck_off)
+                    and (not env.directives['boundscheck'])
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed
-                         or ((not env.directives['wraparound']) or self.force_wraparound_off)
+                         or (not env.directives['wraparound'])
                          or (isinstance(self.index, IntNode) and
                              self.index.has_constant_result() and self.index.constant_result >= 0))
                     ):
@@ -4218,13 +4214,11 @@ class IndexNode(_IndexingBaseNode):
         if self.index.type.is_int:
             is_list = self.base.type is list_type
             wraparound = (
-                bool(code.globalstate.directives['wraparound'] and not self.force_wraparound_off) and
+                bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
                 not (isinstance(self.index.constant_result, _py_int_types)
                      and self.index.constant_result >= 0))
-            boundscheck = bool(
-                code.globalstate.directives['boundscheck'] and not self.force_boundscheck_off
-            )
+            boundscheck = bool(code.globalstate.directives['boundscheck'])
             return ", %s, %d, %s, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
