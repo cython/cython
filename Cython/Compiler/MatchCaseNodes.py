@@ -840,11 +840,9 @@ class MatchSequencePatternNode(PatternNode):
         if isinstance(idx, tuple):
             start = get_index_from_int(idx[0])
             stop = get_index_from_int(idx[1])
-            # TODO - there's a worthwhile optimization here
-            # to skip the intermediate sliced object and fill in the list
-            # directly.
             indexer = SliceToListNode(
-                pattern.pos, base=subject_node, start=start, stop=stop
+                pattern.pos, base=subject_node, start=start, stop=stop,
+                length_node=self.length_temp if self.needs_length_temp else None
             )
         else:
             indexer = CompilerDirectivesExprNode(
@@ -1073,28 +1071,53 @@ class SliceToListNode(ExprNodes.ExprNode):
     Used as a brief temporary node to optimize
     case [..., *_, ...].
     Always reduces to something else after analyse_types
-
-    # This class is written to leave room for future optimizations
-
-    TODO - specific implementation for tuple???
     """
-    subexprs = ["base", "start", "stop"]
+    subexprs = ["base", "start", "stop", "length_node"]
 
     type = Builtin.list_type
+
+    Pyx_iterable_to_list_type = PyrexTypes.CFuncType(
+        Builtin.list_type,
+        [
+            PyrexTypes.CFuncTypeArg("iterable", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
+        ],
+    )
 
     def generate_for_object(self, env):
         # The best option is slightly variable depending on the type and the length.
         # list(base[start:stop]) is usually pretty competitive but generates an expensive
         # intermediate. A custom-written function based on PyObject_GetIter is
         # essentially what CPython's "unpack_iterable" in ceval.c does. It tends to be
-        # very slightly slower, but avoids the intermediate.
-        #
-        # For simplicity we use list(base[start:stop]) but further optimizations
-        # might be worthwhile
+        # very slightly slower, but avoids the intermediate
+        util_code = UtilityCode.load_cached(
+            "IterableSliceToList",
+            "MatchCase.c"
+        )
+        start = self.start if self.start else ExprNodes.IntNode(self.pos, value="0")
+        stop = self.get_stop()
+        return ExprNodes.PythonCapiCallNode(
+            self.pos, "__Pyx_MatchCase_IterableToList", self.Pyx_iterable_to_list_type,
+            utility_code=util_code,
+            args = [self.base, start, stop]
+        )
+
+    def generate_for_list(self, env, add_result_to_list=False, add_typecast_base=False):
+        # For a list we can just slice it
         
+        base = self.base
+        if add_typecast_base:
+            base = ExprNodes.TypecastNode(
+                self.pos,
+                operand = base,
+                type = Builtin.list_type,
+                typecheck = False,
+            )
+
         res = CompilerDirectivesExprNode(
             arg = ExprNodes.SliceIndexNode(
-                self.pos, base=self.base, start=self.start, stop=self.stop
+                self.pos, base=base, start=self.start, stop=self.stop
             ),
             directives = copy_inherited_directives(
                 env.directives,
@@ -1102,7 +1125,7 @@ class SliceToListNode(ExprNodes.ExprNode):
                 wraparound=False
             )
         )
-        if self.base.type is not Builtin.list_type:
+        if add_result_to_list:
             res = ExprNodes.SimpleCallNode(
                 self.pos,
                 function = ExprNodes.NameNode(
@@ -1113,6 +1136,39 @@ class SliceToListNode(ExprNodes.ExprNode):
                 args = [res]
             )
         return res
+
+    def get_stop(self):
+        if not self.stop:
+            if self.length_node:
+                return self.length_node
+            else:
+                return ExprNodes.SimpleCallNode(
+                    self.pos,
+                    function = ExprNodes.NameNode(
+                        self.pos,
+                        name="len",
+                        entry = Builtin.builtin_scope.lookup("len")
+                    ),
+                    args = [self.base]
+                )
+        else:
+            return self.stop
+
+    def generate_for_tuple(self):
+        # For CPython the structure of a tuple is well-known and we can
+        # do a fast copy. For everything else this falls back to
+        # the generic object code
+        util_code = UtilityCode.load_cached(
+            "TupleSliceToList",
+            "MatchCase.c"
+        )
+        start = self.start if self.start else ExprNodes.IntNode(self.pos, value="0")
+        stop = self.stop if self.stop else ExprNodes.IntNode(self.pos, value="-1")
+        return ExprNodes.PythonCapiCallNode(
+            self.pos, "__Pyx_MatchCase_TupleToList", self.Pyx_iterable_to_list_type,
+            utility_code=util_code,
+            args = [self.base, start, stop]
+        )
 
     def generate_for_memoryview(self, env):
         # Requires Cython code generation...
@@ -1141,18 +1197,58 @@ class SliceToListNode(ExprNodes.ExprNode):
             args = [
                 self.base,
                 self.start if self.start else ExprNodes.IntNode(self.pos, value="0"),
-                self.stop if self.stop else ExprNodes.IntNode(self.pos, value="-1")
+                self.get_stop()
             ]
+        )
+
+    def generate_isinstance(self, type):
+        type_node = ExprNodes.NameNode(
+            self.pos,
+            name = type.name,
+            entry = type.entry,
+            type = Builtin.type_type
+        )
+        return ExprNodes.SimpleCallNode(
+            self.pos,
+            function=ExprNodes.NameNode(
+                self.pos,
+                name="isinstance",
+                entry=Builtin.builtin_scope.lookup("isinstance"),
+            ),
+            args=[self.base, type_node],
         )
 
     def analyse_types(self, env):
         self.base = self.base.analyse_types(env)
         if self.base.type.is_memoryviewslice:
-            return self.generate_for_memoryview(env).analyse_types(env)
-        elif self.base.type.is_pyobject or self.base.type.is_ctuple:
-            return self.generate_for_object(env).analyse_types(env)
+            result = self.generate_for_memoryview(env)
+        elif self.base.type.is_ctuple:
+            # ctuples should just be sliced then copied to list. This should be
+            # low cost because they'll typically be fairly short
+            result = self.generate_for_list(env, add_result_to_list=True)
+        elif self.base.type is Builtin.tuple_type:
+            result = self.generate_for_tuple()
+        elif self.base.type is Builtin.list_type:
+            result = self.generate_for_list(env)
+        elif self.base.type.is_pyobject and not self.base.type is PyrexTypes.py_object_type:
+            # some specialized type that almost certainly isn't a list. Just go straight
+            # to the "iterate" version of it
+            result = self.generate_for_object(env)
+        elif self.base.type.is_pyobject:
+            result = ExprNodes.CondExprNode(
+                self.pos,
+                test = self.generate_isinstance(Builtin.list_type),
+                true_val = self.generate_for_list(env),
+                false_val = ExprNodes.CondExprNode(
+                    self.pos,
+                    test = self.generate_isinstance(Builtin.tuple_type),
+                    true_val = self.generate_for_tuple(),
+                    false_val = self.generate_for_object(env)
+                )
+            )
         else:
             assert False, self.base.type
+        return result.analyse_types(env)
 
 class CompilerDirectivesExprNode(ExprNodes.ProxyNode):
     # Like compiler directives node, but for an expression

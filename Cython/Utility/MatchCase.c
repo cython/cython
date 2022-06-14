@@ -305,3 +305,84 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
     return 0;
 #endif
 }
+
+////////////////////// IterableSliceToList.proto //////////////////////
+
+static PyObject *__Pyx_MatchCase_IterableToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
+
+////////////////////// IterableSliceToList //////////////////////////
+
+// This is substantially based off ceval unpack_iterable.
+// It's also pretty similar to itertools.islice
+// Indices must be postive - there's no wraparound or boundschecking
+
+static PyObject *__Pyx_MatchCase_IterableToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
+    int total;
+    int i;
+    PyObject *list, *it;
+
+    total = end-start;
+    
+    list = PyList_New(total);
+    if (!list) {
+        return NULL;
+    }
+    it = PyObject_GetIter(x);
+    if (!it) {
+        goto bad;
+    }
+    // first use up "start" elements
+    for (i=0; i<start; ++i) {
+        PyObject *obj = PyIter_Next(it);
+        if (!obj) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_ValueError, "Iteration failed when unpacking pattern matching star argument");
+            }
+            goto bad;
+        }
+        Py_DECREF(obj);
+    }
+    // now copy the remaining elements into the list
+    for (i=0; i<total; ++i) {
+        PyObject *obj = PyIter_Next(it);
+        if (!obj) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_ValueError, "Iteration failed when unpacking pattern matching star argument");
+            }
+            goto bad;
+        }
+        PyList_SET_ITEM(list, i, obj);
+    }
+
+    if (0) {
+        bad:
+        Py_CLEAR(list);
+    }
+    Py_XDECREF(it);
+    return list;
+}
+
+////////////////////// TupleSliceToList.proto //////////////////////
+
+static PyObject *__Pyx_MatchCase_TupleToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
+
+////////////////////// TupleSliceToList //////////////////////////
+//@requires: IterableSliceToList
+//@requires: ObjectHandling.c::TupleAndListFromArray
+
+// Note that this should also work fine on lists (if needed)
+// Indices must be postive - there's no wraparound or boundschecking
+
+static PyObject *__Pyx_MatchCase_TupleToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
+#if !CYTHON_COMPILING_IN_CPYTHON
+    return __Pyx_MatchCase_IterableToList(x, start, end);
+#else
+    PyObject **array;
+
+    (void)__Pyx_MatchCase_IterableToList; // clear unused warning
+
+    array = PySequence_Fast_ITEMS(x);
+    return __Pyx_PyList_FromArray(array+start, end-start);
+#endif
+}
+
