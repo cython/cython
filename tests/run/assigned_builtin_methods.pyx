@@ -83,35 +83,3 @@ def bound_list_sort_reassign(list l):
     l = [3, 2, 1]
     sort()
     return l
-
-@cython.test_assert_path_exists(
-    '//PythonCapiCallNode')
-def append_optimized(probably_list):
-    """
-    >>> l = []
-    >>> append_optimized(l)
-    >>> l
-    [1]
-    """
-    probably_list.append(1)
-
-cdef class AppendBug:
-    # https://github.com/cython/cython/issues/4828
-    # if the attribute "append" is found it shouldn't be replaced with
-    # __Pyx_PyObject_Append
-    cdef object append
-    def __init__(self, append):
-        self.append = append
-
-@cython.test_fail_if_path_exists(
-    '//PythonCapiCallNode')
-def specific_attribute(AppendBug a):
-    """
-    >>> def append_to_default_arg(a, arg=[]):
-    ...    arg.append(a)
-    ...    return arg
-    >>> specific_attribute(AppendBug(append_to_default_arg))
-    >>> append_to_default_arg(None)
-    [1, None]
-    """
-    a.append(1)
