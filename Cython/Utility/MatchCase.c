@@ -541,17 +541,17 @@ static int __Pyx_MatchCase_Mapping_ExtractDictV(PyObject *dict, PyObject *fixed_
         PyObject *tuple = keys[i];
         for (j=0; j<PyTuple_GET_SIZE(tuple); ++j) {
             PyObject *key = PyTuple_GET_ITEM(tuple, j);
-            PyObject *value = PyDict_GetItemWithError(dict, key);
-            PyObject **subject;
-            if (!value) {
-                if (PyErr_Occurred()) {
-                    return -1; // any set subjects will be cleaned up externally
-                } else {
-                    return 0; // any set subjects will be cleaned up externally
+            PyObject **subject = va_arg(subjects, PyObject**);
+            if (!subject) {
+                int contains = PyDict_Contains(dict, key);
+                if (contains <= 0) {
+                    return -1; // any subjects that were already set will be cleaned up externally
                 }
-            }
-            subject = va_arg(subjects, PyObject**);
-            if (subject) {
+            } else {
+                PyObject *value = PyDict_GetItemWithError(dict, key);
+                if (!value) {
+                    return (PyErr_Occurred()) ? -1 : 0;  // any subjects that were already set will be cleaned up externally
+                }
                 __Pyx_XDECREF_SET(*subject, value);
                 __Pyx_INCREF(*subject);  // capture this incref with refnanny!
             }
@@ -619,7 +619,6 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixe
         goto end;
     }
 
-
     for (i=0; i<2; ++i) {
         PyObject *tuple = keys[i];
         for (j=0; j<PyTuple_GET_SIZE(tuple); ++j) {
@@ -627,6 +626,9 @@ static int __Pyx_MatchCase_Mapping_ExtractNonDictV(PyObject *map, PyObject *fixe
             PyObject *value = NULL;
             PyObject *key = PyTuple_GET_ITEM(tuple, j);
 
+            // TODO - there's an optimization here (although it deviates from the strict definition of pattern matching). 
+            // If we don't need the values then we can call PyObject_Contains instead of "get". If we don't need *any*
+            // of the values then we can skip initialization "get" and "dummy"
             value = __Pyx_PyObject_Call2Args(get, key, dummy);
             if (!value) {
                 result = -1;
