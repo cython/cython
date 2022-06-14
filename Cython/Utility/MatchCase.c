@@ -538,7 +538,7 @@ static int __Pyx__MatchCase_Mapping_ExtractDictV(void *__pyx_refnanny, PyObject 
                     return -1; // any subjects that were already set will be cleaned up externally
                 }
             } else {
-                PyObject *value = PyDict_GetItemWithError(dict, key);
+                PyObject *value = __Pyx_PyDict_GetItemStrWithError(dict, key);
                 if (!value) {
                     return (PyErr_Occurred()) ? -1 : 0;  // any subjects that were already set will be cleaned up externally
                 }
