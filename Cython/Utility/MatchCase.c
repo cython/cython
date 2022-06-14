@@ -751,12 +751,14 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *map, PyObjec
 
 ////////////////////////////// ClassPositionalPatterns.proto ////////////////////////
 
+#include <stdarg.h>
+
 #if CYTHON_REFNANNY
-static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...); /* proto */
 #define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(__pyx_refnanny, __VA_ARGS__)
 #else
-static int __Pyx_MatchCase_ClassPositional(PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...); /* proto */
+#define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(NULL, __VA_ARGS__)
 #endif
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...); /* proto */
 
 /////////////////////////////// ClassPositionalPatterns //////////////////////////////
 //@requires: DuplicateKeyCheck
@@ -767,11 +769,7 @@ static int __Pyx_MatchCase_ClassPositional(PyObject *subject, PyTypeObject *type
 //                                   0 for "known to be false"
 //                                  -1 for "unknown", runtime test
 
-#if CYTHON_REFNANNY
 static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...)
-#else
-static int __Pyx_MatchCase_ClassPositional(PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...)
-#endif
 {
     PyObject *match_args, *dup_key;
     Py_ssize_t allowed, i;
