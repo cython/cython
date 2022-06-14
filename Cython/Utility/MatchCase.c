@@ -557,6 +557,8 @@ static int __Pyx__MatchCase_Mapping_ExtractDictV(void *__pyx_refnanny, PyObject 
 //
 // This is a specialized version for the rarer case when the type isn't an exact dict.
 
+#include <stdarg.h>
+
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, __VA_ARGS__)
 #define __Pyx_MatchCase_Mapping_ExtractNonDictV(...) __Pyx__MatchCase_Mapping_ExtractNonDictV(__pyx_refnanny, __VA_ARGS__)
@@ -569,7 +571,6 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDictV(void *__pyx_refnanny, PyObje
 
 ///////////////////////// ExtractNonDict //////////////////////////////////////
 //@requires: ObjectHandling.c::PyObjectCall2Args
-
 
 // largely adapted from match_keys in CPython ceval.c
 
@@ -636,6 +637,8 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDictV(void *__pyx_refnanny, PyObje
 }
 
 ///////////////////////// ExtractGeneric.proto ////////////////////////////////
+
+#include <stdarg.h>
 
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(__pyx_refnanny, __VA_ARGS__)
