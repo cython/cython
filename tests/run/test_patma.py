@@ -2652,7 +2652,7 @@ class TestPatma(unittest.TestCase):
                       (h, g, i, a, b, d, e, c, f, 10) |
                       (g, b, a, c, d, -5, e, h, i, f) |
                       (-1, d, f, b, g, e, i, a, h, c)):
-                    w = 0
+                    w: object = 0  # annotation is for Cython, otherwise it's an int and it's always in locals
             out = locals()
             del out["x"]
             return out
@@ -2676,7 +2676,7 @@ class TestPatma(unittest.TestCase):
                          (h, g, i, a, b, d, e, c, f, 10) |
                          (g, b, a, c, d, -5, e, h, i, f) |
                          (-1, d, f, b, g, e, i, a, h, c), z]:
-                    w = 0
+                    w: object = 0  # annotation is for Cython, otherwise it's an int and always in locals
             out = locals()
             del out["x"]
             return out
