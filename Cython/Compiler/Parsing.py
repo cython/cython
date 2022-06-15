@@ -4115,7 +4115,10 @@ def p_closed_pattern(s):
 def p_literal_pattern(s):
     # a lot of duplication in this function with "p_atom"
     next_must_be_a_number = False
+    sign = ''
     if s.sy in ['+', '-']:
+        sign = s.sy
+        sign_pos = s.position()
         s.next()
         next_must_be_a_number = True
 
@@ -4129,7 +4132,10 @@ def p_literal_pattern(s):
         value = s.systring
         s.next()
         res = ExprNodes.FloatNode(pos, value = value)
+    if res and sign == "-":
+        res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
     if res and s.sy in ['+', '-']:
+        sign = s.sy
         s.next()
         if s.sy != 'IMAG':
             s.error("Expected imaginary number")
@@ -4139,7 +4145,7 @@ def p_literal_pattern(s):
             s.next()
             res = ExprNodes.binop_node(
                 add_pos,
-                '+',
+                sign,
                 operand1 = res,
                 operand2 = ExprNodes.ImagNode(s.position(), value = value)
             )
@@ -4147,7 +4153,9 @@ def p_literal_pattern(s):
     if not res and sy == 'IMAG':
         value = s.systring[:-1]
         s.next()
-        res = ExprNodes.ImagNode(pos, value = value)
+        res = ExprNodes.ImagNode(pos, value = sign+value)
+        if sign == "-":
+            res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
     if res:
         return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
