@@ -517,6 +517,14 @@ class OrPatternNode(PatternNode):
     def irrefutable_message(self):
         return self.get_first_irrefutable().irrefutable_message()
 
+    def is_sequence_or_mapping(self):
+        # this affects if the caller generates a temp for it. If so the
+        # this node can forward the temp to the relevant alternative
+        for a in self.alternatives:
+            if a.is_sequence_or_mapping():
+                return True
+        return False
+
     def get_main_pattern_targets(self):
         child_targets = None
         for ch in self.alternatives:
@@ -564,7 +572,9 @@ class OrPatternNode(PatternNode):
             )
         return binop
 
-    def get_comparison_node(self, subject_node, env, sequence_mapping_temp):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
+        if self.is_simple_value_comparison():
+            return self.get_simple_comparison_node(subject_node)
         error(self.pos, "'or' cases aren't fully implemented yet")
         return ExprNodes.BoolNode(self.pos, value=False)
 
@@ -579,7 +589,7 @@ class OrPatternNode(PatternNode):
             for a in self.alternatives
         ]
         self.comp_node = self.get_comparison_node(
-            subject_node, env
+            subject_node, env, sequence_mapping_temp
         ).analyse_temp_boolean_expression(env)
         return self
 
