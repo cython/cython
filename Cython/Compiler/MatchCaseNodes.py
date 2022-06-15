@@ -411,7 +411,7 @@ class MatchValuePatternNode(PatternNode):
     def is_simple_value_comparison(self):
         return True
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
         # for this node the comparison and "simple" comparison are the same
         return self.get_simple_comparison_node(subject_node).analyse_boolean_expression(
             env
@@ -471,7 +471,7 @@ class MatchAndAssignPatternNode(PatternNode):
         assert self.is_simple_value_comparison()
         return self.get_comparison_node(subject_node, None)
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
         return ExprNodes.BoolNode(self.pos, value=True)
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
@@ -501,7 +501,12 @@ class MatchAndAssignPatternNode(PatternNode):
 class OrPatternNode(PatternNode):
     """
     alternatives   list of PatternNodes
+
+    generated:
+    which_alternative_temp  - an integer temp node. 0 for failed; 1, 2... 
+                              identify the alternative that succeeded
     """
+    which_alternative_temp = None
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["alternatives"]
 
@@ -575,8 +580,28 @@ class OrPatternNode(PatternNode):
     def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
         if self.is_simple_value_comparison():
             return self.get_simple_comparison_node(subject_node)
-        error(self.pos, "'or' cases aren't fully implemented yet")
-        return ExprNodes.BoolNode(self.pos, value=False)
+
+        cond_exprs = []
+        for n, a in enumerate(self.alternatives, start=1):
+            cond_exprs.append(
+                ExprNodes.CondExprNode(
+                    self.pos,
+                    test = a.get_comparison_node(subject_node, env, sequence_mapping_temp),
+                    true_val = ExprNodes.IntNode(a.pos, value=str(n)),
+                    false_val = None  # fill in later
+                )
+            )
+        expr = ExprNodes.IntNode(self.pos, value="0")
+        for cond_expr in reversed(cond_exprs):
+            cond_expr.false_val = expr
+            expr = cond_expr
+        if self.which_alternative_temp:
+            expr = ExprNodes.AssignmentExpressionNode(
+                self.pos,
+                lhs = self.which_alternative_temp,
+                rhs = expr
+            )
+        return expr
 
     def analyse_declarations(self, env):
         super(OrPatternNode, self).analyse_declarations(env)
@@ -597,11 +622,30 @@ class OrPatternNode(PatternNode):
         assignments = []
         for a in self.alternatives:
             a_assignment = a.generate_target_assignments(subject_node, env)
-            if a_assignment:
+            if a_assignment and not self.which_alternative_temp:
+                self.which_alternative_temp = AssignableTempNode(self.pos, PyrexTypes.c_int_type)
                 # Switch code paths depending on which node gets assigned
                 error(self.pos, "Need to handle assignments in or nodes correctly")
                 assignments.append(a_assignment)
         return assignments
+
+    def allocate_subject_temps(self, code):
+        if self.which_alternative_temp:
+            self.which_alternative_temp.allocate(code)
+        for a in self.alternatives:
+            a.allocate_subject_temps(code)
+
+    def release_subject_temps(self, code):
+        if self.which_alternative_temp:
+            self.which_alternative_temp.release(code)
+        for a in self.alternatives:
+            a.release_subject_temps(code)
+
+    def dispose_of_subject_temps(self, code):
+        if self.which_alternative_temp:
+            self.which_alternative_temp.generate_disposal_code(code)
+        for a in self.alternatives:
+            a.dispose_of_subject_temps(code)
 
 
 class MatchSequencePatternNode(PatternNode):
