@@ -637,16 +637,14 @@ class MatchSequencePatternNode(PatternNode):
         test = None
         assert getattr(self, "subject_temps", None) is not None
         for n, pattern in enumerate(self.patterns):
+            if self.subject_temps[n] is None:
+                # The subject has been identified as unneeded, so don't evaluate it
+                continue
             p_test = pattern.get_comparison_node(self.subject_temps[n], env)
             if test is not None:
                 p_test = ExprNodes.BoolBinopNode(
                     self.pos, operator="and", operand1=test, operand2=p_test
                 )
-            if not pattern.get_targets() and pattern.is_irrefutable():
-                test = p_test
-                # the subject isn't actually needed, don't evaluate it
-                self.subject_temps[n] = None
-                continue
 
             result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
             subject_assignment = Nodes.SingleAssignmentNode(
@@ -729,15 +727,30 @@ class MatchSequencePatternNode(PatternNode):
             indexer = self.make_indexing_node(pattern, subject_node, idx, env)
             subjects.append(ExprNodes.ProxyNode(indexer) if indexer else None)
         self.subjects = subjects
-        self.subject_temps = [TrackTypeTempNode(self.pos, s) for s in self.subjects]
+        self.subject_temps = [None if p.is_irrefutable() else TrackTypeTempNode(self.pos, s) for s, p in zip(self.subjects, self.patterns)]
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
         self.generate_subjects(subject_node, env)
-        for subject, pattern in zip(self.subject_temps, self.patterns):
+        for subject_temp, subject, pattern in zip(self.subject_temps, self.subjects, self.patterns):
+            needs_result_ref = False
+            if subject_temp is not None:
+                subject = subject_temp
+            else:
+                if subject is None:
+                    assert not pattern.get_targets()
+                    continue
+                elif not subject.is_literal or subject.is_temp:
+                    from .UtilNodes import ResultRefNode, LetNode
+                    subject = ResultRefNode(subject)
+                    needs_result_ref = True
             p_assignments = pattern.generate_target_assignments(subject, env)
+            if needs_result_ref:
+                p_assignments = LetNode(subject, p_assignments)
+            else:
+                p_assignments = p_assignments
             if p_assignments:
-                assignments.extend(p_assignments.stats)
+                assignments.append(p_assignments)
         return assignments
 
     def make_sequence_check(self, subject_node, sequence_mapping_temp):
