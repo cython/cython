@@ -559,6 +559,11 @@ class OrPatternNode(PatternNode):
     def is_simple_value_comparison(self):
         return all(a.is_simple_value_comparison() for a in self.alternatives)
 
+    def is_really_simple_value_comparison(self):
+        # like is_simple_value_comparison but also doesn't have any targets
+        return (self.is_simple_value_comparison() and
+                all(not a.get_targets() for a in self.alternatives))
+
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
         assert len(self.alternatives) >= 2, self.alternatives
@@ -578,7 +583,7 @@ class OrPatternNode(PatternNode):
         return binop
 
     def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
-        if self.is_simple_value_comparison():
+        if self.is_really_simple_value_comparison():
             return self.get_simple_comparison_node(subject_node)
 
         cond_exprs = []
@@ -620,13 +625,33 @@ class OrPatternNode(PatternNode):
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
-        for a in self.alternatives:
+        ifclauses = []
+        for n, a in enumerate(self.alternatives, start=1):
             a_assignment = a.generate_target_assignments(subject_node, env)
-            if a_assignment and not self.which_alternative_temp:
-                self.which_alternative_temp = AssignableTempNode(self.pos, PyrexTypes.c_int_type)
+            if a_assignment:
+                if not self.which_alternative_temp:
+                    self.which_alternative_temp = AssignableTempNode(self.pos, PyrexTypes.c_int_type)
                 # Switch code paths depending on which node gets assigned
-                error(self.pos, "Need to handle assignments in or nodes correctly")
-                assignments.append(a_assignment)
+                ifclause = Nodes.IfClauseNode(
+                    a.pos,
+                    condition=ExprNodes.PrimaryCmpNode(
+                        a.pos,
+                        operator="==",
+                        operand1=self.which_alternative_temp,
+                        operand2=ExprNodes.IntNode(a.pos, value=str(n))
+                    ),
+                    body = a_assignment
+                )
+                ifclauses.append(ifclause)
+        if ifclauses:
+            assignments.append(
+                Nodes.IfStatNode(
+                    self.pos,
+                    if_clauses=ifclauses,
+                    else_clause=None
+                )
+            )
+                
         return assignments
 
     def allocate_subject_temps(self, code):
@@ -1629,7 +1654,7 @@ class ClassPatternNode(PatternNode):
                     cmp_node = p_cmp_node
         return cmp_node
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
         from .UtilNodes import ResultRefNode, EvalWithTempExprNode
 
         if self.comp_node:
