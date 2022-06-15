@@ -1349,8 +1349,10 @@ class ClassPatternNode(PatternNode):
     initial_child_attrs = PatternNode.initial_child_attrs + [
         "class_",
         "positional_patterns",
-        "keyword_pattern_names",
         "keyword_pattern_patterns",
+        # keyword_pattern_names are deliberately excluded. They're only NameNodes as a
+        # convenient way of storing a name and a pos. There's nothing to be gained from
+        # processing them
     ]
 
     def generate_subjects(self, subject_node):

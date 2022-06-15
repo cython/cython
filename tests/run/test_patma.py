@@ -2411,7 +2411,6 @@ class TestPatma(unittest.TestCase):
         self.assertEqual(set(f()), {"a", "b"})
 
     def test_patma_220(self):
-        return
         def f():
             match Point(..., ...):
                 case Point(x, y=y):
