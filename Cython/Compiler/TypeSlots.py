@@ -663,7 +663,6 @@ class MemberTableSlot(SlotDescriptor):
         from .Code import UtilityCode
         code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStructmemberH", "ModuleSetupCode.c"))
 
-        ext_type = scope.parent_type
         code.putln("static struct PyMemberDef %s[] = {" % self.substructure_cname(scope))
         for member_entry in self.get_member_specs(scope):
             if member_entry:

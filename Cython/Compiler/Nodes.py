@@ -730,8 +730,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
                 if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
-                    # Extension types are more difficult because the signature must match the base type signature.
-                    if not env.is_c_class_scope:
+                    # - We skip this optimization for extension types; they are more difficult because
+                    #   the signature must match the base type signature.
+                    # - Same for function pointers, as we want them to be able to match functions
+                    #   with any exception value.
+                    if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode(
                             self.pos, value=return_type.exception_value, type=return_type)
@@ -747,7 +750,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             and not (exc_val_type == PyrexTypes.c_char_type
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
-                              "Exception value must be a Python exception or cdef function with no arguments or *.")
+                              "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
@@ -973,6 +976,9 @@ class CArgDeclNode(Node):
                 error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
             else:
                 self.or_none = True
+        elif arg_type is py_object_type:
+            # exclude ": object" from the None check - None is a generic object.
+            self.or_none = True
         elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
             # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
             if not self.or_none:
@@ -3694,7 +3700,7 @@ class DefNodeWrapper(FuncDefNode):
                     docstr.as_c_string_literal()))
 
             if entry.is_special:
-                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                 code.putln(
                     "struct wrapperbase %s;" % entry.wrapperbase_cname)
                 code.putln('#endif')
@@ -5500,7 +5506,7 @@ class CClassDefNode(ClassDefNode):
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
-                    code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                    code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                     code.putln("{")
                     code.putln(
                         'PyObject *wrapper = PyObject_GetAttrString((PyObject *)%s, "%s"); %s' % (
@@ -8289,6 +8295,8 @@ class TryFinallyStatNode(StatNode):
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
+        if self.finally_except_clause:
+            self.finally_except_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
                           exc_lineno_cnames=None, exc_filename_cname=None):

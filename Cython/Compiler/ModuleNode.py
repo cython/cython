@@ -3918,5 +3918,3 @@ packed_struct_utility_code = UtilityCode(proto="""
 #define __Pyx_PACKED
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
-
-capsule_utility_code = UtilityCode.load("Capsule", "Capsule.c")

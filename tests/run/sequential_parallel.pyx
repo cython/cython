@@ -315,7 +315,7 @@ def test_nan_init():
         c1 = 16
 
 
-cdef void nogil_print(char *s) with gil:
+cdef void nogil_print(char *s) noexcept with gil:
     print s.decode('ascii')
 
 def test_else_clause():
@@ -406,7 +406,7 @@ def test_nested_break_continue():
 
     print i
 
-cdef int parallel_return() nogil:
+cdef int parallel_return() nogil noexcept:
     cdef int i
 
     for i in prange(10):
@@ -640,7 +640,7 @@ def test_parallel_with_gil_continue_unnested():
     print sum
 
 
-cdef int inner_parallel_section() nogil:
+cdef int inner_parallel_section() nogil noexcept:
     cdef int j, sum = 0
     for j in prange(10):
         sum += j
@@ -683,7 +683,7 @@ def test_num_threads_compile():
         for i in prange(10):
             pass
 
-cdef int chunksize() nogil:
+cdef int chunksize() nogil noexcept:
     return 3
 
 def test_chunksize():

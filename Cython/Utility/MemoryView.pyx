@@ -78,10 +78,6 @@ cdef extern from *:
     ctypedef struct __Pyx_TypeInfo:
         pass
 
-    cdef object capsule "__pyx_capsule_create" (void *p, char *sig)
-    cdef int __pyx_array_getbuffer(PyObject *obj, Py_buffer view, int flags)
-    cdef int __pyx_memoryview_getbuffer(PyObject *obj, Py_buffer view, int flags)
-
 cdef extern from *:
     ctypedef int __pyx_atomic_int
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
@@ -118,7 +114,7 @@ cdef class array:
         Py_ssize_t itemsize
         unicode mode  # FIXME: this should have been a simple 'char'
         bytes _format
-        void (*callback_free_data)(void *data)
+        void (*callback_free_data)(void *data) noexcept
         # cdef object _memview
         cdef bint free_data
         cdef bint dtype_is_object
@@ -201,8 +197,6 @@ cdef class array:
         info.readonly = 0
         info.format = self.format if flags & PyBUF_FORMAT else NULL
         info.obj = self
-
-    __pyx_getbuffer = capsule(<void *> &__pyx_array_getbuffer, "getbuffer(obj, view, flags)")
 
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
@@ -559,8 +553,6 @@ cdef class memoryview:
         info.len = self.view.len
         info.readonly = self.view.readonly
         info.obj = self
-
-    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
     # Some properties that have the same semantics as in NumPy
     @property
@@ -1004,8 +996,6 @@ cdef class _memoryviewslice(memoryview):
     cdef _get_base(self):
         return self.from_object
 
-    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
-
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
@@ -1183,7 +1173,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
                              src.shape, dst.shape, ndim, itemsize)
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil noexcept:
     "Return the size of the memory occupied by the slice in number of bytes"
     cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
@@ -1381,7 +1371,7 @@ cdef void refcount_objects_in_slice_with_gil(char *data, Py_ssize_t *shape,
 
 @cname('__pyx_memoryview_refcount_objects_in_slice')
 cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
-                                    Py_ssize_t *strides, int ndim, bint inc):
+                                    Py_ssize_t *strides, int ndim, bint inc) noexcept:
     cdef Py_ssize_t i
     cdef Py_ssize_t stride = strides[0]
 

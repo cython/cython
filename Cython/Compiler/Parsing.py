@@ -2301,8 +2301,16 @@ def p_statement(s, ctx, first_statement = 0):
         #    error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
+        warning(s.position(),
+                "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
+                "Consider using global variables, constants, and in-place literals instead. "
+                "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
+        warning(s.position(),
+                "The 'IF' statement is deprecated and will be removed in a future Cython version. "
+                "Consider using runtime conditions or C macros instead. "
+                "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
@@ -2891,7 +2899,8 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s)
+    exc_val, exc_check = p_exception_value_clause(s, ctx)
+    nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
@@ -3001,17 +3010,20 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s):
-    # the default behaviour is to always
-    # check for exceptions
-    exc_check = 1
+def p_exception_value_clause(s, ctx):
     exc_val = None
+    if ctx.visibility  == 'extern':
+        exc_check = False
+    else:
+        exc_check = True
+
     if s.sy == 'IDENT' and s.systring == 'noexcept':
         s.next()
-        exc_check = 0
+        exc_check = False
     elif s.sy == 'except':
         s.next()
         if s.sy == '*':
+            exc_check = True
             s.next()
         elif s.sy == '+':
             exc_check = '+'
@@ -3025,9 +3037,10 @@ def p_exception_value_clause(s):
                 s.next()
         else:
             if s.sy == '?':
+                exc_check = True
                 s.next()
             else:
-                exc_check = 0
+                exc_check = False
             exc_val = p_test(s)
     return exc_val, exc_check
 
