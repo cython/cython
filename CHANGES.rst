@@ -16,6 +16,10 @@ Features added
   ``:=``) were implemented.
   Patch by David Woods.  (Github issue :issue:`2636`)
 
+* Some C++ library declarations were extended and fixed.
+  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion.
+  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`, :issue:`4751`)
+
 * The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
   files for the compilation unit.  This can be used by external build tools to track
   these dependencies.  Already available in Cython :ref:`0.29.27`.
@@ -27,19 +31,47 @@ Features added
 * The environment variable ``CYTHON_FORCE_REGEN=1`` can be used to force ``cythonize``
   to regenerate the output files regardless of modification times and changes.
 
-* The generated C code now compiles in CPython 3.11a4.
-  (Github issue :issue:`4500`)
+* A new Cython build option ``--cython-compile-minimal`` was added to compile only a
+  smaller set of Cython's own modules, which can be used to reduce the package
+  and install size.
 
 Bugs fixed
 ----------
 
-* Includes all bug-fixes from the :ref:`0.29.27` release.
+* Decorators like ``@cfunc`` and ``@ccall`` could leak into nested functions and classes.
+  Patch by David Woods.  (Github issue :issue:`4092`)
+
+* Exceptions within for-loops that run over memoryviews could lead to a ref-counting error.
+  Patch by David Woods.  (Github issue :issue:`4662`)
+
+* Several optimised string methods failed to accept ``None`` as arguments to their options.
+  Test patch by Kirill Smelkov.  (Github issue :issue:`4737`)
+
+* Typedefs for the ``bint`` type did not always behave like ``bint``.
+  Patch by 0dminnimda.  (Github issue :issue:`4660`)
+
+* The return type of a fused function is no longer ignored for function pointers,
+  since it is relevant when passing them e.g. as argument into other fused functions.
+  Patch by David Woods.  (Github issue :issue:`4644`)
+
+* The generated C code failed to compile in CPython 3.11a4 and later.
+  (Github issue :issue:`4500`)
+
+* A case of undefined C behaviour was resolved in the list slicing code.
+  Patch by Richard Barnes.  (Github issue :issue:`4734`)
+
+* Using the Limited API could report incorrect line numbers in tracebacks.
+
+* A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
+  (Github issue :issue:`4329`)
+
+* Includes all bug-fixes from the :ref:`0.29.30` release.
 
 Other changes
 -------------
 
 * When using type annotations, ``func(x: list)`` or ``func(x: ExtType)`` (and other
-  Python builtin or extension types) now disallow ``None`` as input argument to ``x``.
+  Python builtin or extension types) no longer allow ``None`` as input argument to ``x``.
   This is consistent with the normal typing semantics in Python, and was a common gotcha
   for users who did not expect ``None`` to be allowed as input.  To allow ``None``, use
   ``typing.Optional`` as in ``func(x: Optional[list])``.  ``None`` is also automatically
@@ -47,6 +79,13 @@ Other changes
   Note that, for backwards compatibility reasons, this does not apply when using Cython's
   C notation, as in ``func(list x)``.  Here, ``None`` is still allowed, as always.
   (Github issues :issue:`3883`, :issue:`2696`)
+
+* The compile-time ``DEF`` and ``IF`` statements are deprecated and generate a warning.
+  They should be replaced with normal constants, code generation or C macros.
+  (Github issue :issue:`4310`)
+
+* Reusing an extension type attribute name as a method name is now an error.
+  Patch by 0dminnimda.  (Github issue :issue:`4661`)
 
 
 3.0.0 alpha 10 (2022-01-06)
@@ -939,6 +978,70 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.30:
+
+0.29.30 (2022-05-16)
+====================
+
+Bugs fixed
+----------
+
+* The GIL handling changes in 0.29.29 introduced a regression where
+  objects could be deallocated without holding the GIL.
+  (Github issue :issue`4796`)
+
+
+.. _0.29.29:
+
+0.29.29 (2022-05-16)
+====================
+
+Features added
+--------------
+
+* Avoid acquiring the GIL at the end of nogil functions.
+  This change was backported in order to avoid generating wrong C code
+  that would trigger C compiler warnings with tracing support enabled.
+  Backport by Oleksandr Pavlyk.  (Github issue :issue`4637`)
+
+Bugs fixed
+----------
+
+* Function definitions in ``finally:`` clauses were not correctly generated.
+  Patch by David Woods.  (Github issue :issue:`4651`)
+
+* A case where C-API functions could be called with a live exception set was fixed.
+  Patch by Jakub Kulík.  (Github issue :issue:`4722`)
+
+* Pickles can now be exchanged again with those generated from Cython 3.0 modules.
+  (Github issue :issue:`4680`)
+
+* Cython now correctly generates Python methods for both the provided regular and
+  reversed special numeric methods of extension types.
+  Patch by David Woods.  (Github issue :issue`4750`)
+
+* Calling unbound extension type methods without arguments could raise an
+  ``IndexError`` instead of a ``TypeError``.
+  Patch by David Woods.  (Github issue :issue`4779`)
+
+* Calling unbound ``.__contains__()`` super class methods on some builtin base
+  types could trigger an infinite recursion.
+  Patch by David Woods.  (Github issue :issue`4785`)
+
+* The C union type in pure Python mode mishandled some field names.
+  Patch by Jordan Brière.  (Github issue :issue:`4727`)
+
+* Allow users to overwrite the C macro ``_USE_MATH_DEFINES``.
+  Patch by Yuriy Chernyshov. (Github issue :issue:`4690`)
+
+* Improved compatibility with CPython 3.10/11.
+  Patches by Thomas Caswell, David Woods.
+  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`, :issue:`4777`)
+
+* Docstrings of descriptors are now provided in PyPy 7.3.9.
+  Patch by Matti Picus.  (Github issue :issue:`4701`)
+
+
 .. _0.29.28:
 
 0.29.28 (2022-02-17)
@@ -950,10 +1053,10 @@ Bugs fixed
 * Due to backwards incompatible changes in CPython 3.11a4, the feature flags
   ``CYTHON_FAST_THREAD_STATE`` and ``CYTHON_USE_EXC_INFO_STACK`` are now disabled
   in Python 3.11 and later.  They are enabled again in Cython 3.0.
-  Patch by David Woods.  (Github issue #4610)
+  Patch by David Woods.  (Github issue :issue:`4610`)
 
 * A C compiler warning in older PyPy versions was resolved.
-  Patch by Matti Picus.  (Github issue #4236)
+  Patch by Matti Picus.  (Github issue :issue:`4236`)
 
 
 .. _0.29.27:
