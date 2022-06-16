@@ -17,6 +17,8 @@ class MatchNode(StatNode):
     cases    [MatchCaseBaseNode]  list of cases
 
     sequence_mapping_temp  None or AssignableTempNode  an int temp to store result of sequence/mapping tests
+            sequence_mapping_temp is an optimization because determining whether something is a sequence or mapping
+            is slow on Python <3.10. It should be deleted once that's the lowest version supported
     """
 
     child_attrs = ["subject", "cases"]
@@ -164,9 +166,7 @@ class MatchCaseNode(Node):
         self.pattern.validate_irrefutable()
 
     def is_sequence_or_mapping(self):
-        return isinstance(
-            self.pattern, (MatchSequencePatternNode, MatchMappingPatternNode)
-        )
+        return self.pattern.is_sequence_or_mapping()
 
     def analyse_case_declarations(self, subject_node, env):
         self.pattern.analyse_declarations(env)
@@ -291,6 +291,14 @@ class PatternNode(Node):
             return self.post_analysis_child_attrs
 
     def is_irrefutable(self):
+        return False
+
+    def is_sequence_or_mapping(self):
+        """
+        Used for determining whether to allocate a sequence_mapping_temp.
+
+        An OrPattern containing at least one also returns True
+        """
         return False
 
     def get_targets(self):
@@ -507,6 +515,8 @@ class OrPatternNode(PatternNode):
                               identify the alternative that succeeded
     """
     which_alternative_temp = None
+    sequence_mapping_temp = None  # used in a similar way to MatchCaseNode,
+                # to avoid recalcutating if we're a sequence or mapping
 
     initial_child_attrs = PatternNode.initial_child_attrs + ["alternatives"]
 
@@ -618,6 +628,17 @@ class OrPatternNode(PatternNode):
             a.analyse_pattern_expressions(subject_node, env, None)
             for a in self.alternatives
         ]
+        if not sequence_mapping_temp:
+            sequence_mapping_count = 0
+            for a in self.alternatives:
+                if a.is_sequence_or_mapping():
+                    sequence_mapping_count += 1
+            if sequence_mapping_count >= 2:
+                self.sequence_mapping_temp = AssignableTempNode(
+                    self.pos, PyrexTypes.c_uint_type
+                )
+                self.sequence_mapping_temp.is_addressable = lambda: True
+                sequence_mapping_temp = self.sequence_mapping_temp
         self.comp_node = self.get_comparison_node(
             subject_node, env, sequence_mapping_temp
         ).analyse_temp_boolean_expression(env)
@@ -655,12 +676,20 @@ class OrPatternNode(PatternNode):
         return assignments
 
     def allocate_subject_temps(self, code):
+        if self.sequence_mapping_temp:
+            self.sequence_mapping_temp.allocate(code)
+            code.putln(
+                "%s = 0; /* sequence/mapping test temp */"
+                % self.sequence_mapping_temp.result()
+            )
         if self.which_alternative_temp:
             self.which_alternative_temp.allocate(code)
         for a in self.alternatives:
             a.allocate_subject_temps(code)
 
     def release_subject_temps(self, code):
+        if self.sequence_mapping_temp:
+            self.sequence_mapping_temp.release(code)
         if self.which_alternative_temp:
             self.which_alternative_temp.release(code)
         for a in self.alternatives:
@@ -669,6 +698,8 @@ class OrPatternNode(PatternNode):
     def dispose_of_subject_temps(self, code):
         if self.which_alternative_temp:
             self.which_alternative_temp.generate_disposal_code(code)
+        if self.sequence_mapping_temp:
+            self.sequence_mapping_temp.generate_disposal_code(code)
         for a in self.alternatives:
             a.dispose_of_subject_temps(code)
 
@@ -698,6 +729,9 @@ class MatchSequencePatternNode(PatternNode):
         ],
         exception_value="-1",
     )
+
+    def is_sequence_or_mapping(self):
+        return True
 
     def __init__(self, pos, **kwds):
         super(MatchSequencePatternNode, self).__init__(pos, **kwds)
@@ -1065,6 +1099,9 @@ class MatchMappingPatternNode(PatternNode):
             PyrexTypes.CFuncTypeArg("var_keys", PyrexTypes.py_object_type, None),
         ],
     )
+
+    def is_sequence_or_mapping(self):
+        return True
 
     def get_main_pattern_targets(self):
         targets = set()
