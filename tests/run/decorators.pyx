@@ -81,3 +81,26 @@ def outer(arg1, arg2):
     def method():
         return [4]
     return method()
+
+class HasProperty(object):
+    """
+    >>> hp = HasProperty()
+    >>> hp.value
+    0
+    >>> hp.value = 1
+    >>> hp.value
+    1
+    """
+    def __init__(self) -> None:
+        self._value = 0
+
+    @property
+    def value(self) -> int:
+        return self._value
+
+    # https://github.com/cython/cython/issues/4836
+    # The variable tracker was confusing "value" in the decorator
+    # for "value" in the argument list
+    @value.setter
+    def value(self, value: int):
+        self._value = value
