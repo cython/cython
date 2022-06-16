@@ -691,6 +691,7 @@ class LazyUtilityCode(UtilityCodeBase):
 class FunctionState(object):
     # return_label     string          function return point label
     # error_label      string          error catch point label
+    # error_without_exception  boolean Can go to the error label without an exception (e.g. __next__ can return NULL)
     # continue_label   string          loop continue point label
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
@@ -699,6 +700,8 @@ class FunctionState(object):
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # can_trace        boolean         line tracing is supported in the current context
     # scope            Scope           the scope object of the current function
+
+    error_without_exception = False
 
     # Not used for now, perhaps later
     def __init__(self, owner, names_taken=set(), scope=None):
@@ -2332,8 +2335,17 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
-                    func_cname, entry.func_cname))
+                body = "%s(self)" % entry.func_cname
+                if entry.name == "__next__":
+                    # tp_iternext can return NULL without an exception
+                    body = (
+                        "PyObject *res = %s; if (!res && !PyErr_Occurred()) PyErr_SetNone(PyExc_StopIteration); return res" %
+                        body
+                    )
+                else:
+                    body = "return %s" % body
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) { %s; }" % (
+                    func_cname, body))
         return func_cname
 
     # GIL methods

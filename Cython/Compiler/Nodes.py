@@ -2184,6 +2184,8 @@ class FuncDefNode(StatNode, BlockNode):
                 # code.put_trace_exception()
 
                 assure_gil('error')
+                if code.funcstate.error_without_exception:
+                    code.put("if (PyErr_Occurred()) ")
                 code.put_add_traceback(self.entry.qualified_name)
             else:
                 warning(self.entry.pos,
@@ -6689,9 +6691,19 @@ class RaiseStatNode(StatNode):
                     not (exc.args or (exc.arg_tuple is not None and exc.arg_tuple.args))):
                 exc = exc.function  # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
+                from . import Symtab
                 self.builtin_exc_name = exc.name
                 if self.builtin_exc_name == 'MemoryError':
                     self.exc_type = None  # has a separate implementation
+                elif (self.builtin_exc_name == 'StopIteration' and
+                        isinstance(env, Symtab.LocalScope) and env.name == "__next__" and
+                        env.parent_scope and env.parent_scope.is_c_class_scope and
+                        not getattr(env, "in_try_block", False)):
+                    # tp_iternext is allowed to return NULL without raising StopIteration.
+                    # For the sake of simplicity, only allow this to happen when not in
+                    # a try block
+                    self.exc_type = None
+
         return self
 
     nogil_check = Node.gil_error
@@ -6701,6 +6713,10 @@ class RaiseStatNode(StatNode):
         code.mark_pos(self.pos)
         if self.builtin_exc_name == 'MemoryError':
             code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
+            return
+        elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
+            code.putln('%s;' % code.error_goto(None))
+            code.funcstate.error_without_exception = True
             return
 
         if self.exc_type:
@@ -7757,6 +7773,10 @@ class TryExceptStatNode(StatNode):
             self.else_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        dummy = object()
+        in_try_block = getattr(env, "in_try_block", dummy)
+        env.in_try_block = True
+
         self.body = self.body.analyse_expressions(env)
         default_clause_seen = 0
         for i, except_clause in enumerate(self.except_clauses):
@@ -7768,6 +7788,11 @@ class TryExceptStatNode(StatNode):
         self.has_default_clause = default_clause_seen
         if self.else_clause:
             self.else_clause = self.else_clause.analyse_expressions(env)
+
+        if in_try_block is dummy:
+            del env.in_try_block
+        else:
+            env.in_try_block = in_try_block
         return self
 
     nogil_check = Node.gil_error
@@ -8136,11 +8161,20 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        dummy = object()
+        in_try_block = getattr(env, "in_try_block", dummy)
+        env.in_try_block = True
+
         self.body = self.body.analyse_expressions(env)
         self.finally_clause = self.finally_clause.analyse_expressions(env)
         self.finally_except_clause = self.finally_except_clause.analyse_expressions(env)
         if env.return_type and not env.return_type.is_void:
             self.func_return_type = env.return_type
+
+        if in_try_block is dummy:
+            del env.in_try_block
+        else:
+            env.in_try_block = in_try_block
         return self
 
     nogil_check = Node.gil_error
