@@ -731,12 +731,17 @@ class MatchSequencePatternNode(PatternNode):
             indexer = self.make_indexing_node(pattern, subject_node, idx, env)
             subjects.append(ExprNodes.ProxyNode(indexer) if indexer else None)
         self.subjects = subjects
-        self.subject_temps = [None if p.is_irrefutable() else TrackTypeTempNode(self.pos, s) for s, p in zip(self.subjects, self.patterns)]
+        self.subject_temps = [
+            None if p.is_irrefutable() else TrackTypeTempNode(self.pos, s)
+            for s, p in zip(self.subjects, self.patterns)
+        ]
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
         assignments = []
         self.generate_subjects(subject_node, env)
-        for subject_temp, subject, pattern in zip(self.subject_temps, self.subjects, self.patterns):
+        for subject_temp, subject, pattern in zip(
+            self.subject_temps, self.subjects, self.patterns
+        ):
             needs_result_ref = False
             if subject_temp is not None:
                 subject = subject_temp
@@ -746,6 +751,7 @@ class MatchSequencePatternNode(PatternNode):
                     continue
                 elif not subject.is_literal or subject.is_temp:
                     from .UtilNodes import ResultRefNode, LetNode
+
                     subject = ResultRefNode(subject)
                     needs_result_ref = True
             p_assignments = pattern.generate_target_assignments(subject, env)
@@ -858,21 +864,20 @@ class MatchSequencePatternNode(PatternNode):
             start = get_index_from_int(idx[0])
             stop = get_index_from_int(idx[1])
             indexer = SliceToListNode(
-                pattern.pos, base=subject_node, start=start, stop=stop,
-                length_node=self.length_temp if self.needs_length_temp else None
+                pattern.pos,
+                base=subject_node,
+                start=start,
+                stop=stop,
+                length_node=self.length_temp if self.needs_length_temp else None,
             )
         else:
             indexer = CompilerDirectivesExprNode(
-                arg = ExprNodes.IndexNode(
-                    pattern.pos,
-                    base=subject_node,
-                    index=get_index_from_int(idx)
+                arg=ExprNodes.IndexNode(
+                    pattern.pos, base=subject_node, index=get_index_from_int(idx)
                 ),
                 directives=copy_inherited_directives(
-                    env.directives,
-                    boundscheck=False,
-                    wraparound=False
-                )
+                    env.directives, boundscheck=False, wraparound=False
+                ),
             )
         return indexer
 
@@ -1089,6 +1094,7 @@ class SliceToListNode(ExprNodes.ExprNode):
     case [..., *_, ...].
     Always reduces to something else after analyse_types
     """
+
     subexprs = ["base", "start", "stop", "length_node"]
 
     type = Builtin.list_type
@@ -1108,49 +1114,46 @@ class SliceToListNode(ExprNodes.ExprNode):
         # intermediate. A custom-written function based on PyObject_GetIter is
         # essentially what CPython's "unpack_iterable" in ceval.c does. It tends to be
         # very slightly slower, but avoids the intermediate
-        util_code = UtilityCode.load_cached(
-            "IterableSliceToList",
-            "MatchCase.c"
-        )
+        util_code = UtilityCode.load_cached("IterableSliceToList", "MatchCase.c")
         start = self.start if self.start else ExprNodes.IntNode(self.pos, value="0")
         stop = self.get_stop()
         return ExprNodes.PythonCapiCallNode(
-            self.pos, "__Pyx_MatchCase_IterableToList", self.Pyx_iterable_to_list_type,
+            self.pos,
+            "__Pyx_MatchCase_IterableToList",
+            self.Pyx_iterable_to_list_type,
             utility_code=util_code,
-            args = [self.base, start, stop]
+            args=[self.base, start, stop],
         )
 
     def generate_for_list(self, env, add_result_to_list=False, add_typecast_base=False):
         # For a list we can just slice it
-        
+
         base = self.base
         if add_typecast_base:
             base = ExprNodes.TypecastNode(
                 self.pos,
-                operand = base,
-                type = Builtin.list_type,
-                typecheck = False,
+                operand=base,
+                type=Builtin.list_type,
+                typecheck=False,
             )
 
         res = CompilerDirectivesExprNode(
-            arg = ExprNodes.SliceIndexNode(
+            arg=ExprNodes.SliceIndexNode(
                 self.pos, base=base, start=self.start, stop=self.stop
             ),
-            directives = copy_inherited_directives(
-                env.directives,
-                boundcheck=False,
-                wraparound=False
-            )
+            directives=copy_inherited_directives(
+                env.directives, boundcheck=False, wraparound=False
+            ),
         )
         if add_result_to_list:
             res = ExprNodes.SimpleCallNode(
                 self.pos,
-                function = ExprNodes.NameNode(
+                function=ExprNodes.NameNode(
                     self.pos,
                     name="list",
-                    entry = Builtin.builtin_scope.lookup("list"),
+                    entry=Builtin.builtin_scope.lookup("list"),
                 ),
-                args = [res]
+                args=[res],
             )
         return res
 
@@ -1161,12 +1164,10 @@ class SliceToListNode(ExprNodes.ExprNode):
             else:
                 return ExprNodes.SimpleCallNode(
                     self.pos,
-                    function = ExprNodes.NameNode(
-                        self.pos,
-                        name="len",
-                        entry = Builtin.builtin_scope.lookup("len")
+                    function=ExprNodes.NameNode(
+                        self.pos, name="len", entry=Builtin.builtin_scope.lookup("len")
                     ),
-                    args = [self.base]
+                    args=[self.base],
                 )
         else:
             return self.stop
@@ -1175,29 +1176,30 @@ class SliceToListNode(ExprNodes.ExprNode):
         # For CPython the structure of a tuple is well-known and we can
         # do a fast copy. For everything else this falls back to
         # the generic object code
-        util_code = UtilityCode.load_cached(
-            "TupleSliceToList",
-            "MatchCase.c"
-        )
+        util_code = UtilityCode.load_cached("TupleSliceToList", "MatchCase.c")
         start = self.start if self.start else ExprNodes.IntNode(self.pos, value="0")
         stop = self.stop if self.stop else ExprNodes.IntNode(self.pos, value="-1")
         return ExprNodes.PythonCapiCallNode(
-            self.pos, "__Pyx_MatchCase_TupleToList", self.Pyx_iterable_to_list_type,
+            self.pos,
+            "__Pyx_MatchCase_TupleToList",
+            self.Pyx_iterable_to_list_type,
             utility_code=util_code,
-            args = [self.base, start, stop]
+            args=[self.base, start, stop],
         )
 
     def generate_for_memoryview(self, env):
         # Requires Cython code generation...
         # A list comprehension with indexing turns out to be a good option
         from .UtilityCode import CythonUtilityCode
+
         suffix = self.base.type.specialization_suffix()
         util_code = CythonUtilityCode.load(
-            "MemoryviewSliceToList", "MatchCase_Cy.pyx",
+            "MemoryviewSliceToList",
+            "MatchCase_Cy.pyx",
             context={
                 "decl_code": self.base.type.empty_declaration_code(pyrex=True),
-                "suffix": suffix
-            }
+                "suffix": suffix,
+            },
         )
         func_type = PyrexTypes.CFuncType(
             Builtin.list_type,
@@ -1205,25 +1207,26 @@ class SliceToListNode(ExprNodes.ExprNode):
                 PyrexTypes.CFuncTypeArg("x", self.base.type, None),
                 PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
                 PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
-            ]
+            ],
         )
-        env.use_utility_code(util_code)  # attaching it to the call node doesn't seem enough
+        env.use_utility_code(
+            util_code
+        )  # attaching it to the call node doesn't seem enough
         return ExprNodes.PythonCapiCallNode(
-            self.pos, "__Pyx_MatchCase_SliceMemoryview_%s" % suffix, func_type,
+            self.pos,
+            "__Pyx_MatchCase_SliceMemoryview_%s" % suffix,
+            func_type,
             utility_code=util_code,
-            args = [
+            args=[
                 self.base,
                 self.start if self.start else ExprNodes.IntNode(self.pos, value="0"),
-                self.get_stop()
-            ]
+                self.get_stop(),
+            ],
         )
 
     def generate_isinstance(self, type):
         type_node = ExprNodes.NameNode(
-            self.pos,
-            name = type.name,
-            entry = type.entry,
-            type = Builtin.type_type
+            self.pos, name=type.name, entry=type.entry, type=Builtin.type_type
         )
         return ExprNodes.SimpleCallNode(
             self.pos,
@@ -1247,25 +1250,29 @@ class SliceToListNode(ExprNodes.ExprNode):
             result = self.generate_for_tuple()
         elif self.base.type is Builtin.list_type:
             result = self.generate_for_list(env)
-        elif self.base.type.is_pyobject and not self.base.type is PyrexTypes.py_object_type:
+        elif (
+            self.base.type.is_pyobject
+            and not self.base.type is PyrexTypes.py_object_type
+        ):
             # some specialized type that almost certainly isn't a list. Just go straight
             # to the "iterate" version of it
             result = self.generate_for_object(env)
         elif self.base.type.is_pyobject:
             result = ExprNodes.CondExprNode(
                 self.pos,
-                test = self.generate_isinstance(Builtin.list_type),
-                true_val = self.generate_for_list(env),
-                false_val = ExprNodes.CondExprNode(
+                test=self.generate_isinstance(Builtin.list_type),
+                true_val=self.generate_for_list(env),
+                false_val=ExprNodes.CondExprNode(
                     self.pos,
-                    test = self.generate_isinstance(Builtin.tuple_type),
-                    true_val = self.generate_for_tuple(),
-                    false_val = self.generate_for_object(env)
-                )
+                    test=self.generate_isinstance(Builtin.tuple_type),
+                    true_val=self.generate_for_tuple(),
+                    false_val=self.generate_for_object(env),
+                ),
             )
         else:
             assert False, self.base.type
         return result.analyse_types(env)
+
 
 class CompilerDirectivesExprNode(ExprNodes.ProxyNode):
     # Like compiler directives node, but for an expression
