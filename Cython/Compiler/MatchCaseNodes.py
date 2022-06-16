@@ -113,6 +113,10 @@ class MatchNode(StatNode):
                 "%s = 0; /* sequence/mapping test temp */"
                 % self.sequence_mapping_temp.result()
             )
+            # For things that are a sequence at compile-time it's difficult
+            # to avoid generating the sequence mapping temp. Therefore, silence
+            # an "unused error"
+            code.putln("(void)%s;" % self.sequence_mapping_temp.result())
         end_label = self.end_label = code.new_label()
         if self.subject_clonenode:
             self.subject.generate_evaluation_code(code)
