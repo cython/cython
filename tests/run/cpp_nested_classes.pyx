@@ -39,6 +39,8 @@ cdef cppclass AA:
     my_int negate(my_int x):
         return -x
 
+cdef cppclass DD(AA):
+    ctypedef int my_other_int
 
 ctypedef A AliasA1
 ctypedef AliasA1 AliasA2
@@ -71,6 +73,13 @@ def test_nested_defined_classes():
     cdef AA.BB *b_ptr = a.createB()
     assert b_ptr.square(4) == 16
     del b_ptr
+
+def test_nested_inherited_classes():
+    """
+    >>> test_nested_inherited_type()
+    """
+    cdef DD.BB b
+    assert b.square(3) == 9
 
 def test_nested_typedef(py_x):
     """
