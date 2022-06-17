@@ -353,7 +353,7 @@ class typedef(CythonType):
     __getitem__ = index_type
 
 class _FusedType(CythonType):
-    pass
+    __getitem__ = index_type
 
 
 def fused_type(*args):
