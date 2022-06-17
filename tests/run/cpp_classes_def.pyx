@@ -269,4 +269,3 @@ def test_CppClassWithDocstring():
     cdef CppClassWithDocstring *c = new CppClassWithDocstring()
     del c
     print "OK"
-
