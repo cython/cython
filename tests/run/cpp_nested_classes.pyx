@@ -92,8 +92,8 @@ def test_nested_defined_typedef(py_x):
     """
     >>> test_nested_typedef(5)
     """
-    cdef A.my_int x = py_x
-    assert A.negate(x) == -py_x
+    cdef AA.my_int x = py_x
+    assert AA.negate(x) == -py_x
 
 def test_typedef_for_nested(py_x):
     """
