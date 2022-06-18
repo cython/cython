@@ -4073,6 +4073,7 @@ def p_pattern(s):
 
 def p_closed_pattern(s):
     """
+    The PEG parser specifies it as
     | literal_pattern
     | capture_pattern
     | wildcard_pattern
@@ -4081,7 +4082,29 @@ def p_closed_pattern(s):
     | sequence_pattern
     | mapping_pattern
     | class_pattern
+
+    For the sake avoiding too much backtracking, we know:
+    * starts with "{" is a sequence_pattern
+    * starts with "[" is a mapping_pattern
+    * starts with "(" is a group_pattern or sequence_pattern
+    * wildcard pattern is just identifier=='_'
+    The rest are then tried in order with backtracking
     """
+    if s.sy == 'IDENT' and s.systring == '_':
+        pos = s.position()
+        s.next()
+        return MatchCaseNodes.MatchAndAssignPatternNode(pos)
+    elif s.sy == '{':
+        return p_mapping_pattern(s)
+    elif s.sy == '[':
+        return p_sequence_pattern(s)
+    elif s.sy == '(':
+        with tentatively_scan(s) as errors:
+            result = p_group_pattern(s)
+        if not errors:
+            return result
+        return p_sequence_pattern(s)
+
     with tentatively_scan(s) as errors:
         result = p_literal_pattern(s)
     if not errors:
@@ -4091,23 +4114,7 @@ def p_closed_pattern(s):
     if not errors:
         return result
     with tentatively_scan(s) as errors:
-        result = p_wildcard_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
         result = p_value_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_group_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_sequence_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_mapping_pattern(s)
     if not errors:
         return result
     return p_class_pattern(s)
@@ -4223,13 +4230,6 @@ def p_group_pattern(s):
     pattern = p_pattern(s)
     s.expect(")")
     return pattern
-
-def p_wildcard_pattern(s):
-    if s.sy != "IDENT" or s.systring != "_":
-        s.error("Expected '_'")
-    pos = s.position()
-    s.next()
-    return MatchCaseNodes.MatchAndAssignPatternNode(pos)
 
 def p_sequence_pattern(s):
     opener = s.sy
