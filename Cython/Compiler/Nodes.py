@@ -2070,7 +2070,6 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
         # incref it to properly keep track of refcounts.
-        is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if not entry.type.is_memoryviewslice:
                 if (acquire_gil or entry.cf_is_reassigned) and not entry.in_closure:
@@ -2079,7 +2078,7 @@ class FuncDefNode(StatNode, BlockNode):
             #       we acquire arguments from object conversion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif is_cdef and entry.cf_is_reassigned:
+            elif entry.cf_is_reassigned and not entry.in_closure:
                 code.put_var_incref_memoryviewslice(entry,
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
@@ -2274,14 +2273,14 @@ class FuncDefNode(StatNode, BlockNode):
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
+            if entry.in_closure:
+                continue
             if entry.type.is_memoryviewslice:
                 # decref slices of def functions and acquired slices from cdef
                 # functions, but not borrowed slices from cdef functions.
-                if is_cdef and not entry.cf_is_reassigned:
+                if not entry.cf_is_reassigned:
                     continue
             else:
-                if entry.in_closure:
-                    continue
                 if not acquire_gil and not entry.cf_is_reassigned:
                     continue
                 if entry.type.needs_refcounting:
@@ -3458,7 +3457,11 @@ class DefNode(FuncDefNode):
         def put_into_closure(entry):
             if entry.in_closure:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
-                if entry.xdecref_cleanup:
+                if entry.type.is_memoryviewslice:
+                    # TODO - at some point reference count of memoryviews should
+                    # genuinely be unified with PyObjects
+                    entry.type.generate_incref_memoryviewslice(code, entry.cname, True)
+                elif entry.xdecref_cleanup:
                     # mostly applies to the starstar arg - this can sometimes be NULL
                     # so must be xincrefed instead
                     code.put_var_xincref(entry)
@@ -3616,11 +3619,20 @@ class DefNodeWrapper(FuncDefNode):
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
-            if entry.is_arg and entry.type.is_pyobject:
+            if entry.is_arg:
+                # mainly captures the star/starstar args
                 if entry.xdecref_cleanup:
                     code.put_var_xdecref(entry)
                 else:
                     code.put_var_decref(entry)
+        for arg in self.args:
+            if not arg.type.is_pyobject:
+                # This captures anything that's been converted from a PyObject.
+                # Primarily memoryviews at the moment
+                if arg.entry.xdecref_cleanup:
+                    code.put_var_xdecref(arg.entry)
+                else:
+                    code.put_var_decref(arg.entry)
 
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
