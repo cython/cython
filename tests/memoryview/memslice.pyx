@@ -2579,6 +2579,25 @@ def test_arg_in_closure(int [:] a):
         return (a[0], a[1])
     return inner
 
+cdef arg_in_closure_cdef(int [:] a):
+    def inner():
+        return (a[0], a[1])
+    return inner
+
+def test_arg_in_closure_cdef(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure_cdef(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    return arg_in_closure_cdef(a)
+
 @testcase
 def test_local_in_closure(a):
     """
