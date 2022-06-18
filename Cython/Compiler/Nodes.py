@@ -2637,8 +2637,11 @@ class CFuncDefNode(FuncDefNode):
         def put_into_closure(entry):
             if entry.in_closure and not arg.default:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
-                code.put_var_incref(entry)
-                code.put_var_giveref(entry)
+                if entry.type.is_memoryviewslice:
+                    code.put_incref_memoryviewslice(entry.cname, True)
+                else:
+                    code.put_var_incref(entry)
+                    code.put_var_giveref(entry)
         for arg in self.args:
             put_into_closure(scope.lookup_here(arg.name))
 
