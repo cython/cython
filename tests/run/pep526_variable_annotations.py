@@ -198,8 +198,8 @@ def test_use_typing_attributes_as_non_annotations():
     """
     >>> test_use_typing_attributes_as_non_annotations()
     typing.Tuple typing.Tuple[int]
-    typing.Optional typing.Union[typing.Dict, NoneType]
-    typing.Optional typing.Union[typing.Dict, NoneType]
+    typing.Optional True
+    typing.Optional True
     """
     x1 = typing.Tuple
     x2 = typing.Tuple[int]
@@ -207,9 +207,15 @@ def test_use_typing_attributes_as_non_annotations():
     y2 = typing.Optional[typing.Dict]
     z1 = Optional
     z2 = Optional[Dict]
+    # The result of printing "Optional[type]" is slightly version-dependent
+    # so accept both possible forms
+    allowed_optional_strings = [
+        "typing.Union[typing.Dict, NoneType]",
+        "typing.Optional[typing.Dict]"
+    ]
     print(x1, x2)
-    print(y1, y2)
-    print(z1, z2)
+    print(y1, str(y2) in allowed_optional_strings)
+    print(z1, str(z2) in allowed_optional_strings)
 
 if cython.compiled:
     __doc__ = """
