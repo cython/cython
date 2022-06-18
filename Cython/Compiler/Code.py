@@ -701,8 +701,6 @@ class FunctionState(object):
     # can_trace        boolean         line tracing is supported in the current context
     # scope            Scope           the scope object of the current function
 
-    error_without_exception = False
-
     # Not used for now, perhaps later
     def __init__(self, owner, names_taken=set(), scope=None):
         self.names_taken = names_taken
@@ -741,6 +739,8 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+        self.error_without_exception = False
 
     # safety checks
 
