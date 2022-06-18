@@ -3234,6 +3234,13 @@ class DefNode(FuncDefNode):
         # Move arguments into closure if required
         def put_into_closure(entry):
             if entry.in_closure:
+                if entry.type.is_memoryviewslice:
+                    error(
+                        self.pos, 
+                        "Putting capturing a memoryview argument in a closure is not supported. "
+                        "Either upgrade to Cython 3, or assign the argument to a local variable "
+                        "and capture that."
+                    )
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.xdecref_cleanup:
                     # mostly applies to the starstar arg - this can sometimes be NULL
