@@ -1,7 +1,9 @@
 # tag: numpy
 
+"""
 CYTHONIZE -M dep_np.pyx
 PYTHON check_np.py
+"""
 
 ######## dep_np.pyx ########
 
@@ -12,14 +14,14 @@ np.import_array()
 
 ######## check_np.py ########
 
-import os
+import os.path
 import re
 
 import numpy as np
 import Cython
 
 with open("dep_np.c.dep", "r") as f:
-    contents = f.read().replace("\n", " ").replace("\\", "")
+    contents = f.read().replace('\\\n', ' ').replace('\n', ' ')
 
 contents = contents.split()
 
@@ -32,19 +34,25 @@ contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
 # filter out the version number from `np_prefix/__init__.cython-30.pxd`.
 contents = [re.sub('[.]cython-[0-9]+', '', entry) for entry in contents]
 
-expected = ['cy_prefix/Includes/cpython/object.pxd',
+contents = [path.split(os.sep) for path in contents]
+contents.sort()
+
+expected = [path.split('/') for path in [
+    'cy_prefix/Includes/cpython/object.pxd',
     'cy_prefix/Includes/cpython/ref.pxd',
     'cy_prefix/Includes/cpython/type.pxd',
     'cy_prefix/Includes/libc/stdio.pxd',
     'cy_prefix/Includes/libc/string.pxd',
     'dep_np.c:',
-    'dep_np.pyx',]
+    'dep_np.pyx',
+]]
 
 # Also account for legacy numpy versions, which do not ship
 # `__init__.pxd` hence the fallback is used:
-if 'cy_prefix/Includes/numpy/__init__.pxd' in contents:
-    expected.append('cy_prefix/Includes/numpy/__init__.pxd')
+if ['cy_prefix', 'Includes', 'numpy', '__init__.pxd'] in contents:
+    expected.append(['cy_prefix', 'Includes', 'numpy', '__init__.pxd'])
 else:
-    expected.append('np_prefix/__init__.pxd')
+    expected.append(['np_prefix', '__init__.pxd'])
 
-assert sorted(contents) == sorted(expected), sorted(contents)
+expected.sort()
+assert contents == expected, contents

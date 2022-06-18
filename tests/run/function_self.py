@@ -25,13 +25,8 @@ def fused(x):
     >>> hasattr(nested, "__self__")
     False
 
-    #>>> hasattr(fused, "__self__")  # FIXME this fails for fused functions
-    #False
-    # but this is OK:
-    >>> fused.__self__  #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
+    >>> hasattr(fused, "__self__")
+    False
     """
     def nested_in_fused(y):
         return x+y
@@ -74,15 +69,11 @@ if sys.version_info[0] > 2 or cython.compiled:
 
 if cython.compiled:
     __doc__ = """
-    >>> fused['double'].__self__   #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
+    >>> hasattr(fused['double'], '__self__')
+    False
 
-    >>> C.fused['double'].__self__   #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
+    >>> hasattr(C.fused['double'], '__self__')
+    False
 
     >>> c = C()
     >>> c.fused['double'].__self__ is c   #doctest: +ELLIPSIS

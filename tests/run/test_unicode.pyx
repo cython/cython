@@ -1481,7 +1481,7 @@ class UnicodeTest(CommonTest,
         self.assertEqual(('...%(foo)s...' % {'foo':Str.ABC}).replace("Str.", ""),
                          '...ABC...')
         self.assertEqual(('...%(foo)s...' % {'foo':Int.IDES}).replace("Int.", ""),
-                         '...IDES...')
+                         '...IDES...' if sys.version_info < (3,11) else '...15...')
         self.assertEqual('...%(foo)i...' % {'foo':Int.IDES},
                          '...15...')
         self.assertEqual('...%(foo)d...' % {'foo':Int.IDES},
