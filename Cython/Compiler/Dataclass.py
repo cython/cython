@@ -7,16 +7,14 @@ import operator
 from . import ExprNodes
 from . import Nodes
 from . import PyrexTypes
-from . import UtilNodes
 from . import Builtin
 from . import Naming
 from .Errors import error, warning
 from .Code import UtilityCode, TempitaUtilityCode
 from .Visitor import VisitorTransform
-from .StringEncoding import BytesLiteral, EncodedString
+from .StringEncoding import EncodedString
 from .TreeFragment import TreeFragment
-from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
-                                  MarkClosureVisitor)
+from .ParseTreeTransforms import NormalizeTree, SkipDeclarations
 from .Options import copy_inherited_directives
 
 _dataclass_loader_utilitycode = None
@@ -208,7 +206,8 @@ def process_class_get_fields(node):
 def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
-                  order=False, unsafe_hash=False, frozen=False)
+                  order=False, unsafe_hash=False,
+                  frozen=False, kw_only=False)
     if dataclass_args is not None:
         if dataclass_args[0]:
             error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
@@ -220,6 +219,9 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
             kwargs[k] = v
+
+    # remove everything that does not belong into _DataclassParams()
+    kw_only = kwargs.pop("kw_only")
 
     fields = process_class_get_fields(node)
 
@@ -252,7 +254,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     code_lines = []
     placeholders = {}
     extra_stats = []
-    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields),
+    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kw_only),
                         generate_repr_code(kwargs['repr'], node, fields),
                         generate_eq_code(kwargs['eq'], node, fields),
                         generate_order_code(kwargs['order'], node, fields),
@@ -283,7 +285,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(init, node, fields):
+def generate_init_code(init, node, fields, kw_only):
     """
     All of these "generate_*_code" functions return a tuple of:
     - code string
@@ -308,6 +310,9 @@ def generate_init_code(init, node, fields):
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
+
+    if kw_only:
+        args.append("*")
 
     placeholders = {}
     placeholder_count = [0]
@@ -354,7 +359,7 @@ def generate_init_code(init, node, fields):
                 ph_name = get_placeholder_name()
                 placeholders[ph_name] = field.default  # should be a node
             assignment = u" = %s" % ph_name
-        elif seen_default:
+        elif seen_default and not kw_only:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
             return "", {}, []
@@ -592,7 +597,7 @@ def get_field_type(pos, entry):
         # try to return PyType_Type. This case should only happen with
         # attributes defined with cdef so Cython is free to make it's own
         # decision
-        s = entry.type.declaration_code("", for_display=1)
+        s = EncodedString(entry.type.declaration_code("", for_display=1))
         return ExprNodes.StringNode(pos, value=s)
 
 

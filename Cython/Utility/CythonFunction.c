@@ -780,6 +780,9 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
         self = PyTuple_GetItem(args, 0);
         if (unlikely(!self)) {
             Py_DECREF(new_args);
+            PyErr_Format(PyExc_TypeError,
+                         "unbound method %.200S() needs an argument",
+                         cyfunc->func_qualname);
             return NULL;
         }
 
@@ -1460,30 +1463,17 @@ bad:
     return result;
 }
 
-static PyObject *
-__Pyx_FusedFunction_get_self(__pyx_FusedFunctionObject *m, void *closure)
-{
-    PyObject *self = m->self;
-    CYTHON_UNUSED_VAR(closure);
-    if (unlikely(!self)) {
-        PyErr_SetString(PyExc_AttributeError, "'function' object has no attribute '__self__'");
-    } else {
-        Py_INCREF(self);
-    }
-    return self;
-}
-
 static PyMemberDef __pyx_FusedFunction_members[] = {
     {(char *) "__signatures__",
      T_OBJECT,
      offsetof(__pyx_FusedFunctionObject, __signatures__),
      READONLY,
      0},
+    {(char *) "__self__", T_OBJECT_EX, offsetof(__pyx_FusedFunctionObject, self), READONLY, 0},
     {0, 0, 0, 0, 0},
 };
 
 static PyGetSetDef __pyx_FusedFunction_getsets[] = {
-    {(char *) "__self__", (getter)__Pyx_FusedFunction_get_self, 0, 0, 0},
     // __doc__ is None for the fused function type, but we need it to be
     // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
     // (all other descriptors are inherited)

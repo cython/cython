@@ -13,7 +13,7 @@ cython.declare(sys=object, os=object, copy=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                error_type=object, _py_int_types=object)
 
-import sys, os, copy
+import sys, copy
 from itertools import chain
 
 from . import Builtin
@@ -382,8 +382,8 @@ class StatListNode(Node):
     child_attrs = ["stats"]
 
     @staticmethod
-    def create_analysed(pos, env, *args, **kw):
-        node = StatListNode(pos, *args, **kw)
+    def create_analysed(pos, env, **kw):
+        node = StatListNode(pos, **kw)
         return node  # No node-specific analysis needed
 
     def analyse_declarations(self, env):
@@ -729,7 +729,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
+                        # Ideally the function-pointer test would be better after self.base is analysed
+                        # however that is hard to do with the current implementation so it lives here
+                        # for now
+                        and not isinstance(self.base, CPtrDeclaratorNode)):
                     # Extension types are more difficult because the signature must match the base type signature.
                     if not env.is_c_class_scope:
                         from .ExprNodes import ConstNode
@@ -747,7 +751,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             and not (exc_val_type == PyrexTypes.c_char_type
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
-                              "Exception value must be a Python exception or cdef function with no arguments or *.")
+                              "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
@@ -965,11 +969,25 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
+
         if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
-            self.or_none = True
+            # "x: Optional[...]"  =>  explicitly allow 'None'
             arg_type = arg_type.resolve()
-        if arg_type and arg_type.is_pyobject and not self.or_none:
+            if arg_type and not arg_type.is_pyobject:
+                error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+            else:
+                self.or_none = True
+        elif arg_type is py_object_type:
+            # exclude ": object" from the None check - None is a generic object.
+            self.or_none = True
+        elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
+            # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
+            if not self.or_none:
+                warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+                self.or_none = True
+        elif arg_type and arg_type.is_pyobject and not self.or_none:
             self.not_none = True
+
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -3683,7 +3701,7 @@ class DefNodeWrapper(FuncDefNode):
                     docstr.as_c_string_literal()))
 
             if entry.is_special:
-                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                 code.putln(
                     "struct wrapperbase %s;" % entry.wrapperbase_cname)
                 code.putln('#endif')
@@ -5417,8 +5435,10 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(_MSC_VER)")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
                 code.putln("#else")
-                code.putln("#warning The buffer protocol is not supported in the Limited C-API.")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
@@ -5489,7 +5509,7 @@ class CClassDefNode(ClassDefNode):
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
-                    code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                    code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                     code.putln("{")
                     code.putln(
                         'PyObject *wrapper = PyObject_GetAttrString((PyObject *)%s, "%s"); %s' % (
@@ -8278,6 +8298,8 @@ class TryFinallyStatNode(StatNode):
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
+        if self.finally_except_clause:
+            self.finally_except_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
                           exc_lineno_cnames=None, exc_filename_cname=None):
@@ -8533,10 +8555,8 @@ def cimport_numpy_check(node, code):
                 # warning is mainly for the sake of testing
                 warning(node.pos, "'numpy.import_array()' has been added automatically "
                         "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
-                from .Code import TempitaUtilityCode
                 code.globalstate.use_utility_code(
-                         TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
-                                            context = {'err_goto': code.error_goto(node.pos)})
+                         UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
                     )
                 return  # no need to continue once the utility code is added
 

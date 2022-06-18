@@ -35,6 +35,14 @@ cdef extern from "Python.h":
     ctypedef object (*descrgetfunc)(object, object, object)
     ctypedef int (*descrsetfunc)(object, object, object) except -1
 
+    ctypedef object (*PyCFunction)(object, object)
+
+    ctypedef struct PyMethodDef:
+        const char* ml_name
+        PyCFunction ml_meth
+        int ml_flags
+        const char* ml_doc
+
     ctypedef struct PyTypeObject:
         const char* tp_name
         const char* tp_doc
@@ -58,6 +66,8 @@ cdef extern from "Python.h":
 
         cmpfunc tp_compare
         richcmpfunc tp_richcompare
+
+        PyMethodDef* tp_methods
 
         PyTypeObject* tp_base
         PyObject* tp_dict
