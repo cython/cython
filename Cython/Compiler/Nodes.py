@@ -6658,11 +6658,15 @@ class RaiseStatNode(StatNode):
     #  exc_value   ExprNode or None
     #  exc_tb      ExprNode or None
     #  cause       ExprNode or None
+    #
+    # set in FlowControl
+    #  in_try_block  bool
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
     is_terminator = True
     builtin_exc_name = None
     wrap_tuple_value = False
+    in_try_block = False
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -6698,7 +6702,7 @@ class RaiseStatNode(StatNode):
                 elif (self.builtin_exc_name == 'StopIteration' and
                         isinstance(env, Symtab.LocalScope) and env.name == "__next__" and
                         env.parent_scope and env.parent_scope.is_c_class_scope and
-                        not getattr(env, "in_try_block", False)):
+                        not self.in_try_block):
                     # tp_iternext is allowed to return NULL without raising StopIteration.
                     # For the sake of simplicity, only allow this to happen when not in
                     # a try block
@@ -7773,10 +7777,6 @@ class TryExceptStatNode(StatNode):
             self.else_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        dummy = object()
-        in_try_block = getattr(env, "in_try_block", dummy)
-        env.in_try_block = True
-
         self.body = self.body.analyse_expressions(env)
         default_clause_seen = 0
         for i, except_clause in enumerate(self.except_clauses):
@@ -7788,11 +7788,6 @@ class TryExceptStatNode(StatNode):
         self.has_default_clause = default_clause_seen
         if self.else_clause:
             self.else_clause = self.else_clause.analyse_expressions(env)
-
-        if in_try_block is dummy:
-            del env.in_try_block
-        else:
-            env.in_try_block = in_try_block
         return self
 
     nogil_check = Node.gil_error
@@ -8161,20 +8156,11 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        dummy = object()
-        in_try_block = getattr(env, "in_try_block", dummy)
-        env.in_try_block = True
-
         self.body = self.body.analyse_expressions(env)
         self.finally_clause = self.finally_clause.analyse_expressions(env)
         self.finally_except_clause = self.finally_except_clause.analyse_expressions(env)
         if env.return_type and not env.return_type.is_void:
             self.func_return_type = env.return_type
-
-        if in_try_block is dummy:
-            del env.in_try_block
-        else:
-            env.in_try_block = in_try_block
         return self
 
     nogil_check = Node.gil_error

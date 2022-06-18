@@ -58,6 +58,8 @@ cdef class ControlFlow:
 
      cdef public dict assmts
 
+     def public int in_try_block
+
      cpdef newblock(self, ControlBlock parent=*)
      cpdef nextblock(self, ControlBlock parent=*)
      cpdef bint is_tracked(self, entry)
