@@ -1061,8 +1061,6 @@ class MatchMappingPatternNode(PatternNode):
         # multiple times.
         # DW has decided that that's too complicated to implement
         # for now.
-        from . import Builtin
-
         utility_code = UtilityCode.load_cached("IsMapping", "MatchCase.c")
         if sequence_mapping_temp is not None:
             sequence_mapping_temp = ExprNodes.AmpersandNode(
