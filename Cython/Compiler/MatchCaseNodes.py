@@ -587,7 +587,7 @@ class OrPatternNode(PatternNode):
             )
         return binop
 
-    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
+    def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         if self.is_really_simple_value_comparison():
             return self.get_simple_comparison_node(subject_node)
 
@@ -596,7 +596,7 @@ class OrPatternNode(PatternNode):
             cond_exprs.append(
                 ExprNodes.CondExprNode(
                     self.pos,
-                    test = a.get_comparison_node(subject_node, env, sequence_mapping_temp),
+                    test = a.get_comparison_node(subject_node, sequence_mapping_temp),
                     true_val = ExprNodes.IntNode(a.pos, value=str(n)),
                     false_val = None  # fill in later
                 )
@@ -611,7 +611,7 @@ class OrPatternNode(PatternNode):
                 lhs = self.which_alternative_temp,
                 rhs = expr
             )
-        return expr
+        return LazyCoerceToBool(expr.pos, arg=expr)
 
     def analyse_declarations(self, env):
         super(OrPatternNode, self).analyse_declarations(env)
@@ -634,9 +634,6 @@ class OrPatternNode(PatternNode):
                 )
                 self.sequence_mapping_temp.is_addressable = lambda: True
                 sequence_mapping_temp = self.sequence_mapping_temp
-        self.comp_node = self.get_comparison_node(
-            subject_node, env, sequence_mapping_temp
-        ).analyse_temp_boolean_expression(env)
         return self
 
     def generate_main_pattern_assignment_list(self, subject_node, env):
