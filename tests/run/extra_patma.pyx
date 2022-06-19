@@ -161,3 +161,19 @@ def class_typecheck_doesnt_exist(C x):
             return True
         case _:
             return False
+
+def simple_or_with_targets(x):
+    """
+    This was being mishandled by being converted to an if statement
+    without accounting for target assignment
+    >>> simple_or_with_targets(1)
+    1
+    >>> simple_or_with_targets(2)
+    2
+    >>> simple_or_with_targets(3)
+    3
+    >>> simple_or_with_targets(4)
+    """
+    match x:
+        case ((1 as y)|(2 as y)|(3 as y)):
+            return y
