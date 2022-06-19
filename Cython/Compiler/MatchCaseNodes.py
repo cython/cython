@@ -572,20 +572,13 @@ class OrPatternNode(PatternNode):
     def get_simple_comparison_node(self, subject_node):
         assert self.is_simple_value_comparison()
         assert len(self.alternatives) >= 2, self.alternatives
-        binop = ExprNodes.BoolBinopNode(
-            self.pos,
-            operator="or",
-            operand1=self.alternatives[0].get_simple_comparison_node(subject_node),
-            operand2=self.alternatives[1].get_simple_comparison_node(subject_node),
-        )
-        for a in self.alternatives[2:]:
-            binop = ExprNodes.BoolBinopNode(
-                self.pos,
-                operator="or",
-                operand1=binop,
-                operand2=a.get_simple_comparison_node(subject_node),
-            )
-        return binop
+        checks = []
+        for a in self.alternatives:
+            checks.append(a.get_simple_comparison_node(subject_node))
+        if any(isinstance(ch, ExprNodes.BoolNode) and ch.value for ch in checks):
+            # handle the obvious very simple case
+            return ExprNodes.BoolNode(self.pos, value=True)
+        return generate_binop_tree_from_list(self.pos, "or", checks)
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         if self.is_really_simple_value_comparison():
@@ -593,18 +586,23 @@ class OrPatternNode(PatternNode):
 
         cond_exprs = []
         for n, a in enumerate(self.alternatives, start=1):
-            cond_exprs.append(
-                ExprNodes.CondExprNode(
-                    self.pos,
-                    test = a.get_comparison_node(subject_node, sequence_mapping_temp),
-                    true_val = ExprNodes.IntNode(a.pos, value=str(n)),
-                    false_val = None  # fill in later
+            a_test = a.get_comparison_node(subject_node, sequence_mapping_temp)
+            a_value = ExprNodes.IntNode(a.pos, value=str(n))
+            if isinstance(a_test, ExprNodes.BoolNode) and a_test.value:
+                cond_exprs.append(a_value)
+                break  # no point in going further
+            else:
+                cond_exprs.append(
+                    ExprNodes.CondExprNode(
+                        self.pos,
+                        test = a_test,
+                        true_val = a_value,
+                        false_val = ExprNodes.IntNode(self.pos, value="0")
+                    )
                 )
-            )
-        expr = ExprNodes.IntNode(self.pos, value="0")
-        for cond_expr in reversed(cond_exprs):
-            cond_expr.false_val = expr
-            expr = cond_expr
+        
+        expr = generate_binop_tree_from_list(self.pos, "or", cond_exprs)
+
         if self.which_alternative_temp:
             expr = ExprNodes.AssignmentExpressionNode(
                 self.pos,
