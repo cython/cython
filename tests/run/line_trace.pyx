@@ -74,7 +74,9 @@ def _create_trace_func(trace):
     local_names = {}
 
     def _trace_func(frame, event, arg):
-        if sys.version_info < (3,) and 'line_trace' not in frame.f_code.co_filename:
+        if sys.version_info < (3,) and (
+            'line_trace' not in frame.f_code.co_filename and
+            '<string>' not in frame.f_code.co_filename):
             # Prevent tracing into Py2 doctest functions.
             return None
 
@@ -164,20 +166,27 @@ def cy_try_except(func):
     except KeyError as exc:
         raise AttributeError(exc.args[0])
 
+py_scope = {}
+exec("""
+def py_add(a,b):
+    x = a+b
+    return x
+
+def py_add_with_nogil(a,b):
+    x=a; y=b                     # 1
+    for _ in range(1):           # 2
+        z = 0                    # 3
+        z += py_add(x, y)        # 4
+    return z
+
+def py_return(retval=123): return retval
+""", py_scope)
+py_add = py_scope['py_add']
+py_add_with_nogil = py_scope['py_add_with_nogil']
+py_return = py_scope['py_return']
 
 def run_trace(func, *args, bint with_sys=False):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b
-    ...     return x
-
-    >>> def py_add_with_nogil(a,b):
-    ...     x=a; y=b                     # 1
-    ...     for _ in range(1):           # 2
-    ...         z = 0                    # 3
-    ...         z += py_add(x, y)        # 4
-    ...     return z                     # 5
-
     >>> run_trace(py_add, 1, 2)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
     >>> run_trace(cy_add, 1, 2)
@@ -239,7 +248,6 @@ def run_trace(func, *args, bint with_sys=False):
 
 def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
     """
-    >>> def py_return(retval=123): return retval
     >>> run_trace_with_exception(py_return)
     OK: 123
     [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
@@ -295,10 +303,6 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
 
 def fail_on_call_trace(func, *args):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b
-    ...     return x
-
     >>> fail_on_call_trace(py_add, 1, 2)
     Traceback (most recent call last):
     ValueError: failing call trace!
@@ -319,17 +323,6 @@ def fail_on_call_trace(func, *args):
 
 def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b       # 1
-    ...     return x      # 2
-
-    >>> def py_add_with_nogil(a,b):
-    ...     x=a; y=b                     # 1
-    ...     for _ in range(1):           # 2
-    ...         z = 0                    # 3
-    ...         z += py_add(x, y)        # 4
-    ...     return z                     # 5
-
     >>> result = fail_on_line_trace(None, cy_add, cy_add_with_nogil)
     >>> len(result)
     17
@@ -405,9 +398,6 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
 
 def disable_trace(func, *args, bint with_sys=False):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b
-    ...     return x
     >>> disable_trace(py_add, 1, 2)
     [('call', 0), ('line', 1)]
     >>> disable_trace(py_add, 1, 2, with_sys=True)
