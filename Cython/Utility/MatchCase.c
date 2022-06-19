@@ -213,7 +213,7 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 
 static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mapping_temp) {
 #if PY_VERSION_HEX >= 0x030A0000
-    return PyType_GetFlags(Py_TYPE(o)) & Py_TPFLAGS_SEQUENCE;
+    return __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_SEQUENCE);
 #else
     // Py_TPFLAGS_SEQUENCE doesn't exit.
     PyObject *o_module_name;
@@ -306,84 +306,102 @@ static int __Pyx_MatchCase_IsSequence(PyObject *o, unsigned int *sequence_mappin
 #endif
 }
 
-////////////////////// IterableSliceToList.proto //////////////////////
+////////////////////// OtherSequenceSliceToList.proto //////////////////////
 
-static PyObject *__Pyx_MatchCase_IterableToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
+static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
 
-////////////////////// IterableSliceToList //////////////////////////
+////////////////////// OtherSequenceSliceToList //////////////////////////
 
 // This is substantially based off ceval unpack_iterable.
 // It's also pretty similar to itertools.islice
 // Indices must be postive - there's no wraparound or boundschecking
 
-static PyObject *__Pyx_MatchCase_IterableToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
-    int total;
+static PyObject *__Pyx_MatchCase_OtherSequenceSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
+    int total = end-start;
     int i;
-    PyObject *list, *it;
-
-    total = end-start;
+    PyObject *list;
+    ssizeargfunc slot;
+    PyTypeObject *type = Py_TYPE(x);
     
     list = PyList_New(total);
     if (!list) {
         return NULL;
     }
-    it = PyObject_GetIter(x);
-    if (!it) {
-        goto bad;
+
+#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
+    slot = type->tp_as_sequence ? type->tp_as_sequence->sq_item : NULL;
+#else
+    if ((PY_VERSION_HEX >= 0x030A0000) || __Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+        // PyType_GetSlot only works on heap types in Python <3.10
+        slot = (ssizeargfunc) PyType_GetSlot(type, Py_sq_item);
     }
-    // first use up "start" elements
-    for (i=0; i<start; ++i) {
-        PyObject *obj = PyIter_Next(it);
-        if (!obj) {
-            if (!PyErr_Occurred()) {
-                PyErr_SetString(PyExc_ValueError, "Iteration failed when unpacking pattern matching star argument");
-            }
-            goto bad;
-        }
-        Py_DECREF(obj);
-    }
-    // now copy the remaining elements into the list
-    for (i=0; i<total; ++i) {
-        PyObject *obj = PyIter_Next(it);
-        if (!obj) {
-            if (!PyErr_Occurred()) {
-                PyErr_SetString(PyExc_ValueError, "Iteration failed when unpacking pattern matching star argument");
-            }
-            goto bad;
-        }
-        PyList_SET_ITEM(list, i, obj);
+#endif
+    if (!slot) {
+        #if !defined(Py_LIMITED_API) && !defined(PySequence_ITEM)
+        // PyPy (and maybe others?) implements PySequence_ITEM as a function. In this case
+        // it's slightly more efficient than using PySequence_GetItem since it skips negative indices
+        slot = PySequence_ITEM;
+        #else
+        slot = PySequence_GetItem;
+        #endif
     }
 
-    if (0) {
-        bad:
-        Py_CLEAR(list);
+    for (i=start; i<end; ++i) {
+        PyObject *obj = slot(x, i);
+        if (!obj) {
+            Py_DECREF(list);
+            return NULL;
+        }
+        PyList_SET_ITEM(list, i-start, obj);
     }
-    Py_XDECREF(it);
     return list;
 }
 
 ////////////////////// TupleSliceToList.proto //////////////////////
 
-static PyObject *__Pyx_MatchCase_TupleToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
+static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
 
 ////////////////////// TupleSliceToList //////////////////////////
-//@requires: IterableSliceToList
+//@requires: OtherSequenceSliceToList
 //@requires: ObjectHandling.c::TupleAndListFromArray
 
 // Note that this should also work fine on lists (if needed)
 // Indices must be postive - there's no wraparound or boundschecking
 
-static PyObject *__Pyx_MatchCase_TupleToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
+static PyObject *__Pyx_MatchCase_TupleSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
 #if !CYTHON_COMPILING_IN_CPYTHON
-    return __Pyx_MatchCase_IterableToList(x, start, end);
+    return __Pyx_MatchCase_OtherSequenceSliceToList(x, start, end);
 #else
     PyObject **array;
 
-    (void)__Pyx_MatchCase_IterableToList; // clear unused warning
+    (void)__Pyx_MatchCase_OtherSequenceSliceToList; // clear unused warning
 
     array = PySequence_Fast_ITEMS(x);
     return __Pyx_PyList_FromArray(array+start, end-start);
 #endif
+}
+
+////////////////////////// UnknownTypeSliceToList.proto //////////////////////
+
+static PyObject *__Pyx_MatchCase_UnknownTypeSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end); /* proto */
+
+//////////////////////////  UnknownTypeSliceToList.proto //////////////////////
+//@requires: TupleSliceToList
+//@requires: OtherSequenceSliceToList
+
+static PyObject *__Pyx_MatchCase_UnknownTypeSliceToList(PyObject *x, Py_ssize_t start, Py_ssize_t end) {
+    if (PyList_CheckExact(x)) {
+        return PyList_GetSlice(x, start, end);
+    }
+#if !CYTHON_COMPILING_IN_CPYTHON
+    // since __Pyx_MatchCase_TupleToList only does anything special in CPython, skip the check otherwise
+    if (PyTuple_CheckExact(x)) {
+        return __Pyx_MatchCase_TupleSliceToList(x, start, end);
+    }
+#else
+    (void)__Pyx_MatchCase_TupleSliceToList;
+#endif
+    return __Pyx_MatchCase_OtherSequenceSliceToList(x, start, end);
 }
 
 ///////////////////////////// IsMapping.proto //////////////////////
@@ -725,3 +743,4 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *map, PyObjec
     }
     return dict_out;
 }
+
