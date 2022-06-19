@@ -1186,38 +1186,28 @@ class MatchMappingPatternNode(PatternNode):
         if var_keys:
             var_keys_tuple = UtilNodes.ResultRefNode(var_keys_tuple, is_temp=True)
 
-        test = self.make_mapping_check(subject_node, sequence_mapping_temp)
-        key_check = self.check_all_keys(subject_node, const_keys_tuple, var_keys_tuple)
-        test = ExprNodes.binop_node(
-            self.pos, operator="and", operand1=test, operand2=key_check
-        )
+        all_tests = []
+        all_tests.append(self.make_mapping_check(subject_node, sequence_mapping_temp))
+        all_tests.append(self.check_all_keys(subject_node, const_keys_tuple, var_keys_tuple))
 
-        pattern_test = None
+        if any(isinstance(test, ExprNodes.BoolNode) and not test.value for test in all_tests):
+            # identify automatic-failure
+            return ExprNodes.BoolNode(self.pos, value=False)
+
         for pattern, subject in zip(self.value_patterns, self.subject_temps):
             if pattern.is_irrefutable():
                 continue
             assert subject
-            pattern_test2 = pattern.get_comparison_node(subject)
-            if pattern_test:
-                pattern_test = ExprNodes.binop_node(
-                    pattern.pos,
-                    operator="and",
-                    operand1=pattern_test,
-                    operand2=pattern_test2,
-                )
-            else:
-                pattern_test = pattern_test2
-        if pattern_test:
-            test = ExprNodes.binop_node(
-                self.pos, operator="and", operand1=test, operand2=pattern_test
-            )
+            all_tests.append(pattern.get_comparison_node(subject))
+
+        all_tests = generate_binop_tree_from_list(self.pos, "and", all_tests)
 
         test_result = UtilNodes.ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
         body = Nodes.StatListNode(
             self.pos,
             stats=[
                 self.make_duplicate_keys_check(const_keys_tuple, var_keys_tuple),
-                Nodes.SingleAssignmentNode(self.pos, lhs=test_result, rhs=test),
+                Nodes.SingleAssignmentNode(self.pos, lhs=test_result, rhs=all_tests),
             ],
         )
         if self.double_star_capture_target:
@@ -1238,7 +1228,7 @@ class MatchMappingPatternNode(PatternNode):
                     body = UtilNodes.EvalWithTempExprNode(k, body)
             return LazyCoerceToBool(body.pos, arg=body)
         else:
-            return LazyCoerceToBool(test.pos, arg=test)
+            return LazyCoerceToBool(all_tests.pos, arg=all_tests)
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
         def to_temp_or_literal(node):
