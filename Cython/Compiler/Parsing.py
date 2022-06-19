@@ -4006,7 +4006,7 @@ def p_patterns(s):
                 e = errors[0]
                 s.error(e.args[1], pos = e.args[0])
         patterns.append(pattern)
-        
+
         if s.sy == ",":
             seq = True
             s.next()
@@ -4123,7 +4123,7 @@ def p_literal_pattern(s):
     # a lot of duplication in this function with "p_atom"
     next_must_be_a_number = False
     sign = ''
-    if s.sy in ['+', '-']:
+    if s.sy == '-':
         sign = s.sy
         sign_pos = s.position()
         s.next()
@@ -4198,7 +4198,7 @@ def p_literal_pattern(s):
             result = ExprNodes.NullNode(pos)
         if result:
             s.next()
-            return MatchCaseNodes.MatchValuePatternNode(pos, value = result, is_is_check = True)   
+            return MatchCaseNodes.MatchValuePatternNode(pos, value = result, is_is_check = True)
 
     s.error("Failed to match literal")
 
@@ -4255,7 +4255,7 @@ def p_sequence_pattern(s):
             s.expect(closer)
         return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
-        s.error("Expected '[' or '('") 
+        s.error("Expected '[' or '('")
 
 def p_mapping_pattern(s):
     pos = s.position()
