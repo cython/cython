@@ -562,7 +562,12 @@ class OrPatternNode(PatternNode):
             a.validate_irrefutable()
 
     def is_simple_value_comparison(self):
-        return all(a.is_simple_value_comparison() for a in self.alternatives)
+        return all(
+            # it turns out to be hard to generate correct assignment code
+            # for or patterns with targets
+            a.is_simple_value_comparison() and not a.get_targets()
+            for a in self.alternatives
+        )
 
     def is_really_simple_value_comparison(self):
         # like is_simple_value_comparison but also doesn't have any targets
