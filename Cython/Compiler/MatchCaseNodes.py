@@ -632,15 +632,23 @@ class MatchSequencePatternNode(PatternNode):
 
         test = None
         assert getattr(self, "subject_temps", None) is not None
+
+        seq_test = self.make_sequence_check(subject_node, sequence_mapping_temp)
+        if isinstance(seq_test, ExprNodes.BoolNode) and not seq_test.value:
+            return seq_test  # no point in proceeding further!
+
+        has_star = False
+        all_tests = [seq_test]
+        pattern_tests = []
         for n, pattern in enumerate(self.patterns):
+            if isinstance(pattern, MatchAndAssignPatternNode) and pattern.is_star:
+                has_star = True
+                self.needs_length_temp = True
+
             if self.subject_temps[n] is None:
                 # The subject has been identified as unneeded, so don't evaluate it
                 continue
             p_test = pattern.get_comparison_node(self.subject_temps[n])
-            if test is not None:
-                p_test = ExprNodes.BoolBinopNode(
-                    self.pos, operator="and", operand1=test, operand2=p_test
-                )
 
             result_ref = ResultRefNode(pos=self.pos, type=PyrexTypes.c_bint_type)
             subject_assignment = Nodes.SingleAssignmentNode(
@@ -654,50 +662,32 @@ class MatchSequencePatternNode(PatternNode):
             stats = Nodes.StatListNode(
                 self.pos, stats=[subject_assignment, test_assignment]
             )
-            test = TempResultFromStatNode(result_ref, stats)
+            pattern_tests.append(TempResultFromStatNode(result_ref, stats))
 
-        seq_test = self.make_sequence_check(subject_node, sequence_mapping_temp)
-        if isinstance(seq_test, ExprNodes.BoolNode) and not seq_test.value:
-            return seq_test  # no point in proceeding further!
-        has_star = False
-        for pattern in self.patterns:
-            if pattern.is_match_and_assign_pattern and pattern.is_star:
-                has_star = True
-                self.needs_length_temp = True
-                break
-        len_test = len(self.patterns)
+        min_length = len(self.patterns)
         if has_star:
-            len_test -= 1
+            min_length -= 1
         # check whether we need a length call...
         if not (self.patterns and len(self.patterns) == 1 and has_star):
             length_call = self.make_length_call_node(subject_node)
 
             if length_call.is_literal and (
-                (has_star and len_test < length_call.constant_result)
-                or (not has_star and len_test != length_call.constant_result)
+                (has_star and min_length < length_call.constant_result)
+                or (not has_star and min_length != length_call.constant_result)
             ):
                 # definitely failed!
                 return ExprNodes.BoolNode(self.pos, value=False)
-            seq_len_test = ExprNodes.BoolBinopNode(
+            seq_len_test = ExprNodes.PrimaryCmpNode(
                 self.pos,
-                operator="and",
-                operand1=seq_test,
-                operand2=ExprNodes.PrimaryCmpNode(
-                    self.pos,
-                    operator=">=" if has_star else "==",
-                    operand1=length_call,
-                    operand2=ExprNodes.IntNode(self.pos, value=str(len_test)),
-                ),
+                operator=">=" if has_star else "==",
+                operand1=length_call,
+                operand2=ExprNodes.IntNode(self.pos, value=str(min_length)),
             )
+            all_tests.append(seq_len_test)
         else:
             self.needs_length_temp = False
-            seq_len_test = seq_test
-        if test is None:
-            test = seq_len_test
-        else:
-            test = ExprNodes.BoolBinopNode(
-                self.pos, operator="and", operand1=seq_len_test, operand2=test
-            )
+        all_tests.extend(pattern_tests)
+        test = generate_binop_tree_from_list(self.pos, "and", all_tests)
         return LazyCoerceToBool(test.pos, arg=test)
 
     def generate_subjects(self, subject_node, env):
@@ -1672,3 +1662,29 @@ class LazyCoerceToBool(ExprNodes.ExprNode):
 
     def analyse_types(self, env):
         return self.arg.analyse_boolean_expression(env)
+
+def generate_binop_tree_from_list(pos, operator, list_of_tests):
+    """
+    Given a list of operands generates a roughly balanced tree:
+    (test1 op test2) op (test3 op test4)
+    This is better than (((test1 op test2) op test3) op test4)
+    because it generates a shallower tree of nodes so is
+    less likely to overflow the compiler
+    """
+    len_tests = len(list_of_tests)
+    if len_tests == 1:
+        return list_of_tests[0]
+    else:
+        split_idx = len_tests // 2
+        operand1 = generate_binop_tree_from_list(
+            pos, operator, list_of_tests[:split_idx]
+        )
+        operand2 = generate_binop_tree_from_list(
+            pos, operator, list_of_tests[split_idx:]
+        )
+        return ExprNodes.binop_node(
+            pos,
+            operator=operator,
+            operand1=operand1,
+            operand2=operand2
+        )
