@@ -1388,13 +1388,13 @@ class ClassPatternNode(PatternNode):
                 assignments.extend(pattern_assignments.stats)
         return assignments
 
-    def make_typecheck_call(self, subject_node, class_node, env):
+    def make_typecheck_call(self, subject_node, class_node):
         if not subject_node.type.is_pyobject:
             with local_errors(True) as errors:
                 # TODO - it'd be nice to be able to match up simple c types
                 # e.g. "int" to "int", "double" to "double"
                 # without having to go through this
-                subject_node = subject_node.coerce_to_pyobject(env)
+                subject_node = LazyCoerceToPyObject(subject_node.pos, arg=subject_node)
             if errors:
                 return ExprNodes.BoolNode(self.pos, value=False)
         if self.class_known_type:
@@ -1538,13 +1538,13 @@ class ClassPatternNode(PatternNode):
             + subject_derefs,
         )
 
-    def make_subpattern_checks(self, env):
+    def make_subpattern_checks(self):
         patterns = self.keyword_pattern_patterns + self.positional_patterns
         temps = self.keyword_subject_temps + self.positional_subject_temps
         cmp_node = None
         for temp, pattern in zip(temps, patterns):
             if temp:
-                p_cmp_node = pattern.get_comparison_node(temp, env)
+                p_cmp_node = pattern.get_comparison_node(temp)
                 if cmp_node:
                     cmp_node = ExprNodes.binop_node(
                         self.pos, operator="and", operand1=cmp_node, operand2=p_cmp_node
@@ -1553,11 +1553,8 @@ class ClassPatternNode(PatternNode):
                     cmp_node = p_cmp_node
         return cmp_node
 
-    def get_comparison_node(self, subject_node, env):
+    def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         from .UtilNodes import ResultRefNode, EvalWithTempExprNode
-
-        if self.comp_node:
-            return self.comp_node
 
         if self.class_known_type:
             class_node = self.class_.clone_node()
@@ -1574,7 +1571,7 @@ class ClassPatternNode(PatternNode):
                 )
             class_node = ResultRefNode(class_node)
 
-        call = self.make_typecheck_call(subject_node, class_node, env)
+        call = self.make_typecheck_call(subject_node, class_node)
 
         if self.class_known_type:
             # From this point on we know the type of the subject
@@ -1599,18 +1596,16 @@ class ClassPatternNode(PatternNode):
                 operand2=self.make_keyword_pattern_lookups(),
             )
 
-        subpattern_checks = self.make_subpattern_checks(env)
+        subpattern_checks = self.make_subpattern_checks()
         if subpattern_checks:
             call = ExprNodes.binop_node(
                 self.pos, operator="and", operand1=call, operand2=subpattern_checks
             )
 
         if isinstance(class_node, ResultRefNode) and not call.is_literal:
-            return EvalWithTempExprNode(class_node, call).analyse_boolean_expression(
-                env
-            )
+            return LazyCoerceToBool(class_node.pos, arg=EvalWithTempExprNode(class_node, call))
         else:
-            return call.analyse_boolean_expression(env)
+            return LazyCoerceToBool(call.pos, arg=call)
 
     def analyse_declarations(self, env):
         self.validate_keywords()
@@ -1624,28 +1619,12 @@ class ClassPatternNode(PatternNode):
             p.analyse_declarations(env)
         super(ClassPatternNode, self).analyse_declarations(env)
 
-    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
+    def analyse_pattern_expressions(self, env, sequence_mapping_temp):
         self.class_ = self.class_.analyse_types(env)
 
-        for idx in range(len(self.keyword_subject_attrs)):
-            self.keyword_subject_attrs[idx] = self.keyword_subject_attrs[
-                idx
-            ].analyse_types(env)
-
-        for idx in range(len(self.keyword_pattern_patterns)):
-            subject = self.keyword_subject_temps[idx]
-            self.keyword_pattern_patterns[idx] = self.keyword_pattern_patterns[
-                idx
-            ].analyse_pattern_expressions(subject, env, None)
-        for idx in range(len(self.positional_patterns)):
-            subject = self.positional_subject_temps[idx]
-            self.positional_patterns[idx] = self.positional_patterns[
-                idx
-            ].analyse_pattern_expressions(subject, env, None)
-
-        self.comp_node = self.get_comparison_node(
-            subject_node, env
-        ).analyse_expressions(env)
+        self.keyword_subject_attrs = [ a.analyse_types(env) for a in self.keyword_subject_attrs ]
+        self.keyword_pattern_patterns = [ p.analyse_pattern_expressions(env, None) for p in self.keyword_pattern_patterns ]
+        self.positional_patterns = [ p.analyse_pattern_expressions(env, None) for p in self.positional_patterns ]
 
         return self
 
