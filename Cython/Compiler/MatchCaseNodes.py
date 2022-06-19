@@ -1524,17 +1524,11 @@ class ClassPatternNode(PatternNode):
     def make_subpattern_checks(self):
         patterns = self.keyword_pattern_patterns + self.positional_patterns
         temps = self.keyword_subject_temps + self.positional_subject_temps
-        cmp_node = None
+        checks = []
         for temp, pattern in zip(temps, patterns):
             if temp:
-                p_cmp_node = pattern.get_comparison_node(temp)
-                if cmp_node:
-                    cmp_node = ExprNodes.binop_node(
-                        self.pos, operator="and", operand1=cmp_node, operand2=p_cmp_node
-                    )
-                else:
-                    cmp_node = p_cmp_node
-        return cmp_node
+                checks.append(pattern.get_comparison_node(temp))
+        return checks
 
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         from .UtilNodes import ResultRefNode, EvalWithTempExprNode
@@ -1554,7 +1548,8 @@ class ClassPatternNode(PatternNode):
                 )
             class_node = ResultRefNode(class_node)
 
-        call = self.make_typecheck_call(subject_node, class_node)
+        all_checks = []
+        all_checks.append(self.make_typecheck_call(subject_node, class_node))
 
         if self.class_known_type:
             # From this point on we know the type of the subject
@@ -1565,30 +1560,23 @@ class ClassPatternNode(PatternNode):
                 typecheck=False,
             )
         if self.positional_patterns:
-            call = ExprNodes.binop_node(
-                self.pos,
-                operator="and",
-                operand1=call,
-                operand2=self.make_positional_args_call(subject_node, class_node),
-            )
+            all_checks.append(self.make_positional_args_call(subject_node, class_node))
         if self.keyword_pattern_names:
-            call = ExprNodes.binop_node(
-                self.pos,
-                operator="and",
-                operand1=call,
-                operand2=self.make_keyword_pattern_lookups(),
-            )
+            all_checks.append(self.make_keyword_pattern_lookups())
 
-        subpattern_checks = self.make_subpattern_checks()
-        if subpattern_checks:
-            call = ExprNodes.binop_node(
-                self.pos, operator="and", operand1=call, operand2=subpattern_checks
-            )
+        all_checks.extend(self.make_subpattern_checks())
+        
 
-        if isinstance(class_node, ResultRefNode) and not call.is_literal:
-            return LazyCoerceToBool(class_node.pos, arg=EvalWithTempExprNode(class_node, call))
+        if any(isinstance(ch, ExprNodes.BoolNode) and not ch.value for ch in all_checks):
+            # handle any obvious failures
+            return ExprNodes.BoolNode(self.pos, value=False)
+
+        all_checks = generate_binop_tree_from_list(self.pos, "and", all_checks)
+
+        if isinstance(class_node, ResultRefNode) and not all_checks.is_literal:
+            return LazyCoerceToBool(class_node.pos, arg=EvalWithTempExprNode(class_node, all_checks))
         else:
-            return LazyCoerceToBool(call.pos, arg=call)
+            return LazyCoerceToBool(all_checks.pos, arg=all_checks)
 
     def analyse_declarations(self, env):
         self.validate_keywords()
