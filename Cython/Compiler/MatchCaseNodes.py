@@ -559,7 +559,7 @@ class OrPatternNode(PatternNode):
             )
         return binop
 
-    def get_comparison_node(self, subject_node, sequence_mapping_temp):
+    def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         error(self.pos, "'or' cases aren't fully implemented yet")
         return ExprNodes.BoolNode(self.pos, value=False)
 
@@ -1175,10 +1175,7 @@ class MatchMappingPatternNode(PatternNode):
             else_clause=None,
         )
 
-    def get_comparison_node(self, subject_node, env, sequence_mapping_temp=None):
-        if self.comp_node:
-            return self.comp_node
-
+    def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         from . import UtilNodes
 
         const_keys = []
@@ -1205,7 +1202,7 @@ class MatchMappingPatternNode(PatternNode):
             if pattern.is_irrefutable():
                 continue
             assert subject
-            pattern_test2 = pattern.get_comparison_node(subject, env)
+            pattern_test2 = pattern.get_comparison_node(subject)
             if pattern_test:
                 pattern_test = ExprNodes.binop_node(
                     pattern.pos,
@@ -1244,11 +1241,11 @@ class MatchMappingPatternNode(PatternNode):
             for k in var_keys:
                 if isinstance(k, UtilNodes.ResultRefNode):
                     body = UtilNodes.EvalWithTempExprNode(k, body)
-            return body
+            return LazyCoerceToBool(body.pos, arg=body)
         else:
-            return test
+            return LazyCoerceToBool(test.pos, arg=test)
 
-    def analyse_pattern_expressions(self, subject_node, env, sequence_mapping_temp):
+    def analyse_pattern_expressions(self, env, sequence_mapping_temp):
         def to_temp_or_literal(node):
             if node.is_literal:
                 return node
@@ -1260,16 +1257,7 @@ class MatchMappingPatternNode(PatternNode):
             for k in self.keys
         ]
 
-        for idx in range(len(self.value_patterns)):
-            subject = self.subject_temps[idx]
-            self.value_patterns[idx] = self.value_patterns[
-                idx
-            ].analyse_pattern_expressions(subject, env, None)
-
-        self.comp_node = self.get_comparison_node(
-            subject_node, env, sequence_mapping_temp
-        )
-        self.comp_node = self.comp_node.analyse_temp_boolean_expression(env)
+        self.value_patterns = [ p.analyse_pattern_expressions(env, None) for p in self.value_patterns ]
         return self
 
     def allocate_subject_temps(self, code):
@@ -1641,7 +1629,7 @@ class AddressOfPyObjectNode(ExprNodes.ExprNode):
 
     type = PyrexTypes.c_void_ptr_ptr_type
     is_temp = False
-    subexprs = []
+    subexprs = ["obj"]
 
     def analyse_types(self, env):
         self.obj = self.obj.analyse_types(env)
