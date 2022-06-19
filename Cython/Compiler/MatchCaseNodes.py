@@ -1112,6 +1112,11 @@ class MatchMappingPatternNode(PatternNode):
         # For small numbers of keys it might be better to generate the code instead.
         # There's three versions depending on if we know that the type is exactly
         # a dict, definitely not or dict, or unknown.
+        # The advantages of generating a function are:
+        # * more compact code
+        # * easier to check the type once then branch the implementation
+        # * faster in the cases that are more likely to fail due to wrong keys being
+        # present than due to the values not matching the patterns
         if not self.keys:
             return ExprNodes.BoolNode(self.pos, value=True)
 
