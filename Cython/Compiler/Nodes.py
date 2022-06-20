@@ -2185,7 +2185,10 @@ class FuncDefNode(StatNode, BlockNode):
 
                 assure_gil('error')
                 if code.funcstate.error_without_exception:
-                    code.putln("if (PyErr_Occurred()) {")
+                    tempvardecl_code.putln(
+                        "int %s = 0; /* StopIteration */" % Naming.error_without_exception_cname
+                    )
+                    code.putln("if (!%s) {" % Naming.error_without_exception_cname)
                 code.put_add_traceback(self.entry.qualified_name)
                 if code.funcstate.error_without_exception:
                     code.putln("}")
@@ -6721,6 +6724,7 @@ class RaiseStatNode(StatNode):
             code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
             return
         elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
+            code.putln('%s = 1;' % Naming.error_without_exception_cname)
             code.putln('%s;' % code.error_goto(None))
             code.funcstate.error_without_exception = True
             return

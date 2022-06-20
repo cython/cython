@@ -2340,7 +2340,7 @@ class CCodeWriter(object):
                 if entry.name == "__next__":
                     self.putln("PyObject *res = %s;" % func_call)
                     # tp_iternext can return NULL without an exception
-                    self.putln("if (!PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
+                    self.putln("if (!res && !PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
                     self.putln("return res;")
                 else:
                     self.putln("return %s;" % func_call)
