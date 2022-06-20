@@ -66,6 +66,7 @@ def double_raise(py_iterator):
         a = list(cy_iterator())
         print(sys.exc_info()[0] is ValueError or sys.exc_info()[0])
 
+
 ###### Tests to do with the optimization of StopIteration to "return NULL" #######
 # we're mainly checking that
 #  1. Calling __next__ manually doesn't crash (the wrapper function adds the exception)

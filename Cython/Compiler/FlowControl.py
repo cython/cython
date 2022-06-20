@@ -110,7 +110,7 @@ class ControlFlow(object):
        entries     set    tracked entries
        loops       list   stack for loop descriptors
        exceptions  list   stack for exception descriptors
-       in_try_block  int  track if we're in a try...except or try...finally blcok
+       in_try_block  int  track if we're in a try...except or try...finally block
     """
 
     def __init__(self):
