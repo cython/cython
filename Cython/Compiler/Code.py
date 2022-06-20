@@ -2335,17 +2335,16 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                body = "%s(self)" % entry.func_cname
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {" % func_cname)
+                func_call = "%s(self)" % entry.func_cname
                 if entry.name == "__next__":
+                    self.putln("PyObject *res = %s;" % func_call)
                     # tp_iternext can return NULL without an exception
-                    body = (
-                        "PyObject *res = %s; if (!res && !PyErr_Occurred()) PyErr_SetNone(PyExc_StopIteration); return res" %
-                        body
-                    )
+                    self.putln("if (!PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
+                    self.putln("return res;")
                 else:
-                    body = "return %s" % body
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) { %s; }" % (
-                    func_cname, body))
+                    self.putln("return %s;" % func_call)
+                self.putln("}")
         return func_cname
 
     # GIL methods

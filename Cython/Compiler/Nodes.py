@@ -2185,8 +2185,10 @@ class FuncDefNode(StatNode, BlockNode):
 
                 assure_gil('error')
                 if code.funcstate.error_without_exception:
-                    code.put("if (PyErr_Occurred()) ")
+                    code.putln("if (PyErr_Occurred()) {")
                 code.put_add_traceback(self.entry.qualified_name)
+                if code.funcstate.error_without_exception:
+                    code.putln("}")
             else:
                 warning(self.entry.pos,
                         "Unraisable exception in function '%s'." %
