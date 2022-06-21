@@ -498,7 +498,7 @@ class Scope(object):
         if name and name in entries and not shadow and not self.is_builtin_scope:
             old_entry = entries[name]
 
-            # Reject redeclared C++ functions only if they have the same type signature.
+            # Reject redeclared C++ functions only if they have a compatible type signature.
             cpp_override_allowed = False
             if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
                 # If we redefine a C++ class method which is either inherited
