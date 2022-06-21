@@ -1,6 +1,6 @@
 name: CI
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   ci:
@@ -25,13 +25,25 @@ jobs:
         # in all python versions and test failures (builtin_float) in 3.5<
         os: [ubuntu-18.04]
         backend: [c, cpp]
-        python-version: ["2.7", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11-dev"]
+        python-version:
+          - "2.7"
+          - "3.4"
+          - "3.5"
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11-dev"
+          # - "3.12-dev"
         env: [{}]
 
         include:
           # Temporary - Allow failure on Python 3.11-dev jobs until they are considered stable
           - python-version: 3.11-dev
             allowed_failure: true
+          #- python-version: 3.12-dev
+          #  allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
@@ -121,6 +133,11 @@ jobs:
             backend: c
             env: { STACKLESS: true, PY: 3 }
             extra_hash: "-stackless"
+          - os: ubuntu-18.04
+            python-version: 3.8
+            backend: c
+            env: { STACKLESS: true, PY: 3 }
+            extra_hash: "-stackless"
           # Pypy
           - os: ubuntu-18.04
             python-version: pypy-2.7
@@ -159,11 +176,11 @@ jobs:
           - os: macos-10.15
             python-version: 3.7
             backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
           - os: macos-10.15
             python-version: 3.8
             backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
           - os: macos-10.15
             python-version: 3.9
             backend: c
@@ -199,17 +216,17 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache [ccache]
-        uses: pat-s/always-upload-cache@v2.1.3
+        uses: pat-s/always-upload-cache@v3.0.1
         if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.ccache
@@ -221,14 +238,14 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels-${{ runner.os }}
           path: dist/*.whl
@@ -241,25 +258,23 @@ jobs:
     env:
       BACKEND: c,cpp
       OS_NAME: ubuntu-18.04
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: "3.10"
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
+        uses: actions/checkout@v3
 
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: "3.10"
 
       - name: Run Coverage
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
         run: bash ./Tools/ci-run.sh
-        
+
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: pycoverage_html
           path: coverage-report-html

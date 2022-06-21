@@ -2,9 +2,9 @@
 
 {% block header %}
 {%- if development %}
-<div id="development-warning" style="padding: .5em; text-align: center; background-color: #FFBABA; color: #6A0E0E;">
-    {% trans %}This version of the documentation is for the in-development branch of Cython.
-    For the stable version, see {% endtrans %}
+<div id="development-warning" style="padding: .5em; text-align: center; background-color: #FFFfE0; color: #AA0E0E;">
+    {% trans %}This version of the documentation is for the latest and greatest in-development branch of Cython.
+    For the last release version, see {% endtrans %}
     <a href="/en/stable/{{ pagename }}{{ file_suffix }}">{% trans %}here{% endtrans %}</a>.
 </div>
 {%- endif %}

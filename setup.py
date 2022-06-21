@@ -79,24 +79,27 @@ else:
         scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
-def compile_cython_modules(profile=False, coverage=False, compile_more=False, cython_with_refnanny=False):
+def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = [
-        "Cython.Plex.Scanners",
         "Cython.Plex.Actions",
-        "Cython.Plex.Machines",
-        "Cython.Plex.Transitions",
-        "Cython.Plex.DFA",
+        "Cython.Plex.Scanners",
+        "Cython.Compiler.FlowControl",
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Visitor",
-        "Cython.Compiler.FlowControl",
         "Cython.Runtime.refnanny",
-        "Cython.Compiler.FusedNode",
-        "Cython.Tempita._tempita",
-        "Cython.StringIOTree",
-        "Cython.Utils",
     ]
-    if compile_more:
+    if not compile_minimal:
+        compiled_modules.extend([
+            "Cython.Plex.Machines",
+            "Cython.Plex.Transitions",
+            "Cython.Plex.DFA",
+            "Cython.Compiler.FusedNode",
+            "Cython.Tempita._tempita",
+            "Cython.StringIOTree",
+            "Cython.Utils",
+        ])
+    if compile_more and not compile_minimal:
         compiled_modules.extend([
             "Cython.Compiler.Code",
             "Cython.Compiler.Lexicon",
@@ -195,6 +198,12 @@ except ValueError:
     cython_compile_more = False
 
 try:
+    sys.argv.remove("--cython-compile-minimal")
+    cython_compile_minimal = True
+except ValueError:
+    cython_compile_minimal = False
+
+try:
     sys.argv.remove("--cython-with-refnanny")
     cython_with_refnanny = True
 except ValueError:
@@ -239,8 +248,8 @@ packages = [
 
 
 def run_build():
-    if compile_cython_itself and (is_cpython or cython_compile_more):
-        compile_cython_modules(cython_profile, cython_coverage, cython_compile_more, cython_with_refnanny)
+    if compile_cython_itself and (is_cpython or cython_compile_more or cython_compile_minimal):
+        compile_cython_modules(cython_profile, cython_coverage, cython_compile_minimal, cython_compile_more, cython_with_refnanny)
 
     from Cython import __version__ as version
     setup(
@@ -249,7 +258,7 @@ def run_build():
         url='https://cython.org/',
         author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
-        description="The Cython compiler for writing C extensions for the Python language.",
+        description="The Cython compiler for writing C extensions in the Python language.",
         long_description=textwrap.dedent("""\
         The Cython language makes writing C extensions for the Python language as
         easy as Python itself.  Cython is a source code translator based on Pyrex_,

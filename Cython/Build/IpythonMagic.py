@@ -59,11 +59,6 @@ import textwrap
 IO_ENCODING = sys.getfilesystemencoding()
 IS_PY2 = sys.version_info[0] < 3
 
-try:
-    from importlib import reload
-except ImportError:   # Python 2 had a builtin function
-    pass
-
 import hashlib
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
