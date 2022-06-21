@@ -103,4 +103,3 @@ def test_bytearray_iteration(src):
     data = bytearray(src)
     for elem in data:
         print(elem)
-
