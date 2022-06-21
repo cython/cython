@@ -2680,12 +2680,9 @@ class CppClassScope(Scope):
                     error(pos, "Constructor cannot be called without GIL unless all base constructors can also be called without GIL")
                     error(base_entry.pos, "Base constructor defined here.")
         # The previous entries management is now done directly in Scope.declare
-        #prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
                                  cname=cname, visibility=visibility)
-        #if prev_entry and not defining:
-        #    entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry
         return entry
