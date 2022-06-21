@@ -76,7 +76,7 @@ def test_nested_defined_classes():
 
 def test_nested_inherited_classes():
     """
-    >>> test_nested_inherited_type()
+    >>> test_nested_inherited_classes()
     """
     cdef DD.BB b
     assert b.square(3) == 9
