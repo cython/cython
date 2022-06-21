@@ -1033,6 +1033,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(pop)")
                 code.putln("#endif")
 
+    def generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code):
+        if is_implementing:
+            code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+            if py_attrs:
+                code.put_ensure_gil()
+                for attr in py_attrs:
+                    code.put_init_var_to_py_none(attr, nanny=False)
+            if constructor:
+                code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+            if py_attrs:
+                code.put_release_ensured_gil()
+            code.putln("}")
+        else:
+            code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+
     def generate_cpp_class_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
@@ -1067,21 +1082,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
             is_implementing = 'init_module' in code.globalstate.parts
 
-            def generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor):
-                if is_implementing:
-                    code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
-                    if py_attrs:
-                        code.put_ensure_gil()
-                        for attr in py_attrs:
-                            code.put_init_var_to_py_none(attr, nanny=False)
-                    if constructor:
-                        code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
-                    if py_attrs:
-                        code.put_release_ensured_gil()
-                    code.putln("}")
-                else:
-                    code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
-
             if constructor or py_attrs:
                 if constructor:
                     for constructor_alternative in constructor.all_alternatives():
@@ -1097,11 +1097,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         if not arg_decls:
                             default_constructor = True
                             arg_decls = []
-                        generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor_alternative)
+                        generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor_alternative, type, code)
                 else:
                     arg_decls = []
                     arg_names = []
-                    generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor)
+                    generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code)
 
             if destructor or py_attrs or has_virtual_methods:
                 if has_virtual_methods:
