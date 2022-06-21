@@ -540,7 +540,7 @@ class Scope(object):
                 entry.qualified_name = self.qualify_name(name)
                 if not shadow:
                     if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
-                        # Which means: already present function or cppclass method
+                        # Which means: function or cppclass method is already present
                         entries[name].overloaded_alternatives.append(entry)
                     else:
                         entries[name] = entry
