@@ -29,7 +29,20 @@ if options.output:
     old_stdout = sys.stdout
     sys.stdout = open(options.output, 'w')
 
-modules = [basename(splitext(x)[0]).replace('.', '_') for x in args]
+packages=[]
+modules=[]
+fullNames=[]
+
+for x in args:
+    moduleName=basename(splitext(x)[0]).replace('.', '_')
+    fullName=splitext(x)[0].replace(".", "_").replace("/", ".")
+    modules.append(moduleName)
+    fullNames.append(fullName)
+    package=fullName.rsplit(".", 1)
+    if len(package)>1:
+        if package[0] not in packages:
+            packages.append(package[0])
+
 
 print("""\
 #include <Python.h>
@@ -50,6 +63,23 @@ print("""\
 
 for name in modules:
     print("PyMODINIT_FUNC MODINIT(%s) (void);" % name)
+
+for package in packages:
+    print('''
+    
+    static PyModuleDef %sModule = {
+        PyModuleDef_HEAD_INIT, "%s", NULL, -1, NULL,
+        NULL, NULL, NULL, NULL
+        };
+
+    static PyObject * PyInit_%s(void)
+    {
+        PyObject * mod = PyModule_Create( & %sModule);
+        PyModule_AddObject(mod, "__path__", Py_BuildValue("()"));
+        return mod;
+        }
+'''
+          %(package, package, package, package))
 
 print("""
 static struct _inittab inittab[] = {""")
