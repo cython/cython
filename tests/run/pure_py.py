@@ -319,6 +319,25 @@ def test_cdef_nogil(x):
     return result
 
 
+@cython.cfunc
+@cython.inline
+def has_inner_func(x):
+    # the inner function must remain a Python function
+    # (and inline must not be applied to it)
+    @cython.test_fail_if_path_exists("//CFuncDefNode")
+    def inner():
+        return x
+    return inner
+
+
+def test_has_inner_func():
+    """
+    >>> test_has_inner_func()
+    1
+    """
+    return has_inner_func(1)()
+
+
 @cython.locals(counts=cython.int[10], digit=cython.int)
 def count_digits_in_carray(digits):
     """
