@@ -27,12 +27,10 @@ _WARNINGS = """
 36:10: 'cpdef_cname_method' redeclared
 
 # from MemoryView.pyx
-323:0: The 'DEF' statement is deprecated and will be removed in a future Cython version. Consider using global variables, constants, and in-place literals instead. See https://github.com/cython/cython/issues/4310
-323:0: The 'DEF' statement is deprecated and will be removed in a future Cython version. Consider using global variables, constants, and in-place literals instead. See https://github.com/cython/cython/issues/4310
-979:29: Ambiguous exception value, same as default return value: 0
-979:29: Ambiguous exception value, same as default return value: 0
-1004:46: Ambiguous exception value, same as default return value: 0
-1004:46: Ambiguous exception value, same as default return value: 0
-1094:29: Ambiguous exception value, same as default return value: 0
-1094:29: Ambiguous exception value, same as default return value: 0
+958:29: Ambiguous exception value, same as default return value: 0
+958:29: Ambiguous exception value, same as default return value: 0
+983:46: Ambiguous exception value, same as default return value: 0
+983:46: Ambiguous exception value, same as default return value: 0
+1073:29: Ambiguous exception value, same as default return value: 0
+1073:29: Ambiguous exception value, same as default return value: 0
 """

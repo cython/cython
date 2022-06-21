@@ -729,7 +729,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
+                        # Ideally the function-pointer test would be better after self.base is analysed
+                        # however that is hard to do with the current implementation so it lives here
+                        # for now
+                        and not isinstance(self.base, CPtrDeclaratorNode)):
                     # Extension types are more difficult because the signature must match the base type signature.
                     if not env.is_c_class_scope:
                         from .ExprNodes import ConstNode
@@ -5431,8 +5435,10 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(_MSC_VER)")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
                 code.putln("#else")
-                code.putln("#warning The buffer protocol is not supported in the Limited C-API.")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
@@ -8549,10 +8555,8 @@ def cimport_numpy_check(node, code):
                 # warning is mainly for the sake of testing
                 warning(node.pos, "'numpy.import_array()' has been added automatically "
                         "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
-                from .Code import TempitaUtilityCode
                 code.globalstate.use_utility_code(
-                         TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
-                                            context = {'err_goto': code.error_goto(node.pos)})
+                         UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
                     )
                 return  # no need to continue once the utility code is added
 

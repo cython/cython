@@ -13,18 +13,14 @@ cimport cython
 cdef extern from "Python.h":
     ctypedef struct PyObject
     int PyIndex_Check(object)
-    object PyLong_FromVoidPtr(void *)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
-    PyObject *PyExc_MemoryError
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
     PyThread_type_lock PyThread_allocate_lock()
     void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
-    void PyThread_release_lock(PyThread_type_lock) nogil
 
 cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
@@ -320,17 +316,11 @@ cdef void *align_pointer(void *memory, size_t alignment) nogil:
 # pre-allocate thread locks for reuse
 ## note that this could be implemented in a more beautiful way in "normal" Cython,
 ## but this code gets merged into the user module and not everything works there.
-DEF THREAD_LOCKS_PREALLOCATED = 8
 cdef int __pyx_memoryview_thread_locks_used = 0
-cdef PyThread_type_lock[THREAD_LOCKS_PREALLOCATED] __pyx_memoryview_thread_locks = [
+cdef PyThread_type_lock[{{THREAD_LOCKS_PREALLOCATED}}] __pyx_memoryview_thread_locks = [
+{{for _ in range(THREAD_LOCKS_PREALLOCATED)}}
     PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
+{{endfor}}
 ]
 
 
@@ -360,7 +350,7 @@ cdef class memoryview:
                 Py_INCREF(Py_None)
 
         global __pyx_memoryview_thread_locks_used
-        if __pyx_memoryview_thread_locks_used < THREAD_LOCKS_PREALLOCATED:
+        if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
             self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
             __pyx_memoryview_thread_locks_used += 1
         if self.lock is NULL:
@@ -791,22 +781,6 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 #
 ### Slicing in a single dimension of a memoryviewslice
 #
-
-cdef extern from "<stdlib.h>":
-    void abort() nogil
-    void printf(char *s, ...) nogil
-
-cdef extern from "<stdio.h>":
-    ctypedef struct FILE
-    FILE *stderr
-    int fputs(char *s, FILE *stream)
-
-cdef extern from "pystate.h":
-    void PyThreadState_Get() nogil
-
-    # These are not actually nogil, but we check for the GIL before calling them
-    void PyErr_SetString(PyObject *type, char *msg) nogil
-    PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
 
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef int slice_memviewslice(
