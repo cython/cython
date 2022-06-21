@@ -1096,10 +1096,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             arg_names.append(Naming.optional_args_cname)
                         if not arg_decls:
                             default_constructor = True
-                            arg_decls = ["void"]
+                            arg_decls = []
                         generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor_alternative)
                 else:
-                    arg_decls = ["void"]
+                    arg_decls = []
                     arg_names = []
                     generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor)
 
