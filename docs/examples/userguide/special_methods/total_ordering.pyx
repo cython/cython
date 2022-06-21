@@ -1,4 +1,5 @@
- 
+import cython
+
 @cython.total_ordering
 cdef class ExtGe:
     cdef int x
