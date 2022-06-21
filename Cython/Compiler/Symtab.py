@@ -512,8 +512,11 @@ class Scope(object):
                         elif alt_entry.is_inherited:
                             cpp_override_allowed = True
                         if cpp_override_allowed:
+                            # A compatible signature doesn't mean the exact same signature,
+                            # so we're taking the new signature for the entry.
                             alt_entry.type = type
                             alt_entry.is_inherited = False
+                            # Updating the entry attributes which can be modified in the method redefinition.
                             alt_entry.cname = cname
                             alt_entry.pos = pos
                             cpp_already_overridden = True
