@@ -3044,6 +3044,9 @@ class CFuncType(CType):
             # must catch C++ exceptions if we raise them
             return 0
         if not other_type.exception_check or other_type.exception_value is not None:
+            # There's no problem if this type doesn't emit exceptions but the other type checks
+            if other_type.exception_check and not (self.exception_check or self.exception_value):
+                return 1
             # if other does not *always* check exceptions, self must comply
             if not self._same_exception_value(other_type.exception_value):
                 return 0
