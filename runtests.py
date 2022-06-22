@@ -853,7 +853,7 @@ class TestBuilder(object):
                 pythran_ext = pythran.config.make_extension()
             pythran_dir = pythran_ext['include_dirs'][0]
 
-        add_cython_import = self.add_cython_import and module_path.endswith('.py')
+        add_cython_import = self.add_cython_import
 
         preparse_list = tags.get('preparse', ['id'])
         tests = [ self.build_test(test_class, path, workdir, module, module_path,
