@@ -62,7 +62,7 @@ def test_except_promotion_compare(bint fire):
 cdef int cdef_function_that_raises():
     raise RuntimeError
 
-cdef int cdef_function_that_raises_noexcept() noexcept:
+cdef int cdef_noexcept_-function_that_raises() noexcept:
     raise RuntimeError
 
 def test_except_raise_by_default():
@@ -78,4 +78,4 @@ def test_noexcept():
     """
     >>> test_noexcept()
     """
-    cdef_function_that_raises_noexcept()
+    cdef_noexcept_function_that_raises()
