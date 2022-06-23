@@ -406,7 +406,7 @@ def test_nested_break_continue():
 
     print i
 
-cdef int parallel_return() nogil noexcept:
+cdef int parallel_return() noexcept nogil:
     cdef int i
 
     for i in prange(10):
@@ -640,7 +640,7 @@ def test_parallel_with_gil_continue_unnested():
     print sum
 
 
-cdef int inner_parallel_section() nogil noexcept:
+cdef int inner_parallel_section() noexcept nogil:
     cdef int j, sum = 0
     for j in prange(10):
         sum += j
@@ -683,7 +683,7 @@ def test_num_threads_compile():
         for i in prange(10):
             pass
 
-cdef int chunksize() nogil noexcept:
+cdef int chunksize() noexcept nogil:
     return 3
 
 def test_chunksize():
