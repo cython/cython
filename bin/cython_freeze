@@ -40,7 +40,7 @@ for x in args:
     modules.append(module_name)
     full_names.append(full_name)
     package = full_name.rsplit(".", 1)
-    if len(package)>1:
+    if len(package) > 1:
         if package[0] not in packages:
             packages.append(package[0])
 
@@ -77,14 +77,14 @@ for package in packages:
     {
         PyObject * mod = PyModule_Create( & %sModule);
         if (!mod) {
-          fprintf(stderr, "Error creating module %s\n");
+          fprintf(stderr, "Error creating module %s");
           exit(1);
           }
         PyModule_AddStringConstant(mod, "__path__", "%s");
         return mod;
         }
 '''
-          %(package, package, package, package, package, package))
+          % (package, package, package, package, package, package))
 
 print("""
 static struct _inittab inittab[] = {""")
