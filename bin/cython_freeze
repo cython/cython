@@ -33,8 +33,8 @@ packages = []
 modules = []
 full_names = []
 
-for x in args:
-    file_name = splitext(x)[0]    
+for arg in args:
+    file_name = splitext(arg)[0]    
     module_name = basename(file_name).replace('.', '_')
     full_name = file_name.replace(".", "_").replace("/", ".")
     modules.append(module_name)
