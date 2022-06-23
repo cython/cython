@@ -3041,6 +3041,7 @@ def p_exception_value_clause(s, ctx):
                 s.next()
             else:
                 exc_check = False
+            # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
     return exc_val, exc_check
 
