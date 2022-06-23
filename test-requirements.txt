@@ -2,3 +2,4 @@ numpy
 coverage
 pycodestyle
 setuptools<60
+mock==3.0.5
