@@ -13,7 +13,7 @@ cython.declare(sys=object, os=object, copy=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                error_type=object, _py_int_types=object)
 
-import sys, os, copy
+import sys, copy
 from itertools import chain
 
 from . import Builtin
@@ -23,7 +23,7 @@ from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
-                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
+                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, GeneratorExpressionScope,
                      CppScopedEnumScope, punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
@@ -382,8 +382,8 @@ class StatListNode(Node):
     child_attrs = ["stats"]
 
     @staticmethod
-    def create_analysed(pos, env, *args, **kw):
-        node = StatListNode(pos, *args, **kw)
+    def create_analysed(pos, env, **kw):
+        node = StatListNode(pos, **kw)
         return node  # No node-specific analysis needed
 
     def analyse_declarations(self, env):
@@ -585,7 +585,9 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
-        if (base_type.is_cpp_class and base_type.is_template_type()) or base_type.is_cfunction:
+        if ((base_type.is_cpp_class and base_type.is_template_type()) or
+                base_type.is_cfunction or
+                base_type.python_type_constructor_name):
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -597,7 +599,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
                 error(args[ix].pos, "Template parameter not a type")
                 base_type = error_type
             else:
-                base_type = base_type.specialize_here(self.pos, values)
+                base_type = base_type.specialize_here(self.pos, env, values)
             return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
@@ -727,7 +729,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
+                        # Ideally the function-pointer test would be better after self.base is analysed
+                        # however that is hard to do with the current implementation so it lives here
+                        # for now
+                        and not isinstance(self.base, CPtrDeclaratorNode)):
                     # Extension types are more difficult because the signature must match the base type signature.
                     if not env.is_c_class_scope:
                         from .ExprNodes import ConstNode
@@ -745,7 +751,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             and not (exc_val_type == PyrexTypes.c_char_type
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
-                              "Exception value must be a Python exception or cdef function with no arguments or *.")
+                              "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
@@ -963,6 +969,25 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
+
+        if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
+            # "x: Optional[...]"  =>  explicitly allow 'None'
+            arg_type = arg_type.resolve()
+            if arg_type and not arg_type.is_pyobject:
+                error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+            else:
+                self.or_none = True
+        elif arg_type is py_object_type:
+            # exclude ": object" from the None check - None is a generic object.
+            self.or_none = True
+        elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
+            # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
+            if not self.or_none:
+                warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+                self.or_none = True
+        elif arg_type and arg_type.is_pyobject and not self.or_none:
+            self.not_none = True
+
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -1064,7 +1089,13 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         scope = None
                         break
-
+                if scope is None and len(self.module_path) == 1:
+                    # (may be possible to handle longer module paths?)
+                    # TODO: probably not the best place to declare it?
+                    from .Builtin import get_known_standard_library_module_scope
+                    found_entry = env.lookup(self.module_path[0])
+                    if found_entry and found_entry.known_standard_library_import:
+                        scope = get_known_standard_library_module_scope(found_entry.known_standard_library_import)
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
@@ -1189,20 +1220,23 @@ class TemplatedTypeNode(CBaseTypeNode):
             base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
-        if base_type.is_cpp_class and base_type.is_template_type():
+        if ((base_type.is_cpp_class and base_type.is_template_type()) or
+                base_type.python_type_constructor_name):
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
-                error(self.pos, "c++ templates cannot take keyword arguments")
+                tp = "c++ templates" if base_type.is_cpp_class else "indexed types"
+                error(self.pos, "%s cannot take keyword arguments" % tp)
                 self.type = PyrexTypes.error_type
             else:
                 template_types = []
                 for template_node in self.positional_args:
                     type = template_node.analyse_as_type(env)
-                    if type is None:
+                    if type is None and base_type.is_cpp_class:
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type
+                    # for indexed_pytype we can be a bit more flexible and pass None
                     template_types.append(type)
-                self.type = base_type.specialize_here(self.pos, template_types)
+                self.type = base_type.specialize_here(self.pos, env, template_types)
 
         elif base_type.is_pyobject:
             # Buffer
@@ -1744,6 +1778,7 @@ class FuncDefNode(StatNode, BlockNode):
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
+    is_generator_expression = False  # this can be True alongside is_generator
     is_coroutine = False
     is_asyncgen = False
     is_generator_body = False
@@ -1815,7 +1850,8 @@ class FuncDefNode(StatNode, BlockNode):
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = genv.outer_scope
         if self.needs_closure:
-            lenv = ClosureScope(name=self.entry.name,
+            cls = GeneratorExpressionScope if self.is_generator_expression else ClosureScope
+            lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
@@ -3665,7 +3701,7 @@ class DefNodeWrapper(FuncDefNode):
                     docstr.as_c_string_literal()))
 
             if entry.is_special:
-                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                 code.putln(
                     "struct wrapperbase %s;" % entry.wrapperbase_cname)
                 code.putln('#endif')
@@ -5064,6 +5100,7 @@ class CClassDefNode(ClassDefNode):
     check_size = None
     decorators = None
     shadow = False
+    is_dataclass = False
 
     @property
     def punycode_class_name(self):
@@ -5113,6 +5150,8 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
+        if "dataclasses.dataclass" in env.directives:
+            self.is_dataclass = True
         if self.decorators:
             error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
         self.base_type = None
@@ -5396,8 +5435,10 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(_MSC_VER)")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
                 code.putln("#else")
-                code.putln("#warning The buffer protocol is not supported in the Limited C-API.")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
@@ -5468,7 +5509,7 @@ class CClassDefNode(ClassDefNode):
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
-                    code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                    code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                     code.putln("{")
                     code.putln(
                         'PyObject *wrapper = PyObject_GetAttrString((PyObject *)%s, "%s"); %s' % (
@@ -5748,12 +5789,14 @@ class SingleAssignmentNode(AssignmentNode):
     #  rhs                      ExprNode      Right hand side
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
+    #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
     #  exception_check
     #  exception_value
 
     child_attrs = ["lhs", "rhs"]
     first = False
     is_overloaded_assignment = False
+    is_assignment_expression = False
     declaration_only = False
 
     def analyse_declarations(self, env):
@@ -5838,7 +5881,17 @@ class SingleAssignmentNode(AssignmentNode):
         if self.declaration_only:
             return
         else:
-            self.lhs.analyse_target_declaration(env)
+            if self.is_assignment_expression:
+                self.lhs.analyse_assignment_expression_target_declaration(env)
+            else:
+                self.lhs.analyse_target_declaration(env)
+                # if an entry doesn't exist that just implies that lhs isn't made up purely
+                # of AttributeNodes and NameNodes - it isn't useful as a known path to
+                # a standard library module
+                if (self.lhs.is_attribute or self.lhs.is_name) and self.lhs.entry and not self.lhs.entry.known_standard_library_import:
+                    stdlib_import_name = self.rhs.get_known_standard_library_import()
+                    if stdlib_import_name:
+                        self.lhs.entry.known_standard_library_import = stdlib_import_name
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
@@ -8245,6 +8298,8 @@ class TryFinallyStatNode(StatNode):
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
+        if self.finally_except_clause:
+            self.finally_except_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
                           exc_lineno_cnames=None, exc_filename_cname=None):
@@ -8500,10 +8555,8 @@ def cimport_numpy_check(node, code):
                 # warning is mainly for the sake of testing
                 warning(node.pos, "'numpy.import_array()' has been added automatically "
                         "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
-                from .Code import TempitaUtilityCode
                 code.globalstate.use_utility_code(
-                         TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
-                                            context = {'err_goto': code.error_goto(node.pos)})
+                         UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
                     )
                 return  # no need to continue once the utility code is added
 
@@ -8541,7 +8594,8 @@ class CImportStatNode(StatNode):
                 env.declare_module(top_name, top_module_scope, self.pos)
         else:
             name = self.as_name or self.module_name
-            env.declare_module(name, module_scope, self.pos)
+            entry = env.declare_module(name, module_scope, self.pos)
+            entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
             env.use_utility_code(utility_code_for_cimports[self.module_name]())
 
@@ -8655,6 +8709,14 @@ class FromImportStatNode(StatNode):
                 self.import_star = 1
             else:
                 target.analyse_target_declaration(env)
+                if target.entry:
+                    if target.get_known_standard_library_import() is None:
+                        target.entry.known_standard_library_import = EncodedString(
+                            "%s.%s" % (self.module.module_name.value, name))
+                else:
+                    # it isn't unambiguous
+                    target.entry.known_standard_library_import = ""
+
 
     def analyse_expressions(self, env):
         from . import ExprNodes
@@ -9582,10 +9644,6 @@ class ParallelRangeNode(ParallelStatNode):
             self.index_type = PyrexTypes.c_py_ssize_t_type
         else:
             self.index_type = self.target.type
-            if not self.index_type.signed:
-                warning(self.target.pos,
-                        "Unsigned index type not allowed before OpenMP 3.0",
-                        level=2)
 
         # Setup start, stop and step, allocating temps if needed
         self.names = 'start', 'stop', 'step'

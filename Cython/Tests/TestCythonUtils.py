@@ -2,7 +2,7 @@ import unittest
 
 from Cython.Utils import (
     _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
-    build_hex_version, cached_method, clear_method_caches)
+    build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager)
 
 METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
@@ -94,3 +94,35 @@ class TestCythonUtils(unittest.TestCase):
 
         clear_method_caches(obj)
         self.set_of_names_equal(obj, {names})
+
+    def test_try_finally_contextmanager(self):
+        states = []
+        @try_finally_contextmanager
+        def gen(*args, **kwargs):
+            states.append("enter")
+            yield (args, kwargs)
+            states.append("exit")
+
+        with gen(1, 2, 3, x=4) as call_args:
+            assert states == ["enter"]
+            self.assertEqual(call_args, ((1, 2, 3), {'x': 4}))
+        assert states == ["enter", "exit"]
+
+        class MyException(RuntimeError):
+            pass
+
+        del states[:]
+        with self.assertRaises(MyException):
+            with gen(1, 2, y=4) as call_args:
+                assert states == ["enter"]
+                self.assertEqual(call_args, ((1, 2), {'y': 4}))
+                raise MyException("FAIL INSIDE")
+            assert states == ["enter", "exit"]
+
+        del states[:]
+        with self.assertRaises(StopIteration):
+            with gen(1, 2, y=4) as call_args:
+                assert states == ["enter"]
+                self.assertEqual(call_args, ((1, 2), {'y': 4}))
+                raise StopIteration("STOP")
+            assert states == ["enter", "exit"]

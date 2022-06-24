@@ -156,7 +156,7 @@ def test_fused_pointer_except_null(value):
         test_str = cython.declare(string_t, value)
         print fused_pointer_except_null(&test_str)[0].decode('ascii')
 
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 cpdef cython.integral test_fused_memoryviews(cython.integral[:, ::1] a):
     """
@@ -510,3 +510,48 @@ def convert_to_ptr(cython.floating x):
         return handle_float(&x)
     elif cython.floating is double:
         return handle_double(&x)
+
+cdef double get_double():
+    return 1.0
+cdef float get_float():
+    return 0.0
+
+cdef call_func_pointer(cython.floating (*f)()):
+    return f()
+
+def test_fused_func_pointer():
+    """
+    >>> test_fused_func_pointer()
+    1.0
+    0.0
+    """
+    print(call_func_pointer(get_double))
+    print(call_func_pointer(get_float))
+
+cdef double get_double_from_int(int i):
+    return i
+
+cdef call_func_pointer_with_1(cython.floating (*f)(cython.integral)):
+    return f(1)
+
+def test_fused_func_pointer2():
+    """
+    >>> test_fused_func_pointer2()
+    1.0
+    """
+    print(call_func_pointer_with_1(get_double_from_int))
+
+cdef call_function_that_calls_fused_pointer(object (*f)(cython.floating (*)(cython.integral))):
+    if cython.floating is double and cython.integral is int:
+        return 5*f(get_double_from_int)
+    else:
+        return None  # practically it's hard to make this kind of function useful...
+
+def test_fused_func_pointer_multilevel():
+    """
+    >>> test_fused_func_pointer_multilevel()
+    5.0
+    None
+    """
+    print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[double, int]))
+    print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[float, int]))

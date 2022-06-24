@@ -2,6 +2,10 @@
 A Cython plugin for coverage.py
 
 Requires the coverage package at least in version 4.0 (which added the plugin API).
+
+This plugin requires the generated C sources to be available, next to the extension module.
+It parses the C file and reads the original source files from it, which are stored in C comments.
+It then reports a source file to coverage.py when it hits one of its lines during line tracing.
 """
 
 from __future__ import absolute_import
