@@ -247,11 +247,11 @@ and another module which uses it:
 
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
-            :caption: shrubbing.pyx
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.py
+            :caption: shrubbing.py
 
-        .. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
-            :caption: landscaping.pyx
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.py
+            :caption: landscaping.py
 
         One would then need to compile both of these modules, e.g. using
 
@@ -260,11 +260,11 @@ and another module which uses it:
 
     .. group-tab:: Cython
 
-        .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.py
-            :caption: shrubbing.py
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
+            :caption: shrubbing.pyx
 
-        .. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.py
-            :caption: landscaping.py
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
+            :caption: landscaping.pyx
 
         One would then need to compile both of these modules, e.g. using
 
