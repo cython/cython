@@ -2957,12 +2957,7 @@ class CppIteratorNode(ExprNode):
             # and CppIteratorNode.free_subexpr_temps
             ExprNode.generate_subexpr_disposal_code(self, code)
             ExprNode.free_subexpr_temps(self, code)
-            # adapt relevant bits from ExprNodes.generate_disposal_code
-            if self.has_temp_moved:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
-        else:
-            ExprNode.generate_disposal_code(self, code)
+        ExprNode.generate_disposal_code(self, code)
 
     def free_temps(self, code):
         if self.cpp_sequence_cname:
