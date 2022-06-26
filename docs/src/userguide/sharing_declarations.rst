@@ -213,13 +213,6 @@ example:
         .. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.pyx
             :caption: spammery.pyx
 
-.. note::
-
-    When a module exports a C function in this way, an object appears in the
-    module dictionary under the function's name. However, you can't make use of
-    this object from Python, nor can you use it from Cython using a normal import
-    statement; you have to use :keyword:`cimport`.
-
 .. _sharing_extension_types:
 
 Sharing Extension Types
