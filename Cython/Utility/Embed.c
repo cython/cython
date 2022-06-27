@@ -5,12 +5,13 @@
 #endif
 
 #if PY_MAJOR_VERSION < 3
-int %(main_method)s(int argc, char** argv) {
-#elif defined(WIN32) || defined(MS_WINDOWS)
-int %(wmain_method)s(int argc, wchar_t **argv) {
+int %(main_method)s(int argc, char** argv)
+#elif defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
+int %(wmain_method)s(int argc, wchar_t **argv)
 #else
-static int __Pyx_main(int argc, wchar_t **argv) {
+static int __Pyx_main(int argc, wchar_t **argv)
 #endif
+{
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP
@@ -49,12 +50,17 @@ static int __Pyx_main(int argc, wchar_t **argv) {
       }
       Py_XDECREF(m);
     }
+#if PY_VERSION_HEX < 0x03060000
     Py_Finalize();
+#else
+    if (Py_FinalizeEx() < 0)
+        return 2;
+#endif
     return 0;
 }
 
 
-#if PY_MAJOR_VERSION >= 3 && !defined(WIN32) && !defined(MS_WINDOWS)
+#if PY_MAJOR_VERSION >= 3 && !defined(_WIN32) && !defined(WIN32) && !defined(MS_WINDOWS)
 #include <locale.h>
 
 #if PY_VERSION_HEX < 0x03050000
@@ -200,7 +206,11 @@ int
         if (res == 0)
             res = __Pyx_main(argc, argv_copy);
         for (i = 0; i < argc; i++) {
+#if PY_VERSION_HEX < 0x03050000
             free(argv_copy2[i]);
+#else
+            PyMem_RawFree(argv_copy2[i]);
+#endif
         }
         free(argv_copy);
         free(argv_copy2);

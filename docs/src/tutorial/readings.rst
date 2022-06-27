@@ -1,7 +1,7 @@
 Further reading
 ===============
 
-The main documentation is located at http://docs.cython.org/. Some
+The main documentation is located at https://docs.cython.org/. Some
 recent features might not have documentation written yet, in such
 cases some notes can usually be found in the form of a Cython
 Enhancement Proposal (CEP) on https://github.com/cython/cython/wiki/enhancements.

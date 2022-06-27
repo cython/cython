@@ -669,16 +669,26 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         if dtype.is_simple_buffer_dtype():
             structinfo_name = "NULL"
         elif dtype.is_struct:
-            fields = dtype.scope.var_entries
-            # Must pre-call all used types in order not to recurse utility code
-            # writing.
+            struct_scope = dtype.scope
+            if dtype.is_cv_qualified:
+                struct_scope = struct_scope.base_type_scope
+            # Must pre-call all used types in order not to recurse during utility code writing.
+            fields = struct_scope.var_entries
             assert len(fields) > 0
             types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+
+            if dtype.is_cv_qualified:
+                # roughly speaking, remove "const" from struct_type
+                struct_type = dtype.cv_base_type.empty_declaration_code()
+            else:
+                struct_type = dtype.empty_declaration_code()
+
             for f, typeinfo in zip(fields, types):
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
-                           (typeinfo, f.name, dtype.empty_declaration_code(), f.cname), safe=True)
+                               (typeinfo, f.name, struct_type, f.cname), safe=True)
+
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:

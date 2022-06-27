@@ -118,7 +118,7 @@ Example with a reduction:
 
 .. literalinclude:: ../../examples/userguide/parallelism/simple_sum.pyx
 
-Example with a typed memoryview (e.g. a NumPy array)::
+Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)::
 
     from cython.parallel import prange
 

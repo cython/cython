@@ -1,4 +1,4 @@
-# ticket: 305
+# ticket: t305
 
 cimport cython
 

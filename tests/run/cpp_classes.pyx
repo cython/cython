@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, no-cpp-locals
 
 from libcpp.vector cimport vector
 
@@ -29,6 +29,12 @@ cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Empty(Shape):
         pass
+
+    cdef cppclass EmptyWithDocstring(Shape):
+        """
+        This is a docstring !
+        """
+
 
     int constructor_count, destructor_count
 

@@ -11,7 +11,7 @@ Introduction
 
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
-extension types. You define an extension type using the :keyword:`cdef` class
+:term:`extension types<Extension type>`. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example:
 
 .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
@@ -314,7 +314,7 @@ when it is deleted.::
     del shop.cheese
     print(shop.cheese)
 
-.. sourcecode:: text
+.. code-block:: text
 
     # Test output
     We don't have: []
@@ -402,7 +402,7 @@ compared to a :keyword:`cdef` method::
     print("p2:")
     p2.describe()
 
-.. sourcecode:: text
+.. code-block:: text
 
     # Output
     p1:
@@ -478,8 +478,10 @@ Note that the path through ``__new__()`` will *not* call the type's
 ``__init__()`` method (again, as known from Python).  Thus, in the example
 above, the first instantiation will print ``eating!``, but the second will
 not.  This is only one of the reasons why the ``__cinit__()`` method is
-safer and preferable over the normal ``__init__()`` method for extension
-types.
+safer than the normal ``__init__()`` method for initialising extension types
+and bringing them into a correct and safe state.
+See the :ref:`Initialisation Methods Section <initialisation_methods>` about
+the differences.
 
 The second performance improvement applies to types that are often created
 and deleted in a row, so that they can benefit from a freelist.  Cython
@@ -669,6 +671,8 @@ objects from memory. Clearing is implemented in the ``tp_clear`` slot.
 As we just explained, it is sufficient that one object in the cycle
 implements ``tp_clear``.
 
+.. _trashcan:
+
 Enabling the deallocation trashcan
 ----------------------------------
 
@@ -756,6 +760,8 @@ the above would be safe, and it may yield a significant speedup, depending on
 your usage pattern.
 
 
+.. _auto_pickle:
+
 Controlling pickling
 ====================
 
@@ -767,7 +773,7 @@ cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
 One can also annotate with ``@cython.auto_pickle(False)`` to get the old
 behavior of not generating a ``__reduce__`` method in any case.
 
-Manually implementing a ``__reduce__`` or `__reduce_ex__`` method will also
+Manually implementing a ``__reduce__`` or ``__reduce_ex__`` method will also
 disable this auto-generation and can be used to support pickling of more
 complicated types.
 
@@ -822,7 +828,7 @@ built-in complex object.::
        because, in the Python header files, the ``PyComplexObject`` struct is
        declared with:
 
-       .. sourcecode:: c
+       .. code-block:: c
 
         typedef struct {
             ...
@@ -907,7 +913,9 @@ For example, we may have an extension module ``foo_extension``::
             self.field1 = f1
             self.field2 = f2
 
-but a C struct in a file ``foo_nominal.h``::
+but a C struct in a file ``foo_nominal.h``:
+
+.. code-block:: c
 
    typedef struct {
         PyObject_HEAD
@@ -965,7 +973,8 @@ C inline properties
 Similar to Python property attributes, Cython provides a way to declare C-level
 properties on external extension types.  This is often used to shadow Python
 attributes through faster C level data access, but can also be used to add certain
-functionality to existing types when using them from Cython.
+functionality to existing types when using them from Cython. The declarations
+must use `cdef inline`.
 
 For example, the above ``complex`` type could also be declared like this:
 
@@ -1046,5 +1055,29 @@ generated containing declarations for its object struct and type object. By
 including the ``.h`` file in external C code that you write, that code can
 access the attributes of the extension type.
 
+Dataclass extension types
+=========================
 
+Cython supports extension types that behave like the dataclasses defined in
+the Python 3.7+ standard library. The main benefit of using a dataclass is
+that it can auto-generate simple ``__init__``, ``__repr__`` and comparison
+functions. The Cython implementation behaves as much like the Python
+standard library implementation as possible and therefore the documentation
+here only briefly outlines the differences - if you plan on using them
+then please read `the documentation for the standard library module
+<https://docs.python.org/3/library/dataclasses.html>`_.
 
+Dataclasses can be declared using the ``@cython.dataclasses.dataclass`` 
+decorator on a Cython extension type. ``@cython.dataclasses.dataclass``
+can only be applied to extension types (types marked ``cdef`` or created with the 
+``cython.cclass`` decorator) and not to regular classes. If
+you need to define special properties on a field then use ``cython.dataclasses.field``
+
+.. literalinclude:: ../../examples/userguide/extension_types/dataclass.pyx    
+
+You may use C-level types such as structs, pointers, or C++ classes.
+However, you may find these types are not compatible with the auto-generated
+special methods - for example if they cannot be converted from a Python
+type they cannot be passed to a constructor, and so you must use a 
+``default_factory`` to initialize them. Like with the Python implementation, you can also control
+which special functions an attribute is used in using ``field()``.

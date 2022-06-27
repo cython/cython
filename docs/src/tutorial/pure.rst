@@ -29,6 +29,7 @@ In pure mode, you are more or less restricted to code that can be expressed
 beyond that can only be done in .pyx files with extended language syntax,
 because it depends on features of the Cython compiler.
 
+.. _augmenting_pxd:
 
 Augmenting .pxd
 ---------------
@@ -82,7 +83,7 @@ in the :file:`.pxd`, that is, to be accessible from Python,
 
 
 In the example above, the type of the local variable `a` in `myfunction()`
-is not fixed and will thus be a Python object.  To statically type it, one
+is not fixed and will thus be a :term:`Python object`.  To statically type it, one
 can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
 and :ref:`magic_attributes_pxd`).
 
@@ -209,6 +210,65 @@ Here is an example of a :keyword:`cdef` function::
         return a == b
 
 
+Managing the Global Interpreter Lock
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword:`nogil` keyword::
+
+    with cython.nogil:
+        # code block with the GIL released
+
+    @cython.nogil
+    @cython.cfunc
+    def func_released_gil() -> cython.int:
+        # function with the GIL released
+
+* ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
+
+    with cython.gil:
+        # code block with the GIL acquired
+
+  .. Note:: Cython currently does not support the ``@cython.with_gil`` decorator.
+
+Both directives accept an optional boolean parameter for conditionally
+releasing or acquiring the GIL. The condition must be constant (at compile time)::
+
+  with cython.nogil(False):
+      # code block with the GIL not released
+
+  @cython.nogil(True)
+  @cython.cfunc
+  def func_released_gil() -> cython.int:
+      # function with the GIL released
+
+  with cython.gil(False):
+      # code block with the GIL not acquired
+
+  with cython.gil(True):
+      # code block with the GIL acquired
+
+A common use case for conditionally acquiring and releasing the GIL are fused types
+that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
+
+.. py:module:: cython.cimports
+
+cimports
+^^^^^^^^
+
+The special ``cython.cimports`` package name gives access to cimports
+in code that uses Python syntax.  Note that this does not mean that C
+libraries become available to Python code.  It only means that you can
+tell Cython what cimports you want to use, without requiring special
+syntax.  Running such code in plain Python will fail.
+
+.. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
+
+Since such code must necessarily refer to the non-existing
+``cython.cimports`` 'package', the plain cimport form
+``cimport cython.cimports...`` is not available.
+You must use the form ``from cython.cimports...``.
+
+
 Further Cython functions and declarations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -225,6 +285,13 @@ Further Cython functions and declarations
     cython.declare(n=cython.longlong)
     print(cython.sizeof(cython.longlong))
     print(cython.sizeof(n))
+
+* ``typeof`` returns a string representation of the argument's type for debugging purposes.  It can take expressions.
+
+  ::
+
+    cython.declare(n=cython.longlong)
+    print(cython.typeof(n))
 
 * ``struct`` can be used to create struct types.::
 
@@ -311,17 +378,31 @@ declare types of variables in a Python 3.6 compatible way as follows:
 
 There is currently no way to express the visibility of object attributes.
 
-Cython does not support the full range of annotations described by PEP-484.
-For example it does not currently understand features from the ``typing`` module
-such  as ``Optional[]`` or typed containers such as ``List[str]``. This is partly
-because some of these type hints are not relevant for the compilation to
+``typing`` Module
+^^^^^^^^^^^^^^^^^
+
+Support for the full range of annotations described by PEP-484 is not yet
+complete. Cython 3 currently understands the following features from the
+``typing`` module:
+
+* ``Optional[tp]``, which is interpreted as ``tp or None``;
+* typed containers such as ``List[str]``, which is interpreted as ``list``. The
+  hint that the elements are of type ``str`` is currently ignored;
+* ``Tuple[...]``, which is converted into a Cython C-tuple where possible
+  and a regular Python ``tuple`` otherwise.
+* ``ClassVar[...]``, which is understood in the context of
+  ``cdef class`` or ``@cython.cclass``.
+
+Some of the unsupported features are likely to remain
+unsupported since these type hints are not relevant for the compilation to
 efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to
 improve the type analysis in Cython.
 
-
 Tips and Tricks
 ---------------
+
+.. _calling-c-functions:
 
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^

@@ -217,6 +217,7 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
+    'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -301,6 +302,12 @@ def normalise_encoding_name(option_name, encoding):
             return name
     return encoding
 
+# use as a sential value to defer analysis of the arguments
+# instead of analysing them in InterpretCompilerDirectives. The dataclass directives are quite
+# complicated and it's easier to deal with them at the point the dataclass is created
+class DEFER_ANALYSIS_OF_ARGUMENTS:
+    pass
+DEFER_ANALYSIS_OF_ARGUMENTS = DEFER_ANALYSIS_OF_ARGUMENTS()
 
 # Override types possibilities above, if needed
 directive_types = {
@@ -326,6 +333,9 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
+    'total_ordering': bool,
+    'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
 }
 
 for key, val in _directive_defaults.items():
@@ -369,6 +379,23 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
+    'total_ordering': ('cclass', ),
+    'dataclasses.dataclass' : ('class', 'cclass',),
+    'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+}
+
+
+# a list of directives that (when used as a decorator) are only applied to
+# the object they decorate and not to its children.
+immediate_decorator_directives = {
+    'cfunc', 'ccall', 'cclass',
+    # function signature directives
+    'inline', 'exceptval', 'returns',
+    # class directives
+    'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
+    'auto_pickle', 'internal',
+    # testing directives
+    'test_fail_if_path_exists', 'test_assert_path_exists',
 }
 
 

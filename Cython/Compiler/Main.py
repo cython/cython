@@ -209,7 +209,8 @@ class Context(object):
                     # Set pxd_file_loaded such that we don't need to
                     # look for the non-existing pxd file next time.
                     scope.pxd_file_loaded = True
-                    package_pathname = self.search_include_directories(qualified_name, ".py", pos)
+                    package_pathname = self.search_include_directories(
+                        qualified_name, suffix=".py", source_pos=pos)
                     if package_pathname and package_pathname.endswith(Utils.PACKAGE_FILES):
                         pass
                     else:
@@ -232,7 +233,7 @@ class Context(object):
                     pass
         return scope
 
-    def find_pxd_file(self, qualified_name, pos, sys_path=True):
+    def find_pxd_file(self, qualified_name, pos=None, sys_path=True, source_file_path=None):
         # Search include path (and sys.path if sys_path is True) for
         # the .pxd file corresponding to the given fully-qualified
         # module name.
@@ -241,34 +242,36 @@ class Context(object):
         # the directory containing the source file is searched first
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
-        pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=sys_path)
+        pxd = self.search_include_directories(
+            qualified_name, suffix=".pxd", source_pos=pos, sys_path=sys_path, source_file_path=source_file_path)
         if pxd is None and Options.cimport_from_pyx:
             return self.find_pyx_file(qualified_name, pos)
         return pxd
 
-    def find_pyx_file(self, qualified_name, pos):
+    def find_pyx_file(self, qualified_name, pos=None, source_file_path=None):
         # Search include path for the .pyx file corresponding to the
         # given fully-qualified module name, as for find_pxd_file().
-        return self.search_include_directories(qualified_name, ".pyx", pos)
+        return self.search_include_directories(
+            qualified_name, suffix=".pyx", source_pos=pos, source_file_path=source_file_path)
 
-    def find_include_file(self, filename, pos):
+    def find_include_file(self, filename, pos=None, source_file_path=None):
         # Search list of include directories for filename.
         # Reports an error and returns None if not found.
-        path = self.search_include_directories(filename, "", pos,
-                                               include=True)
+        path = self.search_include_directories(
+            filename, source_pos=pos, include=True, source_file_path=source_file_path)
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
 
-    def search_include_directories(self, qualified_name, suffix, pos,
-                                   include=False, sys_path=False):
+    def search_include_directories(self, qualified_name,
+                                   suffix=None, source_pos=None, include=False, sys_path=False, source_file_path=None):
         include_dirs = self.include_directories
         if sys_path:
             include_dirs = include_dirs + sys.path
         # include_dirs must be hashable for caching in @cached_function
         include_dirs = tuple(include_dirs + [standard_include_path])
-        return search_include_directories(include_dirs, qualified_name,
-                                          suffix, pos, include)
+        return search_include_directories(
+            include_dirs, qualified_name, suffix or "", source_pos, include, source_file_path)
 
     def find_root_package_dir(self, file_path):
         return Utils.find_root_package_dir(file_path)
@@ -282,15 +285,14 @@ class Context(object):
         c_time = Utils.modification_time(output_path)
         if Utils.file_newer_than(source_path, c_time):
             return 1
-        pos = [source_path]
         pxd_path = Utils.replace_suffix(source_path, ".pxd")
         if os.path.exists(pxd_path) and Utils.file_newer_than(pxd_path, c_time):
             return 1
         for kind, name in self.read_dependency_file(source_path):
             if kind == "cimport":
-                dep_path = self.find_pxd_file(name, pos)
+                dep_path = self.find_pxd_file(name, source_file_path=source_path)
             elif kind == "include":
-                dep_path = self.search_include_directories(name, "", pos)
+                dep_path = self.search_include_directories(name, source_file_path=source_path)
             else:
                 continue
             if dep_path and Utils.file_newer_than(dep_path, c_time):
@@ -307,11 +309,10 @@ class Context(object):
     def read_dependency_file(self, source_path):
         dep_path = Utils.replace_suffix(source_path, ".dep")
         if os.path.exists(dep_path):
-            f = open(dep_path, "rU")
-            chunks = [ line.strip().split(" ", 1)
-                       for line in f.readlines()
-                       if " " in line.strip() ]
-            f.close()
+            with open(dep_path, "rU") as f:
+                chunks = [ line.split(" ", 1)
+                           for line in (l.strip() for l in f)
+                           if " " in line ]
             return chunks
         else:
             return ()
@@ -335,7 +336,7 @@ class Context(object):
         source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
-        num_errors = Errors.num_errors
+        num_errors = Errors.get_errors_count()
         try:
             with Utils.open_source_file(source_filename) as f:
                 from . import Parsing
@@ -354,7 +355,7 @@ class Context(object):
             #traceback.print_exc()
             raise self._report_decode_error(source_desc, e)
 
-        if Errors.num_errors > num_errors:
+        if Errors.get_errors_count() > num_errors:
             raise CompileError()
         return tree
 
@@ -394,20 +395,19 @@ class Context(object):
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.reset()  # clear any remaining error state
+        Errors.init_thread()
         if options.use_listing_file:
             path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:
             path = None
-        Errors.open_listing_file(path=path,
-                                 echo_to_stderr=options.errors_to_stderr)
+        Errors.open_listing_file(path=path, echo_to_stderr=options.errors_to_stderr)
 
     def teardown_errors(self, err, options, result):
         source_desc = result.compilation_source.source_desc
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         Errors.close_listing_file()
-        result.num_errors = Errors.num_errors
+        result.num_errors = Errors.get_errors_count()
         if result.num_errors > 0:
             err = True
         if err and result.c_file:
@@ -629,24 +629,25 @@ def compile(source, options = None, full_module_name = None, **kwds):
 
 
 @Utils.cached_function
-def search_include_directories(dirs, qualified_name, suffix, pos, include=False):
+def search_include_directories(dirs, qualified_name, suffix="", pos=None, include=False, source_file_path=None):
     """
     Search the list of include directories for the given file name.
 
-    If a source file position is given, first searches the directory
-    containing that file. Returns None if not found, but does not
-    report an error.
+    If a source file path or position is given, first searches the directory
+    containing that file.  Returns None if not found, but does not report an error.
 
     The 'include' option will disable package dereferencing.
     """
-    if pos:
+    if pos and not source_file_path:
         file_desc = pos[0]
         if not isinstance(file_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
+        source_file_path = file_desc.filename
+    if source_file_path:
         if include:
-            dirs = (os.path.dirname(file_desc.filename),) + dirs
+            dirs = (os.path.dirname(source_file_path),) + dirs
         else:
-            dirs = (Utils.find_root_package_dir(file_desc.filename),) + dirs
+            dirs = (Utils.find_root_package_dir(source_file_path),) + dirs
 
     # search for dotted filename e.g. <dir>/foo.bar.pxd
     dotted_filename = qualified_name
@@ -656,7 +657,7 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
-            if '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
+            if not include and '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
                 warning(pos, "Dotted filenames ('%s') are deprecated."
                              " Please use the normal Python package directory layout." % dotted_filename, level=1)
             return path

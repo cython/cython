@@ -23,6 +23,7 @@ into an extension module.
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
 
+
 .. _compiling_command_line:
 
 Compiling from the command line
@@ -44,7 +45,7 @@ Compiling with the ``cython`` command
 One way is to compile it manually with the Cython
 compiler, e.g.:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ cython primes.pyx
 
@@ -62,7 +63,9 @@ Compiling with the ``cythonize`` command
 ----------------------------------------
 
 Run the ``cythonize`` compiler command with your options and list of
-``.pyx`` files to generate an extension module.  For example::
+``.pyx`` files to generate an extension module.  For example:
+
+.. code-block:: bash
 
     $ cythonize -a -i yourmod.pyx
 
@@ -82,7 +85,9 @@ There simpler command line tool ``cython`` only invokes the source code translat
 In the case of manual compilation, how to compile your ``.c`` files will vary
 depending on your operating system and compiler.  The Python documentation for
 writing extension modules should have some details for your system.  On a Linux
-system, for example, it might look similar to this::
+system, for example, it might look similar to this:
+
+.. code-block:: bash
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
           -I/usr/include/python3.5 -o yourmod.so yourmod.c
@@ -98,6 +103,7 @@ you will not automatically benefit from the platform specific file extension
 that CPython generates for disambiguation, such as
 ``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
 of CPython 3.5.
+
 
 .. _basic_setup.py:
 
@@ -121,7 +127,10 @@ If your build depends directly on Cython in this way,
 then you may also want to inform pip that :mod:`Cython` is required for
 :file:`setup.py` to execute, following `PEP 518
 <https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
-file containing, at least::
+file containing, at least:
+
+.. code-block:: ini
+
 
     [build-system]
     requires = ["setuptools", "wheel", "Cython"]
@@ -129,9 +138,10 @@ file containing, at least::
 To understand the :file:`setup.py` more fully look at the official `setuptools
 documentation`_. To compile the extension for use in the current directory use:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
+
 
 Configuring the C-Build
 ------------------------
@@ -307,6 +317,7 @@ Just as an example, this adds ``mylib`` as library to every extension::
     then the argument to ``create_extension`` must be pickleable.
     In particular, it cannot be a lambda function.
 
+
 .. _cythonize_arguments:
 
 Cythonize arguments
@@ -408,7 +419,7 @@ Cython's build_ext module which runs ``cythonize`` as part of the build process:
 
     setup(
         extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.new_build_ext},
+        cmdclass={'build_ext': Cython.Build.build_ext},
         ...
     )
 
@@ -598,6 +609,37 @@ Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
 efficient re-use.
 
+
+Compiling with ``cython.compile``
+=================================
+
+Cython supports transparent compiling of the cython code in a function using the
+``@cython.compile`` decorator::
+
+    @cython.compile
+    def plus(a, b):
+        return a + b
+
+Parameters of the decorated function cannot have type declarations. Their types are
+automatically determined from values passed to the function, thus leading to one or more
+specialised compiled functions for the respective argument types.
+Executing example::
+
+    import cython
+
+    @cython.compile
+    def plus(a, b):
+        return a + b
+
+    print(plus('3', '5'))
+    print(plus(3, 5))
+
+will produce following output::
+
+    35
+    8
+
+
 .. _compiling_with_sage:
 
 Compiling with Sage
@@ -611,6 +653,7 @@ running session.  Please check `Sage documentation
 
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
+
 
 .. _compiling_notebook:
 
@@ -771,9 +814,13 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
 ``initializedcheck`` (True / False)
-    If set to True, Cython checks that a memoryview is initialized
-    whenever its elements are accessed or assigned to. Setting this
-    to False disables these checks.
+    If set to True, Cython checks that
+     - a memoryview is initialized whenever its elements are accessed 
+       or assigned to.
+     - a C++ class is initialized when it is accessed 
+       (only when ``cpp_locals`` is on)
+
+    Setting this to False disables these checks.
     Default is True.
 
 ``nonecheck``  (True / False)
@@ -905,6 +952,12 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
+    
+``cpp_locals`` (True / False)
+    Make C++ variables behave more like Python variables by allowing them to be
+    "unbound" instead of always default-constructing them at the start of a
+    function.  See :ref:`cpp_locals directive` for more detail.
+
 
 .. _configurable_optimisations:
 
@@ -925,6 +978,7 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
+
 
 .. _warnings:
 
@@ -975,7 +1029,9 @@ One can set compiler directives through a special header comment near the top of
 The comment must appear before any code (but can appear after other
 comments or whitespace).
 
-One can also pass a directive on the command line by using the -X switch::
+One can also pass a directive on the command line by using the -X switch:
+
+.. code-block:: bash
 
     $ cython -X boundscheck=True ...
 

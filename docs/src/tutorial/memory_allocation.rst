@@ -4,6 +4,9 @@
 Memory Allocation
 *****************
 
+.. include::
+    ../two-syntax-variants-used
+
 Dynamic memory allocation is mostly a non-issue in Python.  Everything is an
 object, and the reference counting system and garbage collector automatically
 return memory to the system when it is no longer being used.
@@ -19,10 +22,10 @@ In some situations, however, these objects can still incur an unacceptable
 amount of overhead, which can then makes a case for doing manual memory
 management in C.
 
-Simple C values and structs (such as a local variable ``cdef double x``) are
-usually allocated on the stack and passed by value, but for larger and more
+Simple C values and structs (such as a local variable ``cdef double x`` / ``x: cython.double``) are
+usually :term:`allocated on the stack<Stack allocation>` and passed by value, but for larger and more
 complicated objects (e.g. a dynamically-sized list of doubles), the memory must
-be manually requested and released.  C provides the functions :c:func:`malloc`,
+be :term:`manually requested and released<Heap allocation>`.  C provides the functions :c:func:`malloc`,
 :c:func:`realloc`, and :c:func:`free` for this purpose, which can be imported
 in cython from ``clibc.stdlib``. Their signatures are:
 
@@ -34,8 +37,15 @@ in cython from ``clibc.stdlib``. Their signatures are:
 
 A very simple example of malloc usage is the following:
 
-.. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.pyx
-    :linenos:
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.pyx
 
 Note that the C-API functions for allocating memory on the Python heap
 are generally preferred over the low-level C functions above as the
@@ -45,9 +55,20 @@ smaller memory blocks, which speeds up their allocation by avoiding
 costly operating system calls.
 
 The C-API functions can be found in the ``cpython.mem`` standard
-declarations file::
+declarations file:
 
-    from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from cython.cimports.cpython.mem import PyMem_Malloc, PyMem_Realloc, PyMem_Free
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 Their interface and usage is identical to that of the corresponding
 low-level C functions.
@@ -64,4 +85,11 @@ If a chunk of memory needs a larger lifetime than can be managed by a
 to a Python object to leverage the Python runtime's memory management,
 e.g.:
 
-.. literalinclude:: ../../examples/tutorial/memory_allocation/some_memory.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/some_memory.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/memory_allocation/some_memory.pyx

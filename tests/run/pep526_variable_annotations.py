@@ -5,10 +5,13 @@
 import cython
 
 from typing import Dict, List, TypeVar, Optional, Generic, Tuple
+
 try:
+    import typing
+    from typing import Set as _SET_
     from typing import ClassVar
 except ImportError:
-    ClassVar = Optional  # fake it in Py3.5
+    pass  # this should allow Cython to interpret the directives even when the module doesn't exist
 
 
 var = 1  # type: annotation
@@ -50,6 +53,8 @@ class BasicStarship(object):
     >>> bs.captain
     'Picard'
     >>> bs.stats
+    {}
+    >>> BasicStarship.stats
     {}
     """
     captain: str = 'Picard'               # instance variable with default
@@ -117,11 +122,7 @@ def iter_declared_dict(d):
     >>> iter_declared_dict(d)
     7.0
 
-    >>> class D(object):
-    ...     def __getitem__(self, x): return 2
-    ...     def __iter__(self): return iter([1, 2, 3])
-    >>> iter_declared_dict(D())
-    6.0
+    # specialized "compiled" test in module-level __doc__
     """
     typed_dict : Dict[float, float] = d
     s = 0.0
@@ -140,11 +141,7 @@ def iter_declared_dict_arg(d : Dict[float, float]):
     >>> iter_declared_dict_arg(d)
     7.0
 
-    >>> class D(object):
-    ...     def __getitem__(self, x): return 2
-    ...     def __iter__(self): return iter([1, 2, 3])
-    >>> iter_declared_dict_arg(D())
-    6.0
+    # module level "compiled" test in __doc__ below
     """
     s = 0.0
     for key in d:
@@ -152,12 +149,67 @@ def iter_declared_dict_arg(d : Dict[float, float]):
     return s
 
 
+def literal_list_ptr():
+    """
+    >>> literal_list_ptr()
+    4
+    """
+    a : cython.p_int = [1, 2, 3, 4, 5]
+    return a[3]
+
+
+def test_subscripted_types():
+    """
+    >>> test_subscripted_types()
+    dict object
+    list object
+    set object
+    """
+    a: typing.Dict[int, float] = {}
+    b: List[int] = []
+    c: _SET_[object] = set()
+
+    print(cython.typeof(a) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+
+# because tuple is specifically special cased to go to ctuple where possible
+def test_tuple(a: typing.Tuple[int, float], b: typing.Tuple[int, ...],
+               c: Tuple[int, object]  # cannot be a ctuple
+               ):
+    """
+    >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
+    int
+    int
+    tuple object
+    tuple object
+    """
+    x: typing.Tuple[int, float] = (a[0], a[1])
+    y: Tuple[int, ...] = (1,2.)
+    z = a[0]  # should infer to int
+
+    print(cython.typeof(z))
+    print(cython.typeof(x[0]))
+    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+
+
+if cython.compiled:
+    __doc__ = """
+    # passing non-dicts to variables declared as dict now fails
+    >>> class D(object):
+    ...     def __getitem__(self, x): return 2
+    ...     def __iter__(self): return iter([1, 2, 3])
+    >>> iter_declared_dict(D())  # doctest:+IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: Expected dict, got D
+    >>> iter_declared_dict_arg(D())  # doctest:+IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: Expected dict, got D
+    """
+
+
 _WARNINGS = """
-37:19: Unknown type declaration in annotation, ignoring
-38:12: Unknown type declaration in annotation, ignoring
-39:18: Unknown type declaration in annotation, ignoring
-73:19: Unknown type declaration in annotation, ignoring
-# FIXME: these are sort-of evaluated now, so the warning is misleading
-126:21: Unknown type declaration in annotation, ignoring
-137:35: Unknown type declaration in annotation, ignoring
 """

@@ -5,8 +5,18 @@ REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
 PARALLEL?=$(shell ${PYTHON} -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")' || true)
 
-MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux2010_x86_64
-MANYLINUX_IMAGE_686=quay.io/pypa/manylinux2010_i686
+MANYLINUX_CFLAGS=-O3 -g0 -mtune=generic -pipe -fPIC
+MANYLINUX_LDFLAGS=
+MANYLINUX_IMAGES= \
+	manylinux1_x86_64 \
+	manylinux1_i686 \
+	musllinux_1_1_x86_64 \
+	musllinux_1_1_aarch64 \
+	manylinux_2_24_x86_64 \
+	manylinux_2_24_i686 \
+	manylinux_2_24_aarch64 \
+#	manylinux_2_24_ppc64le \
+#	manylinux_2_24_s390x
 
 all:    local
 
@@ -67,18 +77,31 @@ checks:
 s5:
 	$(MAKE) -C Doc/s5 slides
 
-wheel_manylinux: wheel_manylinux64 wheel_manylinux32
+qemu-user-static:
+	docker run --rm --privileged hypriot/qemu-register
 
-wheel_manylinux32 wheel_manylinux64: dist/$(PACKAGENAME)-$(VERSION).tar.gz
+wheel_manylinux: sdist $(addprefix wheel_,$(MANYLINUX_IMAGES))
+$(addprefix wheel_,$(filter-out %_x86_64, $(filter-out %_i686, $(MANYLINUX_IMAGES)))): qemu-user-static
+
+wheel_%: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 	echo "Building wheels for $(PACKAGENAME) $(VERSION)"
 	mkdir -p wheelhouse_$(subst wheel_,,$@)
 	time docker run --rm -t \
 		-v $(shell pwd):/io \
-		-e CFLAGS="-O3 -g0 -mtune=generic -pipe -fPIC" \
-		-e LDFLAGS="$(LDFLAGS) -fPIC" \
-		-e WHEELHOUSE=wheelhouse_$(subst wheel_,,$@) \
-		$(if $(patsubst %32,,$@),$(MANYLINUX_IMAGE_X86_64),$(MANYLINUX_IMAGE_686)) \
-		bash -c 'for PYBIN in /opt/python/*/bin; do \
+		-e CFLAGS="$(MANYLINUX_CFLAGS)" \
+		-e LDFLAGS="$(MANYLINUX_LDFLAGS) -fPIC" \
+		-e WHEELHOUSE=wheelhouse$(subst wheel_musllinux,,$(subst wheel_manylinux,,$@)) \
+		quay.io/pypa/$(subst wheel_,,$@) \
+		bash -c '\
+			rm -fr /opt/python/*pypy* ; \
+			for cpdir in /opt/python/*27* ; do \
+				if [ -d "$$cpdir" ]; \
+				then rm -fr /opt/python/*3[78912]; \
+				else rm -fr /opt/python/*{27*,3[456]*}; \
+				fi; break; \
+			done ; \
+			ls /opt/python/ ; \
+			for PYBIN in /opt/python/cp*/bin; do \
 		    $$PYBIN/python -V; \
 		    { $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
 		    done; wait; \

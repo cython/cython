@@ -157,6 +157,7 @@ def assignmvs():
     cdef int[:] mv3
     mv1 = array((10,), itemsize=sizeof(int), format='i')
     mv2 = mv1
+    mv1 = mv1
     mv1 = mv2
     mv3 = mv2
 
@@ -1171,3 +1172,36 @@ def test_assign_from_byteslike(byteslike):
         return (<unsigned char*>buf)[:5]
     finally:
         free(buf)
+
+def multiple_memoryview_def(double[:] a, double[:] b):
+    return a[0] + b[0]
+
+cpdef multiple_memoryview_cpdef(double[:] a, double[:] b):
+    return a[0] + b[0]
+
+cdef multiple_memoryview_cdef(double[:] a, double[:] b):
+    return a[0] + b[0]
+
+multiple_memoryview_cdef_wrapper = multiple_memoryview_cdef
+
+def test_conversion_failures():
+    """
+    What we're concerned with here is that we don't lose references if one
+    of several memoryview arguments fails to convert.
+
+    >>> test_conversion_failures()
+    """
+    imb = IntMockBuffer("", range(1), shape=(1,))
+    dmb = DoubleMockBuffer("", range(1), shape=(1,))
+    for first, second in [(imb, dmb), (dmb, imb)]:
+        for func in [multiple_memoryview_def, multiple_memoryview_cpdef, multiple_memoryview_cdef_wrapper]:
+            # note - using python call of "multiple_memoryview_cpdef" deliberately
+            imb_before = get_refcount(imb)
+            dmb_before = get_refcount(dmb)
+            try:
+                func(first, second)
+            except:
+                assert get_refcount(imb) == imb_before, "before %s after %s" % (imb_before, get_refcount(imb))
+                assert get_refcount(dmb) == dmb_before, "before %s after %s" % (dmb_before, get_refcount(dmb))
+            else:
+                assert False, "Conversion should fail!"

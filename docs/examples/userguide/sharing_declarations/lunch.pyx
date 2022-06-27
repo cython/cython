@@ -1,3 +1,4 @@
+ 
 cimport c_lunch
 
 def eject_tomato(float speed):

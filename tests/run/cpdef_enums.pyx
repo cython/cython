@@ -1,4 +1,6 @@
 """
+>>> import sys
+
 >>> ONE, TEN, HUNDRED
 (1, 10, 100)
 >>> THOUSAND        # doctest: +ELLIPSIS
@@ -39,10 +41,12 @@ True
 Traceback (most recent call last):
 NameError: ...name 'RANK_3' is not defined
 
->>> set(PyxEnum) == set([TWO, THREE, FIVE])
+>>> set(PyxEnum) == {TWO, THREE, FIVE}
 True
->>> str(PyxEnum.TWO)
-'PyxEnum.TWO'
+>>> str(PyxEnum.TWO).split(".")[-1]  if sys.version_info < (3,11) else  "TWO" # Py3.10/11 changed the output here
+'TWO'
+>>> str(PyxEnum.TWO)  if sys.version_info >= (3,11) else  "2" # Py3.10/11 changed the output here
+'2'
 >>> PyxEnum.TWO + PyxEnum.THREE == PyxEnum.FIVE
 True
 >>> PyxEnum(2) is PyxEnum["TWO"] is PyxEnum.TWO

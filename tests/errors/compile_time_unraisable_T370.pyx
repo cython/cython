@@ -1,4 +1,4 @@
-# ticket: 370
+# ticket: t370
 # mode: error
 
 cdef int raiseit():

@@ -13,8 +13,6 @@ from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_DECREF
 cimport cython
 
-__test__ = {}
-
 import sys
 #import re
 exclude = []#re.compile('object').search]
@@ -27,8 +25,7 @@ if getattr(sys, 'pypy_version_info', None) is not None:
 def testcase(func):
     for e in exclude:
         if e(func.__name__):
-            return func
-    __test__[func.__name__] = func.__doc__
+            func.__doc__ = ""  # disable the test
     return func
 
 

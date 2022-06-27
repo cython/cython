@@ -31,7 +31,7 @@ Cython at a glance
 
 Cython is a compiler which compiles Python-like code files to C code. Still,
 ''Cython is not a Python to C translator''. That is, it doesn't take your full
-program and "turns it into C" -- rather, the result makes full use of the
+program and "turn it into C" -- rather, the result makes full use of the
 Python runtime environment. A way of looking at it may be that your code is
 still Python in that it runs within the Python runtime environment, but rather
 than compiling to interpreted Python bytecode one compiles to native machine
@@ -61,7 +61,7 @@ Using Cython consists of these steps:
 
 However there are several options to automate these steps:
 
-1. The `SAGE <http://sagemath.org>`_ mathematics software system provides
+1. The `SAGE <https://sagemath.org>`_ mathematics software system provides
    excellent support for using Cython and NumPy from an interactive command
    line or through a notebook interface (like
    Maple/Mathematica). See `this documentation
@@ -88,7 +88,9 @@ However there are several options to automate these steps:
 Installation
 =============
 
-If you already have a C compiler, just do::
+If you already have a C compiler, just do:
+
+.. code-block:: bash
 
    pip install Cython
 
@@ -97,7 +99,9 @@ otherwise, see :ref:`the installation page <install>`.
 
 As of this writing SAGE comes with an older release of Cython than required
 for this tutorial. So if using SAGE you should download the newest Cython and
-then execute ::
+then execute :
+
+.. code-block:: bash
 
     $ cd path/to/cython-distro
     $ path-to-sage/sage -python setup.py install
@@ -108,7 +112,9 @@ Manual compilation
 ====================
 
 As it is always important to know what is going on, I'll describe the manual
-method here. First Cython is run::
+method here. First Cython is run:
+
+.. code-block:: bash
 
     $ cython yourmod.pyx
 
@@ -120,7 +126,9 @@ line by line.
 Then we compile the C file. This may vary according to your system, but the C
 file should be built like Python was built. Python documentation for writing
 extensions should have some details. On Linux this often means something
-like::
+like:
+
+.. code-block:: bash
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -I/usr/include/python2.7 -o yourmod.so yourmod.c
 
@@ -166,7 +174,7 @@ This should be compiled to produce :file:`compute_cy.so` for Linux systems
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [1]: import numpy as np
     In [2]: array_1 = np.random.uniform(0, 1000, size=(3000, 2000)).astype(np.intc)
@@ -218,7 +226,7 @@ of C code to set up while in :file:`compute_typed.c` a normal C for loop is used
 
 After building this and continuing my (very informal) benchmarks, I get:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [13]: %timeit compute_typed.compute(array_1, array_2, a, b, c)
     26.5 s ± 422 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
@@ -287,7 +295,7 @@ Here is how to use them in our code:
 
 Let's see how much faster accessing is now.
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [22]: %timeit compute_memview.compute(array_1, array_2, a, b, c)
     22.9 ms ± 197 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
@@ -326,7 +334,7 @@ mode in many ways, see :ref:`compiler-directives` for more
 information.
 
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [23]: %timeit compute_index.compute(array_1, array_2, a, b, c)
     16.8 ms ± 25.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
@@ -376,7 +384,7 @@ all about, you can see `this answer on StackOverflow
 For the sake of giving numbers, here are the speed gains that you should
 get by declaring the memoryviews as contiguous:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [23]: %timeit compute_contiguous.compute(array_1, array_2, a, b, c)
     11.1 ms ± 30.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
@@ -405,7 +413,7 @@ be useful when using fused types.
 
 We now do a speed test:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [24]: %timeit compute_infer_types.compute(array_1, array_2, a, b, c)
     11.5 ms ± 261 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
@@ -439,14 +447,14 @@ In this case, our function now works for ints, doubles and floats.
 
 We can check that the output type is the right one::
 
-    >>>compute(array_1, array_2, a, b, c).dtype
+    >>> compute(array_1, array_2, a, b, c).dtype
     dtype('int32')
-    >>>compute(array_1.astype(np.double), array_2.astype(np.double), a, b, c).dtype
+    >>> compute(array_1.astype(np.double), array_2.astype(np.double), a, b, c).dtype
     dtype('float64')
 
 We now do a speed test:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [25]: %timeit compute_fused_types.compute(array_1, array_2, a, b, c)
     11.5 ms ± 258 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
@@ -463,7 +471,9 @@ like the function :func:`prange`. You can see more information about Cython and
 parallelism in :ref:`parallel`. Since we do elementwise operations, we can easily
 distribute the work among multiple threads. It's important not to forget to pass the
 correct arguments to the compiler to enable OpenMP. When using the Jupyter notebook,
-you should use the cell magic like this::
+you should use the cell magic like this:
+
+.. code-block:: ipython
 
     %%cython --force
     # distutils: extra_compile_args=-fopenmp
@@ -476,7 +486,7 @@ declare our :func:`clip` function ``nogil``.
 
 We can have substantial speed gains for minimal effort:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [25]: %timeit compute_prange.compute(array_1, array_2, a, b, c)
     9.33 ms ± 412 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)

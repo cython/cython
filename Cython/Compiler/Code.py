@@ -28,7 +28,6 @@ from . import Naming
 from . import Options
 from . import DebugFlags
 from . import StringEncoding
-from . import Version
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
@@ -100,12 +99,12 @@ uncachable_builtins = [
     '_',  # e.g. used by gettext
 ]
 
-special_py_methods = set([
+special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
     '__await__', '__aiter__', '__anext__',
     '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__',
-    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__'
-])
+    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__',
+)))
 
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
@@ -382,7 +381,7 @@ class UtilityCodeBase(object):
                 elif name == 'substitute':
                     # don't want to pass "naming" or "tempita" to the constructor
                     # since these will have been handled
-                    values = values - set(['naming', 'tempita'])
+                    values = values - {'naming', 'tempita'}
                     if not values:
                         continue
                 elif not values:
@@ -437,7 +436,7 @@ class UtilityCodeBase(object):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
-        pass
+        return None
 
     def __deepcopy__(self, memodict=None):
         # No need to deep-copy utility code since it's essentially immutable.
@@ -501,9 +500,11 @@ class UtilityCode(UtilityCodeBase):
 
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
+        name = self.name
         if pyrex_type is not None:
             data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
+            name = "%s[%s]" % (name, data['type_name'])
         key = tuple(sorted(data.items()))
         try:
             return self._cache[key]
@@ -519,7 +520,9 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
                 requires,
-                self.proto_block)
+                self.proto_block,
+                name,
+            )
 
             self.specialize_list.append(s)
             return s
@@ -562,7 +565,7 @@ class UtilityCode(UtilityCodeBase):
             r'([a-zA-Z_]+),'      # type cname
             r'\s*"([^"]+)",'      # method name
             r'\s*([^),]+)'        # object cname
-            r'((?:,\s*[^),]+)*)'  # args*
+            r'((?:,[^),]+)*)'     # args*
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
@@ -849,6 +852,8 @@ class FunctionState(object):
         elif type.is_cfunction:
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
+        elif type.is_cpp_class and not type.is_fake_reference and self.scope.directives['cpp_locals']:
+            self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -1136,15 +1141,26 @@ class GlobalState(object):
         'pystring_table',
         'cached_builtins',
         'cached_constants',
-        'init_globals',
+        'init_constants',
+        'init_globals',  # (utility code called at init-time)
         'init_module',
         'cleanup_globals',
         'cleanup_module',
         'main_method',
+        'utility_code_pragmas',  # silence some irrelevant warnings in utility code
         'utility_code_def',
+        'utility_code_pragmas_end',  # clean-up the utility_code_pragmas
         'end'
     ]
 
+    # h files can only have a much smaller list of sections
+    h_code_layout = [
+        'h_code',
+        'utility_code_proto_before_types',
+        'type_declarations',
+        'utility_code_proto',
+        'end'
+    ]
 
     def __init__(self, writer, module_node, code_config, common_utility_include_dir=None):
         self.filename_table = {}
@@ -1197,6 +1213,11 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
 
+        w = self.parts['init_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
+
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
@@ -1215,6 +1236,11 @@ class GlobalState(object):
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
 
+    def initialize_main_h_code(self):
+        rootwriter = self.rootwriter
+        for part in self.h_code_layout:
+            self.parts[part] = rootwriter.insertion_point()
+
     def finalize_main_c_code(self):
         self.close_global_decls()
 
@@ -1224,6 +1250,18 @@ class GlobalState(object):
         code = self.parts['utility_code_def']
         util = TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c")
         code.put(util.format_code(util.impl))
+        code.putln("")
+
+        #
+        # utility code pragmas
+        #
+        code = self.parts['utility_code_pragmas']
+        util = UtilityCode.load_cached("UtilityCodePragmas", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
+        code.putln("")
+        code = self.parts['utility_code_pragmas_end']
+        util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
         code.putln("")
 
     def __getitem__(self, key):
@@ -1255,13 +1293,14 @@ class GlobalState(object):
         w.putln("}")
         w.exit_cfunc_scope()
 
-        w = self.parts['init_globals']
-        w.putln("return 0;")
-        if w.label_used(w.error_label):
-            w.put_label(w.error_label)
-            w.putln("return -1;")
-        w.putln("}")
-        w.exit_cfunc_scope()
+        for part in ['init_globals', 'init_constants']:
+            w = self.parts[part]
+            w.putln("return 0;")
+            if w.label_used(w.error_label):
+                w.put_label(w.error_label)
+                w.putln("return -1;")
+            w.putln("}")
+            w.exit_cfunc_scope()
 
         if Options.generate_cleanup_code:
             w = self.parts['cleanup_globals']
@@ -1463,7 +1502,7 @@ class GlobalState(object):
                   for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
             self.parts['module_state_defines'].putln(
@@ -1481,7 +1520,7 @@ class GlobalState(object):
             return
 
         decl = self.parts['decls']
-        init = self.parts['init_globals']
+        init = self.parts['init_constants']
         cnames = []
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
@@ -1531,24 +1570,24 @@ class GlobalState(object):
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         if py_strings:
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            w_limited_writer = w.insertion_point()
+            w.putln("#if CYTHON_USE_MODULE_STATE")
+            w_in_module_state = w.insertion_point()
             w.putln("#else")
-            w_not_limited_writer = w.insertion_point()
+            w_not_in_module_state = w.insertion_point()
             w.putln("#endif")
-            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
-            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            init_globals_limited_api = init_globals.insertion_point()
-            init_globals.putln("#endif")
+            init_constants.putln("#if CYTHON_USE_MODULE_STATE")
+            init_constants_in_module_state = init_constants.insertion_point()
+            init_constants.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1570,16 +1609,16 @@ class GlobalState(object):
                 not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
-                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
-                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w_not_limited_writer.putln("#else")
-                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#else")
+                w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1589,8 +1628,8 @@ class GlobalState(object):
                     py_string.intern
                     ))
                 if py_string.py3str_cstring:
-                    w_not_limited_writer.putln("#endif")
-                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#endif")
+                w_in_module_state.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
                     c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
                     encoding if not py_string.py3str_cstring else '0',
@@ -1598,28 +1637,28 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_constants_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
-                    init_globals.error_goto(self.module_pos)))
+                    init_constants.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-            init_globals.putln(
+            init_constants.putln("#if !CYTHON_USE_MODULE_STATE")
+            init_constants.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
-                    init_globals.error_goto(self.module_pos)))
-            init_globals.putln("#endif")
+                    init_constants.error_goto(self.module_pos)))
+            init_constants.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-        init_globals = self.parts['init_globals']
+        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
+        init_constants = self.parts['init_constants']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
@@ -1640,9 +1679,9 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
-            init_globals.putln('%s = %s; %s' % (
+            init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
-                init_globals.error_goto_if_null(cname, self.module_pos)))
+                init_constants.error_goto_if_null(cname, self.module_pos)))
         decls_writer.putln("#endif")
 
     # The functions below are there in a transition phase only
@@ -2057,17 +2096,25 @@ class CCodeWriter(object):
             self.put("%s " % storage_class)
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
-        self.put(entry.type.declaration_code(
-            entry.cname, dll_linkage=dll_linkage))
+        if entry.is_cpp_optional:
+            self.put(entry.type.cpp_optional_declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
+        else:
+            self.put(entry.type.declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
             self.put(" = NULL")
         self.putln(";")
+        self.funcstate.scope.use_entry_utility_code(entry)
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
-            decl = type.declaration_code(name)
+            if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
+                decl = type.cpp_optional_declaration_code(name)
+            else:
+                decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
@@ -2086,7 +2133,7 @@ class CCodeWriter(object):
             self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
 
     def put_generated_by(self):
-        self.putln("/* Generated by Cython %s */" % Version.watermark)
+        self.putln(Utils.GENERATED_BY_MARKER)
         self.putln("")
 
     def put_h_guard(self, guard):
@@ -2235,8 +2282,11 @@ class CCodeWriter(object):
             self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
+        is_reverse_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in special_py_methods:
+            from . import TypeSlots
+            is_reverse_number_slot = True
+            if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot
@@ -2249,7 +2299,6 @@ class CCodeWriter(object):
         if not method_flags:
             return
         if entry.is_special:
-            from . import TypeSlots
             method_flags += [TypeSlots.method_coexist]
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
         # Add required casts, but try not to shadow real warnings.
@@ -2257,6 +2306,14 @@ class CCodeWriter(object):
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
+        if is_reverse_number_slot:
+            # Unlike most special functions, reverse number operator slots are actually generated here
+            # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
+            # so a bit of extra logic is needed
+            slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
+            preproc_guard = slot.preprocessor_guard_code()
+            if preproc_guard:
+                self.putln(preproc_guard)
         self.putln(
             '{%s, (PyCFunction)%s, %s, %s}%s' % (
                 entry_name,
@@ -2264,6 +2321,8 @@ class CCodeWriter(object):
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
+        if is_reverse_number_slot and preproc_guard:
+            self.putln("#endif")
 
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
@@ -2314,7 +2373,7 @@ class CCodeWriter(object):
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
-    def put_acquire_gil(self, variable=None):
+    def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
@@ -2324,15 +2383,26 @@ class CCodeWriter(object):
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
+        if unknown_gil_state:
+            self.putln("if (_save) {")
         self.putln("Py_BLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         self.putln("#endif")
 
-    def put_release_gil(self, variable=None):
+    def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save;")
+        self.putln("_save = NULL;")
+        if unknown_gil_state:
+            # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
+            # and Py_UNBLOCK_THREADS is unsafe without the GIL)
+            self.putln("if (PyGILState_Check()) {")
         self.putln("Py_UNBLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
@@ -2350,23 +2420,34 @@ class CCodeWriter(object):
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
-    def put_error_if_unbound(self, pos, entry, in_nogil_context=False):
-        from . import ExprNodes
+    def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_closure_name_error_utility_code)
+                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
         elif entry.type.is_memoryviewslice and in_nogil_context:
             func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_unbound_memoryview_utility_code_nogil)
+                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_cglobal:
+            func = '__Pyx_RaiseCppGlobalNameError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
+            # there doesn't seem to be a good way to detecting an instance-attribute of a C class
+            # (is_member is only set for class attributes)
+            func = '__Pyx_RaiseCppAttributeError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
         else:
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_unbound_local_error_utility_code)
+                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
 
+        if not unbound_check_code:
+            unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
-                                entry.type.check_for_null_code(entry.cname),
+                                unbound_check_code,
                                 func,
                                 entry.name,
                                 self.error_goto(pos)))
@@ -2399,7 +2480,8 @@ class CCodeWriter(object):
         return self.error_goto_if("!%s" % cname, pos)
 
     def error_goto_if_neg(self, cname, pos):
-        return self.error_goto_if("%s < 0" % cname, pos)
+        # Add extra parentheses to silence clang warnings about constant conditions.
+        return self.error_goto_if("(%s < 0)" % cname, pos)
 
     def error_goto_if_PyErr(self, pos):
         return self.error_goto_if("PyErr_Occurred()", pos)

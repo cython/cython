@@ -20,8 +20,9 @@ cdef extern from "<time.h>" nogil:
         int  tm_wday
         int  tm_yday
         int  tm_isdst
-        char *tm_zone
-        long tm_gmtoff
+        # GNU specific extensions
+        #char *tm_zone
+        #long tm_gmtoff
 
     int     daylight            # global state
     long    timezone

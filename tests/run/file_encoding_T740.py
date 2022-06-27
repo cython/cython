@@ -1,6 +1,6 @@
 # encoding: koi8-r
 # mode: run
-# ticket: 740
+# ticket: t740
 """
 >>> wtf
 'wtf'

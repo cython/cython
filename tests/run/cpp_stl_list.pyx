@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, no-cpp-locals
 
 from cython.operator cimport dereference as deref
 from cython.operator cimport preincrement as incr
@@ -105,7 +105,6 @@ cdef list to_pylist(cpp_list[int]& l):
         L.append(deref(it))
         incr(it)
     return L
-
 
 def item_ptr_test(L, int x):
     """
