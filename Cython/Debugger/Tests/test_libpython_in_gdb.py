@@ -33,7 +33,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
 
     def get_pyobject(self, code):
         value = gdb.parse_and_eval(code)
-        assert libpython.pointervalue(value) != 0
+        self.assertNotEqual(libpython.pointervalue(value), 0)
         return value
 
     def pyobject_fromcode(self, code, gdbvar=None):
@@ -53,7 +53,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         else:
             funcname = 'PyBytes_FromStringAndSize'
 
-        assert b'"' not in string
+        self.assertNotIn(b'"', string)
 
         # ensure double quotes
         code = '(PyObject *) %s("%s", %d)' % (funcname, string.decode('iso8859-1'), len(string))
@@ -101,7 +101,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     def test_long(self):
         longval = self.pyobject_fromcode('PyLong_FromLong(200)',
                                          gdbvar='longval')
-        assert gdb.parse_and_eval('$longval->ob_type == &PyLong_Type')
+        self.assertTrue(gdb.parse_and_eval('$longval->ob_type == &PyLong_Type'))
 
         self.assertEqual(type(longval), libpython.PyLongObjectPtr)
         self.assertEqual(self.get_repr(longval), '200')

@@ -109,14 +109,16 @@ class TestGrammar(CythonTest):
         for literal in INVALID_UNDERSCORE_LITERALS:
             for expression in ['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']:
                 code = 'x = ' + expression % literal
-                try:
+                msg = "Invalid Cython code '%s'" % code
+
+                with self.assertRaises(CompileError, msg=msg) as cm:
                     self.fragment(u'''\
                     # cython: language_level=3
                     ''' + code)
-                except CompileError as exc:
-                    assert code in [s.strip() for s in str(exc).splitlines()], str(exc)
-                else:
-                    assert False, "Invalid Cython code '%s' failed to raise an exception" % code
+
+                exc = str(cm.exception)
+                self.assertIn(code, [s.strip() for s in exc.splitlines()], exc)
+
 
     def test_valid_number_literals(self):
         for literal in VALID_UNDERSCORE_LITERALS:
@@ -125,7 +127,7 @@ class TestGrammar(CythonTest):
                 node = self.fragment(u'''\
                     # cython: language_level=3
                     ''' + code).root
-                assert node is not None
+                self.assertIsNot(node, None)
 
                 literal_node = node.stats[0].rhs  # StatListNode([SingleAssignmentNode('x', expr)])
                 if i > 0:
@@ -134,13 +136,13 @@ class TestGrammar(CythonTest):
                 if 'j' in literal or 'J' in literal:
                     if '+' in literal:
                         # FIXME: tighten this test
-                        assert isinstance(literal_node, ExprNodes.AddNode), (literal, literal_node)
+                        self.assertIsInstance(literal_node, ExprNodes.AddNode, (literal, literal_node))
                     else:
-                        assert isinstance(literal_node, ExprNodes.ImagNode), (literal, literal_node)
+                        self.assertIsInstance(literal_node, ExprNodes.ImagNode, (literal, literal_node))
                 elif '.' in literal or 'e' in literal or 'E' in literal and not ('0x' in literal or '0X' in literal):
-                    assert isinstance(literal_node, ExprNodes.FloatNode), (literal, literal_node)
+                    self.assertIsInstance(literal_node, ExprNodes.FloatNode, (literal, literal_node))
                 else:
-                    assert isinstance(literal_node, ExprNodes.IntNode), (literal, literal_node)
+                    self.assertIsInstance(literal_node, ExprNodes.IntNode, (literal, literal_node))
 
 
 if __name__ == "__main__":

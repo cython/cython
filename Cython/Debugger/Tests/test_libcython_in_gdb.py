@@ -108,7 +108,7 @@ class TestDebugInformationClasses(DebugTestCase):
         self.assertEqual(self.module.name, 'codefile')
         global_vars = ('c_var', 'python_var', '__name__',
                        '__builtins__', '__doc__', '__file__')
-        assert set(global_vars).issubset(self.module.globals)
+        self.assertEqual(set(global_vars) - set(self.module.globals), set())
 
     def test_CythonVariable(self):
         module_globals = self.module.globals
@@ -124,10 +124,11 @@ class TestDebugInformationClasses(DebugTestCase):
                          'codefile.SomeClass.spam')
         self.assertEqual(self.spam_func.module, self.module)
 
-        assert self.eggs_func.pf_cname, (self.eggs_func, self.eggs_func.pf_cname)
-        assert not self.ham_func.pf_cname
-        assert not self.spam_func.pf_cname
-        assert not self.spam_meth.pf_cname
+        # those 4 are AFAIK sized objects therefore it's about len:
+        self.assertTrue(self.eggs_func.pf_cname, (self.eggs_func, self.eggs_func.pf_cname))
+        self.assertFalse(self.ham_func.pf_cname)
+        self.assertFalse(self.spam_func.pf_cname)
+        self.assertFalse(self.spam_meth.pf_cname)
 
         self.assertEqual(self.spam_func.type, libcython.CObject)
         self.assertEqual(self.ham_func.type, libcython.CObject)
@@ -145,9 +146,9 @@ class TestParameters(unittest.TestCase):
 
     def test_parameters(self):
         gdb.execute('set cy_colorize_code on')
-        assert libcython.parameters.colorize_code
+        self.assertTrue(libcython.parameters.colorize_code)
         gdb.execute('set cy_colorize_code off')
-        assert not libcython.parameters.colorize_code
+        self.assertFalse(libcython.parameters.colorize_code)
 
 
 class TestBreak(DebugTestCase):
@@ -159,12 +160,12 @@ class TestBreak(DebugTestCase):
         self.assertEqual(len(gdb.breakpoints()), breakpoint_amount + 1)
         bp = gdb.breakpoints()[-1]
         self.assertEqual(bp.type, gdb.BP_BREAKPOINT)
-        assert self.spam_func.cname in bp.location
-        assert bp.enabled
+        self.assertIn(self.spam_func.cname, bp.location)
+        self.assertTrue(bp.enabled)
 
     def test_python_break(self):
         gdb.execute('cy break -p join')
-        assert 'def join(' in gdb.execute('cy run', to_string=True)
+        self.assertIn('def join(', gdb.execute('cy run', to_string=True))
 
     def test_break_lineno(self):
         beginline = 'import os'
@@ -174,7 +175,8 @@ class TestBreak(DebugTestCase):
         self.lineno_equals(beginline)
         step_result = gdb.execute('cy step', to_string=True)
         self.lineno_equals(nextline)
-        assert step_result.rstrip().endswith(nextline)
+        end = step_result.rstrip()[-len(nextline):]
+        self.assertEqual(end, nextline)
 
 
 # I removed this testcase, because it will never work, because
@@ -183,7 +185,7 @@ class TestBreak(DebugTestCase):
 #     def test_abort(self):
 #         gdb.execute("set args -c 'import os;print(123456789);os.abort()'")
 #         output = gdb.execute('cy run', to_string=True)
-#         assert 'abort' in output.lower()
+#         self.assertIn('abort', output.lower())
 
 
 class DebugStepperTestCase(DebugTestCase):
@@ -239,7 +241,7 @@ class TestStep(DebugStepperTestCase):
         # be compatible
         frame_name = pyframe.co_name.proxyval(set())
         self.assertEqual(frame_name, 'join')
-        assert re.match(r'\d+    def join\(', result), result
+        self.assertRegexpMatches(result, r'^\d+    def join\('), result
 
 
 class TestNext(DebugStepperTestCase):
@@ -265,19 +267,19 @@ class TestLocalsGlobals(DebugTestCase):
         self.break_and_run('int(10)')
 
         result = gdb.execute('cy locals', to_string=True)
-        assert 'a = 0', repr(result)
-        assert 'b = (int) 1', result
-        assert 'c = (int) 2' in result, repr(result)
+        self.assertIn('a = 0', result)
+        self.assertIn('b = (int) 1', result)
+        self.assertIn('c = (int) 2', result)
 
     def test_globals(self):
         self.break_and_run('int(10)')
 
         result = gdb.execute('cy globals', to_string=True)
-        assert '__name__ ' in result, repr(result)
-        assert '__doc__ ' in result, repr(result)
-        assert 'os ' in result, repr(result)
-        assert 'c_var ' in result, repr(result)
-        assert 'python_var ' in result, repr(result)
+        self.assertIn('__name__ ', result)
+        self.assertIn('__doc__ ', result)
+        self.assertIn('os ', result)
+        self.assertIn('c_var ', result)
+        self.assertIn('python_var ', result)
 
 
 class TestBacktrace(DebugTestCase):
@@ -288,9 +290,8 @@ class TestBacktrace(DebugTestCase):
         self.break_and_run('os.path.join("foo", "bar")')
 
         def match_backtrace_output(result):
-            assert re.search(r'\#\d+ *0x.* in spam\(\) at .*codefile\.pyx:22',
-                             result), result
-            assert 'os.path.join("foo", "bar")' in result, result
+            self.assertRegexpMatches(result, r'\#\d+ *0x.* in spam\(\) at .*codefile\.pyx:22')
+            self.assertIn('os.path.join("foo", "bar")', result)
 
         result = gdb.execute('cy bt', to_string=True)
         match_backtrace_output(result)
@@ -299,7 +300,7 @@ class TestBacktrace(DebugTestCase):
         match_backtrace_output(result)
 
         # Apparently not everyone has main()
-        # assert re.search(r'\#0 *0x.* in main\(\)', result), result
+        # self.assertRegexpMatches(result, r'\#0 *0x.* in main\(\)')
 
 
 class TestFunctions(DebugTestCase):
@@ -307,14 +308,14 @@ class TestFunctions(DebugTestCase):
     def test_functions(self):
         self.break_and_run('c = 2')
         result = gdb.execute('print $cy_cname("b")', to_string=True)
-        assert re.search('__pyx_.*b', result), result
+        self.assertRegexpMatches(result, '__pyx_.*b')
 
         result = gdb.execute('print $cy_lineno()', to_string=True)
         supposed_lineno = test_libcython.source_to_lineno['c = 2']
-        assert str(supposed_lineno) in result, (supposed_lineno, result)
+        self.assertIn(str(supposed_lineno), result)
 
         result = gdb.execute('print $cy_cvalue("b")', to_string=True)
-        assert '= 1' in result
+        self.assertIn('= 1', result)
 
 
 class TestPrint(DebugTestCase):
@@ -388,8 +389,8 @@ class TestUpDown(DebugTestCase):
         self.assertRaises(RuntimeError, gdb.execute, 'cy down')
 
         result = gdb.execute('cy up', to_string=True)
-        assert 'spam()' in result
-        assert 'os.path.join("foo", "bar")' in result
+        self.assertIn('spam()', result)
+        self.assertIn('os.path.join("foo", "bar")', result)
 
 
 class TestExec(DebugTestCase):
@@ -457,10 +458,10 @@ class TestCyEval(DebugTestCase):
         self.break_and_run('os.path.join("foo", "bar")')
 
         result = gdb.execute('print $cy_eval("None")', to_string=True)
-        assert re.match(r'\$\d+ = None\n', result), result
+        self.assertRegexpMatches(result, r'^\$\d+ = None\n')
 
         result = gdb.execute('print $cy_eval("[a]")', to_string=True)
-        assert re.match(r'\$\d+ = \[0\]', result), result
+        self.assertRegexpMatches(result, r'^\$\d+ = \[0\]')
 
 
 class TestClosure(DebugTestCase):
@@ -551,3 +552,6 @@ def main(version, trace_code=False):
         tracer.runfunc(runtests)
     else:
         runtests()
+
+if __name__ == "__main__":
+    unittest.main()
