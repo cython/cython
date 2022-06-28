@@ -4612,7 +4612,7 @@ class BufferIndexNode(_IndexingBaseNode):
             res = self.result()
             code.putln("%s = (PyObject *) *%s;" % (res, self.buffer_ptr_code))
             # NumPy does (occasionally) allow NULL to denote None.
-            code.putln("if (%s == NULL) %s = Py_None;" % (res, res))
+            code.putln("if (unlikely(%s == NULL)) %s = Py_None;" % (res, res))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % res)
 
     def free_subexpr_temps(self, code):
