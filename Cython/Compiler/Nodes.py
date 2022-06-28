@@ -3240,7 +3240,8 @@ class DefNode(FuncDefNode):
                 if entry.type.is_memoryviewslice:
                     error(
                         self.pos,
-                        "Putting capturing a memoryview argument in a closure is not supported. "
+                        "Referring to a memoryview typed argument directly in a nested closure function "
+                        "is not supported in Cython 0.x. "
                         "Either upgrade to Cython 3, or assign the argument to a local variable "
                         "and capture that."
                     )
