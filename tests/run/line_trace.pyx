@@ -167,6 +167,8 @@ def cy_try_except(func):
         raise AttributeError(exc.args[0])
 
 
+# CPython 3.11 has an issue when these Python functions are implemented inside of doctests and the trace function fails.
+# https://github.com/python/cpython/issues/94381
 plain_python_functions = {}
 exec("""
 def py_add(a,b):
