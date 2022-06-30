@@ -103,6 +103,35 @@ INVALID_UNDERSCORE_LITERALS = [
 ]
 
 
+INVALID_ELLIPSIS = [
+    (". . .", 2, 0),
+    (". ..", 2, 0),
+    (".. .", 2, 0),
+    ("""
+    (
+        .
+        ..
+    )
+    """, 3, 4),
+    ("""
+    [
+        ..
+        .,
+        None
+    ]
+    """, 3, 4),
+    ("""
+    {
+        None,
+        .
+        .
+
+        .
+    }
+    """, 4, 4)
+]
+
+
 class TestGrammar(CythonTest):
 
     def test_invalid_number_literals(self):
@@ -141,6 +170,18 @@ class TestGrammar(CythonTest):
                     assert isinstance(literal_node, ExprNodes.FloatNode), (literal, literal_node)
                 else:
                     assert isinstance(literal_node, ExprNodes.IntNode), (literal, literal_node)
+
+    def test_invalid_ellipsis(self):
+        ERR = ":{0}:{1}: Expected an identifier or literal"
+        for code, line, col in INVALID_ELLIPSIS:
+            try:
+                self.fragment(u'''\
+                # cython: language_level=3
+                ''' + code)
+            except CompileError as exc:
+                assert ERR.format(line, col) in str(exc), str(exc)
+            else:
+                assert False, "Invalid Cython code '%s' failed to raise an exception" % code
 
 
 if __name__ == "__main__":
