@@ -1758,11 +1758,11 @@ def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
-    if s.sy == '.':
+    if s.sy in ('.', '...'):
         # count relative import level
         level = 0
-        while s.sy == '.':
-            level += 1
+        while s.sy in ('.', '...'):
+            level += len(s.sy)
             s.next()
     else:
         level = None
