@@ -7,9 +7,12 @@ Uses TreeFragment to test invalid syntax.
 
 from __future__ import absolute_import
 
+import ast
+import textwrap
+
 from ...TestUtils import CythonTest
-from ..Errors import CompileError
 from .. import ExprNodes
+from ..Errors import CompileError
 
 # Copied from CPython's test_grammar.py
 VALID_UNDERSCORE_LITERALS = [
@@ -174,6 +177,13 @@ class TestGrammar(CythonTest):
     def test_invalid_ellipsis(self):
         ERR = ":{0}:{1}: Expected an identifier or literal"
         for code, line, col in INVALID_ELLIPSIS:
+            try:
+                ast.parse(textwrap.dedent(code))
+            except SyntaxError as exc:
+                assert "invalid syntax" in str(exc), str(exc)
+            else:
+                assert False, "Invalid Python code '%s' failed to raise an exception" % code
+
             try:
                 self.fragment(u'''\
                 # cython: language_level=3
