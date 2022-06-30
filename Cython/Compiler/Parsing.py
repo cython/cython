@@ -3033,7 +3033,7 @@ def p_exception_value_clause(s):
     return exc_val, exc_check
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
-    '*', '**', '.', ')', ':', '/')))
+    '*', '**', '...', ')', ':', '/')))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
