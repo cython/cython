@@ -90,8 +90,7 @@ def make_lexicon():
         (intliteral, Method('strip_underscores', symbol='INT')),
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),
-        (ellipsis, TEXT),
-        (punct | diphthong, TEXT),
+        (ellipsis | punct | diphthong, TEXT),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
