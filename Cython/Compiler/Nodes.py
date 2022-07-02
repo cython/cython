@@ -5457,11 +5457,21 @@ class CClassDefNode(ClassDefNode):
             ))
             code.putln("#endif")  # if CYTHON_USE_TYPE_SPECS
 
-            if type.base_type and type.base_type.is_external:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
-                code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
-                    type.base_type.typeptr_cname))
+            base_type = type.base_type
+            while base_type:
+                if type.base_type.is_external and not base_type.objstruct_cname == "PyTypeObject":
+                    # 'type' is special-cased because it is actually based on PyHeapTypeObject
+                    # Variable length bases are allowed if the current class doesn't grow
+                    code.putln("if (sizeof(%s%s) != sizeof(%s%s)) {" % (
+                        "" if type.typedef_flag else "struct ", type.objstruct_cname,
+                        "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
+                        type.base_type.typeptr_cname))
+                    code.putln("}")
+                    break
+                base_type = base_type.base_type
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
