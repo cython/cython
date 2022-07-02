@@ -467,6 +467,7 @@ VER_DEP_MODULES = {
                                         'compile.extsetslice',
                                         'compile.extdelslice',
                                         'run.special_methods_T561_py2',
+                                        'run.builtin_type_inheritance_T608_py2only',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'build.cythonize_pep420_namespace',
