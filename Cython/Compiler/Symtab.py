@@ -493,6 +493,8 @@ class Scope(object):
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
 
         entries = self.entries
+        entry = None
+        cpp_already_overridden = False
         if name and name in entries and not shadow and not self.is_builtin_scope:
             old_entry = entries[name]
 
@@ -500,10 +502,19 @@ class Scope(object):
             cpp_override_allowed = False
             if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
                 for alt_entry in old_entry.all_alternatives():
-                    if type == alt_entry.type:
+                    if type.compatible_signature_with(alt_entry.type):
                         if name == '<init>' and not type.args:
                             # Cython pre-declares the no-args constructor - allow later user definitions.
                             cpp_override_allowed = True
+                        elif alt_entry.is_inherited:
+                            cpp_override_allowed = True
+                        if cpp_override_allowed:
+                            alt_entry.type = type
+                            alt_entry.is_inherited = False
+                            alt_entry.cname = cname
+                            alt_entry.pos = pos
+                            cpp_already_overridden = True
+                            entry = alt_entry
                         break
                 else:
                     cpp_override_allowed = True
@@ -521,17 +532,17 @@ class Scope(object):
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
                 entries[name].already_declared_here()
-        entry = Entry(name, cname, type, pos = pos)
-        entry.in_cinclude = self.in_cinclude
-        entry.create_wrapper = create_wrapper
-        if name:
-            entry.qualified_name = self.qualify_name(name)
-#            if name in entries and self.is_cpp():
-#                entries[name].overloaded_alternatives.append(entry)
-#            else:
-#                entries[name] = entry
-            if not shadow:
-                entries[name] = entry
+        if not cpp_already_overridden:
+            entry = Entry(name, cname, type, pos = pos)
+            entry.in_cinclude = self.in_cinclude
+            entry.create_wrapper = create_wrapper
+            if name:
+                entry.qualified_name = self.qualify_name(name)
+                if not shadow:
+                    if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
+                        entries[name].overloaded_alternatives.append(entry)
+                    else:
+                        entries[name] = entry
 
         if type.is_memoryviewslice:
             entry.init = type.default_value
@@ -2617,20 +2628,23 @@ class CppClassScope(Scope):
         # Add an entry for an attribute.
         if not cname:
             cname = name
-        entry = self.lookup_here(name)
-        if defining and entry is not None:
-            if entry.type.same_as(type):
+        prev_entry = self.lookup_here(name)
+        if defining and prev_entry is not None:
+            if type.is_cfunction:
+                entry = self.declare(name, cname, type, pos, visibility)
+            elif prev_entry.type.same_as(type):
                 # Fix with_gil vs nogil.
-                entry.type = entry.type.with_with_gil(type.with_gil)
-            elif type.is_cfunction and type.compatible_signature_with(entry.type):
-                entry.type = type
+                entry.type = prev_entry.type.with_with_gil(type.with_gil)
             else:
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)
+            if type.is_cfunction and not defining:
+                entry.is_inherited = 1
         entry.is_variable = 1
-        if type.is_cfunction and self.type:
-            if not self.type.get_fused_types():
+        if type.is_cfunction:
+            entry.is_cfunction = 1
+            if self.type and not self.type.get_fused_types():
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
@@ -2664,12 +2678,9 @@ class CppClassScope(Scope):
                 if base_entry and not base_entry.type.nogil:
                     error(pos, "Constructor cannot be called without GIL unless all base constructors can also be called without GIL")
                     error(base_entry.pos, "Base constructor defined here.")
-        prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
                                  cname=cname, visibility=visibility)
-        if prev_entry and not defining:
-            entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry
         return entry
@@ -2697,6 +2708,12 @@ class CppClassScope(Scope):
                 base_entry.type, None, 'extern')
             entry.is_variable = 1
             entry.is_inherited = 1
+            if base_entry.is_cfunction:
+                entry.is_cfunction = 1
+                entry.func_cname = base_entry.func_cname
+            for alternative in base_entry.overloaded_alternatives:
+                _entry = self.declare(alternative.name, alternative.cname, alternative.type, None, 'extern')
+                _entry.is_inherited = 1
             self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
@@ -2738,6 +2755,12 @@ class CppClassScope(Scope):
 
         return scope
 
+    def lookup_here(self, name):
+        if name == "__init__":
+            name = "<init>"
+        elif name == "__dealloc__":
+            name = "<del>"
+        return super(CppClassScope, self).lookup_here(name)
 
 class CppScopedEnumScope(Scope):
     #  Namespace of a ScopedEnum
