@@ -592,7 +592,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
     if (itemsize) {
         __Pyx_TypeName b_name = __Pyx_PyType_GetName(base);
         PyErr_Format(PyExc_TypeError,
-                "base class '" __Pyx_FMT_TYPENAME "' is variable-sized", b_name);
+                "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
         __Pyx_DECREF_TypeName(b_name);
         return -1;
     }

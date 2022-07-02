@@ -5188,7 +5188,8 @@ class CClassDefNode(ClassDefNode):
                 error(base.pos, "Base class '%s' of type '%s' is final" % (
                     base_type, self.class_name))
             elif base_type.is_builtin_type and \
-                     base_type.name in ('tuple', 'str', 'bytes'):
+                     base_type.name in ('tuple', 'bytes'):
+                     # str in Py2 is also included in this, but now checked at run-time
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
             else:

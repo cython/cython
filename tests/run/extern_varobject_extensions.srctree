@@ -58,21 +58,25 @@ check_code(eval("lambda: None").__code__)
 from classes cimport tpl
 
 cdef class SuperTuple(tpl):
-    pass  # importing this gives an error message
+    cdef int a  # importing this gives an error message
     
 ##### successful_inherit.pyx #########
 
-from classes cimport lst
+from classes cimport lst, tpl
 
 cdef class SuperList(lst):
-    pass  # This works OK
+    cdef int a  # This works OK
+    
+cdef class SuperTuple(tpl):
+    # This is actually OK because it doesn't add anything
+    pass
     
 ##### test_inherit.py ################
 
 try:
     import failed_inherit
 except TypeError as e:
-    assert e.args[0] == "base class 'tuple' is variable-sized", e.args[0]
+    assert e.args[0] == "inheritance from PyVarObject types like 'tuple' not currently supported", e.args[0]
 else:
     assert False
     
