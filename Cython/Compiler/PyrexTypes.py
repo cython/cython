@@ -1504,7 +1504,6 @@ class PyExtensionType(PyObjectType):
     #
     #  name             string
     #  scope            CClassScope      Attribute namespace
-    #  visibility       string
     #  typedef_flag     boolean
     #  base_type        PyExtensionType or None
     #  module_name      string or None   Qualified name of defining module
@@ -1518,6 +1517,7 @@ class PyExtensionType(PyObjectType):
     #  vtable_cname     string           Name of C method table definition
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
+    #  is_external      boolean          Defined in a extern block
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
 

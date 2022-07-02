@@ -5457,6 +5457,12 @@ class CClassDefNode(ClassDefNode):
             ))
             code.putln("#endif")  # if CYTHON_USE_TYPE_SPECS
 
+            if type.base_type and type.base_type.is_external:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
+                code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
+                    type.base_type.typeptr_cname))
+
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.get_slot_table(code.globalstate.directives):

@@ -1,0 +1,79 @@
+# mode: run
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import classes"
+PYTHON -c "import test_inherit"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup, Extension
+
+setup(
+  ext_modules=cythonize([
+    Extension("classes", ["classes.pyx"]),
+    Extension("failed_inherit", ["failed_inherit.pyx"]),
+    Extension("successful_inherit", ["successful_inherit.pyx"]),
+  ]),
+)
+
+######  dummy_module.py ###########
+
+tpl = tuple
+lst = list
+
+###### classes.pxd ################
+
+cdef extern from *:
+    # apart from list, these are all variable sized types
+    # and Cython shouldn't trip up about the struct size
+    ctypedef class dummy_module.tpl [object PyTupleObject]:
+        pass
+    ctypedef class dummy_module.lst [object PyListObject]:
+        pass
+    ctypedef class types.CodeType [object PyCodeObject]:
+        pass
+    # Note that bytes doesn't work here because it further 
+    # the tp_basicsize to save space
+        
+##### classes.pyx #################
+
+def check_tuple(tpl x):
+    assert isinstance(x, tuple)
+    
+def check_list(lst x):
+    assert isinstance(x, list)
+    
+def check_code(CodeType x):
+    import types
+    assert isinstance(x, types.CodeType)
+    
+check_tuple((1, 2))
+check_list([1, 2])
+check_code(eval("lambda: None").__code__)
+
+##### failed_inherit.pyx #############
+
+from classes cimport tpl
+
+cdef class SuperTuple(tpl):
+    pass  # importing this gives an error message
+    
+##### successful_inherit.pyx #########
+
+from classes cimport lst
+
+cdef class SuperList(lst):
+    pass  # This works OK
+    
+##### test_inherit.py ################
+
+try:
+    import failed_inherit
+except TypeError as e:
+    assert e.args[0] == "base class 'tuple' is variable-sized", e.args[0]
+else:
+    assert False
+    
+import successful_inherit
