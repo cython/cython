@@ -8698,7 +8698,7 @@ class MergedSequenceNode(ExprNode):
         if type in (list_type, tuple_type) and args and args[0].is_sequence_constructor:
             # construct a list directly from the first argument that we can then extend
             if args[0].type is not list_type:
-                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True)
+                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True, mult_factor=args[0].mult_factor)
         ExprNode.__init__(self, pos, args=args, type=type)
 
     def calculate_constant_result(self):
