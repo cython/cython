@@ -4351,17 +4351,17 @@ class BufferIndexNode(_IndexingBaseNode):
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
-            # Must manage refcounts. Decref what is already there
-            # and incref what we put in.
+            # Must manage refcounts. XDecref what is already there
+            # and incref what we put in (NumPy allows there to be NULL)
             ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
                                                manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
-            code.put_gotref("*%s" % ptr)
-            code.putln("__Pyx_INCREF(%s); __Pyx_DECREF(*%s);" % (
+            code.put_xgotref("*%s" % ptr)
+            code.putln("__Pyx_INCREF(%s); __Pyx_XDECREF(*%s);" % (
                 rhs_code, ptr))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
-            code.put_giveref("*%s" % ptr)
+            code.put_xgiveref("*%s" % ptr)
             code.funcstate.release_temp(ptr)
         else:
             # Simple case
@@ -4382,8 +4382,11 @@ class BufferIndexNode(_IndexingBaseNode):
             # is_temp is True, so must pull out value and incref it.
             # NOTE: object temporary results for nodes are declared
             #       as PyObject *, so we need a cast
-            code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
-            code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+            res = self.result()
+            code.putln("%s = (PyObject *) *%s;" % (res, self.buffer_ptr_code))
+            # NumPy does (occasionally) allow NULL to denote None.
+            code.putln("if (unlikely(%s == NULL)) %s = Py_None;" % (res, res))
+            code.putln("__Pyx_INCREF((PyObject*)%s);" % res)
 
     def free_subexpr_temps(self, code):
         for temp in self.index_temps:
