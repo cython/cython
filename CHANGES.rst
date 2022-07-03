@@ -977,6 +977,39 @@ Other changes
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
+0.29.31 (2022-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Use ``importlib.util.find_spec()`` instead of the deprecated ``importlib.find_loader()`` 
+  function when setting up the package path at import-time. Patch by Matti Picus.
+  (Github issue #4764)
+  
+* Require the C compiler to support the two-arg form of ``va_start`` on Python 3.10 
+  and higher. Patch by Thomas Caswell.
+  (Github issue #4820)
+  
+* Make ``fused_type`` subscriptable in Shadow.py. Patch by Pfebrer.
+  (Github issue #4842)
+  
+* Fix the incorrect code generation of the target type in ``bytearray`` loops. 
+  Patch by Kenrick Everett.
+  (Github issue #4108)
+  
+* Silence some GCC ``-Wconversion`` warnings in C utility code.
+  Patch by Lisandro Dalcin.
+  (Github issue #4854)
+  
+* Stop tuple multiplication being ignored in expressions such as ``[*(1,) * 2]``.
+  Patch by David Woods.
+  (Github issue #4864)
+  
+* Ensure that object buffers (e.g. ``ndarray[object, ndim=1]``) containing 
+  ``NULL``  pointers are safe to use, returning ``None`` instead of the ``NULL``
+  pointer. Patch by Sebastian Berg.
+  (Github issue #4859)
 
 .. _0.29.30:
 
