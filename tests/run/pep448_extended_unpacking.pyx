@@ -195,10 +195,10 @@ def unpack_list_tuple_mult():
 
 def unpack_list_tuple_bad_mult():
     """
-    >>> unpack_list_tuple_bad_mult()
+    >>> unpack_list_tuple_bad_mult()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: can't multiply sequence by non-int of type 'float'
+    TypeError: ... 'float'
     """
     return [*(1,) * 1.5]
 
