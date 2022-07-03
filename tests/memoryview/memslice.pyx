@@ -1130,6 +1130,54 @@ def assign_temporary_to_object(object[:] buf):
     """
     buf[1] = {3-2: 2+(2*4)-2}
 
+@testcase
+def check_object_nulled_1d(object[:] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a])
+    >>> check_object_nulled_1d(A, 0, a)
+    >>> decref(a)  # new reference "added" to A
+    >>> check_object_nulled_1d(A, 1, a)
+    >>> decref(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], strides=(2,))
+    >>> check_object_nulled_1d(A, 0, a)  # only 0 due to stride
+    >>> decref(a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef ObjectMockBuffer omb = buf.base
+    cdef void **data = <void**>(omb.buffer)
+    data[idx] = NULL
+    res = buf[idx]  # takes None
+    buf[idx] = obj
+    return res
+
+@testcase
+def check_object_nulled_2d(object[:, ::1] buf, int idx1, int idx2, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], shape=(2, 2))
+    >>> check_object_nulled_2d(A, 0, 0, a)
+    >>> decref(a)  # new reference "added" to A
+    >>> check_object_nulled_2d(A, 1, 1, a)
+    >>> decref(a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef ObjectMockBuffer omb = buf.base
+    cdef void **data = <void**>(omb.buffer)
+    data[idx1 + 2*idx2] = NULL
+    res = buf[idx1, idx2]  # takes None
+    buf[idx1, idx2] = obj
+    return res
+
+
 #
 # Test __cythonbufferdefaults__
 #
