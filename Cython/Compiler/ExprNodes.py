@@ -3934,7 +3934,6 @@ class IndexNode(_IndexingBaseNode):
             if base_type in (list_type, tuple_type, dict_type):
                 # do the None check explicitly (not in a helper) to allow optimising it away
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
-
         self.wrap_in_nonecheck_node(env, getting)
         return self
 
@@ -3980,7 +3979,7 @@ class IndexNode(_IndexingBaseNode):
         if base_type.is_fused:
             self.parse_indexed_fused_cdef(env)
         else:
-            self.type_indices = self.parse_index_as_types(env)
+            self.type_indices = self.parse_index_as_template_parameters(env)
             self.index = None  # FIXME: use a dedicated Node class instead of generic IndexNode
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
@@ -4073,18 +4072,25 @@ class IndexNode(_IndexingBaseNode):
             return
         self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
 
-    def parse_index_as_types(self, env, required=True):
+    def parse_index_as_template_parameters(self, env, required=True):
         if isinstance(self.index, TupleNode):
             indices = self.index.args
         else:
             indices = [self.index]
         type_indices = []
         for index in indices:
-            type_indices.append(index.analyse_as_type(env))
-            if type_indices[-1] is None:
-                if required:
-                    error(index.pos, "not parsable as a type")
+            type_index = index.analyse_as_type(env)
+            if type_index is None and self.base.type.templates:
+                # Handle the case that this is a template specialization
+                # that uses a non-type value.
+                if index.type is None:
+                    index.analyse_types(env)
+                if index.type.is_int or index.type.is_enum or index.type.is_ptr or isinstance(index.type, PyrexTypes.CFuncType):
+                    type_index = index
+            if required and type_index is None:
+                error(index.pos, "not parsable as a type")
                 return None
+            type_indices.append(type_index)
         return type_indices
 
     def parse_indexed_fused_cdef(self, env):
@@ -4108,7 +4114,7 @@ class IndexNode(_IndexingBaseNode):
         elif isinstance(self.index, TupleNode):
             for arg in self.index.args:
                 positions.append(arg.pos)
-        specific_types = self.parse_index_as_types(env, required=False)
+        specific_types = self.parse_index_as_template_parameters(env, required=False)
 
         if specific_types is None:
             self.index = self.index.analyse_types(env)
@@ -4191,9 +4197,19 @@ class IndexNode(_IndexingBaseNode):
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
+            template_indices = []
+            for param in self.type_indices:
+                if isinstance(param, PyrexTypes.CType):
+                    template_indices.append(param.empty_declaration_code())
+                elif param.type.is_int and not param.type.is_const:
+                    template_indices.append(param.value_as_c_integer_string())
+                elif param.type.is_int or param.type.is_enum or param.type.is_ptr or isinstance(param.type, PyrexTypes.CFuncType):
+                    template_indices.append(param.result())
+                else:
+                    error(self.pos, "Invalid or unsupported template parameter.")
             return "%s<%s>" % (
                 self.base.result(),
-                ",".join([param.empty_declaration_code() for param in self.type_indices]))
+                ",".join(template_indices))
         elif self.base.type.is_ctuple:
             index = self.index.constant_result
             if index < 0:

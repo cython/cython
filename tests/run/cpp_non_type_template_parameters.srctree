@@ -1,0 +1,47 @@
+# mode: run
+# tag: cpp
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from assignment_overload import test; test()"
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+setup(ext_modules=cythonize("*.pyx", language='c++'))
+
+
+######## non_type_templates.hpp ########
+
+#pragma once
+
+template <int N>
+int myfunc1(int a){
+  return a + N;
+}
+
+template <int(*p)(int)>
+int myfunc2(int a){
+  return p(a);
+}
+
+const int c = 2;
+
+######## non_type_params.pyx ########
+
+cdef extern from "non_type_templates.hpp" nogil:
+    int myfunc1[T](int)
+    int myfunc2[T](int)
+    const int c
+
+cdef int p(int a) nogil:
+    return a + 2
+
+def test():
+    cdef int a = 0
+    assert myfunc1[2](a) == 2
+    assert myfunc1[c](a) == 2
+    assert myfunc2[&p](a) == 2
+    assert myfunc2[p](a) == 2
