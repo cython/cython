@@ -541,7 +541,6 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
     op->flags = flags;
     __Pyx_CyFunction_weakreflist(op) = NULL;
     cf->m_ml = ml;
-    cf->m_self = (PyObject *) op;
     Py_XINCREF(closure);
     op->func_closure = closure;
     Py_XINCREF(module);
