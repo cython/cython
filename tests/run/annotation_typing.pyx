@@ -5,6 +5,11 @@ cimport cython
 from cython cimport typeof
 from cpython.ref cimport PyObject
 
+try:
+    from typing import Optional
+except ImportError:
+    pass
+
 
 def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'type': 'float'} = 4) -> list:
     """
@@ -17,6 +22,9 @@ def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'ty
     >>> old_dict_syntax(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
+    >>> old_dict_syntax(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'a' has incorrect type (expected list, got NoneType)
     """
     print(typeof(a), typeof(b), typeof(c), typeof(d))
     a.append(b)
@@ -25,60 +33,77 @@ def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'ty
     return a
 
 
-def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4) -> list:
+def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None, o: Optional[tuple] = ()) -> list:
     """
     >>> pytypes_def([1])
-    ('list object', 'Python object', 'Python object', 'double')
-    [1, 2, 3, 4.0]
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    [1, 2, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3)
-    ('list object', 'Python object', 'Python object', 'double')
-    [1, 3, 3, 4.0]
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    [1, 3, 3, 4.0, None, ()]
+    >>> pytypes_def([1], 3, 2, 1, [], None)
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    [1, 3, 2, 1.0, [], None]
     >>> pytypes_def(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
+    >>> pytypes_def(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'a' has incorrect type (expected list, got NoneType)
     """
-    print(typeof(a), typeof(b), typeof(c), typeof(d))
+    print(typeof(a), typeof(b), typeof(c), typeof(d), typeof(n), typeof(o))
     a.append(b)
     a.append(c)
     a.append(d)
+    a.append(n)
+    a.append(o)
     return a
 
 
-cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4):
+cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None, o: Optional[tuple] = ()):
     """
     >>> pytypes_cpdef([1])
-    ('list object', 'Python object', 'Python object', 'double')
-    [1, 2, 3, 4.0]
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    [1, 2, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3)
-    ('list object', 'Python object', 'Python object', 'double')
-    [1, 3, 3, 4.0]
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    [1, 3, 3, 4.0, None, ()]
+    >>> pytypes_cpdef([1], 3, 2, 1, [], None)
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    [1, 3, 2, 1.0, [], None]
     >>> pytypes_cpdef(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
+    >>> pytypes_cpdef(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'a' has incorrect type (expected list, got NoneType)
     """
-    print(typeof(a), typeof(b), typeof(c), typeof(d))
+    print(typeof(a), typeof(b), typeof(c), typeof(d), typeof(n), typeof(o))
     a.append(b)
     a.append(c)
     a.append(d)
+    a.append(n)
+    a.append(o)
     return a
 
 
-cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4):
-    print(typeof(a), typeof(b), typeof(c), typeof(d))
+cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None):
+    print(typeof(a), typeof(b), typeof(c), typeof(d), typeof(n))
     a.append(b)
     a.append(c)
     a.append(d)
+    a.append(n)
     return a
 
 
 def pytypes_cdef(a, b=2, c=3, d=4):
     """
     >>> pytypes_cdef([1])
-    ('list object', 'Python object', 'Python object', 'double')
-    [1, 2, 3, 4.0]
+    ('list object', 'Python object', 'Python object', 'double', 'list object')
+    [1, 2, 3, 4.0, None]
     >>> pytypes_cdef([1], 3)
-    ('list object', 'Python object', 'Python object', 'double')
-    [1, 3, 3, 4.0]
+    ('list object', 'Python object', 'Python object', 'double', 'list object')
+    [1, 3, 3, 4.0, None]
     >>> pytypes_cdef(123)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
@@ -124,6 +149,9 @@ def struct_io(s : MyStruct) -> MyStruct:
     >>> d = struct_io(dict(x=1, y=2, data=3))
     >>> sorted(d.items())
     [('data', 3.0), ('x', 2), ('y', 1)]
+    >>> d = struct_io(None)
+    Traceback (most recent call last):
+    TypeError: Expected a mapping, got NoneType
     """
     t = s
     t.x, t.y = s.y, s.x
@@ -143,6 +171,9 @@ def call_struct_io(s : MyStruct) -> MyStruct:
     >>> d = call_struct_io(dict(x=1, y=2, data=3))
     >>> sorted(d.items())
     [('data', 3.0), ('x', 2), ('y', 1)]
+    >>> d = call_struct_io(None)
+    Traceback (most recent call last):
+    TypeError: Expected a mapping, got NoneType
     """
     return struct_io(s)
 
@@ -278,21 +309,39 @@ def call_take_ptr():
     python_dict = {"abc": 123}
     take_ptr(cython.cast(cython.pointer(PyObject), python_dict))
 
+@cython.cclass
+class HasPtr:
+    """
+    >>> HasPtr()
+    HasPtr(1, 1)
+    """
+    a: cython.pointer(cython.int)
+    b: cython.int
+
+    def __init__(self):
+        self.b = 1
+        self.a = cython.address(self.b)
+    def __repr__(self):
+        return f"HasPtr({self.a[0]}, {self.b})"
+
 
 _WARNINGS = """
-9:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-9:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
-9:56: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-9:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
-9:85: Python type declaration in signature annotation does not refer to a Python type
-9:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-243:44: Unknown type declaration in annotation, ignoring
-250:29: Ambiguous types in annotation, ignoring
-267:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
+14:56: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+14:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
+14:85: Python type declaration in signature annotation does not refer to a Python type
+14:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+36:64: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+63:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+90:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+274:44: Unknown type declaration in annotation, ignoring
+281:29: Ambiguous types in annotation, ignoring
+298:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # BUG:
-47:6: 'pytypes_cpdef' redeclared
-121:0: 'struct_io' redeclared
-150:0: 'struct_convert' redeclared
-169:0: 'exception_default' redeclared
-200:0: 'exception_default_uint' redeclared
+63:6: 'pytypes_cpdef' redeclared
+146:0: 'struct_io' redeclared
+181:0: 'struct_convert' redeclared
+200:0: 'exception_default' redeclared
+231:0: 'exception_default_uint' redeclared
 """

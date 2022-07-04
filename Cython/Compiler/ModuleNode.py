@@ -1400,6 +1400,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if scope:  # could be None if there was an error
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
+                    self.generate_del_function(scope, code)
                     self.generate_dealloc_function(scope, code)
 
                     if scope.needs_gc():
@@ -1518,16 +1519,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("newfunc new_func = (newfunc)PyType_GetSlot(%s, Py_tp_new);" %
-                base_type.typeptr_cname)
-            code.putln("PyObject *o = new_func(t, a, k);")
-            code.putln("#else")
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_new is None:
-                tp_new = "%s->tp_new" % base_type.typeptr_cname
+                tp_new = "__Pyx_PyType_GetSlot(%s, tp_new, newfunc)" % base_type.typeptr_cname
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
-            code.putln("#endif")
         else:
             code.putln("PyObject *o;")
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -1628,6 +1623,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "}")
 
+    def generate_del_function(self, scope, code):
+        tp_slot = TypeSlots.get_slot_by_name("tp_finalize", scope.directives)
+        slot_func_cname = scope.mangle_internal("tp_finalize")
+        if tp_slot.slot_code(scope) != slot_func_cname:
+            return  # never used
+
+        entry = scope.lookup_here("__del__")
+        if entry is None or not entry.is_special:
+            return  # nothing to wrap
+        slot_func_cname = scope.mangle_internal("tp_finalize")
+        code.putln("")
+
+        if tp_slot.used_ifdef:
+            code.putln("#if %s" % tp_slot.used_ifdef)
+        code.putln("static void %s(PyObject *o) {" % slot_func_cname)
+        code.putln("PyObject *etype, *eval, *etb;")
+        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("%s(o);" % entry.func_cname)
+        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("}")
+        if tp_slot.used_ifdef:
+            code.putln("#endif")
+
     def generate_dealloc_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
         slot_func = scope.mangle_internal("tp_dealloc")
@@ -1670,9 +1688,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "if (unlikely("
                 "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-                " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
+                " && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
+
+            code.putln("if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
             code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
+            code.putln("}")
             code.putln("}")
             code.putln("#endif")
 
@@ -1723,14 +1744,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if tp_dealloc is not None:
                 code.putln("%s(o);" % tp_dealloc)
             elif base_type.is_builtin_type:
-                code.putln("%s->tp_dealloc(o);" % base_type.typeptr_cname)
+                code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_type.typeptr_cname)
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
                 base_cname = base_type.typeptr_cname
-                code.putln("if (likely(%s)) %s->tp_dealloc(o); "
+                code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); "
                            "else __Pyx_call_next_tp_dealloc(o, %s);" % (
                                base_cname, base_cname, slot_func_cname))
                 code.globalstate.use_utility_code(
@@ -2248,7 +2269,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
-                return '%s_maybe_call_slot(%s->tp_base, left, right %s)' % (
+                return '%s_maybe_call_slot(__Pyx_PyType_GetSlot(%s, tp_base, PyTypeObject*), left, right %s)' % (
                     func_name,
                     scope.parent_type.typeptr_cname,
                     extra_arg)
@@ -3233,18 +3254,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # packages require __path__, so all we can do is try to figure
             # out the module path at runtime by rerunning the import lookup
             code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT) {")
-            package_name, _ = self.full_module_name.rsplit('.', 1)
-            if '.' in package_name:
-                parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
-            else:
-                parent_name = 'NULL'
             code.globalstate.use_utility_code(UtilityCode.load(
                 "SetPackagePathFromImportLib", "ImportExport.c"))
             code.putln(code.error_goto_if_neg(
-                '__Pyx_SetPackagePathFromImportLib(%s, %s)' % (
-                    parent_name,
+                '__Pyx_SetPackagePathFromImportLib(%s)' % (
                     code.globalstate.get_py_string_const(
-                        EncodedString(env.module_name)).cname),
+                        EncodedString(self.full_module_name)).cname),
                 self.pos))
             code.putln("}")
 
@@ -3897,5 +3912,3 @@ packed_struct_utility_code = UtilityCode(proto="""
 #define __Pyx_PACKED
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
-
-capsule_utility_code = UtilityCode.load("Capsule", "Capsule.c")

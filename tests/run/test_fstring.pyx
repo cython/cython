@@ -17,7 +17,7 @@ if IS_PY2:
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
-from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack, held_errors
+from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
 
 def cy_eval(s, **kwargs):
     return cython_inline('return ' + s, force=True, **kwargs)
@@ -43,7 +43,7 @@ class TestCase(CythonTest):
                 else:
                     assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %r" % str
                 finally:
-                    release_errors(ignore=True)
+                    init_thread()  # reset error status
             else:
                 try:
                     cython_inline(str, quiet=True)
@@ -52,8 +52,7 @@ class TestCase(CythonTest):
                 else:
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
-                    if error_stack:
-                        release_errors(ignore=True)
+                    init_thread()  # reset error status
 
     if IS_PY2:
         def assertEqual(self, first, second, msg=None):
@@ -1174,11 +1173,10 @@ non-important content
         self.assertEqual(f'{0!=1}', 'True')
         self.assertEqual(f'{0<=1}', 'True')
         self.assertEqual(f'{0>=1}', 'False')
-        # Walrus not implemented yet, skip
-        # self.assertEqual(f'{(x:="5")}', '5')
-        # self.assertEqual(x, '5')
-        # self.assertEqual(f'{(x:=5)}', '5')
-        # self.assertEqual(x, 5)
+        self.assertEqual(f'{(x:="5")}', '5')
+        self.assertEqual(x, '5')
+        self.assertEqual(f'{(x:=5)}', '5')
+        self.assertEqual(x, 5)
         self.assertEqual(f'{"="}', '=')
 
         x = 20
@@ -1240,13 +1238,9 @@ non-important content
         # spec of '=10'.
         self.assertEqual(f'{x:=10}', '        20')
 
-        # Note to anyone going to enable these: please have a look to the test
-        # above this one for more walrus cases to enable.
-        """
         # This is an assignment expression, which requires parens.
         self.assertEqual(f'{(x:=10)}', '10')
         self.assertEqual(x, 10)
-        """
 
     def test_invalid_syntax_error_message(self):
         # with self.assertRaisesRegex(SyntaxError, "f-string: invalid syntax"):
