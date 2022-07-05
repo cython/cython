@@ -8623,7 +8623,7 @@ class FromCImportStatNode(StatNode):
         if not env.is_module_scope:
             error(self.pos, "cimport only allowed at module level")
             return
-        qualified_name_components = len(env.qualified_name.split('.'))
+        qualified_name_components = env.qualified_name.count('.') + 1
         if self.relative_level:
             if self.relative_level > qualified_name_components or (
                     self.relative_level == qualified_name_components and not env.is_package):
