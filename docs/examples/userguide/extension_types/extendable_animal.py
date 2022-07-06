@@ -1,5 +1,3 @@
-import cython
-
 @cython.cclass
 class Animal:
 

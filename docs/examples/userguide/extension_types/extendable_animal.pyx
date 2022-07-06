@@ -1,6 +1,4 @@
-
-
-
+ 
 cdef class Animal:
 
     cdef int number_of_legs
