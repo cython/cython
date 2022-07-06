@@ -7,6 +7,7 @@ ctypedef struct my_c_struct:
     int b
 
 
+
 cdef class WrapperClass:
     """A wrapper class for a C/C++ data structure"""
     cdef my_c_struct *_ptr
