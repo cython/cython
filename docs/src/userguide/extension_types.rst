@@ -208,7 +208,7 @@ The same consideration applies to local variables, for example:
 .. note::
 
     Here, we *cimport* the class :class:`Shrubbery` (using the :keyword:`cimport` statement
-    or importing from special ``cython.cimports`` package) , and this is necessary
+    or importing from special ``cython.cimports`` package), and this is necessary
     to declare the type at compile time. To be able to cimport an extension type,
     we split the class definition into two parts, one in a definition file and
     the other in the corresponding implementation file. You should read
@@ -338,7 +338,7 @@ The value :keyword:`None` is not allowed when a variable is annotated only with 
     def widen_shrubbery(sh: Shrubbery, extra_width):  # TypeError is raised
         sh.width = sh.width + extra_width             # when sh is None
 
-To allow also :keyword:`None`, ``typing.Optional[ ]`` must be used explicitly.
+To also allow :keyword:`None`, ``typing.Optional[ ]`` must be used explicitly.
 For function arguments, this is also automatically allowed when they have a
 default argument of :keyword:`None`, e.g. ``func(x: list = None)`` does not require ``typing.Optional``::
 
