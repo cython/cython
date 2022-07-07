@@ -1,4 +1,3 @@
- 
 @cython.cclass
 class Shrubbery:
     width: cython.int
