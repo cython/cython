@@ -54,6 +54,7 @@ The main difference is that you can define attributes using
         .. code-block:: cython
 
             cdef class Shrubbery:
+
                 cdef int width
                 cdef int height
 
@@ -345,7 +346,7 @@ default argument of `None``, e.g. ``func(x: list = None)`` does not require ``ty
     import typing
     def widen_shrubbery(sh: typing.Optional[Shrubbery], extra_width):
         if sh is None:
-            # We want to raise custom exception in case of None value.
+            # We want to raise a custom exception in case of a None value.
             raise ValueError
         sh.width = sh.width + extra_width
 
@@ -397,7 +398,6 @@ You can declare properties in an extension class using the same syntax as in ord
 
             @cython.cclass
             class Spam:
-
                 @property
                 def cheese(self):
                     # This is called when the property is read.
@@ -405,8 +405,8 @@ You can declare properties in an extension class using the same syntax as in ord
 
                 @cheese.setter
                 def cheese(self, value):
-                        # This is called when the property is written.
-                        ...
+                    # This is called when the property is written.
+                    ...
 
                 @cheese.deleter
                 def cheese(self):
@@ -425,8 +425,8 @@ You can declare properties in an extension class using the same syntax as in ord
 
                 @cheese.setter
                 def cheese(self, value):
-                        # This is called when the property is written.
-                        ...
+                    # This is called when the property is written.
+                    ...
 
                 @cheese.deleter
                 def cheese(self):
@@ -507,6 +507,7 @@ a built-in type or another extension type:
 
             cdef class Parrot:
                 ...
+
 
             cdef class Norwegian(Parrot):
                 ...
@@ -956,6 +957,7 @@ can participate in cycles could cause memory leaks:
 
             @cython.no_gc
             cdef class UserInfo:
+
                 cdef str name
                 cdef tuple addresses
 
