@@ -291,17 +291,17 @@ extension type and its C-level attributes (stored in the object’s C struct) an
 Extension types and None
 =========================
 
-Cython handles :keyword:`None` values differently in C-like type declarations and when Python annotations are used.
+Cython handles ``None`` values differently in C-like type declarations and when Python annotations are used.
 
 In :keyword:`cdef` declarations and C-like function argument declarations (``func(list x)``),
 when you declare an argument or C variable as having an extension or Python builtin type,
-Cython will allow it to take on the value :keyword:`None` as well as values of its
+Cython will allow it to take on the value ``None`` as well as values of its
 declared type. This is analogous to the way a C pointer can take on the value
 ``NULL``, and you need to exercise the same caution because of it. There is no
 problem as long as you are performing Python operations on it, because full
 dynamic type checking will be applied. However, when you access C attributes
 of an extension type (as in the widen_shrubbery function above), it's up to
-you to make sure the reference you're using is not :keyword:`None` -- in the
+you to make sure the reference you're using is not ``None`` -- in the
 interests of efficiency, Cython does not check this.
 
 With the C-like declaration syntax, you need to be particularly careful when
@@ -310,10 +310,10 @@ exposing Python functions which take extension types as arguments::
     def widen_shrubbery(Shrubbery sh, extra_width): # This is
         sh.width = sh.width + extra_width           # dangerous!
 
-The users of our module could crash it by passing :keyword:`None` for the ``sh``
+The users of our module could crash it by passing ``None`` for the ``sh``
 parameter.
 
-As in Python, whenever it is unclear whether a variable can be :keyword:`None`,
+As in Python, whenever it is unclear whether a variable can be ``None``,
 but the code requires a non-None value, an explicit check can help::
 
     def widen_shrubbery(Shrubbery sh, extra_width):
@@ -333,14 +333,14 @@ with checking that it has the right type.
 
 When annotations are used, the behaviour follows the Python typing semantics of
 `PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ instead.
-The value :keyword:`None` is not allowed when a variable is annotated only with its plain type::
+The value ``None`` is not allowed when a variable is annotated only with its plain type::
 
     def widen_shrubbery(sh: Shrubbery, extra_width):  # TypeError is raised
         sh.width = sh.width + extra_width             # when sh is None
 
-To also allow :keyword:`None`, ``typing.Optional[ ]`` must be used explicitly.
+To also allow ``None``, ``typing.Optional[ ]`` must be used explicitly.
 For function arguments, this is also automatically allowed when they have a
-default argument of :keyword:`None`, e.g. ``func(x: list = None)`` does not require ``typing.Optional``::
+default argument of `None``, e.g. ``func(x: list = None)`` does not require ``typing.Optional``::
 
     import typing
     def widen_shrubbery(sh: typing.Optional[Shrubbery], extra_width):
@@ -350,7 +350,7 @@ default argument of :keyword:`None`, e.g. ``func(x: list = None)`` does not requ
         sh.width = sh.width + extra_width
 
 The upside of using annotations here is that they are safe by default because
-you need to explicitly allow :keyword:`None` values for them.
+you need to explicitly allow ``None`` values for them.
 
 
 .. note::
@@ -358,7 +358,7 @@ you need to explicitly allow :keyword:`None` values for them.
     The ``not None`` and ``typing.Optional`` can only be used in Python functions (defined with
     :keyword:`def` and without ``@cython.cfunc`` decorator) and not C functions
     (defined with :keyword:`cdef` or decorated using ``@cython.cfunc``).  If
-    you need to check whether a parameter to a C function is :keyword:`None`, you will
+    you need to check whether a parameter to a C function is ``None``, you will
     need to do it yourself.
 
 .. note::
@@ -366,8 +366,8 @@ you need to explicitly allow :keyword:`None` values for them.
     Some more things:
 
     * The ``self`` parameter of a method of an extension type is guaranteed never to
-      be :keyword:`None`.
-    * When comparing a value with :keyword:`None`, keep in mind that, if ``x`` is a Python
+      be ``None``.
+    * When comparing a value with ``None``, keep in mind that, if ``x`` is a Python
       object, ``x is None`` and ``x is not None`` are very efficient because they
       translate directly to C pointer comparisons, whereas ``x == None`` and
       ``x != None``, or simply using ``x`` as a boolean value (as in ``if x: ...``)
