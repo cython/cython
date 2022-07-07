@@ -954,29 +954,38 @@ class ControlFlowAnalysis(CythonTransform):
         self._visit(node.subject)
 
         next_block = self.flow.newblock()
-        parent = self.flow.block
+        orig_parent = self.flow.block
+        guard_block = None
         for case in node.cases:
             if isinstance(case, MatchCaseNode):
-                self.flow.nextblock(parent)
+                case_block = self.flow.nextblock(orig_parent)
+                if guard_block:
+                    guard_block.add_child(case_block)
                 self._visit(case.pattern)
                 self.flow.nextblock()
                 if case.target_assignments:
                     self._visit(case.target_assignments)
                 if case.guard:
-                    parent = self.flow.nextblock()
+                    guard_block = self.flow.nextblock()
                     self._visit(case.guard)
+                else:
+                    guard_block = None
                 self.flow.nextblock()
                 self._visit(case.body)
                 if self.flow.block:
                     self.flow.block.add_child(next_block)
             elif isinstance(case, SubstitutedMatchCaseNode):
+                self.flow.nextblock()
+                if guard_block:
+                    guard_block.add_child(self.flow.block)
+                    guard_block = None
                 self._visit(case.body)
-                parent = self.flow.block
+                orig_parent = self.flow.block
             else:
                 assert False, case
 
-        if parent is not None:
-            parent.add_child(next_block)
+        if orig_parent is not None:
+            orig_parent.add_child(next_block)
         if next_block.parents:
             self.flow.block = next_block
         else:

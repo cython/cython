@@ -1,9 +1,45 @@
 # mode: run
 # tag: pure3.10
 
+from __future__ import print_function
+
 import cython
 
 import array
+
+def test_type_inference(x):
+    """
+    The type should not be infered to be anything specific
+    >>> test_type_inference(1)
+    one 1
+    >>> test_type_inference([])
+    any object []
+    """
+    match x:
+        case 1 as a:
+            print("one", a)
+        case a:
+            print("any object", a)
+
+
+def test_assignment_and_guards(x):
+    """
+    Tests that the flow control is right. The second case can be
+    reached either by failing the pattern or by failing the guard,
+    and this affects whether variables are assigned
+    >>> test_assignment_and_guards([1])
+    ('first', 1)
+    >>> test_assignment_and_guards([1, 2])
+    ('second', 1)
+    >>> test_assignment_and_guards([-1, 2])
+    ('second', -1)
+    """
+    match x:
+        case [a] if a>0:
+            return "first", a
+        case [a, *_]:
+            return "second", a
+
 
 def test_array_is_sequence(x):
     """
