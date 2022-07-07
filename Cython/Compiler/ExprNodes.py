@@ -6964,6 +6964,7 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+    dont_mangle_private_names = False  # skip mangling class.__attr names
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -7280,8 +7281,9 @@ class AttributeNode(ExprNode):
     def analyse_as_python_attribute(self, env, obj_type=None, immutable_obj=False):
         if obj_type is None:
             obj_type = self.obj.type
-        # mangle private '__*' Python attributes used inside of a class
-        self.attribute = env.mangle_class_private_name(self.attribute)
+        if not self.dont_mangle_private_names:
+            # mangle private '__*' Python attributes used inside of a class
+            self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
         self.type = py_object_type
         self.is_py_attr = 1

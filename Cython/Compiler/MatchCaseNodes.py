@@ -1456,7 +1456,7 @@ class ClassPatternNode(PatternNode):
         for p, p_name in zip(self.keyword_pattern_patterns, self.keyword_pattern_names):
             # The attribute lookups are calculated here to maximize chance of type interference
             attr_lookup = ExprNodes.AttributeNode(
-                p_name.pos, obj=subject_node, attribute=p_name.name
+                p_name.pos, obj=subject_node, attribute=p_name.name, dont_mangle_private_names=True
             )
             self.keyword_subject_attrs.append(attr_lookup)
             if not p.get_targets() and p.is_irrefutable():
