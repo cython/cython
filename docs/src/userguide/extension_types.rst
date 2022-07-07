@@ -664,7 +664,7 @@ above, the first instantiation will print ``eating!``, but the second will
 not.  This is only one of the reasons why the ``__cinit__()`` method is
 safer than the normal ``__init__()`` method for initialising extension types
 and bringing them into a correct and safe state.
-See section :ref:`_initialisation_methods` about the differences.
+See section :ref:`initialisation_methods` about the differences.
 
 The second performance improvement applies to types that are often created
 and deleted in a row, so that they can benefit from a freelist.  Cython
