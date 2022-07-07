@@ -1,9 +1,9 @@
- 
-cdef class Animal:
+@cython.cclass
+class Animal:
 
-    cdef int number_of_legs
+    number_of_legs: cython.int
 
-    def __cinit__(self, int number_of_legs):
+    def __cinit__(self, number_of_legs: cython.int):
         self.number_of_legs = number_of_legs
 
 
