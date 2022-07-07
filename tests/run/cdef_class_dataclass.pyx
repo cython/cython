@@ -23,7 +23,7 @@ cdef class NotADataclass:
         return "NADC"
 
     def __str__(self):
-        return "string of NotADataclass"  # should be called - repr is called!
+        return "string of NotADataclass"  # should not be called - repr is called instead!
 
     def __eq__(self, other):
         return type(self) == type(other)
@@ -197,12 +197,20 @@ cdef class TestVisibility:
     'double'
     >>> hasattr(inst, "c")
     True
+    >>> "d" in TestVisibility.__dataclass_fields__
+    True
+    >>> TestVisibility.__dataclass_fields__["d"].type
+    'object'
+    >>> hasattr(inst, "d")
+    True
     """
     cdef double a
     a = 1.0
     b: cython.double = 2.0
     cdef public double c
     c = 3.0
+    cdef public object d
+    d = object()
 
 @dataclass(frozen=True)
 cdef class TestFrozen:
@@ -215,6 +223,33 @@ cdef class TestFrozen:
     AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
     a: cython.double = 2.0
+
+@dataclass(kw_only=True)
+cdef class TestKwOnly:
+    """
+    >>> inst = TestKwOnly(a=3, b=2)
+    >>> inst.a
+    3.0
+    >>> inst.b
+    2
+    >>> inst = TestKwOnly(b=2)
+    >>> inst.a
+    2.0
+    >>> inst.b
+    2
+    >>> fail = TestKwOnly(3, 2)
+    Traceback (most recent call last):
+    TypeError: __init__() takes exactly 0 positional arguments (2 given)
+    >>> fail = TestKwOnly(a=3)
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    >>> fail = TestKwOnly()
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    """
+
+    a: double = 2.0
+    b: long
 
 import sys
 if sys.version_info >= (3, 7):

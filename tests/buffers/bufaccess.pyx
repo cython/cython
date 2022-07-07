@@ -1005,6 +1005,51 @@ def assign_to_object(object[object] buf, int idx, obj):
     buf[idx] = obj
 
 @testcase
+def check_object_nulled_1d(MockBuffer[object, ndim=1] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a])
+    >>> check_object_nulled_1d(A, 0, a)
+    >>> decref(a)  # new reference "added" to A
+    >>> check_object_nulled_1d(A, 1, a)
+    >>> decref(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], strides=(2,))
+    >>> check_object_nulled_1d(A, 0, a)  # only 0 due to stride
+    >>> decref(a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef void **data = <void **>buf.buffer
+    data[idx] = NULL
+    res = buf[idx]  # takes None
+    buf[idx] = obj
+    return res
+
+@testcase
+def check_object_nulled_2d(MockBuffer[object, ndim=2] buf, int idx1, int idx2, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], shape=(2, 2))
+    >>> check_object_nulled_2d(A, 0, 0, a)
+    >>> decref(a)  # new reference "added" to A
+    >>> check_object_nulled_2d(A, 1, 1, a)
+    >>> decref(a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef void **data = <void **>buf.buffer
+    data[idx1 + 2*idx2] = NULL
+    res = buf[idx1, idx2]  # takes None
+    buf[idx1, idx2] = obj
+    return res
+
+@testcase
 def assign_temporary_to_object(object[object] buf):
     """
     See comments on printbuf_object above.

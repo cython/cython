@@ -154,6 +154,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt unique_copy[ExecutionPolicy, InputIt, OutputIt, BinaryPred](
         ExecutionPolicy&& policy, InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
 
+    SampleIt sample[PopulationIt, SampleIt, Distance, URBG](PopulationIt first, PopulationIt last, SampleIt out, Distance n, URBG&& g) except +
+
     # Partitioning operations
     bool is_partitioned[Iter, Pred](Iter first, Iter last, Pred p) except +
     bool is_partitioned[ExecutionPolicy, Iter, Pred](ExecutionPolicy&& policy, Iter first, Iter last, Pred p) except +
@@ -316,5 +318,3 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool next_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
     bool prev_permutation[BidirIt](BidirIt first, BidirIt last) except +
     bool prev_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
-
-
