@@ -1,5 +1,5 @@
 """
-PYTHON -m Cython.Build.Cythonize -i pkg --depfile
+CYTHONIZE -i pkg --depfile
 PYTHON package_test.py
 """
 
@@ -7,13 +7,13 @@ PYTHON package_test.py
 
 import os.path
 
-with open("pkg/test.c.dep", "r") as f:
+with open(os.path.join("pkg", "test.c.dep"), "r") as f:
     contents = f.read().replace("\\\n", " ").replace("\n", " ")
 
 assert sorted(contents.split()) == sorted(['test.c:', os.path.join('sub', 'incl.pxi'), 'test.pxd', 'test.pyx']), contents
 
 
-with open("pkg/sub/test.c.dep", "r") as f:
+with open(os.path.join("pkg", "sub", "test.c.dep"), "r") as f:
     contents = f.read().replace("\\\n", " ").replace("\n", " ")
 
 contents = [os.path.relpath(entry, '.')

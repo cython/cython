@@ -328,9 +328,6 @@ class ExprNode(Node):
     #  is_sequence_constructor
     #               boolean      Is a list or tuple constructor expression
     #  is_starred   boolean      Is a starred expression (e.g. '*a')
-    #  saved_subexpr_nodes
-    #               [ExprNode or [ExprNode or None] or None]
-    #                            Cached result of subexpr_nodes()
     #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
     #  result_is_used  boolean   indicates that the result will be dropped and the
     #  is_numpy_attribute   boolean   Is a Numpy module attribute
@@ -473,7 +470,6 @@ class ExprNode(Node):
     is_memview_broadcast = False
     is_memview_copy_assignment = False
 
-    saved_subexpr_nodes = None
     is_temp = False
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
@@ -1102,6 +1098,8 @@ class ExprNode(Node):
 
         type = self.type
         if type.is_enum or type.is_error:
+            return self
+        elif type is PyrexTypes.c_bint_type:
             return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
@@ -3899,12 +3897,13 @@ class IndexNode(_IndexingBaseNode):
             self.is_temp = 1
         elif self.index.type.is_int and base_type is not dict_type:
             if (getting
+                    and not env.directives['boundscheck']
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed
                          or not env.directives['wraparound']
                          or (isinstance(self.index, IntNode) and
                              self.index.has_constant_result() and self.index.constant_result >= 0))
-                    and not env.directives['boundscheck']):
+                    ):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
@@ -4581,17 +4580,17 @@ class BufferIndexNode(_IndexingBaseNode):
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
-            # Must manage refcounts. Decref what is already there
-            # and incref what we put in.
+            # Must manage refcounts. XDecref what is already there
+            # and incref what we put in (NumPy allows there to be NULL)
             ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
                                                manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
-            code.put_gotref("*%s" % ptr, self.buffer_type.dtype)
-            code.putln("__Pyx_INCREF(%s); __Pyx_DECREF(*%s);" % (
+            code.put_xgotref("*%s" % ptr, self.buffer_type.dtype)
+            code.putln("__Pyx_INCREF(%s); __Pyx_XDECREF(*%s);" % (
                 rhs_code, ptr))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
-            code.put_giveref("*%s" % ptr, self.buffer_type.dtype)
+            code.put_xgiveref("*%s" % ptr, self.buffer_type.dtype)
             code.funcstate.release_temp(ptr)
         else:
             # Simple case
@@ -4612,8 +4611,11 @@ class BufferIndexNode(_IndexingBaseNode):
             # is_temp is True, so must pull out value and incref it.
             # NOTE: object temporary results for nodes are declared
             #       as PyObject *, so we need a cast
-            code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
-            code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+            res = self.result()
+            code.putln("%s = (PyObject *) *%s;" % (res, self.buffer_ptr_code))
+            # NumPy does (occasionally) allow NULL to denote None.
+            code.putln("if (unlikely(%s == NULL)) %s = Py_None;" % (res, res))
+            code.putln("__Pyx_INCREF((PyObject*)%s);" % res)
 
     def free_subexpr_temps(self, code):
         for temp in self.index_temps:
@@ -8698,7 +8700,7 @@ class MergedSequenceNode(ExprNode):
         if type in (list_type, tuple_type) and args and args[0].is_sequence_constructor:
             # construct a list directly from the first argument that we can then extend
             if args[0].type is not list_type:
-                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True)
+                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True, mult_factor=args[0].mult_factor)
         ExprNode.__init__(self, pos, args=args, type=type)
 
     def calculate_constant_result(self):
@@ -13613,6 +13615,9 @@ class CoerceFromPyTypeNode(CoercionNode):
     #  This node is used to convert a Python object
     #  to a C data type.
 
+    # Allow 'None' to map to a difference C value independent of the coercion, e.g. to 'NULL' or '0'.
+    special_none_cvalue = None
+
     def __init__(self, result_type, arg, env):
         CoercionNode.__init__(self, arg)
         self.type = result_type
@@ -13642,7 +13647,10 @@ class CoerceFromPyTypeNode(CoercionNode):
                 NoneCheckNode.generate_if_needed(self.arg, code, "expected bytes, NoneType found")
 
         code.putln(self.type.from_py_call_code(
-            self.arg.py_result(), self.result(), self.pos, code, from_py_function=from_py_function))
+            self.arg.py_result(), self.result(), self.pos, code,
+            from_py_function=from_py_function,
+            special_none_cvalue=self.special_none_cvalue,
+        ))
         if self.type.is_pyobject:
             self.generate_gotref(code)
 
