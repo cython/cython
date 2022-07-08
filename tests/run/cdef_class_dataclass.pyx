@@ -248,8 +248,8 @@ cdef class TestKwOnly:
     TypeError: __init__() needs keyword-only argument b
     """
 
-    a: double = 2.0
-    b: long
+    a: cython.double = 2.0
+    b: cython.long
 
 import sys
 if sys.version_info >= (3, 7):
