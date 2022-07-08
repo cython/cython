@@ -978,7 +978,9 @@ class CArgDeclNode(Node):
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
                 if arg_type and not arg_type.is_pyobject:
-                    error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+                    # We probably already reported this as "cannot be applied to non-Python type".
+                    # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+                    pass
                 else:
                     self.or_none = True
             elif arg_type is py_object_type:
