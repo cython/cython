@@ -40,3 +40,15 @@ def test_enum_doc():
     True
     """
     pass
+
+
+def to_from_py_conversion(Enum1 val):
+    """
+    >>> to_from_py_conversion(Enum1.Item1) is Enum1.Item1
+    True
+    >>> to_from_py_conversion(500)
+    Traceback (most recent call last):
+    ...
+    ValueError: 500 is not a valid Enum1
+    """
+    return val

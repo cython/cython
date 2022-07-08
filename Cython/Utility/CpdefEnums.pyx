@@ -48,7 +48,7 @@ if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
     {{name}} = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
-        ('{{item}}', {{item}}),
+        ('{{item}}', <int>{{item}}),
         {{endfor}}
     ]))
     {{if enum_doc is not None}}
@@ -62,7 +62,7 @@ else:
     class {{name}}(__Pyx_EnumBase):
         {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
-    __Pyx_globals['{{item}}'] = {{name}}({{item}}, '{{item}}')
+    __Pyx_globals['{{item}}'] = {{name}}(<int>{{item}}, '{{item}}')
     {{endfor}}
 
 #################### CppScopedEnumType ####################
@@ -86,3 +86,37 @@ else:
 {{if enum_doc is not None}}
 __Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
 {{endif}}
+
+
+#################### EnumTypeToPy ####################
+
+@cname("{{funcname}}")
+cdef {{funcname}}({{name}} c_val):
+    cdef object __pyx_enum
+    # There's a complication here: the Python enum wrapping is only generated
+    # for enums defined in the same module that they're used in. Therefore, if
+    # the enum was cimported from a different module, we try to import it.
+    # If that fails we return an int equivalent as the next best option.
+{{if module_name}}
+    try:
+        from {{module_name}} import {{name}} as __pyx_enum
+    except ImportError:
+        import warnings
+        warnings.warn(
+            f"enum class {{name}} not importable from {{module_name}}. "
+            "You are probably using a cpdef enum declared in a .pxd file that "
+            "does not have a .py  or .pyx file.")
+        return <{{underlying_type}}>c_val
+{{else}}
+    __pyx_enum = {{name}}
+{{endif}}
+    # TODO - Cython only manages to optimize C enums to a switch currently
+    if 0:
+        pass
+{{for item in items}}
+    elif c_val == {{name}}.{{item}}:
+       return __pyx_enum.{{item}}
+{{endfor}}
+    else:
+        underlying_c_val = <{{underlying_type}}>c_val
+        raise ValueError(f"{underlying_c_val} is not a valid {{name}}")
