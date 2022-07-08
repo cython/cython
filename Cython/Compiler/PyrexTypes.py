@@ -4463,6 +4463,7 @@ class PythonTupleTypeConstructor(PythonTypeConstructor):
                 not any(v.is_pyobject for v in template_values)):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
+                entry.used = True
                 return entry.type
         return super(PythonTupleTypeConstructor, self).specialize_here(pos, env, template_values)
 
