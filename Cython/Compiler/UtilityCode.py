@@ -174,7 +174,11 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             # inject types into module scope
             def scope_transform(module_node):
                 for name, type in self.context_types.items():
-                    entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    # This is a slight abuse of "declare_typedef" - we want to be able to access
+                    # these types in the scope, but not reassign their entries by re-declaring them
+                    entry = module_node.scope.declare_typedef(
+                        name, type, None, visibility='private', cname=type.empty_declaration_code()
+                    )
                     entry.in_cinclude = True
                 return module_node
 
