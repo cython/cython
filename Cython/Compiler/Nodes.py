@@ -1942,7 +1942,8 @@ class FuncDefNode(StatNode, BlockNode):
 
         for entry in lenv.var_entries:
             if not (entry.in_closure or entry.is_arg):
-                tempvardecl_code.put_var_declaration(entry, code)
+                tempvardecl_code.put_var_declaration(entry)
+                function_code.put_var_declaration_unused_if_needed(entry)
 
         # Initialize the return variable __pyx_r
         init = ""
@@ -2337,7 +2338,8 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
 
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_temp_declarations(code.funcstate, function_code)
+        tempvardecl_code.put_temp_declarations(code.funcstate)
+        function_code.put_temp_declarations_unused_if_needed(code.funcstate)
 
         # ----- Python version
         code.exit_cfunc_scope()
@@ -3623,7 +3625,8 @@ class DefNodeWrapper(FuncDefNode):
         self.generate_function_body(code)
 
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_temp_declarations(code.funcstate, function_code)
+        tempvardecl_code.put_temp_declarations(code.funcstate)
+        function_code.put_temp_declarations_unused_if_needed(code.funcstate)
 
         code.mark_pos(self.pos)
         code.putln("")
@@ -3755,10 +3758,12 @@ class DefNodeWrapper(FuncDefNode):
                 if arg.needs_conversion:
                     vardecl_code.putln("PyObject *%s = 0;" % arg.hdr_cname)
                 else:
-                    vardecl_code.put_var_declaration(arg.entry, function_code)
+                    vardecl_code.put_var_declaration(arg.entry)
+                    function_code.put_var_declaration_unused_if_needed(arg.entry)
         for entry in env.var_entries:
             if entry.is_arg:
-                vardecl_code.put_var_declaration(entry, function_code)
+                vardecl_code.put_var_declaration(entry)
+                function_code.put_var_declaration_unused_if_needed(entry)
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
@@ -4722,7 +4727,8 @@ class GeneratorBodyDefNode(DefNode):
         code.putln("}")
 
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_temp_declarations(code.funcstate, function_code)
+        tempvardecl_code.put_temp_declarations(code.funcstate)
+        function_code.put_temp_declarations_unused_if_needed(code.funcstate)
         # ----- Generator resume code
         if profile or linetrace:
             resume_code.put_trace_call(self.entry.qualified_name, self.pos,

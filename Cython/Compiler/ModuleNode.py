@@ -3153,7 +3153,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln('}')
 
-        tempdecl_code.put_temp_declarations(code.funcstate, function_code)
+        tempdecl_code.put_temp_declarations(code.funcstate)
+        function_code.put_temp_declarations_unused_if_needed(code.funcstate)
 
         code.exit_cfunc_scope()
 
@@ -3198,7 +3199,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put_finish_refcount_context()
                 code.putln("return 0;")
 
-                self.tempdecl_code.put_temp_declarations(code.funcstate, function_code)
+                self.tempdecl_code.put_temp_declarations(code.funcstate)
+                function_code.put_temp_declarations_unused_if_needed(code.funcstate)
                 self.tempdecl_code = None
 
                 needs_error_handling = code.label_used(code.error_label)

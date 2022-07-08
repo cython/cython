@@ -2083,7 +2083,7 @@ class CCodeWriter(object):
         self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
 
-    def put_var_declaration(self, entry, function_code, storage_class="",
+    def put_var_declaration(self, entry, storage_class="",
                             dll_linkage=None, definition=True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
@@ -2094,8 +2094,6 @@ class CCodeWriter(object):
             return
         if storage_class:
             self.put("%s " % storage_class)
-        if not entry.cf_used:
-            function_code.putln("CYTHON_UNUSED_VAR(%s);" % entry.cname)
         if entry.is_cpp_optional:
             self.put(entry.type.cpp_optional_declaration_code(
                 entry.cname, dll_linkage=dll_linkage))
@@ -2109,7 +2107,18 @@ class CCodeWriter(object):
         self.putln(";")
         self.funcstate.scope.use_entry_utility_code(entry)
 
-    def put_temp_declarations(self, func_context, function_code):
+    def put_var_declaration_unused_if_needed(self, entry, definition=True):
+        #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
+        if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
+            #print "...private and not definition, skipping", entry.cname ###
+            return
+        if entry.visibility == "private" and not entry.used:
+            #print "...private and not used, skipping", entry.cname ###
+            return
+        if not entry.cf_used:
+            self.putln("CYTHON_UNUSED_VAR(%s);" % entry.cname)
+
+    def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
             if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
@@ -2123,14 +2132,17 @@ class CCodeWriter(object):
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
         if func_context.should_declare_error_indicator:
-            if not self.funcstate.uses_error_indicator:
-                function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.lineno_cname)
-                function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.filename_cname)
-                function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.clineno_cname)
             # Initialize these variables to silence compiler warnings
             self.putln("int %s = 0;" % Naming.lineno_cname)
             self.putln("const char *%s = NULL;" % Naming.filename_cname)
             self.putln("int %s = 0;" % Naming.clineno_cname)
+
+    def put_temp_declarations_unused_if_needed(self, func_context):
+        if func_context.should_declare_error_indicator:
+            if not self.funcstate.uses_error_indicator:
+                self.putln("CYTHON_UNUSED_VAR(%s);" % Naming.lineno_cname)
+                self.putln("CYTHON_UNUSED_VAR(%s);" % Naming.filename_cname)
+                self.putln("CYTHON_UNUSED_VAR(%s);" % Naming.clineno_cname)
 
     def put_generated_by(self):
         self.putln(Utils.GENERATED_BY_MARKER)
