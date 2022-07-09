@@ -2696,6 +2696,12 @@ class CArrayType(CPointerBaseType):
             source_code, result_code, self.size)
         return code.error_goto_if_neg(call_code, error_pos)
 
+    def error_condition(self, result_code):
+        # It isn't possible to use CArrays return type so the error_condition
+        # is irrelevant. Returning a Falsey value does avoid an error when getting
+        # from_py_call_code from a typedef
+        return ""
+
 
 class CPtrType(CPointerBaseType):
     #  base_type     CType              Reference type
