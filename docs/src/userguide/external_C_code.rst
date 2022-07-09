@@ -97,8 +97,8 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
 #. If the header file uses macros to define constants, translate them into a
    normal external variable declaration.  You can also declare them as an
-   :keyword:`enum` if they contain normal :c:type:`int` values.  Note that
-   Cython considers :keyword:`enum` to be equivalent to :c:type:`int`, so do
+   :keyword:`enum` if they contain normal :c:expr:`int` values.  Note that
+   Cython considers :keyword:`enum` to be equivalent to :c:expr:`int`, so do
    not do this for non-int values.
 
 #. If the header file defines a function using a macro, declare it as though

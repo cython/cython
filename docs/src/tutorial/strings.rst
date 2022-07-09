@@ -164,7 +164,7 @@ the assignment in a try-finally construct:
 
 .. literalinclude:: ../../examples/tutorial/string/try_finally.pyx
 
-To convert the byte string back into a C :c:type:`char*`, use the
+To convert the byte string back into a C :c:expr:`char*`, use the
 opposite assignment::
 
     cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
@@ -173,7 +173,7 @@ This is a very fast operation after which ``other_c_string`` points to
 the byte string buffer of the Python string itself.  It is tied to the
 life time of the Python string.  When the Python string is garbage
 collected, the pointer becomes invalid.  It is therefore important to
-keep a reference to the Python string as long as the :c:type:`char*`
+keep a reference to the Python string as long as the :c:expr:`char*`
 is in use.  Often enough, this only spans the call to a C function that
 receives the pointer as parameter.  Special care must be taken,
 however, when the C function stores the pointer for later use.  Apart
@@ -324,7 +324,7 @@ Encoding text to bytes
 ----------------------
 
 The reverse way, converting a Python unicode string to a C
-:c:type:`char*`, is pretty efficient by itself, assuming that what
+:c:expr:`char*`, is pretty efficient by itself, assuming that what
 you actually want is a memory managed byte string::
 
     py_byte_string = py_unicode_string.encode('UTF-8')
@@ -348,7 +348,7 @@ C++ strings
 -----------
 
 When wrapping a C++ library, strings will usually come in the form of
-the :c:type:`std::string` class.  As with C strings, Python byte strings
+the :cpp:expr:`std::string` class.  As with C strings, Python byte strings
 automatically coerce from and to C++ strings:
 
 .. literalinclude:: ../../examples/tutorial/string/cpp_string.pyx
@@ -476,13 +476,13 @@ unicode string literals, just like Python 3.
 Single bytes and characters
 ---------------------------
 
-The Python C-API uses the normal C :c:type:`char` type to represent
+The Python C-API uses the normal C :c:expr:`char` type to represent
 a byte value, but it has two special integer types for a Unicode code
 point value, i.e. a single Unicode character: :c:type:`Py_UNICODE`
 and :c:type:`Py_UCS4`.  Cython supports the
 first natively, support for :c:type:`Py_UCS4` is new in Cython 0.15.
 :c:type:`Py_UNICODE` is either defined as an unsigned 2-byte or
-4-byte integer, or as :c:type:`wchar_t`, depending on the platform.
+4-byte integer, or as :c:expr:`wchar_t`, depending on the platform.
 The exact type is a compile time option in the build of the CPython
 interpreter and extension modules inherit this definition at C
 compile time.  The advantage of :c:type:`Py_UCS4` is that it is
@@ -490,10 +490,10 @@ guaranteed to be large enough for any Unicode code point value,
 regardless of the platform.  It is defined as a 32bit unsigned int
 or long.
 
-In Cython, the :c:type:`char` type behaves differently from the
+In Cython, the :c:expr:`char` type behaves differently from the
 :c:type:`Py_UNICODE` and :c:type:`Py_UCS4` types when coercing
 to Python objects.  Similar to the behaviour of the bytes type in
-Python 3, the :c:type:`char` type coerces to a Python integer
+Python 3, the :c:expr:`char` type coerces to a Python integer
 value by default, so that the following prints 65 and not ``A``::
 
     # -*- coding: ASCII -*-
@@ -509,7 +509,7 @@ explicitly, and the following will print ``A`` (or ``b'A'`` in Python
     print( <bytes>char_val )
 
 The explicit coercion works for any C integer type.  Values outside of
-the range of a :c:type:`char` or :c:type:`unsigned char` will raise an
+the range of a :c:expr:`char` or :c:expr:`unsigned char` will raise an
 :obj:`OverflowError` at runtime.  Coercion will also happen automatically
 when assigning to a typed variable, e.g.::
 
@@ -532,10 +532,10 @@ The following will print 65::
     cdef Py_UCS4 uchar_val = u'A'
     print( <long>uchar_val )
 
-Note that casting to a C :c:type:`long` (or :c:type:`unsigned long`) will work
+Note that casting to a C :c:expr:`long` (or :c:expr:`unsigned long`) will work
 just fine, as the maximum code point value that a Unicode character
 can have is 1114111 (``0x10FFFF``).  On platforms with 32bit or more,
-:c:type:`int` is just as good.
+:c:expr:`int` is just as good.
 
 
 Narrow Unicode builds
@@ -595,7 +595,7 @@ platforms::
     assert uchar == 0x12345
 
 In CPython 3.3 and later, the :c:type:`Py_UNICODE` type is an alias
-for the system specific :c:type:`wchar_t` type and is no longer tied
+for the system specific :c:expr:`wchar_t` type and is no longer tied
 to the internal representation of the Unicode string.  Instead, any
 Unicode character can be represented on all platforms without
 resorting to surrogate pairs.  This implies that narrow builds no
@@ -613,7 +613,7 @@ time, as usual.
 Iteration
 ---------
 
-Cython 0.13 supports efficient iteration over :c:type:`char*`,
+Cython 0.13 supports efficient iteration over :c:expr:`char*`,
 bytes and unicode strings, as long as the loop variable is
 appropriately typed. So the following will generate the expected
 C code:
@@ -651,25 +651,25 @@ Windows and wide character APIs
 -------------------------------
 
 Windows system APIs natively support Unicode in the form of
-zero-terminated UTF-16 encoded :c:type:`wchar_t*` strings, so called
+zero-terminated UTF-16 encoded :c:expr:`wchar_t*` strings, so called
 "wide strings".
 
 By default, Windows builds of CPython define :c:type:`Py_UNICODE` as
-a synonym for :c:type:`wchar_t`. This makes internal :obj:`unicode`
+a synonym for :c:expr:`wchar_t`. This makes internal :obj:`unicode`
 representation compatible with UTF-16 and allows for efficient zero-copy
 conversions. This also means that Windows builds are always
 `Narrow Unicode builds`_ with all the caveats.
 
 To aid interoperation with Windows APIs, Cython 0.19 supports wide
-strings (in the form of :c:type:`Py_UNICODE*`) and implicitly converts
+strings (in the form of :c:expr:`Py_UNICODE*`) and implicitly converts
 them to and from :obj:`unicode` string objects.  These conversions behave the
-same way as they do for :c:type:`char*` and :obj:`bytes` as described in
+same way as they do for :c:expr:`char*` and :obj:`bytes` as described in
 `Passing byte strings`_.
 
 In addition to automatic conversion, unicode literals that appear
 in C context become C-level wide string literals and :py:func:`len`
 built-in function is specialized to compute the length of zero-terminated
-:c:type:`Py_UNICODE*` string or array.
+:c:expr:`Py_UNICODE*` string or array.
 
 Here is an example of how one would call a Unicode API on Windows::
 
@@ -686,7 +686,7 @@ Here is an example of how one would call a Unicode API on Windows::
 
 .. Warning::
 
-    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
+    The use of :c:expr:`Py_UNICODE*` strings outside of Windows is
     strongly discouraged. :c:type:`Py_UNICODE` is inherently not
     portable between different platforms and Python versions.
 

@@ -498,7 +498,7 @@ caller's syntax.
 Scoped Enumerations
 -------------------
 
-Cython supports scoped enumerations (:keyword:`enum class`) in C++ mode::
+Cython supports scoped enumerations (``enum class``) in C++ mode::
 
     cdef enum class Cheese:
         cheddar = 1
