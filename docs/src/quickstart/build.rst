@@ -20,6 +20,8 @@ There are several ways to build Cython code:
  - Write a setuptools ``setup.py``. This is the normal and recommended way.
  - Run the ``cythonize`` command-line utility. This is a good approach for
    compiling a single Cython source file directly to an extension.
+   A source file can be built "in place" (so that the extension module is generated next to the source file) with
+  ``cythonize -i filename.pyx``.
  - Use :ref:`Pyximport<pyximport>`, importing Cython ``.pyx`` files as if they
    were ``.py`` files (using setuptools to compile and build in the background).
    This method is easier than writing a ``setup.py``, but is not very flexible.
