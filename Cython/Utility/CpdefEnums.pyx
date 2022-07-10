@@ -43,12 +43,15 @@ if PY_VERSION_HEX >= 0x03040000:
 #################### EnumType ####################
 #@requires: EnumBase
 
+cdef extern from *:
+    object {{enum_to_pyint_func}}({{name}} value)
+
 cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
     {{name}} = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
-        ('{{item}}', <int>{{item}}),
+        ('{{item}}', {{enum_to_pyint_func}}({{item}})),
         {{endfor}}
     ]))
     {{if enum_doc is not None}}
@@ -62,7 +65,7 @@ else:
     class {{name}}(__Pyx_EnumBase):
         {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
-    __Pyx_globals['{{item}}'] = {{name}}(<int>{{item}}, '{{item}}')
+    __Pyx_globals['{{item}}'] = {{name}}({{enum_to_pyint_func}}({{item}}), '{{item}}')
     {{endfor}}
 
 #################### CppScopedEnumType ####################
