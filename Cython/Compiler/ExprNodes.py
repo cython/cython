@@ -3973,6 +3973,9 @@ class IndexNode(_IndexingBaseNode):
             if base_type in (list_type, tuple_type) and self.index.type.is_int:
                 item_type = infer_sequence_item_type(
                     env, self.base, self.index, seq_type=base_type)
+            if base_type in (list_type, tuple_type, dict_type):
+                # do the None check explicitly (not in a helper) to allow optimising it away
+                self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
             if item_type is None or not item_type.is_pyobject:
                 # Even if we inferred a C type as result, we will read a Python object, so trigger coercion if needed.
                 # We could potentially use "item_type.equivalent_type" here, but that may trigger assumptions
