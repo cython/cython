@@ -185,12 +185,26 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     build_in_temp = sargs.pop('build_in_temp',build_in_temp)
 
     from . import pyxbuild
-    so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
-                                  build_in_temp=build_in_temp,
-                                  pyxbuild_dir=pyxbuild_dir,
-                                  setup_args=sargs,
-                                  inplace=inplace,
-                                  reload_support=pyxargs.reload_support)
+    olddir = os.getcwd()
+    common = ''
+    if pyxbuild_dir:
+        # Windows concantenates the pyxbuild_dir to the pyxfilename when
+        # compiling, and then complains that the filename is too long
+        common = os.path.commonprefix([pyxbuild_dir, pyxfilename])
+    if len(common) > 30:
+        os.chdir(common)
+        pyxfilename = os.path.relpath(pyxfilename)
+        pyxbuild_dir = os.path.relpath(pyxbuild_dir)
+    try:
+        so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
+                                      build_in_temp=build_in_temp,
+                                      pyxbuild_dir=pyxbuild_dir,
+                                      setup_args=sargs,
+                                      inplace=inplace,
+                                      reload_support=pyxargs.reload_support)
+    finally:
+        os.chdir(olddir)
+    so_path = os.path.join(common, so_path)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
 
     junkpath = os.path.join(os.path.dirname(so_path), name+"_*")  #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)

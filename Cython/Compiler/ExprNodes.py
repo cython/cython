@@ -1099,6 +1099,8 @@ class ExprNode(Node):
         type = self.type
         if type.is_enum or type.is_error:
             return self
+        elif type is PyrexTypes.c_bint_type:
+            return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
         elif type.is_cpp_class and type.scope and type.scope.lookup("operator bool"):
