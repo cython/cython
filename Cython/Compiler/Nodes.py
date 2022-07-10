@@ -2638,7 +2638,7 @@ class CFuncDefNode(FuncDefNode):
             if entry.in_closure and not arg.default:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
-                    code.put_incref_memoryviewslice(entry.cname, True)
+                    code.put_incref_memoryviewslice(entry.cname, have_gil=True)
                 else:
                     code.put_var_incref(entry)
                     code.put_var_giveref(entry)
@@ -3243,7 +3243,7 @@ class DefNode(FuncDefNode):
                         "Referring to a memoryview typed argument directly in a nested closure function "
                         "is not supported in Cython 0.x. "
                         "Either upgrade to Cython 3, or assign the argument to a local variable "
-                        "and capture that."
+                        "and use that in the nested function."
                     )
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.xdecref_cleanup:
