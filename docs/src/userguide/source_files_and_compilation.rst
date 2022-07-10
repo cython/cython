@@ -484,8 +484,8 @@ to your generated module source file and look for a function name
 starting with ``PyInit_``.
 
 Next, before you start the Python runtime from your application code
-with ``Py_Initialize()``, you need to initialise the modules at runtime
-using the ``PyImport_AppendInittab()`` C-API function, again inserting
+with :c:func:`Py_Initialize()`, you need to initialise the modules at runtime
+using the :c:func:`PyImport_AppendInittab()` C-API function, again inserting
 the name of each of the modules::
 
     PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));

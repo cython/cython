@@ -31,7 +31,7 @@ Docstrings
 Currently, docstrings are not fully supported in some special methods of extension
 types. You can place a docstring in the source to serve as a comment, but it
 won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
-seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
+seems to be is a Python limitation -- there's nowhere in the :c:type:`PyTypeObject`
 data structure to put such docstrings.)
 
 

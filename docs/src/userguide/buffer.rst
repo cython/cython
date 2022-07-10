@@ -30,12 +30,12 @@ which Cython handles specially.
 .. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.pyx
 
 The method ``Matrix.__getbuffer__`` fills a descriptor structure,
-called a ``Py_buffer``, that is defined by the Python C-API.
+called a :c:type:`Py_buffer`, that is defined by the Python C-API.
 It contains a pointer to the actual buffer in memory,
 as well as metadata about the shape of the array and the strides
 (step sizes to get from one element or row to the next).
 Its ``shape`` and ``strides`` members are pointers
-that must point to arrays of type and size ``Py_ssize_t[ndim]``.
+that must point to arrays of type and size :c:expr:`Py_ssize_t[ndim]`.
 These arrays have to stay alive as long as any buffer views the data,
 so we store them on the ``Matrix`` object as members.
 

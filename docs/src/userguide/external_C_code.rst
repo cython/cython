@@ -280,7 +280,7 @@ there.
 Special Types
 --------------
 
-Cython predefines the name ``Py_ssize_t`` for use with Python/C API routines. To
+Cython predefines the name :c:type:`Py_ssize_t` for use with Python/C API routines. To
 make your extensions compatible with 64-bit systems, you should always use
 this type where it is specified in the documentation of Python/C API routines.
 
@@ -454,7 +454,7 @@ In this case, the file ``grail_helper.c`` just needs to add
 ``#include "grail.h"`` in order to access the public Cython variables.
 
 A more advanced use case is embedding Python in C using Cython.
-In this case, make sure to call Py_Initialize() and Py_Finalize().
+In this case, make sure to call :c:func:`Py_Initialize()` and :c:func:`Py_Finalize()`.
 For example, in the following snippet that includes :file:`grail.h`:
 
 .. code-block:: c
@@ -537,7 +537,7 @@ declarations to be linked with the extension module in any way, as the Python
 import machinery is used to make the connection dynamically. However, only
 functions can be accessed this way, not variables. Note also that for the
 module import mechanism to be set up correctly, the user must call
-Py_Initialize() and Py_Finalize(); if you experience a segmentation fault in
+:c:func:`Py_Initialize()` and :c:func:`Py_Finalize()`; if you experience a segmentation fault in
 the call to :func:`import_modulename`, it is likely that this wasn't done.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to

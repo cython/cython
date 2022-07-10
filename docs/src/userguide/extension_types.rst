@@ -639,7 +639,7 @@ common way of deallocating an object. For example, consider ::
     >>> x = "bar"
 
 After executing the second line, the string ``"foo"`` is no longer referenced,
-so it is deallocated. This is done using the ``tp_dealloc`` slot, which can be
+so it is deallocated. This is done using the :c:member:`PyTypeObject.tp_dealloc` slot, which can be
 customized in Cython by implementing ``__dealloc__``.
 
 The second mechanism is the cyclic garbage collector.
@@ -657,7 +657,7 @@ references ``y`` and vice versa. Even though neither ``x`` or ``y``
 are accessible after ``make_cycle`` returns, both have a reference count
 of 1, so they are not immediately deallocated. At regular times, the garbage
 collector runs, which will notice the reference cycle
-(using the ``tp_traverse`` slot) and break it.
+(using the :c:member:`PyTypeObject.tp_traverse` slot) and break it.
 Breaking a reference cycle means taking an object in the cycle
 and removing all references from it to other Python objects (we call this
 *clearing* an object). Clearing is almost the same as deallocating, except
@@ -667,9 +667,9 @@ the attributes of ``x`` would be removed from ``x``.
 Note that it suffices to clear just one object in the reference cycle,
 since there is no longer a cycle after clearing one object. Once the cycle
 is broken, the usual refcount-based deallocation will actually remove the
-objects from memory. Clearing is implemented in the ``tp_clear`` slot.
+objects from memory. Clearing is implemented in the :c:member:`PyTypeObject.tp_clear` slot.
 As we just explained, it is sufficient that one object in the cycle
-implements ``tp_clear``.
+implements :c:member:`PyTypeObject.tp_clear`.
 
 .. _trashcan:
 
@@ -708,13 +708,13 @@ Disabling cycle breaking (``tp_clear``)
 
 By default, each extension type will support the cyclic garbage collector of
 CPython. If any Python objects can be referenced, Cython will automatically
-generate the ``tp_traverse`` and ``tp_clear`` slots. This is usually what you
+generate the :c:member:`PyTypeObject.tp_traverse` and :c:member:`PyTypeObject.tp_clear` slots. This is usually what you
 want.
 
 There is at least one reason why this might not be what you want: If you need
 to cleanup some external resources in the ``__dealloc__`` special function and
 your object happened to be in a reference cycle, the garbage collector may
-have triggered a call to ``tp_clear`` to clear the object
+have triggered a call to :c:member:`PyTypeObject.tp_clear` to clear the object
 (see :ref:`dealloc_intro`).
 
 In that case, any object references have vanished when ``__dealloc__``
@@ -835,7 +835,7 @@ built-in complex object.::
         } PyComplexObject;
 
        At runtime, a check will be performed when importing the Cython
-       c-extension module that ``__builtin__.complex``'s ``tp_basicsize``
+       c-extension module that ``__builtin__.complex``'s :c:member:`PyTypeObject.tp_basicsize`
        matches ``sizeof(`PyComplexObject)``. This check can fail if the Cython
        c-extension module was compiled with one version of the
        ``complexobject.h`` header but imported into a Python with a changed
@@ -871,10 +871,10 @@ Where:
   declared type object.
 - ``cs_option`` is ``warn`` (the default), ``error``, or ``ignore`` and is only
   used for external extension types.  If ``error``, the ``sizeof(object_struct)``
-  that was found at compile time must match the type's runtime ``tp_basicsize``
+  that was found at compile time must match the type's runtime :c:member:`PyTypeObject.tp_basicsize`
   exactly, otherwise the module import will fail with an error.  If ``warn``
   or ``ignore``, the ``object_struct`` is allowed to be smaller than the type's
-  ``tp_basicsize``, which indicates the runtime type may be part of an updated
+  :c:member:`PyTypeObject.tp_basicsize`, which indicates the runtime type may be part of an updated
   module, and that the external module's developers extended the object in a
   backward-compatible fashion (only adding new fields to the end of the object).
   If ``warn``, a warning will be emitted in this case.
@@ -894,7 +894,7 @@ Attribute name matching and aliasing
 ------------------------------------
 
 Sometimes the type's C struct as specified in ``object_struct_name`` may use
-different labels for the fields than those in the ``PyTypeObject``. This can
+different labels for the fields than those in the :c:type:`PyTypeObject`. This can
 easily happen in hand-coded C extensions where the ``PyTypeObject_Foo`` has a
 getter method, but the name does not match the name in the ``PyFooObject``. In
 NumPy, for instance, python-level ``dtype.itemsize`` is a getter for the C

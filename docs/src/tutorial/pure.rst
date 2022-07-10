@@ -165,7 +165,7 @@ There are numerous types built into the Cython module.  It provides all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  The special ``bint`` type is used for C boolean values and
-``Py_ssize_t`` for (signed) sizes of Python containers.
+:c:type:`Py_ssize_t` for (signed) sizes of Python containers.
 
 For each type, there are pointer types ``p_int``, ``pp_int``, etc., up to
 three levels deep in interpreted mode, and infinitely deep in compiled mode.
