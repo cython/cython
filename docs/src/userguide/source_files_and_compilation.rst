@@ -942,9 +942,12 @@ Cython code.  Here is the list of currently supported directives:
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
   
-``annotation_typing`` (True / False)
-    Uses function argument annotations to determine the type of variables. Default
-    is True, but can be disabled. Since Python does not enforce types given in
+``annotation_typing`` (safe / full / False)
+    Uses function argument annotations to determine the type of variables. The 
+    default (safe) applies only annotations that are unlikely to change the
+    behaviour of Python code. Full assumes that all annotations are intended
+    for Cython's benefit and applies them fully, while False disables the
+    feature completely. Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
     Must be set globally.
 

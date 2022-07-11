@@ -2028,7 +2028,7 @@ class NameNode(AtomicExprNode):
         entry = self.entry or env.lookup_here(name)
         if not entry:
             # annotations only create global cdef names in "full" mode
-            if env.is_module_scope and env.directives['annotation_typing']!='full':
+            if env.is_module_scope and env.directives['annotation_typing'] != 'full':
                 return
 
             modifiers = ()
@@ -2036,7 +2036,7 @@ class NameNode(AtomicExprNode):
                 # name: "description" => not a type, but still a declared variable or attribute
                 annotation.expr.is_string_literal
                 # don't do type analysis from annotations if not asked to, but still collect the annotation
-                or env.directives['annotation_typing']!='False'
+                or not env.directives['annotation_typing']
             ):
                 atype = None
             elif env.is_py_class_scope:
@@ -2163,7 +2163,7 @@ class NameNode(AtomicExprNode):
             is_dataclass = 'dataclasses.dataclass' in env.directives
             # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
             # Hence, "as_target = not is_dataclass".
-            self.declare_from_annotation(env, as_target=not is_dataclass)
+            self.declare_from_annotation(env, as_target=not (is_dataclass or env.is_module_scope))
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
@@ -14087,6 +14087,8 @@ class AnnotationNode(ExprNode):
                     annotation = value
             if explicit_pytype and explicit_ctype:
                 warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
+        if env.directives["annotation_typing"] == 'full':
+            explicit_ctype = True
 
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)

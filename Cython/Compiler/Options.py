@@ -269,6 +269,15 @@ def one_of(*args):
     return validate
 
 
+def annotation_typing(name, value):
+    one_of('safe', 'full', 'True', 'False')(name, value)
+    if value == 'True':
+        return 'safe'  # 'True' == 'safe' for backward compatibility reasons
+    if value == 'False':
+        return False  # to make comparison to False easier
+    else:
+        return value
+
 def normalise_encoding_name(option_name, encoding):
     """
     >>> normalise_encoding_name('c_string_encoding', 'ascii')
@@ -337,7 +346,7 @@ directive_types = {
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     # 'True' == 'safe' for backward compatibility reasons
-    'annotation_typing': one_of('safe', 'full', 'True', 'False'),
+    'annotation_typing': annotation_typing,
 }
 
 for key, val in _directive_defaults.items():
