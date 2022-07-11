@@ -480,7 +480,8 @@ def get_known_standard_library_module_scope(module_name):
                 indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
             else:
                 indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
-            entry = mod.declare_type(EncodedString(name), indexed_type, pos = None)
+            name = EncodedString(name)
+            entry = mod.declare_type(name, indexed_type, pos = None)
             var_entry = Entry(name, None, PyrexTypes.py_object_type)
             var_entry.is_pyglobal = True
             var_entry.scope = mod
