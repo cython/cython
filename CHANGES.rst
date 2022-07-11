@@ -10,15 +10,17 @@ Features added
 
 * A new decorator ``@cython.dataclasses.dataclass`` was implemented that provides
   compile time dataclass generation capabilities to ``cdef`` classes (extension types).
-  Patch by David Woods.  (Github issue :issue:`2903`)
+  Patch by David Woods.  (Github issue :issue:`2903`).  ``kw_only`` dataclasses
+  added by Yury Sokov  (Github issue :issue:`4794`)
 
 * Named expressions (PEP 572) aka. assignment expressions (aka. the walrus operator
   ``:=``) were implemented.
   Patch by David Woods.  (Github issue :issue:`2636`)
 
 * Some C++ library declarations were extended and fixed.
-  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion.
-  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`, :issue:`4751`)
+  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion, Wenjun Si.
+  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`,
+  :issue:`4751`, :issue:`4818`, :issue:`4762`)
 
 * The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
   files for the compilation unit.  This can be used by external build tools to track
@@ -35,6 +37,10 @@ Features added
   smaller set of Cython's own modules, which can be used to reduce the package
   and install size.
 
+* Improvements to ``PyTypeObject`` definitions in pxd wrapping of libpython.
+  Patch by John Kirkham. (Github issue :issue:`4699`)
+
+
 Bugs fixed
 ----------
 
@@ -48,7 +54,7 @@ Bugs fixed
   Test patch by Kirill Smelkov.  (Github issue :issue:`4737`)
 
 * Typedefs for the ``bint`` type did not always behave like ``bint``.
-  Patch by 0dminnimda.  (Github issue :issue:`4660`)
+  Patch by Nathan Manville and 0dminnimda.  (Github issue :issue:`4660`)
 
 * The return type of a fused function is no longer ignored for function pointers,
   since it is relevant when passing them e.g. as argument into other fused functions.
@@ -65,7 +71,18 @@ Bugs fixed
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:`4329`)
 
-* Includes all bug-fixes from the :ref:`0.29.30` release.
+* Improve conversion between function pointers with non-identical but
+  compatible exception specifications. Patches by David Woods.
+  (Github issues :issue:`4770`, :issue:`4689`)
+
+* Improve compatibility with forthcoming CPython 3.12 release.
+
+* Limited API C preprocessor warning is compatible with MSVC. Patch by
+  Victor Molina Garcia.  (Github issue :issue:`4826`)
+
+* C compiler warnings fixed. Patch by mwtian.  (Github issue :issue:`4831`)
+
+* Includes all bug-fixes from the 0.29 branch up to the :ref:`0.29.31` release.
 
 Other changes
 -------------
@@ -78,7 +95,7 @@ Other changes
   allowed when it is used as default argument, i.e. ``func(x: list = None)``.
   Note that, for backwards compatibility reasons, this does not apply when using Cython's
   C notation, as in ``func(list x)``.  Here, ``None`` is still allowed, as always.
-  (Github issues :issue:`3883`, :issue:`2696`)
+  (Github issues :issue:`3883`, :issue:`2696`, :issue:`4669`)
 
 * The compile-time ``DEF`` and ``IF`` statements are deprecated and generate a warning.
   They should be replaced with normal constants, code generation or C macros.
@@ -86,6 +103,10 @@ Other changes
 
 * Reusing an extension type attribute name as a method name is now an error.
   Patch by 0dminnimda.  (Github issue :issue:`4661`)
+
+* Improve compatibility between classes pickled in Cython 3.0 and 0.29.x
+  by accepting MD5, SHA-1 and SHA-256 checksums.
+  (Github issue :issue:`4680`)
 
 
 3.0.0 alpha 10 (2022-01-06)
@@ -976,6 +997,42 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+.. _0.29.31:
+
+0.29.31 (2022-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Use ``importlib.util.find_spec()`` instead of the deprecated ``importlib.find_loader()`` 
+  function when setting up the package path at import-time. Patch by Matti Picus.
+  (Github issue #4764)
+  
+* Require the C compiler to support the two-arg form of ``va_start`` on Python 3.10 
+  and higher. Patch by Thomas Caswell.
+  (Github issue #4820)
+  
+* Make ``fused_type`` subscriptable in Shadow.py. Patch by Pfebrer.
+  (Github issue #4842)
+  
+* Fix the incorrect code generation of the target type in ``bytearray`` loops. 
+  Patch by Kenrick Everett.
+  (Github issue #4108)
+  
+* Silence some GCC ``-Wconversion`` warnings in C utility code.
+  Patch by Lisandro Dalcin.
+  (Github issue #4854)
+  
+* Stop tuple multiplication being ignored in expressions such as ``[*(1,) * 2]``.
+  Patch by David Woods.
+  (Github issue #4864)
+  
+* Ensure that object buffers (e.g. ``ndarray[object, ndim=1]``) containing 
+  ``NULL``  pointers are safe to use, returning ``None`` instead of the ``NULL``
+  pointer. Patch by Sebastian Berg.
+  (Github issue #4859)
 
 
 .. _0.29.30:

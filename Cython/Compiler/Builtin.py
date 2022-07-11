@@ -444,6 +444,16 @@ def init_builtins():
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 
+    # Set up type inference links between equivalent Python/C types
+    bool_type.equivalent_type = PyrexTypes.c_bint_type
+    PyrexTypes.c_bint_type.equivalent_type = bool_type
+
+    float_type.equivalent_type = PyrexTypes.c_double_type
+    PyrexTypes.c_double_type.equivalent_type = float_type
+
+    complex_type.equivalent_type = PyrexTypes.c_double_complex_type
+    PyrexTypes.c_double_complex_type.equivalent_type = complex_type
+
 
 init_builtins()
 
@@ -466,12 +476,11 @@ def get_known_standard_library_module_scope(module_name):
                 ('Set', set_type),
                 ('FrozenSet', frozenset_type),
                 ]:
-            name = EncodedString(name)
             if name == "Tuple":
                 indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
             else:
                 indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
-            entry = mod.declare_type(name, indexed_type, pos = None)
+            entry = mod.declare_type(EncodedString(name), indexed_type, pos = None)
             var_entry = Entry(name, None, PyrexTypes.py_object_type)
             var_entry.is_pyglobal = True
             var_entry.scope = mod

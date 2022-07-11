@@ -127,8 +127,8 @@ cdef class ContainsNonPyFields:
     """
     mystruct: S = cython.dataclasses.field(compare=False)
     mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
-    memview: int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
-                                 compare=False)
+    memview: cython.int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
+                                        compare=False)
 
     def __dealloc__(self):
         free(self.mystruct_ptr)
@@ -154,8 +154,8 @@ cdef class InitClassVars:
     True
     """
     a: cython.int = 0
-    b1: InitVar[double] = 1.0
-    b2: py_dataclasses.InitVar[double] = 1.0
+    b1: InitVar[cython.double] = 1.0
+    b2: py_dataclasses.InitVar[cython.double] = 1.0
     c1: ClassVar[float] = 2.0
     c2: typing.ClassVar[float] = 2.0
     cdef InitVar[cython.int] d1
@@ -206,7 +206,7 @@ cdef class TestVisibility:
     """
     cdef double a
     a = 1.0
-    b: double = 2.0
+    b: cython.double = 2.0
     cdef public double c
     c = 3.0
     cdef public object d
@@ -222,7 +222,7 @@ cdef class TestFrozen:
     Traceback (most recent call last):
     AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
-    a: double = 2.0
+    a: cython.double = 2.0
 
 def get_dataclass_initvar():
     return py_dataclasses.InitVar
@@ -252,8 +252,8 @@ cdef class TestKwOnly:
     TypeError: __init__() needs keyword-only argument b
     """
 
-    a: double = 2.0
-    b: long
+    a: cython.double = 2.0
+    b: cython.long
 
 
 import sys
