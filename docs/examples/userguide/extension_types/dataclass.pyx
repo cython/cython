@@ -17,5 +17,5 @@ cdef class MyDataclass:
     c = "hello"  # assignment of default value on a separate line
 
     # typing.InitVar and typing.ClassVar also work
-    d: dataclasses.InitVar[double] = 5
+    d: dataclasses.InitVar[cython.double] = 5
     e: typing.ClassVar[list] = []
