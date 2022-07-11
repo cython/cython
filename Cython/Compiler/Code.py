@@ -2108,12 +2108,9 @@ class CCodeWriter(object):
         self.funcstate.scope.use_entry_utility_code(entry)
 
     def put_var_declaration_unused_if_needed(self, entry, definition=True):
-        #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
-            #print "...private and not definition, skipping", entry.cname ###
             return
         if entry.visibility == "private" and not entry.used:
-            #print "...private and not used, skipping", entry.cname ###
             return
         if not entry.cf_used:
             self.putln("CYTHON_UNUSED_VAR(%s);" % entry.cname)
