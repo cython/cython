@@ -4601,9 +4601,6 @@ class GeneratorBodyDefNode(DefNode):
         else:
             code.putln('%s /* generator body */\n{' % header)
 
-    def generate_ignore_unused_arg(self, code):
-        code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.local_tstate_cname)
-
     def generate_function_definitions(self, env, code):
         lenv = self.local_scope
 
@@ -4637,7 +4634,7 @@ class GeneratorBodyDefNode(DefNode):
             code_object = self.code_object.calculate_result_code(code) if self.code_object else None
             code.put_trace_frame_init(code_object)
 
-        self.generate_ignore_unused_arg(code)
+        code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.local_tstate_cname)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)

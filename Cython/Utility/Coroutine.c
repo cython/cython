@@ -256,7 +256,7 @@ static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
     }
 #else
     // avoid C warning about 'unused function'
-    (void) &__Pyx_PyObject_CallMethod0;
+    CYTHON_UNUSED_VAR(&__Pyx_PyObject_CallMethod0);
 #endif
 
     obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
