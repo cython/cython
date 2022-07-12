@@ -438,6 +438,10 @@ from Cython 3.0 behaviour.
 |                     |                    | class definition)         |
 +---------------------+--------------------+---------------------------+
 
+
+Tips and Tricks
+---------------
+
 .. _calling-c-functions:
 
 Calling C functions
