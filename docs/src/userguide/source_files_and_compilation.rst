@@ -946,7 +946,7 @@ Cython code.  Here is the list of currently supported directives:
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
-    From Cython 3.0 ``annotation_typing`` can be set on a per-function or
+    From Cython 3.0, ``annotation_typing`` can be set on a per-function or
     per-class basis.
 
 ``emit_code_comments`` (True / False)
