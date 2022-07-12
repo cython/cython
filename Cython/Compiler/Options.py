@@ -366,7 +366,6 @@ directive_scopes = {  # defaults to available everywhere
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
     'freelist': ('cclass',),
     'emit_code_comments': ('module',),
-    'annotation_typing': ('module',),  # FIXME: analysis currently lacks more specific function scope
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
