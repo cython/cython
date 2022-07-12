@@ -2637,8 +2637,11 @@ class CFuncDefNode(FuncDefNode):
         def put_into_closure(entry):
             if entry.in_closure and not arg.default:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
-                code.put_var_incref(entry)
-                code.put_var_giveref(entry)
+                if entry.type.is_memoryviewslice:
+                    code.put_incref_memoryviewslice(entry.cname, have_gil=True)
+                else:
+                    code.put_var_incref(entry)
+                    code.put_var_giveref(entry)
         for arg in self.args:
             put_into_closure(scope.lookup_here(arg.name))
 
@@ -3234,6 +3237,14 @@ class DefNode(FuncDefNode):
         # Move arguments into closure if required
         def put_into_closure(entry):
             if entry.in_closure:
+                if entry.type.is_memoryviewslice:
+                    error(
+                        self.pos,
+                        "Referring to a memoryview typed argument directly in a nested closure function "
+                        "is not supported in Cython 0.x. "
+                        "Either upgrade to Cython 3, or assign the argument to a local variable "
+                        "and use that in the nested function."
+                    )
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.xdecref_cleanup:
                     # mostly applies to the starstar arg - this can sometimes be NULL

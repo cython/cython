@@ -2549,3 +2549,23 @@ def test_const_buffer(const int[:] a):
     cdef const int[:] c = a
     print(a[0])
     print(c[-1])
+
+cdef arg_in_closure_cdef(int [:] a):
+    def inner():
+        return (a[0], a[1])
+    return inner
+
+def test_arg_in_closure_cdef(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure_cdef(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    return arg_in_closure_cdef(a)
+
