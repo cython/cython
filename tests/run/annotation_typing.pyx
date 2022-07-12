@@ -329,6 +329,36 @@ class HasPtr:
         return f"HasPtr({self.a[0]}, {self.b})"
 
 
+@cython.annotation_typing(False)
+def turn_off_typing(x: float, d: dict):
+    """
+    >>> turn_off_typing('not a float', [])  # ignore the typing
+    ('Python object', 'Python object', 'not a float', [])
+    """
+    return typeof(x), typeof(d), x, d
+
+
+@cython.annotation_typing(False)
+cdef class ClassTurnOffTyping:
+    x: float
+    d: dict
+
+    def get_var_types(self, arg: float):
+        """
+        >>> ClassTurnOffTyping().get_var_types(1.0)
+        ('Python object', 'Python object', 'Python object')
+        """
+        return typeof(self.x), typeof(self.d), typeof(arg)
+
+    @cython.annotation_typing(True)
+    def and_turn_it_back_on_again(self, arg: float):
+        """
+        >>> ClassTurnOffTyping().and_turn_it_back_on_again(1.0)
+        ('Python object', 'Python object', 'double')
+        """
+        return typeof(self.x), typeof(self.d), typeof(arg)
+
+
 _WARNINGS = """
 14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
