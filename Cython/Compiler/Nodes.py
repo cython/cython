@@ -6705,7 +6705,7 @@ class RaiseStatNode(StatNode):
                 if self.builtin_exc_name == 'MemoryError':
                     self.exc_type = None  # has a separate implementation
                 elif (self.builtin_exc_name == 'StopIteration' and
-                        isinstance(env, Symtab.LocalScope) and env.name == "__next__" and
+                        env.is_local_scope and env.name == "__next__" and
                         env.parent_scope and env.parent_scope.is_c_class_scope and
                         not self.in_try_block):
                     # tp_iternext is allowed to return NULL without raising StopIteration.
