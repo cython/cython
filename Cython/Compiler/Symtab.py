@@ -342,6 +342,7 @@ class Scope(object):
     # is_builtin_scope  boolean            Is the builtin scope of Python/Cython
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
+    # is_local_scope    boolean            Is a local (i.e. function/method/generator) scope
     # is_closure_scope  boolean            Is a closure scope
     # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
@@ -360,6 +361,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_local_scope = False
     is_generator_expression_scope = 0
     is_comprehension_scope = 0
     is_passthrough = 0
@@ -1886,6 +1888,7 @@ class ModuleScope(Scope):
 
 
 class LocalScope(Scope):
+    is_local_scope = True
 
     # Does the function have a 'with gil:' block?
     has_with_gil_block = False

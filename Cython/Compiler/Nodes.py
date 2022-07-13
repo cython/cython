@@ -2231,7 +2231,14 @@ class FuncDefNode(StatNode, BlockNode):
                 # code.put_trace_exception()
 
                 assure_gil('error')
+                if code.funcstate.error_without_exception:
+                    tempvardecl_code.putln(
+                        "int %s = 0; /* StopIteration */" % Naming.error_without_exception_cname
+                    )
+                    code.putln("if (!%s) {" % Naming.error_without_exception_cname)
                 code.put_add_traceback(self.entry.qualified_name)
+                if code.funcstate.error_without_exception:
+                    code.putln("}")
             else:
                 warning(self.entry.pos,
                         "Unraisable exception in function '%s'." %
@@ -6703,11 +6710,15 @@ class RaiseStatNode(StatNode):
     #  exc_value   ExprNode or None
     #  exc_tb      ExprNode or None
     #  cause       ExprNode or None
+    #
+    # set in FlowControl
+    #  in_try_block  bool
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
     is_terminator = True
     builtin_exc_name = None
     wrap_tuple_value = False
+    in_try_block = False
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -6736,9 +6747,19 @@ class RaiseStatNode(StatNode):
                     not (exc.args or (exc.arg_tuple is not None and exc.arg_tuple.args))):
                 exc = exc.function  # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
+                from . import Symtab
                 self.builtin_exc_name = exc.name
                 if self.builtin_exc_name == 'MemoryError':
                     self.exc_type = None  # has a separate implementation
+                elif (self.builtin_exc_name == 'StopIteration' and
+                        env.is_local_scope and env.name == "__next__" and
+                        env.parent_scope and env.parent_scope.is_c_class_scope and
+                        not self.in_try_block):
+                    # tp_iternext is allowed to return NULL without raising StopIteration.
+                    # For the sake of simplicity, only allow this to happen when not in
+                    # a try block
+                    self.exc_type = None
+
         return self
 
     nogil_check = Node.gil_error
@@ -6748,6 +6769,11 @@ class RaiseStatNode(StatNode):
         code.mark_pos(self.pos)
         if self.builtin_exc_name == 'MemoryError':
             code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
+            return
+        elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
+            code.putln('%s = 1;' % Naming.error_without_exception_cname)
+            code.putln('%s;' % code.error_goto(None))
+            code.funcstate.error_without_exception = True
             return
 
         if self.exc_type:
