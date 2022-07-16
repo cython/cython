@@ -13,7 +13,8 @@ from distutils.core import setup, Extension
 setup(
   ext_modules=cythonize([
     Extension("classes", ["classes.pyx"]),
-    Extension("failed_inherit", ["failed_inherit.pyx"]),
+    Extension("failed_inherit1", ["failed_inherit1.pyx"]),
+    Extension("failed_inherit2", ["failed_inherit2.pyx"]),
     Extension("successful_inherit", ["successful_inherit.pyx"]),
   ]),
 )
@@ -53,12 +54,21 @@ check_tuple((1, 2))
 check_list([1, 2])
 check_code(eval("lambda: None").__code__)
 
-##### failed_inherit.pyx #############
+##### failed_inherit1.pyx #############
 
 from classes cimport tpl
 
 cdef class SuperTuple(tpl):
     cdef int a  # importing this gives an error message
+
+##### failed_inherit2.pyx #############
+
+from classes cimport tpl
+
+cdef class SuperTuple(tpl):
+    # adding a method creates a vtab so should also fail
+    cdef int func(self):
+        return 1
     
 ##### successful_inherit.pyx #########
 
@@ -74,7 +84,13 @@ cdef class SuperTuple(tpl):
 ##### test_inherit.py ################
 
 try:
-    import failed_inherit
+    import failed_inherit1
+except TypeError as e:
+    assert e.args[0] == "inheritance from PyVarObject types like 'tuple' not currently supported", e.args[0]
+else:
+    assert False
+try:
+    import failed_inherit2
 except TypeError as e:
     assert e.args[0] == "inheritance from PyVarObject types like 'tuple' not currently supported", e.args[0]
 else:

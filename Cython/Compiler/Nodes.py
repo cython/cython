@@ -5460,7 +5460,7 @@ class CClassDefNode(ClassDefNode):
 
             base_type = type.base_type
             while base_type:
-                if type.base_type.is_external and not base_type.objstruct_cname == "PyTypeObject":
+                if base_type.is_external and not base_type.objstruct_cname == "PyTypeObject":
                     # 'type' is special-cased because it is actually based on PyHeapTypeObject
                     # Variable length bases are allowed if the current class doesn't grow
                     code.putln("if (sizeof(%s%s) != sizeof(%s%s)) {" % (
