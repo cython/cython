@@ -142,12 +142,12 @@ def p_test(s):
     # message into something a bit more descriptive.
     # It is close to what the PEG parser does in CPython, where an expression has
     # a lookahead assertion that it isn't followed by ':='
-    expr = p_test_no_namedexpr_check(s)
+    expr = p_test_allow_walrus_after(s)
     if s.sy == ':=':
         s.error("invalid syntax: assignment expression not allowed in this context")
     return expr
 
-def p_test_no_namedexpr_check(s):
+def p_test_allow_walrus_after(s):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
@@ -178,7 +178,7 @@ def p_namedexpr_test(s):
     #  1. look for "name :=", if found it's definitely a named expression
     #     so look for expression
     #  2. Otherwise, look for expression
-    lhs = p_test_no_namedexpr_check(s)
+    lhs = p_test_allow_walrus_after(s)
     if s.sy == ':=':
         position = s.position()
         if not lhs.is_name:
