@@ -2180,13 +2180,9 @@ def p_with_items(s, is_async=False):
                 break
     body = p_suite(s)
     for item in reversed(items):
-        if item[0] == "gil":
-            pos, state, condition = item[1:]
-            body = Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
-        else:
-            pos, manager, target = item[1:]
-            assert item[0] == "with", item[0]
-            body = Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+        # populate the bodies of the WithStatNodes/GILStatNodes
+        item.body = body
+        body = item
     return body
 
 
@@ -2205,14 +2201,16 @@ def p_with_item(s, is_async):
             condition = p_test(s)
             s.expect(')')
 
-        return "gil", pos, state, condition
+        # body is filled in later by the caller
+        return Nodes.GILStatNode(pos, state=state, condition=condition, body=None)
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-    return "with", pos, manager, target
+        # body is filled in later by the caller
+        return Nodes.WithStatNode(pos, manager=manager, target=target, body=None, is_async=is_async)
 
 
 def p_with_template(s):
