@@ -564,3 +564,37 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
     }
     return __Pyx_NewRef(Py_NotImplemented);
 }
+
+/////////////// ValidateExternBase.proto ///////////////
+
+static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
+
+/////////////// ValidateExternBase ///////////////
+//@requires: ObjectHandling.c::FormatTypeName
+
+static int __Pyx_validate_extern_base(PyTypeObject *base) {
+    Py_ssize_t itemsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_itemsize;
+#endif
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    itemsize = ((PyTypeObject *)base)->tp_itemsize;
+#else
+    py_itemsize = PyObject_GetAttrString(base, "__itemsize__");
+    if (!py_itemsize)
+        return -1;
+    itemsize = PyLong_AsSsize_t(py_itemsize);
+    Py_DECREF(py_itemsize);
+    py_itemsize = 0;
+    if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        return -1;
+#endif
+    if (itemsize) {
+        __Pyx_TypeName b_name = __Pyx_PyType_GetName(base);
+        PyErr_Format(PyExc_TypeError,
+                "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
+        __Pyx_DECREF_TypeName(b_name);
+        return -1;
+    }
+    return 0;
+}

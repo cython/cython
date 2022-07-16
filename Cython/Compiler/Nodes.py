@@ -5242,7 +5242,8 @@ class CClassDefNode(ClassDefNode):
                 error(base.pos, "Base class '%s' of type '%s' is final" % (
                     base_type, self.class_name))
             elif base_type.is_builtin_type and \
-                     base_type.name in ('tuple', 'str', 'bytes'):
+                     base_type.name in ('tuple', 'bytes'):
+                     # str in Py2 is also included in this, but now checked at run-time
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
             else:
@@ -5510,6 +5511,22 @@ class CClassDefNode(ClassDefNode):
                 type.typeobj_cname,
             ))
             code.putln("#endif")  # if CYTHON_USE_TYPE_SPECS
+
+            base_type = type.base_type
+            while base_type:
+                if base_type.is_external and not base_type.objstruct_cname == "PyTypeObject":
+                    # 'type' is special-cased because it is actually based on PyHeapTypeObject
+                    # Variable length bases are allowed if the current class doesn't grow
+                    code.putln("if (sizeof(%s%s) != sizeof(%s%s)) {" % (
+                        "" if type.typedef_flag else "struct ", type.objstruct_cname,
+                        "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
+                        type.base_type.typeptr_cname))
+                    code.putln("}")
+                    break
+                base_type = base_type.base_type
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
