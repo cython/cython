@@ -93,6 +93,17 @@ cdef extern from "<stdlib.h>":
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
 
+# the sequence abstract base class
+cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
+try:
+    if __import__("sys").version_info >= (3, 3):
+        __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
+    else:
+        __pyx_collections_abc_Sequence = __import__("collections").Sequence
+except:
+    # it isn't a big problem if this fails
+    __pyx_collections_abc_Sequence = None
+
 #
 ### cython.array class
 #
@@ -224,6 +235,12 @@ cdef class array:
     def __setitem__(self, item, value):
         self.memview[item] = value
 
+    # Sequence methods
+    try:
+        count = __pyx_collections_abc_Sequence.count
+        index = __pyx_collections_abc_Sequence.index
+    except:
+        pass
 
 @cname("__pyx_array_allocate_buffer")
 cdef int _allocate_buffer(array self) except -1:
@@ -970,6 +987,22 @@ cdef class _memoryviewslice(memoryview):
     cdef _get_base(self):
         return self.from_object
 
+    # Sequence methods
+    try:
+        count = __pyx_collections_abc_Sequence.count
+        index = __pyx_collections_abc_Sequence.index
+    except:
+        pass
+
+try:
+    if __pyx_collections_abc_Sequence:
+        # The main value of registering _memoryviewslice as a
+        # Sequence is that it can be used in structural pattern
+        # matching in Python 3.10+
+        __pyx_collections_abc_Sequence.register(_memoryviewslice)
+        __pyx_collections_abc_Sequence.register(array)
+except:
+    pass  # ignore failure, it's a minor issue
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
