@@ -3979,7 +3979,7 @@ def p_match_statement(s, ctx):
     pos = s.position()
     with tentatively_scan(s) as errors:
         s.next()
-        subject = p_test(s)
+        subject = p_namedexpr_test(s)
         subjects = None
         if s.sy == ",":
             subjects = [subject]
