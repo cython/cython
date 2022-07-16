@@ -554,7 +554,8 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
             // (most likely because alignof isn't available)
             alignment = size % alignment;
         }
-        itemsize = itemsize > (Py_ssize_t)alignment ? itemsize : (Py_ssize_t)alignment;
+        if (itemsize < (Py_ssize_t)alignment)
+            itemsize = (Py_ssize_t)alignment;
     }
     if ((size_t)(basicsize + itemsize) < size) {
         PyErr_Format(PyExc_ValueError,
