@@ -12,11 +12,7 @@ from distutils.core import setup, Extension
 
 setup(
   ext_modules=cythonize([
-    Extension("classes", ["classes.pyx"]),
-    Extension("failed_inherit1", ["failed_inherit1.pyx"]),
-    Extension("failed_inherit2", ["failed_inherit2.pyx"]),
-    Extension("successful_inherit", ["successful_inherit.pyx"]),
-  ]),
+  ext_modules=cythonize("*.pyx"),
 )
 
 ######  dummy_module.py ###########
