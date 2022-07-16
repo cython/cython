@@ -11,7 +11,6 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup, Extension
 
 setup(
-  ext_modules=cythonize([
   ext_modules=cythonize("*.pyx"),
 )
 
