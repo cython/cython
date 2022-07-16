@@ -2179,15 +2179,17 @@ def p_with_items(s, is_async=False):
             else:
                 break
     body = p_suite(s)
-    for item in reversed(items):
-        # populate the bodies of the WithStatNodes/GILStatNodes
-        item.body = body
-        item.post_initialize()  # GILStatNode has a little extra setup to do once body is set
-        body = item
+    for cls, pos, kwds in reversed(items):
+        # construct the actual nodes now that we know what the body is
+        body = cls(pos, body=body, **kwds)
     return body
 
 
 def p_with_item(s, is_async):
+    # In contrast to most parsing functions, this returns a tuple of
+    #  class, pos, kwd_dict
+    # This is because GILStatNode does a reasonable amount of initialization in its
+    # constructor, and requires "body" to be set, which we don't currently have
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         if is_async:
@@ -2202,16 +2204,14 @@ def p_with_item(s, is_async):
             condition = p_test(s)
             s.expect(')')
 
-        # body is filled in later by the caller
-        return Nodes.GILStatNode(pos, state=state, condition=condition, body=None)
+        return Nodes.GILStatNode, pos, {"state": state, "condition": condition}
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-        # body is filled in later by the caller
-        return Nodes.WithStatNode(pos, manager=manager, target=target, body=None, is_async=is_async)
+        return Nodes.WithStatNode, pos, {"manager": manager, "target": target, "is_async": is_async}
 
 
 def p_with_template(s):
