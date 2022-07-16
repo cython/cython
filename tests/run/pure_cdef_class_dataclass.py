@@ -11,9 +11,9 @@ class MyDataclass:
     """
     >>> sorted(list(MyDataclass.__dataclass_fields__.keys()))
     ['a', 'self']
-    >>> inst1 = MyDataclass(2.0, ['a', 'b'])
+    >>> inst1 = MyDataclass(2, ['a', 'b'])
     >>> print(inst1)
-    MyDataclass(a=2.0, self=['a', 'b'])
+    MyDataclass(a=2, self=['a', 'b'])
     >>> inst2 = MyDataclass()
     >>> print(inst2)
     MyDataclass(a=1, self=[])

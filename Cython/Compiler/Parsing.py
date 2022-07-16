@@ -122,9 +122,9 @@ def p_lambdef(s, allow_conditional=True):
             s, terminator=':', annotated=False)
     s.expect(':')
     if allow_conditional:
-        expr = p_test(s, allow_assignment_expression=False)
+        expr = p_test(s)
     else:
-        expr = p_test_nocond(s, allow_assignment_expression=False)
+        expr = p_test_nocond(s)
     return ExprNodes.LambdaNode(
         pos, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
@@ -133,48 +133,63 @@ def p_lambdef(s, allow_conditional=True):
 #lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
 
 def p_lambdef_nocond(s):
-    return p_lambdef(s, allow_conditional=False)
+    return p_lambdef(s)
 
 #test: or_test ['if' or_test 'else' test] | lambdef
 
-def p_test(s, allow_assignment_expression=True):
+def p_test(s):
+    # The check for a following ':=' is only for error reporting purposes.
+    # It simply changes a
+    #   expected ')', found ':='
+    # message into something a bit more descriptive.
+    # It is close to what the PEG parser does in CPython, where an expression has
+    # a lookahead assertion that it isn't followed by ':='
+    expr = p_test_allow_walrus_after(s)
+    if s.sy == ':=':
+        s.error("invalid syntax: assignment expression not allowed in this context")
+    return expr
+
+def p_test_allow_walrus_after(s):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
-    expr = p_walrus_test(s, allow_assignment_expression)
+    expr = p_or_test(s)
     if s.sy == 'if':
         s.next()
-        # Assignment expressions are always allowed here
-        # even if they wouldn't be allowed in the expression as a whole.
-        test = p_walrus_test(s)
+        test = p_or_test(s)
         s.expect('else')
         other = p_test(s)
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
     else:
         return expr
 
+
 #test_nocond: or_test | lambdef_nocond
 
-def p_test_nocond(s, allow_assignment_expression=True):
+def p_test_nocond(s):
     if s.sy == 'lambda':
         return p_lambdef_nocond(s)
     else:
-        return p_walrus_test(s, allow_assignment_expression)
+        return p_or_test(s)
 
-# walrurus_test: IDENT := test | or_test
-
-def p_walrus_test(s, allow_assignment_expression=True):
-    lhs = p_or_test(s)
+def p_namedexpr_test(s):
+    # defined in the LL parser as
+    #  namedexpr_test: test [':=' test]
+    # The requirement that the LHS is a name is not enforced in the grammar.
+    # For comparison the PEG parser does:
+    #  1. look for "name :=", if found it's definitely a named expression
+    #     so look for expression
+    #  2. Otherwise, look for expression
+    lhs = p_test_allow_walrus_after(s)
     if s.sy == ':=':
         position = s.position()
-        if not allow_assignment_expression:
-            s.error("invalid syntax: assignment expression not allowed in this context")
-        elif not lhs.is_name:
-            s.error("Left-hand side of assignment expression must be an identifier")
+        if not lhs.is_name:
+            s.error("Left-hand side of assignment expression must be an identifier", fatal=False)
         s.next()
         rhs = p_test(s)
         return ExprNodes.AssignmentExpressionNode(position, lhs=lhs, rhs=rhs)
     return lhs
+
 
 #or_test: and_test ('or' and_test)*
 
@@ -229,11 +244,17 @@ def p_comparison(s):
             n1.cascade = p_cascaded_cmp(s)
     return n1
 
-def p_test_or_starred_expr(s, is_expression=False):
+def p_test_or_starred_expr(s):
     if s.sy == '*':
         return p_starred_expr(s)
     else:
-        return p_test(s, allow_assignment_expression=is_expression)
+        return p_test(s)
+
+def p_namedexpr_test_or_starred_expr(s):
+    if s.sy == '*':
+        return p_starred_expr(s)
+    else:
+        return p_namedexpr_test(s)
 
 def p_starred_expr(s):
     pos = s.position()
@@ -507,7 +528,7 @@ def p_call_parse_args(s, allow_genexp=True):
             keyword_args.append(p_test(s))
             starstar_seen = True
         else:
-            arg = p_test(s)
+            arg = p_namedexpr_test(s)
             if s.sy == '=':
                 s.next()
                 if not arg.is_name:
@@ -516,7 +537,7 @@ def p_call_parse_args(s, allow_genexp=True):
                 encoded_name = s.context.intern_ustring(arg.name)
                 keyword = ExprNodes.IdentifierStringNode(
                     arg.pos, value=encoded_name)
-                arg = p_test(s, allow_assignment_expression=False)
+                arg = p_test(s)
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
@@ -655,9 +676,7 @@ def p_slice_element(s, follow_set):
         return None
 
 def expect_ellipsis(s):
-    s.expect('.')
-    s.expect('.')
-    s.expect('.')
+    s.expect('...')
 
 def make_slice_nodes(pos, subscripts):
     # Convert a list of subscripts as returned
@@ -694,7 +713,7 @@ def p_atom(s):
         elif s.sy == 'yield':
             result = p_yield_expression(s)
         else:
-            result = p_testlist_comp(s, is_expression=True)
+            result = p_testlist_comp(s)
         s.expect(')')
         return result
     elif sy == '[':
@@ -703,7 +722,7 @@ def p_atom(s):
         return p_dict_or_set_maker(s)
     elif sy == '`':
         return p_backquote_expr(s)
-    elif sy == '.':
+    elif sy == '...':
         expect_ellipsis(s)
         return ExprNodes.EllipsisNode(pos)
     elif sy == 'INT':
@@ -1265,7 +1284,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
 # since PEP 448:
 # list_display  ::=     "[" [listmaker] "]"
-# listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
+# listmaker     ::=     (named_test|star_expr) ( comp_for | (',' (named_test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
 # comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
@@ -1278,7 +1297,7 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args=[])
 
-    expr = p_test_or_starred_expr(s, is_expression=True)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
@@ -1293,7 +1312,7 @@ def p_list_maker(s):
     # (merged) list literal
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
     else:
         exprs = [expr]
     s.expect(']')
@@ -1478,7 +1497,16 @@ def p_simple_expr_list(s, expr=None):
 def p_test_or_starred_expr_list(s, expr=None):
     exprs = expr is not None and [expr] or []
     while s.sy not in expr_terminators:
-        exprs.append(p_test_or_starred_expr(s, is_expression=(expr is not None)))
+        exprs.append(p_test_or_starred_expr(s))
+        if s.sy != ',':
+            break
+        s.next()
+    return exprs
+
+def p_namedexpr_test_or_starred_expr_list(s, expr=None):
+    exprs = expr is not None and [expr] or []
+    while s.sy not in expr_terminators:
+        exprs.append(p_namedexpr_test_or_starred_expr(s))
         if s.sy != ',':
             break
         s.next()
@@ -1511,12 +1539,12 @@ def p_testlist_star_expr(s):
 
 # testlist_comp: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 
-def p_testlist_comp(s, is_expression=False):
+def p_testlist_comp(s):
     pos = s.position()
-    expr = p_test_or_starred_expr(s, is_expression)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
         return ExprNodes.TupleNode(pos, args = exprs)
     elif s.sy in ('for', 'async'):
         return p_genexp(s, expr)
@@ -1762,11 +1790,11 @@ def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
-    if s.sy == '.':
+    if s.sy in ('.', '...'):
         # count relative import level
         level = 0
-        while s.sy == '.':
-            level += 1
+        while s.sy in ('.', '...'):
+            level += len(s.sy)
             s.next()
     else:
         level = None
@@ -1904,7 +1932,7 @@ def p_if_statement(s):
 
 def p_if_clause(s):
     pos = s.position()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     return Nodes.IfClauseNode(pos,
         condition = test, body = body)
@@ -1920,7 +1948,7 @@ def p_while_statement(s):
     # s.sy == 'while'
     pos = s.position()
     s.next()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     else_clause = p_else_clause(s)
     return Nodes.WhileStatNode(pos,
@@ -3047,7 +3075,7 @@ def p_exception_value_clause(s):
     return exc_val, exc_check
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
-    '*', '**', '.', ')', ':', '/')))
+    '*', '**', '...', ')', ':', '/')))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -3066,7 +3094,7 @@ def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
     return args
 
 def p_optional_ellipsis(s):
-    if s.sy == '.':
+    if s.sy == '...':
         expect_ellipsis(s)
         return 1
     else:
@@ -3110,11 +3138,11 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
                 default = ExprNodes.NoneNode(pos)
                 s.next()
             elif 'inline' in ctx.modifiers:
-                default = p_test(s, allow_assignment_expression=False)
+                default = p_test(s)
             else:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
         else:
-            default = p_test(s, allow_assignment_expression=False)
+            default = p_test(s)
     return Nodes.CArgDeclNode(pos,
         base_type = base_type,
         declarator = declarator,
@@ -4415,5 +4443,5 @@ def p_annotation(s):
     then it is not a bug.
     """
     pos = s.position()
-    expr = p_test(s, allow_assignment_expression=False)
+    expr = p_test(s)
     return ExprNodes.AnnotationNode(pos, expr=expr)
