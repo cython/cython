@@ -2419,13 +2419,14 @@ def p_statement(s, ctx, first_statement = 0):
             else:
                 if s.sy == 'IDENT' and s.systring == 'async':
                     ident_name = s.systring
+                    ident_pos = s.position()
                     # PEP 492 enables the async/await keywords when it spots "async def ..."
                     s.next()
                     if s.sy == 'def':
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back(u'IDENT', ident_name)  # re-insert original token
+                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2637,20 +2638,22 @@ def p_c_simple_base_type(s, nonempty, templates=None):
             name = p_ident(s)
     else:
         name = s.systring
+        name_pos = s.position()
         s.next()
         if nonempty and s.sy != 'IDENT':
             # Make sure this is not a declaration of a variable or function.
             if s.sy == '(':
+                old_pos = s.position()
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back(u'(', u'(')
+                    s.put_back(u'(', u'(', old_pos)
                 else:
-                    s.put_back(u'(', u'(')
-                    s.put_back(u'IDENT', name)
+                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back(u'IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back(u'IDENT', name)
+                s.put_back(u'IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2724,13 +2727,13 @@ def is_memoryviewslice_access(s):
     # a memoryview slice declaration is distinguishable from a buffer access
     # declaration by the first entry in the bracketed list.  The buffer will
     # not have an unnested colon in the first entry; the memoryview slice will.
-    saved = [(s.sy, s.systring)]
+    saved = [(s.sy, s.systring, s.position())]
     s.next()
     retval = False
     if s.systring == ':':
         retval = True
     elif s.sy == 'INT':
-        saved.append((s.sy, s.systring))
+        saved.append((s.sy, s.systring, s.position()))
         s.next()
         if s.sy == ':':
             retval = True
@@ -2765,15 +2768,16 @@ def looking_at_expr(s):
     elif s.sy == 'IDENT':
         is_type = False
         name = s.systring
+        name_pos = s.position()
         dotted_path = []
         s.next()
 
         while s.sy == '.':
             s.next()
-            dotted_path.append(s.systring)
+            dotted_path.append((s.systring, s.position()))
             s.expect('IDENT')
 
-        saved = s.sy, s.systring
+        saved = s.sy, s.systring, s.position()
         if s.sy == 'IDENT':
             is_type = True
         elif s.sy == '*' or s.sy == '**':
@@ -2791,10 +2795,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back(u'IDENT', p)
-            s.put_back(u'.', u'.')
+            s.put_back(u'IDENT', *p)
+            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
 
-        s.put_back(u'IDENT', name)
+        s.put_back(u'IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2806,9 +2810,10 @@ def looking_at_base_type(s):
 def looking_at_dotted_name(s):
     if s.sy == 'IDENT':
         name = s.systring
+        name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back(u'IDENT', name)
+        s.put_back(u'IDENT', name, name_pos)
         return result
     else:
         return 0

@@ -2616,10 +2616,10 @@ class CFuncDefNode(FuncDefNode):
                 # it really is impossible to reason about what the user wants to happens
                 # if they've specified a C++ exception translation function. Therefore,
                 # raise an error.
-                error(self.cfunc_declarator.pos,
+                error(self.pos,
                     "Only extern functions can throw C++ exceptions.")
             else:
-                warning(self.cfunc_declarator.pos,
+                warning(self.pos,
                     "Only extern functions can throw C++ exceptions.", 2)
 
         for formal_arg, type_arg in zip(self.args, typ.args):
