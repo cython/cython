@@ -8,11 +8,9 @@ cdef class MyTuple(tuple):
 cdef class MyBytes(bytes):
     pass
 
-cdef class MyStr(str): # only in Py2, but can't know that during compilation
-    pass
+# str is also included in this in Py2, but checked at runtime instead
 
 _ERRORS = """
 5:19: inheritance from PyVarObject types like 'tuple' is not currently supported
 8:19: inheritance from PyVarObject types like 'bytes' is not currently supported
-11:17: inheritance from PyVarObject types like 'str' is not currently supported
 """

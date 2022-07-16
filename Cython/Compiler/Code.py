@@ -691,6 +691,7 @@ class LazyUtilityCode(UtilityCodeBase):
 class FunctionState(object):
     # return_label     string          function return point label
     # error_label      string          error catch point label
+    # error_without_exception  boolean Can go to the error label without an exception (e.g. __next__ can return NULL)
     # continue_label   string          loop continue point label
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
@@ -738,6 +739,8 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+        self.error_without_exception = False
 
     # safety checks
 
@@ -2332,8 +2335,16 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
-                    func_cname, entry.func_cname))
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {" % func_cname)
+                func_call = "%s(self)" % entry.func_cname
+                if entry.name == "__next__":
+                    self.putln("PyObject *res = %s;" % func_call)
+                    # tp_iternext can return NULL without an exception
+                    self.putln("if (!res && !PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
+                    self.putln("return res;")
+                else:
+                    self.putln("return %s;" % func_call)
+                self.putln("}")
         return func_cname
 
     # GIL methods

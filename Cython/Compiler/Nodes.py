@@ -158,6 +158,7 @@ class Node(object):
     is_terminator = 0
     is_wrapper = False  # is a DefNode wrapper for a C function
     is_cproperty = False
+    is_templated_type_node = False
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
@@ -966,27 +967,34 @@ class CArgDeclNode(Node):
         annotation = self.annotation
         if not annotation:
             return None
-        base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
-        if base_type is not None:
-            self.base_type = base_type
 
-        if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
-            # "x: Optional[...]"  =>  explicitly allow 'None'
-            arg_type = arg_type.resolve()
-            if arg_type and not arg_type.is_pyobject:
-                error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
-            else:
+        modifiers, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
+        if arg_type is not None:
+            self.base_type = CAnalysedBaseTypeNode(
+                annotation.pos, type=arg_type, is_arg=True)
+
+        if arg_type:
+            if "typing.Optional" in modifiers:
+                # "x: Optional[...]"  =>  explicitly allow 'None'
+                arg_type = arg_type.resolve()
+                if arg_type and not arg_type.is_pyobject:
+                    # We probably already reported this as "cannot be applied to non-Python type".
+                    # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+                    pass
+                else:
+                    self.or_none = True
+            elif arg_type is py_object_type:
+                # exclude ": object" from the None check - None is a generic object.
                 self.or_none = True
-        elif arg_type is py_object_type:
-            # exclude ": object" from the None check - None is a generic object.
-            self.or_none = True
-        elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
-            # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
-            if not self.or_none:
-                warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
-                self.or_none = True
-        elif arg_type and arg_type.is_pyobject and not self.or_none:
-            self.not_none = True
+            elif self.default and self.default.is_none and (arg_type.is_pyobject or arg_type.equivalent_type):
+                # "x: ... = None"  =>  implicitly allow 'None'
+                if not arg_type.is_pyobject:
+                    arg_type = arg_type.equivalent_type
+                if not self.or_none:
+                    warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+                    self.or_none = True
+            elif arg_type.is_pyobject and not self.or_none:
+                self.not_none = True
 
         return arg_type
 
@@ -1076,9 +1084,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             else:
                 type = py_object_type
         else:
+            scope = env
             if self.module_path:
                 # Maybe it's a nested C++ class.
-                scope = env
                 for item in self.module_path:
                     entry = scope.lookup(item)
                     if entry is not None and (
@@ -1099,8 +1107,6 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
-            else:
-                scope = env
 
             if scope:
                 if scope.is_c_class_scope:
@@ -1139,10 +1145,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             type = PyrexTypes.c_double_complex_type
             type.create_declaration_utility_code(env)
             self.complex = True
-        if type:
-            return type
-        else:
-            return PyrexTypes.error_type
+        if not type:
+            type = PyrexTypes.error_type
+        return type
 
 class MemoryViewSliceTypeNode(CBaseTypeNode):
 
@@ -1211,9 +1216,39 @@ class TemplatedTypeNode(CBaseTypeNode):
     child_attrs = ["base_type_node", "positional_args",
                    "keyword_args", "dtype_node"]
 
+    is_templated_type_node = True
     dtype_node = None
-
     name = None
+
+    def _analyse_template_types(self, env, base_type):
+        require_python_types = base_type.python_type_constructor_name in (
+            'typing.Optional',
+            'dataclasses.ClassVar',
+        )
+        in_c_type_context = env.in_c_type_context and not require_python_types
+
+        template_types = []
+        for template_node in self.positional_args:
+            # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
+            with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
+                ttype = template_node.analyse_as_type(env)
+            if ttype is None:
+                if base_type.is_cpp_class:
+                    error(template_node.pos, "unknown type in template argument")
+                    ttype = error_type
+                # For Python generics we can be a bit more flexible and allow None.
+            elif require_python_types and not ttype.is_pyobject:
+                if ttype.equivalent_type and not template_node.as_cython_attribute():
+                    ttype = ttype.equivalent_type
+                else:
+                    error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
+                        base_type.python_type_constructor_name,
+                        ttype,
+                    ))
+                    ttype = error_type
+            template_types.append(ttype)
+
+        return template_types
 
     def analyse(self, env, could_be_name=False, base_type=None):
         if base_type is None:
@@ -1222,21 +1257,15 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         if ((base_type.is_cpp_class and base_type.is_template_type()) or
                 base_type.python_type_constructor_name):
-            # Templated class
+            # Templated class, Python generics, etc.
             if self.keyword_args and self.keyword_args.key_value_pairs:
                 tp = "c++ templates" if base_type.is_cpp_class else "indexed types"
                 error(self.pos, "%s cannot take keyword arguments" % tp)
                 self.type = PyrexTypes.error_type
-            else:
-                template_types = []
-                for template_node in self.positional_args:
-                    type = template_node.analyse_as_type(env)
-                    if type is None and base_type.is_cpp_class:
-                        error(template_node.pos, "unknown type in template argument")
-                        type = error_type
-                    # for indexed_pytype we can be a bit more flexible and pass None
-                    template_types.append(type)
-                self.type = base_type.specialize_here(template_node.pos, env, template_types)
+                return self.type
+
+            template_types = self._analyse_template_types(env, base_type)
+            self.type = base_type.specialize_here(self.pos, env, template_types)
 
         elif base_type.is_pyobject:
             # Buffer
@@ -1277,7 +1306,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                     dimension=dimension)
                 self.type = self.array_declarator.analyse(base_type, env)[1]
 
-        if self.type.is_fused and env.fused_to_specific:
+        if self.type and self.type.is_fused and env.fused_to_specific:
             try:
                 self.type = self.type.specialize(env.fused_to_specific)
             except CannotSpecialize:
@@ -1286,6 +1315,19 @@ class TemplatedTypeNode(CBaseTypeNode):
                       self.name)
 
         return self.type
+
+    def analyse_pytyping_modifiers(self, env):
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # TODO: somehow bring this together with IndexNode.analyse_pytyping_modifiers()
+        modifiers = []
+        modifier_node = self
+        while modifier_node.is_templated_type_node and modifier_node.base_type_node and len(modifier_node.positional_args) == 1:
+            modifier_type = self.base_type_node.analyse_as_type(env)
+            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+                modifiers.append(modifier_type.modifier_name)
+            modifier_node = modifier_node.positional_args[0]
+
+        return modifiers
 
 
 class CComplexBaseTypeNode(CBaseTypeNode):
@@ -1414,6 +1456,11 @@ class CVarDefNode(StatNode):
 
         base_type = self.base_type.analyse(env)
 
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        modifiers = None
+        if self.base_type.is_templated_type_node:
+            modifiers = self.base_type.analyse_pytyping_modifiers(env)
+
         if base_type.is_fused and not self.in_pxd and (env.is_c_class_scope or
                                                        env.is_module_scope):
             error(self.pos, "Fused types not allowed here")
@@ -1477,7 +1524,7 @@ class CVarDefNode(StatNode):
                 self.entry = dest_scope.declare_var(
                     name, type, declarator.pos,
                     cname=cname, visibility=visibility, in_pxd=self.in_pxd,
-                    api=self.api, is_cdef=1)
+                    api=self.api, is_cdef=True, pytyping_modifiers=modifiers)
                 if Options.docstrings:
                     self.entry.doc = embed_position(self.pos, self.doc)
 
@@ -2184,7 +2231,14 @@ class FuncDefNode(StatNode, BlockNode):
                 # code.put_trace_exception()
 
                 assure_gil('error')
+                if code.funcstate.error_without_exception:
+                    tempvardecl_code.putln(
+                        "int %s = 0; /* StopIteration */" % Naming.error_without_exception_cname
+                    )
+                    code.putln("if (!%s) {" % Naming.error_without_exception_cname)
                 code.put_add_traceback(self.entry.qualified_name)
+                if code.funcstate.error_without_exception:
+                    code.putln("}")
             else:
                 warning(self.entry.pos,
                         "Unraisable exception in function '%s'." %
@@ -3164,7 +3218,7 @@ class DefNode(FuncDefNode):
                 else:
                     # probably just a plain 'object'
                     arg.accept_none = True
-            else:
+            elif not arg.type.is_error:
                 arg.accept_none = True  # won't be used, but must be there
                 if arg.not_none:
                     error(arg.pos, "Only Python type arguments can have 'not None'")
@@ -5188,7 +5242,8 @@ class CClassDefNode(ClassDefNode):
                 error(base.pos, "Base class '%s' of type '%s' is final" % (
                     base_type, self.class_name))
             elif base_type.is_builtin_type and \
-                     base_type.name in ('tuple', 'str', 'bytes'):
+                     base_type.name in ('tuple', 'bytes'):
+                     # str in Py2 is also included in this, but now checked at run-time
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
             else:
@@ -5435,8 +5490,10 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(_MSC_VER)")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
                 code.putln("#else")
-                code.putln("#warning The buffer protocol is not supported in the Limited C-API.")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
@@ -5454,6 +5511,22 @@ class CClassDefNode(ClassDefNode):
                 type.typeobj_cname,
             ))
             code.putln("#endif")  # if CYTHON_USE_TYPE_SPECS
+
+            base_type = type.base_type
+            while base_type:
+                if base_type.is_external and not base_type.objstruct_cname == "PyTypeObject":
+                    # 'type' is special-cased because it is actually based on PyHeapTypeObject
+                    # Variable length bases are allowed if the current class doesn't grow
+                    code.putln("if (sizeof(%s%s) != sizeof(%s%s)) {" % (
+                        "" if type.typedef_flag else "struct ", type.objstruct_cname,
+                        "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
+                        type.base_type.typeptr_cname))
+                    code.putln("}")
+                    break
+                base_type = base_type.base_type
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
@@ -6654,11 +6727,15 @@ class RaiseStatNode(StatNode):
     #  exc_value   ExprNode or None
     #  exc_tb      ExprNode or None
     #  cause       ExprNode or None
+    #
+    # set in FlowControl
+    #  in_try_block  bool
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
     is_terminator = True
     builtin_exc_name = None
     wrap_tuple_value = False
+    in_try_block = False
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -6687,9 +6764,19 @@ class RaiseStatNode(StatNode):
                     not (exc.args or (exc.arg_tuple is not None and exc.arg_tuple.args))):
                 exc = exc.function  # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
+                from . import Symtab
                 self.builtin_exc_name = exc.name
                 if self.builtin_exc_name == 'MemoryError':
                     self.exc_type = None  # has a separate implementation
+                elif (self.builtin_exc_name == 'StopIteration' and
+                        env.is_local_scope and env.name == "__next__" and
+                        env.parent_scope and env.parent_scope.is_c_class_scope and
+                        not self.in_try_block):
+                    # tp_iternext is allowed to return NULL without raising StopIteration.
+                    # For the sake of simplicity, only allow this to happen when not in
+                    # a try block
+                    self.exc_type = None
+
         return self
 
     nogil_check = Node.gil_error
@@ -6699,6 +6786,11 @@ class RaiseStatNode(StatNode):
         code.mark_pos(self.pos)
         if self.builtin_exc_name == 'MemoryError':
             code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
+            return
+        elif self.builtin_exc_name == 'StopIteration' and not self.exc_type:
+            code.putln('%s = 1;' % Naming.error_without_exception_cname)
+            code.putln('%s;' % code.error_goto(None))
+            code.funcstate.error_without_exception = True
             return
 
         if self.exc_type:

@@ -154,12 +154,10 @@ def process_class_get_fields(node):
 
     for entry in var_entries:
         name = entry.name
-        is_initvar = (entry.type.python_type_constructor_name == "dataclasses.InitVar")
+        is_initvar = entry.declared_with_pytyping_modifier("dataclasses.InitVar")
         # TODO - classvars aren't included in "var_entries" so are missed here
         # and thus this code is never triggered
-        is_classvar = (entry.type.python_type_constructor_name == "typing.ClassVar")
-        if is_initvar or is_classvar:
-            entry.type = entry.type.resolve()  # no longer need the special type
+        is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
         if name in default_value_assignments:
             assignment = default_value_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -666,8 +664,11 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 name)
             # create an entry in the global scope for this variable to live
             field_node = ExprNodes.NameNode(field_default.pos, name=EncodedString(module_field_name))
-            field_node.entry = global_scope.declare_var(field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
-                                                pos=field_default.pos, cname=field_node.name, is_cdef=1)
+            field_node.entry = global_scope.declare_var(
+                field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
+                pos=field_default.pos, cname=field_node.name, is_cdef=True,
+                # TODO: do we need to set 'pytyping_modifiers' here?
+            )
             # replace the field so that future users just receive the namenode
             setattr(field, attrname, field_node)
 
