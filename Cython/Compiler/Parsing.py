@@ -182,7 +182,7 @@ def p_namedexpr_test(s):
     if s.sy == ':=':
         position = s.position()
         if not lhs.is_name:
-            s.error("Left-hand side of assignment expression must be an identifier")
+            s.error("Left-hand side of assignment expression must be an identifier", fatal=False)
         s.next()
         rhs = p_test(s)
         return ExprNodes.AssignmentExpressionNode(position, lhs=lhs, rhs=rhs)
