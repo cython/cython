@@ -110,6 +110,7 @@ cdef class CCodeWriter(object):
     cdef bint bol
 
     cpdef write(self, s)
+    cpdef write_lines(self, s)
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
