@@ -1265,7 +1265,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                 return self.type
 
             template_types = self._analyse_template_types(env, base_type)
-            self.type = base_type.specialize_here(template_node.pos, env, template_types)
+            self.type = base_type.specialize_here(self.pos, env, template_types)
 
         elif base_type.is_pyobject:
             # Buffer
