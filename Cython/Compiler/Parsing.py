@@ -2182,6 +2182,7 @@ def p_with_items(s, is_async=False):
     for item in reversed(items):
         # populate the bodies of the WithStatNodes/GILStatNodes
         item.body = body
+        item.post_initialize()  # GILStatNode has a little extra setup to do once body is set
         body = item
     return body
 

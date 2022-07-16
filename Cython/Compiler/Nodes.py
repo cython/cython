@@ -7727,6 +7727,10 @@ class WithStatNode(StatNode):
     enter_call = None
     target_temp = None
 
+    def post_initialize(self):
+        # For consistency with GilStatNode
+        pass
+
     def analyse_declarations(self, env):
         self.manager.analyse_declarations(env)
         self.enter_call.analyse_declarations(env)
@@ -8499,12 +8503,17 @@ class GILStatNode(NogilTryFinallyStatNode):
     def __init__(self, pos, state, body, condition=None):
         self.state = state
         self.condition = condition
-        self.create_state_temp_if_needed(pos, state, body)
         TryFinallyStatNode.__init__(
             self, pos,
             body=body,
-            finally_clause=GILExitNode(
-                pos, state=state, state_temp=self.state_temp))
+        )
+
+    def post_initialize(self):
+        # body is usually not set it __init__
+        # This function is called after it has been set
+        self.create_state_temp_if_needed(self.pos, self.state, self.body)
+        self.finally_clause=GILExitNode(
+            self.pos, state=self.state, state_temp=self.state_temp)
 
     def create_state_temp_if_needed(self, pos, state, body):
         from .ParseTreeTransforms import YieldNodeCollector
