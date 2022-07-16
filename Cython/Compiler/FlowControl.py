@@ -110,6 +110,7 @@ class ControlFlow(object):
        entries     set    tracked entries
        loops       list   stack for loop descriptors
        exceptions  list   stack for exception descriptors
+       in_try_block  int  track if we're in a try...except or try...finally block
     """
 
     def __init__(self):
@@ -122,6 +123,7 @@ class ControlFlow(object):
         self.exit_point = ExitBlock()
         self.blocks.add(self.exit_point)
         self.block = self.entry_point
+        self.in_try_block = 0
 
     def newblock(self, parent=None):
         """Create floating block linked to `parent` if given.
@@ -1242,7 +1244,9 @@ class ControlFlowAnalysis(CythonTransform):
         ## XXX: children nodes
         self.flow.block.add_child(entry_point)
         self.flow.nextblock()
+        self.flow.in_try_block += 1
         self._visit(node.body)
+        self.flow.in_try_block -= 1
         self.flow.exceptions.pop()
 
         # After exception
@@ -1302,7 +1306,9 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.block = body_block
         body_block.add_child(entry_point)
         self.flow.nextblock()
+        self.flow.in_try_block += 1
         self._visit(node.body)
+        self.flow.in_try_block -= 1
         self.flow.exceptions.pop()
         if self.flow.loops:
             self.flow.loops[-1].exceptions.pop()
@@ -1321,6 +1327,8 @@ class ControlFlowAnalysis(CythonTransform):
         if self.flow.exceptions:
             self.flow.block.add_child(self.flow.exceptions[-1].entry_point)
         self.flow.block = None
+        if self.flow.in_try_block:
+            node.in_try_block = True
         return node
 
     def visit_ReraiseStatNode(self, node):

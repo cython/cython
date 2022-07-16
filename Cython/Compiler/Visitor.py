@@ -383,12 +383,14 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
-        outer_attrs = node.outer_attrs
-        self.visitchildren(node, attrs=outer_attrs)
+        self.visit_func_outer_attrs(node)
         self.enter_scope(node, node.local_scope)
-        self.visitchildren(node, attrs=None, exclude=outer_attrs)
+        self.visitchildren(node, attrs=None, exclude=node.outer_attrs)
         self.exit_scope()
         return node
+
+    def visit_func_outer_attrs(self, node):
+        self.visitchildren(node, attrs=node.outer_attrs)
 
     def visit_GeneratorBodyDefNode(self, node):
         self._process_children(node)

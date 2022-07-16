@@ -2321,6 +2321,12 @@ if VALUE is not None:
         assmt.analyse_declarations(env)
         return assmt
 
+    def visit_func_outer_attrs(self, node):
+        # any names in the outer attrs should not be looked up in the function "seen_vars_stack"
+        stack = self.seen_vars_stack.pop()
+        super(AnalyseDeclarationsTransform, self).visit_func_outer_attrs(node)
+        self.seen_vars_stack.append(stack)
+
     def visit_ScopedExprNode(self, node):
         env = self.current_env()
         node.analyse_declarations(env)
