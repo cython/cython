@@ -3,8 +3,6 @@
 
 from __future__ import print_function
 
-import cython
-
 import array
 
 def test_type_inference(x):
