@@ -8,7 +8,7 @@ PYTHON -c "import test_inherit"
 
 from Cython.Build.Dependencies import cythonize
 
-from distutils.core import setup, Extension
+from distutils.core import setup
 
 setup(
   ext_modules=cythonize("*.pyx"),
