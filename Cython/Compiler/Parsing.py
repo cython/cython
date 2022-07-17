@@ -2153,36 +2153,35 @@ def p_with_items(s, is_async=False):
     Therefore the first thing to try is the bracket-enclosed
     version and if that fails try the regular version
     """
-    brackets_succeeded=False
+    brackets_succeeded = False
+    items = ()  # unused, but static analysis fails to track that below
     if s.sy == '(':
-        items = []
         with tentatively_scan(s) as errors:
             s.next()
-            while True:
-                items.append(p_with_item(s, is_async))
-                if s.sy == ")":
-                    s.next()
-                    break
-                s.expect(",")
-                if s.sy == ")":
-                    # trailing commas allowed
-                    s.next()
-                    break
+            items = p_with_items_list(s, is_async)
+            s.expect(")")
         brackets_succeeded = not errors
     if not brackets_succeeded:
         # try the non-bracket version
-        items = []
-        while True:
-            items.append(p_with_item(s, is_async))
-            if s.sy == ",":
-                s.next()
-            else:
-                break
+        items = p_with_items_list(s, is_async)
     body = p_suite(s)
     for cls, pos, kwds in reversed(items):
         # construct the actual nodes now that we know what the body is
         body = cls(pos, body=body, **kwds)
     return body
+
+
+def p_with_items_list(s, is_async):
+    items = []
+    while True:
+        items.append(p_with_item(s, is_async))
+        if s.sy != ",":
+            break
+        s.next()
+        if s.sy == ")":
+            # trailing commas allowed
+            break
+    return items
 
 
 def p_with_item(s, is_async):
