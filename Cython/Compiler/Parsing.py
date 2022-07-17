@@ -3974,6 +3974,7 @@ def p_cpp_class_attribute(s, ctx):
             node.decorators = decorators
         return node
 
+
 def p_match_statement(s, ctx):
     assert s.sy == "IDENT" and s.systring == "match"
     pos = s.position()
@@ -3993,6 +3994,7 @@ def p_match_statement(s, ctx):
         s.expect(":")
     if errors:
         return None
+
     # at this stage were commited to it being a match block so continue
     # outside "with tentatively_scan"
     # (I think this deviates from the PEG parser slightly, and it'd
@@ -4004,6 +4006,7 @@ def p_match_statement(s, ctx):
         cases.append(p_case_block(s, ctx))
     s.expect_dedent()
     return MatchCaseNodes.MatchNode(pos, subject = subject, cases = cases)
+
 
 def p_case_block(s, ctx):
     if not (s.sy == "IDENT" and s.systring == "case"):
@@ -4019,8 +4022,10 @@ def p_case_block(s, ctx):
 
     return MatchCaseNodes.MatchCaseNode(pos, pattern=pattern, body=body, guard=guard)
 
+
 def p_patterns(s):
-    # note - in slight contrast to the name, returns a single pattern
+    # note - in slight contrast to the name (which comes from the Python grammar),
+    # returns a single pattern
     patterns = []
     seq = False
     pos = s.position()
@@ -4042,10 +4047,12 @@ def p_patterns(s):
                 break  # common reasons to break
         else:
             break
+
     if seq:
         return MatchCaseNodes.MatchSequencePatternNode(pos, patterns = patterns)
     else:
         return patterns[0]
+
 
 def p_maybe_star_pattern(s):
     # For match case. Either star_pattern or pattern
@@ -4065,6 +4072,7 @@ def p_maybe_star_pattern(s):
         pattern = p_pattern(s)
         return pattern
 
+
 def p_pattern(s):
     # try "as_pattern" then "or_pattern"
     # (but practically "as_pattern" starts with "or_pattern" too)
@@ -4076,6 +4084,7 @@ def p_pattern(s):
             s.next()
         else:
             break
+
     if len(patterns) > 1:
         pattern = MatchCaseNodes.OrPatternNode(
             pos,
@@ -4083,6 +4092,7 @@ def p_pattern(s):
         )
     else:
         pattern = patterns[0]
+
     if s.sy == 'IDENT' and s.systring == 'as':
         s.next()
         with tentatively_scan(s) as errors:
@@ -4147,6 +4157,7 @@ def p_closed_pattern(s):
         return result
     return p_class_pattern(s)
 
+
 def p_literal_pattern(s):
     # a lot of duplication in this function with "p_atom"
     next_must_be_a_number = False
@@ -4167,8 +4178,10 @@ def p_literal_pattern(s):
         value = s.systring
         s.next()
         res = ExprNodes.FloatNode(pos, value = value)
+
     if res and sign == "-":
         res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
+
     if res and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
@@ -4230,11 +4243,13 @@ def p_literal_pattern(s):
 
     s.error("Failed to match literal")
 
+
 def p_capture_pattern(s):
     return MatchCaseNodes.MatchAndAssignPatternNode(
         s.position(),
         target = p_pattern_capture_target(s)
     )
+
 
 def p_value_pattern(s):
     if s.sy != "IDENT":
@@ -4253,11 +4268,13 @@ def p_value_pattern(s):
         s.error("Unexpected symbol '%s'" % s.sy)
     return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
 
+
 def p_group_pattern(s):
     s.expect("(")
     pattern = p_pattern(s)
     s.expect(")")
     return pattern
+
 
 def p_sequence_pattern(s):
     opener = s.sy
@@ -4285,12 +4302,15 @@ def p_sequence_pattern(s):
     else:
         s.error("Expected '[' or '('")
 
+
 def p_mapping_pattern(s):
     pos = s.position()
     s.expect('{')
     if s.sy == '}':
+        # trivial empty mapping
         s.next()
         return MatchCaseNodes.MatchMappingPatternNode(pos)
+
     double_star_capture_target = None
     items_patterns = []
     double_star_set_twice = None
@@ -4318,6 +4338,7 @@ def p_mapping_pattern(s):
         if s.sy=='}':
             break
     s.expect('}')
+
     if double_star_set_twice is not None:
         return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
     return MatchCaseNodes.MatchMappingPatternNode(
@@ -4327,8 +4348,9 @@ def p_mapping_pattern(s):
         double_star_capture_target = double_star_capture_target
     )
 
+
 def p_class_pattern(s):
-    # name_or_attr
+    # start by parsing the class as name_or_attr
     pos = s.position()
     res = p_name(s, s.systring)
     s.next()
@@ -4338,10 +4360,14 @@ def p_class_pattern(s):
         attr = p_ident(s)
         res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute=attr)
     class_ = res
+
     s.expect("(")
     if s.sy == ")":
+        # trivial case with no arguments matched
         s.next()
         return MatchCaseNodes.ClassPatternNode(pos, class_=class_)
+
+    # parse the arguments
     positional_patterns = []
     keyword_patterns = []
     keyword_patterns_error = None
@@ -4361,6 +4387,7 @@ def p_class_pattern(s):
         else:
             break
     s.expect(")")
+
     if keyword_patterns_error is not None:
         return Nodes.ErrorNode(
             keyword_patterns_error,
@@ -4373,6 +4400,7 @@ def p_class_pattern(s):
         keyword_pattern_patterns = [kv[1] for kv in keyword_patterns],
     )
 
+
 def p_keyword_pattern(s):
     if s.sy != "IDENT":
         s.error("Expected identifier")
@@ -4381,6 +4409,7 @@ def p_keyword_pattern(s):
     s.expect("=")
     value = p_pattern(s)
     return arg, value
+
 
 def p_pattern_capture_target(s):
     # any name but '_', and with some constraints on what follows
