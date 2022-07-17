@@ -4313,11 +4313,11 @@ def p_mapping_pattern(s):
 
     double_star_capture_target = None
     items_patterns = []
-    double_star_set_twice = None
+    double_star_is_not_final = None
     while True:
+        if double_star_capture_target and not double_star_is_not_final:
+            double_star_is_not_final = s.position()
         if s.sy == '**':
-            if double_star_capture_target:
-                double_star_set_twice = s.position()
             s.next()
             double_star_capture_target = p_pattern_capture_target(s)
         else:
@@ -4339,8 +4339,11 @@ def p_mapping_pattern(s):
             break
     s.expect('}')
 
-    if double_star_set_twice is not None:
-        return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
+    if double_star_is_not_final is not None:
+        return Nodes.ErrorNode(
+            double_star_is_not_final,
+            what = "** pattern must be the final part of a mapping pattern."
+        )
     return MatchCaseNodes.MatchMappingPatternNode(
         pos,
         keys = [kv[0] for kv in items_patterns],

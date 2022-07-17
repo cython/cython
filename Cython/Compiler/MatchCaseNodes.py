@@ -213,7 +213,7 @@ class MatchMappingPatternNode(PatternNode):
     value_patterns = []
     double_star_capture_target = None
 
-    child_atts = PatternNode.child_attrs + [
+    child_attrs = PatternNode.child_attrs + [
         "keys",
         "value_patterns",
         "double_star_capture_target",
