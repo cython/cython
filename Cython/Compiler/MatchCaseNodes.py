@@ -1,7 +1,6 @@
 # Nodes for structural pattern matching.
 #
-# In a separate file because they're unlikely to be useful
-# for much else
+# In a separate file because they're unlikely to be useful for much else.
 
 from .Nodes import Node, StatNode
 from .Errors import error
@@ -69,7 +68,7 @@ class PatternNode(Node):
 
     def __init__(self, pos, **kwds):
         super(PatternNode, self).__init__(pos, **kwds)
-        if not hasattr(self, "as_targets"):
+        if "as_targets" not in kwds:
             self.as_targets = []
 
     def is_irrefutable(self):

@@ -4006,7 +4006,7 @@ def p_match_statement(s, ctx):
     return MatchCaseNodes.MatchNode(pos, subject = subject, cases = cases)
 
 def p_case_block(s, ctx):
-    if not (s.sy=="IDENT" and s.systring == "case"):
+    if not (s.sy == "IDENT" and s.systring == "case"):
         s.error("Expected 'case'")
     s.next()
     pos = s.position()
@@ -4062,8 +4062,8 @@ def p_maybe_star_pattern(s):
         )
         return pattern
     else:
-        p = p_pattern(s)
-        return p
+        pattern = p_pattern(s)
+        return pattern
 
 def p_pattern(s):
     # try "as_pattern" then "or_pattern"
@@ -4317,9 +4317,7 @@ def p_mapping_pattern(s):
             break
         if s.sy=='}':
             break
-    if s.sy != '}':
-        s.error("Expected '}'")
-    s.next()
+    s.expect('}')
     if double_star_set_twice is not None:
         return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
     return MatchCaseNodes.MatchMappingPatternNode(
