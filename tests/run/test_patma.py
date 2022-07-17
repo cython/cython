@@ -1,4 +1,4 @@
-### COPIED FROM CPython 3.9
+### COPIED FROM CPython 3.12 alpha (July 2022)
 ### Original part after ############
 # cython: language_level=3
 
@@ -61,7 +61,36 @@ else:
         y: int
 
 # TestCompiler removed - it's very CPython-specific
-# TestTracing also removed - doesn't seem like a core test
+# TestTracing also mainly removed - doesn't seem like a core test
+#  except for one test that seems misplaced in CPython (which is below)
+
+class TestTracing(unittest.TestCase):
+    def test_parser_deeply_nested_patterns(self):
+        # Deeply nested patterns can cause exponential backtracking when parsing.
+        # See CPython gh-93671 for more information.
+        #
+        # DW Cython note - this doesn't break the parser but may cause a
+        # RecursionError later in the code-generation. I don't believe that's
+        # easily avoidable
+
+        levels = 100
+
+        patterns = [
+            "A" + "(" * levels + ")" * levels,
+            "{1:" * levels + "1" + "}" * levels,
+            "[" * levels + "1" + "]" * levels,
+        ]
+
+        for pattern in patterns:
+            with self.subTest(pattern):
+                code = inspect.cleandoc("""
+                    if 0:  # FIXME remove once pattern matching is fully implemented!
+                        match None:
+                            case {}:
+                                pass
+                """.format(pattern))
+                compile(code, "<string>", "exec")
+
 
 # FIXME - remove all the "return"s added to cause code to be dropped
 ############## ORIGINAL PART FROM CPYTHON
@@ -2952,6 +2981,21 @@ class TestPatma(unittest.TestCase):
                 y = bar
 
         self.assertEqual(y, 'bar')
+
+    def test_patma_249(self):
+        return
+        class C:
+            __attr = "eggs"  # mangled to _C__attr
+            _Outer__attr = "bacon"
+        class Outer:
+            def f(self, x):
+                match x:
+                    # looks up __attr, not _C__attr or _Outer__attr
+                    case C(__attr=y):
+                        return y
+        c = C()
+        setattr(c, "__attr", "spam")  # setattr is needed because we're in a class scope
+        self.assertEqual(Outer().f(c), "spam")
 
 
 class TestSyntaxErrors(unittest.TestCase):
