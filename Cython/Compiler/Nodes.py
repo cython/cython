@@ -10120,7 +10120,7 @@ class CnameDecoratorNode(StatNode):
 
 class ErrorNode(Node):
     """
-    Node type for things that we want to get throught the parser
+    Node type for things that we want to get through the parser
     (especially for things that are being scanned in "tentative_scan"
     blocks), but should immediately raise and error afterwards.
 
