@@ -109,7 +109,7 @@ _ERRORS = u"""
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-87:24: Type cannot be specialized since it is not a fused argument to this function
-87:24: Type cannot be specialized since it is not a fused argument to this function
-87:24: Type cannot be specialized since it is not a fused argument to this function
+87:16: Type cannot be specialized since it is not a fused argument to this function
+87:16: Type cannot be specialized since it is not a fused argument to this function
+87:16: Type cannot be specialized since it is not a fused argument to this function
 """
