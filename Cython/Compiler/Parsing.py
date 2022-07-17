@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -2144,6 +2144,52 @@ def p_with_statement(s):
 
 
 def p_with_items(s, is_async=False):
+    """
+    Copied from CPython:
+    | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+        _PyAST_With(a, b, NULL, EXTRA) }
+    | 'with' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+        _PyAST_With(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    Therefore the first thing to try is the bracket-enclosed
+    version and if that fails try the regular version
+    """
+    brackets_succeeded=False
+    if s.sy == '(':
+        items = []
+        with tentatively_scan(s) as errors:
+            s.next()
+            while True:
+                items.append(p_with_item(s, is_async))
+                if s.sy == ")":
+                    s.next()
+                    break
+                s.expect(",")
+                if s.sy == ")":
+                    # trailing commas allowed
+                    s.next()
+                    break
+        brackets_succeeded = not errors
+    if not brackets_succeeded:
+        # try the non-bracket version
+        items = []
+        while True:
+            items.append(p_with_item(s, is_async))
+            if s.sy == ",":
+                s.next()
+            else:
+                break
+    body = p_suite(s)
+    for cls, pos, kwds in reversed(items):
+        # construct the actual nodes now that we know what the body is
+        body = cls(pos, body=body, **kwds)
+    return body
+
+
+def p_with_item(s, is_async):
+    # In contrast to most parsing functions, this returns a tuple of
+    #  class, pos, kwd_dict
+    # This is because GILStatNode does a reasonable amount of initialization in its
+    # constructor, and requires "body" to be set, which we don't currently have
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         if is_async:
@@ -2158,24 +2204,14 @@ def p_with_items(s, is_async=False):
             condition = p_test(s)
             s.expect(')')
 
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s)
-        else:
-            body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
+        return Nodes.GILStatNode, pos, {"state": state, "condition": condition}
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s, is_async=is_async)
-        else:
-            body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+        return Nodes.WithStatNode, pos, {"manager": manager, "target": target, "is_async": is_async}
 
 
 def p_with_template(s):
