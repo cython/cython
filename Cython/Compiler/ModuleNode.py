@@ -3078,12 +3078,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not condition:
                 code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln('sizeof(%s),' % objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
             code.putln("#else")
-            code.putln('sizeof(%s),' % sizeof_objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (sizeof_objstruct, sizeof_objstruct))
             code.putln("#endif")
         else:
-            code.put('sizeof(%s), ' % objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
