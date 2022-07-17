@@ -76,6 +76,8 @@ else
 
     if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
+    elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
+     python -m pip install -r test-requirements-pypy27.txt || exit 1
     fi
   fi
 fi
