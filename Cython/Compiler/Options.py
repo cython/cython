@@ -366,7 +366,6 @@ directive_scopes = {  # defaults to available everywhere
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
     'freelist': ('cclass',),
     'emit_code_comments': ('module',),
-    'annotation_typing': ('module',),  # FIXME: analysis currently lacks more specific function scope
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
@@ -382,6 +381,20 @@ directive_scopes = {  # defaults to available everywhere
     'total_ordering': ('cclass', ),
     'dataclasses.dataclass' : ('class', 'cclass',),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+}
+
+
+# a list of directives that (when used as a decorator) are only applied to
+# the object they decorate and not to its children.
+immediate_decorator_directives = {
+    'cfunc', 'ccall', 'cclass',
+    # function signature directives
+    'inline', 'exceptval', 'returns',
+    # class directives
+    'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
+    'auto_pickle', 'internal',
+    # testing directives
+    'test_fail_if_path_exists', 'test_assert_path_exists',
 }
 
 

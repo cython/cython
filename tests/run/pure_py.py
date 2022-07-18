@@ -33,17 +33,18 @@ def test_sizeof():
 def test_declare(n):
     """
     >>> test_declare(100)
-    (100, 100)
+    (100, 100, 100)
     >>> test_declare(100.5)
-    (100, 100)
+    (100, 100, 100)
     """
     x = cython.declare(cython.int)
     y = cython.declare(cython.int, n)
+    z = cython.declare(int, n)  # C int
     if cython.compiled:
         cython.declare(xx=cython.int, yy=cython.long)
         i = cython.sizeof(xx)
     ptr = cython.declare(cython.p_int, cython.address(y))
-    return y, ptr[0]
+    return y, z, ptr[0]
 
 
 @cython.locals(x=cython.double, n=cython.int)
@@ -317,6 +318,25 @@ def test_cdef_nogil(x):
         result += cdef_nogil_true(x)
     result += cdef_nogil_false(x)
     return result
+
+
+@cython.cfunc
+@cython.inline
+def has_inner_func(x):
+    # the inner function must remain a Python function
+    # (and inline must not be applied to it)
+    @cython.test_fail_if_path_exists("//CFuncDefNode")
+    def inner():
+        return x
+    return inner
+
+
+def test_has_inner_func():
+    """
+    >>> test_has_inner_func()
+    1
+    """
+    return has_inner_func(1)()
 
 
 @cython.locals(counts=cython.int[10], digit=cython.int)

@@ -13,18 +13,14 @@ cimport cython
 cdef extern from "Python.h":
     ctypedef struct PyObject
     int PyIndex_Check(object)
-    object PyLong_FromVoidPtr(void *)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
-    PyObject *PyExc_MemoryError
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
     PyThread_type_lock PyThread_allocate_lock()
     void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
-    void PyThread_release_lock(PyThread_type_lock) nogil
 
 cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
@@ -78,10 +74,6 @@ cdef extern from *:
     ctypedef struct __Pyx_TypeInfo:
         pass
 
-    cdef object capsule "__pyx_capsule_create" (void *p, char *sig)
-    cdef int __pyx_array_getbuffer(PyObject *obj, Py_buffer view, int flags)
-    cdef int __pyx_memoryview_getbuffer(PyObject *obj, Py_buffer view, int flags)
-
 cdef extern from *:
     ctypedef int __pyx_atomic_int
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
@@ -100,6 +92,17 @@ cdef extern from "<stdlib.h>":
     void *malloc(size_t) nogil
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
+
+# the sequence abstract base class
+cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
+try:
+    if __import__("sys").version_info >= (3, 3):
+        __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
+    else:
+        __pyx_collections_abc_Sequence = __import__("collections").Sequence
+except:
+    # it isn't a big problem if this fails
+    __pyx_collections_abc_Sequence = None
 
 #
 ### cython.array class
@@ -202,8 +205,6 @@ cdef class array:
         info.format = self.format if flags & PyBUF_FORMAT else NULL
         info.obj = self
 
-    __pyx_getbuffer = capsule(<void *> &__pyx_array_getbuffer, "getbuffer(obj, view, flags)")
-
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
             self.callback_free_data(self.data)
@@ -234,6 +235,12 @@ cdef class array:
     def __setitem__(self, item, value):
         self.memview[item] = value
 
+    # Sequence methods
+    try:
+        count = __pyx_collections_abc_Sequence.count
+        index = __pyx_collections_abc_Sequence.index
+    except:
+        pass
 
 @cname("__pyx_array_allocate_buffer")
 cdef int _allocate_buffer(array self) except -1:
@@ -326,17 +333,11 @@ cdef void *align_pointer(void *memory, size_t alignment) nogil:
 # pre-allocate thread locks for reuse
 ## note that this could be implemented in a more beautiful way in "normal" Cython,
 ## but this code gets merged into the user module and not everything works there.
-DEF THREAD_LOCKS_PREALLOCATED = 8
 cdef int __pyx_memoryview_thread_locks_used = 0
-cdef PyThread_type_lock[THREAD_LOCKS_PREALLOCATED] __pyx_memoryview_thread_locks = [
+cdef PyThread_type_lock[{{THREAD_LOCKS_PREALLOCATED}}] __pyx_memoryview_thread_locks = [
+{{for _ in range(THREAD_LOCKS_PREALLOCATED)}}
     PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
+{{endfor}}
 ]
 
 
@@ -366,7 +367,7 @@ cdef class memoryview:
                 Py_INCREF(Py_None)
 
         global __pyx_memoryview_thread_locks_used
-        if __pyx_memoryview_thread_locks_used < THREAD_LOCKS_PREALLOCATED:
+        if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
             self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
             __pyx_memoryview_thread_locks_used += 1
         if self.lock is NULL:
@@ -559,8 +560,6 @@ cdef class memoryview:
         info.len = self.view.len
         info.readonly = self.view.readonly
         info.obj = self
-
-    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
     # Some properties that have the same semantics as in NumPy
     @property
@@ -800,22 +799,6 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 ### Slicing in a single dimension of a memoryviewslice
 #
 
-cdef extern from "<stdlib.h>":
-    void abort() nogil
-    void printf(char *s, ...) nogil
-
-cdef extern from "<stdio.h>":
-    ctypedef struct FILE
-    FILE *stderr
-    int fputs(char *s, FILE *stream)
-
-cdef extern from "pystate.h":
-    void PyThreadState_Get() nogil
-
-    # These are not actually nogil, but we check for the GIL before calling them
-    void PyErr_SetString(PyObject *type, char *msg) nogil
-    PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
-
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef int slice_memviewslice(
         {{memviewslice_name}} *dst,
@@ -1004,8 +987,22 @@ cdef class _memoryviewslice(memoryview):
     cdef _get_base(self):
         return self.from_object
 
-    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
+    # Sequence methods
+    try:
+        count = __pyx_collections_abc_Sequence.count
+        index = __pyx_collections_abc_Sequence.index
+    except:
+        pass
 
+try:
+    if __pyx_collections_abc_Sequence:
+        # The main value of registering _memoryviewslice as a
+        # Sequence is that it can be used in structural pattern
+        # matching in Python 3.10+
+        __pyx_collections_abc_Sequence.register(_memoryviewslice)
+        __pyx_collections_abc_Sequence.register(array)
+except:
+    pass  # ignore failure, it's a minor issue
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,

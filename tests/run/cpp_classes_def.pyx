@@ -255,3 +255,17 @@ def test_uncopyable_constructor_argument():
     cdef UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
         unique_ptr[vector[int]](new vector[int]()))
     del c
+
+cdef cppclass CppClassWithDocstring:
+    """
+    This is a docstring !
+    """
+
+def test_CppClassWithDocstring():
+    """
+    >>> test_CppClassWithDocstring()
+    OK
+    """
+    cdef CppClassWithDocstring *c = new CppClassWithDocstring()
+    del c
+    print "OK"

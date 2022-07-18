@@ -23,7 +23,7 @@ cdef class NotADataclass:
         return "NADC"
 
     def __str__(self):
-        return "string of NotADataclass"  # should be called - repr is called!
+        return "string of NotADataclass"  # should not be called - repr is called instead!
 
     def __eq__(self, other):
         return type(self) == type(other)
@@ -127,8 +127,8 @@ cdef class ContainsNonPyFields:
     """
     mystruct: S = cython.dataclasses.field(compare=False)
     mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
-    memview: int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
-                                 compare=False)
+    memview: cython.int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
+                                        compare=False)
 
     def __dealloc__(self):
         free(self.mystruct_ptr)
@@ -154,8 +154,8 @@ cdef class InitClassVars:
     True
     """
     a: cython.int = 0
-    b1: InitVar[double] = 1.0
-    b2: py_dataclasses.InitVar[double] = 1.0
+    b1: InitVar[cython.double] = 1.0
+    b2: py_dataclasses.InitVar[cython.double] = 1.0
     c1: ClassVar[float] = 2.0
     c2: typing.ClassVar[float] = 2.0
     cdef InitVar[cython.int] d1
@@ -197,12 +197,20 @@ cdef class TestVisibility:
     'double'
     >>> hasattr(inst, "c")
     True
+    >>> "d" in TestVisibility.__dataclass_fields__
+    True
+    >>> TestVisibility.__dataclass_fields__["d"].type
+    'object'
+    >>> hasattr(inst, "d")
+    True
     """
     cdef double a
     a = 1.0
-    b: double = 2.0
+    b: cython.double = 2.0
     cdef public double c
     c = 3.0
+    cdef public object d
+    d = object()
 
 @dataclass(frozen=True)
 cdef class TestFrozen:
@@ -214,7 +222,34 @@ cdef class TestFrozen:
     Traceback (most recent call last):
     AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
-    a: double = 2.0
+    a: cython.double = 2.0
+
+@dataclass(kw_only=True)
+cdef class TestKwOnly:
+    """
+    >>> inst = TestKwOnly(a=3, b=2)
+    >>> inst.a
+    3.0
+    >>> inst.b
+    2
+    >>> inst = TestKwOnly(b=2)
+    >>> inst.a
+    2.0
+    >>> inst.b
+    2
+    >>> fail = TestKwOnly(3, 2)
+    Traceback (most recent call last):
+    TypeError: __init__() takes exactly 0 positional arguments (2 given)
+    >>> fail = TestKwOnly(a=3)
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    >>> fail = TestKwOnly()
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    """
+
+    a: cython.double = 2.0
+    b: cython.long
 
 import sys
 if sys.version_info >= (3, 7):

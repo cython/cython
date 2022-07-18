@@ -380,12 +380,14 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
-        outer_attrs = node.outer_attrs
-        self.visitchildren(node, attrs=outer_attrs)
+        self.visit_func_outer_attrs(node)
         self.enter_scope(node, node.local_scope)
-        self.visitchildren(node, attrs=None, exclude=outer_attrs)
+        self.visitchildren(node, attrs=None, exclude=node.outer_attrs)
         self.exit_scope()
         return node
+
+    def visit_func_outer_attrs(self, node):
+        self.visitchildren(node, attrs=node.outer_attrs)
 
     def visit_GeneratorBodyDefNode(self, node):
         self._process_children(node)
@@ -841,6 +843,8 @@ class PrintTree(TreeVisitor):
                 result += "(type=%s, name=\"%s\")" % (repr(node.type), node.name)
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
+            elif isinstance(node, Nodes.CFuncDefNode):
+                result += "(name=\"%s\")" % node.declared_name()
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
             elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):

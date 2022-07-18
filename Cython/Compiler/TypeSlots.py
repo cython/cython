@@ -235,7 +235,7 @@ class SlotDescriptor(object):
         self.is_binop = is_binop
 
     def slot_code(self, scope):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def spec_value(self, scope):
         return self.slot_code(scope)
@@ -663,7 +663,6 @@ class MemberTableSlot(SlotDescriptor):
         from .Code import UtilityCode
         code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStructmemberH", "ModuleSetupCode.c"))
 
-        ext_type = scope.parent_type
         code.putln("static struct PyMemberDef %s[] = {" % self.substructure_cname(scope))
         for member_entry in self.get_member_specs(scope):
             if member_entry:
@@ -785,6 +784,20 @@ def get_slot_by_name(slot_name, compiler_directives):
 def get_slot_code_by_name(scope, slot_name):
     slot = get_slot_by_name(slot_name, scope.directives)
     return slot.slot_code(scope)
+
+def is_reverse_number_slot(name):
+    """
+    Tries to identify __radd__ and friends (so the METH_COEXIST flag can be applied).
+
+    There's no great consequence if it inadvertently identifies a few other methods
+    so just use a simple rule rather than an exact list.
+    """
+    if name.startswith("__r") and name.endswith("__"):
+        forward_name = name.replace("r", "", 1)
+        for meth in get_slot_table(None).PyNumberMethods:
+            if hasattr(meth, "right_slot"):
+                return True
+    return False
 
 
 #------------------------------------------------------------------------------------------

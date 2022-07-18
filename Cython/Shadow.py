@@ -337,7 +337,7 @@ class UnionType(CythonType):
             setattr(self, key, value)
 
     def __setattr__(self, key, value):
-        if key in '__dict__':
+        if key == '__dict__':
             CythonType.__setattr__(self, key, value)
         elif key in self._members:
             self.__dict__ = {key: cast(self._members[key], value)}
@@ -385,7 +385,7 @@ class typedef(CythonType):
     __getitem__ = index_type
 
 class _FusedType(CythonType):
-    pass
+    __getitem__ = index_type
 
 
 def fused_type(*args):
