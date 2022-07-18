@@ -11,11 +11,14 @@ Features added
 * A new decorator ``@cython.dataclasses.dataclass`` was implemented that provides
   compile time dataclass generation capabilities to ``cdef`` classes (extension types).
   Patch by David Woods.  (Github issue :issue:`2903`).  ``kw_only`` dataclasses
-  added by Yury Sokov  (Github issue :issue:`4794`)
+  added by Yury Sokov.  (Github issue :issue:`4794`)
 
 * Named expressions (PEP 572) aka. assignment expressions (aka. the walrus operator
   ``:=``) were implemented.
   Patch by David Woods.  (Github issue :issue:`2636`)
+
+* Cython avoids raising ``StopIteration`` in ``__next__`` methods when possible.
+  Patch by David Woods.  (Github issue :issue:`3447`)
 
 * Some C++ library declarations were extended and fixed.
   Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion, Wenjun Si.
@@ -60,6 +63,13 @@ Bugs fixed
   since it is relevant when passing them e.g. as argument into other fused functions.
   Patch by David Woods.  (Github issue :issue:`4644`)
 
+* The ``__self__`` attribute of fused functions reports its availability correctly
+  with ``hasattr()``.  Patch by David Woods.
+  (Github issue :issue:`4808`)
+
+* ``pyximport`` no longer uses the deprecated ``imp`` module.
+  Patch by Matus Valo.  (Github issue :issue:`4560`)
+
 * The generated C code failed to compile in CPython 3.11a4 and later.
   (Github issue :issue:`4500`)
 
@@ -72,7 +82,7 @@ Bugs fixed
   (Github issue :issue:`4329`)
 
 * Improve conversion between function pointers with non-identical but
-  compatible exception specifications. Patches by David Woods.
+  compatible exception specifications.  Patches by David Woods.
   (Github issues :issue:`4770`, :issue:`4689`)
 
 * Improve compatibility with forthcoming CPython 3.12 release.
@@ -80,7 +90,11 @@ Bugs fixed
 * Limited API C preprocessor warning is compatible with MSVC. Patch by
   Victor Molina Garcia.  (Github issue :issue:`4826`)
 
-* C compiler warnings fixed. Patch by mwtian.  (Github issue :issue:`4831`)
+* Some C compiler warnings were fixed.
+  Patch by mwtian.  (Github issue :issue:`4831`)
+
+* The parser allowed some invalid spellings of ``...``.
+  Patch by 0dminnimda.  (Github issue :issue:`4868`)
 
 * Includes all bug-fixes from the 0.29 branch up to the :ref:`0.29.31` release.
 
@@ -93,9 +107,13 @@ Other changes
   for users who did not expect ``None`` to be allowed as input.  To allow ``None``, use
   ``typing.Optional`` as in ``func(x: Optional[list])``.  ``None`` is also automatically
   allowed when it is used as default argument, i.e. ``func(x: list = None)``.
-  Note that, for backwards compatibility reasons, this does not apply when using Cython's
-  C notation, as in ``func(list x)``.  Here, ``None`` is still allowed, as always.
-  (Github issues :issue:`3883`, :issue:`2696`, :issue:`4669`)
+  ``int`` and ``float`` are now also recognised in type annotations and restrict the
+  value type at runtime.  They were previously ignored.
+  Note that, for backwards compatibility reasons, the new behaviour does not apply when using
+  Cython's C notation, as in ``func(list x)``.  Here, ``None`` is still allowed, as always.
+  Also, the ``annotation_typing`` directive can now be enabled and disabled more finely
+  within the module.
+  (Github issues :issue:`3883`, :issue:`2696`, :issue:`4669`, :issue:`4606`, :issue:`4886`)
 
 * The compile-time ``DEF`` and ``IF`` statements are deprecated and generate a warning.
   They should be replaced with normal constants, code generation or C macros.
@@ -1008,31 +1026,31 @@ Bugs fixed
 
 * Use ``importlib.util.find_spec()`` instead of the deprecated ``importlib.find_loader()`` 
   function when setting up the package path at import-time. Patch by Matti Picus.
-  (Github issue #4764)
+  (Github issue :issue:`4764`)
   
 * Require the C compiler to support the two-arg form of ``va_start`` on Python 3.10 
   and higher. Patch by Thomas Caswell.
-  (Github issue #4820)
+  (Github issue :issue:`4820`)
   
 * Make ``fused_type`` subscriptable in Shadow.py. Patch by Pfebrer.
-  (Github issue #4842)
+  (Github issue :issue:`4842`)
   
 * Fix the incorrect code generation of the target type in ``bytearray`` loops. 
   Patch by Kenrick Everett.
-  (Github issue #4108)
+  (Github issue :issue:`4108`)
   
 * Silence some GCC ``-Wconversion`` warnings in C utility code.
   Patch by Lisandro Dalcin.
-  (Github issue #4854)
+  (Github issue :issue:`4854`)
   
 * Stop tuple multiplication being ignored in expressions such as ``[*(1,) * 2]``.
   Patch by David Woods.
-  (Github issue #4864)
+  (Github issue :issue:`4864`)
   
 * Ensure that object buffers (e.g. ``ndarray[object, ndim=1]``) containing 
   ``NULL``  pointers are safe to use, returning ``None`` instead of the ``NULL``
   pointer. Patch by Sebastian Berg.
-  (Github issue #4859)
+  (Github issue :issue:`4859`)
 
 
 .. _0.29.30:
@@ -1045,7 +1063,7 @@ Bugs fixed
 
 * The GIL handling changes in 0.29.29 introduced a regression where
   objects could be deallocated without holding the GIL.
-  (Github issue :issue`4796`)
+  (Github issue :issue:`4796`)
 
 
 .. _0.29.29:
@@ -1059,7 +1077,7 @@ Features added
 * Avoid acquiring the GIL at the end of nogil functions.
   This change was backported in order to avoid generating wrong C code
   that would trigger C compiler warnings with tracing support enabled.
-  Backport by Oleksandr Pavlyk.  (Github issue :issue`4637`)
+  Backport by Oleksandr Pavlyk.  (Github issue :issue:`4637`)
 
 Bugs fixed
 ----------
@@ -1075,15 +1093,15 @@ Bugs fixed
 
 * Cython now correctly generates Python methods for both the provided regular and
   reversed special numeric methods of extension types.
-  Patch by David Woods.  (Github issue :issue`4750`)
+  Patch by David Woods.  (Github issue :issue:`4750`)
 
 * Calling unbound extension type methods without arguments could raise an
   ``IndexError`` instead of a ``TypeError``.
-  Patch by David Woods.  (Github issue :issue`4779`)
+  Patch by David Woods.  (Github issue :issue:`4779`)
 
 * Calling unbound ``.__contains__()`` super class methods on some builtin base
   types could trigger an infinite recursion.
-  Patch by David Woods.  (Github issue :issue`4785`)
+  Patch by David Woods.  (Github issue :issue:`4785`)
 
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue :issue:`4727`)
