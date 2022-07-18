@@ -14083,7 +14083,7 @@ class AnnotationNode(ExprNode):
             if not isinstance(self.expr, TupleNode):
                 # C-tuples mostly
                 tp = self.expr.analyse_as_type(env)
-                self._handle_c_type(tp)
+                self._analyse_expression_of_c_type(tp)
             self.expr = self.expr.analyse_types(env)
             self.type = self.expr.type
         return self
