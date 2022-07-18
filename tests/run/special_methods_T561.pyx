@@ -956,3 +956,44 @@ cdef class ReverseMethodsExist:
         return "radd"
     def __rsub__(self, other):
         return "rsub"
+
+
+cdef class OddTypeConversions:
+    """
+    The user can set the signature of special method arguments so that
+    it doesn't match the C signature. This just tests that a few work
+    (and fills in a hole in coverage of the Cython source)
+
+    >>> obj = OddTypeConversions()
+    >>> obj[1]
+    1
+    >>> obj["not a number!"]
+    Traceback (most recent call last):
+    ...
+    TypeError: an integer is required
+    >>> obj < obj
+    In comparison 0
+    True
+    >>> obj == obj
+    In comparison 2
+    False
+
+    Here I'm not sure how reproducible the flags are between Python versions.
+    Therefore I'm just checking that they end with ".0"
+    >>> memoryview(obj)  # doctest:+ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    RuntimeError: From __getbuffer__ with flags ....0
+    """
+    # force conversion of object to int
+    def __getitem__(self, int x):
+        return x
+
+    # force conversion of comparison (int) to object
+    def __richcmp__(self, other, object comparison):
+        print "In comparison", comparison
+        return not bool(comparison)
+
+    # force conversion of flags (int) to double
+    def __getbuffer__(self, Py_buffer *buffer, double flags):
+        raise RuntimeError("From __getbuffer__ with flags {}".format(flags))
