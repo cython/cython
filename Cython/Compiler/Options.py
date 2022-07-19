@@ -757,6 +757,7 @@ default_options = dict(
     formal_grammar=False,
     gdb_debug=False,
     compile_time_env=None,
+    module_name=None,
     common_utility_include_dir=None,
     output_dir=None,
     build_dir=None,
