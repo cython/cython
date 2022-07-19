@@ -8702,7 +8702,7 @@ class FromCImportStatNode(StatNode):
     #
     #  module_name     string                        Qualified name of module
     #  relative_level  int or None                   Relative import: number of dots before module_name
-    #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
+    #  imported_names  [(pos, name, as_name)]  Names to be imported
 
     child_attrs = []
     module_name = None
@@ -8719,29 +8719,21 @@ class FromCImportStatNode(StatNode):
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
-        for pos, name, as_name, kind in self.imported_names:
+        for pos, name, as_name in self.imported_names:
             if name == "*":
                 for local_name, entry in list(module_scope.entries.items()):
                     env.add_imported_entry(local_name, entry, pos)
             else:
                 entry = module_scope.lookup(name)
                 if entry:
-                    if kind and not self.declaration_matches(entry, kind):
-                        entry.redeclared(pos)
                     entry.used = 1
                 else:
-                    if kind == 'struct' or kind == 'union':
-                        entry = module_scope.declare_struct_or_union(
-                            name, kind=kind, scope=None, typedef_flag=0, pos=pos)
-                    elif kind == 'class':
-                        entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
+                    submodule_scope = env.context.find_module(
+                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                    if submodule_scope.parent_module is module_scope:
+                        env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:
-                        submodule_scope = env.context.find_module(
-                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
-                        if submodule_scope.parent_module is module_scope:
-                            env.declare_module(as_name or name, submodule_scope, self.pos)
-                        else:
-                            error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
+                        error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
 
                 if entry:
                     local_name = as_name or name
