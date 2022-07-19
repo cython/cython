@@ -18,9 +18,17 @@ cdef int brian() except? 0:
 cdef int silly() except -1:
     pass
 
+cdef int not_so_silly() noexcept:
+    pass
+
+cdef int not_so_silly_and_gilless() noexcept nogil:
+    pass
+
 spam()
 eggs()
 grail()
 tomato()
 brian()
 silly()
+not_so_silly()
+not_so_silly_and_gilless()

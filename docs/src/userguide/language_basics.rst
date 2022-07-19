@@ -414,6 +414,17 @@ use this form, since there isn't any error return value to test.
 Otherwise, an explicit error return value allows the C compiler to generate
 more efficient code and is thus generally preferable.
 
+To explicitly mark a function as not returning an exception use
+``noexcept``.
+
+    cdef int spam() noexcept:
+        ...
+
+This is worth doing because (a) "explicit is better than implicit", and
+(b) the default behaviour for ``cdef`` functions is likely to change in Cython 3
+so that they will be able to propagate exceptions by default, so it is
+best to mark them now if you want them to swallow exceptions in future.
+
 An external C++ function that may raise an exception can be declared with::
 
     cdef int spam() except +
