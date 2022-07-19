@@ -754,7 +754,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             async def g(): pass
             await z
         await = 1
-        if sys.version_info > (3,10,5):
+        if sys.version_info >= (3,10,6):
             self.assertTrue(inspect.iscoroutinefunction(f))
 
 
@@ -778,7 +778,7 @@ class TokenizerRegrTest(unittest.TestCase):
         exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
         self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
-        if sys.version_info > (3,10,5):
+        if sys.version_info >= (3,10,6):
             self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
