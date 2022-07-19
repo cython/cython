@@ -1867,10 +1867,9 @@ def p_from_import_statement(s, first_statement = 0):
 
 def p_imported_name(s):
     pos = s.position()
-    kind = None
     name = p_ident(s)
     as_name = p_as_name(s)
-    return (pos, name, as_name, kind)
+    return (pos, name, as_name)
 
 
 def p_dotted_name(s, as_allowed):
