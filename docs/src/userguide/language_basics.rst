@@ -421,9 +421,9 @@ To explicitly mark a function as not returning an exception use
         ...
 
 This is worth doing because (a) "explicit is better than implicit", and
-(b) the default behaviour for ``cdef`` functions is likely to change in Cython 3
-so that they will be able to propagate exceptions by default, so it is
-best to mark them now if you want them to swallow exceptions in future.
+(b) the default behaviour for ``cdef`` functions will change in Cython 3.0
+so that functions will propagate exceptions by default. Therefore, it is
+best to mark them now if you want them to swallow exceptions in the future.
 
 An external C++ function that may raise an exception can be declared with::
 
