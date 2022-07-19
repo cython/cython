@@ -3134,8 +3134,6 @@ class CFuncType(CType):
                 trailer = " except? %s" % self.exception_value
             elif self.exception_value and not self.exception_check:
                 trailer = " except %s" % self.exception_value
-            elif not self.exception_value and self.exception_check:
-                trailer = " except +"
             elif not self.exception_value and not self.exception_check:
                 trailer = " noexcept"
             elif self.exception_check == '+':
