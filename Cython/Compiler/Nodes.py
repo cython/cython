@@ -8742,7 +8742,7 @@ class FromCImportStatNode(StatNode):
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
                 env.use_utility_code(utility_code_for_cimports[module_name]())
-            for _, name, _, _ in self.imported_names:
+            for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
                     env.use_utility_code(utility_code_for_cimports[fqname]())
