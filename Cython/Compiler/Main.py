@@ -904,5 +904,6 @@ default_options = dict(
     build_dir=None,
     cache=None,
     create_extension=None,
+    module_name=None,
     np_pythran=False
 )
