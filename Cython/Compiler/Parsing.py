@@ -1795,6 +1795,8 @@ def p_imported_name(s, is_cimport):
     kind = None
     if is_cimport and s.systring in imported_name_kinds:
         kind = s.systring
+        warning(pos, 'the "from module cimport %s name" syntax is deprecated and '
+                'will be removed in Cython 3.0' % kind, 2)
         s.next()
     name = p_ident(s)
     as_name = p_as_name(s)
