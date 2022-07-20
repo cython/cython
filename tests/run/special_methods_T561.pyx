@@ -961,8 +961,8 @@ cdef class ReverseMethodsExist:
 cdef class ArgumentTypeConversions:
     """
     The user can set the signature of special method arguments so that
-    it doesn't match the C signature. This just tests that a few work
-    (and fills in a hole in coverage of the Cython source)
+    it doesn't match the C signature. This just tests that a few 
+    variations work
 
     >>> obj = ArgumentTypeConversions()
     >>> obj[1]
