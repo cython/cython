@@ -154,21 +154,14 @@ class CmdLineParserTest(TestCase):
 
         error(['-1'],
               'Unknown compiler flag: -1')
-        error(['-I'],
-              'argument -I/--include-dir: expected one argument')
-        error(['--version=-a'],
-              "argument -V/--version: ignored explicit argument '-a'")
-        error(['--version=--annotate=true'],
-              "argument -V/--version: ignored explicit argument "
-              "'--annotate=true'")
-        error(['--working'],
-              "argument -w/--working: expected one argument")
-        error(['--verbose=1'],
-              "argument -v/--verbose: ignored explicit argument '1'")
-        error(['--cleanup'],
-              "argument --cleanup: expected one argument")
+        error(['-I'])
+        error(['--version=-a'])
+        error(['--version=--annotate=true'])
+        error(['--working'])
+        error(['--verbose=1'])
+        error(['--cleanup'])
         error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
-              "unknown option --debug-disposal-code-wrong-name")
+              "Unknown compiler flag: --debug-disposal-code-wrong-name")
         error(['--module-name', 'foo.pyx'],
               "Need at least one source file")
         error(['--module-name', 'foo.bar'],
