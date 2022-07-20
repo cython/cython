@@ -235,6 +235,5 @@ def parse_command_line(args):
             sys.stderr.write(
                 "cython: Only one source file allowed when using --module-name\n")
             sys.exit(1)
-            parser.error("")
     return options, sources
 
