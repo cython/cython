@@ -50,6 +50,9 @@ Options:
   --warning-extra, -Wextra       Enable extra warnings
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
   -E, --compile-time-env name=value[,<name=value,...] Provides compile time env like DEF would do.
+  --module-name                  Fully qualified module name. If not given, it is deduced from the
+                                 import path if source file is in a package, or equals the
+                                 filename otherwise.
 """
 
 
