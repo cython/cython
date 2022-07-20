@@ -204,6 +204,7 @@ def parse_command_line(args):
                 sys.stdout.write(usage)
                 sys.exit(0)
             else:
+                sys.stderr.write(usage)
                 sys.stderr.write("Unknown compiler flag: %s\n" % option)
                 sys.exit(1)
         else:
