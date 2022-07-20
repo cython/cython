@@ -4,7 +4,8 @@ import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
-               error=object, warning=object, copy=object, _unicode=object)
+               error=object, warning=object, copy=object, hashlib=object, sys=object,
+               _unicode=object)
 
 import copy
 import hashlib
@@ -2132,10 +2133,11 @@ def _calculate_pickle_checksums(member_names):
     for algo_name in ['md5', 'sha256', 'sha1']:
         try:
             mkchecksum = getattr(hashlib, algo_name)
-            checksums.append('0x' + mkchecksum(member_names_string, **hash_kwargs).hexdigest()[:7])
+            checksum = mkchecksum(member_names_string, **hash_kwargs).hexdigest()
         except (AttributeError, ValueError):
-            # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime
+            # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime.
             continue
+        checksums.append('0x' + checksum[:7])
     return checksums
 
 
