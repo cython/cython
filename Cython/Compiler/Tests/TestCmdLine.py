@@ -11,6 +11,18 @@ from .. import Options
 from ..CmdLine import parse_command_line
 
 
+def check_global_options(expected_options, white_list=[]):
+    """
+    returns error message of "" if check Ok
+    """
+    no_value = object()
+    for name, orig_value in expected_options.items():
+        if name not in white_list:
+            if getattr(Options, name, no_value) != orig_value:
+                return "error in option " + name
+    return ""
+
+
 class CmdLineParserTest(TestCase):
     def setUp(self):
         backup = {}
@@ -23,6 +35,16 @@ class CmdLineParserTest(TestCase):
         for name, orig_value in self._options_backup.items():
             if getattr(Options, name, no_value) != orig_value:
                 setattr(Options, name, orig_value)
+
+    def check_default_global_options(self, white_list=[]):
+        self.assertEqual(check_global_options(self._options_backup, white_list), "")
+
+    def check_default_options(self, options, white_list=[]):
+        default_options = Options.CompilationOptions(Options.default_options)
+        no_value = object()
+        for name in default_options.__dict__.keys():
+            if name not in white_list:
+                self.assertEqual(getattr(options, name, no_value), getattr(default_options, name), msg="error in option " + name)
 
     def test_short_options(self):
         options, sources = parse_command_line([
