@@ -149,11 +149,11 @@ class CmdLineParserTest(TestCase):
             self.assertTrue(msg)
             if regex:
                 self.assertTrue(re.search(regex, msg),
-                                '%s does not match search "%s"' %
+                                '"%s" does not match search "%s"' %
                                 (msg, regex))
 
         error(['-1'],
-              'unknown option -1')
+              'Unknown compiler flag: -1')
         error(['-I'],
               'argument -I/--include-dir: expected one argument')
         error(['--version=-a'],
