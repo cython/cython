@@ -161,7 +161,7 @@ class CmdLineParserTest(TestCase):
         error(['--verbose=1'])
         error(['--cleanup'])
         error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
-              "Unknown compiler flag: --debug-disposal-code-wrong-name")
+              "Unknown debug flag: debug_disposal_code_wrong_name")
         error(['--module-name', 'foo.pyx'],
               "Need at least one source file")
         error(['--module-name', 'foo.bar'],
