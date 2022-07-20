@@ -8,6 +8,7 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
 
 import copy
 import hashlib
+import sys
 
 from . import PyrexTypes
 from . import Naming
@@ -1700,24 +1701,9 @@ if VALUE is not None:
                 if not e.type.is_pyobject:
                     e.type.create_to_py_utility_code(env)
                     e.type.create_from_py_utility_code(env)
-            all_members_names = sorted([e.name for e in all_members])
+            all_members_names = [e.name for e in all_members]
+            checksums = _calculate_pickle_checksums(all_members_names)
 
-            # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
-            # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
-            # which may not be.
-            checksum_algos = []
-            try:
-                checksum_algos.append(hashlib.md5)
-            except AttributeError:
-                pass
-            checksum_algos.append(hashlib.sha256)
-            checksum_algos.append(hashlib.sha1)
-
-            member_names_string = ' '.join(all_members_names).encode('utf-8')
-            checksums = [
-                '0x' + mkchecksum(member_names_string).hexdigest()[:7]
-                for mkchecksum in checksum_algos
-            ]
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
             # TODO(robertwb): Move the state into the third argument
@@ -2134,6 +2120,23 @@ if VALUE is not None:
         property.name = entry.name
         property.doc = entry.doc
         return property
+
+
+def _calculate_pickle_checksums(member_names):
+    # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
+    # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
+    # which may not be.
+    member_names_string = ' '.join(member_names).encode('utf-8')
+    hash_kwargs = {'usedforsecurity': False} if sys.version_info >= (3, 9) else {}
+    checksums = []
+    for algo_name in ['md5', 'sha256', 'sha1']:
+        try:
+            mkchecksum = getattr(hashlib, algo_name)
+            checksums.append('0x' + mkchecksum(member_names_string, **hash_kwargs).hexdigest()[:7])
+        except (AttributeError, ValueError):
+            # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime
+            continue
+    return checksums
 
 
 class CalculateQualifiedNamesTransform(EnvTransform):
