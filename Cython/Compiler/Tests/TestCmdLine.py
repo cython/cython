@@ -145,16 +145,12 @@ class CmdLineParserTest(TestCase):
                 self.assertRaises(SystemExit, parse_command_line, list(args))
             finally:
                 sys.stderr = old_stderr
-            msg = stderr.getvalue()
-            err_msg = 'Message "{}"'.format(msg.strip())
-            self.assertTrue(msg.startswith('usage: '),
-                            '%s does not start with "usage :"' % err_msg)
-            self.assertTrue(': error: ' in msg,
-                            '%s does not contain ": error :"' % err_msg)
+            msg = stderr.getvalue().strip()
+            self.assertTrue(msg)
             if regex:
                 self.assertTrue(re.search(regex, msg),
                                 '%s does not match search "%s"' %
-                                (err_msg, regex))
+                                (msg, regex))
 
         error(['-1'],
               'unknown option -1')
