@@ -162,10 +162,8 @@ class CmdLineParserTest(TestCase):
         error(['--cleanup'])
         error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
               "Unknown debug flag: debug_disposal_code_wrong_name")
-        error(['--module-name', 'foo.pyx'],
-              "Need at least one source file")
-        error(['--module-name', 'foo.bar'],
-              "Need at least one source file")
+        error(['--module-name', 'foo.pyx'])
+        error(['--module-name', 'foo.bar'])
         error(['--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx'],
               "Only one source file allowed when using --module-name")
         error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
