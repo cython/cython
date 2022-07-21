@@ -39,11 +39,12 @@ typedef struct {
     #endif
 #elif CYTHON_ATOMICS && defined(_MSC_VER)
     /* msvc */
-    #include <Windows.h>
+    #include <intrin.h>
     #undef __pyx_atomic_int_type
-    #define __pyx_atomic_int_type LONG
-    #define __pyx_atomic_incr_aligned(value) InterlockedExchangeAdd(value, 1)
-    #define __pyx_atomic_decr_aligned(value) InterlockedExchangeSubtract(value, 1)
+    #define __pyx_atomic_int_type long
+    #pragma intrinsic (_InterlockedExchangeAdd)
+    #define __pyx_atomic_incr_aligned(value) _InterlockedExchangeAdd(value, 1)
+    #define __pyx_atomic_decr_aligned(value) _InterlockedExchangeAdd(value, -1)
 
     #ifdef __PYX_DEBUG_ATOMICS
         #pragma message ("Using MSVC atomics")
