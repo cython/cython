@@ -44,6 +44,23 @@ class NoInitFields:
     NoInitFields(has_default=DummyObj(), has_factory='From a lambda', neither=None)
     >>> NoInitFields().has_default is NoInitFields().has_default
     True
+
+    >>> NoInitFields(1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: NoInitFields.__init__() takes 1 positional argument but 2 were given
+    >>> NoInitFields(has_default=1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: NoInitFields.__init__() got an unexpected keyword argument 'has_default'
+    >>> NoInitFields(has_factory=1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: NoInitFields.__init__() got an unexpected keyword argument 'has_factory'
+    >>> NoInitFields(neither=1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    TypeError: NoInitFields.__init__() got an unexpected keyword argument 'neither'
     """
     has_default : object = cython.dataclasses.field(default=DummyObj(), init=False)
     has_factory : object = cython.dataclasses.field(default_factory=lambda: "From a lambda", init=False)
