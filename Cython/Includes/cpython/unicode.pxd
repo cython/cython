@@ -1,8 +1,8 @@
 from libc.stdint cimport uint8_t, uint16_t
 
 cdef extern from *:
-    ctypedef uint8_t Py_UCS1;
-    ctypedef uint16_t Py_UCS2;
+    ctypedef uint8_t Py_UCS1
+    ctypedef uint16_t Py_UCS2
 
     # Return true if the object o is a Unicode object or an instance
     # of a Unicode subtype. Changed in version 2.2: Allowed subtypes
