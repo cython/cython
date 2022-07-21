@@ -650,9 +650,6 @@ class __Pyx_FakeReference {
 #endif
 #define __Pyx_NoneAsNull(obj)  (__Pyx_Py_IsNone(obj) ? NULL : (obj))
 
-#ifndef CO_GENERATOR
-  #define CO_GENERATOR 0x20
-#endif
 #ifndef CO_COROUTINE
   #define CO_COROUTINE 0x80
 #endif
