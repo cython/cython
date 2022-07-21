@@ -23,6 +23,21 @@ cdef extern from *:
     # New in version 3.3.
     Py_ssize_t PyUnicode_GET_LENGTH(object o)
 
+    Py_UCS1 *PyUnicode_1BYTE_DATA(object o)
+    Py_UCS2 *PyUnicode_2BYTE_DATA(object o)
+    Py_UCS4 *PyUnicode_4BYTE_DATA(object o)
+
+    int PyUnicode_WCHAR_KIND
+    int PyUnicode_1BYTE_KIND
+    int PyUnicode_2BYTE_KIND
+    int PyUnicode_4BYTE_KIND
+    void PyUnicode_WRITE(int kind, void *data, Py_ssize_t index, Py_UCS4 value)
+    Py_UCS4 PyUnicode_READ(int kind, void *data, Py_ssize_t index)
+    Py_UCS4 PyUnicode_READ_CHAR(object o, Py_ssize_t index)
+
+    unsigned int PyUnicode_KIND(object o)
+    void *PyUnicode_DATA(object o)
+
     # Return the size of the object's internal buffer in bytes. o has
     # to be a PyUnicodeObject (not checked).
     Py_ssize_t PyUnicode_GET_DATA_SIZE(object o)
@@ -34,6 +49,8 @@ cdef extern from *:
     # Return a pointer to the internal buffer of the object. o has to
     # be a PyUnicodeObject (not checked).
     char* PyUnicode_AS_DATA(object o)
+
+    bint PyUnicode_IsIdentifier(object o)
 
     # Return 1 or 0 depending on whether ch is a whitespace character.
     bint Py_UNICODE_ISSPACE(Py_UCS4 ch)
@@ -64,6 +81,8 @@ cdef extern from *:
 
     # Return 1 or 0 depending on whether ch is an alphanumeric character.
     bint Py_UNICODE_ISALNUM(Py_UCS4 ch)
+
+    bint Py_UNICODE_ISPRINTABLE(Py_UCS4 ch)
 
     # Return the character ch converted to lower case.
     # Used to return a Py_UNICODE value before Py3.3.
