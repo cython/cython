@@ -111,6 +111,18 @@ cdef extern from *:
     # UTF-8 encoded bytes.  The size is determined with strlen().
     unicode PyUnicode_FromString(const char *u)
 
+    unicode PyUnicode_New(Py_ssize_t size, Py_UCS4 maxchar)
+    unicode PyUnicode_FromKindAndData(int kind, const void *buffer, Py_ssize_t size)
+    unicode PyUnicode_FromFormat(const char *format, ...)
+    Py_ssize_t PyUnicode_GetLength(object unicode) except -1
+    Py_ssize_t PyUnicode_CopyCharacters(object to, Py_ssize_t to_start, object from, Py_ssize_t from_start, Py_ssize_t how_many) except -1
+    Py_ssize_t PyUnicode_Fill(object unicode, Py_ssize_t start, Py_ssize_t length, Py_UCS4 fill_char) except -1
+    int PyUnicode_WriteChar(object unicode, Py_ssize_t index, Py_UCS4 character) except -1
+    Py_UCS4 PyUnicode_ReadChar(object unicode, Py_ssize_t index) except -1
+    unicode PyUnicode_Substring(object str, Py_ssize_t start, Py_ssize_t end)
+    Py_UCS4 *PyUnicode_AsUCS4(object u, Py_UCS4 *buffer, Py_ssize_t buflen, int copy_null) except NULL
+    Py_UCS4 *PyUnicode_AsUCS4Copy(object u) except NULL
+
     # Create a Unicode Object from the given Unicode code point ordinal.
     #
     # The ordinal must be in range(0x10000) on narrow Python builds
