@@ -172,3 +172,40 @@ rather than relying on the user to test and cast the type of each operand.
 The old behaviour can be restored with the 
 :ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
 More details are given in :ref:`arithmetic_methods`.
+
+
+Exception values and ``noexcept``
+=================================
+
+``cdef`` functions that are not ``extern`` now propagate Python
+exceptions by default, where previously they needed to explicitly be
+declated with :ref:`exception value <error_return_values>` in order
+for them to do so. A new ``noexcept`` modifier can be used to declare
+``cdef`` functions that will not raise exceptions.
+
+In existing code, you should mainly look out for ``cdef`` functions
+that are declared without an exception value::
+
+  cdef int spam(int x):
+      pass
+
+If you left out the exception value by mistake, i.e., the function
+actually can raise Python exceptions, then the new behaviour will
+take care of this for you, and correctly propagate any exceptions.
+
+On the other hand, if you didn't declare an exception value because
+the function indeed cannot raise exceptions, the new behaviour will
+result in slightly less efficient code being generated.  To avoid
+that, you must declare thee function explicitly as being
+``noexcept``::
+
+  cdef int spam(int x) noexcept:
+      pass
+
+The behaviour for ``cdef`` functions that are also ``extern`` is
+unchanged as ``extern`` functions are less likely to raise Python
+exceptions
+
+The behaviour for any ``cdef`` function that is declared with an
+explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
+also unchanged.

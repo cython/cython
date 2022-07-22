@@ -658,7 +658,7 @@ which do not have such a well-defined error return value.
 Extra care must be taken to ensure Python exceptions are correctly
 propagated from such functions.
 
-A `cdef` function may be declared with an exception return value for it
+A ``cdef`` function may be declared with an exception return value for it
 as a contract with the caller. Here is an example:
 
 .. tabs::
@@ -759,18 +759,18 @@ An external C++ function that may raise an exception can be declared with::
 See :ref:`wrapping-cplusplus` for more details.
 
 Finally, if you are certain that your function cannot raise an exception, (e.g., it
-does not use Python objects at all), you can declare it as such using `noexcept`::
+does not use Python objects at all), you can declare it as such using ``noexcept``::
 
     cdef int spam() noexcept
 
 Some things to note:
 
-* `cdef` functions that are also `extern` are implicitly declared `noexcept`.
+* ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept``.
   In the uncommon case of external C/C++ functions that _can_  raise Python exceptions,
   e.g., external functions that use the Python C API, you should explicitly declare
   them with an exception value.
 
-* `cdef` functions that are *not* `extern` are implicitly declared `except *`.
+* ``cdef`` functions that are *not* ``extern`` are implicitly declared ``except *``.
 
 * Exception values can only be declared for functions returning a C integer,
   enum, float or pointer type, and the value must be a constant expression.
