@@ -1,6 +1,7 @@
-from libc.stdint cimport uint8_t, uint16_t
 
 cdef extern from *:
+    ctypedef unsigned char  uint8_t
+    ctypedef unsigned short uint16_t
     ctypedef uint8_t Py_UCS1
     ctypedef uint16_t Py_UCS2
 
