@@ -286,3 +286,39 @@ def test_char_array_in_python_api(*shape):
     arr = array(shape=shape, itemsize=sizeof(char), format='c', mode='c')
     arr[:] = b'x'
     return arr
+
+def test_is_Sequence():
+    """
+    >>> test_is_Sequence()
+    1
+    1
+    True
+    """
+    import sys
+    if sys.version_info < (3, 3):
+        from collections import Sequence
+    else:
+        from collections.abc import Sequence
+
+    arr = array(shape=(5,), itemsize=sizeof(char), format='c', mode='c')
+    for i in range(arr.shape[0]):
+        arr[i] = f'{i}'.encode('ascii')
+    print(arr.count(b'1'))  # test for presence of added collection method
+    print(arr.index(b'1'))  # test for presence of added collection method
+
+    if sys.version_info >= (3, 10):
+        # test structural pattern match in Python
+        # (because Cython hasn't implemented it yet, and because the details
+        # of what Python considers a sequence are important)
+        globs = {'arr': arr}
+        exec("""
+match arr:
+    case [*_]:
+        res = True
+    case _:
+        res = False
+""", globs)
+        assert globs['res']
+
+    return isinstance(arr, Sequence)
+

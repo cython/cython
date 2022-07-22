@@ -7,7 +7,7 @@
 from __future__ import unicode_literals
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
 
 cimport cython
 from cython cimport view
@@ -1133,6 +1133,49 @@ def assign_temporary_to_object(object[:] buf):
     >>> decref(a)
     """
     buf[1] = {3-2: 2+(2*4)-2}
+
+@testcase
+def check_object_nulled_1d(object[:] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a])
+    >>> check_object_nulled_1d(A, 0, a)
+    >>> check_object_nulled_1d(A, 1, a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], strides=(2,))
+    >>> check_object_nulled_1d(A, 0, a)  # only 0 due to stride
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef ObjectMockBuffer omb = buf.base
+    cdef PyObject **data = <PyObject**>(omb.buffer)
+    Py_CLEAR(data[idx])
+    res = buf[idx]  # takes None
+    buf[idx] = obj
+    return res
+
+@testcase
+def check_object_nulled_2d(object[:, ::1] buf, int idx1, int idx2, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], shape=(2, 2))
+    >>> check_object_nulled_2d(A, 0, 0, a)
+    >>> check_object_nulled_2d(A, 1, 1, a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef ObjectMockBuffer omb = buf.base
+    cdef PyObject **data = <PyObject**>(omb.buffer)
+    Py_CLEAR(data[idx1 + 2*idx2])
+    res = buf[idx1, idx2]  # takes None
+    buf[idx1, idx2] = obj
+    return res
+
 
 #
 # Test __cythonbufferdefaults__
