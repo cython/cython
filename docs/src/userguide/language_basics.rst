@@ -48,7 +48,7 @@ the use of ‘early binding’ programming techniques.
 C variable and type definitions
 ===============================
 
-C variables can be declared by 
+C variables can be declared by
 
 * using the Cython specific :keyword:`cdef` statement,
 * using PEP-484/526 type annotations with C data types or
@@ -459,7 +459,7 @@ passed in directly using a normal C function call.
 C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
 Python object return type, like Python functions, will return a :keyword:`None`
 value when execution leaves the function body without an explicit return value. This is in
-contrast to C/C++, which leaves the return value undefined. 
+contrast to C/C++, which leaves the return value undefined.
 In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, :keyword:`False` for ``bint`` and :keyword:`NULL` for pointer types.
 
 A more complete comparison of the pros and cons of these different method
@@ -652,16 +652,14 @@ through defined error return values.  For functions that return a Python object
 ``NULL`` pointer, so any function returning a Python object has a well-defined
 error return value.
 
-While this is always the case for C functions, functions
+While this is always the case for Python functions, functions
 defined as C functions or ``cpdef``/``@ccall`` functions can return arbitrary C types,
-which do not have such a well-defined error return value.  Thus, if an
-exception is detected in such a function, a warning message is printed,
-the exception is ignored, and the function returns immediately without
-propagating the exception to its caller.
+which do not have such a well-defined error return value.
+Extra care must be taken to ensure Python exceptions are correctly
+propagated from such functions.
 
-If you want such a C function to be able to propagate exceptions, you need
-to declare an exception return value for it as a contract with the caller.
-Here is an example
+A `cdef` function may be declared with an exception return value for it
+as a contract with the caller. Here is an example:
 
 .. tabs::
 
@@ -760,12 +758,25 @@ An external C++ function that may raise an exception can be declared with::
 
 See :ref:`wrapping-cplusplus` for more details.
 
+Finally, if you are certain that your function cannot raise an exception, (e.g., it
+does not use Python objects at all), you can declare it as such using `noexcept`::
+
+    cdef int spam() noexcept
+
 Some things to note:
+
+* `cdef` functions that are also `extern` are implicitly declared `noexcept`.
+  In the uncommon case of external C/C++ functions that _can_  raise Python exceptions,
+  e.g., external functions that use the Python C API, you should explicitly declare
+  them with an exception value.
+
+* `cdef` functions that are *not* `extern` are implicitly declared `except *`.
 
 * Exception values can only be declared for functions returning a C integer,
   enum, float or pointer type, and the value must be a constant expression.
   Functions that return ``void``, or a struct/union by value, can only use
   the ``except *`` or ``exceptval(check=True)`` form.
+
 * The exception value specification is part of the signature of the function.
   If you're passing a pointer to a function as a parameter or assigning it
   to a variable, the declared type of the parameter or variable must have
