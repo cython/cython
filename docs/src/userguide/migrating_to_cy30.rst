@@ -194,9 +194,9 @@ actually can raise Python exceptions, then the new behaviour will
 take care of this for you, and correctly propagate any exceptions.
 
 On the other hand, if you didn't declare an exception value because
-the function indeed cannot raise exceptions, the new behaviour will
-result in slightly less efficient code being generated.  To avoid
-that, you must declare thee function explicitly as being
+you know that the function cannot raise exceptions, the new behaviour
+will result in slightly less efficient code being generated.  To
+prevent that, you must declare the function explicitly as being
 ``noexcept``::
 
   cdef int spam(int x) noexcept:
