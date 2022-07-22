@@ -32,8 +32,7 @@ cdef extern from *:
     Py_UCS2 *PyUnicode_2BYTE_DATA(object o)
     Py_UCS4 *PyUnicode_4BYTE_DATA(object o)
 
-    # Deprecated since version 3.10, will be removed in version 3.12.
-    int PyUnicode_WCHAR_KIND
+    int PyUnicode_WCHAR_KIND  # Deprecated since version 3.10, will be removed in version 3.12.
     int PyUnicode_1BYTE_KIND
     int PyUnicode_2BYTE_KIND
     int PyUnicode_4BYTE_KIND
