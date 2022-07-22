@@ -630,17 +630,18 @@ def build_hex_version(version_string):
 
 def write_depfile(target, source, dependencies):
     src_base_dir = os.path.dirname(source)
+    cwd = os.getcwd()
     if not src_base_dir.endswith(os.sep):
         src_base_dir += os.sep
     # paths below the base_dir are relative, otherwise absolute
     paths = []
     for fname in dependencies:
         if fname.startswith(src_base_dir):
-            paths.append(os.path.relpath(fname, src_base_dir))
+            paths.append(os.path.relpath(fname, cwd))
         else:
             paths.append(os.path.abspath(fname))
 
-    depline = os.path.split(target)[1] + ": \\\n  "
+    depline = os.path.relpath(target, cwd) + ": \\\n  "
     depline += " \\\n  ".join(paths) + "\n"
 
     with open(target+'.dep', 'w') as outfile:
