@@ -764,6 +764,7 @@ is unaware of Python exceptions), you can declare it as such using ``noexcept``:
 
     cdef int spam() noexcept
 
+If a ``noexcept`` function *does* finish with an exception then it will print a warning message but not allow the exception to propagate further.
 Some things to note:
 
 * ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept``.
