@@ -801,32 +801,58 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
         else:
             dirs = (Utils.find_root_package_dir(file_desc.filename),) + dirs
 
+    # search for dotted filename e.g. <dir>/foo.bar.pxd
     dotted_filename = qualified_name
     if suffix:
         dotted_filename += suffix
-
-    if not include:
-        names = qualified_name.split('.')
-        package_names = tuple(names[:-1])
-        module_name = names[-1]
-        module_filename = module_name + suffix
-        package_filename = "__init__" + suffix
 
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
             return path
 
-        if not include:
-            package_dir = Utils.check_package_dir(dirname, package_names)
+    # search for filename in package structure e.g. <dir>/foo/bar.pxd or <dir>/foo/bar/__init__.pxd
+    if not include:
+
+        names = qualified_name.split('.')
+        package_names = tuple(names[:-1])
+        module_name = names[-1]
+        module_filename = module_name + suffix
+        package_filename = "__init__" + suffix
+
+        # search for standard packages first - PEP420
+        namespace_dirs = []
+        for dirname in dirs:
+            package_dir, is_namespace = Utils.check_package_dir(dirname, package_names)
             if package_dir is not None:
+
+                if is_namespace:
+                    namespace_dirs.append(package_dir)
+                    continue
+
+                # matches modules of the form: <dir>/foo/bar.pxd
                 path = os.path.join(package_dir, module_filename)
                 if os.path.exists(path):
                     return path
-                path = os.path.join(package_dir, module_name,
-                                    package_filename)
+
+                # matches modules of the form: <dir>/foo/bar/__init__.pxd
+                path = os.path.join(package_dir, module_name, package_filename)
                 if os.path.exists(path):
                     return path
+
+        # search for namespaces second - PEP420
+        for package_dir in namespace_dirs:
+
+            # matches modules of the form: <dir>/foo/bar.pxd
+            path = os.path.join(package_dir, module_filename)
+            if os.path.exists(path):
+                return path
+
+            # matches modules of the form: <dir>/foo/bar/__init__.pxd
+            path = os.path.join(package_dir, module_name, package_filename)
+            if os.path.exists(path):
+                return path
+
     return None
 
 

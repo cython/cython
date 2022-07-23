@@ -415,6 +415,7 @@ VER_DEP_MODULES = {
                                         'run.special_methods_T561_py2'
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
+                                          'build.cythonize_pep420_namespace',
                                           'run.yield_from_py33',
                                           'pyximport.pyximport_namespace',
                                           ]),

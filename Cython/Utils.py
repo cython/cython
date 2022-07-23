@@ -134,16 +134,21 @@ def find_root_package_dir(file_path):
     else:
         return dir
 
-@cached_function
-def check_package_dir(dir, package_names):
-    for dirname in package_names:
-        dir = os.path.join(dir, dirname)
-        if not is_package_dir(dir):
-            return None
-    return dir
 
 @cached_function
-def is_package_dir(dir_path):
+def check_package_dir(dir_path, package_names):
+    namespace = True
+    for dirname in package_names:
+        dir_path = os.path.join(dir_path, dirname)
+        has_init = contains_init(dir_path)
+        if not namespace and not has_init:
+            return None, False
+        elif has_init:
+            namespace = False
+    return dir_path, namespace
+
+
+def contains_init(dir_path):
     for filename in ("__init__.py",
                      "__init__.pyc",
                      "__init__.pyx",
@@ -151,6 +156,13 @@ def is_package_dir(dir_path):
         path = os.path.join(dir_path, filename)
         if path_exists(path):
             return 1
+
+
+@cached_function
+def is_package_dir(dir_path):
+    if contains_init(dir_path):
+        return 1
+
 
 @cached_function
 def path_exists(path):
