@@ -107,43 +107,43 @@ jobs:
           # MacOS sub-jobs
           # ==============
           # (C-only builds are used to create wheels)
-          - os: macos-10.15
+          - os: macos-12
             python-version: 2.7
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 2.7
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 3.5
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 3.6
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 3.7
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 3.8
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 3.9
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: 3.9
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: "3.10"
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-12
             python-version: "3.10"
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
