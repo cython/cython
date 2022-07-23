@@ -178,7 +178,7 @@ Exception values and ``noexcept``
 
 ``cdef`` functions that are not ``extern`` now propagate Python
 exceptions by default, where previously they needed to explicitly be
-declated with :ref:`exception value <error_return_values>` in order
+declared with :ref:`exception value <error_return_values>` in order
 for them to do so. A new ``noexcept`` modifier can be used to declare
 ``cdef`` functions that will not raise exceptions.
 
