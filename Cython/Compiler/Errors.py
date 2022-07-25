@@ -45,7 +45,7 @@ def context(position):
         s = u"[unprintable code]\n"
     else:
         s = u''.join(F[max(0, position[1]-6):position[1]])
-        s = u'...\n%s%s^\n' % (s, u' '*(position[2]-1))
+        s = u'...\n%s%s^\n' % (s, u' '*(position[2]))
     s = u'%s\n%s%s\n' % (u'-'*60, s, u'-'*60)
     return s
 

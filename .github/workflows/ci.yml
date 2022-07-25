@@ -39,9 +39,7 @@ jobs:
         env: [{}]
 
         include:
-          # Temporary - Allow failure on Python 3.11-dev jobs until they are considered stable
-          - python-version: 3.11-dev
-            allowed_failure: true
+          # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
           #- python-version: 3.12-dev
           #  allowed_failure: true
 
@@ -157,43 +155,43 @@ jobs:
           # MacOS sub-jobs
           # ==============
           # (C-only builds are used to create wheels)
-          - os: macos-10.15
+          - os: macos-11
             python-version: 2.7
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 2.7
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.5
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.6
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.7
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.8
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.9
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: 3.9
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: "3.10"
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-10.15
+          - os: macos-11
             python-version: "3.10"
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }

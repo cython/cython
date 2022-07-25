@@ -6,10 +6,12 @@ import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
-               error=object, warning=object, copy=object, _unicode=object)
+               error=object, warning=object, copy=object, hashlib=object, sys=object,
+               _unicode=object)
 
 import copy
 import hashlib
+import sys
 
 from . import PyrexTypes
 from . import Naming
@@ -2035,22 +2037,10 @@ if VALUE is not None:
                 if not e.type.is_pyobject:
                     e.type.create_to_py_utility_code(env)
                     e.type.create_from_py_utility_code(env)
-            all_members_names = sorted([e.name for e in all_members])
 
-            # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
-            # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
-            # which may not be.
-            checksum_algos = [hashlib.sha256, hashlib.sha1]
-            try:
-                checksum_algos.append(hashlib.md5)
-            except AttributeError:
-                pass
+            all_members_names = [e.name for e in all_members]
+            checksums = _calculate_pickle_checksums(all_members_names)
 
-            member_names_string = ' '.join(all_members_names).encode('utf-8')
-            checksums = [
-                '0x' + mkchecksum(member_names_string).hexdigest()[:7]
-                for mkchecksum in checksum_algos
-            ]
             unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
 
             # TODO(robertwb): Move the state into the third argument
@@ -2293,6 +2283,12 @@ if VALUE is not None:
         assmt.analyse_declarations(env)
         return assmt
 
+    def visit_func_outer_attrs(self, node):
+        # any names in the outer attrs should not be looked up in the function "seen_vars_stack"
+        stack = self.seen_vars_stack.pop()
+        super(AnalyseDeclarationsTransform, self).visit_func_outer_attrs(node)
+        self.seen_vars_stack.append(stack)
+
     def visit_ScopedExprNode(self, node):
         env = self.current_env()
         node.analyse_declarations(env)
@@ -2459,6 +2455,24 @@ if VALUE is not None:
         self.visitchildren(node)
         node.analyse_declarations(self.current_env())
         return node
+
+
+def _calculate_pickle_checksums(member_names):
+    # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
+    # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
+    # which may not be.
+    member_names_string = ' '.join(member_names).encode('utf-8')
+    hash_kwargs = {'usedforsecurity': False} if sys.version_info >= (3, 9) else {}
+    checksums = []
+    for algo_name in ['sha256', 'sha1', 'md5']:
+        try:
+            mkchecksum = getattr(hashlib, algo_name)
+            checksum = mkchecksum(member_names_string, **hash_kwargs).hexdigest()
+        except (AttributeError, ValueError):
+            # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime.
+            continue
+        checksums.append('0x' + checksum[:7])
+    return checksums
 
 
 class CalculateQualifiedNamesTransform(EnvTransform):
