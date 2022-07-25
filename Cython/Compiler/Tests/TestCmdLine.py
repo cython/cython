@@ -19,7 +19,7 @@ from .Utils import backup_Options, restore_Options, check_global_options
 unpatched_exists = os.path.exists
 
 def patched_exists(path):
-    if path in ('source.pyx', 'file.pyx', 'file1.pyx', 'file2.pyx', 'file3.pyx'):
+    if path in ('source.pyx', 'file.pyx', 'file1.pyx', 'file2.pyx', 'file3.pyx', 'foo.pyx', 'bar.pyx'):
         return True
     return unpatched_exists(path)
 
