@@ -720,6 +720,10 @@ def main(command_line = 0):
             options, sources = parse_command_line(args)
         except IOError as e:
             # TODO: IOError can be replaced with FileNotFoundError in Cython 3.1
+            import errno
+            if errno.ENOENT != e.errno:
+                # Raised IOError is not caused by missing file.
+                raise
             print("{}: No such file or directory: '{}'".format(sys.argv[0], e.filename), file=sys.stderr)
             sys.exit(1)
     else:
