@@ -393,9 +393,8 @@ def p_sizeof(s):
     # Here we decide if we are looking at an expression or type
     # If it is actually a type, but parsable as an expression,
     # we treat it as an expression here.
-    with tentatively_scan(s) as errors:
-        operand = p_test(s)
-    if not errors:
+    operand = p_maybe_expression_if_not_type(s)
+    if operand:
         node = ExprNodes.SizeofVarNode(pos, operand = operand)
     else:
         base_type = p_c_base_type(s)
@@ -2497,9 +2496,8 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
             ident = s.systring
             s.next()  # s.sy is '='
             s.next()
-            with tentatively_scan(s) as errors:
-                arg = p_test(s)
-            if errors:
+            arg = p_maybe_expression_if_not_type(s)
+            if not arg:
                 base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
@@ -2510,9 +2508,8 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
             was_keyword = True
 
         else:
-            with tentatively_scan(s) as errors:
-                arg = p_test(s)
-            if errors:
+            arg = p_maybe_expression_if_not_type(s)
+            if not arg:
                 base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
@@ -2762,6 +2759,19 @@ def p_memoryviewslice_access(s, base_type_node):
 
 def looking_at_name(s):
     return s.sy == 'IDENT' and s.systring not in calling_convention_words
+
+
+def p_maybe_expression_if_not_type(s):
+    # Returns either the expression or "None".
+    # This is mainly used in buffer definitions and similar, so
+    # it contains an initial check that it doesn't start with a name that
+    # suggests a type
+    if s.systring in base_type_start_words:
+        return None
+    with tentatively_scan(s):
+        return p_test(s)
+    return None
+
 
 def looking_at_base_type(s):
     #print "looking_at_base_type?", s.sy, s.systring, s.position()
