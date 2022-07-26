@@ -24,8 +24,8 @@ def foo(dtype_t[:] a, dtype_t_out[:, :] b):
 _WARNINGS = """
 20:10: 'cpdef_method' redeclared
 31:10: 'cpdef_cname_method' redeclared
-446:72: Argument evaluation order in C function call is undefined and may not be as expected
-446:72: Argument evaluation order in C function call is undefined and may not be as expected
-749:34: Argument evaluation order in C function call is undefined and may not be as expected
-749:34: Argument evaluation order in C function call is undefined and may not be as expected
+448:72: Argument evaluation order in C function call is undefined and may not be as expected
+448:72: Argument evaluation order in C function call is undefined and may not be as expected
+751:34: Argument evaluation order in C function call is undefined and may not be as expected
+751:34: Argument evaluation order in C function call is undefined and may not be as expected
 """
