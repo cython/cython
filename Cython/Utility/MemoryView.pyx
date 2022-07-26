@@ -26,6 +26,7 @@ cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
 
 cdef extern from *:
+    bint CYTHON_ATOMICS
     int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
@@ -366,14 +367,15 @@ cdef class memoryview:
                 (<__pyx_buffer *> &self.view).obj = Py_None
                 Py_INCREF(Py_None)
 
-        global __pyx_memoryview_thread_locks_used
-        if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
-            self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
-            __pyx_memoryview_thread_locks_used += 1
-        if self.lock is NULL:
-            self.lock = PyThread_allocate_lock()
+        if not CYTHON_ATOMICS:
+            global __pyx_memoryview_thread_locks_used
+            if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
+                self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
+                __pyx_memoryview_thread_locks_used += 1
             if self.lock is NULL:
-                raise MemoryError
+                self.lock = PyThread_allocate_lock()
+                if self.lock is NULL:
+                    raise MemoryError
 
         if flags & PyBUF_FORMAT:
             self.dtype_is_object = (self.view.format[0] == b'O' and self.view.format[1] == b'\0')

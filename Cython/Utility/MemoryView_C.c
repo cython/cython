@@ -26,35 +26,28 @@ typedef struct {
 #endif
 
 #define __pyx_atomic_int_type int
-// todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
-//       libatomic + autotools-like distutils support? Such a pain...
-#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 ||           \
-                    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2)) && \
-                    !defined(__i386__)
+
+#if CYTHON_ATOMICS && (__GNUC__ >= 5 || (__GNUC__ == 4 && \
+                    (__GNUC_MINOR__ > 1 ||  \
+                    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
-    #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)
+    #define __pyx_atomic_incr_aligned(value) __sync_fetch_and_add(value, 1)
+    #define __pyx_atomic_decr_aligned(value) __sync_fetch_and_sub(value, 1)
 
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
     #endif
-#elif CYTHON_ATOMICS && defined(_MSC_VER) && 0
+#elif CYTHON_ATOMICS && defined(_MSC_VER) && CYTHON_COMPILING_IN_NOGIL
     /* msvc */
-    #include <Windows.h>
+    #include <intrin.h>
     #undef __pyx_atomic_int_type
-    #define __pyx_atomic_int_type LONG
-    #define __pyx_atomic_incr_aligned(value, lock) InterlockedIncrement(value)
-    #define __pyx_atomic_decr_aligned(value, lock) InterlockedDecrement(value)
+    #define __pyx_atomic_int_type long
+    #pragma intrinsic (_InterlockedExchangeAdd)
+    #define __pyx_atomic_incr_aligned(value) _InterlockedExchangeAdd(value, 1)
+    #define __pyx_atomic_decr_aligned(value) _InterlockedExchangeAdd(value, -1)
 
     #ifdef __PYX_DEBUG_ATOMICS
         #pragma message ("Using MSVC atomics")
-    #endif
-#elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER)) && 0
-    #define __pyx_atomic_incr_aligned(value, lock) _InterlockedIncrement(value)
-    #define __pyx_atomic_decr_aligned(value, lock) _InterlockedDecrement(value)
-
-    #ifdef __PYX_DEBUG_ATOMICS
-        #warning "Using Intel atomics"
     #endif
 #else
     #undef CYTHON_ATOMICS
@@ -69,9 +62,9 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 
 #if CYTHON_ATOMICS
     #define __pyx_add_acquisition_count(memview) \
-             __pyx_atomic_incr_aligned(__pyx_get_slice_count_pointer(memview), memview->lock)
+             __pyx_atomic_incr_aligned(__pyx_get_slice_count_pointer(memview))
     #define __pyx_sub_acquisition_count(memview) \
-            __pyx_atomic_decr_aligned(__pyx_get_slice_count_pointer(memview), memview->lock)
+            __pyx_atomic_decr_aligned(__pyx_get_slice_count_pointer(memview))
 #else
     #define __pyx_add_acquisition_count(memview) \
             __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
