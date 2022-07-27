@@ -2899,6 +2899,15 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
+    if nogil:
+        warning(
+            s.position(),
+            "The keyword 'nogil' must appear at the end of the "
+            "function signature line. Placing it before 'except' "
+            "or 'noexcept' will be disallowed in a future version "
+            "of Cython.",
+            level=1
+        )
     exc_val, exc_check = p_exception_value_clause(s, ctx)
     nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
