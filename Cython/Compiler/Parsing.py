@@ -2820,6 +2820,8 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     s.expect(')')
     nogil = p_nogil(s)
     exc_val, exc_check = p_exception_value_clause(s)
+    # TODO - warning to enforce preferred exception specification order
+    nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
@@ -2938,7 +2940,11 @@ def p_with_gil(s):
 def p_exception_value_clause(s):
     exc_val = None
     exc_check = 0
-    if s.sy == 'except':
+
+    if s.sy == 'IDENT' and s.systring == 'noexcept':
+        s.next()
+        exc_check = False  # No-op in Cython 0.29.x
+    elif s.sy == 'except':
         s.next()
         if s.sy == '*':
             exc_check = 1
