@@ -152,6 +152,9 @@ jobs:
             env: { COVERAGE: 1 }
             extra_hash: '-coverage'
 
+          - os: windows-2019
+            allowed_failure: true
+
           # MacOS sub-jobs
           # ==============
           # (C-only builds are used to create wheels)
