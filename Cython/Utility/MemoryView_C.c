@@ -28,11 +28,26 @@ typedef struct {
 #define __pyx_atomic_int_type int
 #define __pyx_nonatomic_int_type int
 
+// for standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
+// defined when we decide to use them
 #if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
                         (__STDC_VERSION__ >= __STDC_VERSION__) && \
                         !defined(__STDC_NO_ATOMICS__))
-    /* C11 atomics are available */
     #include <stdatomic.h>
+#elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
+                    (__cplusplus >= 201103L) || \
+                    (defined(_MSC_VER) && _MSC_VER >= 1700)))
+    #include <atomic>
+#endif
+
+#if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
+                        (__STDC_VERSION__ >= __STDC_VERSION__) && \
+                        !defined(__STDC_NO_ATOMICS__) && \
+                       ATOMIC_INT_LOCK_FREE == 2)
+    /* C11 atomics are available
+       require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
+       alignment trick in MemoryView.pyx if it uses mutexes
+     */
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type atomic_int
     // TODO - it might be possible to use a less strict memory ordering here
@@ -45,9 +60,12 @@ typedef struct {
     #endif
 #elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
                     (__cplusplus >= 201103L) || \
-                    (defined(_MSC_VER) && _MSC_VER >= 1700)))
-    /* C++11 atomics are available */
-    #include <atomic>
+                    (defined(_MSC_VER) && _MSC_VER >= 1700)) && \
+                    ATOMIC_INT_LOCK_FREE == 2)
+    /* C++11 atomics are available
+       require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
+       alignment trick in MemoryView.pyx if it uses mutexes
+     */
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type std::atomic_int
     // TODO - it might be possible to use a less strict memory ordering here
