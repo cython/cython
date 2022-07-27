@@ -31,7 +31,7 @@ typedef struct {
 // for standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
 // defined when we decide to use them
 #if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
-                        (__STDC_VERSION__ >= __STDC_VERSION__) && \
+                        (__STDC_VERSION__ >= 201112L) && \
                         !defined(__STDC_NO_ATOMICS__))
     #include <stdatomic.h>
 #elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
@@ -41,7 +41,7 @@ typedef struct {
 #endif
 
 #if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
-                        (__STDC_VERSION__ >= __STDC_VERSION__) && \
+                        (__STDC_VERSION__ >= 201112L) && \
                         !defined(__STDC_NO_ATOMICS__) && \
                        ATOMIC_INT_LOCK_FREE == 2)
     /* C11 atomics are available
@@ -60,6 +60,7 @@ typedef struct {
     #endif
 #elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
                     (__cplusplus >= 201103L) || \
+                    /*_MSC_VER 1700 is Visual Studio 2012 */ \
                     (defined(_MSC_VER) && _MSC_VER >= 1700)) && \
                     ATOMIC_INT_LOCK_FREE == 2)
     /* C++11 atomics are available
