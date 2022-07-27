@@ -1019,8 +1019,15 @@ Other changes
 
 .. _0.29.31:
 
-0.29.31 (2022-??-??)
+0.29.31 (2022-07-22)
 ====================
+
+Features added
+--------------
+
+* A new argument ``--module-name`` was added to the ``cython`` command to
+  provide the (one) exact target module name from the command line.
+  Patch by Matthew Brett and h-vetinari.  (Github issue #4906)
 
 Bugs fixed
 ----------
