@@ -2970,7 +2970,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     if nogil:
         warning(
             s.position(),
-            "The keyword 'nogil' must appear at the end of the "
+            "The keyword 'nogil' should appear at the end of the "
             "function signature line. Placing it before 'except' "
             "or 'noexcept' will be disallowed in a future version "
             "of Cython.",
