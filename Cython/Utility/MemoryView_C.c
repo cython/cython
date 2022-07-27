@@ -26,8 +26,40 @@ typedef struct {
 #endif
 
 #define __pyx_atomic_int_type int
+#define __pyx_nonatomic_int_type int
 
-#if CYTHON_ATOMICS && (__GNUC__ >= 5 || (__GNUC__ == 4 && \
+#if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
+                        (__STDC_VERSION__ >= __STDC_VERSION__) && \
+                        !defined(__STDC_NO_ATOMICS__))
+    /* C11 atomics are available */
+    #include <stdatomic.h>
+    #undef __pyx_atomic_int_type
+    #define __pyx_atomic_int_type atomic_int
+    // TODO - it might be possible to use a less strict memory ordering here
+    #define __pyx_atomic_incr_aligned(value) atomic_fetch_add(value, 1)
+    #define __pyx_atomic_decr_aligned(value) atomic_fetch_sub(value, 1)
+    #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
+        #pragma message ("Using standard C atomics")
+    #elif defined(__PYX_DEBUG_ATOMICS)
+        #warning "Using standard C atomics"
+    #endif
+#elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
+                    (__cplusplus >= 201103L) || \
+                    (defined(_MSC_VER) && _MSC_VER >= 1700)))
+    /* C++11 atomics are available */
+    #include <atomic>
+    #undef __pyx_atomic_int_type
+    #define __pyx_atomic_int_type std::atomic_int
+    // TODO - it might be possible to use a less strict memory ordering here
+    #define __pyx_atomic_incr_aligned(value) std::atomic_fetch_add(value, 1)
+    #define __pyx_atomic_decr_aligned(value) std::atomic_fetch_sub(value, 1)
+
+    #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
+        #pragma message ("Using standard C++ atomics")
+    #elif defined(__PYX_DEBUG_ATOMICS)
+        #warning "Using standard C++ atomics"
+    #endif
+#elif CYTHON_ATOMICS && (__GNUC__ >= 5 || (__GNUC__ == 4 && \
                     (__GNUC_MINOR__ > 1 ||  \
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
@@ -481,7 +513,7 @@ __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 static CYTHON_INLINE void
 __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
-    __pyx_atomic_int_type old_acquisition_count;
+    __pyx_nonatomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
         // Allow uninitialized memoryview assignment and do not ref-count None.
@@ -508,7 +540,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
-    __pyx_atomic_int_type old_acquisition_count;
+    __pyx_nonatomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
