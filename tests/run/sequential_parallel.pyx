@@ -656,10 +656,10 @@ def outer_parallel_section():
         sum += inner_parallel_section()
     return sum
 
-cdef int nogil_cdef_except_clause() nogil except -1:
+cdef int nogil_cdef_except_clause() except -1 nogil:
     return 1
 
-cdef void nogil_cdef_except_star() nogil except *:
+cdef void nogil_cdef_except_star() except * nogil:
     pass
 
 def test_nogil_cdef_except_clause():
@@ -784,7 +784,7 @@ cdef extern from *:
     """
     void address_of_temp(...) nogil
     void address_of_temp2(...) nogil
-    double get_value() nogil except -1.0  # will generate a temp for exception checking
+    double get_value() except -1.0 nogil  # will generate a temp for exception checking
 
 def test_inner_private():
     """

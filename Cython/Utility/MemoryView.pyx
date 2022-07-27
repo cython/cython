@@ -80,7 +80,7 @@ cdef extern from *:
                                  __Pyx_memviewslice *from_mvs,
                                  char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
-                                 bint dtype_is_object) nogil except *
+                                 bint dtype_is_object) except * nogil
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
                             {{memviewslice_name}} mvs, char order, int ndim) nogil
     bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
@@ -806,7 +806,7 @@ cdef int slice_memviewslice(
         int dim, int new_ndim, int *suboffset_dim,
         Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
         int have_start, int have_stop, int have_step,
-        bint is_slice) nogil except -1:
+        bint is_slice) except -1 nogil:
     """
     Create a new slice dst given slice src.
 
@@ -936,7 +936,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
 ### Transposing a memoryviewslice
 #
 @cname('__pyx_memslice_transpose')
-cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except -1:
+cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil:
     cdef int ndim = memslice.memview.view.ndim
 
     cdef Py_ssize_t *shape = memslice.shape
@@ -1214,7 +1214,7 @@ cdef Py_ssize_t fill_contig_strides_array(
 cdef void *copy_data_to_temp({{memviewslice_name}} *src,
                              {{memviewslice_name}} *tmpslice,
                              char order,
-                             int ndim) nogil except NULL:
+                             int ndim) except NULL nogil:
     """
     Copy a direct slice to temporary contiguous memory. The caller should free
     the result when done.
@@ -1274,7 +1274,7 @@ cdef int _err_no_memory() except -1 with gil:
 cdef int memoryview_copy_contents({{memviewslice_name}} src,
                                   {{memviewslice_name}} dst,
                                   int src_ndim, int dst_ndim,
-                                  bint dtype_is_object) nogil except -1:
+                                  bint dtype_is_object) except -1 nogil:
     """
     Copy memory from slice src to slice dst.
     Check for overlapping memory and verify the shapes.

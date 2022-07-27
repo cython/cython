@@ -71,7 +71,7 @@ def test_get_gil_in_nogil():
 cdef int with_gil_func() except -1 with gil:
     raise Exception("error!")
 
-cdef int nogil_func() nogil except -1:
+cdef int nogil_func() except -1 nogil:
     with_gil_func()
 
 def test_nogil_exception_propagation():

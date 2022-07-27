@@ -304,7 +304,7 @@ def test_nogil_void_funcs_with_nogil():
         void_nogil_nested_gil()
 
 
-cdef PyObject *nogil_propagate_exception() nogil except NULL:
+cdef PyObject *nogil_propagate_exception() except NULL nogil:
     with nogil:
         with gil:
             raise Exception("This exception propagates!")

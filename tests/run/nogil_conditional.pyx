@@ -34,7 +34,7 @@ cdef int with_gil_func() except? -1 with gil:
     raise Exception("error!")
 
 
-cdef int nogil_func() nogil except? -1:
+cdef int nogil_func() except? -1 nogil:
     with_gil_func()
 
 
