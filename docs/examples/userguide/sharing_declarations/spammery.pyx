@@ -1,5 +1,4 @@
-from __future__ import print_function
-
+ 
 from volume cimport cube
 
 def menu(description, size):

@@ -33,17 +33,18 @@ def test_sizeof():
 def test_declare(n):
     """
     >>> test_declare(100)
-    (100, 100)
+    (100, 100, 100)
     >>> test_declare(100.5)
-    (100, 100)
+    (100, 100, 100)
     """
     x = cython.declare(cython.int)
     y = cython.declare(cython.int, n)
+    z = cython.declare(int, n)  # C int
     if cython.compiled:
         cython.declare(xx=cython.int, yy=cython.long)
         i = cython.sizeof(xx)
     ptr = cython.declare(cython.p_int, cython.address(y))
-    return y, ptr[0]
+    return y, z, ptr[0]
 
 
 @cython.locals(x=cython.double, n=cython.int)

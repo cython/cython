@@ -758,11 +758,13 @@ An external C++ function that may raise an exception can be declared with::
 
 See :ref:`wrapping-cplusplus` for more details.
 
-Finally, if you are certain that your function cannot raise an exception, (e.g., it
-does not use Python objects at all), you can declare it as such using ``noexcept``::
+Finally, if you are certain that your function should not raise an exception, (e.g., it
+does not use Python objects at all, or you plan to use it as a callback in C code that
+is unaware of Python exceptions), you can declare it as such using ``noexcept``::
 
     cdef int spam() noexcept
 
+If a ``noexcept`` function *does* finish with an exception then it will print a warning message but not allow the exception to propagate further.
 Some things to note:
 
 * ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept``.
