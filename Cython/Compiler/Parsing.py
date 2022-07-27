@@ -2974,7 +2974,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
             "function signature line. Placing it before 'except' "
             "or 'noexcept' will be disallowed in a future version "
             "of Cython.",
-            level=1
+            level=2
         )
     exc_val, exc_check = p_exception_value_clause(s, ctx)
     nogil = nogil or p_nogil(s)
