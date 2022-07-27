@@ -8,33 +8,48 @@ Cython Changelog
 Bugs fixed
 ----------
 
-* Use ``importlib.util.find_spec()`` instead of the deprecated ``importlib.find_loader()`` 
-  function when setting up the package path at import-time. Patch by Matti Picus.
-  (Github issue #4764)
-  
-* Require the C compiler to support the two-arg form of ``va_start`` on Python 3.10 
-  and higher. Patch by Thomas Caswell.
-  (Github issue #4820)
-  
-* Make ``fused_type`` subscriptable in Shadow.py. Patch by Pfebrer.
-  (Github issue #4842)
-  
-* Fix the incorrect code generation of the target type in ``bytearray`` loops. 
-  Patch by Kenrick Everett.
-  (Github issue #4108)
-  
+* Use ``importlib.util.find_spec()`` instead of the deprecated ``importlib.find_loader()``
+  function when setting up the package path at import-time.
+  Patch by Matti Picus.  (Github issue #4764)
+
+* Require the C compiler to support the two-arg form of ``va_start``
+  on Python 3.10 and higher.
+  Patch by Thomas Caswell.  (Github issue #4820)
+
+* Make ``fused_type`` subscriptable in Shadow.py.
+  Patch by Pfebrer.  (Github issue #4842)
+
+* Fix the incorrect code generation of the target type in ``bytearray`` loops.
+  Patch by Kenrick Everett.  (Github issue #4108)
+
+* Atomic refcounts for memoryviews were not used on some GCC versions by accident.
+  Patch by Sam Gross.  (Github issue #4915)
+
 * Silence some GCC ``-Wconversion`` warnings in C utility code.
-  Patch by Lisandro Dalcin.
-  (Github issue #4854)
-  
-* Stop tuple multiplication being ignored in expressions such as ``[*(1,) * 2]``.
-  Patch by David Woods.
-  (Github issue #4864)
-  
-* Ensure that object buffers (e.g. ``ndarray[object, ndim=1]``) containing 
+  Patch by Lisandro Dalcin.  (Github issue #4854)
+
+* Tuple multiplication was ignored in expressions such as ``[*(1,) * 2]``.
+  Patch by David Woods.  (Github issue #4864)
+
+* Calling ``append`` methods on extension types could fail to find the method
+  in some cases.
+  Patch by David Woods.  (Github issue #4828)
+
+* Ensure that object buffers (e.g. ``ndarray[object, ndim=1]``) containing
   ``NULL``  pointers are safe to use, returning ``None`` instead of the ``NULL``
-  pointer. Patch by Sebastian Berg.
-  (Github issue #4859)
+  pointer.
+  Patch by Sebastian Berg.  (Github issue #4859)
+
+* Using memoryview typed arguments in inner functions is now rejected as unsupported.
+  Patch by David Woods.  (Github issue #4798)
+
+* Compilation could fail on systems (e.g. FIPS) that block MD5 checksums at runtime.
+  (Github issue #4909)
+
+* Experimental adaptations for the CPython "nogil" fork was added.
+  Note that there is no official support for this in Cython 0.x.
+  Patch by Sam Gross.  (Github issue #4912)
+
 
 0.29.30 (2022-05-16)
 ====================
