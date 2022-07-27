@@ -179,7 +179,7 @@ Exception values and ``noexcept``
 
 ``cdef`` functions that are not ``extern`` now propagate Python
 exceptions by default, where previously they needed to explicitly be
-declated with :ref:`exception value <error_return_values>` in order
+declated with an :ref:`exception value <error_return_values>` in order
 for them to do so. A new ``noexcept`` modifier can be used to declare
 ``cdef`` functions that will not raise exceptions.
 
@@ -190,8 +190,8 @@ that are declared without an exception value::
       pass
 
 If you left out the exception value by mistake, i.e., the function
-actually can raise Python exceptions, then the new behaviour will
-take care of this for you, and correctly propagate any exceptions.
+should propagate Python exceptions, then the new behaviour will take
+care of this for you, and correctly propagate any exceptions.
 
 On the other hand, if you didn't declare an exception value because
 you know that the function cannot raise exceptions, the new behaviour
