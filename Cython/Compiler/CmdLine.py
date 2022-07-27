@@ -50,6 +50,9 @@ Options:
   --warning-extra, -Wextra       Enable extra warnings
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
   -E, --compile-time-env name=value[,<name=value,...] Provides compile time env like DEF would do.
+  --module-name                  Fully qualified module name. If not given, it is deduced from the
+                                 import path if source file is in a package, or equals the
+                                 filename otherwise.
 """
 
 
@@ -190,6 +193,8 @@ def parse_command_line(args):
                 except ValueError as e:
                     sys.stderr.write("Error in compile-time-env: %s\n" % e.args[0])
                     sys.exit(1)
+            elif option == "--module-name":
+                options.module_name = pop_value()
             elif option.startswith('--debug'):
                 option = option[2:].replace('-', '_')
                 from . import DebugFlags
@@ -202,6 +207,7 @@ def parse_command_line(args):
                 sys.stdout.write(usage)
                 sys.exit(0)
             else:
+                sys.stderr.write(usage)
                 sys.stderr.write("Unknown compiler flag: %s\n" % option)
                 sys.exit(1)
         else:
@@ -218,7 +224,16 @@ def parse_command_line(args):
         bad_usage()
     if Options.embed and len(sources) > 1:
         sys.stderr.write(
-            "cython: Only one source file allowed when using -embed\n")
+            "cython: Only one source file allowed when using --embed\n")
         sys.exit(1)
+    if options.module_name:
+        if options.timestamps:
+            sys.stderr.write(
+                "cython: Cannot use --module-name with --timestamps\n")
+            sys.exit(1)
+        if len(sources) > 1:
+            sys.stderr.write(
+                "cython: Only one source file allowed when using --module-name\n")
+            sys.exit(1)
     return options, sources
 

@@ -1,5 +1,6 @@
 
 import sys
+import re
 from unittest import TestCase
 try:
     from StringIO import StringIO
@@ -8,6 +9,18 @@ except ImportError:
 
 from .. import Options
 from ..CmdLine import parse_command_line
+
+
+def check_global_options(expected_options, white_list=[]):
+    """
+    returns error message of "" if check Ok
+    """
+    no_value = object()
+    for name, orig_value in expected_options.items():
+        if name not in white_list:
+            if getattr(Options, name, no_value) != orig_value:
+                return "error in option " + name
+    return ""
 
 
 class CmdLineParserTest(TestCase):
@@ -22,6 +35,17 @@ class CmdLineParserTest(TestCase):
         for name, orig_value in self._options_backup.items():
             if getattr(Options, name, no_value) != orig_value:
                 setattr(Options, name, orig_value)
+
+    def check_default_global_options(self, white_list=[]):
+        self.assertEqual(check_global_options(self._options_backup, white_list), "")
+
+    def check_default_options(self, options, white_list=[]):
+        from ..Main import CompilationOptions, default_options
+        default_options = CompilationOptions(default_options)
+        no_value = object()
+        for name in default_options.__dict__.keys():
+            if name not in white_list:
+                self.assertEqual(getattr(options, name, no_value), getattr(default_options, name), msg="error in option " + name)
 
     def test_short_options(self):
         options, sources = parse_command_line([
@@ -98,21 +122,49 @@ class CmdLineParserTest(TestCase):
         self.assertTrue(options.gdb_debug)
         self.assertEqual(options.output_dir, '/gdb/outdir')
 
+    def test_module_name(self):
+        options, sources = parse_command_line([
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, None)
+        self.check_default_global_options()
+        self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--module-name', 'foo.bar',
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, 'foo.bar')
+        self.check_default_global_options()
+        self.check_default_options(options, ['module_name'])
+
     def test_errors(self):
-        def error(*args):
+        def error(args, regex=None):
             old_stderr = sys.stderr
             stderr = sys.stderr = StringIO()
             try:
                 self.assertRaises(SystemExit, parse_command_line, list(args))
             finally:
                 sys.stderr = old_stderr
-            self.assertTrue(stderr.getvalue())
+            msg = stderr.getvalue().strip()
+            self.assertTrue(msg)
+            if regex:
+                self.assertTrue(re.search(regex, msg),
+                                '"%s" does not match search "%s"' %
+                                (msg, regex))
 
-        error('-1')
-        error('-I')
-        error('--version=-a')
-        error('--version=--annotate=true')
-        error('--working')
-        error('--verbose=1')
-        error('--verbose=1')
-        error('--cleanup')
+        error(['-1'],
+              'Unknown compiler flag: -1')
+        error(['-I'])
+        error(['--version=-a'])
+        error(['--version=--annotate=true'])
+        error(['--working'])
+        error(['--verbose=1'])
+        error(['--cleanup'])
+        error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
+              "Unknown debug flag: debug_disposal_code_wrong_name")
+        error(['--module-name', 'foo.pyx'])
+        error(['--module-name', 'foo.bar'])
+        error(['--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx'],
+              "Only one source file allowed when using --module-name")
+        error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
+              "Cannot use --module-name with --timestamps")
