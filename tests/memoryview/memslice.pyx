@@ -2587,3 +2587,4 @@ def test_arg_in_closure_cdef(a):
     released A
     """
     return arg_in_closure_cdef(a)
+
