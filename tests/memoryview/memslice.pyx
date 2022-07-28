@@ -22,7 +22,7 @@ else:
     import builtins
 
 try:
-    from this_module_doesnt_exist import *
+    from Cython.Tests.this_module_does_not_exist import *
 except ImportError:
     # Fails, but the existence of "import *" interacted badly with some utility code
     pass
