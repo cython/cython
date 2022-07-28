@@ -21,6 +21,12 @@ if sys.version_info[0] < 3:
 else:
     import builtins
 
+try:
+    from this_module_doesnt_exist import *
+except ImportError:
+    # Fails, but the existence of "import *" interacted badly with some utility code
+    pass
+
 
 def testcase(func):
     @wraps(func)
