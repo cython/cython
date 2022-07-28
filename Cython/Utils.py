@@ -629,7 +629,7 @@ def build_hex_version(version_string):
 
 
 def write_depfile(target, source, dependencies):
-    src_base_dir, _ = os.path.split(source)
+    src_base_dir = os.path.dirname(source)
     if not src_base_dir.endswith(os.sep):
         src_base_dir += os.sep
     # paths below the base_dir are relative, otherwise absolute
