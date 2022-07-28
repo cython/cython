@@ -3020,6 +3020,65 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
 
+
+/////////////// PySlice_AdjustIndices.proto ///////////////
+
+#if (PY_VERSION_HEX >= 0x03050400 && PY_VERSION_HEX < 0x03060000) || PY_VERSION_HEX >= 0x03060100
+    #define __Pyx_PySlice_AdjustIndices PySlice_AdjustIndices
+#else
+static CYTHON_INLINE Py_ssize_t __Pyx_PySlice_AdjustIndices(Py_ssize_t length,
+                                                      Py_ssize_t *start, Py_ssize_t *stop,
+                                                      Py_ssize_t step); /* proto */
+#endif
+
+/////////////// PySlice_AdjustIndices ///////////////
+
+#if (PY_VERSION_HEX >= 0x03050400 && PY_VERSION_HEX < 0x03060000) || PY_VERSION_HEX >= 0x03060100
+#else
+// copied from PySlice_AdjustIndices in CPython 3.6.1+
+static Py_ssize_t __Pyx_PySlice_AdjustIndices(Py_ssize_t length,
+                                                            Py_ssize_t *start, Py_ssize_t *stop,
+                                                            Py_ssize_t step) {
+    /* this is harder to get right than you might think */
+
+    assert(step != 0);
+    assert(step >= -PY_SSIZE_T_MAX);
+
+    if (*start < 0) {
+        *start += length;
+        if (*start < 0) {
+            *start = (step < 0) ? -1 : 0;
+        }
+    }
+    else if (*start >= length) {
+        *start = (step < 0) ? length - 1 : length;
+    }
+
+    if (*stop < 0) {
+        *stop += length;
+        if (*stop < 0) {
+            *stop = (step < 0) ? -1 : 0;
+        }
+    }
+    else if (*stop >= length) {
+        *stop = (step < 0) ? length - 1 : length;
+    }
+
+    if (step < 0) {
+        if (*stop < *start) {
+            return (*start - *stop - 1) / (-step) + 1;
+        }
+    }
+    else {
+        if (*start < *stop) {
+            return (*stop - *start - 1) / step + 1;
+        }
+    }
+    return 0;
+}
+#endif
+
+
 /////////////// FormatTypeName.proto ///////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API

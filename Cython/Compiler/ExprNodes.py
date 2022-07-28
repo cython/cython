@@ -5112,6 +5112,12 @@ class SliceIndexNode(ExprNode):
             node.type = py_object_type
         return node
 
+    Pyx_strlen_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_size_t_type, [
+            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
+        ],
+        nogil=True)
+
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
@@ -5178,10 +5184,13 @@ class SliceIndexNode(ExprNode):
                 # Coerce to Py_ssize_t, but allow None as meaning the default slice bound.
                 from .UtilNodes import EvalWithTempExprNode, ResultRefNode
 
+                if not node.may_be_none():
+                    return node
+
                 node_ref = ResultRefNode(node)
                 new_expr = CondExprNode(
                     node.pos,
-                    true_val=IntNode(
+                    true_val=default_value if isinstance(default_value, ExprNode) else IntNode(
                         node.pos,
                         type=c_int,
                         value=default_value,
@@ -5201,9 +5210,21 @@ class SliceIndexNode(ExprNode):
                 if self.start.type.is_pyobject:
                     self.start = allow_none(self.start, '0', env)
                 self.start = self.start.coerce_to(c_int, env)
+            if self.base.type.is_string and getting:
+                default = PythonCapiCallNode(
+                    self.stop.pos if self.stop else self.pos,
+                    "strlen",
+                    self.Pyx_strlen_func_type,
+                    args=[self.base],
+                    is_temp=False,
+                    utility_code=UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                if self.stop is None:
+                    self.stop = default
+                elif self.stop.type.is_pyobject:
+                    self.stop = allow_none(self.stop, default, env)
+            elif self.stop and self.stop.type.is_pyobject:
+                self.stop = allow_none(self.stop, 'PY_SSIZE_T_MAX', env)
             if self.stop:
-                if self.stop.type.is_pyobject:
-                    self.stop = allow_none(self.stop, 'PY_SSIZE_T_MAX', env)
                 self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
@@ -5269,24 +5290,24 @@ class SliceIndexNode(ExprNode):
                 type_name = 'ByteArray'
             else:
                 type_name = self.type.name.title()
-            if self.stop is None:
-                code.putln(
-                    "%s = __Pyx_Py%s_FromString(%s + %s); %s" % (
-                        result,
-                        type_name,
-                        base_result,
-                        start_code,
-                        code.error_goto_if_null(result, self.pos)))
-            else:
-                code.putln(
-                    "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
-                        result,
-                        type_name,
-                        base_result,
-                        start_code,
-                        stop_code,
-                        start_code,
-                        code.error_goto_if_null(result, self.pos)))
+            assert self.stop is not None
+            code.putln(
+                "if (unlikely(%s <= %s)) { %s = __Pyx_NewRef(%s); }" % (
+                    stop_code,
+                    start_code,
+                    result,
+                    Naming.empty_bytes))
+            code.putln("else {")
+            code.putln(
+                "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
+                    result,
+                    type_name,
+                    base_result,
+                    start_code,
+                    stop_code,
+                    start_code,
+                    code.error_goto_if_null(result, self.pos)))
+            code.putln("}")
         elif self.base.type.is_pyunicode_ptr:
             base_result = self.base.result()
             if self.base.type != PyrexTypes.c_py_unicode_ptr_type:

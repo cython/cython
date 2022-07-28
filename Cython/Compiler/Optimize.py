@@ -212,7 +212,9 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_set_iteration(node, iterable)
 
         # C array (slice) iteration?
-        if iterable.type.is_ptr or iterable.type.is_array:
+        # note that a slice of char* is typed as bytes, but we can still treat it as a ptr here
+        if iterable.type.is_ptr or iterable.type.is_array or (
+                isinstance(iterable, ExprNodes.SliceIndexNode) and iterable.base.type.is_string):
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
@@ -415,43 +417,118 @@ class IterationTransform(Visitor.EnvTransform):
         body.stats.insert(1, node.body)
         return ret
 
+    PySlice_AdjustIndices_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("length", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("step", PyrexTypes.c_py_ssize_t_type, None)
+        ])
+
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
         if not target_type.is_int and target_type is not Builtin.bytes_type:
-            # bytes iteration returns bytes objects in Py2, but
-            # integers in Py3
+            # because bytes iteration returns different types of object between
+            # Py2 and Py3 and this code cannot be trivially set up to generate
+            # code which varies between Python versions, we just give up on
+            # this optimization if it isn't trivially applicable.
             return node
 
-        unpack_temp_node = UtilNodes.LetRefNode(
-            slice_node.as_none_safe_node("'NoneType' is not iterable"))
+        if isinstance(slice_node, ExprNodes.SliceIndexNode):
+            base = slice_node.base
+            start = slice_node.start
+            stop = slice_node.stop
+        else:
+            base = slice_node
+            start = None
+            stop = None
 
-        slice_base_node = ExprNodes.PythonCapiCallNode(
+        if base.type is not Builtin.bytes_type:
+            return node
+
+        if base.may_be_none():
+            base = UtilNodes.LetRefNode(
+                base.as_none_safe_node("'NoneType' is not iterable"))
+        else:
+            base = UtilNodes.LetRefNode(base)
+
+        raw_base = ExprNodes.PythonCapiCallNode(
             slice_node.pos, "PyBytes_AS_STRING",
             self.PyBytes_AS_STRING_func_type,
-            args = [unpack_temp_node],
+            args = [base],
             is_temp = 0,
-            )
-        len_node = ExprNodes.PythonCapiCallNode(
+        )
+
+        length = ExprNodes.PythonCapiCallNode(
             slice_node.pos, "PyBytes_GET_SIZE",
             self.PyBytes_GET_SIZE_func_type,
-            args = [unpack_temp_node],
+            args = [base],
             is_temp = 0,
-            )
+        )
 
-        return UtilNodes.LetNode(
-            unpack_temp_node,
-            self._transform_carray_iteration(
-                node,
-                ExprNodes.SliceIndexNode(
-                    slice_node.pos,
-                    base = slice_base_node,
-                    start = None,
-                    step = None,
-                    stop = len_node,
-                    type = slice_base_node.type,
-                    is_temp = 1,
-                    ),
-                reversed = reversed))
+        if start:
+            start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+        else:
+            start = ExprNodes.IntNode(slice_node.pos, type=PyrexTypes.c_py_ssize_t_type,
+                                      value="0",
+                                      constant_result=0)
+        start = UtilNodes.LetRefNode(start, start.pos)
+
+        if stop:
+            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+        else:
+            stop = length
+        stop = UtilNodes.LetRefNode(stop, stop.pos)
+
+        env = self.current_env()
+        if (env.directives['wraparound'] or env.directives['boundscheck']) and not (
+                 start.expression.has_constant_result() and start.expression.constant_result == 0
+                 and stop.expression is length):
+            adjusted_length = ExprNodes.PythonCapiCallNode(
+                slice_node.pos, "__Pyx_PySlice_AdjustIndices",
+                self.PySlice_AdjustIndices_func_type,
+                args = [length,
+                        ExprNodes.AmpersandNode(start.pos, operand=start,
+                                                type=PyrexTypes.c_py_ssize_t_ptr_type),
+                        ExprNodes.AmpersandNode(stop.pos, operand=stop,
+                                                type=PyrexTypes.c_py_ssize_t_ptr_type),
+                        ExprNodes.IntNode(slice_node.pos, type=PyrexTypes.c_py_ssize_t_type,
+                                          value="1", constant_result=1),
+                ],
+                is_temp = True,
+                result_is_used = False,
+                utility_code=UtilityCode.load_cached("PySlice_AdjustIndices", "ObjectHandling.c"),
+            )
+        else:
+            adjusted_length = None
+
+        iter_node = self._transform_carray_iteration(
+            node,
+            ExprNodes.SliceIndexNode(
+                slice_node.pos,
+                base = raw_base,
+                start = start,
+                step = None,
+                stop = stop,
+                type = raw_base.type,
+                is_temp = 1,
+            ),
+            reversed = reversed)
+
+        if adjusted_length is None:
+            node = iter_node
+        else:
+            node = Nodes.StatListNode(
+                slice_node.pos,
+                stats=[
+                    Nodes.ExprStatNode(adjusted_length.pos, expr=adjusted_length),
+                    iter_node
+            ])
+
+        for var in [base, start, stop][::-1]:
+            node = UtilNodes.LetNode(var, node)
+
+        return node
 
     PyUnicode_READ_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ucs4_type, [
@@ -493,29 +570,97 @@ class IterationTransform(Visitor.EnvTransform):
                 )
                 return self._transform_carray_iteration(node, bytes_slice, reversed)
 
-        unpack_temp_node = UtilNodes.LetRefNode(
-            slice_node.as_none_safe_node("'NoneType' is not iterable"))
+        if isinstance(slice_node, ExprNodes.SliceIndexNode):
+            base = slice_node.base
+            start = slice_node.start
+            stop = slice_node.stop
+        else:
+            base = slice_node
+            start = None
+            stop = None
 
-        start_node = ExprNodes.IntNode(
-            node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        length_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
-        end_node = length_temp.ref(node.pos)
+        if base.type is not Builtin.unicode_type:
+            return node
+
+        base = UtilNodes.LetRefNode(
+            base.as_none_safe_node("'NoneType' is not iterable"))
+
+        length = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        length_temp = length.ref(slice_node.pos)
+        kind = UtilNodes.TempHandle(PyrexTypes.c_int_type)
+        data = UtilNodes.TempHandle(PyrexTypes.c_void_ptr_type)
+
+        setup_node = Nodes.ExprStatNode(
+            node.pos,
+            expr = ExprNodes.PythonCapiCallNode(
+                slice_node.pos, "__Pyx_init_unicode_iteration",
+                self.init_unicode_iteration_func_type,
+                args = [base,
+                        ExprNodes.AmpersandNode(slice_node.pos, operand=length_temp,
+                                                type=PyrexTypes.c_py_ssize_t_ptr_type),
+                        ExprNodes.AmpersandNode(slice_node.pos, operand=data.ref(slice_node.pos),
+                                                type=PyrexTypes.c_void_ptr_ptr_type),
+                        ExprNodes.AmpersandNode(slice_node.pos, operand=kind.ref(slice_node.pos),
+                                                type=PyrexTypes.c_int_ptr_type),
+                        ],
+                is_temp = True,
+                result_is_used = False,
+                utility_code=UtilityCode.load_cached("unicode_iter", "Optimize.c"),
+                ))
+
+        if start:
+            start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+        else:
+            start = ExprNodes.IntNode(slice_node.pos, type=PyrexTypes.c_py_ssize_t_type,
+                                      value="0",
+                                      constant_result=0)
+        start = UtilNodes.LetRefNode(start)
+
+        if stop:
+            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+        else:
+            stop = length_temp
+        stop = UtilNodes.LetRefNode(stop)
+
+        env = self.current_env()
+        if (env.directives['wraparound'] or env.directives['boundscheck']) \
+               and not (start.expression.has_constant_result() \
+                        and start.expression.constant_result == 0 \
+                        and stop.expression is length_temp):
+            adjusted_length = Nodes.ExprStatNode(
+                slice_node.pos,
+                expr=ExprNodes.PythonCapiCallNode(
+                    slice_node.pos, "__Pyx_PySlice_AdjustIndices",
+                    self.PySlice_AdjustIndices_func_type,
+                    args = [length_temp,
+                            ExprNodes.AmpersandNode(start.pos, operand=start,
+                                                    type=PyrexTypes.c_py_ssize_t_ptr_type),
+                            ExprNodes.AmpersandNode(stop.pos, operand=stop,
+                                                    type=PyrexTypes.c_py_ssize_t_ptr_type),
+                            ExprNodes.IntNode(slice_node.pos, type=PyrexTypes.c_py_ssize_t_type,
+                                              value="1", constant_result=1),
+                    ],
+                    is_temp = True,
+                    result_is_used = False,
+                    utility_code=UtilityCode.load_cached("PySlice_AdjustIndices", "ObjectHandling.c"),
+                ))
+        else:
+            adjusted_length = None
+
         if reversed:
             relation1, relation2 = '>', '>='
-            start_node, end_node = end_node, start_node
+            start, stop = stop, start
         else:
             relation1, relation2 = '<=', '<'
 
-        kind_temp = UtilNodes.TempHandle(PyrexTypes.c_int_type)
-        data_temp = UtilNodes.TempHandle(PyrexTypes.c_void_ptr_type)
-        counter_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        counter = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
 
         target_value = ExprNodes.PythonCapiCallNode(
             slice_node.pos, "__Pyx_PyUnicode_READ",
             self.PyUnicode_READ_func_type,
-            args = [kind_temp.ref(slice_node.pos),
-                    data_temp.ref(slice_node.pos),
-                    counter_temp.ref(node.target.pos)],
+            args = [kind.ref(node.pos),
+                    data.ref(node.pos),
+                    counter.ref(node.pos)],
             is_temp = False,
             )
         if target_value.type != node.target.type:
@@ -531,35 +676,25 @@ class IterationTransform(Visitor.EnvTransform):
 
         loop_node = Nodes.ForFromStatNode(
             node.pos,
-            bound1=start_node, relation1=relation1,
-            target=counter_temp.ref(node.target.pos),
-            relation2=relation2, bound2=end_node,
+            bound1=start, relation1=relation1,
+            target=counter.ref(node.pos),
+            relation2=relation2, bound2=stop,
             step=None, body=body,
             else_clause=node.else_clause,
             from_range=True)
 
-        setup_node = Nodes.ExprStatNode(
-            node.pos,
-            expr = ExprNodes.PythonCapiCallNode(
-                slice_node.pos, "__Pyx_init_unicode_iteration",
-                self.init_unicode_iteration_func_type,
-                args = [unpack_temp_node,
-                        ExprNodes.AmpersandNode(slice_node.pos, operand=length_temp.ref(slice_node.pos),
-                                                type=PyrexTypes.c_py_ssize_t_ptr_type),
-                        ExprNodes.AmpersandNode(slice_node.pos, operand=data_temp.ref(slice_node.pos),
-                                                type=PyrexTypes.c_void_ptr_ptr_type),
-                        ExprNodes.AmpersandNode(slice_node.pos, operand=kind_temp.ref(slice_node.pos),
-                                                type=PyrexTypes.c_int_ptr_type),
-                        ],
-                is_temp = True,
-                result_is_used = False,
-                utility_code=UtilityCode.load_cached("unicode_iter", "Optimize.c"),
-                ))
-        return UtilNodes.LetNode(
-            unpack_temp_node,
-            UtilNodes.TempsBlockNode(
-                node.pos, temps=[counter_temp, length_temp, data_temp, kind_temp],
-                body=Nodes.StatListNode(node.pos, stats=[setup_node, loop_node])))
+        if adjusted_length is None:
+            node = loop_node
+        else:
+            node = Nodes.StatListNode(node.pos, stats=[adjusted_length, loop_node])
+
+        for var in [start, stop]:
+            node = UtilNodes.LetNode(var, node)
+
+        # note that 'stop' must only be created after 'setup_node' has run so it
+        # can safely read the length
+        node = UtilNodes.LetNode(base, Nodes.StatListNode(node.pos, stats=[setup_node, node]))
+        return UtilNodes.TempsBlockNode(node.pos, temps=[data, length, kind, counter], body=node)
 
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False
