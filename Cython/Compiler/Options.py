@@ -661,6 +661,9 @@ class CompilationOptions(object):
             elif key in ['output_file', 'output_dir']:
                 # ignore the exact name of the output file
                 continue
+            elif key in ['depfile']:
+                # external build system dependency tracking file does not influence outputs
+                continue
             elif key in ['timestamps']:
                 # the cache cares about the content of files, not about the timestamps of sources
                 continue
@@ -739,6 +742,7 @@ default_options = dict(
     errors_to_stderr=1,
     cplus=0,
     output_file=None,
+    depfile=None,
     annotate=None,
     annotate_coverage_xml=None,
     generate_pxi=0,
