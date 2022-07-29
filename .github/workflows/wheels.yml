@@ -84,7 +84,7 @@ jobs:
       - uses: actions/setup-python@v3
         with:
           # Build sdist on lowest supported Python
-          python-version: '3.6'
+          python-version: '3.8'
       - name: Build sdist
         run: |
           python setup.py sdist
