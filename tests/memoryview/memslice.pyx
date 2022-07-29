@@ -2622,13 +2622,67 @@ def test_loop_reassign(int[:] a):
     3
     4
     5
-    released A
     15
+    released A
     """
     cdef int sum = 0
     for ai in a:
         sum += ai
         print(ai)
         a = None  # this should not mess up the loop though!
-    # release happens here, when the loop temp is released
     print(sum)
+    # release happens in the wrapper function
+
+@testcase
+def test_arg_in_closure(int [:] a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    def inner():
+        return (a[0], a[1])
+    return inner
+
+cdef arg_in_closure_cdef(int [:] a):
+    def inner():
+        return (a[0], a[1])
+    return inner
+
+def test_arg_in_closure_cdef(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure_cdef(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    return arg_in_closure_cdef(a)
+
+@testcase
+def test_local_in_closure(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_local_in_closure(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    cdef int[:] a_view = a
+    def inner():
+        return (a_view[0], a_view[1])
+    return inner
