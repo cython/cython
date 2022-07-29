@@ -2567,27 +2567,6 @@ def test_const_buffer(const int[:] a):
     print(c[-1])
 
 
-'''
-# FIXME: currently broken in 3.0
-@testcase
-def test_arg_in_closure(int [:] a):
-    """
-    >>> A = IntMockBuffer("A", range(6), shape=(6,))
-    >>> inner = test_arg_in_closure(A)
-    acquired A
-    >>> inner()
-    (0, 1)
-
-    The assignment below is just to avoid printing what was collected
-    >>> del inner; ignore_me = gc.collect()
-    released A
-    """
-    def inner():
-        return (a[0], a[1])
-    return inner
-'''
-
-
 @testcase
 def test_loop(int[:] a, throw_exception):
     """
@@ -2609,6 +2588,7 @@ def test_loop(int[:] a, throw_exception):
     if throw_exception:
         raise ValueError()
     print(sum)
+
 
 @testcase
 def test_loop_reassign(int[:] a):
@@ -2633,6 +2613,7 @@ def test_loop_reassign(int[:] a):
     print(sum)
     # release happens in the wrapper function
 
+
 @testcase
 def test_arg_in_closure(int [:] a):
     """
@@ -2649,6 +2630,7 @@ def test_arg_in_closure(int [:] a):
     def inner():
         return (a[0], a[1])
     return inner
+
 
 cdef arg_in_closure_cdef(int [:] a):
     def inner():
@@ -2668,6 +2650,7 @@ def test_arg_in_closure_cdef(a):
     released A
     """
     return arg_in_closure_cdef(a)
+
 
 @testcase
 def test_local_in_closure(a):
