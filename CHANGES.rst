@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.29.32 (2022-07-29)
+====================
+
+Bugs fixed
+----------
+
+* Revert "Using memoryview typed arguments in inner functions is now rejected as unsupported."
+  Patch by David Woods.  (Github issue #4798)
+
+* ``from module import *`` failed in 0.29.31 when using memoryviews.
+  Patch by David Woods.  (Github issue #4927)
+
+
 0.29.31 (2022-07-27)
 ====================
 
