@@ -23,6 +23,12 @@ if sys.version_info[0] < 3:
 else:
     import builtins
 
+try:
+    from Cython.Tests.this_module_does_not_exist import *
+except ImportError:
+    # Fails, but the existence of "import *" interacted badly with some utility code
+    pass
+
 
 def testcase(func):
     @wraps(func)
@@ -2559,6 +2565,28 @@ def test_const_buffer(const int[:] a):
     cdef const int[:] c = a
     print(a[0])
     print(c[-1])
+
+
+'''
+# FIXME: currently broken in 3.0
+@testcase
+def test_arg_in_closure(int [:] a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    def inner():
+        return (a[0], a[1])
+    return inner
+'''
+
 
 @testcase
 def test_loop(int[:] a, throw_exception):

@@ -1017,6 +1017,21 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.32:
+
+0.29.32 (2022-07-29)
+====================
+
+Bugs fixed
+----------
+
+* Revert "Using memoryview typed arguments in inner functions is now rejected as unsupported."
+  Patch by David Woods.  (Github issue :issue:`4798`)
+
+* ``from module import *`` failed in 0.29.31 when using memoryviews.
+  Patch by David Woods.  (Github issue :issue:`4927`)
+
+
 .. _0.29.31:
 
 0.29.31 (2022-07-27)
@@ -1027,7 +1042,7 @@ Features added
 
 * A new argument ``--module-name`` was added to the ``cython`` command to
   provide the (one) exact target module name from the command line.
-  Patch by Matthew Brett and h-vetinari.  (Github issue #4906)
+  Patch by Matthew Brett and h-vetinari.  (Github issue :issue:`4906`)
 
 Bugs fixed
 ----------
