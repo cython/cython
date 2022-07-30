@@ -581,7 +581,7 @@ class OrderedSet(object):
 
     def __bool__(self):
         return bool(self._set)
-        
+
     __nonzero__ = __bool__
 
 
