@@ -150,6 +150,7 @@ def create_cython_argparser():
                       help='Fully qualified module name. If not given, is '
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
+    parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help

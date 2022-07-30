@@ -7,10 +7,13 @@ PYTHON package_test.py
 
 import os.path
 
+def pkgpath(*args):
+    return os.path.join('pkg', *args)
+
 with open(os.path.join("pkg", "test.c.dep"), "r") as f:
     contents = f.read().replace("\\\n", " ").replace("\n", " ")
 
-assert sorted(contents.split()) == sorted(['test.c:', os.path.join('sub', 'incl.pxi'), 'test.pxd', 'test.pyx']), contents
+assert sorted(contents.split()) == sorted([pkgpath('test.c:'), pkgpath('sub', 'incl.pxi'), pkgpath('test.pxd'), pkgpath('test.pyx')]), contents
 
 
 with open(os.path.join("pkg", "sub", "test.c.dep"), "r") as f:
@@ -18,7 +21,7 @@ with open(os.path.join("pkg", "sub", "test.c.dep"), "r") as f:
 
 contents = [os.path.relpath(entry, '.')
             if os.path.isabs(entry) else entry for entry in contents.split()]
-assert sorted(contents) == sorted(['test.c:', 'incl.pxi', 'test.pyx', os.path.join('pkg', 'test.pxd')]), contents  # last is really one level up
+assert sorted(contents) == sorted([pkgpath('sub', 'test.c:'), pkgpath('sub', 'incl.pxi'), pkgpath('sub', 'test.pyx'), pkgpath('test.pxd')]), contents  # last is really one level up
 
 
 ######## pkg/__init__.py ########
