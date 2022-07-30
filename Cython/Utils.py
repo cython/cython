@@ -584,6 +584,7 @@ class OrderedSet(object):
         
     __nonzero__ = __bool__
 
+
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
 def add_metaclass(metaclass):
