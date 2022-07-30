@@ -171,7 +171,7 @@ def copy_inherited_directives(outer_directives, **new_directives):
     # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
     #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
-    for name in ('test_assert_path_exists', 'test_fail_if_path_exists'):
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
         new_directives_out.pop(name, None)
     new_directives_out.update(new_directives)
     return new_directives_out
@@ -247,6 +247,8 @@ _directive_defaults = {
 # test support
     'test_assert_path_exists' : [],
     'test_fail_if_path_exists' : [],
+    'test_assert_c_code_has' : [],
+    'test_fail_if_c_code_has' : [],
 
 # experimental, subject to change
     'formal_grammar': False,
@@ -364,6 +366,8 @@ directive_scopes = {  # defaults to available everywhere
     'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    'test_assert_c_code_has' : ('module',),
+    'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
     'emit_code_comments': ('module',),
     # Avoid scope-specific to/from_py_functions for c_string.
@@ -509,6 +513,11 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
                         result[directive] = parsed_value
             if not found and not ignore_unknown:
                 raise ValueError('Unknown option: "%s"' % name)
+        elif directive_types.get(name) is list:
+            if name in result:
+                result[name].append(value)
+            else:
+                result[name] = [value]
         else:
             parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
             result[name] = parsed_value
