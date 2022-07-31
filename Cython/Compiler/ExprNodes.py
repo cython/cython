@@ -544,7 +544,7 @@ class ExprNode(Node):
         if is_pythran_supported_node_or_none(self):
             return to_pythran(self)
 
-        assert(type_ is not None)
+        assert type_ is not None
         return to_pythran(self, type_)
 
     def is_c_result_required(self):
