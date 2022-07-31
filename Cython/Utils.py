@@ -579,6 +579,11 @@ class OrderedSet(object):
             self._list.append(e)
             self._set.add(e)
 
+    def __bool__(self):
+        return bool(self._set)
+
+    __nonzero__ = __bool__
+
 
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
