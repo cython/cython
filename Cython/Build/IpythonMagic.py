@@ -75,6 +75,7 @@ from IPython.utils.text import dedent
 from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
 from .Inline import cython_inline
+from .Utils import load_dynamic
 from .Dependencies import cythonize
 from ..Utils import captured_fd, print_captured
 
@@ -96,15 +97,10 @@ PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 if IS_PY2:
     def encode_fs(name):
         return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
-
-    import imp
-    load_dynamic = imp.load_dynamic
-
 else:
     def encode_fs(name):
         return name
 
-    from .Utils import load_dynamic
 
 
 @magics_class
