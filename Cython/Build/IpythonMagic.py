@@ -104,14 +104,7 @@ else:
     def encode_fs(name):
         return name
 
-    import importlib.util
-    from importlib.machinery import ExtensionFileLoader
-    def load_dynamic(name, path):
-        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-        return sys.modules[name]
+    from .Utils import load_dynamic
 
 
 @magics_class
