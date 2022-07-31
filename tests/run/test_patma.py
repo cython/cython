@@ -4,29 +4,13 @@
 
 # new code
 import cython
-from Cython.Compiler.TreeFragment import TreeFragment, StringParseContext
-from Cython.Compiler.Errors import local_errors, CompileError
-from Cython.Compiler.ParseTreeTransforms import PostParse
-
-def _compile(code):
-    context = StringParseContext("test")
-    # all the errors we care about are in the parsing or postparse stage
-    try:
-        with local_errors() as errors:
-            result = TreeFragment(code, pipeline=[PostParse(context)])
-            result = result.substitute()
-        if errors:
-            raise errors[0]  # compile error, which should get caught
-        else:
-            return result
-    except CompileError as e:
-        raise SyntaxError(e.message_only)
+from Cython.TestUtils import py_parse_code
 
 
 if cython.compiled:
     def compile(code, name, what):
         assert what == 'exec'
-        _compile(code)
+        py_parse_code(code)
 
 
 def disable(func):
