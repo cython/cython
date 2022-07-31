@@ -2967,7 +2967,8 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    if nogil:
+    exc_val, exc_check = p_exception_value_clause(s, ctx)
+    if nogil and (exc_val or exc_check):
         warning(
             s.position(),
             "The keyword 'nogil' should appear at the end of the "
@@ -2976,7 +2977,6 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
             "of Cython.",
             level=2
         )
-    exc_val, exc_check = p_exception_value_clause(s, ctx)
     nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
