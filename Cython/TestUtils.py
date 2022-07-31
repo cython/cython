@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 
 import os
+import re
 import unittest
 import shlex
 import sys
 import tempfile
 import textwrap
 from io import open
+from functools import partial
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
@@ -161,11 +163,64 @@ class TransformTest(CythonTest):
         return tree
 
 
+# For the test C code validation, we have to take care that the test directives (and thus
+# the match strings) do not just appear in (multiline) C code comments containing the original
+# Cython source code.  Thus, we discard the comments before matching.
+# This seems a prime case for re.VERBOSE, but it seems to match some of the whitespace.
+_strip_c_comments = partial(re.compile(
+    re.sub('\s+', '', r'''
+        /[*] (
+            (?: [^*\n] | [*][^/] )*
+            [\n]
+            (?: [^*] | [*][^/] )*
+        ) [*]/
+    ''')
+).sub, '')
+
+
 class TreeAssertVisitor(VisitorTransform):
     # actually, a TreeVisitor would be enough, but this needs to run
     # as part of the compiler pipeline
 
-    def visit_CompilerDirectivesNode(self, node):
+    def __init__(self):
+        super(TreeAssertVisitor, self).__init__()
+        self._module_pos = None
+        self._c_patterns = []
+        self._c_antipatterns = []
+
+    def create_c_file_validator(self):
+        patterns, antipatterns = self._c_patterns, self._c_antipatterns
+
+        def fail(pos, pattern, found, file_path):
+            Errors.error(pos, "Pattern '%s' %s found in %s" %(
+                pattern,
+                'was' if found else 'was not',
+                file_path,
+            ))
+
+        def validate_c_file(result):
+            c_file = result.c_file
+            if not (patterns or antipatterns):
+                #print("No patterns defined for %s" % c_file)
+                return result
+
+            with open(c_file, encoding='utf8') as f:
+                c_content = f.read()
+            c_content = _strip_c_comments(c_content)
+
+            for pattern in patterns:
+                #print("Searching pattern '%s'" % pattern)
+                if not re.search(pattern, c_content):
+                    fail(self._module_pos, pattern, found=False, file_path=c_file)
+
+            for antipattern in antipatterns:
+                #print("Searching antipattern '%s'" % antipattern)
+                if re.search(antipattern, c_content):
+                    fail(self._module_pos, antipattern, found=True, file_path=c_file)
+
+        return validate_c_file
+
+    def _check_directives(self, node):
         directives = node.directives
         if 'test_assert_path_exists' in directives:
             for path in directives['test_assert_path_exists']:
@@ -179,6 +234,19 @@ class TreeAssertVisitor(VisitorTransform):
                     Errors.error(
                         node.pos,
                         "Unexpected path '%s' found in result tree" % path)
+        if 'test_assert_c_code_has' in directives:
+            self._c_patterns.extend(directives['test_assert_c_code_has'])
+        if 'test_fail_if_c_code_has' in directives:
+            self._c_antipatterns.extend(directives['test_fail_if_c_code_has'])
+
+    def visit_ModuleNode(self, node):
+        self._module_pos = node.pos
+        self._check_directives(node)
+        self.visitchildren(node)
+        return node
+
+    def visit_CompilerDirectivesNode(self, node):
+        self._check_directives(node)
         self.visitchildren(node)
         return node
 

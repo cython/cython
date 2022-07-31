@@ -75,3 +75,10 @@ option.  Or use the
 script to embed multiple modules.  See the
 `embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
 for a complete example setup.
+
+Be aware that your application will not contain any external dependencies that
+you use (including Python standard library modules) and so may not be truly portable.
+If you want to generate a portable application we recommend using a specialized
+tool (e.g. `PyInstaller <https://pyinstaller.org/en/stable/>`_
+or `cx_freeze <https://cx-freeze.readthedocs.io/en/latest/index.html>`_) to find and
+bundle these dependencies.

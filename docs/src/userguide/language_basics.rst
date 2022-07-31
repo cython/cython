@@ -652,7 +652,7 @@ through defined error return values.  For functions that return a Python object
 ``NULL`` pointer, so any function returning a Python object has a well-defined
 error return value.
 
-While this is always the case for C functions, functions
+While this is always the case for Python functions, functions
 defined as C functions or ``cpdef``/``@ccall`` functions can return arbitrary C types,
 which do not have such a well-defined error return value.  Thus, if an
 exception is detected in such a function, a warning message is printed,

@@ -471,7 +471,9 @@ For example, in the following snippet that includes :file:`grail.h`:
     }
 
 This C code can then be built together with the Cython-generated C code
-in a single program (or library).
+in a single program (or library). Be aware that this program will not include
+any external dependencies that your module uses. Therefore typically this will
+not generate a truly portable application for most cases.
 
 In Python 3.x, calling the module init function directly should be avoided.  Instead,
 use the `inittab mechanism <https://docs.python.org/3/c-api/import.html#c._inittab>`_
