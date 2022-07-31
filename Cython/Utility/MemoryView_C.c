@@ -44,10 +44,9 @@ typedef struct {
                         (__STDC_VERSION__ >= 201112L) && \
                         !defined(__STDC_NO_ATOMICS__) && \
                        ATOMIC_INT_LOCK_FREE == 2)
-    /* C11 atomics are available
-       require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
-       alignment trick in MemoryView.pyx if it uses mutexes
-     */
+    // C11 atomics are available.
+    // Require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
+    // alignment trick in MemoryView.pyx if it uses mutexes.
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type atomic_int
     // TODO - it might be possible to use a less strict memory ordering here
@@ -63,10 +62,9 @@ typedef struct {
                     /*_MSC_VER 1700 is Visual Studio 2012 */ \
                     (defined(_MSC_VER) && _MSC_VER >= 1700)) && \
                     ATOMIC_INT_LOCK_FREE == 2)
-    /* C++11 atomics are available
-       require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
-       alignment trick in MemoryView.pyx if it uses mutexes
-     */
+    // C++11 atomics are available.
+    // Require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
+    // alignment trick in MemoryView.pyx if it uses mutexes.
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type std::atomic_int
     // TODO - it might be possible to use a less strict memory ordering here
