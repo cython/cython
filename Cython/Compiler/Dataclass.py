@@ -341,8 +341,6 @@ def generate_init_code(init, node, fields, kw_only):
 
     seen_default = False
     for name, field in fields.items():
-        if not field.init.value:
-            continue
         entry = node.scope.lookup(name)
         if entry.annotation:
             annotation = u": %s" % entry.annotation.string.value
@@ -357,18 +355,22 @@ def generate_init_code(init, node, fields, kw_only):
                 ph_name = get_placeholder_name()
                 placeholders[ph_name] = field.default  # should be a node
             assignment = u" = %s" % ph_name
-        elif seen_default and not kw_only:
+        elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
             return "", {}, []
 
-        args.append(u"%s%s%s" % (name, annotation, assignment))
+        if field.init.value:
+            args.append(u"%s%s%s" % (name, annotation, assignment))
 
         if field.is_initvar:
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
                 function_body_code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
+            elif assignment:
+                # not an argument to the function, but is still initialized
+                function_body_code_lines.append(u"    %s.%s%s" % (selfname, name, assignment))
         else:
             ph_name = get_placeholder_name()
             placeholders[ph_name] = field.default_factory

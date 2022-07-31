@@ -159,7 +159,6 @@ cdef bint looking_at_name(PyrexScanner s) except -2
 cdef object looking_at_expr(PyrexScanner s)# except -2
 cdef bint looking_at_base_type(PyrexScanner s) except -2
 cdef bint looking_at_dotted_name(PyrexScanner s) except -2
-cdef bint looking_at_call(PyrexScanner s) except -2
 cdef p_sign_and_longness(PyrexScanner s)
 cdef p_opt_cname(PyrexScanner s)
 cpdef p_c_declarator(PyrexScanner s, ctx = *, bint empty = *, bint is_type = *, bint cmethod_flag = *,

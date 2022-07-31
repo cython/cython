@@ -1,4 +1,5 @@
 *.pyc
+*.pyd
 *.pyo
 __pycache__
 *.so
