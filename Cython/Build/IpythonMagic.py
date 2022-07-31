@@ -46,7 +46,6 @@ Parts of this code were taken from Cython.inline.
 
 from __future__ import absolute_import, print_function
 
-import imp
 import io
 import os
 import re
@@ -97,9 +96,22 @@ PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 if IS_PY2:
     def encode_fs(name):
         return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
+
+    import imp
+    load_dynamic = imp.load_dynamic
+
 else:
     def encode_fs(name):
         return name
+
+    import importlib.util
+    from importlib.machinery import ExtensionFileLoader
+    def load_dynamic(name, path):
+        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return sys.modules[name]
 
 
 @magics_class
@@ -357,7 +369,7 @@ class CythonMagics(Magics):
         # Build seems ok, but we might still want to show any warnings that occurred
         print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
 
-        module = imp.load_dynamic(module_name, module_path)
+        module = load_dynamic(module_name, module_path)
         self._import_all(module)
 
         if args.annotate:
@@ -420,7 +432,7 @@ class CythonMagics(Magics):
 
         # import and execute module code to generate profile
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
-        imp.load_dynamic(pgo_module_name, so_module_path)
+        load_dynamic(pgo_module_name, so_module_path)
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
