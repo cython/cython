@@ -467,6 +467,7 @@ VER_DEP_MODULES = {
                                         'compile.extsetslice',
                                         'compile.extdelslice',
                                         'run.special_methods_T561_py2',
+                                        'run.builtin_type_inheritance_T608_py2only',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'build.cythonize_pep420_namespace',
@@ -1965,6 +1966,10 @@ class EndToEndTest(unittest.TestCase):
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
                         self.shard_num, c, self._try_decode(o), self._try_decode(e)))
+                sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
+                    self.name,
+                    '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
+                ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
                     ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
         self.success = True
@@ -2701,7 +2706,8 @@ def runtests(options, cmd_args, coverage=None):
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
-            ('cygwin_bugs.txt', sys.platform == 'cygwin')
+            ('cygwin_bugs.txt', sys.platform == 'cygwin'),
+            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9))
         ]
 
         exclude_selectors += [

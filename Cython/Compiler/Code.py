@@ -691,6 +691,7 @@ class LazyUtilityCode(UtilityCodeBase):
 class FunctionState(object):
     # return_label     string          function return point label
     # error_label      string          error catch point label
+    # error_without_exception  boolean Can go to the error label without an exception (e.g. __next__ can return NULL)
     # continue_label   string          loop continue point label
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
@@ -738,6 +739,8 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+        self.error_without_exception = False
 
     # safety checks
 
@@ -1857,10 +1860,15 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
+        if '\n' in s:
+            self.write_lines(s)
+        else:
+            self.buffer.write(s)
+
+    def write_lines(self, s):
         # Cygdb needs to know which Cython source line corresponds to which C line.
         # Therefore, we write this information into "self.buffer.markers" and then write it from there
         # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
-
         filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
         self.buffer.markers.extend([filename_line] * s.count('\n'))
 
@@ -1967,13 +1975,13 @@ class CCodeWriter(object):
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
             source_desc, line, _ = self.last_marked_pos
-            self.write('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
+            self.write_lines('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
         if code:
             if safe:
                 self.put_safe(code)
             else:
                 self.put(code)
-        self.write("\n")
+        self.write_lines("\n")
         self.bol = 1
 
     def mark_pos(self, pos, trace=True):
@@ -1987,13 +1995,13 @@ class CCodeWriter(object):
         pos, trace = self.last_pos
         self.last_marked_pos = pos
         self.last_pos = None
-        self.write("\n")
+        self.write_lines("\n")
         if self.code_config.emit_code_comments:
             self.indent()
-            self.write("/* %s */\n" % self._build_marker(pos))
+            self.write_lines("/* %s */\n" % self._build_marker(pos))
         if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self.write('__Pyx_TraceLine(%d,%d,%s)\n' % (
+            self.write_lines('__Pyx_TraceLine(%d,%d,%s)\n' % (
                 pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))
 
     def _build_marker(self, pos):
@@ -2070,7 +2078,7 @@ class CCodeWriter(object):
         self.putln("}")
 
     def indent(self):
-        self.write("  " * self.level)
+        self.buffer.write("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
@@ -2332,8 +2340,16 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
-                    func_cname, entry.func_cname))
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {" % func_cname)
+                func_call = "%s(self)" % entry.func_cname
+                if entry.name == "__next__":
+                    self.putln("PyObject *res = %s;" % func_call)
+                    # tp_iternext can return NULL without an exception
+                    self.putln("if (!res && !PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
+                    self.putln("return res;")
+                else:
+                    self.putln("return %s;" % func_call)
+                self.putln("}")
         return func_cname
 
     # GIL methods
