@@ -157,3 +157,35 @@ Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
 to ``_Derived__bar``. Therefore ``call_bar`` will always call 
 ``_Base__bar``. This matches established Python behaviour and applies
 for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
+
+Arithmetic special methods
+==========================
+
+The behaviour of arithmetic special methods (for example ``__add__``
+and ``__pow__``) of cdef classes has changed in Cython 3.0. They now 
+support separate "reversed" versions of these methods (e.g. 
+``__radd__``, ``__rpow__``) that behave like in pure Python.
+The main incompatible change is that the type of the first operand
+(usually ``__self__``) is now assumed to be that of the defining class,
+rather than relying on the user to test and cast the type of each operand.
+
+The old behaviour can be restored with the 
+:ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
+More details are given in :ref:`arithmetic_methods`.
+
+Annotation typing
+=================
+
+Cython 3 has made substantial improvements in recognising types in
+annotations and it is well worth reading
+:ref:`the pure Python tutorial<pep484_type_annotations>` to understand
+some of the improvements.
+
+A notable backwards-compatible change is that ``x: int`` is now typed
+such that ``x`` is an exact Python ``int`` (Cython 0.29 would accept
+any Python object for ``x``).
+
+To make it easier to handle cases where your interpretation of type
+annotations differs from Cython's, Cython 3 now supports setting the
+``annotation_typing`` :ref:`directive <compiler-directives>` on a
+per-class or per-function level.

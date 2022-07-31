@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 
 import os
+import re
 import unittest
 import shlex
 import sys
 import tempfile
 import textwrap
 from io import open
+from functools import partial
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
@@ -51,13 +53,10 @@ def treetypes(root):
 class CythonTest(unittest.TestCase):
 
     def setUp(self):
-        self.listing_file = Errors.listing_file
-        self.echo_file = Errors.echo_file
-        Errors.listing_file = Errors.echo_file = None
+        Errors.init_thread()
 
     def tearDown(self):
-        Errors.listing_file = self.listing_file
-        Errors.echo_file = self.echo_file
+        Errors.init_thread()
 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
@@ -164,11 +163,64 @@ class TransformTest(CythonTest):
         return tree
 
 
+# For the test C code validation, we have to take care that the test directives (and thus
+# the match strings) do not just appear in (multiline) C code comments containing the original
+# Cython source code.  Thus, we discard the comments before matching.
+# This seems a prime case for re.VERBOSE, but it seems to match some of the whitespace.
+_strip_c_comments = partial(re.compile(
+    re.sub('\s+', '', r'''
+        /[*] (
+            (?: [^*\n] | [*][^/] )*
+            [\n]
+            (?: [^*] | [*][^/] )*
+        ) [*]/
+    ''')
+).sub, '')
+
+
 class TreeAssertVisitor(VisitorTransform):
     # actually, a TreeVisitor would be enough, but this needs to run
     # as part of the compiler pipeline
 
-    def visit_CompilerDirectivesNode(self, node):
+    def __init__(self):
+        super(TreeAssertVisitor, self).__init__()
+        self._module_pos = None
+        self._c_patterns = []
+        self._c_antipatterns = []
+
+    def create_c_file_validator(self):
+        patterns, antipatterns = self._c_patterns, self._c_antipatterns
+
+        def fail(pos, pattern, found, file_path):
+            Errors.error(pos, "Pattern '%s' %s found in %s" %(
+                pattern,
+                'was' if found else 'was not',
+                file_path,
+            ))
+
+        def validate_c_file(result):
+            c_file = result.c_file
+            if not (patterns or antipatterns):
+                #print("No patterns defined for %s" % c_file)
+                return result
+
+            with open(c_file, encoding='utf8') as f:
+                c_content = f.read()
+            c_content = _strip_c_comments(c_content)
+
+            for pattern in patterns:
+                #print("Searching pattern '%s'" % pattern)
+                if not re.search(pattern, c_content):
+                    fail(self._module_pos, pattern, found=False, file_path=c_file)
+
+            for antipattern in antipatterns:
+                #print("Searching antipattern '%s'" % antipattern)
+                if re.search(antipattern, c_content):
+                    fail(self._module_pos, antipattern, found=True, file_path=c_file)
+
+        return validate_c_file
+
+    def _check_directives(self, node):
         directives = node.directives
         if 'test_assert_path_exists' in directives:
             for path in directives['test_assert_path_exists']:
@@ -182,6 +234,19 @@ class TreeAssertVisitor(VisitorTransform):
                     Errors.error(
                         node.pos,
                         "Unexpected path '%s' found in result tree" % path)
+        if 'test_assert_c_code_has' in directives:
+            self._c_patterns.extend(directives['test_assert_c_code_has'])
+        if 'test_fail_if_c_code_has' in directives:
+            self._c_antipatterns.extend(directives['test_fail_if_c_code_has'])
+
+    def visit_ModuleNode(self, node):
+        self._module_pos = node.pos
+        self._check_directives(node)
+        self.visitchildren(node)
+        return node
+
+    def visit_CompilerDirectivesNode(self, node):
+        self._check_directives(node)
         self.visitchildren(node)
         return node
 
@@ -228,23 +293,44 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     return workdir, header
 
 
-def write_file(file_path, content, dedent=False):
+def write_file(file_path, content, dedent=False, encoding=None):
+    r"""Write some content (text or bytes) to the file
+    at `file_path` without translating `'\n'` into `os.linesep`.
+
+    The default encoding is `'utf-8'`.
     """
-    Write some content (text or bytes) to the file at "file_path".
-    """
-    mode = 'wb' if isinstance(content, bytes) else 'w'
+    if isinstance(content, bytes):
+        mode = "wb"
+
+        # binary mode doesn't take an encoding and newline arguments
+        newline = None
+        default_encoding = None
+    else:
+        mode = "w"
+
+        # any "\n" characters written are not translated
+        # to the system default line separator, os.linesep
+        newline = "\n"
+        default_encoding = "utf-8"
+
+    if encoding is None:
+        encoding = default_encoding
+
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode) as f:
+    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
         f.write(content)
 
 
-def write_newer_file(file_path, newer_than, content, dedent=False):
+def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None):
+    r"""
+    Write `content` to the file `file_path` without translating `'\n'`
+    into `os.linesep` and make sure it is newer than the file `newer_than`.
+
+    The default encoding is `'utf-8'` (same as for `write_file`).
     """
-    Write 'content' to the file 'file_path' and make sure it is newer than the file 'newer_than'.
-    """
-    write_file(file_path, content, dedent=dedent)
+    write_file(file_path, content, dedent=dedent, encoding=encoding)
 
     try:
         other_time = os.path.getmtime(newer_than)
@@ -253,4 +339,4 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
-        write_file(file_path, content, dedent=dedent)
+        write_file(file_path, content, dedent=dedent, encoding=encoding)

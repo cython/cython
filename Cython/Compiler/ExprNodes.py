@@ -29,9 +29,9 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode, PassStatNode
+from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode
 from . import PyrexTypes
-from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
+from .PyrexTypes import py_object_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
 from .Builtin import (
@@ -45,8 +45,8 @@ from .. import Utils
 from .Annotate import AnnotationItem
 from . import Future
 from ..Debugging import print_call_chain
-from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
-    debug_coercion
+from .DebugFlags import debug_disposal_code, debug_coercion
+
 from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supported_operation_type,
      is_pythran_expr, pythran_func_type, pythran_binop_type, pythran_unaryop_type, has_np_pythran,
      pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type,
@@ -209,6 +209,11 @@ def make_dedup_key(outer_type, item_nodes):
         # For constants, look at the Python value type if we don't know the concrete Cython type.
         else (node.type, node.constant_result,
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
+        # IdentifierStringNode doesn't usually have a "constant_result" set because:
+        #  1. it doesn't usually have unicode_value
+        #  2. it's often created later in the compilation process after ConstantFolding
+        # but should be cacheable
+        else (node.type, node.value, node.unicode_value, "IdentifierStringNode") if isinstance(node, IdentifierStringNode)
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
@@ -323,13 +328,10 @@ class ExprNode(Node):
     #  is_sequence_constructor
     #               boolean      Is a list or tuple constructor expression
     #  is_starred   boolean      Is a starred expression (e.g. '*a')
-    #  saved_subexpr_nodes
-    #               [ExprNode or [ExprNode or None] or None]
-    #                            Cached result of subexpr_nodes()
     #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
     #  result_is_used  boolean   indicates that the result will be dropped and the
-    #  is_numpy_attribute   boolean   Is a Numpy module attribute
     #                            result_code/temp_result can safely be set to None
+    #  is_numpy_attribute   boolean   Is a Numpy module attribute
     #  annotation   ExprNode or None    PEP526 annotation for names or expressions
     #  generator_arg_tag  None or Node   A tag to mark ExprNodes that potentially need to
     #                              be changed to a generator argument
@@ -471,7 +473,6 @@ class ExprNode(Node):
     is_memview_broadcast = False
     is_memview_copy_assignment = False
 
-    saved_subexpr_nodes = None
     is_temp = False
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
@@ -546,7 +547,7 @@ class ExprNode(Node):
         if is_pythran_supported_node_or_none(self):
             return to_pythran(self)
 
-        assert(type_ is not None)
+        assert type_ is not None
         return to_pythran(self, type_)
 
     def is_c_result_required(self):
@@ -612,6 +613,9 @@ class ExprNode(Node):
 
     def analyse_target_declaration(self, env):
         error(self.pos, "Cannot assign to or delete this")
+
+    def analyse_assignment_expression_target_declaration(self, env):
+        error(self.pos, "Cannot use anything except a name in an assignment expression")
 
     # ------------- Expression Analysis ----------------
 
@@ -1098,13 +1102,15 @@ class ExprNode(Node):
         type = self.type
         if type.is_enum or type.is_error:
             return self
+        elif type is PyrexTypes.c_bint_type:
+            return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
-        elif type.is_cpp_class:
+        elif type.is_cpp_class and type.scope and type.scope.lookup("operator bool"):
             return SimpleCallNode(
                 self.pos,
                 function=AttributeNode(
-                    self.pos, obj=self, attribute='operator bool'),
+                    self.pos, obj=self, attribute=StringEncoding.EncodedString('operator bool')),
                 args=[]).analyse_types(env)
         elif type.is_ctuple:
             bool_value = len(type.components) == 0
@@ -1177,6 +1183,15 @@ class ExprNode(Node):
             else:
                 kwargs[attr_name] = value
         return cls(node.pos, **kwargs)
+
+    def get_known_standard_library_import(self):
+        """
+        Gets the module.path that this node was imported from.
+
+        Many nodes do not have one, or it is ambiguous, in which case
+        this function returns a false value.
+        """
+        return None
 
 
 class AtomicExprNode(ExprNode):
@@ -1516,14 +1531,18 @@ class FloatNode(ConstNode):
 
 
 def _analyse_name_as_type(name, pos, env):
-    type = PyrexTypes.parse_basic_type(name)
-    if type is not None:
-        return type
+    ctype = PyrexTypes.parse_basic_type(name)
+    if ctype is not None and env.in_c_type_context:
+        return ctype
 
     global_entry = env.global_scope().lookup(name)
-    if global_entry and global_entry.is_type and global_entry.type:
-        return global_entry.type
+    if global_entry and global_entry.is_type:
+        type = global_entry.type
+        if type and (type.is_pyobject or env.in_c_type_context):
+            return type
+        ctype = ctype or type
 
+    # This is fairly heavy, so it's worth trying some easier things above.
     from .TreeFragment import TreeFragment
     with local_errors(ignore=True):
         pos = (pos[0], pos[1], pos[2]-7)
@@ -1536,8 +1555,11 @@ def _analyse_name_as_type(name, pos, env):
             if isinstance(sizeof_node, SizeofTypeNode):
                 sizeof_node = sizeof_node.analyse_types(env)
                 if isinstance(sizeof_node, SizeofTypeNode):
-                    return sizeof_node.arg_type
-    return None
+                    type = sizeof_node.arg_type
+                    if type and (type.is_pyobject or env.in_c_type_context):
+                        return type
+                    ctype = ctype or type
+    return ctype
 
 
 class BytesNode(ConstNode):
@@ -2011,6 +2033,8 @@ class NameNode(AtomicExprNode):
             # annotations never create global cdef names
             if env.is_module_scope:
                 return
+
+            modifiers = ()
             if (
                 # name: "description" => not a type, but still a declared variable or attribute
                 annotation.expr.is_string_literal
@@ -2022,10 +2046,11 @@ class NameNode(AtomicExprNode):
                 # For Python class scopes every attribute is a Python object
                 atype = py_object_type
             else:
-                _, atype = annotation.analyse_type_annotation(env)
+                modifiers, atype = annotation.analyse_type_annotation(env)
+
             if atype is None:
                 atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
-            if atype.is_fused and env.fused_to_specific:
+            elif atype.is_fused and env.fused_to_specific:
                 try:
                     atype = atype.specialize(env.fused_to_specific)
                 except CannotSpecialize:
@@ -2033,13 +2058,31 @@ class NameNode(AtomicExprNode):
                           "'%s' cannot be specialized since its type is not a fused argument to this function" %
                           self.name)
                     atype = error_type
+
+            visibility = 'private'
+            if 'dataclasses.dataclass' in env.directives:
+                # handle "frozen" directive - full inspection of the dataclass directives happens
+                # in Dataclass.py
+                frozen_directive = None
+                dataclass_directive = env.directives['dataclasses.dataclass']
+                if dataclass_directive:
+                    dataclass_directive_kwds = dataclass_directive[1]
+                    frozen_directive = dataclass_directive_kwds.get('frozen', None)
+                is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
+                if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
+                    visibility = 'readonly' if is_frozen else 'public'
+                    # If the object can't be coerced that's fine - we just don't create a property
+
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
-                # TODO: this will need revising slightly if either cdef dataclasses or
-                # annotated cdef attributes are implemented
+                # TODO: this will need revising slightly if annotated cdef attributes are implemented
                 atype = py_object_type
                 warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
                         "Were you trying to set up an instance attribute?", 2)
-            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+
+            entry = self.entry = env.declare_var(
+                name, atype, self.pos, is_cdef=not as_target, visibility=visibility,
+                pytyping_modifiers=modifiers)
+
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
             entry.annotation = annotation
@@ -2052,22 +2095,45 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
+        if entry and entry.known_standard_library_import:
+            scope = Builtin.get_known_standard_library_module_scope(entry.known_standard_library_import)
+            if scope and scope.is_module_scope:
+                return scope
         return None
 
     def analyse_as_type(self, env):
+        type = None
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
-        else:
+        elif env.in_c_type_context:
             type = PyrexTypes.parse_basic_type(self.name)
         if type:
             return type
+
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
+        if entry and not entry.is_type and entry.known_standard_library_import:
+            entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
         if entry and entry.is_type:
-            return entry.type
-        else:
-            return None
+            # Infer equivalent C types instead of Python types when possible.
+            type = entry.type
+            if not env.in_c_type_context and type is Builtin.long_type:
+                # Try to give a helpful warning when users write plain C type names.
+                warning(self.pos, "Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?")
+                type = py_object_type
+            elif type.is_pyobject and type.equivalent_type:
+                type = type.equivalent_type
+            return type
+        if self.name == 'object':
+            # This is normally parsed as "simple C type", but not if we don't parse C types.
+            return py_object_type
+
+        # Try to give a helpful warning when users write plain C type names.
+        if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
+            warning(self.pos, "Found C type '%s' in a Python annotation. Did you mean to use a Python type?" % self.name)
+
+        return None
 
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type.
@@ -2081,12 +2147,26 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        return self._analyse_target_declaration(env, is_assignment_expression=False)
+
+    def analyse_assignment_expression_target_declaration(self, env):
+        return self._analyse_target_declaration(env, is_assignment_expression=True)
+
+    def _analyse_target_declaration(self, env, is_assignment_expression):
         self.is_target = True
         if not self.entry:
-            self.entry = env.lookup_here(self.name)
+            if is_assignment_expression:
+                self.entry = env.lookup_assignment_expression_target(self.name)
+            else:
+                self.entry = env.lookup_here(self.name)
+        if self.entry:
+            self.entry.known_standard_library_import = ""  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            self.declare_from_annotation(env, as_target=True)
+            is_dataclass = 'dataclasses.dataclass' in env.directives
+            # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
+            # Hence, "as_target = not is_dataclass".
+            self.declare_from_annotation(env, as_target=not is_dataclass)
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
@@ -2094,7 +2174,10 @@ class NameNode(AtomicExprNode):
                 type = unspecified_type
             else:
                 type = py_object_type
-            self.entry = env.declare_var(self.name, type, self.pos)
+            if is_assignment_expression:
+                self.entry = env.declare_assignment_expression_target(self.name, type, self.pos)
+            else:
+                self.entry = env.declare_var(self.name, type, self.pos)
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
         if self.entry.as_module:
@@ -2134,8 +2217,6 @@ class NameNode(AtomicExprNode):
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
-        if self.type.is_reference:
-            error(self.pos, "Assignment to reference '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
@@ -2594,6 +2675,11 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
+    def get_known_standard_library_import(self):
+        if self.entry:
+            return self.entry.known_standard_library_import
+        return None
+
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -2702,6 +2788,9 @@ class ImportNode(ExprNode):
             import_code,
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def get_known_standard_library_import(self):
+        return self.module_name.value
 
 
 class ScopedExprNode(ExprNode):
@@ -3712,9 +3801,9 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
-        if base_type and not base_type.is_pyobject:
-            if base_type.is_cpp_class:
-                if isinstance(self.index, TupleNode):
+        if base_type and (not base_type.is_pyobject or base_type.python_type_constructor_name):
+            if base_type.is_cpp_class or base_type.python_type_constructor_name:
+                if self.index.is_sequence_constructor:
                     template_values = self.index.args
                 else:
                     template_values = [self.index]
@@ -3741,6 +3830,18 @@ class IndexNode(_IndexingBaseNode):
                         return PyrexTypes.CArrayType(base_type, index)
                 error(self.pos, "Array size must be a compile time constant")
         return None
+
+    def analyse_pytyping_modifiers(self, env):
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
+        modifiers = []
+        modifier_node = self
+        while modifier_node.is_subscript:
+            modifier_type = modifier_node.base.analyse_as_type(env)
+            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+                modifiers.append(modifier_type.modifier_name)
+            modifier_node = modifier_node.index
+        return modifiers
 
     def type_dependencies(self, env):
         return self.base.type_dependencies(env) + self.index.type_dependencies(env)
@@ -3939,12 +4040,13 @@ class IndexNode(_IndexingBaseNode):
             self.is_temp = 1
         elif self.index.type.is_int and base_type is not dict_type:
             if (getting
+                    and not env.directives['boundscheck']
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed
                          or not env.directives['wraparound']
                          or (isinstance(self.index, IntNode) and
                              self.index.has_constant_result() and self.index.constant_result >= 0))
-                    and not env.directives['boundscheck']):
+                    ):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
@@ -3971,12 +4073,16 @@ class IndexNode(_IndexingBaseNode):
             if base_type in (list_type, tuple_type) and self.index.type.is_int:
                 item_type = infer_sequence_item_type(
                     env, self.base, self.index, seq_type=base_type)
-            if item_type is None:
-                item_type = py_object_type
-            self.type = item_type
             if base_type in (list_type, tuple_type, dict_type):
                 # do the None check explicitly (not in a helper) to allow optimising it away
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
+            if item_type is None or not item_type.is_pyobject:
+                # Even if we inferred a C type as result, we will read a Python object, so trigger coercion if needed.
+                # We could potentially use "item_type.equivalent_type" here, but that may trigger assumptions
+                # about the actual runtime item types, rather than just their ability to coerce to the C "item_type".
+                self.type = py_object_type
+            else:
+                self.type = item_type
 
         self.wrap_in_nonecheck_node(env, getting)
         return self
@@ -4272,6 +4378,7 @@ class IndexNode(_IndexingBaseNode):
             return
 
         utility_code = None
+        error_value = None
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
@@ -4307,8 +4414,8 @@ class IndexNode(_IndexingBaseNode):
             error_value = '-1'
             utility_code = UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c")
         elif not (self.base.type.is_cpp_class and self.exception_check):
-            assert False, "unexpected type %s and base type %s for indexing" % (
-                self.type, self.base.type)
+            assert False, "unexpected type %s and base type %s for indexing (%s)" % (
+                self.type, self.base.type, self.pos)
 
         if utility_code is not None:
             code.globalstate.use_utility_code(utility_code)
@@ -4621,17 +4728,17 @@ class BufferIndexNode(_IndexingBaseNode):
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
-            # Must manage refcounts. Decref what is already there
-            # and incref what we put in.
+            # Must manage refcounts. XDecref what is already there
+            # and incref what we put in (NumPy allows there to be NULL)
             ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
                                                manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
-            code.put_gotref("*%s" % ptr, self.buffer_type.dtype)
-            code.putln("__Pyx_INCREF(%s); __Pyx_DECREF(*%s);" % (
+            code.put_xgotref("*%s" % ptr, self.buffer_type.dtype)
+            code.putln("__Pyx_INCREF(%s); __Pyx_XDECREF(*%s);" % (
                 rhs_code, ptr))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
-            code.put_giveref("*%s" % ptr, self.buffer_type.dtype)
+            code.put_xgiveref("*%s" % ptr, self.buffer_type.dtype)
             code.funcstate.release_temp(ptr)
         else:
             # Simple case
@@ -4652,8 +4759,11 @@ class BufferIndexNode(_IndexingBaseNode):
             # is_temp is True, so must pull out value and incref it.
             # NOTE: object temporary results for nodes are declared
             #       as PyObject *, so we need a cast
-            code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
-            code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+            res = self.result()
+            code.putln("%s = (PyObject *) *%s;" % (res, self.buffer_ptr_code))
+            # NumPy does (occasionally) allow NULL to denote None.
+            code.putln("if (unlikely(%s == NULL)) %s = Py_None;" % (res, res))
+            code.putln("__Pyx_INCREF((PyObject*)%s);" % res)
 
     def free_subexpr_temps(self, code):
         for temp in self.index_temps:
@@ -7571,6 +7681,12 @@ class AttributeNode(ExprNode):
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
+    def get_known_standard_library_import(self):
+        module_name = self.obj.get_known_standard_library_import()
+        if module_name:
+            return StringEncoding.EncodedString("%s.%s" % (module_name, self.attribute))
+        return None
+
 
 #-------------------------------------------------------------------
 #
@@ -8647,7 +8763,7 @@ class MergedSequenceNode(ExprNode):
         if type in (list_type, tuple_type) and args and args[0].is_sequence_constructor:
             # construct a list directly from the first argument that we can then extend
             if args[0].type is not list_type:
-                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True)
+                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True, mult_factor=args[0].mult_factor)
         ExprNode.__init__(self, pos, args=args, type=type)
 
     def calculate_constant_result(self):
@@ -9025,6 +9141,11 @@ class DictNode(ExprNode):
     def annotate(self, code):
         for item in self.key_value_pairs:
             item.annotate(code)
+
+    def as_python_dict(self):
+        # returns a dict with constant keys and Node values
+        # (only works on DictNodes where the keys are ConstNodes or PyConstNode)
+        return dict([(key.value, value) for key, value in self.key_value_pairs])
 
 
 class DictItemNode(ExprNode):
@@ -9733,6 +9854,12 @@ class CodeObjectNode(ExprNode):
             flags.append('CO_VARARGS')
         if self.def_node.starstar_arg:
             flags.append('CO_VARKEYWORDS')
+        if self.def_node.is_asyncgen:
+            flags.append('CO_ASYNC_GENERATOR')
+        elif self.def_node.is_coroutine:
+            flags.append('CO_COROUTINE')
+        elif self.def_node.is_generator:
+            flags.append('CO_GENERATOR')
 
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
@@ -9856,6 +9983,9 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
+        if hasattr(self, "lambda_name"):
+            # this if-statement makes it safe to run twice
+            return
         self.lambda_name = self.def_node.lambda_name = env.next_id('lambda')
         self.def_node.no_assignment_synthesis = True
         self.def_node.pymethdef_required = True
@@ -9893,6 +10023,9 @@ class GeneratorExpressionNode(LambdaNode):
         self.call_parameters = []
 
     def analyse_declarations(self, env):
+        if hasattr(self, "genexpr_name"):
+            # this if-statement makes it safe to run twice
+            return
         self.genexpr_name = env.next_id('genexpr')
         super(GeneratorExpressionNode, self).analyse_declarations(env)
         # No pymethdef required
@@ -13221,6 +13354,9 @@ class CoercionNode(ExprNode):
             code.annotate((file, line, col-1), AnnotationItem(
                 style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+    def analyse_types(self, env):
+        return self
+
 
 class CoerceToMemViewSliceNode(CoercionNode):
     """
@@ -13565,6 +13701,9 @@ class CoerceFromPyTypeNode(CoercionNode):
     #  This node is used to convert a Python object
     #  to a C data type.
 
+    # Allow 'None' to map to a difference C value independent of the coercion, e.g. to 'NULL' or '0'.
+    special_none_cvalue = None
+
     def __init__(self, result_type, arg, env):
         CoercionNode.__init__(self, arg)
         self.type = result_type
@@ -13594,7 +13733,10 @@ class CoerceFromPyTypeNode(CoercionNode):
                 NoneCheckNode.generate_if_needed(self.arg, code, "expected bytes, NoneType found")
 
         code.putln(self.type.from_py_call_code(
-            self.arg.py_result(), self.result(), self.pos, code, from_py_function=from_py_function))
+            self.arg.py_result(), self.result(), self.pos, code,
+            from_py_function=from_py_function,
+            special_none_cvalue=self.special_none_cvalue,
+        ))
         if self.type.is_pyobject:
             self.generate_gotref(code)
 
@@ -13741,17 +13883,17 @@ class ProxyNode(CoercionNode):
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
         self.constant_result = arg.constant_result
-        self._proxy_type()
+        self.update_type_and_entry()
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_expressions(env)
-        self._proxy_type()
+        self.update_type_and_entry()
         return self
 
     def infer_type(self, env):
         return self.arg.infer_type(env)
 
-    def _proxy_type(self):
+    def update_type_and_entry(self):
         type = getattr(self.arg, 'type', None)
         if type:
             self.type = type
@@ -13840,6 +13982,12 @@ class CloneNode(CoercionNode):
 
     def generate_disposal_code(self, code):
         pass
+
+    def generate_post_assignment_code(self, code):
+        # if we're assigning from a CloneNode then it's "giveref"ed away, so it does
+        # need a matching incref (ideally this should happen before the assignment though)
+        if self.is_temp:  # should usually be true
+            code.put_incref(self.result(), self.ctype())
 
     def free_temps(self, code):
         pass
@@ -13959,10 +14107,8 @@ class AnnotationNode(ExprNode):
     def analyse_type_annotation(self, env, assigned_value=None):
         if self.untyped:
             # Already applied as a fused type, not re-evaluating it here.
-            return None, None
+            return [], None
         annotation = self.expr
-        base_type = None
-        is_ambiguous = False
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
@@ -13979,33 +14125,125 @@ class AnnotationNode(ExprNode):
                     annotation = value
             if explicit_pytype and explicit_ctype:
                 warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
-        arg_type = annotation.analyse_as_type(env)
-        if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
-            # Map builtin numeric Python types to C types in safe cases.
-            if assigned_value is not None and arg_type is not None and not arg_type.is_pyobject:
-                assigned_type = assigned_value.infer_type(env)
-                if assigned_type and assigned_type.is_pyobject:
-                    # C type seems unsafe, e.g. due to 'None' default value  => ignore annotation type
-                    is_ambiguous = True
-                    arg_type = None
-            # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
-            if arg_type in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
-                arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
-        elif arg_type is not None and annotation.is_string_literal:
+
+        with env.new_c_type_context(in_c_type_context=explicit_ctype):
+            arg_type = annotation.analyse_as_type(env)
+
+        if arg_type is None:
+            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
+            return [], arg_type
+
+        if annotation.is_string_literal:
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
                     level=1)
-        elif arg_type is not None and arg_type.is_complex:
+        if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
+            warning(annotation.pos,
+                    "Python type declaration in signature annotation does not refer to a Python type")
+        if arg_type.is_complex:
             # creating utility code needs to be special-cased for complex types
             arg_type.create_declaration_utility_code(env)
-        if arg_type is not None:
-            if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
-                warning(annotation.pos,
-                        "Python type declaration in signature annotation does not refer to a Python type")
-            base_type = Nodes.CAnalysedBaseTypeNode(
-                annotation.pos, type=arg_type, is_arg=True)
-        elif is_ambiguous:
-            warning(annotation.pos, "Ambiguous types in annotation, ignoring")
-        else:
-            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
-        return base_type, arg_type
+
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+
+        return modifiers, arg_type
+
+
+class AssignmentExpressionNode(ExprNode):
+    """
+    Also known as a named expression or the walrus operator
+
+    Arguments
+    lhs - NameNode - not stored directly as an attribute of the node
+    rhs - ExprNode
+
+    Attributes
+    rhs        - ExprNode
+    assignment - SingleAssignmentNode
+    """
+    # subexprs and child_attrs are intentionally different here, because the assignment is not an expression
+    subexprs = ["rhs"]
+    child_attrs = ["rhs", "assignment"]  # This order is important for control-flow (i.e. xdecref) to be right
+
+    is_temp = False
+    assignment = None
+    clone_node = None
+
+    def __init__(self, pos, lhs, rhs, **kwds):
+        super(AssignmentExpressionNode, self).__init__(pos, **kwds)
+        self.rhs = ProxyNode(rhs)
+        assign_expr_rhs = CloneNode(self.rhs)
+        self.assignment = SingleAssignmentNode(
+            pos, lhs=lhs, rhs=assign_expr_rhs, is_assignment_expression=True)
+
+    @property
+    def type(self):
+        return self.rhs.type
+
+    @property
+    def target_name(self):
+        return self.assignment.lhs.name
+
+    def infer_type(self, env):
+        return self.rhs.infer_type(env)
+
+    def analyse_declarations(self, env):
+        self.assignment.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        # we're trying to generate code that looks roughly like:
+        #   __pyx_t_1 = rhs
+        #   lhs = __pyx_t_1
+        #   __pyx_t_1
+        # (plus any reference counting that's needed)
+
+        self.rhs = self.rhs.analyse_types(env)
+        if not self.rhs.arg.is_temp:
+            if not self.rhs.arg.is_literal:
+                # for anything but the simplest cases (where it can be used directly)
+                # we convert rhs to a temp, because CloneNode requires arg to be a temp
+                self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
+            else:
+                # For literals we can optimize by just using the literal twice
+                #
+                # We aren't including `self.rhs.is_name` in this optimization
+                # because that goes wrong for assignment expressions run in
+                # parallel. e.g. `(a := b) + (b := a + c)`)
+                # This is a special case of https://github.com/cython/cython/issues/4146
+                # TODO - once that's fixed general revisit this code and possibly
+                # use coerce_to_simple
+                self.assignment.rhs = copy.copy(self.rhs)
+
+        # TODO - there's a missed optimization in the code generation stage
+        # for self.rhs.arg.is_temp: an incref/decref pair can be removed
+        # (but needs a general mechanism to do that)
+        self.assignment = self.assignment.analyse_types(env)
+        return self
+
+    def coerce_to(self, dst_type, env):
+        if dst_type == self.assignment.rhs.type:
+            # in this quite common case (for example, when both lhs, and self are being coerced to Python)
+            # we can optimize the coercion out by sharing it between
+            # this and the assignment
+            old_rhs_arg = self.rhs.arg
+            if isinstance(old_rhs_arg, CoerceToTempNode):
+                old_rhs_arg = old_rhs_arg.arg
+            rhs_arg = old_rhs_arg.coerce_to(dst_type, env)
+            if rhs_arg is not old_rhs_arg:
+                self.rhs.arg = rhs_arg
+                self.rhs.update_type_and_entry()
+                # clean up the old coercion node that the assignment has likely generated
+                if (isinstance(self.assignment.rhs, CoercionNode)
+                        and not isinstance(self.assignment.rhs, CloneNode)):
+                    self.assignment.rhs = self.assignment.rhs.arg
+                    self.assignment.rhs.type = self.assignment.rhs.arg.type
+                return self
+        return super(AssignmentExpressionNode, self).coerce_to(dst_type, env)
+
+    def calculate_result_code(self):
+        return self.rhs.result()
+
+    def generate_result_code(self, code):
+        # we have to do this manually because it isn't a subexpression
+        self.assignment.generate_execution_code(code)

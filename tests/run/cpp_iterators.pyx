@@ -212,3 +212,27 @@ def test_iteration_from_function_call():
         print(i)
     for i in make_vec3():
         print(i)
+
+def test_const_iterator_calculations(py_v):
+    """
+    >>> print(test_const_iterator_calculations([1, 2, 3]))
+    [3, 3, 3, 3, True, True, False, False]
+    """
+    cdef deque[int] dint
+    for i in py_v:
+        dint.push_back(i)
+    cdef deque[int].iterator first = dint.begin()
+    cdef deque[int].iterator last = dint.end()
+    cdef deque[int].const_iterator cfirst = first
+    cdef deque[int].const_iterator clast = last
+
+    return [
+        last - first,
+        last - cfirst,
+        clast - first,
+        clast - cfirst,
+        first == cfirst,
+        last == clast,
+        first == clast,
+        last == cfirst
+    ]

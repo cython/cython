@@ -4,8 +4,6 @@ cimport cython
 
 import sys
 
-PY_VERSION = sys.version_info
-
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 sep = u'  '
 format1 = u'abc%sdef'
@@ -28,16 +26,12 @@ def print_all(l):
     "//PythonCapiCallNode")
 def split(unicode s):
     """
-    >>> print_all( text.split() )
-    ab
-    jd
-    sdflk
-    as
-    sa
-    sadas
-    asdas
-    fsdf
-    >>> print_all( split(text) )
+    >>> def test_split():
+    ...     py = text.split()
+    ...     cy = split(text)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> print_all( test_split() )
     ab
     jd
     sdflk
@@ -53,14 +47,24 @@ def split(unicode s):
     "//PythonCapiCallNode")
 def split_sep(unicode s, sep):
     """
-    >>> print_all( text.split(sep) )
+    >>> def test_split_sep(sep):
+    ...     py = text.split(sep)
+    ...     cy = split_sep(text, sep)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> print_all( test_split_sep(sep) )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
-    >>> print_all( split_sep(text, sep) )
-    ab jd
-    sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
+    >>> print_all( test_split_sep(None) )
+    ab
+    jd
+    sdflk
+    as
+    sa
+    sadas
+    asdas
+    fsdf
     """
     return s.split(sep)
 
@@ -72,12 +76,26 @@ def split_sep(unicode s, sep):
     "//PythonCapiCallNode")
 def split_sep_max(unicode s, sep, max):
     """
-    >>> print_all( text.split(sep, 1) )
+    >>> def test_split_sep_max(sep, max):
+    ...     py = text.split(sep, max)
+    ...     cy = split_sep_max(text, sep, max)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> print_all( test_split_sep_max(sep, 1) )
     ab jd
-    sdflk as sa  sadas asdas fsdf 
-    >>> print_all( split_sep_max(text, sep, 1) )
-    ab jd
-    sdflk as sa  sadas asdas fsdf 
+    sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( test_split_sep_max(None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( text.split(None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( split_sep_max(text, None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, max)
 
@@ -88,12 +106,17 @@ def split_sep_max(unicode s, sep, max):
     "//PythonCapiCallNode")
 def split_sep_max_int(unicode s, sep):
     """
-    >>> print_all( text.split(sep, 1) )
+    >>> def test_split_sep_max_int(sep):
+    ...     py = text.split(sep, 1)
+    ...     cy = split_sep_max_int(text, sep)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> print_all( test_split_sep_max_int(sep) )
     ab jd
-    sdflk as sa  sadas asdas fsdf 
-    >>> print_all( split_sep_max_int(text, sep) )
-    ab jd
-    sdflk as sa  sadas asdas fsdf 
+    sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( test_split_sep_max_int(None) )
+    ab
+    jd  sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, 1)
 
@@ -104,18 +127,17 @@ def split_sep_max_int(unicode s, sep):
     "//PythonCapiCallNode")
 def splitlines(unicode s):
     """
-    >>> len(multiline_text.splitlines())
+    >>> def test_splitlines(s):
+    ...     py = s.splitlines()
+    ...     cy = splitlines(s)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> len(test_splitlines(multiline_text))
     3
-    >>> print_all( multiline_text.splitlines() )
+    >>> print_all( test_splitlines(multiline_text) )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
-    >>> len(splitlines(multiline_text))
-    3
-    >>> print_all( splitlines(multiline_text) )
-    ab jd
-    sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.splitlines()
 
@@ -123,22 +145,19 @@ def splitlines(unicode s):
     "//PythonCapiCallNode")
 def splitlines_keep(unicode s, keep):
     """
-    >>> len(multiline_text.splitlines(True))
+    >>> def test_splitlines_keep(s, keep):
+    ...     py = s.splitlines(keep)
+    ...     cy = splitlines_keep(s, keep)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> len(test_splitlines_keep(multiline_text, True))
     3
-    >>> print_all( multiline_text.splitlines(True) )
+    >>> print_all( test_splitlines_keep(multiline_text, True) )
     ab jd
     <BLANKLINE>
     sdflk as sa
     <BLANKLINE>
-    sadas asdas fsdf 
-    >>> len(splitlines_keep(multiline_text, True))
-    3
-    >>> print_all( splitlines_keep(multiline_text, True) )
-    ab jd
-    <BLANKLINE>
-    sdflk as sa
-    <BLANKLINE>
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.splitlines(keep)
 
@@ -149,30 +168,23 @@ def splitlines_keep(unicode s, keep):
     "//PythonCapiCallNode")
 def splitlines_keep_bint(unicode s):
     """
-    >>> len(multiline_text.splitlines(True))
-    3
-    >>> print_all( multiline_text.splitlines(True) )
-    ab jd
-    <BLANKLINE>
-    sdflk as sa
-    <BLANKLINE>
-    sadas asdas fsdf 
-    >>> print_all( multiline_text.splitlines(False) )
-    ab jd
-    sdflk as sa
-    sadas asdas fsdf 
-    >>> len(splitlines_keep_bint(multiline_text))
+    >>> def test_splitlines_keep_bint(s):
+    ...     py = s.splitlines(True) + ['--'] + s.splitlines(False)
+    ...     cy = splitlines_keep_bint(s)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> len(test_splitlines_keep_bint(multiline_text))
     7
-    >>> print_all( splitlines_keep_bint(multiline_text) )
+    >>> print_all( test_splitlines_keep_bint(multiline_text) )
     ab jd
     <BLANKLINE>
     sdflk as sa
     <BLANKLINE>
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     --
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.splitlines(True) + ['--'] + s.splitlines(False)
 
@@ -190,12 +202,15 @@ pipe_sep = u'|'
 )
 def join(unicode sep, l):
     """
+    >>> def test_join(sep, l):
+    ...     py = sep.join(l)
+    ...     cy = join(sep, l)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
     >>> l = text.split()
     >>> len(l)
     8
-    >>> print( pipe_sep.join(l) )
-    ab|jd|sdflk|as|sa|sadas|asdas|fsdf
-    >>> print( join(pipe_sep, l) )
+    >>> print( test_join(pipe_sep, l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     return sep.join(l)
@@ -210,12 +225,15 @@ def join(unicode sep, l):
 )
 def join_sep(l):
     """
+    >>> def test_join_sep(l):
+    ...     py = '|'.join(l)
+    ...     cy = join_sep(l)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
     >>> l = text.split()
     >>> len(l)
     8
-    >>> print( '|'.join(l) )
-    ab|jd|sdflk|as|sa|sadas|asdas|fsdf
-    >>> print( join_sep(l) )
+    >>> print( test_join_sep(l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     result = u'|'.join(l)
@@ -234,12 +252,15 @@ def join_sep(l):
 )
 def join_sep_genexpr(l):
     """
+    >>> def test_join_sep_genexpr(l):
+    ...     py = '|'.join(s + ' ' for s in l)
+    ...     cy = join_sep_genexpr(l)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
     >>> l = text.split()
     >>> len(l)
     8
-    >>> print( '<<%s>>' % '|'.join(s + ' ' for s in l) )
-    <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
-    >>> print( '<<%s>>' % join_sep_genexpr(l) )
+    >>> print( '<<%s>>' % test_join_sep_genexpr(l) )
     <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
     """
     result = u'|'.join(s + u' ' for s in l)
@@ -257,11 +278,14 @@ def join_sep_genexpr(l):
 )
 def join_sep_genexpr_dictiter(dict d):
     """
+    >>> def test_join_sep_genexpr_dictiter(d):
+    ...     py = '|'.join( sorted(' '.join('%s:%s' % (k, v) for k, v in d.items()).split()) )
+    ...     cy = '|'.join( sorted(join_sep_genexpr_dictiter(d).split()) )
+    ...     assert py == cy, (py, cy)
+    ...     return cy
     >>> l = text.split()
     >>> d = dict(zip(range(len(l)), l))
-    >>> print('|'.join( sorted(' '.join('%s:%s' % (k, v) for k, v in d.items()).split()) ))
-    0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
-    >>> print('|'.join( sorted(join_sep_genexpr_dictiter(d).split())) )
+    >>> print( test_join_sep_genexpr_dictiter(d) )
     0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
     """
     result = u' '.join('%s:%s' % (k, v) for k, v in d.iteritems())
@@ -274,12 +298,15 @@ def join_sep_genexpr_dictiter(dict d):
 )
 def join_unbound(unicode sep, l):
     """
+    >>> def test_join_unbound(sep, l):
+    ...     py = sep.join(l)
+    ...     cy = join_unbound(sep, l)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
     >>> l = text.split()
     >>> len(l)
     8
-    >>> print( pipe_sep.join(l) )
-    ab|jd|sdflk|as|sa|sadas|asdas|fsdf
-    >>> print( join_unbound(pipe_sep, l) )
+    >>> print( test_join_unbound(pipe_sep, l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     join = unicode.join
@@ -296,28 +323,25 @@ def join_unbound(unicode sep, l):
     "//PythonCapiCallNode")
 def startswith(unicode s, sub):
     """
-    >>> text.startswith('ab ')
+    >>> def test_startswith(s, sub):
+    ...     py = s.startswith(sub)
+    ...     cy = startswith(s, sub)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_startswith(text, 'ab ')
     True
-    >>> startswith(text, 'ab ')
-    'MATCH'
-    >>> text.startswith('ab X')
+    >>> test_startswith(text, 'ab X')
     False
-    >>> startswith(text, 'ab X')
-    'NO MATCH'
 
-    >>> PY_VERSION < (2,5) or text.startswith(('ab', 'ab '))
+    >>> test_startswith(text, ('ab', 'ab '))
     True
-    >>> startswith(text, ('ab', 'ab '))
-    'MATCH'
-    >>> PY_VERSION < (2,5) or not text.startswith((' ab', 'ab X'))
+    >>> not test_startswith(text, (' ab', 'ab X'))
     True
-    >>> startswith(text, (' ab', 'ab X'))
-    'NO MATCH'
     """
     if s.startswith(sub):
-        return 'MATCH'
+        return True
     else:
-        return 'NO MATCH'
+        return False
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
@@ -327,23 +351,33 @@ def startswith(unicode s, sub):
     "//PythonCapiCallNode")
 def startswith_start_end(unicode s, sub, start, end):
     """
-    >>> text.startswith('b ', 1, 5)
+    >>> def test_startswith_start_end(s, sub, start, end):
+    ...     py = s.startswith(sub, start, end)
+    ...     cy = startswith_start_end(s, sub, start, end)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_startswith_start_end(text, 'b ', 1, 5)
     True
-    >>> startswith_start_end(text, 'b ', 1, 5)
-    'MATCH'
-    >>> text.startswith('ab ', -1000, 5000)
+    >>> test_startswith_start_end(text, 'ab ', -1000, 5000)
     True
-    >>> startswith_start_end(text, 'ab ', -1000, 5000)
-    'MATCH'
-    >>> text.startswith('b X', 1, 5)
+    >>> test_startswith_start_end(text, 'b X', 1, 5)
     False
-    >>> startswith_start_end(text, 'b X', 1, 5)
-    'NO MATCH'
+
+    >>> test_startswith_start_end(text, 'ab ', None, None)
+    True
+    >>> test_startswith_start_end(text, 'ab ', 1, None)
+    False
+    >>> test_startswith_start_end(text, 'b ',  1, None)
+    True
+    >>> test_startswith_start_end(text, 'ab ', None, 3)
+    True
+    >>> test_startswith_start_end(text, 'ab ', None, 2)
+    False
     """
     if s.startswith(sub, start, end):
-        return 'MATCH'
+        return True
     else:
-        return 'NO MATCH'
+        return False
 
 
 # unicode.endswith(s, prefix, [start, [end]])
@@ -356,28 +390,25 @@ def startswith_start_end(unicode s, sub, start, end):
     "//PythonCapiCallNode")
 def endswith(unicode s, sub):
     """
-    >>> text.endswith('fsdf ')
+    >>> def test_endswith(s, sub):
+    ...     py = s.endswith(sub)
+    ...     cy = endswith(s, sub)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_endswith(text, 'fsdf ')
     True
-    >>> endswith(text, 'fsdf ')
-    'MATCH'
-    >>> text.endswith('fsdf X')
+    >>> test_endswith(text, 'fsdf X')
     False
-    >>> endswith(text, 'fsdf X')
-    'NO MATCH'
 
-    >>> PY_VERSION < (2,5) or text.endswith(('fsdf', 'fsdf '))
+    >>> test_endswith(text, ('fsdf', 'fsdf '))
     True
-    >>> endswith(text, ('fsdf', 'fsdf '))
-    'MATCH'
-    >>> PY_VERSION < (2,5) or not text.endswith(('fsdf', 'fsdf X'))
-    True
-    >>> endswith(text, ('fsdf', 'fsdf X'))
-    'NO MATCH'
+    >>> test_endswith(text, ('fsdf', 'fsdf X'))
+    False
     """
     if s.endswith(sub):
-        return 'MATCH'
+        return True
     else:
-        return 'NO MATCH'
+        return False
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
@@ -387,33 +418,39 @@ def endswith(unicode s, sub):
     "//PythonCapiCallNode")
 def endswith_start_end(unicode s, sub, start, end):
     """
-    >>> text.endswith('fsdf', 10, len(text)-1)
+    >>> def test_endswith_start_end(s, sub, start, end):
+    ...     py = s.endswith(sub, start, end)
+    ...     cy = endswith_start_end(s, sub, start, end)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_endswith_start_end(text, 'fsdf', 10, len(text)-1)
     True
-    >>> endswith_start_end(text, 'fsdf', 10, len(text)-1)
-    'MATCH'
-    >>> text.endswith('fsdf ', 10, len(text)-1)
+    >>> test_endswith_start_end(text, 'fsdf ', 10, len(text)-1)
     False
-    >>> endswith_start_end(text, 'fsdf ', 10, len(text)-1)
-    'NO MATCH'
 
-    >>> text.endswith('fsdf ', -1000, 5000)
+    >>> test_endswith_start_end(text, 'fsdf ', -1000, 5000)
     True
-    >>> endswith_start_end(text, 'fsdf ', -1000, 5000)
-    'MATCH'
 
-    >>> PY_VERSION < (2,5) or text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
+    >>> test_endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
     True
-    >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
-    'MATCH'
-    >>> PY_VERSION < (2,5) or not text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
+    >>> test_endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
+    False
+
+    >>> test_endswith_start_end(text, 'fsdf ', None, None)
     True
-    >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
-    'NO MATCH'
+    >>> test_endswith_start_end(text, 'fsdf ', 32, None)
+    True
+    >>> test_endswith_start_end(text, 'fsdf ', 33, None)
+    False
+    >>> test_endswith_start_end(text, 'fsdf ', None, 37)
+    True
+    >>> test_endswith_start_end(text, 'fsdf ', None, 36)
+    False
     """
     if s.endswith(sub, start, end):
-        return 'MATCH'
+        return True
     else:
-        return 'NO MATCH'
+        return False
 
 
 # unicode.__contains__(s, sub)
@@ -513,7 +550,9 @@ def mod_format(unicode s, values):
     True
     >>> mod_format(format2, ('XYZ', 'ABC')) == 'abcXYZdefABCghi'  or  mod_format(format2, ('XYZ', 'ABC'))
     True
-    >>> mod_format(None, 'sa')   # doctest: +ELLIPSIS
+
+    Exact TypeError message is different in PyPy
+    >>> mod_format(None, 'sa')   # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     TypeError: unsupported operand type(s) for %: 'NoneType' and 'str'
     >>> class RMod(object):
@@ -561,9 +600,12 @@ def mod_format_tuple(*values):
     "//PythonCapiCallNode")
 def find(unicode s, substring):
     """
-    >>> text.find('sa')
-    16
-    >>> find(text, 'sa')
+    >>> def test_find(s, substring):
+    ...     py = s.find(substring)
+    ...     cy = find(s, substring)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_find(text, 'sa')
     16
     """
     cdef Py_ssize_t pos = s.find(substring)
@@ -576,10 +618,23 @@ def find(unicode s, substring):
     "//PythonCapiCallNode")
 def find_start_end(unicode s, substring, start, end):
     """
-    >>> text.find('sa', 17, 25)
+    >>> def test_find_start_end(s, substring, start, end):
+    ...     py = s.find(substring, start, end)
+    ...     cy = find_start_end(s, substring, start, end)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_find_start_end(text, 'sa', 17, 25)
     20
-    >>> find_start_end(text, 'sa', 17, 25)
+    >>> test_find_start_end(text, 'sa', None, None)
+    16
+    >>> test_find_start_end(text, 'sa', 16, None)
+    16
+    >>> test_find_start_end(text, 'sa', 17, None)
     20
+    >>> test_find_start_end(text, 'sa', None, 16)
+    -1
+    >>> test_find_start_end(text, 'sa', None, 19)
+    16
     """
     cdef Py_ssize_t pos = s.find(substring, start, end)
     return pos
@@ -595,9 +650,12 @@ def find_start_end(unicode s, substring, start, end):
     "//PythonCapiCallNode")
 def rfind(unicode s, substring):
     """
-    >>> text.rfind('sa')
-    20
-    >>> rfind(text, 'sa')
+    >>> def test_rfind(s, substring):
+    ...     py = s.rfind(substring)
+    ...     cy = rfind(s, substring)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_rfind(text, 'sa')
     20
     """
     cdef Py_ssize_t pos = s.rfind(substring)
@@ -610,9 +668,22 @@ def rfind(unicode s, substring):
     "//PythonCapiCallNode")
 def rfind_start_end(unicode s, substring, start, end):
     """
-    >>> text.rfind('sa', 14, 19)
+    >>> def test_rfind_start_end(s, substring, start, end):
+    ...     py = s.rfind(substring, start, end)
+    ...     cy = rfind_start_end(s, substring, start, end)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_rfind_start_end(text, 'sa', 14, 19)
     16
-    >>> rfind_start_end(text, 'sa', 14, 19)
+    >>> test_rfind_start_end(text, 'sa', None, None)
+    20
+    >>> test_rfind_start_end(text, 'sa', 16, None)
+    20
+    >>> test_rfind_start_end(text, 'sa', 21, None)
+    -1
+    >>> test_rfind_start_end(text, 'sa', None, 22)
+    20
+    >>> test_rfind_start_end(text, 'sa', None, 21)
     16
     """
     cdef Py_ssize_t pos = s.rfind(substring, start, end)
@@ -629,9 +700,12 @@ def rfind_start_end(unicode s, substring, start, end):
     "//PythonCapiCallNode")
 def count(unicode s, substring):
     """
-    >>> text.count('sa')
-    2
-    >>> count(text, 'sa')
+    >>> def test_count(s, substring):
+    ...     py = s.count(substring)
+    ...     cy = count(s, substring)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_count(text, 'sa')
     2
     """
     cdef Py_ssize_t pos = s.count(substring)
@@ -644,14 +718,25 @@ def count(unicode s, substring):
     "//PythonCapiCallNode")
 def count_start_end(unicode s, substring, start, end):
     """
-    >>> text.count('sa', 14, 21)
+    >>> def test_count_start_end(s, substring, start, end):
+    ...     py = s.count(substring, start, end)
+    ...     cy = count_start_end(s, substring, start, end)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> test_count_start_end(text, 'sa', 14, 21)
     1
-    >>> text.count('sa', 14, 22)
+    >>> test_count_start_end(text, 'sa', 14, 22)
     2
-    >>> count_start_end(text, 'sa', 14, 21)
+    >>> test_count_start_end(text, 'sa', None, None)
+    2
+    >>> test_count_start_end(text, 'sa', 14, None)
+    2
+    >>> test_count_start_end(text, 'sa', 17, None)
     1
-    >>> count_start_end(text, 'sa', 14, 22)
+    >>> test_count_start_end(text, 'sa', None, 23)
     2
+    >>> test_count_start_end(text, 'sa', None, 20)
+    1
     """
     cdef Py_ssize_t pos = s.count(substring, start, end)
     return pos
@@ -666,10 +751,13 @@ def count_start_end(unicode s, substring, start, end):
     "//PythonCapiCallNode")
 def replace(unicode s, substring, repl):
     """
-    >>> print( text.replace('sa', 'SA') )
-    ab jd  sdflk as SA  SAdas asdas fsdf 
-    >>> print( replace(text, 'sa', 'SA') )
-    ab jd  sdflk as SA  SAdas asdas fsdf 
+    >>> def test_replace(s, substring, repl):
+    ...     py = s.replace(substring, repl)
+    ...     cy = replace(s, substring, repl)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> print( test_replace(text, 'sa', 'SA') )
+    ab jd  sdflk as SA  SAdas asdas fsdf\x20
     """
     return s.replace(substring, repl)
 
@@ -680,9 +768,12 @@ def replace(unicode s, substring, repl):
     "//PythonCapiCallNode")
 def replace_maxcount(unicode s, substring, repl, maxcount):
     """
-    >>> print( text.replace('sa', 'SA', 1) )
-    ab jd  sdflk as SA  sadas asdas fsdf 
-    >>> print( replace_maxcount(text, 'sa', 'SA', 1) )
-    ab jd  sdflk as SA  sadas asdas fsdf 
+    >>> def test_replace_maxcount(s, substring, repl, maxcount):
+    ...     py = s.replace(substring, repl, maxcount)
+    ...     cy = replace_maxcount(s, substring, repl, maxcount)
+    ...     assert py == cy, (py, cy)
+    ...     return cy
+    >>> print( test_replace_maxcount(text, 'sa', 'SA', 1) )
+    ab jd  sdflk as SA  sadas asdas fsdf\x20
     """
     return s.replace(substring, repl, maxcount)

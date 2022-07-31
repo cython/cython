@@ -4,8 +4,9 @@
 from __future__ import absolute_import
 
 import cython
-cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
-               Builtin=object, InternalError=object, error=object, warning=object,
+cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object, Builtin=object,
+               Options=object, TreeVisitor=object, CythonTransform=object,
+               InternalError=object, error=object, warning=object,
                fake_rhs_expr=object, TypedExprNode=object)
 
 from . import Builtin
@@ -16,7 +17,6 @@ from . import PyrexTypes
 
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
-from .Optimize import ConstantFolding
 
 
 class TypedExprNode(ExprNodes.ExprNode):
@@ -110,6 +110,7 @@ class ControlFlow(object):
        entries     set    tracked entries
        loops       list   stack for loop descriptors
        exceptions  list   stack for exception descriptors
+       in_try_block  int  track if we're in a try...except or try...finally block
     """
 
     def __init__(self):
@@ -122,6 +123,7 @@ class ControlFlow(object):
         self.exit_point = ExitBlock()
         self.blocks.add(self.exit_point)
         self.block = self.entry_point
+        self.in_try_block = 0
 
     def newblock(self, parent=None):
         """Create floating block linked to `parent` if given.
@@ -592,7 +594,7 @@ def check_definitions(flow, compiler_directives):
             if (node.allow_null or entry.from_closure
                     or entry.is_pyclass_attr or entry.type.is_error):
                 pass  # Can be uninitialized here
-            elif node.cf_is_null:
+            elif node.cf_is_null and not entry.in_closure:
                 if entry.error_on_uninitialized or (
                         Options.error_on_uninitialized and (
                         entry.type.is_pyobject or entry.type.is_unspecified)):
@@ -606,10 +608,12 @@ def check_definitions(flow, compiler_directives):
                         "local variable '%s' referenced before assignment"
                         % entry.name)
             elif warn_maybe_uninitialized:
+                msg = "local variable '%s' might be referenced before assignment" % entry.name
+                if entry.in_closure:
+                    msg += " (maybe initialized inside a closure)"
                 messages.warning(
                     node.pos,
-                    "local variable '%s' might be referenced before assignment"
-                    % entry.name)
+                    msg)
         elif Unknown in node.cf_state:
             # TODO: better cross-closure analysis to know when inner functions
             #       are being called before a variable is being set, and when
@@ -663,7 +667,7 @@ class AssignmentCollector(TreeVisitor):
         self.assignments = []
 
     def visit_Node(self):
-        self._visitchildren(self, None)
+        self._visitchildren(self, None, None)
 
     def visit_SingleAssignmentNode(self, node):
         self.assignments.append((node.lhs, node.rhs))
@@ -686,6 +690,8 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_ModuleNode(self, node):
         dot_output = self.current_directives['control_flow.dot_output']
         self.gv_ctx = GVContext() if dot_output else None
+
+        from .Optimize import ConstantFolding
         self.constant_folder = ConstantFolding()
 
         # Set of NameNode reductions
@@ -1172,7 +1178,9 @@ class ControlFlowAnalysis(CythonTransform):
         ## XXX: children nodes
         self.flow.block.add_child(entry_point)
         self.flow.nextblock()
+        self.flow.in_try_block += 1
         self._visit(node.body)
+        self.flow.in_try_block -= 1
         self.flow.exceptions.pop()
 
         # After exception
@@ -1232,7 +1240,9 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.block = body_block
         body_block.add_child(entry_point)
         self.flow.nextblock()
+        self.flow.in_try_block += 1
         self._visit(node.body)
+        self.flow.in_try_block -= 1
         self.flow.exceptions.pop()
         if self.flow.loops:
             self.flow.loops[-1].exceptions.pop()
@@ -1251,6 +1261,8 @@ class ControlFlowAnalysis(CythonTransform):
         if self.flow.exceptions:
             self.flow.block.add_child(self.flow.exceptions[-1].entry_point)
         self.flow.block = None
+        if self.flow.in_try_block:
+            node.in_try_block = True
         return node
 
     def visit_ReraiseStatNode(self, node):

@@ -107,7 +107,7 @@ def test_use_positional_as_keyword1(a, /):
     >>> test_use_positional_as_keyword1(1)
     >>> test_use_positional_as_keyword1(a=1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword1() ... keyword arguments...
+    TypeError: test_use_positional_as_keyword1() ... keyword argument...
     """
 
 def test_use_positional_as_keyword2(a, /, b):
@@ -116,7 +116,7 @@ def test_use_positional_as_keyword2(a, /, b):
     >>> test_use_positional_as_keyword2(1, b=2)
     >>> test_use_positional_as_keyword2(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword2() ... positional...arguments...
+    TypeError: test_use_positional_as_keyword2() ... positional...argument...
     """
 
 def test_use_positional_as_keyword3(a, b, /):
@@ -212,7 +212,7 @@ def test_no_standard_args_usage(a, b, /, *, c):
     >>> test_no_standard_args_usage(1, 2, c=3)
     >>> test_no_standard_args_usage(1, b=2, c=3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_no_standard_args_usage() ... positional... arguments...
+    TypeError: test_no_standard_args_usage() ... positional... argument...
     """
 
 #def test_change_default_pos_only():
@@ -383,7 +383,7 @@ def test_serialization2(a, /, b):
     (1, 2)
     >>> unpickled_optional(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_serialization2() ... positional... arguments...
+    TypeError: test_serialization2() ... positional... argument...
     """
     return (a, b)
 

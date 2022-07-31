@@ -155,7 +155,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 
 /////////////// PyType_Ready.proto ///////////////
 
-static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+// unused when using type specs
+static CYTHON_UNUSED int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
@@ -177,10 +178,11 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 #else
     int r;
-    if (t->tp_bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, t->tp_bases) == -1))
+    PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
+    if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
 
-#if PY_VERSION_HEX >= 0x03050000
+#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
@@ -235,7 +237,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
     r = PyType_Ready(t);
 
-#if PY_VERSION_HEX >= 0x03050000
+#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
     #if PY_VERSION_HEX >= 0x030A00b1
@@ -276,7 +278,12 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 // This requires CPython version >= 2.7.4
 // (or >= 3.2.4 but we don't support such old Python 3 versions anyway)
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
+// https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
+// is no longer necessary
+#define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN
+#define __Pyx_TRASHCAN_END Py_TRASHCAN_END
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
 #define __Pyx_TRASHCAN_BEGIN_CONDITION(op, cond) \
     do { \
         PyThreadState *_tstate = NULL; \
@@ -302,7 +309,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     } while (0);
 
 #define __Pyx_TRASHCAN_BEGIN(op, dealloc) __Pyx_TRASHCAN_BEGIN_CONDITION(op, \
-        Py_TYPE(op)->tp_dealloc == (destructor)(dealloc))
+        __Pyx_PyObject_GetSlot(op, tp_dealloc, destructor) == (destructor)(dealloc))
 
 #else
 // The trashcan is a no-op on other Python implementations
@@ -319,13 +326,14 @@ static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_deal
 
 static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc) {
     PyTypeObject* type = Py_TYPE(obj);
+    destructor tp_dealloc = NULL;
     /* try to find the first parent type that has a different tp_dealloc() function */
-    while (type && type->tp_dealloc != current_tp_dealloc)
-        type = type->tp_base;
-    while (type && type->tp_dealloc == current_tp_dealloc)
-        type = type->tp_base;
+    while (type && __Pyx_PyType_GetSlot(type, tp_dealloc, destructor) != current_tp_dealloc)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    while (type && (tp_dealloc = __Pyx_PyType_GetSlot(type, tp_dealloc, destructor)) == current_tp_dealloc)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
     if (type)
-        type->tp_dealloc(obj);
+        tp_dealloc(obj);
 }
 
 /////////////// CallNextTpTraverse.proto ///////////////
@@ -336,32 +344,34 @@ static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, trav
 
 static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, traverseproc current_tp_traverse) {
     PyTypeObject* type = Py_TYPE(obj);
+    traverseproc tp_traverse = NULL;
     /* try to find the first parent type that has a different tp_traverse() function */
-    while (type && type->tp_traverse != current_tp_traverse)
-        type = type->tp_base;
-    while (type && type->tp_traverse == current_tp_traverse)
-        type = type->tp_base;
-    if (type && type->tp_traverse)
-        return type->tp_traverse(obj, v, a);
+    while (type && __Pyx_PyType_GetSlot(type, tp_traverse, traverseproc) != current_tp_traverse)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    while (type && (tp_traverse = __Pyx_PyType_GetSlot(type, tp_traverse, traverseproc)) == current_tp_traverse)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    if (type && tp_traverse)
+        return tp_traverse(obj, v, a);
     // FIXME: really ignore?
     return 0;
 }
 
 /////////////// CallNextTpClear.proto ///////////////
 
-static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_dealloc);
+static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear);
 
 /////////////// CallNextTpClear ///////////////
 
 static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
     PyTypeObject* type = Py_TYPE(obj);
+    inquiry tp_clear = NULL;
     /* try to find the first parent type that has a different tp_clear() function */
-    while (type && type->tp_clear != current_tp_clear)
-        type = type->tp_base;
-    while (type && type->tp_clear == current_tp_clear)
-        type = type->tp_base;
-    if (type && type->tp_clear)
-        type->tp_clear(obj);
+    while (type && __Pyx_PyType_GetSlot(type, tp_clear, inquiry) != current_tp_clear)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    while (type && (tp_clear = __Pyx_PyType_GetSlot(type, tp_clear, inquiry)) == current_tp_clear)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    if (type && tp_clear)
+        tp_clear(obj);
 }
 
 /////////////// SetupReduce.proto ///////////////
@@ -399,18 +409,37 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
 static int __Pyx_setup_reduce(PyObject* type_obj) {
     int ret = 0;
     PyObject *object_reduce = NULL;
+    PyObject *object_getstate = NULL;
     PyObject *object_reduce_ex = NULL;
     PyObject *reduce = NULL;
     PyObject *reduce_ex = NULL;
     PyObject *reduce_cython = NULL;
     PyObject *setstate = NULL;
     PyObject *setstate_cython = NULL;
+    PyObject *getstate = NULL;
 
 #if CYTHON_USE_PYTYPE_LOOKUP
-    if (_PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"))) goto __PYX_GOOD;
+    getstate = _PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"));
 #else
-    if (PyObject_HasAttr(type_obj, PYIDENT("__getstate__"))) goto __PYX_GOOD;
+    getstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__getstate__"));
+    if (!getstate && PyErr_Occurred()) {
+        goto __PYX_BAD;
+    }
 #endif
+    if (getstate) {
+        // Python 3.11 introduces object.__getstate__. Because it's version-specific failure to find it should not be an error
+#if CYTHON_USE_PYTYPE_LOOKUP
+        object_getstate = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__getstate__"));
+#else
+        object_getstate = __Pyx_PyObject_GetAttrStrNoError((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"));
+        if (!object_getstate && PyErr_Occurred()) {
+            goto __PYX_BAD;
+        }
+#endif
+        if (object_getstate != getstate) {
+            goto __PYX_GOOD;
+        }
+    }
 
 #if CYTHON_USE_PYTYPE_LOOKUP
     object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
@@ -470,6 +499,8 @@ __PYX_GOOD:
 #if !CYTHON_USE_PYTYPE_LOOKUP
     Py_XDECREF(object_reduce);
     Py_XDECREF(object_reduce_ex);
+    Py_XDECREF(object_getstate);
+    Py_XDECREF(getstate);
 #endif
     Py_XDECREF(reduce);
     Py_XDECREF(reduce_ex);
@@ -532,4 +563,38 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
         return {{call_right}};
     }
     return __Pyx_NewRef(Py_NotImplemented);
+}
+
+/////////////// ValidateExternBase.proto ///////////////
+
+static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
+
+/////////////// ValidateExternBase ///////////////
+//@requires: ObjectHandling.c::FormatTypeName
+
+static int __Pyx_validate_extern_base(PyTypeObject *base) {
+    Py_ssize_t itemsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_itemsize;
+#endif
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    itemsize = ((PyTypeObject *)base)->tp_itemsize;
+#else
+    py_itemsize = PyObject_GetAttrString(base, "__itemsize__");
+    if (!py_itemsize)
+        return -1;
+    itemsize = PyLong_AsSsize_t(py_itemsize);
+    Py_DECREF(py_itemsize);
+    py_itemsize = 0;
+    if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        return -1;
+#endif
+    if (itemsize) {
+        __Pyx_TypeName b_name = __Pyx_PyType_GetName(base);
+        PyErr_Format(PyExc_TypeError,
+                "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
+        __Pyx_DECREF_TypeName(b_name);
+        return -1;
+    }
+    return 0;
 }

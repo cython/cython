@@ -59,6 +59,8 @@ cdef class ControlFlow:
 
      cdef public dict assmts
 
+     cdef public Py_ssize_t in_try_block
+
      cpdef newblock(self, ControlBlock parent=*)
      cpdef nextblock(self, ControlBlock parent=*)
      cpdef bint is_tracked(self, entry)
