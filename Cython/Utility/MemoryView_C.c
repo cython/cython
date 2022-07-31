@@ -28,8 +28,8 @@ typedef struct {
 #define __pyx_atomic_int_type int
 #define __pyx_nonatomic_int_type int
 
-// for standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
-// defined when we decide to use them
+// For standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
+// defined when we decide to use them.
 #if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
                         (__STDC_VERSION__ >= 201112L) && \
                         !defined(__STDC_NO_ATOMICS__))
