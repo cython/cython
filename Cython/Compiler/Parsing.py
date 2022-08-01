@@ -4222,12 +4222,11 @@ def p_literal_pattern(s):
     if res:
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
+    if next_must_be_a_number:
+        s.error("Expected a number")
     if sy == 'BEGIN_STRING':
-        if next_must_be_a_number:
-            s.error("Expected a number")
         res = parse_atom_string(pos, s)
-        if isinstance(res, ExprNodes.JoinedStrNode):
-            res = Nodes.ErrorNode(pos, what="f-strings are not accepted for pattern matching")
+        # f-strings not being accepted is validated in PostParse
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
     elif sy == 'IDENT':
         # Note that p_atom_ident_constants includes NULL.

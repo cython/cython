@@ -397,6 +397,19 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+    def visit_MatchValuePatternNode(self, node):
+        if isinstance(node.value, ExprNodes.JoinedStrNode):
+            error(node.value.pos, "f-strings are not accepted for pattern matching")
+        self.visitchildren(node)
+        return node
+
+    def visit_MatchMappingPatternNode(self, node):
+        for key in node.keys:
+            if isinstance(key, ExprNodes.JoinedStrNode):
+                error(key.pos, "f-strings are not accepted for pattern matching")
+        self.visitchildren(node)
+        return node
+
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
         super(_AssignmentExpressionTargetNameFinder, self).__init__()
