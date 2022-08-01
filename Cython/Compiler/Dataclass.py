@@ -7,16 +7,14 @@ import operator
 from . import ExprNodes
 from . import Nodes
 from . import PyrexTypes
-from . import UtilNodes
 from . import Builtin
 from . import Naming
 from .Errors import error, warning
 from .Code import UtilityCode, TempitaUtilityCode
 from .Visitor import VisitorTransform
-from .StringEncoding import BytesLiteral, EncodedString
+from .StringEncoding import EncodedString
 from .TreeFragment import TreeFragment
-from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
-                                  MarkClosureVisitor)
+from .ParseTreeTransforms import NormalizeTree, SkipDeclarations
 from .Options import copy_inherited_directives
 
 _dataclass_loader_utilitycode = None
@@ -156,12 +154,10 @@ def process_class_get_fields(node):
 
     for entry in var_entries:
         name = entry.name
-        is_initvar = (entry.type.python_type_constructor_name == "dataclasses.InitVar")
+        is_initvar = entry.declared_with_pytyping_modifier("dataclasses.InitVar")
         # TODO - classvars aren't included in "var_entries" so are missed here
         # and thus this code is never triggered
-        is_classvar = (entry.type.python_type_constructor_name == "typing.ClassVar")
-        if is_initvar or is_classvar:
-            entry.type = entry.type.resolve()  # no longer need the special type
+        is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
         if name in default_value_assignments:
             assignment = default_value_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -208,7 +204,8 @@ def process_class_get_fields(node):
 def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
-                  order=False, unsafe_hash=False, frozen=False)
+                  order=False, unsafe_hash=False,
+                  frozen=False, kw_only=False)
     if dataclass_args is not None:
         if dataclass_args[0]:
             error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
@@ -220,6 +217,9 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
             kwargs[k] = v
+
+    # remove everything that does not belong into _DataclassParams()
+    kw_only = kwargs.pop("kw_only")
 
     fields = process_class_get_fields(node)
 
@@ -252,7 +252,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     code_lines = []
     placeholders = {}
     extra_stats = []
-    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields),
+    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kw_only),
                         generate_repr_code(kwargs['repr'], node, fields),
                         generate_eq_code(kwargs['eq'], node, fields),
                         generate_order_code(kwargs['order'], node, fields),
@@ -283,7 +283,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(init, node, fields):
+def generate_init_code(init, node, fields, kw_only):
     """
     All of these "generate_*_code" functions return a tuple of:
     - code string
@@ -308,6 +308,9 @@ def generate_init_code(init, node, fields):
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
+
+    if kw_only:
+        args.append("*")
 
     placeholders = {}
     placeholder_count = [0]
@@ -338,8 +341,6 @@ def generate_init_code(init, node, fields):
 
     seen_default = False
     for name, field in fields.items():
-        if not field.init.value:
-            continue
         entry = node.scope.lookup(name)
         if entry.annotation:
             annotation = u": %s" % entry.annotation.string.value
@@ -354,18 +355,22 @@ def generate_init_code(init, node, fields):
                 ph_name = get_placeholder_name()
                 placeholders[ph_name] = field.default  # should be a node
             assignment = u" = %s" % ph_name
-        elif seen_default:
+        elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
             return "", {}, []
 
-        args.append(u"%s%s%s" % (name, annotation, assignment))
+        if field.init.value:
+            args.append(u"%s%s%s" % (name, annotation, assignment))
 
         if field.is_initvar:
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
                 function_body_code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
+            elif assignment:
+                # not an argument to the function, but is still initialized
+                function_body_code_lines.append(u"    %s.%s%s" % (selfname, name, assignment))
         else:
             ph_name = get_placeholder_name()
             placeholders[ph_name] = field.default_factory
@@ -592,7 +597,7 @@ def get_field_type(pos, entry):
         # try to return PyType_Type. This case should only happen with
         # attributes defined with cdef so Cython is free to make it's own
         # decision
-        s = entry.type.declaration_code("", for_display=1)
+        s = EncodedString(entry.type.declaration_code("", for_display=1))
         return ExprNodes.StringNode(pos, value=s)
 
 
@@ -661,8 +666,11 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 name)
             # create an entry in the global scope for this variable to live
             field_node = ExprNodes.NameNode(field_default.pos, name=EncodedString(module_field_name))
-            field_node.entry = global_scope.declare_var(field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
-                                                pos=field_default.pos, cname=field_node.name, is_cdef=1)
+            field_node.entry = global_scope.declare_var(
+                field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
+                pos=field_default.pos, cname=field_node.name, is_cdef=True,
+                # TODO: do we need to set 'pytyping_modifiers' here?
+            )
             # replace the field so that future users just receive the namenode
             setattr(field, attrname, field_node)
 

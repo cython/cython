@@ -5,11 +5,10 @@
 from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
-from . import Options
 
 
 # C-level implementations of builtin types, functions and methods
@@ -274,12 +273,10 @@ builtin_types_table = [
                                     ]),
     ("bytearray", "PyByteArray_Type", [
                                     ]),
-    ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
+    ("bytes",   "PyBytes_Type",    [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
-    ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
+    ("str",     "PyString_Type",   [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
                                                   builtin_return_type='basestring',
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
@@ -287,11 +284,9 @@ builtin_types_table = [
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     ]),
 
-    ("tuple",   "PyTuple_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    ]),
+    ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
+    ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
                                     BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
@@ -329,8 +324,7 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
+    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
                                     BuiltinMethod("discard", "TO", "r", "__Pyx_PySet_Discard",
                                                   utility_code=UtilityCode.load("py_set_discard", "Optimize.c")),
@@ -450,6 +444,16 @@ def init_builtins():
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 
+    # Set up type inference links between equivalent Python/C types
+    bool_type.equivalent_type = PyrexTypes.c_bint_type
+    PyrexTypes.c_bint_type.equivalent_type = bool_type
+
+    float_type.equivalent_type = PyrexTypes.c_double_type
+    PyrexTypes.c_double_type.equivalent_type = float_type
+
+    complex_type.equivalent_type = PyrexTypes.c_double_complex_type
+    PyrexTypes.c_double_complex_type.equivalent_type = complex_type
+
 
 init_builtins()
 
@@ -472,21 +476,35 @@ def get_known_standard_library_module_scope(module_name):
                 ('Set', set_type),
                 ('FrozenSet', frozenset_type),
                 ]:
-            name = EncodedString(name)
             if name == "Tuple":
                 indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
             else:
                 indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
+            name = EncodedString(name)
             entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
 
         for name in ['ClassVar', 'Optional']:
+            name = EncodedString(name)
             indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
             entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)
         indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
-        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        initvar_string = EncodedString("InitVar")
+        entry = mod.declare_type(initvar_string, indexed_type, pos = None)
+        var_entry = Entry(initvar_string, None, PyrexTypes.py_object_type)
+        var_entry.is_pyglobal = True
+        var_entry.scope = mod
+        entry.as_variable = var_entry
         _known_module_scopes[module_name] = mod
     return mod
 

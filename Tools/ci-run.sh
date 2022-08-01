@@ -108,7 +108,16 @@ export PATH="/usr/lib/ccache:$PATH"
 # Most modern compilers allow the last conflicting option
 # to override the previous ones, so '-O0 -O3' == '-O3'
 # This is true for the latest msvc, gcc and clang
-CFLAGS="-O0 -ggdb -Wall -Wextra"
+if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
+  # /wd disables warnings
+  # 4711 warns that function `x` was selected for automatic inline expansion
+  # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
+  # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
+  # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
+  CFLAGS="-Od /Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820"
+else
+  CFLAGS="-O0 -ggdb -Wall -Wextra"
+fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
@@ -141,7 +150,7 @@ fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   make -C docs html || exit 1
-elif [[ $PYTHON_VERSION != "pypy"* ]]; then
+elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')

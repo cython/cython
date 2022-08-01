@@ -29,6 +29,7 @@ In pure mode, you are more or less restricted to code that can be expressed
 beyond that can only be done in .pyx files with extended language syntax,
 because it depends on features of the Cython compiler.
 
+.. _augmenting_pxd:
 
 Augmenting .pxd
 ---------------
@@ -208,6 +209,48 @@ Here is an example of a :keyword:`cdef` function::
     def c_compare(a,b):
         return a == b
 
+
+Managing the Global Interpreter Lock
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword:`nogil` keyword::
+
+    with cython.nogil:
+        # code block with the GIL released
+
+    @cython.nogil
+    @cython.cfunc
+    def func_released_gil() -> cython.int:
+        # function with the GIL released
+
+* ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
+
+    with cython.gil:
+        # code block with the GIL acquired
+
+  .. Note:: Cython currently does not support the ``@cython.with_gil`` decorator.
+
+Both directives accept an optional boolean parameter for conditionally
+releasing or acquiring the GIL. The condition must be constant (at compile time)::
+
+  with cython.nogil(False):
+      # code block with the GIL not released
+
+  @cython.nogil(True)
+  @cython.cfunc
+  def func_released_gil() -> cython.int:
+      # function with the GIL released
+
+  with cython.gil(False):
+      # code block with the GIL not acquired
+
+  with cython.gil(True):
+      # code block with the GIL acquired
+
+A common use case for conditionally acquiring and releasing the GIL are fused types
+that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
+
+.. py:module:: cython.cimports
 
 cimports
 ^^^^^^^^
