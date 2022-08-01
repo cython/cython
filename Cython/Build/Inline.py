@@ -52,7 +52,7 @@ else:
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
-        CythonTransform.__init__(self, None)
+        super(EnvTransform, self).__init__(context=None)
         self.unbound = set()
     def visit_NameNode(self, node):
         if not self.current_env().lookup(node.name):

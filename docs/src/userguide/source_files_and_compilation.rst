@@ -614,7 +614,7 @@ Compiling with ``cython.compile``
 =================================
 
 Cython supports transparent compiling of the cython code in a function using the
-``@cython.compile`` dedorator::
+``@cython.compile`` decorator::
 
     @cython.compile
     def plus(a, b):
@@ -946,7 +946,8 @@ Cython code.  Here is the list of currently supported directives:
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
-    Must be set globally.
+    From Cython 3.0, ``annotation_typing`` can be set on a per-function or
+    per-class basis.
 
 ``emit_code_comments`` (True / False)
     Copy the original source code line by line into C code comments in the generated

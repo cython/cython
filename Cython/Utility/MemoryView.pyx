@@ -13,23 +13,20 @@ cimport cython
 cdef extern from "Python.h":
     ctypedef struct PyObject
     int PyIndex_Check(object)
-    object PyLong_FromVoidPtr(void *)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
-    PyObject *PyExc_MemoryError
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
     PyThread_type_lock PyThread_allocate_lock()
     void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
-    void PyThread_release_lock(PyThread_type_lock) nogil
 
 cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
 
 cdef extern from *:
+    bint __PYX_CYTHON_ATOMICS_ENABLED()
     int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
@@ -96,6 +93,17 @@ cdef extern from "<stdlib.h>":
     void *malloc(size_t) nogil
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
+
+# the sequence abstract base class
+cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
+try:
+    if __import__("sys").version_info >= (3, 3):
+        __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
+    else:
+        __pyx_collections_abc_Sequence = __import__("collections").Sequence
+except:
+    # it isn't a big problem if this fails
+    __pyx_collections_abc_Sequence = None
 
 #
 ### cython.array class
@@ -228,6 +236,12 @@ cdef class array:
     def __setitem__(self, item, value):
         self.memview[item] = value
 
+    # Sequence methods
+    try:
+        count = __pyx_collections_abc_Sequence.count
+        index = __pyx_collections_abc_Sequence.index
+    except:
+        pass
 
 @cname("__pyx_array_allocate_buffer")
 cdef int _allocate_buffer(array self) except -1:
@@ -353,14 +367,15 @@ cdef class memoryview:
                 (<__pyx_buffer *> &self.view).obj = Py_None
                 Py_INCREF(Py_None)
 
-        global __pyx_memoryview_thread_locks_used
-        if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
-            self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
-            __pyx_memoryview_thread_locks_used += 1
-        if self.lock is NULL:
-            self.lock = PyThread_allocate_lock()
+        if not __PYX_CYTHON_ATOMICS_ENABLED():
+            global __pyx_memoryview_thread_locks_used
+            if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
+                self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
+                __pyx_memoryview_thread_locks_used += 1
             if self.lock is NULL:
-                raise MemoryError
+                self.lock = PyThread_allocate_lock()
+                if self.lock is NULL:
+                    raise MemoryError
 
         if flags & PyBUF_FORMAT:
             self.dtype_is_object = (self.view.format[0] == b'O' and self.view.format[1] == b'\0')
@@ -786,22 +801,6 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 ### Slicing in a single dimension of a memoryviewslice
 #
 
-cdef extern from "<stdlib.h>":
-    void abort() nogil
-    void printf(char *s, ...) nogil
-
-cdef extern from "<stdio.h>":
-    ctypedef struct FILE
-    FILE *stderr
-    int fputs(char *s, FILE *stream)
-
-cdef extern from "pystate.h":
-    void PyThreadState_Get() nogil
-
-    # These are not actually nogil, but we check for the GIL before calling them
-    void PyErr_SetString(PyObject *type, char *msg) nogil
-    PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
-
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef int slice_memviewslice(
         {{memviewslice_name}} *dst,
@@ -990,6 +989,22 @@ cdef class _memoryviewslice(memoryview):
     cdef _get_base(self):
         return self.from_object
 
+    # Sequence methods
+    try:
+        count = __pyx_collections_abc_Sequence.count
+        index = __pyx_collections_abc_Sequence.index
+    except:
+        pass
+
+try:
+    if __pyx_collections_abc_Sequence:
+        # The main value of registering _memoryviewslice as a
+        # Sequence is that it can be used in structural pattern
+        # matching in Python 3.10+
+        __pyx_collections_abc_Sequence.register(_memoryviewslice)
+        __pyx_collections_abc_Sequence.register(array)
+except:
+    pass  # ignore failure, it's a minor issue
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} memviewslice,

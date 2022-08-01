@@ -1,5 +1,5 @@
 # mode: run
-# tags: cpp, cpp17
+# tag: cpp, cpp17
 
 from libcpp.algorithm cimport sample
 from libcpp.iterator cimport back_inserter
