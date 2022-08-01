@@ -735,35 +735,50 @@ def p_atom(s):
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
     elif sy == 'BEGIN_STRING':
-        kind, bytes_value, unicode_value = p_cat_string_literal(s)
-        if kind == 'c':
-            return ExprNodes.CharNode(pos, value = bytes_value)
-        elif kind == 'u':
-            return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
-        elif kind == 'b':
-            return ExprNodes.BytesNode(pos, value = bytes_value)
-        elif kind == 'f':
-            return ExprNodes.JoinedStrNode(pos, values = unicode_value)
-        elif kind == '':
-            return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
-        else:
-            s.error("invalid string kind '%s'" % kind)
+        return parse_atom_string(pos, s)
     elif sy == 'IDENT':
-        name = s.systring
-        if name == "None":
-            result = ExprNodes.NoneNode(pos)
-        elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True)
-        elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False)
-        elif name == "NULL" and not s.in_python_file:
-            result = ExprNodes.NullNode(pos)
-        else:
-            result = p_name(s, name)
+        result = parse_atom_ident_constants(pos, s)
+        if result is None:
+            result = p_name(s, name = s.systring)
         s.next()
         return result
     else:
         s.error("Expected an identifier or literal")
+
+
+def parse_atom_string(pos, s):
+    kind, bytes_value, unicode_value = p_cat_string_literal(s)
+    if kind == 'c':
+        return ExprNodes.CharNode(pos, value = bytes_value)
+    elif kind == 'u':
+        return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
+    elif kind == 'b':
+        return ExprNodes.BytesNode(pos, value = bytes_value)
+    elif kind == 'f':
+        return ExprNodes.JoinedStrNode(pos, values = unicode_value)
+    elif kind == '':
+        return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
+    else:
+        s.error("invalid string kind '%s'" % kind)
+
+
+def parse_atom_ident_constants(pos, s):
+    """
+    Returns None if it isn't one special-cased named constants.
+    Does not call s.next()
+    """
+    name = s.systring
+    result = None
+    if name == "None":
+        result = ExprNodes.NoneNode(pos)
+    elif name == "True":
+        result = ExprNodes.BoolNode(pos, value=True)
+    elif name == "False":
+        result = ExprNodes.BoolNode(pos, value=False)
+    elif name == "NULL" and not s.in_python_file:
+        result = ExprNodes.NullNode(pos)
+    return result
+
 
 def p_int_literal(s):
     pos = s.position()
@@ -4210,32 +4225,14 @@ def p_literal_pattern(s):
     if sy == 'BEGIN_STRING':
         if next_must_be_a_number:
             s.error("Expected a number")
-        kind, bytes_value, unicode_value = p_cat_string_literal(s)
-        if kind == 'c':
-            res = ExprNodes.CharNode(pos, value = bytes_value)
-        elif kind == 'u':
-            res = ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
-        elif kind == 'b':
-            res = ExprNodes.BytesNode(pos, value = bytes_value)
-        elif kind == 'f':
+        res = parse_atom_string(pos, s)
+        if isinstance(res, ExprNodes.JoinedStrNode):
             res = Nodes.ErrorNode(pos, what = "f-strings are not accepted for pattern matching")
-        elif kind == '':
-            res = ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
-        else:
-            s.error("invalid string kind '%s'" % kind)
         return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
     elif sy == 'IDENT':
-        name = s.systring
-        result = None
-        if name == "None":
-            result = ExprNodes.NoneNode(pos)
-        elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True)
-        elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False)
-        elif name == "NULL" and not s.in_python_file:
-            # Included Null as an exactly matched constant here
-            result = ExprNodes.NullNode(pos)
+        # Note that p_atom_ident_constants includes NULL.
+        # This is a deliberate Cython addition to the pattern matching specification
+        result = parse_atom_ident_constants(pos, s)
         if result:
             s.next()
             return MatchCaseNodes.MatchValuePatternNode(pos, value = result, is_is_check = True)

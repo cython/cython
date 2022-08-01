@@ -64,6 +64,8 @@ cdef expect_ellipsis(PyrexScanner s)
 cdef make_slice_nodes(pos, subscripts)
 cpdef make_slice_node(pos, start, stop = *, step = *)
 cdef p_atom(PyrexScanner s)
+cdef parse_atom_string(pos, PyrexScanner s):
+cdef parse_atom_ident_constants(pos, PyrexScanner s):
 @cython.locals(value=unicode)
 cdef p_int_literal(PyrexScanner s)
 cdef p_name(PyrexScanner s, name)
