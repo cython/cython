@@ -739,7 +739,7 @@ def p_atom(s):
     elif sy == 'IDENT':
         result = parse_atom_ident_constants(pos, s)
         if result is None:
-            result = p_name(s, name = s.systring)
+            result = p_name(s, s.systring)
         s.next()
         return result
     else:
@@ -749,15 +749,15 @@ def p_atom(s):
 def parse_atom_string(pos, s):
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
     if kind == 'c':
-        return ExprNodes.CharNode(pos, value = bytes_value)
+        return ExprNodes.CharNode(pos, value=bytes_value)
     elif kind == 'u':
-        return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
+        return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
     elif kind == 'b':
-        return ExprNodes.BytesNode(pos, value = bytes_value)
+        return ExprNodes.BytesNode(pos, value=bytes_value)
     elif kind == 'f':
-        return ExprNodes.JoinedStrNode(pos, values = unicode_value)
+        return ExprNodes.JoinedStrNode(pos, values=unicode_value)
     elif kind == '':
-        return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
+        return ExprNodes.StringNode(pos, value=bytes_value, unicode_value=unicode_value)
     else:
         s.error("invalid string kind '%s'" % kind)
 
@@ -4019,7 +4019,7 @@ def p_match_statement(s, ctx):
     while s.sy != "DEDENT":
         cases.append(p_case_block(s, ctx))
     s.expect_dedent()
-    return MatchCaseNodes.MatchNode(pos, subject = subject, cases = cases)
+    return MatchCaseNodes.MatchNode(pos, subject=subject, cases=cases)
 
 
 def p_case_block(s, ctx):
@@ -4051,7 +4051,7 @@ def p_patterns(s):
                 break  # all is good provided we have at least 1 pattern
             else:
                 e = errors[0]
-                s.error(e.args[1], pos = e.args[0])
+                s.error(e.args[1], pos=e.args[0])
         patterns.append(pattern)
 
         if s.sy == ",":
@@ -4063,7 +4063,7 @@ def p_patterns(s):
             break
 
     if seq:
-        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns = patterns)
+        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
         return patterns[0]
 
@@ -4079,7 +4079,7 @@ def p_maybe_star_pattern(s):
         else:
             s.next()
         pattern = MatchCaseNodes.MatchAndAssignPatternNode(
-            s.position(), target = target, is_star = True
+            s.position(), target=target, is_star=True
         )
         return pattern
     else:
@@ -4102,7 +4102,7 @@ def p_pattern(s):
     if len(patterns) > 1:
         pattern = MatchCaseNodes.OrPatternNode(
             pos,
-            alternatives = patterns
+            alternatives=patterns
         )
     else:
         pattern = patterns[0]
@@ -4114,11 +4114,11 @@ def p_pattern(s):
         if errors and s.sy == "_":
             s.next()
             # make this a specific error
-            return Nodes.ErrorNode(errors[0].args[0], what = errors[0].args[1])
+            return Nodes.ErrorNode(errors[0].args[0], what=errors[0].args[1])
         elif errors:
             with tentatively_scan(s):
                 expr = p_test(s)
-                return Nodes.ErrorNode(expr.pos, what = "Invalid pattern target")
+                return Nodes.ErrorNode(expr.pos, what="Invalid pattern target")
             s.error(errors[0])
     return pattern
 
@@ -4191,7 +4191,7 @@ def p_literal_pattern(s):
     elif sy == 'FLOAT':
         value = s.systring
         s.next()
-        res = ExprNodes.FloatNode(pos, value = value)
+        res = ExprNodes.FloatNode(pos, value=value)
 
     if res and sign == "-":
         res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
@@ -4208,34 +4208,34 @@ def p_literal_pattern(s):
             res = ExprNodes.binop_node(
                 add_pos,
                 sign,
-                operand1 = res,
-                operand2 = ExprNodes.ImagNode(s.position(), value = value)
+                operand1=res,
+                operand2=ExprNodes.ImagNode(s.position(), value=value)
             )
 
     if not res and sy == 'IMAG':
         value = s.systring[:-1]
         s.next()
-        res = ExprNodes.ImagNode(pos, value = sign+value)
+        res = ExprNodes.ImagNode(pos, value=sign+value)
         if sign == "-":
             res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
     if res:
-        return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
+        return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
     if sy == 'BEGIN_STRING':
         if next_must_be_a_number:
             s.error("Expected a number")
         res = parse_atom_string(pos, s)
         if isinstance(res, ExprNodes.JoinedStrNode):
-            res = Nodes.ErrorNode(pos, what = "f-strings are not accepted for pattern matching")
-        return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
+            res = Nodes.ErrorNode(pos, what="f-strings are not accepted for pattern matching")
+        return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
     elif sy == 'IDENT':
         # Note that p_atom_ident_constants includes NULL.
         # This is a deliberate Cython addition to the pattern matching specification
         result = parse_atom_ident_constants(pos, s)
         if result:
             s.next()
-            return MatchCaseNodes.MatchValuePatternNode(pos, value = result, is_is_check = True)
+            return MatchCaseNodes.MatchValuePatternNode(pos, value=result, is_is_check=True)
 
     s.error("Failed to match literal")
 
@@ -4243,7 +4243,7 @@ def p_literal_pattern(s):
 def p_capture_pattern(s):
     return MatchCaseNodes.MatchAndAssignPatternNode(
         s.position(),
-        target = p_pattern_capture_target(s)
+        target=p_pattern_capture_target(s)
     )
 
 
@@ -4259,10 +4259,10 @@ def p_value_pattern(s):
         attr_pos = s.position()
         s.next()
         attr = p_ident(s)
-        res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute = attr)
+        res = ExprNodes.AttributeNode(attr_pos, obj=res, attribute=attr)
     if s.sy in ['(', '=']:
         s.error("Unexpected symbol '%s'" % s.sy)
-    return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
+    return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
 
 def p_group_pattern(s):
@@ -4357,7 +4357,7 @@ def p_class_pattern(s):
         attr_pos = s.position()
         s.next()
         attr = p_ident(s)
-        res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute=attr)
+        res = ExprNodes.AttributeNode(attr_pos, obj=res, attribute=attr)
     class_ = res
 
     s.expect("(")
@@ -4390,7 +4390,7 @@ def p_class_pattern(s):
     if keyword_patterns_error is not None:
         return Nodes.ErrorNode(
             keyword_patterns_error,
-            what = "Positional patterns follow keyword patterns"
+            what="Positional patterns follow keyword patterns"
         )
     return MatchCaseNodes.ClassPatternNode(
         pos, class_ = class_,
