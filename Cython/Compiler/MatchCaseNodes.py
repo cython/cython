@@ -16,7 +16,7 @@ class MatchNode(StatNode):
 
     def validate_irrefutable(self):
         found_irrefutable_case = None
-        for c in self.cases:
+        for case in self.cases:
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
@@ -26,9 +26,9 @@ class MatchNode(StatNode):
                     ),
                 )
                 break
-            if c.is_irrefutable():
-                found_irrefutable_case = c
-            c.validate_irrefutable()
+            if case.is_irrefutable():
+                found_irrefutable_case = case
+            case.validate_irrefutable()
 
     def analyse_expressions(self, env):
         error(self.pos, "Structural pattern match is not yet implemented")
@@ -149,9 +149,9 @@ class OrPatternNode(PatternNode):
     child_attrs = PatternNode.child_attrs + ["alternatives"]
 
     def get_first_irrefutable(self):
-        for a in self.alternatives:
-            if a.is_irrefutable():
-                return a
+        for alternative in self.alternatives:
+            if alternative.is_irrefutable():
+                return alternative
         return None
 
     def is_irrefutable(self):
@@ -162,17 +162,17 @@ class OrPatternNode(PatternNode):
 
     def get_main_pattern_targets(self):
         child_targets = None
-        for ch in self.alternatives:
-            ch_targets = ch.get_targets()
-            if child_targets is not None and child_targets != ch_targets:
+        for alternative in self.alternatives:
+            alternative_targets = alternative.get_targets()
+            if child_targets is not None and child_targets != alternative_targets:
                 error(self.pos, "alternative patterns bind different names")
-            child_targets = ch_targets
+            child_targets = alternative_targets
         return child_targets
 
     def validate_irrefutable(self):
         super(OrPatternNode, self).validate_irrefutable()
         found_irrefutable_case = None
-        for a in self.alternatives:
+        for alternative in self.alternatives:
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
@@ -182,9 +182,9 @@ class OrPatternNode(PatternNode):
                     ),
                 )
                 break
-            if a.is_irrefutable():
-                found_irrefutable_case = a
-            a.validate_irrefutable()
+            if alternative.is_irrefutable():
+                found_irrefutable_case = alternative
+            alternative.validate_irrefutable()
 
 
 class MatchSequencePatternNode(PatternNode):
@@ -196,8 +196,8 @@ class MatchSequencePatternNode(PatternNode):
 
     def get_main_pattern_targets(self):
         targets = set()
-        for p in self.patterns:
-            self.update_targets_with_targets(targets, p.get_targets())
+        for pattern in self.patterns:
+            self.update_targets_with_targets(targets, pattern.get_targets())
         return targets
 
 
@@ -220,8 +220,8 @@ class MatchMappingPatternNode(PatternNode):
 
     def get_main_pattern_targets(self):
         targets = set()
-        for p in self.value_patterns:
-            self.update_targets_with_targets(targets, p.get_targets())
+        for pattern in self.value_patterns:
+            self.update_targets_with_targets(targets, pattern.get_targets())
         if self.double_star_capture_target:
             self.add_target_to_targets(targets, self.double_star_capture_target.name)
         return targets
@@ -250,6 +250,6 @@ class ClassPatternNode(PatternNode):
 
     def get_main_pattern_targets(self):
         targets = set()
-        for p in self.positional_patterns + self.keyword_pattern_patterns:
-            self.update_targets_with_targets(targets, p.get_targets())
+        for pattern in self.positional_patterns + self.keyword_pattern_patterns:
+            self.update_targets_with_targets(targets, pattern.get_targets())
         return targets
