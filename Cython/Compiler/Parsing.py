@@ -4,7 +4,6 @@
 #
 
 from __future__ import absolute_import
-from ast import Expression
 
 # This should be done automatically
 import cython
@@ -20,7 +19,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
 from io import StringIO
 import re
 import sys
-from unicodedata import lookup as lookup_unicodechar, category as unicode_category, name
+from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
@@ -4139,22 +4138,22 @@ def p_closed_pattern(s):
     elif s.sy == '(':
         with tentatively_scan(s) as errors:
             result = p_group_pattern(s)
-        if not errors:
-            return result
+            if not errors:
+                return result
         return p_sequence_pattern(s)
 
     with tentatively_scan(s) as errors:
         result = p_literal_pattern(s)
-    if not errors:
-        return result
+        if not errors:
+            return result
     with tentatively_scan(s) as errors:
         result = p_capture_pattern(s)
-    if not errors:
-        return result
+        if not errors:
+            return result
     with tentatively_scan(s) as errors:
         result = p_value_pattern(s)
-    if not errors:
-        return result
+        if not errors:
+            return result
     return p_class_pattern(s)
 
 
@@ -4263,7 +4262,7 @@ def p_value_pattern(s):
         attr_pos = s.position()
         s.next()
         attr = p_ident(s)
-        res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute=attr)
+        res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute = attr)
     if s.sy in ['(', '=']:
         s.error("Unexpected symbol '%s'" % s.sy)
     return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
