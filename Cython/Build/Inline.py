@@ -20,7 +20,6 @@ from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
 from ..Compiler import Pipeline
 from ..Utils import get_cython_cache_dir
-from .Utils import load_dynamic
 import cython as cython_module
 
 
@@ -35,6 +34,21 @@ if not IS_PY3:
             return s
 else:
     to_unicode = lambda x: x
+
+
+if sys.version_info < (3, 5):
+    import imp
+    def load_dynamic(name, module_path):
+        return imp.load_dynamic(name, module_path)
+else:
+    import importlib.util
+    from importlib.machinery import ExtensionFileLoader
+
+    def load_dynamic(name, path):
+        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
