@@ -56,7 +56,7 @@ class MatchCaseNode(Node):
 
 class PatternNode(Node):
     """
-    DW decided that PatternNode shouldn't be an expression because
+    PatternNode is not an expression because
     it does several things (evalutating a boolean expression,
     assignment of targets), and they need to be done at different
     times.
@@ -67,23 +67,22 @@ class PatternNode(Node):
     child_attrs = ["as_targets"]
 
     def __init__(self, pos, **kwds):
-        super(PatternNode, self).__init__(pos, **kwds)
         if "as_targets" not in kwds:
-            self.as_targets = []
+            kwds["as_targets"] = []
+        super(PatternNode, self).__init__(pos, **kwds)
 
     def is_irrefutable(self):
         return False
 
     def get_targets(self):
         targets = self.get_main_pattern_targets()
-        for t in self.as_targets:
-            self.add_target_to_targets(targets, t.name)
+        for target in self.as_targets:
+            self.add_target_to_targets(targets, target.name)
         return targets
 
     def update_targets_with_targets(self, targets, other_targets):
-        intersection = targets.intersection(other_targets)
-        for i in intersection:
-            error(self.pos, "multiple assignments to name '%s' in pattern" % i)
+        for name in targets.intersection(other_targets):
+            error(self.pos, "multiple assignments to name '%s' in pattern" % name)
         targets.update(other_targets)
 
     def add_target_to_targets(self, targets, target):
@@ -98,7 +97,7 @@ class PatternNode(Node):
     def validate_irrefutable(self):
         for attr in self.child_attrs:
             child = getattr(self, attr)
-            if isinstance(child, PatternNode):
+            if child is not None and isinstance(child, PatternNode):
                 child.validate_irrefutable()
 
 
