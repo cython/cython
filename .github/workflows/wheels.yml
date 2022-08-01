@@ -46,6 +46,7 @@ jobs:
         # https://github.com/github/feedback/discussions/7835#discussioncomment-1769026
         buildplat:
         - [ubuntu-20.04, manylinux_x86_64]
+        - [ubuntu-20.04, manylinux_aarch64]
         - [ubuntu-20.04, manylinux_i686]
         - [ubuntu-20.04, musllinux_x86_64]
         - [macos-10.15, macosx_*]
@@ -55,6 +56,12 @@ jobs:
     steps:
       - name: Checkout Cython
         uses: actions/checkout@v3
+        
+      - name: Set up QEMU
+        if: matrix.buildplat[1] == 'manylinux_aarch64'
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
       
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.5.0
@@ -65,6 +72,7 @@ jobs:
           # This would require modifying cython's setup.py to look for these flags
           # in env vars.
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+          CIBW_ARCHS_LINUX: auto aarch64
           CIBW_ENVIRONMENT: CFLAGS='-O3 -g0 -mtune=generic -pipe -fPIC' LDFLAGS='-fPIC'
           # TODO: Cython tests take a long time to complete
           # consider running a subset in the future?
