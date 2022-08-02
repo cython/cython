@@ -97,6 +97,7 @@ jobs:
           python-version: '3.8'
       - name: Build sdist
         run: |
+          pip install --upgrade wheel setuptools
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile --universal
       - uses: actions/upload-artifact@v3
