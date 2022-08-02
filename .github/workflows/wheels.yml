@@ -65,7 +65,7 @@ jobs:
           platforms: all
       
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.5.0
+        uses: pypa/cibuildwheel@v2.8.1
         env:
           # TODO: Build Cython with the compile-all flag?
           # Unfortunately, there is no way to modify cibuildwheel's build command
@@ -73,6 +73,7 @@ jobs:
           # This would require modifying cython's setup.py to look for these flags
           # in env vars.
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+          CIBW_PRERELEASE_PYTHONS: True
           CIBW_ARCHS_LINUX: auto aarch64
           CIBW_ENVIRONMENT: CFLAGS='-O3 -g0 -mtune=generic -pipe -fPIC' LDFLAGS='-fPIC'
           # TODO: Cython tests take a long time to complete
