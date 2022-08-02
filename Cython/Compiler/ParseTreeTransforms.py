@@ -186,13 +186,12 @@ class PostParse(ScopeTrackingTransform):
 
     - Some invalid uses of := assignment expressions are detected
     """
-    in_pattern_node = False
-
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
