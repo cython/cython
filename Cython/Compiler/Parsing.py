@@ -735,18 +735,19 @@ def p_atom(s):
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
     elif sy == 'BEGIN_STRING':
-        return parse_atom_string(pos, s)
+        return p_atom_string(s)
     elif sy == 'IDENT':
-        result = parse_atom_ident_constants(pos, s)
+        result = p_atom_ident_constants(s)
         if result is None:
             result = p_name(s, s.systring)
-        s.next()
+            s.next()
         return result
     else:
         s.error("Expected an identifier or literal")
 
 
-def parse_atom_string(pos, s):
+def p_atom_string(s):
+    pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
     if kind == 'c':
         return ExprNodes.CharNode(pos, value=bytes_value)
@@ -762,11 +763,12 @@ def parse_atom_string(pos, s):
         s.error("invalid string kind '%s'" % kind)
 
 
-def parse_atom_ident_constants(pos, s):
+def p_atom_ident_constants(s):
     """
     Returns None if it isn't one special-cased named constants.
-    Does not call s.next()
+    Only calls s.next() if it successfully matches a matches.
     """
+    pos = s.position()
     name = s.systring
     result = None
     if name == "None":
@@ -777,6 +779,8 @@ def parse_atom_ident_constants(pos, s):
         result = ExprNodes.BoolNode(pos, value=False)
     elif name == "NULL" and not s.in_python_file:
         result = ExprNodes.NullNode(pos)
+    if result:
+        s.next()
     return result
 
 
@@ -4225,15 +4229,14 @@ def p_literal_pattern(s):
     if next_must_be_a_number:
         s.error("Expected a number")
     if sy == 'BEGIN_STRING':
-        res = parse_atom_string(pos, s)
+        res = p_atom_string(s)
         # f-strings not being accepted is validated in PostParse
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
     elif sy == 'IDENT':
         # Note that p_atom_ident_constants includes NULL.
         # This is a deliberate Cython addition to the pattern matching specification
-        result = parse_atom_ident_constants(pos, s)
+        result = p_atom_ident_constants(s)
         if result:
-            s.next()
             return MatchCaseNodes.MatchValuePatternNode(pos, value=result, is_is_check=True)
 
     s.error("Failed to match literal")

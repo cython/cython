@@ -186,6 +186,8 @@ class PostParse(ScopeTrackingTransform):
 
     - Some invalid uses of := assignment expressions are detected
     """
+    in_pattern_node = False
+
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
@@ -397,16 +399,15 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
-    def visit_MatchValuePatternNode(self, node):
-        if isinstance(node.value, ExprNodes.JoinedStrNode):
-            error(node.value.pos, "f-strings are not accepted for pattern matching")
+    def visit_PatternNode(self, node):
+        in_pattern_node, self.in_pattern_node = self.in_pattern_node, True
         self.visitchildren(node)
+        self.in_pattern_node = in_pattern_node
         return node
 
-    def visit_MatchMappingPatternNode(self, node):
-        for key in node.keys:
-            if isinstance(key, ExprNodes.JoinedStrNode):
-                error(key.pos, "f-strings are not accepted for pattern matching")
+    def visit_JoinedStrNode(self, node):
+        if self.in_pattern_node:
+            error(node.pos, "f-strings are not accepted for pattern matching")
         self.visitchildren(node)
         return node
 
