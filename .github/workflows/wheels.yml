@@ -50,7 +50,7 @@ jobs:
         - [ubuntu-20.04, manylinux_i686]
         - [ubuntu-20.04, musllinux_x86_64]
         - [ubuntu-20.04, musllinux_aarch64]
-        - [macos-10.15, macosx_*]
+        - [macos-11, macosx_*]
         - [windows-2019, win_amd64]
         - [windows-2019, win32]
         python: ["cp36", "cp37", "cp38", "cp39", "cp310", "cp311"]  # Note: Wheels not needed for PyPy
