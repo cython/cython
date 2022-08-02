@@ -4289,7 +4289,7 @@ def p_sequence_pattern(s):
                     if s.sy == closer:
                         break
                 else:
-                    if opener == ')' and len(patterns)==1:
+                    if opener == ')' and len(patterns) == 1:
                         s.error("tuple-like pattern of length 1 must finish with ','")
                     break
             s.expect(closer)
@@ -4326,12 +4326,11 @@ def p_mapping_pattern(s):
             s.expect(':')
             value = p_pattern(s)
             items_patterns.append((key, value))
-        if s.sy==',':
-            s.next()
-        else:
+        if s.sy != ',':
             break
-        if s.sy=='}':
-            break
+        s.next()
+        if s.sy == '}':
+            break  # Allow trailing comma.
     s.expect('}')
 
     if star_star_arg_pos is not None:
@@ -4378,12 +4377,11 @@ def p_class_pattern(s):
         else:
             with tentatively_scan(s) as errors:
                 keyword_patterns.append(p_keyword_pattern(s))
-        if s.sy == ",":
-            s.next()
-            if s.sy == ")":
-                break
-        else:
+        if s.sy != ",":
             break
+        s.next()
+        if s.sy == ")":
+            break  # Allow trailing comma.
     s.expect(")")
 
     if keyword_patterns_error is not None:
