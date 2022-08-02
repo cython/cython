@@ -84,8 +84,8 @@ jobs:
         with:
           name: ${{ matrix.python }}-${{ startsWith(matrix.buildplat[1], 'macosx') && 'macosx' || matrix.buildplat[1] }}
           path: ./wheelhouse/*.whl
-  build_sdist:
-    name: Build sdist
+  build_sdist_pure_wheel:
+    name: Build sdist and pure wheel
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
@@ -98,7 +98,13 @@ jobs:
       - name: Build sdist
         run: |
           python setup.py sdist
+          python setup.py bdist_wheel --no-cython-compile --universal
       - uses: actions/upload-artifact@v3
         with:
           name: sdist
-          path: ./dist/*
+          path: ./dist/*.tar.gz
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pure-wheel
+          path: ./dist/*.whl
+      
