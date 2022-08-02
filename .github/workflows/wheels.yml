@@ -49,16 +49,17 @@ jobs:
         - [ubuntu-20.04, manylinux_aarch64]
         - [ubuntu-20.04, manylinux_i686]
         - [ubuntu-20.04, musllinux_x86_64]
+        - [ubuntu-20.04, musllinux_aarch64]
         - [macos-10.15, macosx_*]
         - [windows-2019, win_amd64]
         - [windows-2019, win32]
-        python: ["cp36", "cp37", "cp38", "cp39", "cp310"] # Note: Wheels not needed for PyPy
+        python: ["cp36", "cp37", "cp38", "cp39", "cp310", "cp311"]  # Note: Wheels not needed for PyPy
     steps:
       - name: Checkout Cython
         uses: actions/checkout@v3
         
       - name: Set up QEMU
-        if: matrix.buildplat[1] == 'manylinux_aarch64'
+        if: contains(matrix.buildplat[1], '_aarch64')
         uses: docker/setup-qemu-action@v1
         with:
           platforms: all
