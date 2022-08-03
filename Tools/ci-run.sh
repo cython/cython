@@ -140,16 +140,17 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   CFLAGS=$BUILD_CFLAGS \
     time python setup.py build_ext -i $SETUP_ARGS || exit 1
-  find Cython -name "*.so" -ls | sort -k11
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
-  # CYTHON_COMPILE_ALL can be either  "" (empty or not set) or "1" (when we set it)
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
         $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
   fi
+
+  echo "Extension modules created during the build:"
+  find Cython -name "*.so" -ls | sort -k11
 fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
