@@ -140,7 +140,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   CFLAGS=$BUILD_CFLAGS \
     time python setup.py build_ext -i $SETUP_ARGS || exit 1
-  find Cython -name "*.so" -ls
+  find Cython -name "*.so" -ls | sort -k11
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
