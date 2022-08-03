@@ -23,7 +23,7 @@ with open(os.path.join("builddir", "pkg", "sub", "test.c.dep"), "r") as f:
 
 contents = [os.path.relpath(entry, '.')
             if os.path.isabs(entry) else entry for entry in contents.split()]
-assert sorted(contents) == sorted([os.path.join('builddir', 'pkg', 'sub', 'test.c:'), pkgpath('sub', 'incl.pxi'), pkgpath('sub', 'test.pyx'), pkgpath('test.pxd')]), contents  # last is really one level up
+assert sorted(contents) == sorted([os.path.join('builddir', 'pkg', 'sub', 'test.c:'), pkgpath('sub', 'incl.pxi'), pkgpath('sub', 'test.pyx')]), contents  # last is really one level up
 
 ######## pkg/__init__.py ########
 
