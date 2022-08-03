@@ -2866,8 +2866,7 @@ class RemoveUnreachableCode(CythonTransform):
         if not self.current_directives['remove_unreachable']:
             return node
         self.visitchildren(node)
-        for idx, stat in enumerate(node.stats):
-            idx += 1
+        for idx, stat in enumerate(node.stats, 1):
             if stat.is_terminator:
                 if idx < len(node.stats):
                     if self.current_directives['warn.unreachable']:
