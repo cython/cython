@@ -406,38 +406,11 @@ The following reference table documents how type annotations are
 interpreted. Cython 0.29 behaviour is only shown where it differs
 from Cython 3.0 behaviour.
 
-+---------------------+--------------------+---------------------------+
-| Feature             | Cython 0.29        | Cython 3.0                |
-+=====================+====================+===========================+
-| ``int``             | any python object  | exact Python ``int``      |
-+---------------------+--------------------+---------------------------+
-| ``float``           |                    | C ``double``              |
-+---------------------+--------------------+---------------------------+
-| builtin type        |                    | exact type (no            |
-| e.g. ``dict``,      |                    | subclasses), not ``None`` |
-| ``list``            |                    |                           |
-+---------------------+--------------------+---------------------------+
-| extension type      |                    | specified type or a       |
-| defined in          |                    | subclasses, not ``None``  |
-| Cython              |                    |                           |
-+---------------------+--------------------+---------------------------+
-| ``cython.int``,     |                    | equivalent C numeric type |
-| ``cython.long``,    |                    |                           |
-| etc.                |                    |                           |
-+---------------------+--------------------+---------------------------+
-| ``typing.Optional`` |                    | Specified type (which     |
-| ``[any_type]``      | Not supported      | must be a Python object), |
-|                     |                    | allows ``None``           |
-+---------------------+--------------------+---------------------------+
-| ``typing.List``     | Not supported      | Exact ``list``, with      |
-| ``[any_type]``      |                    | the element type ignored  |
-| (and similar)       |                    | currently                 |
-+---------------------+--------------------+---------------------------+
-| ``typing.ClassVar`` | Not supported      | Python-object class       |
-| ``[...]``           |                    | variable (when used in a  |
-|                     |                    | class definition)         |
-+---------------------+--------------------+---------------------------+
-
+.. csv-table:: Annotation typing rules
+   :file: annotation_typing_table.csv
+   :header-rows: 1
+   :class: longtable
+   :widths: 1 1 1
 
 Tips and Tricks
 ---------------
