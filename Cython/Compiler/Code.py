@@ -1975,13 +1975,13 @@ class CCodeWriter(object):
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
             source_desc, line, _ = self.last_marked_pos
-            self.write_lines('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
+            self.write('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
         if code:
             if safe:
                 self.put_safe(code)
             else:
                 self.put(code)
-        self.write_lines("\n")
+        self.write("\n")
         self.bol = 1
 
     def mark_pos(self, pos, trace=True):
