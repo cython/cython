@@ -139,7 +139,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
-    python setup.py build_ext -i $SETUP_ARGS || exit 1
+    time python setup.py build_ext -i $SETUP_ARGS || exit 1
   find Cython -name "*.so" -ls
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
