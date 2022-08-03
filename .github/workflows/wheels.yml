@@ -1,16 +1,14 @@
 # Workflow to build wheels for upload to PyPI.
-# While this workflow is not active right now,
-# it will be used for Cython 3.1 after Python 2.7
-# support is dropped.
 #
 # In an attempt to save CI resources, wheel builds do
-# not run by default.
+# not run on each push but only weekly and for releases.
 # Wheel builds can be triggered from the Actions page
 # (if you have the perms) on a commit to master.
 # 
 # Alternatively, if you would like to trigger wheel builds
 # on a pull request, the labels that trigger builds are:
 # - Build System
+
 name: Wheel Builder
 on:
   release:
