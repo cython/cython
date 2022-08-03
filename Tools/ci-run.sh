@@ -115,6 +115,8 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820"
+elif [[ $CYTHON_COMPILE_ALL == "1" ]]; then
+  CFLAGS="-O3 -g0 -mtune=generic -Wall -Wextra"  # make wheel sizes comparable to standard wheel build
 else
   CFLAGS="-O0 -ggdb -Wall -Wextra"
 fi
@@ -143,8 +145,9 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
   # CYTHON_COMPILE_ALL can be either  "" (empty or not set) or "1" (when we set it)
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
-        $CYTHON_COMPILE_ALL != "1" && $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
+        $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
+    ls -l dist/ || true
   fi
 fi
 
