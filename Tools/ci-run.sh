@@ -122,8 +122,10 @@ fi
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
-  if [[ $CYTHON_COMPILE_ALL == "1" -a $OSTYPE != "msys" ]]; then
-    BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
+  if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
+    if [[ $OSTYPE != "msys" ]]; then
+      BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
+    fi
   fi
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
     BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
