@@ -69,10 +69,6 @@ jobs:
         uses: pypa/cibuildwheel@v2.8.1
         env:
           # TODO: Build Cython with the compile-all flag?
-          # Unfortunately, there is no way to modify cibuildwheel's build command
-          # so there is no way to pass this in directly.
-          # This would require modifying cython's setup.py to look for these flags
-          # in env vars.
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
           CIBW_PRERELEASE_PYTHONS: True
           CIBW_ARCHS_LINUX: auto aarch64

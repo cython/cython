@@ -183,37 +183,27 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     setup_args['ext_modules'] = extensions
 
 
-cython_profile = '--cython-profile' in sys.argv
-if cython_profile:
-    sys.argv.remove('--cython-profile')
+def check_option(name):
+    cli_arg = "--" + name
+    if cli_arg in sys.argv:
+        sys.argv.remove(cli_arg)
+        return True
 
-cython_coverage = '--cython-coverage' in sys.argv
-if cython_coverage:
-    sys.argv.remove('--cython-coverage')
+    env_var = name.replace("-", "_").upper()
+    if os.environ.get(env_var) == "true":
+        return True
 
-try:
-    sys.argv.remove("--cython-compile-all")
-    cython_compile_more = True
-except ValueError:
-    cython_compile_more = False
+    return False
 
-try:
-    sys.argv.remove("--cython-compile-minimal")
-    cython_compile_minimal = True
-except ValueError:
-    cython_compile_minimal = False
 
-try:
-    sys.argv.remove("--cython-with-refnanny")
-    cython_with_refnanny = True
-except ValueError:
-    cython_with_refnanny = False
+cython_profile = check_option('cython-profile')
+cython_coverage = check_option('cython-coverage')
+cython_with_refnanny = check_option('cython-with-refnanny')
 
-try:
-    sys.argv.remove("--no-cython-compile")
-    compile_cython_itself = False
-except ValueError:
-    compile_cython_itself = True
+compile_cython_itself = not check_option('no-cython-compile')
+if compile_cython_itself:
+    cython_compile_more = check_option('cython-compile-all')
+    cython_compile_minimal = check_option('cython-compile-minimal')
 
 setup_args.update(setuptools_extra_args)
 
