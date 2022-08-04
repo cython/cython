@@ -121,10 +121,21 @@ def run_distutils(args):
 
 
 def create_args_parser():
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter
     from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""Environment variables:
+CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless of modification times and changes.
+CC: specifies program for compiling C programs.
+CPP: specifies program for running the C preprocessor.
+CXX: specifies program for compiling C++ programs.
+LDSHARED: specifies program for running the linker.
+LDFLAGS: extra parameters to give to compilers when they are supposed to invoke the linker.
+CFLAGS: extra parameters to be passed to a compiler.
+CPPFLAGS: extra parameters to give to the C preprocessor and programs that use it."""
+    )
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='directives', default={}, type=str,
