@@ -127,14 +127,10 @@ def create_args_parser():
     parser = ArgumentParser(
         formatter_class=RawDescriptionHelpFormatter,
         epilog="""Environment variables:
-CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless of modification times and changes.
-CC: specifies program for compiling C programs.
-CPP: specifies program for running the C preprocessor.
-CXX: specifies program for compiling C++ programs.
-LDSHARED: specifies program for running the linker.
-LDFLAGS: extra parameters to give to compilers when they are supposed to invoke the linker.
-CFLAGS: extra parameters to be passed to a compiler.
-CPPFLAGS: extra parameters to give to the C preprocessor and programs that use it."""
+  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless of modification times and changes.
+  
+  Environment variables accepted by setuptools are supported:
+  https://setuptools.pypa.io/en/latest/userguide/ext_modules.html#compiler-and-linker-options"""
     )
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
