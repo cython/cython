@@ -49,8 +49,8 @@ class AnnotationCCodeWriter(CCodeWriter):
     def create_new(self, create_from, buffer, copy_formatting):
         return AnnotationCCodeWriter(create_from, buffer, copy_formatting)
 
-    def write(self, s):
-        CCodeWriter.write(self, s)
+    def _write_to_buffer(self, s):
+        self.buffer.write(s)
         self.annotation_buffer.write(s)
 
     def mark_pos(self, pos, trace=True):

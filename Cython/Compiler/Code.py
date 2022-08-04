@@ -1859,11 +1859,14 @@ class CCodeWriter(object):
     def getvalue(self):
         return self.buffer.getvalue()
 
+    def _write_to_buffer(self, s):
+        self.buffer.write(s)
+
     def write(self, s):
         if '\n' in s:
             self.write_lines(s)
         else:
-            self.buffer.write(s)
+            self._write_to_buffer(s)
 
     def write_lines(self, s):
         # Cygdb needs to know which Cython source line corresponds to which C line.
@@ -1872,7 +1875,7 @@ class CCodeWriter(object):
         filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
         self.buffer.markers.extend([filename_line] * s.count('\n'))
 
-        self.buffer.write(s)
+        self._write_to_buffer(s)
 
     def insertion_point(self):
         other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(), copy_formatting=True)
@@ -2078,7 +2081,7 @@ class CCodeWriter(object):
         self.putln("}")
 
     def indent(self):
-        self.buffer.write("  " * self.level)
+        self._write_to_buffer("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
