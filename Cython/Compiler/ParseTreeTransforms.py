@@ -832,6 +832,14 @@ class InterpretCompilerDirectives(CythonTransform):
     }
     special_methods.update(unop_method_nodes)
 
+    valid_cython_submodules = {
+        'cimports',
+        'dataclasses',
+        'operator',
+        'parallel',
+        'view',
+    }
+
     valid_parallel_directives = {
         "parallel",
         "prange",
@@ -859,6 +867,34 @@ class InterpretCompilerDirectives(CythonTransform):
             if directive not in Options.directive_types:
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
+
+    def _check_valid_cython_module(self, pos, module_name):
+        if not module_name.startswith("cython."):
+            return
+        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+            return
+
+        extra = ""
+        # This is very rarely used, so don't waste space on static tuples.
+        hints = [
+            line.split() for line in """\
+                imp                  cimports
+                cimp                 cimports
+                para                 parallel
+                parra                parallel
+                dataclass            dataclasses
+            """.splitlines()[:-1]
+        ]
+        for wrong, correct in hints:
+            if module_name.startswith("cython." + wrong):
+                extra = "Did you mean 'cython.%s' ?" % correct
+                break
+
+        error(pos, "'%s' is not a valid cython.* module%s%s" % (
+            module_name,
+            ". " if extra else "",
+            extra,
+        ))
 
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
@@ -930,6 +966,9 @@ class InterpretCompilerDirectives(CythonTransform):
         elif module_name.startswith(u"cython."):
             if module_name.startswith(u"cython.parallel."):
                 error(node.pos, node.module_name + " is not a module")
+            else:
+                self._check_valid_cython_module(node.pos, module_name)
+
             if module_name == u"cython.parallel":
                 if node.as_name and node.as_name != u"cython":
                     self.parallel_directives[node.as_name] = module_name
@@ -956,6 +995,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 node.pos, module_name, node.relative_level, node.imported_names)
         elif not node.relative_level and (
                 module_name == u"cython" or module_name.startswith(u"cython.")):
+            self._check_valid_cython_module(node.pos, module_name)
             submodule = (module_name + u".")[7:]
             newimp = []
 
@@ -995,6 +1035,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return self._create_cimport_from_import(
                 node.pos, module_name, import_node.level, imported_names)
         elif module_name == u"cython" or module_name.startswith(u"cython."):
+            self._check_valid_cython_module(import_node.module_name.pos, module_name)
             submodule = (module_name + u".")[7:]
             newimp = []
             for name, name_node in node.items:
@@ -1035,8 +1076,7 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.rhs, ExprNodes.ImportNode):
             module_name = node.rhs.module_name.value
-            is_special_module = (module_name + u".").startswith((u"cython.parallel.", u"cython.cimports."))
-            if module_name != u"cython" and not is_special_module:
+            if module_name != u"cython" and not module_name.startswith("cython."):
                 return node
 
             node = Nodes.CImportStatNode(node.pos, module_name=module_name, as_name=node.lhs.name)
