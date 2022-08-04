@@ -3088,6 +3088,25 @@ def p_with_gil(s):
         return 0
 
 def p_exception_value_clause(s, ctx):
+    """
+    Parse exception value clause.
+
+    Maps clauses to exc_check / exc_value as follows:
+     ___________________________________________________
+    |                           |           |           |
+    | Clause                    | exc_check | exc_value |
+    |___________________________|___________|___________|
+    |                           |           |           |
+    | <nothing> (default func.) | True      | None      |
+    | <nothing> (cdef extern)   | False     | None      |
+    | noexcept                  | False     | None      |
+    | except <val>              | False     | <val>     |
+    | except? <val>             | True      | <val>     |
+    | except +                  | '+'       | None      |
+    | except +*                 | '+'       | '*'       |
+    | except +<PyErr>           | '+'       | <PyErr>   |
+    |___________________________|___________|___________|
+    """
     exc_val = None
     if ctx.visibility  == 'extern':
         exc_check = False
