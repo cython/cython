@@ -127,9 +127,10 @@ def create_args_parser():
     parser = ArgumentParser(
         formatter_class=RawDescriptionHelpFormatter,
         epilog="""Environment variables:
-  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless of modification times and changes.
+  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless
+        of modification times and changes.
   
-  Environment variables accepted by setuptools are supported:
+  Environment variables accepted by setuptools are supported to configure the C compiler and build:
   https://setuptools.pypa.io/en/latest/userguide/ext_modules.html#compiler-and-linker-options"""
     )
 
