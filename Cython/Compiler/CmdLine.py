@@ -53,6 +53,7 @@ Options:
   --module-name                  Fully qualified module name. If not given, it is deduced from the
                                  import path if source file is in a package, or equals the
                                  filename otherwise.
+  -M, --depfile                  Produce depfiles for the sources
 """
 
 
@@ -65,7 +66,6 @@ Options:
 def bad_usage():
     sys.stderr.write(usage)
     sys.exit(1)
-
 
 def parse_command_line(args):
     from .Main import CompilationOptions, default_options
@@ -195,6 +195,8 @@ def parse_command_line(args):
                     sys.exit(1)
             elif option == "--module-name":
                 options.module_name = pop_value()
+            elif option in ('-M', '--depfile'):
+                options.depfile = True
             elif option.startswith('--debug'):
                 option = option[2:].replace('-', '_')
                 from . import DebugFlags
@@ -236,4 +238,3 @@ def parse_command_line(args):
                 "cython: Only one source file allowed when using --module-name\n")
             sys.exit(1)
     return options, sources
-
