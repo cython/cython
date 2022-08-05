@@ -126,7 +126,8 @@ def create_args_parser():
 
     parser = ArgumentParser(
         formatter_class=RawDescriptionHelpFormatter,
-        epilog="""Environment variables:
+        epilog="""\
+Environment variables:
   CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless
         of modification times and changes.
   Environment variables accepted by setuptools are supported to configure the C compiler and build:
