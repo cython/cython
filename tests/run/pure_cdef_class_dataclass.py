@@ -25,10 +25,17 @@ class MyDataclass:
     True
     >>> hash(inst1) != id(inst1)
     True
+    >>> inst1.func_with_annotations(2.0)
+    4.0
     """
 
     a: int = 1
     self: list = cython.dataclasses.field(default_factory=list, hash=False)  # test that arguments of init don't conflict
+
+    def func_with_annotations(self, b: float):
+        c: float = b
+        return self.a * c
+
 
 
 class DummyObj:

@@ -2057,7 +2057,7 @@ class NameNode(AtomicExprNode):
                     atype = error_type
 
             visibility = 'private'
-            if 'dataclasses.dataclass' in env.directives:
+            if 'dataclasses.dataclass' in env.directives and env.is_c_class_scope:
                 # handle "frozen" directive - full inspection of the dataclass directives happens
                 # in Dataclass.py
                 frozen_directive = None

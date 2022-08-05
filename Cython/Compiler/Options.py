@@ -391,7 +391,7 @@ directive_scopes = {  # defaults to available everywhere
 # a list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
-    'cfunc', 'ccall', 'cclass',
+    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass'
     # function signature directives
     'inline', 'exceptval', 'returns',
     # class directives
