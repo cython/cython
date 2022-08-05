@@ -388,7 +388,7 @@ def generate_init_code(init, node, fields, kw_only):
     args = u", ".join(args)
     func_def = u"def __init__(%s):" % args
 
-    code_lines = [func_def] + (function_body_code_lines or ["pass"])
+    code_lines = [func_def] + (function_body_code_lines or ["    pass"])
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
