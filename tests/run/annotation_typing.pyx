@@ -4,6 +4,8 @@
 cimport cython
 from cython cimport typeof
 from cpython.ref cimport PyObject
+import unittest
+import sys
 
 try:
     from typing import Optional
@@ -359,6 +361,7 @@ cdef class ClassTurnOffTyping:
         return typeof(self.x), typeof(self.d), typeof(arg)
 
 
+@unittest.skipIf(sys.version_info.major < 3, "Requires Py3+")
 def return_types_def() -> int:
     """
     >>> import inspect
@@ -367,6 +370,7 @@ def return_types_def() -> int:
     """
 
 
+@unittest.skipIf(sys.version_info.major < 3, "Requires Py3+")
 cpdef return_types_cpdef() -> int:
     """
     >>> import inspect
@@ -376,27 +380,27 @@ cpdef return_types_cpdef() -> int:
 
 
 _WARNINGS = """
-14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
-14:56: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-14:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
-14:85: Python type declaration in signature annotation does not refer to a Python type
-14:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-36:40: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
-36:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
-63:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-90:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
-90:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-274:44: Unknown type declaration in annotation, ignoring
-302:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+16:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+16:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
+16:56: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+16:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
+16:85: Python type declaration in signature annotation does not refer to a Python type
+16:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+38:40: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
+38:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+65:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
+65:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+92:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
+92:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+276:44: Unknown type declaration in annotation, ignoring
+304:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # DUPLICATE:
-63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
+65:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 # BUG:
-63:6: 'pytypes_cpdef' redeclared
-146:0: 'struct_io' redeclared
-181:0: 'struct_convert' redeclared
-200:0: 'exception_default' redeclared
-231:0: 'exception_default_uint' redeclared
-370:6: 'return_types_cpdef' redeclared
+65:6: 'pytypes_cpdef' redeclared
+148:0: 'struct_io' redeclared
+183:0: 'struct_convert' redeclared
+202:0: 'exception_default' redeclared
+233:0: 'exception_default_uint' redeclared
+374:6: 'return_types_cpdef' redeclared
 """
