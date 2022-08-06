@@ -3456,16 +3456,17 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             s.error("C function definition not allowed here")
         doc, suite = p_suite_with_docstring(s, Ctx(level='function'))
         result = Nodes.CFuncDefNode(pos,
-            visibility = ctx.visibility,
-            base_type = base_type,
-            declarator = declarator,
-            body = suite,
-            doc = doc,
-            modifiers = modifiers,
-            api = ctx.api,
-            overridable = ctx.overridable,
-            is_const_method = is_const_method,
-            return_type_annotation=return_type_annotation)
+            visibility=ctx.visibility,
+            base_type=base_type,
+            declarator=declarator,
+            body=suite,
+            doc=doc,
+            modifiers=modifiers,
+            api=ctx.api,
+            overridable=ctx.overridable,
+            is_const_method=is_const_method,
+            return_type_annotation=return_type_annotation,
+        )
     else:
         #if api:
         #    s.error("'api' not allowed with variable declaration")
