@@ -81,6 +81,59 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
         return node
 
 
+class TemplateCode(object):
+    _placeholder_count = 0
+
+    def __init__(self):
+        self.code_lines = []
+        self.placeholders = {}
+        self.extra_stats = []
+
+    def insertion_point(self):
+        return len(self.code_lines)
+
+    def insert_code_line(self, insertion_point, code_line):
+        self.code_lines.insert(insertion_point, code_line)
+
+    def reset(self, insertion_point=0):
+        del self.code_lines[insertion_point:]
+
+    def add_code_line(self, code_line):
+        self.code_lines.append(code_line)
+
+    def add_code_lines(self, code_lines):
+        self.code_lines.extend(code_lines)
+
+    def add_placeholder(self, field_names, value):
+        name = self._new_placeholder_name(field_names)
+        self.placeholders[name] = value
+        return name
+
+    def add_extra_statements(self, statements):
+        self.extra_stats.extend(statements)
+
+    def _new_placeholder_name(self, field_names):
+        while True:
+            name = "INIT_PLACEHOLDER_%d" % self._placeholder_count
+            if (name not in self.placeholders
+                    and name not in field_names):
+                # make sure name isn't already used and doesn't
+                # conflict with a variable name (which is unlikely but possible)
+                break
+            self._placeholder_count += 1
+        return name
+
+    def generate_tree(self, level='c_class'):
+        stat_list_node = TreeFragment(
+            "\n".join(self.code_lines),
+            level=level,
+            pipeline=[NormalizeTree(None)],
+        ).substitute(self.placeholders)
+
+        stat_list_node.stats += self.extra_stats
+        return stat_list_node
+
+
 class _MISSING_TYPE(object):
     pass
 MISSING = _MISSING_TYPE()
@@ -249,23 +302,14 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     stats = Nodes.StatListNode(node.pos,
                                stats=[dataclass_params_assignment] + dataclass_fields_stats)
 
-    code_lines = []
-    placeholders = {}
-    extra_stats = []
-    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kw_only),
-                        generate_repr_code(kwargs['repr'], node, fields),
-                        generate_eq_code(kwargs['eq'], node, fields),
-                        generate_order_code(kwargs['order'], node, fields),
-                        generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields) ]:
-        code_lines.append(cl)
-        placeholders.update(ph)
-        extra_stats.extend(extra_stats)
+    code = TemplateCode()
+    generate_init_code(code, kwargs['init'], node, fields, kw_only)
+    generate_repr_code(code, kwargs['repr'], node, fields)
+    generate_eq_code(code, kwargs['eq'], node, fields)
+    generate_order_code(code, kwargs['order'], node, fields)
+    generate_hash_code(code, kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields)
 
-    code_lines = "\n".join(code_lines)
-    code_tree = TreeFragment(code_lines, level='c_class', pipeline=[NormalizeTree(node.scope)]
-                            ).substitute(placeholders)
-
-    stats.stats += (code_tree.stats + extra_stats)
+    stats.stats += code.generate_tree().stats
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
@@ -283,7 +327,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(init, node, fields, kw_only):
+def generate_init_code(code, init, node, fields, kw_only):
     """
     All of these "generate_*_code" functions return a tuple of:
     - code string
@@ -304,7 +348,8 @@ def generate_init_code(init, node, fields, kw_only):
       CPython.
     """
     if not init or node.scope.lookup_here("__init__"):
-        return "", {}, []
+        return
+
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
@@ -312,8 +357,7 @@ def generate_init_code(init, node, fields, kw_only):
     if kw_only:
         args.append("*")
 
-    placeholders = {}
-    placeholder_count = [0]
+    function_start_point = code.insertion_point()
 
     # create a temp to get _HAS_DEFAULT_FACTORY
     dataclass_module = make_dataclasses_module_callnode(node.pos)
@@ -323,21 +367,7 @@ def generate_init_code(init, node, fields, kw_only):
         attribute=EncodedString("_HAS_DEFAULT_FACTORY")
     )
 
-    def get_placeholder_name():
-        while True:
-            name = "INIT_PLACEHOLDER_%d" % placeholder_count[0]
-            if (name not in placeholders
-                    and name not in fields):
-                # make sure name isn't already used and doesn't
-                # conflict with a variable name (which is unlikely but possible)
-                break
-            placeholder_count[0] += 1
-        return name
-
-    default_factory_placeholder = get_placeholder_name()
-    placeholders[default_factory_placeholder] = has_default_factory
-
-    function_body_code_lines = []
+    default_factory_placeholder = code.add_placeholder(fields, has_default_factory)
 
     seen_default = False
     for name, field in fields.items():
@@ -352,13 +382,13 @@ def generate_init_code(init, node, fields, kw_only):
             if field.default_factory is not MISSING:
                 ph_name = default_factory_placeholder
             else:
-                ph_name = get_placeholder_name()
-                placeholders[ph_name] = field.default  # should be a node
+                ph_name = code.add_placeholder(fields, field.default)  # 'default' should be a node
             assignment = u" = %s" % ph_name
         elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
-            return "", {}, []
+            code.reset(function_start_point)
+            return
 
         if field.init.value:
             args.append(u"%s%s%s" % (name, annotation, assignment))
@@ -367,37 +397,36 @@ def generate_init_code(init, node, fields, kw_only):
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
-                function_body_code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
+                code.add_code_line(u"    %s.%s = %s" % (selfname, name, name))
             elif assignment:
                 # not an argument to the function, but is still initialized
-                function_body_code_lines.append(u"    %s.%s%s" % (selfname, name, assignment))
+                code.add_code_line(u"    %s.%s%s" % (selfname, name, assignment))
         else:
-            ph_name = get_placeholder_name()
-            placeholders[ph_name] = field.default_factory
+            ph_name = code.add_placeholder(fields, field.default_factory)
             if field.init.value:
                 # close to:
                 # def __init__(self, name=_PLACEHOLDER_VALUE):
                 #     self.name = name_default_factory() if name is _PLACEHOLDER_VALUE else name
-                function_body_code_lines.append(u"    %s.%s = %s() if %s is %s else %s" % (
+                code.add_code_line(u"    %s.%s = %s() if %s is %s else %s" % (
                     selfname, name, ph_name, name, default_factory_placeholder, name))
             else:
                 # still need to use the default factory to initialize
-                function_body_code_lines.append(u"    %s.%s = %s()"
-                                  % (selfname, name, ph_name))
-
-    args = u", ".join(args)
-    func_def = u"def __init__(%s):" % args
-
-    code_lines = [func_def] + (function_body_code_lines or ["    pass"])
+                code.add_code_line(u"    %s.%s = %s()" % (
+                    selfname, name, ph_name))
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
-        code_lines.append("    %s.__post_init__(%s)" % (selfname, post_init_vars))
-    return u"\n".join(code_lines), placeholders, []
+        code.add_code_line("    %s.__post_init__(%s)" % (selfname, post_init_vars))
+
+    if function_start_point == code.insertion_point():
+        code.add_code_line("    pass")
+
+    args = u", ".join(args)
+    code.insert_code_line(function_start_point, u"def __init__(%s):" % args)
 
 
-def generate_repr_code(repr, node, fields):
+def generate_repr_code(code, repr, node, fields):
     """
     The CPython implementation is just:
     ['return self.__class__.__qualname__ + f"(' +
@@ -409,36 +438,35 @@ def generate_repr_code(repr, node, fields):
     which is because Cython currently supports Python 2.
     """
     if not repr or node.scope.lookup("__repr__"):
-        return "", {}, []
-    code_lines = ["def __repr__(self):"]
+        return
+
+    code.add_code_line("def __repr__(self):")
     strs = [u"%s={self.%s!r}" % (name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)
-    code_lines.append(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
-    code_lines.append(u"    return f'{name}(%s)'" % format_string)
-    code_lines = u"\n".join(code_lines)
 
-    return code_lines, {}, []
+    code.add_code_line(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
+    code.add_code_line(u"    return f'{name}(%s)'" % format_string)
 
 
-def generate_cmp_code(op, funcname, node, fields):
+def generate_cmp_code(code, op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
-        return "", {}, []
+        return
 
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
 
     if not names:
-        return "", {}, []  # no comparable types
+        return  # no comparable types
 
-    code_lines = [
+    code.add_code_lines([
         "def %s(self, other):" % funcname,
+        "    if not isinstance(other, %s):" % node.class_name,
+        "        return NotImplemented",
+        #
         "    cdef %s other_cast" % node.class_name,
-        "    if isinstance(other, %s):" % node.class_name,
-        "        other_cast = <%s>other" % node.class_name,
-        "    else:",
-        "        return NotImplemented"
-    ]
+        "    other_cast = <%s>other" % node.class_name,
+    ])
 
     # The Python implementation of dataclasses.py does a tuple comparison
     # (roughly):
@@ -456,42 +484,32 @@ def generate_cmp_code(op, funcname, node, fields):
             name, op, name))
 
     if checks:
-        code_lines.append("    return " + " and ".join(checks))
+        code.add_code_line("    return " + " and ".join(checks))
     else:
         if "=" in op:
-            code_lines.append("    return True")  # "() == ()" is True
+            code.add_code_line("    return True")  # "() == ()" is True
         else:
-            code_lines.append("    return False")
-
-    code_lines = u"\n".join(code_lines)
-
-    return code_lines, {}, []
+            code.add_code_line("    return False")
 
 
-def generate_eq_code(eq, node, fields):
+def generate_eq_code(code, eq, node, fields):
     if not eq:
-        return "", {}, []
-    return generate_cmp_code("==", "__eq__", node, fields)
+        return
+    generate_cmp_code(code, "==", "__eq__", node, fields)
 
 
-def generate_order_code(order, node, fields):
+def generate_order_code(code, order, node, fields):
     if not order:
-        return "", {}, []
-    code_lines = []
-    placeholders = {}
-    stats = []
+        return
+
     for op, name in [("<", "__lt__"),
                      ("<=", "__le__"),
                      (">", "__gt__"),
                      (">=", "__ge__")]:
-        res = generate_cmp_code(op, name, node, fields)
-        code_lines.append(res[0])
-        placeholders.update(res[1])
-        stats.extend(res[2])
-    return "\n".join(code_lines), placeholders, stats
+        generate_cmp_code(code, op, name, node, fields)
 
 
-def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
+def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
     """
     Copied from CPython implementation - the intention is to follow this as far as
     is possible:
@@ -536,35 +554,37 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
         if unsafe_hash:
             # error message taken from CPython dataclasses module
             error(node.pos, "Cannot overwrite attribute __hash__ in class %s" % node.class_name)
-        return "", {}, []
+        return
+
     if not unsafe_hash:
         if not eq:
             return
         if not frozen:
-            return "", {}, [Nodes.SingleAssignmentNode(
-                node.pos,
-                lhs=ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
-                rhs=ExprNodes.NoneNode(node.pos),
-            )]
+            code.add_extra_statements([
+                Nodes.SingleAssignmentNode(
+                    node.pos,
+                    lhs=ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
+                    rhs=ExprNodes.NoneNode(node.pos),
+                )
+            ])
+            return
 
     names = [
         name for name, field in fields.items()
-        if (not field.is_initvar and
-            (field.compare.value if field.hash.value is None else field.hash.value))
+        if not field.is_initvar and (
+            field.compare.value if field.hash.value is None else field.hash.value)
     ]
     if not names:
-        return "", {}, []  # nothing to hash
+        return  # nothing to hash
 
     # make a tuple of the hashes
-    tpl = u", ".join(u"hash(self.%s)" % name for name in names )
+    hash_tuple_items = u", ".join(u"hash(self.%s)" % name for name in names)
 
     # if we're here we want to generate a hash
-    code_lines = dedent(u"""\
-        def __hash__(self):
-            return hash((%s))
-        """) % tpl
-
-    return code_lines, {}, []
+    code.add_code_lines([
+        "def __hash__(self):",
+        "    return hash((%s))" % hash_tuple_items,
+    ])
 
 
 def get_field_type(pos, entry):
