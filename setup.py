@@ -94,16 +94,16 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Plex.Machines",
             "Cython.Plex.Transitions",
             "Cython.Plex.DFA",
+            "Cython.Compiler.Code",
             "Cython.Compiler.FusedNode",
+            "Cython.Compiler.Parsing",
             "Cython.Tempita._tempita",
             "Cython.StringIOTree",
             "Cython.Utils",
         ])
     if compile_more and not compile_minimal:
         compiled_modules.extend([
-            "Cython.Compiler.Code",
             "Cython.Compiler.Lexicon",
-            "Cython.Compiler.Parsing",
             "Cython.Compiler.Pythran",
             "Cython.Build.Dependencies",
             "Cython.Compiler.ParseTreeTransforms",
