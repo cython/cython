@@ -3447,11 +3447,10 @@ def p_c_func_or_var_declaration(s, pos, ctx):
         is_const_method = 1
     else:
         is_const_method = 0
+    return_type_annotation = None
     if s.sy == '->':
         s.next()
         return_type_annotation = p_annotation(s)
-    else:
-        return_type_annotation = None
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
