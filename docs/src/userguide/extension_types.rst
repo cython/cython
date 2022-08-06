@@ -620,8 +620,10 @@ usually set on an extension type or C method using a decorator:
             cdef class Parrot:
                def done(self): pass
 
+
             @cython.cclass
             cdef class Lizzard:
+
 
                @cython.final
                cdef done(self): pass
