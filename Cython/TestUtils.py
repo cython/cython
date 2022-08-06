@@ -168,12 +168,20 @@ class TransformTest(CythonTest):
 # Cython source code.  Thus, we discard the comments before matching.
 # This seems a prime case for re.VERBOSE, but it seems to match some of the whitespace.
 _strip_c_comments = partial(re.compile(
-    re.sub('\s+', '', r'''
+    re.sub(r'\s+', '', r'''
         /[*] (
             (?: [^*\n] | [*][^/] )*
             [\n]
             (?: [^*] | [*][^/] )*
         ) [*]/
+    ''')
+).sub, '')
+
+_strip_cython_code_from_html = partial(re.compile(
+    re.sub(r'\s\s+', '', r'''
+        <pre class=["'][^"']*cython\s+line[^"']*["']\s*>
+        (?:[^<]|<(?!/pre))+
+        </pre>
     ''')
 ).sub, '')
 
@@ -198,6 +206,17 @@ class TreeAssertVisitor(VisitorTransform):
                 file_path,
             ))
 
+        def validate_file_content(file_path, content):
+            for pattern in patterns:
+                #print("Searching pattern '%s'" % pattern)
+                if not re.search(pattern, content):
+                    fail(self._module_pos, pattern, found=False, file_path=file_path)
+
+            for antipattern in antipatterns:
+                #print("Searching antipattern '%s'" % antipattern)
+                if re.search(antipattern, content):
+                    fail(self._module_pos, antipattern, found=True, file_path=file_path)
+
         def validate_c_file(result):
             c_file = result.c_file
             if not (patterns or antipatterns):
@@ -205,18 +224,16 @@ class TreeAssertVisitor(VisitorTransform):
                 return result
 
             with open(c_file, encoding='utf8') as f:
-                c_content = f.read()
-            c_content = _strip_c_comments(c_content)
+                content = f.read()
+            content = _strip_c_comments(content)
+            validate_file_content(c_file, content)
 
-            for pattern in patterns:
-                #print("Searching pattern '%s'" % pattern)
-                if not re.search(pattern, c_content):
-                    fail(self._module_pos, pattern, found=False, file_path=c_file)
-
-            for antipattern in antipatterns:
-                #print("Searching antipattern '%s'" % antipattern)
-                if re.search(antipattern, c_content):
-                    fail(self._module_pos, antipattern, found=True, file_path=c_file)
+            html_file = os.path.splitext(c_file)[0] + ".html"
+            if os.path.exists(html_file) and os.path.getmtime(c_file) <= os.path.getmtime(html_file):
+                with open(html_file, encoding='utf8') as f:
+                    content = f.read()
+                content = _strip_cython_code_from_html(content)
+                validate_file_content(html_file, content)
 
         return validate_c_file
 
