@@ -444,6 +444,32 @@ class C_TestEq_test_overwriting_eq__:
     def __eq__(self, other):
         return other == 5
 
+@dataclass(unsafe_hash=True)
+@cclass
+class C_TestHash_test_unsafe_hash:
+    x: int
+    y: str
+
+@dataclass(frozen=True)
+@cclass
+class C_TestHash_test_0_field_hash:
+    pass
+
+@dataclass(unsafe_hash=True)
+@cclass
+class C_TestHash_test_0_field_hash_:
+    pass
+
+@dataclass(frozen=True)
+@cclass
+class C_TestHash_test_1_field_hash:
+    x: int
+
+@dataclass(unsafe_hash=True)
+@cclass
+class C_TestHash_test_1_field_hash_:
+    x: int
+
 @cclass
 class Base1_TestMakeDataclass_test_base:
     pass
@@ -901,7 +927,24 @@ class TestOrdering(unittest.TestCase):
     pass
 
 class TestHash(unittest.TestCase):
-    pass
+
+    def test_unsafe_hash(self):
+        C = C_TestHash_test_unsafe_hash
+        self.assertEqual(hash(C(1, 'foo')), hash((1, 'foo')))
+
+    def test_0_field_hash(self):
+        C = C_TestHash_test_0_field_hash
+        self.assertEqual(hash(C()), hash(()))
+        C = C_TestHash_test_0_field_hash_
+        self.assertEqual(hash(C()), hash(()))
+
+    def test_1_field_hash(self):
+        C = C_TestHash_test_1_field_hash
+        self.assertEqual(hash(C(4)), hash((4,)))
+        self.assertEqual(hash(C(42)), hash((42,)))
+        C = C_TestHash_test_1_field_hash_
+        self.assertEqual(hash(C(4)), hash((4,)))
+        self.assertEqual(hash(C(42)), hash((42,)))
 
 class TestMakeDataclass(unittest.TestCase):
     pass

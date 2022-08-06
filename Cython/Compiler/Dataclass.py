@@ -573,7 +573,8 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
 
     # make a tuple of the hashes
     hash_tuple_items = u", ".join(u"hash(self.%s)" % name for name in names)
-    hash_tuple_items += u","  # ensure that one arg form is a tuple
+    if hash_tuple_items:
+        hash_tuple_items += u","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
     code.add_code_lines([
