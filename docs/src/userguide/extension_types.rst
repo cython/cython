@@ -479,90 +479,6 @@ when it is deleted:
     We don't have: ['camembert', 'cheddar']
     We don't have: []
 
-.. _subclassing:
-
-Subclassing
-=============
-
-If an extension type inherits from other types, the first base class must be
-a built-in type or another extension type:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            @cython.cclass
-            class Parrot:
-                ...
-
-            @cython.cclass
-            class Norwegian(Parrot):
-                ...
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            cdef class Parrot:
-                ...
-
-
-            cdef class Norwegian(Parrot):
-                ...
-
-
-A complete definition of the base type must be available to Cython, so if the
-base type is a built-in type, it must have been previously declared as an
-extern extension type. If the base type is defined in another Cython module, it
-must either be declared as an extern extension type or imported using the
-:keyword:`cimport` statement or importing from the special ``cython.cimports`` package.
-
-Multiple inheritance is supported, however the second and subsequent base 
-classes must be an ordinary Python class (not an extension type or a built-in
-type).
-
-Cython extension types can also be subclassed in Python. A Python class can
-inherit from multiple extension types provided that the usual Python rules for
-multiple inheritance are followed (i.e. the C layouts of all the base classes
-must be compatible).
-
-There is a way to prevent extension types from
-being subtyped in Python.  This is done via the ``final`` directive,
-usually set on an extension type using a decorator:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            import cython
-
-            @cython.final
-            @cython.cclass
-            class Parrot:
-               def done(self): pass
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            cimport cython
-
-            @cython.final
-            cdef class Parrot:
-               def done(self): pass
-
-Trying to create a Python subclass from this type will raise a
-:class:`TypeError` at runtime.  Cython will also prevent subtyping a
-final type inside of the same module, i.e. creating an extension type
-that uses a final type as its base type will fail at compile time.
-Note, however, that this restriction does not currently propagate to
-other extension modules, so even final extension types can still be
-subtyped at the C level by foreign code.
-
 
 C methods
 =========
@@ -619,6 +535,105 @@ compatible types:
 .. note::
 
     Cython currently does not support decorating :keyword:`cdef`/``@ccall`` methods with ``@classmethod`` decorator.
+
+
+.. _subclassing:
+
+Subclassing
+=============
+
+If an extension type inherits from other types, the first base class must be
+a built-in type or another extension type:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cclass
+            class Parrot:
+                ...
+
+            @cython.cclass
+            class Norwegian(Parrot):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef class Parrot:
+                ...
+
+
+            cdef class Norwegian(Parrot):
+                ...
+
+
+A complete definition of the base type must be available to Cython, so if the
+base type is a built-in type, it must have been previously declared as an
+extern extension type. If the base type is defined in another Cython module, it
+must either be declared as an extern extension type or imported using the
+:keyword:`cimport` statement or importing from the special ``cython.cimports`` package.
+
+Multiple inheritance is supported, however the second and subsequent base 
+classes must be an ordinary Python class (not an extension type or a built-in
+type).
+
+Cython extension types can also be subclassed in Python. A Python class can
+inherit from multiple extension types provided that the usual Python rules for
+multiple inheritance are followed (i.e. the C layouts of all the base classes
+must be compatible).
+
+There is a way to prevent extension types from
+being subtyped in Python.  This is done via the ``final`` directive,
+usually set on an extension type or C method using a decorator:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            import cython
+
+            @cython.final
+            @cython.cclass
+            class Parrot:
+               def done(self): pass
+
+            @cython.cclass
+            class Lizzard:
+
+               @cython.final
+               @cython.cfunc
+               def done(self): pass
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cimport cython
+
+            @cython.final
+            cdef class Parrot:
+               def done(self): pass
+
+            @cython.cclass
+            cdef class Lizzard:
+
+               @cython.final
+               cdef done(self): pass
+
+Trying to create a Python subclass from type or method marked as final will raise
+a :class:`TypeError` at runtime.  Cython will also prevent subtyping a
+final type or overriding final method inside of the same module, i.e. creating
+an extension type that uses a final type as its base type will fail at compile time.
+Note, however, that this restriction does not currently propagate to
+other extension modules, so even final extension types can still be
+subtyped at the C level by foreign code.
+
 
 .. _forward_declaring_extension_types:
 
