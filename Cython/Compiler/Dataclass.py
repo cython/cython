@@ -269,7 +269,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
-            kwargs[k] = v
+            kwargs[k] = v.value
 
     # remove everything that does not belong into _DataclassParams()
     kw_only = kwargs.pop("kw_only")
