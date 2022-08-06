@@ -295,7 +295,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             dim += 1
             access, packing = self.type.axes[dim]
 
-            if isinstance(index, ExprNodes.SliceNode):
+            if index.is_slice:
                 # slice, unspecified dimension, or part of ellipsis
                 d = dict(locals())
                 for s in "start stop step".split():
