@@ -388,7 +388,7 @@ def generate_init_code(init, node, fields, kw_only):
     args = u", ".join(args)
     func_def = u"def __init__(%s):" % args
 
-    code_lines = [func_def] + (function_body_code_lines or ["pass"])
+    code_lines = [func_def] + (function_body_code_lines or ["    pass"])
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
@@ -470,7 +470,7 @@ def generate_cmp_code(op, funcname, node, fields):
 
 def generate_eq_code(eq, node, fields):
     if not eq:
-        return code_lines, {}, []
+        return "", {}, []
     return generate_cmp_code("==", "__eq__", node, fields)
 
 
