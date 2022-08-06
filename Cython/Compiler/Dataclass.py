@@ -470,7 +470,7 @@ def generate_cmp_code(op, funcname, node, fields):
 
 def generate_eq_code(eq, node, fields):
     if not eq:
-        return code_lines, {}, []
+        return "", {}, []
     return generate_cmp_code("==", "__eq__", node, fields)
 
 
