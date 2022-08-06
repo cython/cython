@@ -570,11 +570,10 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
         if not field.is_initvar and (
             field.compare.value if field.hash.value is None else field.hash.value)
     ]
-    if not names:
-        return  # nothing to hash
 
     # make a tuple of the hashes
     hash_tuple_items = u", ".join(u"hash(self.%s)" % name for name in names)
+    hash_tuple_items += u","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
     code.add_code_lines([
