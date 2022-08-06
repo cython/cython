@@ -36,9 +36,19 @@ class C_TestCase_test_field_named_object_frozen:
 
 @dataclass
 @cclass
+class C_TestCase_test_field_no_default:
+    x: int = field()
+
+@dataclass
+@cclass
 class C_TestCase_test_not_in_compare:
     x: int = 0
     y: int = field(compare=False, default=4)
+
+@dataclass()
+@cclass
+class C_TestCase_test_no_options:
+    x: int
 
 @dataclass
 @cclass
@@ -298,6 +308,16 @@ class C_TestCase_test_helper_astuple_namedtuple:
 
 @dataclass
 @cclass
+class C_TestCase_test_init_in_order:
+    a: int
+    b: int = field()
+    c: list = field(default_factory=list, init=False)
+    d: list = field(default_factory=list)
+    e: int = field(default=4, init=False)
+    f: int = 4
+
+@dataclass
+@cclass
 class C_TestCase_test_alternate_classmethod_constructor:
     x: int
 
@@ -505,12 +525,22 @@ class TestCase(unittest.TestCase):
         c = C('foo')
         self.assertEqual(c.object, 'foo')
 
+    def test_field_no_default(self):
+        C = C_TestCase_test_field_no_default
+        self.assertEqual(C(5).x, 5)
+        with self.assertRaises(TypeError):
+            C()
+
     def test_not_in_compare(self):
         C = C_TestCase_test_not_in_compare
         self.assertEqual(C(), C(0, 20))
         self.assertEqual(C(1, 10), C(1, 20))
         self.assertNotEqual(C(3), C(4, 10))
         self.assertNotEqual(C(3, 10), C(4, 10))
+
+    def test_no_options(self):
+        C = C_TestCase_test_no_options
+        self.assertEqual(C(42).x, 42)
 
     def test_not_tuple(self):
         Point = Point_TestCase_test_not_tuple
@@ -758,6 +788,21 @@ class TestCase(unittest.TestCase):
         self.assertEqual(t, ('outer', T(1, ('inner', (11, 12, 13)), 2)))
         t = astuple(c, tuple_factory=list)
         self.assertEqual(t, ['outer', T(1, ['inner', T(11, 12, 13)], 2)])
+
+    def test_init_in_order(self):
+        C = C_TestCase_test_init_in_order
+        calls = []
+
+        def setattr(self, name, value):
+            calls.append((name, value))
+        C.__setattr__ = setattr
+        c = C(0, 1)
+        self.assertEqual(('a', 0), calls[0])
+        self.assertEqual(('b', 1), calls[1])
+        self.assertEqual(('c', []), calls[2])
+        self.assertEqual(('d', []), calls[3])
+        self.assertNotIn(('e', 4), calls)
+        self.assertEqual(('f', 4), calls[4])
 
     def test_alternate_classmethod_constructor(self):
         C = C_TestCase_test_alternate_classmethod_constructor

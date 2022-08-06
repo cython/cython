@@ -97,6 +97,7 @@ skip_tests = frozenset({
     ('TestInit', 'test_base_has_init'),  # needs __dict__ for vars
     # Requires arbitrary attributes to be writeable
     ('TestCase', 'test_post_init_super'),
+    ('TestCase', 'test_init_in_order'),
     # Cython being strict about argument types - expected difference
     ('TestDescriptors', 'test_getting_field_calls_get'),
     ('TestDescriptors', 'test_init_calls_set'),
@@ -108,9 +109,6 @@ skip_tests = frozenset({
     ('TestCase', 'test_not_in_repr'),
 
     # Bugs
-    ('TestCase', 'test_no_options'),  # @dataclass()
-    ('TestCase', 'test_field_no_default'),  # field()
-    ('TestCase', 'test_init_in_order'),  # field()
     ('TestCase', 'test_hash_field_rules'),  # compiler crash
     ('TestCase', 'test_class_var'),  # not sure but compiler crash
     ('TestCase', 'test_field_order'),  # invalid C code (__pyx_base?)
