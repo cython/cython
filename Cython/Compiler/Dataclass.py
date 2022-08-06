@@ -436,7 +436,8 @@ def generate_cmp_code(op, funcname, node, fields):
         "    if not isinstance(other, %s):" % node.class_name,
         "        return NotImplemented",
         #
-        "    cdef %s other_cast = <%s>other" % (node.class_name, node.class_name),
+        "    cdef %s other_cast" % node.class_name,
+        "    other_cast = <%s>other" % node.class_name,
     ]
 
     # The Python implementation of dataclasses.py does a tuple comparison
