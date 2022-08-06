@@ -36,6 +36,36 @@ class C_TestCase_test_field_named_object_frozen:
 
 @dataclass
 @cclass
+class C0_TestCase_test_0_field_compare:
+    pass
+
+@dataclass(order=False)
+@cclass
+class C1_TestCase_test_0_field_compare:
+    pass
+
+@dataclass(order=True)
+@cclass
+class C_TestCase_test_0_field_compare:
+    pass
+
+@dataclass
+@cclass
+class C0_TestCase_test_1_field_compare:
+    x: int
+
+@dataclass(order=False)
+@cclass
+class C1_TestCase_test_1_field_compare:
+    x: int
+
+@dataclass(order=True)
+@cclass
+class C_TestCase_test_1_field_compare:
+    x: int
+
+@dataclass
+@cclass
 class C_TestCase_test_not_in_compare:
     x: int = 0
     y: int = field(compare=False, default=4)
@@ -329,19 +359,6 @@ class R_TestCase_test_dataclasses_pickleable:
     x: int
     y: List[int] = field(default_factory=list)
 
-@dataclass(init=False)
-@cclass
-class C_TestInit_test_no_init:
-    i: int = 0
-
-@dataclass(init=False)
-@cclass
-class C_TestInit_test_no_init_:
-    i: int = 2
-
-    def __init__(self):
-        self.i = 3
-
 @dataclass
 @cclass
 class C_TestInit_test_overwriting_init:
@@ -389,6 +406,19 @@ class C_TestRepr_test_overwriting_repr__:
 
     def __repr__(self):
         return 'x'
+
+@dataclass(eq=False)
+@cclass
+class C_TestEq_test_no_eq:
+    x: int
+
+@dataclass(eq=False)
+@cclass
+class C_TestEq_test_no_eq_:
+    x: int
+
+    def __eq__(self, other):
+        return other == 10
 
 @dataclass
 @cclass
@@ -504,6 +534,39 @@ class TestCase(unittest.TestCase):
         C = C_TestCase_test_field_named_object_frozen
         c = C('foo')
         self.assertEqual(c.object, 'foo')
+
+    def test_0_field_compare(self):
+        C0 = C0_TestCase_test_0_field_compare
+        C1 = C1_TestCase_test_0_field_compare
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(), cls())
+                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaises(TypeError):
+                            fn(cls(), cls())
+        C = C_TestCase_test_0_field_compare
+        self.assertLessEqual(C(), C())
+        self.assertGreaterEqual(C(), C())
+
+    def test_1_field_compare(self):
+        C0 = C0_TestCase_test_1_field_compare
+        C1 = C1_TestCase_test_1_field_compare
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(1), cls(1))
+                self.assertNotEqual(cls(0), cls(1))
+                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaises(TypeError):
+                            fn(cls(0), cls(0))
+        C = C_TestCase_test_1_field_compare
+        self.assertLess(C(0), C(1))
+        self.assertLessEqual(C(0), C(1))
+        self.assertLessEqual(C(1), C(1))
+        self.assertGreater(C(1), C(0))
+        self.assertGreaterEqual(C(1), C(0))
+        self.assertGreaterEqual(C(1), C(1))
 
     def test_not_in_compare(self):
         C = C_TestCase_test_not_in_compare
@@ -795,12 +858,6 @@ class TestFieldNoAnnotation(unittest.TestCase):
 
 class TestInit(unittest.TestCase):
 
-    def test_no_init(self):
-        C = C_TestInit_test_no_init
-        self.assertEqual(C().i, 0)
-        C = C_TestInit_test_no_init_
-        self.assertEqual(C().i, 3)
-
     def test_overwriting_init(self):
         C = C_TestInit_test_overwriting_init
         self.assertEqual(C(3).x, 6)
@@ -820,6 +877,14 @@ class TestRepr(unittest.TestCase):
         self.assertEqual(repr(C(0)), 'x')
 
 class TestEq(unittest.TestCase):
+
+    def test_no_eq(self):
+        C = C_TestEq_test_no_eq
+        self.assertNotEqual(C(0), C(0))
+        c = C(3)
+        self.assertEqual(c, c)
+        C = C_TestEq_test_no_eq_
+        self.assertEqual(C(3), 10)
 
     def test_overwriting_eq(self):
         C = C_TestEq_test_overwriting_eq
