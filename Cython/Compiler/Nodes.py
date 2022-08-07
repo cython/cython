@@ -5311,12 +5311,9 @@ class CClassDefNode(ClassDefNode):
                 is_frozen = False
                 dataclass_directives = env.directives["dataclasses.dataclass"]
                 if dataclass_directives:
-                    frozen_directive = dataclass_directives[1].get('frozen', None)
+                    frozen_directive = dataclass_directives[1].get('frozen')
                     is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
-                if is_frozen:
-                    scope.is_dataclass = "frozen"
-                else:
-                    scope.is_dataclass = True
+                scope.is_dataclass = "frozen" if is_frozen else True
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
