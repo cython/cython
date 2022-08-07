@@ -14,6 +14,6 @@ import sys
 
 def skip_on_versions_below(version):
     def decorator(func):
-        if sys.version_info > version:
+        if sys.version_info >= version:
             return func
     return decorator

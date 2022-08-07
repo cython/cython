@@ -153,8 +153,9 @@ skip_tests = frozenset({
 })
 
 version_specific_skips = {
-    ('TestCase', 'test_init_var_preserve_type'): (3, 9),  # needs language support for | operator on types
-    ('TestCase', 'test_post_init_classmethod'): (3, 9),  # not possible to add attributes on extension types
+    # The version numbers are the first version that the test should be run on
+    ('TestCase', 'test_init_var_preserve_type'): (3, 10),  # needs language support for | operator on types
+    ('TestCase', 'test_post_init_classmethod'): (3, 10),  # not possible to add attributes on extension types
 }
 
 class DataclassInDecorators(ast.NodeVisitor):
@@ -266,7 +267,6 @@ class ExtraDataclassesToTopLevel(ast.NodeTransformer):
             self.nested_name.pop()
             return None
         if tuple(self.nested_name) in version_specific_skips:
-            #import pdb; pdb.set_trace()
             version = version_specific_skips[tuple(self.nested_name)]
             decorator = ast.parse(f"skip_on_versions_below({version})", mode="eval").body
             node.decorator_list.append(decorator)
