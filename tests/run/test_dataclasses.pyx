@@ -528,6 +528,7 @@ class TestCase(unittest.TestCase):
         Point3Dv1 = Point3Dv1_TestCase_test_not_other_dataclass
         self.assertNotEqual(Point3D(0, 0, 0), Point3Dv1())
 
+    @skip_on_versions_below((3, 9))
     def test_post_init_classmethod(self):
         C = C_TestCase_test_post_init_classmethod
         self.assertFalse(C.flag)
@@ -544,6 +545,7 @@ class TestCase(unittest.TestCase):
         c = C(init_param=10)
         self.assertEqual(c.x, 20)
 
+    @skip_on_versions_below((3, 9))
     def test_init_var_preserve_type(self):
         self.assertEqual(InitVar[int].type, int)
         self.assertEqual(repr(InitVar[int]), 'dataclasses.InitVar[int]')

@@ -492,6 +492,7 @@ VER_DEP_MODULES = {
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
+                                         'run.test_dataclasses',
                                          ]),
 }
 

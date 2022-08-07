@@ -152,6 +152,11 @@ skip_tests = frozenset({
     ('TestDescriptors',),  # mostly don't work - I think this may be a limitation of cdef classes but needs investigating
 })
 
+version_specific_skips = {
+    ('TestCase', 'test_init_var_preserve_type'): (3, 9),  # needs language support for | operator on types
+    ('TestCase', 'test_post_init_classmethod'): (3, 9),  # not possible to add attributes on extension types
+}
+
 class DataclassInDecorators(ast.NodeVisitor):
     found = False
     def visit_Name(self, node):
@@ -260,6 +265,11 @@ class ExtraDataclassesToTopLevel(ast.NodeTransformer):
         if tuple(self.nested_name) in skip_tests:
             self.nested_name.pop()
             return None
+        if tuple(self.nested_name) in version_specific_skips:
+            #import pdb; pdb.set_trace()
+            version = version_specific_skips[tuple(self.nested_name)]
+            decorator = ast.parse(f"skip_on_versions_below({version})", mode="eval").body
+            node.decorator_list.append(decorator)
         collected_subs, self.collected_substitutions = self.collected_substitutions, {}
         uses_unavailable_name, self.uses_unavailable_name = self.uses_unavailable_name, False
         current_func_globs, self.current_function_global_classes = self.current_function_global_classes, []
