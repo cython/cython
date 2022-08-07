@@ -5309,9 +5309,9 @@ class CClassDefNode(ClassDefNode):
             scope.directives = env.directives
             if "dataclasses.dataclass" in env.directives:
                 is_frozen = False
-                dataclass_directives_dict = env.directives["dataclasses.dataclass"][1]
-                if dataclass_directives_dict:
-                    frozen_directive = dataclass_directives_dict.get('frozen')
+                dataclass_directives = env.directives["dataclasses.dataclass"]
+                if dataclass_directives:
+                    frozen_directive = dataclass_directives[1].get('frozen')
                     is_frozen = frozen_directive and frozen_directive.has_constant_result() and frozen_directive.constant_result
                 scope.is_dataclass = "frozen" if is_frozen else True
 
