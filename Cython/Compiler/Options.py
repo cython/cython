@@ -169,11 +169,7 @@ def get_directive_defaults():
 def copy_inherited_directives(outer_directives, **new_directives):
     # A few directives are not copied downwards and this function removes them.
     # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
-    #  otherwise they can produce very misleading test failures.
-    # The difference with "immediate_decorator_directives" is that these can be set and
-    #  apply to the body of a function (but not in any inner function), while 
-    #  "immediate_decorator_directives" are applied to the function call but not in
-    #  the body itself
+    #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
     for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
         new_directives_out.pop(name, None)
