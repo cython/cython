@@ -37,7 +37,6 @@ class MyDataclass:
         return self.a * c
 
 
-
 class DummyObj:
     def __repr__(self):
         return "DummyObj()"
