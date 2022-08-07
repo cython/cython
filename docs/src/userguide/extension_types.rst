@@ -577,7 +577,7 @@ extern extension type. If the base type is defined in another Cython module, it
 must either be declared as an extern extension type or imported using the
 :keyword:`cimport` statement or importing from the special ``cython.cimports`` package.
 
-Multiple inheritance is supported, however the second and subsequent base 
+Multiple inheritance is supported, however the second and subsequent base
 classes must be an ordinary Python class (not an extension type or a built-in
 type).
 
@@ -601,7 +601,7 @@ usually set on an extension type or C method using a decorator:
             @cython.final
             @cython.cclass
             class Parrot:
-               def done(self): pass
+               def describe(self): pass
 
             @cython.cclass
             class Lizard:
@@ -618,11 +618,11 @@ usually set on an extension type or C method using a decorator:
 
             @cython.final
             cdef class Parrot:
-               def done(self): pass
+               def describe(self): pass
 
 
             @cython.cclass
-            cdef class Lizzard:
+            cdef class Lizard:
 
 
                @cython.final
