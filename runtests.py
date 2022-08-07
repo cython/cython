@@ -346,6 +346,39 @@ def update_cpp17_extension(ext):
 
     return EXCLUDE_EXT
 
+def update_cpp20_extension(ext):
+    """
+        update cpp20 extensions that will run on versions of gcc >= 11.0
+        and clang >= 14.0
+    """
+    gcc_version = get_gcc_version(ext.language)
+    if gcc_version:
+        compiler_version = gcc_version.group(1)
+        if sys.version_info[0] < 3:
+            # The Python 2.7 headers contain the 'register' modifier
+            # which gcc warns about in C++20 mode.
+            ext.extra_compile_args.append('-Wno-register')
+        if float(compiler_version) >= 11.0:
+            ext.extra_compile_args.append("-std=c++20")
+        return ext
+
+    clang_version = get_clang_version(ext.language)
+    if clang_version:
+        compiler_version = clang_version.group(1)
+        if float(compiler_version) >= 13.0:
+            ext.extra_compile_args.append("-std=c++20")
+        if sys.version_info[0] < 3:
+            # The Python 2.7 headers contain the 'register' modifier
+            # which clang warns about in C++20 mode.
+            ext.extra_compile_args.append('-Wno-register')
+        if sys.platform == "darwin":
+            ext.extra_compile_args.append("-stdlib=libc++")
+            ext.extra_compile_args.append("-mmacosx-version-min=10.13")
+
+        return ext
+
+    return EXCLUDE_EXT
+
 def require_gcc(version):
     def check(ext):
         gcc_version = get_gcc_version(ext.language)
@@ -440,6 +473,7 @@ EXT_EXTRAS = {
     'tag:gdb': update_gdb_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:cpp17': update_cpp17_extension,
+    'tag:cpp20': update_cpp20_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
