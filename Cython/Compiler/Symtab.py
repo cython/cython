@@ -2258,6 +2258,7 @@ class CClassScope(ClassScope):
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
     #  inherited_var_entries [Entry]  Adapted var entries from base class
+    #  is_dataclass     boolean or "frozen"  is a cython.dataclasses.dataclass
 
     is_c_class_scope = 1
     is_closure_class_scope = False
@@ -2268,6 +2269,7 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
+    is_dataclass = False
 
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
@@ -2345,7 +2347,7 @@ class CClassScope(ClassScope):
                         type = py_object_type
                     else:
                         type = type.equivalent_type
-            if  "dataclasses.InitVar" in pytyping_modifiers and 'dataclasses.dataclass' not in self.directives:
+            if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_dataclass:
                 error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:

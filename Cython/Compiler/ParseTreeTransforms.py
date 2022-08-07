@@ -1318,8 +1318,7 @@ class InterpretCompilerDirectives(CythonTransform):
                         name, value = directive
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
-                        if (directive[0] == 'staticmethod' or
-                                (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
+                        if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
