@@ -2057,10 +2057,10 @@ class NameNode(AtomicExprNode):
                     atype = error_type
 
             visibility = 'private'
-            if env.is_c_class_scope and env.is_dataclass:
+            if env.is_c_dataclass_scope:
                 # handle "frozen" directive - full inspection of the dataclass directives happens
                 # in Dataclass.py
-                is_frozen = env.is_dataclass == "frozen"
+                is_frozen = env.is_c_dataclass_scope == "frozen"
                 if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
                     visibility = 'readonly' if is_frozen else 'public'
                     # If the object can't be coerced that's fine - we just don't create a property
@@ -2155,7 +2155,7 @@ class NameNode(AtomicExprNode):
             self.entry.known_standard_library_import = ""  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            is_dataclass = env.is_c_class_scope and env.is_dataclass
+            is_dataclass = env.is_c_dataclass_scope
             # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
             # Hence, "as_target = not is_dataclass".
             self.declare_from_annotation(env, as_target=not is_dataclass)

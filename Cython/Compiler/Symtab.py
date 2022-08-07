@@ -348,6 +348,7 @@ class Scope(object):
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
+    # is_c_dataclass_scope     boolean or "frozen"  is a cython.dataclasses.dataclass
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -368,6 +369,7 @@ class Scope(object):
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_c_dataclass_scope = False
     is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
@@ -2258,7 +2260,6 @@ class CClassScope(ClassScope):
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
     #  inherited_var_entries [Entry]  Adapted var entries from base class
-    #  is_dataclass     boolean or "frozen"  is a cython.dataclasses.dataclass
 
     is_c_class_scope = 1
     is_closure_class_scope = False
@@ -2269,7 +2270,6 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
-    is_dataclass = False
 
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
@@ -2347,7 +2347,7 @@ class CClassScope(ClassScope):
                         type = py_object_type
                     else:
                         type = type.equivalent_type
-            if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_dataclass:
+            if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_c_dataclass_scope:
                 error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:

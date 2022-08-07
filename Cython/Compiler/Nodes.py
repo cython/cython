@@ -5313,7 +5313,7 @@ class CClassDefNode(ClassDefNode):
                 if dataclass_directives:
                     frozen_directive = dataclass_directives[1].get('frozen')
                     is_frozen = frozen_directive and frozen_directive.has_constant_result() and frozen_directive.constant_result
-                scope.is_dataclass = "frozen" if is_frozen else True
+                scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
