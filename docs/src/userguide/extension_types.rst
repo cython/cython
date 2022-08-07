@@ -489,8 +489,8 @@ functions, C methods are declared using
 * :keyword:`cdef` instead of :keyword:`def` or ``@cfunc`` decorator for *C methods*, or
 * :keyword:`cpdef` instead of :keyword:`def` or ``@ccall`` decorator for *hybrid methods*.
 
-C methods are "virtual", and may be overridden in derived
-extension types. In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by Python
+C methods are "virtual", and may be overridden in derived extension types.
+In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by Python
 methods when called as C method. This adds a little to their calling overhead
 compared to a :keyword:`cdef`/``@cfunc`` method:
 
@@ -519,8 +519,7 @@ method using the usual Python technique, i.e.::
     Parrot.describe(self)
 
 :keyword:`cdef`/``@ccall`` methods can be declared static by using the ``@staticmethod`` decorator.
-This can be especially useful for constructing classes that take non-Python
-compatible types:
+This can be especially useful for constructing classes that take non-Python compatible types:
 
 .. tabs::
 
@@ -534,7 +533,8 @@ compatible types:
 
 .. note::
 
-    Cython currently does not support decorating :keyword:`cdef`/``@ccall`` methods with ``@classmethod`` decorator.
+    Cython currently does not support decorating :keyword:`cdef`/``@ccall`` methods with
+    the ``@classmethod`` decorator.
 
 
 .. _subclassing:
