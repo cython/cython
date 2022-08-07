@@ -5314,7 +5314,7 @@ class CClassDefNode(ClassDefNode):
                 dataclass_directives_args_kwds = env.directives["dataclasses.dataclass"]
                 if dataclass_directives_args_kwds:
                     frozen_directive = dataclass_directives_args_kwds[1].get('frozen')
-                    is_frozen = frozen_directive and frozen_directive.has_constant_result() and frozen_directive.constant_result
+                    is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
                 scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
         if self.doc and Options.docstrings:
