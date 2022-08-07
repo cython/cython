@@ -628,9 +628,9 @@ usually set on an extension type or C method using a decorator:
                @cython.final
                cdef done(self): pass
 
-Trying to create a Python subclass from type or method marked as final will raise
+Trying to create a Python subclass from a final type or overriding a final method will raise
 a :class:`TypeError` at runtime.  Cython will also prevent subtyping a
-final type or overriding final method inside of the same module, i.e. creating
+final type or overriding a final method inside of the same module, i.e. creating
 an extension type that uses a final type as its base type will fail at compile time.
 Note, however, that this restriction does not currently propagate to
 other extension modules, so even final extension types can still be
