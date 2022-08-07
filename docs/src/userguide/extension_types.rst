@@ -604,7 +604,7 @@ usually set on an extension type or C method using a decorator:
                def done(self): pass
 
             @cython.cclass
-            class Lizzard:
+            class Lizard:
 
                @cython.final
                @cython.cfunc
