@@ -6,10 +6,12 @@ import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
-               error=object, warning=object, copy=object, _unicode=object)
+               error=object, warning=object, copy=object, hashlib=object, sys=object,
+               _unicode=object)
 
 import copy
 import hashlib
+import sys
 
 from . import PyrexTypes
 from . import Naming
@@ -830,6 +832,14 @@ class InterpretCompilerDirectives(CythonTransform):
     }
     special_methods.update(unop_method_nodes)
 
+    valid_cython_submodules = {
+        'cimports',
+        'dataclasses',
+        'operator',
+        'parallel',
+        'view',
+    }
+
     valid_parallel_directives = {
         "parallel",
         "prange",
@@ -857,6 +867,34 @@ class InterpretCompilerDirectives(CythonTransform):
             if directive not in Options.directive_types:
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
+
+    def _check_valid_cython_module(self, pos, module_name):
+        if not module_name.startswith("cython."):
+            return
+        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+            return
+
+        extra = ""
+        # This is very rarely used, so don't waste space on static tuples.
+        hints = [
+            line.split() for line in """\
+                imp                  cimports
+                cimp                 cimports
+                para                 parallel
+                parra                parallel
+                dataclass            dataclasses
+            """.splitlines()[:-1]
+        ]
+        for wrong, correct in hints:
+            if module_name.startswith("cython." + wrong):
+                extra = "Did you mean 'cython.%s' ?" % correct
+                break
+
+        error(pos, "'%s' is not a valid cython.* module%s%s" % (
+            module_name,
+            ". " if extra else "",
+            extra,
+        ))
 
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
@@ -928,6 +966,9 @@ class InterpretCompilerDirectives(CythonTransform):
         elif module_name.startswith(u"cython."):
             if module_name.startswith(u"cython.parallel."):
                 error(node.pos, node.module_name + " is not a module")
+            else:
+                self._check_valid_cython_module(node.pos, module_name)
+
             if module_name == u"cython.parallel":
                 if node.as_name and node.as_name != u"cython":
                     self.parallel_directives[node.as_name] = module_name
@@ -954,6 +995,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 node.pos, module_name, node.relative_level, node.imported_names)
         elif not node.relative_level and (
                 module_name == u"cython" or module_name.startswith(u"cython.")):
+            self._check_valid_cython_module(node.pos, module_name)
             submodule = (module_name + u".")[7:]
             newimp = []
 
@@ -993,6 +1035,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return self._create_cimport_from_import(
                 node.pos, module_name, import_node.level, imported_names)
         elif module_name == u"cython" or module_name.startswith(u"cython."):
+            self._check_valid_cython_module(import_node.module_name.pos, module_name)
             submodule = (module_name + u".")[7:]
             newimp = []
             for name, name_node in node.items:
@@ -1033,8 +1076,7 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.rhs, ExprNodes.ImportNode):
             module_name = node.rhs.module_name.value
-            is_special_module = (module_name + u".").startswith((u"cython.parallel.", u"cython.cimports."))
-            if module_name != u"cython" and not is_special_module:
+            if module_name != u"cython" and not module_name.startswith("cython."):
                 return node
 
             node = Nodes.CImportStatNode(node.pos, module_name=module_name, as_name=node.lhs.name)
@@ -1276,8 +1318,7 @@ class InterpretCompilerDirectives(CythonTransform):
                         name, value = directive
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
-                        if (directive[0] == 'staticmethod' or
-                                (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
+                        if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
@@ -2035,22 +2076,10 @@ if VALUE is not None:
                 if not e.type.is_pyobject:
                     e.type.create_to_py_utility_code(env)
                     e.type.create_from_py_utility_code(env)
-            all_members_names = sorted([e.name for e in all_members])
 
-            # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
-            # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
-            # which may not be.
-            checksum_algos = [hashlib.sha256, hashlib.sha1]
-            try:
-                checksum_algos.append(hashlib.md5)
-            except AttributeError:
-                pass
+            all_members_names = [e.name for e in all_members]
+            checksums = _calculate_pickle_checksums(all_members_names)
 
-            member_names_string = ' '.join(all_members_names).encode('utf-8')
-            checksums = [
-                '0x' + mkchecksum(member_names_string).hexdigest()[:7]
-                for mkchecksum in checksum_algos
-            ]
             unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
 
             # TODO(robertwb): Move the state into the third argument
@@ -2467,6 +2496,24 @@ if VALUE is not None:
         return node
 
 
+def _calculate_pickle_checksums(member_names):
+    # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
+    # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
+    # which may not be.
+    member_names_string = ' '.join(member_names).encode('utf-8')
+    hash_kwargs = {'usedforsecurity': False} if sys.version_info >= (3, 9) else {}
+    checksums = []
+    for algo_name in ['sha256', 'sha1', 'md5']:
+        try:
+            mkchecksum = getattr(hashlib, algo_name)
+            checksum = mkchecksum(member_names_string, **hash_kwargs).hexdigest()
+        except (AttributeError, ValueError):
+            # The algorithm (i.e. MD5) might not be there at all, or might be blocked at runtime.
+            continue
+        checksums.append('0x' + checksum[:7])
+    return checksums
+
+
 class CalculateQualifiedNamesTransform(EnvTransform):
     """
     Calculate and store the '__qualname__' and the global
@@ -2858,8 +2905,7 @@ class RemoveUnreachableCode(CythonTransform):
         if not self.current_directives['remove_unreachable']:
             return node
         self.visitchildren(node)
-        for idx, stat in enumerate(node.stats):
-            idx += 1
+        for idx, stat in enumerate(node.stats, 1):
             if stat.is_terminator:
                 if idx < len(node.stats):
                     if self.current_directives['warn.unreachable']:

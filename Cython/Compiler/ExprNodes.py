@@ -544,7 +544,7 @@ class ExprNode(Node):
         if is_pythran_supported_node_or_none(self):
             return to_pythran(self)
 
-        assert(type_ is not None)
+        assert type_ is not None
         return to_pythran(self, type_)
 
     def is_c_result_required(self):
@@ -2057,15 +2057,10 @@ class NameNode(AtomicExprNode):
                     atype = error_type
 
             visibility = 'private'
-            if 'dataclasses.dataclass' in env.directives:
+            if env.is_c_dataclass_scope:
                 # handle "frozen" directive - full inspection of the dataclass directives happens
                 # in Dataclass.py
-                frozen_directive = None
-                dataclass_directive = env.directives['dataclasses.dataclass']
-                if dataclass_directive:
-                    dataclass_directive_kwds = dataclass_directive[1]
-                    frozen_directive = dataclass_directive_kwds.get('frozen', None)
-                is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
+                is_frozen = env.is_c_dataclass_scope == "frozen"
                 if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
                     visibility = 'readonly' if is_frozen else 'public'
                     # If the object can't be coerced that's fine - we just don't create a property
@@ -2160,7 +2155,7 @@ class NameNode(AtomicExprNode):
             self.entry.known_standard_library_import = ""  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            is_dataclass = 'dataclasses.dataclass' in env.directives
+            is_dataclass = env.is_c_dataclass_scope
             # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
             # Hence, "as_target = not is_dataclass".
             self.declare_from_annotation(env, as_target=not is_dataclass)
@@ -3043,8 +3038,8 @@ class CppIteratorNode(ExprNode):
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
         # essentially 3 options:
-        if self.sequence.is_name or self.sequence.is_attribute:
-            # 1) is a name and can be accessed directly;
+        if self.sequence.is_simple():
+            # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
             #    of the user
             code.putln("%s = %s%sbegin();" % (self.result(),
@@ -3083,6 +3078,28 @@ class CppIteratorNode(ExprNode):
                         self.extra_dereference,
                         self.result()))
         code.putln("++%s%s;" % (self.extra_dereference, self.result()))
+
+    def generate_subexpr_disposal_code(self, code):
+        if not self.cpp_sequence_cname:
+            # the sequence is accessed directly so any temporary result in its
+            # subexpressions must remain available until the iterator is not needed
+            return
+        ExprNode.generate_subexpr_disposal_code(self, code)
+
+    def free_subexpr_temps(self, code):
+        if not self.cpp_sequence_cname:
+            # the sequence is accessed directly so any temporary result in its
+            # subexpressions must remain available until the iterator is not needed
+            return
+        ExprNode.free_subexpr_temps(self, code)
+
+    def generate_disposal_code(self, code):
+        if not self.cpp_sequence_cname:
+            # postponed from CppIteratorNode.generate_subexpr_disposal_code
+            # and CppIteratorNode.free_subexpr_temps
+            ExprNode.generate_subexpr_disposal_code(self, code)
+            ExprNode.free_subexpr_temps(self, code)
+        ExprNode.generate_disposal_code(self, code)
 
     def free_temps(self, code):
         if self.cpp_sequence_cname:
@@ -9839,6 +9856,12 @@ class CodeObjectNode(ExprNode):
             flags.append('CO_VARARGS')
         if self.def_node.starstar_arg:
             flags.append('CO_VARKEYWORDS')
+        if self.def_node.is_asyncgen:
+            flags.append('CO_ASYNC_GENERATOR')
+        elif self.def_node.is_coroutine:
+            flags.append('CO_COROUTINE')
+        elif self.def_node.is_generator:
+            flags.append('CO_GENERATOR')
 
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,

@@ -306,8 +306,8 @@ class CythonTransform(VisitorTransform):
         self.context = context
 
     def __call__(self, node):
-        from . import ModuleNode
-        if isinstance(node, ModuleNode.ModuleNode):
+        from .ModuleNode import ModuleNode
+        if isinstance(node, ModuleNode):
             self.current_directives = node.directives
         return super(CythonTransform, self).__call__(node)
 

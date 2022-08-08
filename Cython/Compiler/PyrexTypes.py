@@ -2791,6 +2791,8 @@ class CReferenceBaseType(BaseType):
 
     # Common base type for C reference and C++ rvalue reference types.
 
+    subtypes = ['ref_base_type']
+
     def __init__(self, base_type):
         self.ref_base_type = base_type
 

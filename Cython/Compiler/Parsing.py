@@ -2853,16 +2853,6 @@ def looking_at_dotted_name(s):
     else:
         return 0
 
-def looking_at_call(s):
-    "See if we're looking at a.b.c("
-    # Don't mess up the original position, so save and restore it.
-    # Unfortunately there's no good way to handle this, as a subsequent call
-    # to next() will not advance the position until it reads a new token.
-    position = s.start_line, s.start_col
-    result = looking_at_expr(s) == u'('
-    if not result:
-        s.start_line, s.start_col = position
-    return result
 
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
@@ -3863,6 +3853,9 @@ def p_compiler_directive_comments(s):
             for name in new_directives:
                 if name not in result:
                     pass
+                elif Options.directive_types.get(name) is list:
+                    result[name] += new_directives[name]
+                    new_directives[name] = result[name]
                 elif new_directives[name] == result[name]:
                     warning(pos, "Duplicate directive found: %s" % (name,))
                 else:
