@@ -2,7 +2,7 @@
 
 
 cdef class Shrubbery:
-    def __cinit__(self, int w, int l):
+    def __init__(self, int w, int l):
         self.width = w
         self.length = l
 
