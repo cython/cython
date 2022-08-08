@@ -177,3 +177,60 @@ def test_iteration_from_function_call():
         print(i)
     for i in make_vec3():
         print(i)
+
+def test_const_iterator_calculations(py_v):
+    """
+    >>> print(test_const_iterator_calculations([1, 2, 3]))
+    [3, 3, 3, 3, True, True, False, False]
+    """
+    cdef deque[int] dint
+    for i in py_v:
+        dint.push_back(i)
+    cdef deque[int].iterator first = dint.begin()
+    cdef deque[int].iterator last = dint.end()
+    cdef deque[int].const_iterator cfirst = first
+    cdef deque[int].const_iterator clast = last
+
+    return [
+        last - first,
+        last - cfirst,
+        clast - first,
+        clast - cfirst,
+        first == cfirst,
+        last == clast,
+        first == clast,
+        last == cfirst
+    ]
+
+cdef extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
+    cdef cppclass HasIterableAttribute:
+        vector[int] vec
+        HasIterableAttribute()
+        HasIterableAttribute(vector[int])
+
+cdef HasIterableAttribute get_object_with_iterable_attribute():
+    return HasIterableAttribute()
+
+def test_iteration_over_attribute_of_call():
+    """
+    >>> test_iteration_over_attribute_of_call()
+    1
+    2
+    3
+    42
+    43
+    44
+    1
+    2
+    3
+    """
+    for i in HasIterableAttribute().vec:
+        print(i)
+    cdef vector[int] vec
+    for i in range(42, 45):
+        vec.push_back(i)
+    for i in HasIterableAttribute(vec).vec:
+        print(i)
+    for i in get_object_with_iterable_attribute().vec:
+        print(i)
+

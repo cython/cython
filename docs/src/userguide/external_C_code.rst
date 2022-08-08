@@ -189,8 +189,8 @@ same applies equally to union and enum declarations.
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 | C code                  | Possibilities for corresponding Cython Code | Comments                                                              |
 +=========================+=============================================+=======================================================================+
-| .. code-block:: c       | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
-|                         |                                             |                                                                       |
+| .. code-block:: c       | ::                                          | Cython will refer to the type as ``struct Foo`` in                    |
+|                         |                                             | the generated C code.                                                 |
 |   struct Foo {          |   cdef struct Foo:                          |                                                                       |
 |     ...                 |     ...                                     |                                                                       |
 |   };                    |                                             |                                                                       |
@@ -270,6 +270,12 @@ will allow you to create Python strings containing null bytes.
 Note that Cython comes with ready-to-use declarations of (almost) all C-API functions
 in the cimportable ``cpython.*`` modules.  See the list in
 https://github.com/cython/cython/tree/master/Cython/Includes/cpython
+
+You should always use submodules (e.g. ``cpython.object``, ``cpython.list``) to
+access these functions. Historically Cython has made some of the C-API functions
+available under directly under the ``cpython`` module. However, this is
+deprecated, will be removed eventually, and any new additions will not be added
+there.
 
 Special Types
 --------------
@@ -465,7 +471,9 @@ For example, in the following snippet that includes :file:`grail.h`:
     }
 
 This C code can then be built together with the Cython-generated C code
-in a single program (or library).
+in a single program (or library). Be aware that this program will not include
+any external dependencies that your module uses. Therefore typically this will
+not generate a truly portable application for most cases.
 
 In Python 3.x, calling the module init function directly should be avoided.  Instead,
 use the `inittab mechanism <https://docs.python.org/3/c-api/import.html#c._inittab>`_

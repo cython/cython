@@ -691,6 +691,7 @@ class LazyUtilityCode(UtilityCodeBase):
 class FunctionState(object):
     # return_label     string          function return point label
     # error_label      string          error catch point label
+    # error_without_exception  boolean Can go to the error label without an exception (e.g. __next__ can return NULL)
     # continue_label   string          loop continue point label
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
@@ -738,6 +739,8 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+        self.error_without_exception = False
 
     # safety checks
 
@@ -1857,13 +1860,21 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
+        if '\n' in s:
+            self._write_lines(s)
+        else:
+            self._write_to_buffer(s)
+
+    def _write_lines(self, s):
         # Cygdb needs to know which Cython source line corresponds to which C line.
         # Therefore, we write this information into "self.buffer.markers" and then write it from there
         # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
-
         filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
         self.buffer.markers.extend([filename_line] * s.count('\n'))
 
+        self._write_to_buffer(s)
+
+    def _write_to_buffer(self, s):
         self.buffer.write(s)
 
     def insertion_point(self):
@@ -1967,13 +1978,13 @@ class CCodeWriter(object):
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
             source_desc, line, _ = self.last_marked_pos
-            self.write('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
+            self._write_lines('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
         if code:
             if safe:
                 self.put_safe(code)
             else:
                 self.put(code)
-        self.write("\n")
+        self._write_lines("\n")
         self.bol = 1
 
     def mark_pos(self, pos, trace=True):
@@ -1987,13 +1998,13 @@ class CCodeWriter(object):
         pos, trace = self.last_pos
         self.last_marked_pos = pos
         self.last_pos = None
-        self.write("\n")
+        self._write_lines("\n")
         if self.code_config.emit_code_comments:
             self.indent()
-            self.write("/* %s */\n" % self._build_marker(pos))
+            self._write_lines("/* %s */\n" % self._build_marker(pos))
         if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self.write('__Pyx_TraceLine(%d,%d,%s)\n' % (
+            self._write_lines('__Pyx_TraceLine(%d,%d,%s)\n' % (
                 pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))
 
     def _build_marker(self, pos):
@@ -2070,7 +2081,7 @@ class CCodeWriter(object):
         self.putln("}")
 
     def indent(self):
-        self.write("  " * self.level)
+        self._write_to_buffer("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
@@ -2282,8 +2293,11 @@ class CCodeWriter(object):
             self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
+        is_reverse_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in special_py_methods:
+            from . import TypeSlots
+            is_reverse_number_slot = True
+            if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot
@@ -2296,7 +2310,6 @@ class CCodeWriter(object):
         if not method_flags:
             return
         if entry.is_special:
-            from . import TypeSlots
             method_flags += [TypeSlots.method_coexist]
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
         # Add required casts, but try not to shadow real warnings.
@@ -2304,6 +2317,14 @@ class CCodeWriter(object):
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
+        if is_reverse_number_slot:
+            # Unlike most special functions, reverse number operator slots are actually generated here
+            # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
+            # so a bit of extra logic is needed
+            slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
+            preproc_guard = slot.preprocessor_guard_code()
+            if preproc_guard:
+                self.putln(preproc_guard)
         self.putln(
             '{%s, (PyCFunction)%s, %s, %s}%s' % (
                 entry_name,
@@ -2311,6 +2332,8 @@ class CCodeWriter(object):
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
+        if is_reverse_number_slot and preproc_guard:
+            self.putln("#endif")
 
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
@@ -2320,8 +2343,16 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
-                    func_cname, entry.func_cname))
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {" % func_cname)
+                func_call = "%s(self)" % entry.func_cname
+                if entry.name == "__next__":
+                    self.putln("PyObject *res = %s;" % func_call)
+                    # tp_iternext can return NULL without an exception
+                    self.putln("if (!res && !PyErr_Occurred()) { PyErr_SetNone(PyExc_StopIteration); }")
+                    self.putln("return res;")
+                else:
+                    self.putln("return %s;" % func_call)
+                self.putln("}")
         return func_cname
 
     # GIL methods

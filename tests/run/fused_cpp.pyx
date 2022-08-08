@@ -43,6 +43,16 @@ def typeid_call2(cython.integral x):
     cdef const type_info* a = &typeid(cython.integral)
     return a[0] == tidint[0]
 
+cdef fused_ref(cython.integral& x):
+    return x*2
+
+def test_fused_ref(int x):
+    """
+    >>> test_fused_ref(5)
+    (10, 10)
+    """
+    return fused_ref(x), fused_ref[int](x)
+
 ctypedef fused nested_fused:
     vector[cython.integral]
 

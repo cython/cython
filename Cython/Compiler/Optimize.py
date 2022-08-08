@@ -3026,7 +3026,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """Optimistic optimisation as X.append() is almost always
         referring to a list.
         """
-        if len(args) != 2 or node.result_is_used:
+        if len(args) != 2 or node.result_is_used or node.function.entry:
             return node
 
         return ExprNodes.PythonCapiCallNode(
@@ -3620,6 +3620,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         if len(args) < 2:
             args.append(ExprNodes.NullNode(node.pos))
+        else:
+            self._inject_null_for_none(args, 1)
         self._inject_int_default_argument(
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "-1")
 
@@ -4135,13 +4137,35 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 format_args=[attr_name])
         return self_arg
 
+    obj_to_obj_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
+        ])
+
+    def _inject_null_for_none(self, args, index):
+        if len(args) <= index:
+            return
+        arg = args[index]
+        args[index] = ExprNodes.NullNode(arg.pos) if arg.is_none else ExprNodes.PythonCapiCallNode(
+            arg.pos, "__Pyx_NoneAsNull",
+            self.obj_to_obj_func_type,
+            args=[arg.coerce_to_simple(self.current_env())],
+            is_temp=0,
+        )
+
     def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
+        # Python usually allows passing None for range bounds,
+        # so we treat that as requesting the default.
         assert len(args) >= arg_index
-        if len(args) == arg_index:
+        if len(args) == arg_index or args[arg_index].is_none:
             args.append(ExprNodes.IntNode(node.pos, value=str(default_value),
                                           type=type, constant_result=default_value))
         else:
-            args[arg_index] = args[arg_index].coerce_to(type, self.current_env())
+            arg = args[arg_index].coerce_to(type, self.current_env())
+            if isinstance(arg, ExprNodes.CoerceFromPyTypeNode):
+                # Add a runtime check for None and map it to the default value.
+                arg.special_none_cvalue = str(default_value)
+            args[arg_index] = arg
 
     def _inject_bint_default_argument(self, node, args, arg_index, default_value):
         assert len(args) >= arg_index
