@@ -1596,8 +1596,9 @@ class _GeneratorExpressionArgumentsMarker(TreeVisitor, SkipDeclarations):
         self.visitchildren(node)
 
     def visit_Node(self, node):
-        return  # we're only interested in the expressions that make up the iterator sequence
-                # so don't go beyond ExprNodes (e.g. into ForFromStatNode)
+        # We're only interested in the expressions that make up the iterator sequence,
+        # so don't go beyond ExprNodes (e.g. into ForFromStatNode).
+        return
 
     def visit_GeneratorExpressionNode(self, node):
         node.generator_arg_tag = self.gen_expr
