@@ -39,7 +39,7 @@ def genexpr_iterable_in_closure():
     # Py2 cleanup (pretty irrelevant to the actual test!)
     import sys
     if sys.version_info[0] == 2:
-        result = map(str, result)
+        result = map(bytes, result)
     return result
 
 
