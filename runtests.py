@@ -294,7 +294,7 @@ def update_openmp_extension(ext):
     return EXCLUDE_EXT
 
 
-def update_cpp_extension(cpp_std, min_gcc_version=None, min_macos_version=None):
+def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
     def _update_cpp_extension(ext):
         """
         Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
@@ -304,26 +304,28 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_macos_version=None):
             if "-std" in ca and "-stdlib" not in ca
         )
 
-        if min_gcc_version is not None:
-            gcc_version = get_gcc_version(ext.language)
-            if gcc_version:
-                if cpp_std >= 17 and sys.version_info[0] < 3:
-                    # The Python 2.7 headers contain the 'register' modifier
-                    # which gcc warns about in C++17 mode.
-                    ext.extra_compile_args.append('-Wno-register')
+        gcc_version = get_gcc_version(ext.language)
+        if gcc_version:
+            if cpp_std >= 17 and sys.version_info[0] < 3:
+                # The Python 2.7 headers contain the 'register' modifier
+                # which gcc warns about in C++17 mode.
+                ext.extra_compile_args.append('-Wno-register')
+            if not already_has_std:
                 compiler_version = gcc_version.group(1)
-                if float(compiler_version) > float(min_gcc_version) and not already_has_std:
+                if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
                     ext.extra_compile_args.append("-std=c++%s" % cpp_std)
-                return ext
+            return ext
 
         clang_version = get_clang_version(ext.language)
         if clang_version:
-            if not already_has_std:
-                ext.extra_compile_args.append("-std=c++%s" % cpp_std)
             if cpp_std >= 17 and sys.version_info[0] < 3:
                 # The Python 2.7 headers contain the 'register' modifier
                 # which clang warns about in C++17 mode.
                 ext.extra_compile_args.append('-Wno-register')
+            if not already_has_std:
+                compiler_version = clang_version.group(1)
+                if not min_clang_version or float(compiler_version) >= float(min_clang_version):
+                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
             if sys.platform == "darwin":
                 ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
