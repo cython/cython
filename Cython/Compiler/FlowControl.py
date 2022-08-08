@@ -683,7 +683,7 @@ class ControlFlowAnalysis(CythonTransform):
         if env == self.env:
             return self.flow
         for e, flow in reversed(self.stack):
-            if e==env:
+            if e is env:
                 return flow
         assert False
 

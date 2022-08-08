@@ -103,10 +103,9 @@ def test_custom():
     finally:
         del iter
 
-def test_custom2():
+def test_custom_deref():
     """
-    (deref(iter) instead of iter[0])
-    >>> test_custom2()
+    >>> test_custom_deref()
     [1.0, 2.0, 3.0]
     """
     cdef double* values = [1, 2, 3]

@@ -1634,8 +1634,8 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
     def visit_GeneratorExpressionNode(self, node):
         # a generator can also be substituted itself, so handle that case
         new_node = self._handle_ExprNode(node, do_visit_children=False)
-        # however do not traverse into it. A new _HandleGeneratorArguments will be  created
-        # elsewhere to do that
+        # However do not traverse into it. A new _HandleGeneratorArguments visitor will be used
+        # elsewhere to do that.
         return node
 
     def _handle_ExprNode(self, node, do_visit_children):
@@ -1653,7 +1653,7 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
             def_node = self.gen_node.def_node
             if not def_node.local_scope.lookup_here(name):
                 from . import Symtab
-                cname = EncodedString(Naming.genexpr_arg_prefix+Symtab.punycodify_name(str(name_source)))
+                cname = EncodedString(Naming.genexpr_arg_prefix + Symtab.punycodify_name(str(name_source)))
                 name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
                 type = node.type
                 if type.is_reference and not type.is_fake_reference:
