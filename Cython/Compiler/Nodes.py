@@ -5309,12 +5309,12 @@ class CClassDefNode(ClassDefNode):
             scope.directives = env.directives
             if "dataclasses.dataclass" in env.directives:
                 is_frozen = False
-                # dataclass_directives_args_kwds is either None or a tuple of the args and kwds passed
-                # to the dataclasses.dataclass decorator
-                dataclass_directives_args_kwds = env.directives["dataclasses.dataclass"]
-                if dataclass_directives_args_kwds:
-                    frozen_directive = dataclass_directives_args_kwds[1].get('frozen')
-                    is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
+                # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
+                dataclass_config = env.directives["dataclasses.dataclass"]
+                if dataclass_config:
+                    decorator_kwargs = dataclass_config[1]
+                    frozen_flag = decorator_kwargs.get('frozen')
+                    is_frozen = frozen_flag and frozen_flag.is_literal and frozen_flag.value
                 scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
         if self.doc and Options.docstrings:
