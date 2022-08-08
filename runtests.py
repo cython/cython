@@ -299,11 +299,15 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         """
         Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
         """
+        # If the extension provides a -std=... option, assume that whatever C compiler we use
+        # will probably be ok with it.
         already_has_std = any(
             ca for ca in ext.extra_compile_args
             if "-std" in ca and "-stdlib" not in ca
         )
+        use_gcc = use_clang = already_has_std
 
+        # check for a usable gcc version
         gcc_version = get_gcc_version(ext.language)
         if gcc_version:
             if cpp_std >= 17 and sys.version_info[0] < 3:
@@ -313,9 +317,13 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
             if not already_has_std:
                 compiler_version = gcc_version.group(1)
                 if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
+                    use_gcc = True
                     ext.extra_compile_args.append("-std=c++%s" % cpp_std)
-            return ext
 
+            if use_gcc:
+                return ext
+
+        # check for a usable clang version
         clang_version = get_clang_version(ext.language)
         if clang_version:
             if cpp_std >= 17 and sys.version_info[0] < 3:
@@ -325,13 +333,17 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
             if not already_has_std:
                 compiler_version = clang_version.group(1)
                 if not min_clang_version or float(compiler_version) >= float(min_clang_version):
+                    use_clang = True
                     ext.extra_compile_args.append("-std=c++%s" % cpp_std)
             if sys.platform == "darwin":
                 ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
                     ext.extra_compile_args.append("-mmacosx-version-min=" + min_macos_version)
-            return ext
 
+            if use_clang:
+                return ext
+
+        # no usable C compiler found => exclude the extension
         return EXCLUDE_EXT
 
     return _update_cpp_extension
@@ -429,7 +441,7 @@ EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:gdb': update_gdb_extension,
-    'tag:cpp11': update_cpp_extension(11, min_gcc_version="4.8", min_macos_version="10.7"),
+    'tag:cpp11': update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7"),
     'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
