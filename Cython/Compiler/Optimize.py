@@ -2105,7 +2105,8 @@ class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
             return node
         inlined = ExprNodes.InlinedDefNodeCallNode(
             node.pos, function_name=function_name,
-            function=function, args=node.args)
+            function=function, args=node.args,
+            generator_arg_tag=node.generator_arg_tag)
         if inlined.can_be_inlined():
             return self.replace(node, inlined)
         return node
