@@ -12,3 +12,4 @@ cpp_stl_algo_comparison_ops
 cpp_stl_algo_permutation_ops
 cpp_stl_algo_sorted_ranges_set_ops
 cpp_stl_algo_sorted_ranges_other_ops
+cpp_stl_bit_cpp20
