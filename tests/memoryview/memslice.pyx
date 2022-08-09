@@ -2675,17 +2675,17 @@ def test_local_in_generator_expression(a, initialize, execute_now):
     """
     >>> A1 = IntMockBuffer("A1", range(6), shape=(6,))
     >>> A2 = IntMockBuffer("A2", range(6), shape=(6,))
-    >>> test_local_in_generator_expression(A1, False, False)  # doctest: +ELLIPSIS
+    >>> test_local_in_generator_expression(A1, initialize=False, execute_now=False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
     UnboundLocalError...
 
-    >>> test_local_in_generator_expression(A1, True, True)
+    >>> test_local_in_generator_expression(A1, initialize=True, execute_now=True)
     acquired A1
     released A1
     True
 
-    >>> genexp = test_local_in_generator_expression(A2, True, False)
+    >>> genexp = test_local_in_generator_expression(A2, initialize=True, execute_now=False)
     acquired A2
     >>> sum(genexp)
     released A2
