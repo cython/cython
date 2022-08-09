@@ -2669,3 +2669,32 @@ def test_local_in_closure(a):
     def inner():
         return (a_view[0], a_view[1])
     return inner
+
+@testcase
+def test_local_in_generator_expression(a, initialize, execute_now):
+    """
+    >>> A1 = IntMockBuffer("A1", range(6), shape=(6,))
+    >>> A2 = IntMockBuffer("A2", range(6), shape=(6,))
+    >>> test_local_in_generator_expression(A1, False, False)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    UnboundLocalError...
+
+    >>> test_local_in_generator_expression(A1, True, True)
+    acquired A1
+    released A1
+    True
+
+    >>> genexp = test_local_in_generator_expression(A2, True, False)
+    acquired A2
+    >>> sum(genexp)
+    released A2
+    2
+    """
+    cdef int[:] a_view
+    if initialize:
+        a_view = a
+    if execute_now:
+        return any(ai > 3 for ai in a_view)
+    else:
+        return (ai > 3 for ai in a_view)
