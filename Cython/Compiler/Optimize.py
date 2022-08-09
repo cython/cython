@@ -319,16 +319,6 @@ class IterationTransform(Visitor.EnvTransform):
 
         return self._optimise_for_loop(node, arg, reversed=True)
 
-    PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_char_ptr_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
-
-    PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_ssize_t_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
-
     def _transform_indexable_iteration(self, node, slice_node, is_mutable, reversed=False):
         """In principle can handle any iterable that Cython has a len() for and knows how to index"""
         unpack_temp_node = UtilNodes.LetRefNode(
@@ -414,6 +404,16 @@ class IterationTransform(Visitor.EnvTransform):
                 ).analyse_expressions(env)
         body.stats.insert(1, node.body)
         return ret
+
+    PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_char_ptr_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
+            ])
+
+    PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
+            ])
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
