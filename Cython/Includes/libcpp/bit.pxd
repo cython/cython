@@ -12,8 +12,8 @@ cdef extern from "<bit>" namespace "std" nogil:
     cdef int bit_width[T](T)
 
     # rotating (gcc >= 9.0, clang >= 9.0)
-    cdef T rotl[T](T, int)
-    cdef T rotr[T](T, int)
+    cdef T rotl[T](T, int shift)
+    cdef T rotr[T](T, int shift)
 
     # counting (gcc >= 9.0, clang >= 9.0)
     cdef int countl_zero[T](T)
