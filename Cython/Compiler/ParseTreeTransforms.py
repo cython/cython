@@ -1726,7 +1726,9 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
                 self.gen_node = gen_node
 
             # replace the node inside the generator with a looked-up name
-            name_node = ExprNodes.NameNode(pos=pos, name=name)
+            # (initialized_check can safely be False because the source variable will be checked
+            # before it is captured if the check is required)
+            name_node = ExprNodes.NameNode(pos, name=name, initialized_check=False)
             name_node.entry = self.gen_node.def_node.gbody.local_scope.lookup(name_node.name)
             name_node.type = name_node.entry.type
             self.substitutions[node] = name_node

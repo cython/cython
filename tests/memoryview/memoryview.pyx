@@ -443,7 +443,9 @@ def type_infer(double[:, :] arg):
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 def memview_iter(double[:, :] arg):
     """
-    memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    >>> memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    acquired C
+    released C
     True
     """
     cdef double total = 0
