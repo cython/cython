@@ -3438,7 +3438,9 @@ def p_c_modifiers(s):
 def p_c_func_or_var_declaration(s, pos, ctx):
     cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
+    return_type_pos = s.position()
     base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
+    has_return_type = return_type_pos != s.position
     declarator = p_c_declarator(s, ctx(modifiers=modifiers), cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
@@ -3449,6 +3451,11 @@ def p_c_func_or_var_declaration(s, pos, ctx):
         is_const_method = 0
     return_type_annotation = None
     if s.sy == '->':
+        if has_return_type:
+            # Special enough to give a better error message and keep going.
+            s.error(
+                "Either C-style return type or return type annotation can be given, not both.",
+                fatal=False)
         s.next()
         return_type_annotation = p_annotation(s)
     if s.sy == ':':
