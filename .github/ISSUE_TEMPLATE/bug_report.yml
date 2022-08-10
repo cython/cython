@@ -28,7 +28,7 @@ body:
     id: reproduce
     attributes:
       label: Code to reproduce the behaviour:
-      value:
+      value: |
         ```cython
         ...
         ```
