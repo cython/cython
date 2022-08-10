@@ -29,7 +29,7 @@ body:
       label: "Code to reproduce the behaviour:"
       value: |
         ```cython
-        ...
+        # example code
         ```
   - type: textarea
     id: expected
