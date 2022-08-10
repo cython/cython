@@ -1,6 +1,6 @@
-name: Bug Report
-description: File a bug report
-title: "[BUG] "
+name: Feature request
+description: Suggest an idea for this project
+title: "[ENH] "
 body:
   - type: markdown
     attributes:
@@ -17,40 +17,31 @@ body:
         Also see the Changelog regarding recent changes:
         https://github.com/cython/cython/blob/master/CHANGES.rst
   - type: textarea
-    id: describe
+    id: problem
     attributes:
-      label: "Describe the bug"
-      description: "A clear and concise description of what the bug is."
-      placeholder: "Tell us what you see!"
-    validations:
-      required: true
-  - type: textarea
-    id: reproduce
-    attributes:
-      label: "Code to reproduce the behaviour:"
+      label: "Is your feature request related to a problem? Please describe."
+      description: "A clear and concise description of what the problem is."
       value: |
+        In my code, I would like to do [...]
         ```cython
-        ...
+        # add use case related code here
         ```
-  - type: textarea
-    id: expected
-    attributes:
-      label: "Expected behaviour"
-      description: "A clear and concise description of what you expected to happen."
-  - type: textarea
-    id: environment
-    attributes:
-      label: Environment
-      description: "please complete the following information"
-      value: |
-        OS: [e.g. Linux, Windows, macOS]
-        Python version [e.g. 3.10.2]
-        Cython version [e.g. 3.0.0a11]
     validations:
       required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Describe the solution you'd like."
+      description: "A clear and concise description of what you want to happen, including code examples if applicable."
+      placeholder: add a proposed code/syntax example here
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Describe alternatives you've considered."
+      description: "A clear and concise description of any alternative solutions or features you've considered."
+      placeholder: "add alternative code/syntax proposals here"
   - type: textarea
     id: context
     attributes:
-      label: Additional context
-      description: Add any other context about the problem here.
-
+      label: "Additional context"
+      description: "Add any other context about the feature request here."
