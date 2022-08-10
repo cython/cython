@@ -19,15 +19,15 @@ body:
   - type: textarea
     id: describe
     attributes:
-      label: Describe the bug
-      description: A clear and concise description of what the bug is.
-      placeholder: Tell us what you see!
+      label: "Describe the bug"
+      description: "A clear and concise description of what the bug is."
+      placeholder: "Tell us what you see!"
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: Code to reproduce the behaviour:
+      label: "Code to reproduce the behaviour:"
       value: |
         ```cython
         ...
@@ -35,14 +35,14 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: Expected behaviour
-      description: A clear and concise description of what you expected to happen.
+      label: "Expected behaviour"
+      description: "A clear and concise description of what you expected to happen."
   - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: please complete the following information**
-      value:
+      description: "please complete the following information"
+      value: |
         OS: [e.g. Linux, Windows, macOS]
         Python version [e.g. 3.10.2]
         Cython version [e.g. 3.0.0a11]
