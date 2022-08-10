@@ -18,7 +18,6 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
   sudo /usr/sbin/update-ccache-symlinks
-  echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -34,6 +33,8 @@ elif [[ $OSTYPE == "darwin"* ]]; then
 else
   echo "No setup specified for $OSTYPE"
 fi
+
+echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 
 # Set up miniconda
 if [[ $STACKLESS == "true" ]]; then
