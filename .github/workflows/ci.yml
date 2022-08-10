@@ -239,11 +239,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache [ccache]
-        uses: pat-s/always-upload-cache@v3.0.1
-        if: startsWith(runner.os, 'Linux')
+        # Chocobo1/setup-ccache-action is also an interesting option 
+        uses: hendrikmuhs/ccache-action@v1.2
         with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
