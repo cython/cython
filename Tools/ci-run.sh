@@ -187,6 +187,6 @@ python runtests.py \
 
 EXIT_CODE=$?
 
-ccache -s 2>/dev/null || true
+ccache -s 2>/dev/null
 
 exit $EXIT_CODE
