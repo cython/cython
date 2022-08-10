@@ -307,12 +307,12 @@ def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
     return inner
 
 
-cpdef int test_cpdef_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
+cpdef test_cpdef_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> int:
     """
     >>> isinstance(test_annotations.__annotations__, dict)
     True
     >>> sorted(test_annotations.__annotations__.items())
-    [('a', "'test'"), ('b', "'other'"), ('c', '123'), ('return', "'ret'")]
+    [('a', "'test'"), ('b', "'other'"), ('c', '123'), ('return', 'int')]
     """
     return 7
 
