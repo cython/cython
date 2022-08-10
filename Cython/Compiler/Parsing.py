@@ -3440,7 +3440,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     modifiers = p_c_modifiers(s)
     return_type_pos = s.position()
     base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
-    has_return_type = return_type_pos != s.position
+    has_return_type = return_type_pos != s.position()
     declarator = p_c_declarator(s, ctx(modifiers=modifiers), cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
