@@ -24,13 +24,14 @@ jobs:
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
         os: [windows-2019, ubuntu-18.04]
-        backend: [c, cpp]
+        backend: c
+        # backend: [c, cpp]
         python-version:
-          - "2.7"
-          - "3.4"
-          - "3.5"
-          - "3.6"
-          - "3.7"
+          # - "2.7"
+          # - "3.4"
+          # - "3.5"
+          # - "3.6"
+          # - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
@@ -43,141 +44,141 @@ jobs:
           #- python-version: 3.12-dev
           #  allowed_failure: true
 
-          # Ubuntu sub-jobs:
-          # ================
-          # GCC 11
-          - os: ubuntu-18.04
-            python-version: 3.9
-            backend: c
-            env: { GCC_VERSION: 11 }
-            extra_hash: "-gcc11"
-          - os: ubuntu-18.04
-            python-version: 3.9
-            backend: cpp
-            env: { GCC_VERSION: 11 }
-            extra_hash: "-gcc11"
-          # compile all modules
-          - os: ubuntu-18.04
-            python-version: 2.7
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-18.04
-            python-version: 2.7
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-18.04
-            python-version: "3.10"
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-18.04
-            python-version: "3.10"
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          # Linting
-          - os: ubuntu-18.04
-            python-version: 3.7
-            backend: "c,cpp"
-            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
-            extra_hash: "-codestyle"
-          # Limited API
-          - os: ubuntu-18.04
-            python-version: 3.6
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-18.04
-            python-version: 3.7
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-18.04
-            python-version: 3.8
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          # Type specs
-          - os: ubuntu-18.04
-            python-version: 3.9
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.8
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.7
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.6
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Stackless
-          - os: ubuntu-18.04
-            python-version: 2.7
-            backend: c
-            env: { STACKLESS: true, PY: 2 }
-            extra_hash: "-stackless"
-          - os: ubuntu-18.04
-            python-version: 3.6
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
-          - os: ubuntu-18.04
-            python-version: 3.8
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
-          # Pypy
-          - os: ubuntu-18.04
-            python-version: pypy-2.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-18.04
-            python-version: pypy-3.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          # Coverage
-          - os: ubuntu-18.04
-            python-version: 3.8
-            backend: "c,cpp"
-            env: { COVERAGE: 1 }
-            extra_hash: '-coverage'
+          # # Ubuntu sub-jobs:
+          # # ================
+          # # GCC 11
+          # - os: ubuntu-18.04
+          #   python-version: 3.9
+          #   backend: c
+          #   env: { GCC_VERSION: 11 }
+          #   extra_hash: "-gcc11"
+          # - os: ubuntu-18.04
+          #   python-version: 3.9
+          #   backend: cpp
+          #   env: { GCC_VERSION: 11 }
+          #   extra_hash: "-gcc11"
+          # # compile all modules
+          # - os: ubuntu-18.04
+          #   python-version: 2.7
+          #   backend: c
+          #   env: { CYTHON_COMPILE_ALL: 1 }
+          #   extra_hash: "-all"
+          # - os: ubuntu-18.04
+          #   python-version: 2.7
+          #   backend: cpp
+          #   env: { CYTHON_COMPILE_ALL: 1 }
+          #   extra_hash: "-all"
+          # - os: ubuntu-18.04
+          #   python-version: "3.10"
+          #   backend: c
+          #   env: { CYTHON_COMPILE_ALL: 1 }
+          #   extra_hash: "-all"
+          # - os: ubuntu-18.04
+          #   python-version: "3.10"
+          #   backend: cpp
+          #   env: { CYTHON_COMPILE_ALL: 1 }
+          #   extra_hash: "-all"
+          # # Linting
+          # - os: ubuntu-18.04
+          #   python-version: 3.7
+          #   backend: "c,cpp"
+          #   env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
+          #   extra_hash: "-codestyle"
+          # # Limited API
+          # - os: ubuntu-18.04
+          #   python-version: 3.6
+          #   backend: "c,cpp"
+          #   env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+          #   extra_hash: "-limited_api"
+          # - os: ubuntu-18.04
+          #   python-version: 3.7
+          #   backend: "c,cpp"
+          #   env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+          #   extra_hash: "-limited_api"
+          # - os: ubuntu-18.04
+          #   python-version: 3.8
+          #   backend: "c,cpp"
+          #   env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+          #   extra_hash: "-limited_api"
+          # # Type specs
+          # - os: ubuntu-18.04
+          #   python-version: 3.9
+          #   backend: c
+          #   env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+          #   extra_hash: "-typespecs"
+          # - os: ubuntu-18.04
+          #   python-version: 3.8
+          #   backend: c
+          #   env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+          #   extra_hash: "-typespecs"
+          # - os: ubuntu-18.04
+          #   python-version: 3.7
+          #   backend: c
+          #   env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+          #   extra_hash: "-typespecs"
+          # - os: ubuntu-18.04
+          #   python-version: 3.6
+          #   backend: c
+          #   env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+          #   extra_hash: "-typespecs"
+          # # Stackless
+          # - os: ubuntu-18.04
+          #   python-version: 2.7
+          #   backend: c
+          #   env: { STACKLESS: true, PY: 2 }
+          #   extra_hash: "-stackless"
+          # - os: ubuntu-18.04
+          #   python-version: 3.6
+          #   backend: c
+          #   env: { STACKLESS: true, PY: 3 }
+          #   extra_hash: "-stackless"
+          # - os: ubuntu-18.04
+          #   python-version: 3.8
+          #   backend: c
+          #   env: { STACKLESS: true, PY: 3 }
+          #   extra_hash: "-stackless"
+          # # Pypy
+          # - os: ubuntu-18.04
+          #   python-version: pypy-2.7
+          #   backend: c
+          #   env: { NO_CYTHON_COMPILE: 1 }
+          # - os: ubuntu-18.04
+          #   python-version: pypy-3.7
+          #   backend: c
+          #   env: { NO_CYTHON_COMPILE: 1 }
+          # # Coverage
+          # - os: ubuntu-18.04
+          #   python-version: 3.8
+          #   backend: "c,cpp"
+          #   env: { COVERAGE: 1 }
+          #   extra_hash: '-coverage'
 
-          - os: windows-2019
-            allowed_failure: true
+          # - os: windows-2019
+          #   allowed_failure: true
 
-          # MacOS sub-jobs
-          # ==============
-          # (C-only builds are used to create wheels)
-          - os: macos-11
-            python-version: 2.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 2.7
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.5
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.6
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
+          # # MacOS sub-jobs
+          # # ==============
+          # # (C-only builds are used to create wheels)
+          # - os: macos-11
+          #   python-version: 2.7
+          #   backend: c
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          # - os: macos-11
+          #   python-version: 2.7
+          #   backend: cpp
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          # - os: macos-11
+          #   python-version: 3.5
+          #   backend: c
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          # - os: macos-11
+          #   python-version: 3.6
+          #   backend: c
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          # - os: macos-11
+          #   python-version: 3.7
+          #   backend: c
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
           - os: macos-11
             python-version: 3.8
             backend: c
