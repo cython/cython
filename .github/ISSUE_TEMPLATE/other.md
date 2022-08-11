@@ -1,6 +1,6 @@
 ---
 name: Other
-about: Anything that doesn't neatly fit into the "bug" or "feature request" templates. DO NOT post support requests here.
+about: Anything that does not qualify as either "bug" or "feature request". DO NOT post support requests here.
 title: ""
 labels: ''
 assignees: ''
