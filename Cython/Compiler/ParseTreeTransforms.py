@@ -3378,7 +3378,7 @@ class CreateClosureClasses(CythonTransform):
         else:
             self.visitchildren(node)
             return node
-            
+
     def visit_GeneratorExpressionNode(self, node):
         node = _HandleGeneratorArguments()(node)
         return self.visit_LambdaNode(node)
