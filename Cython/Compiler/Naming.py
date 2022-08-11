@@ -17,6 +17,7 @@ pyunicode_identifier_prefix = pyrex_prefix + 'U'
 
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
+genexpr_arg_prefix = pyrex_prefix + "genexpr_arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
 func_prefix       = pyrex_prefix + "f_"
@@ -126,6 +127,7 @@ cur_scope_cname  = pyrex_prefix + "cur_scope"
 enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
+error_without_exception_cname = pyrex_prefix + "error_without_exception"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 quick_temp_cname = pyrex_prefix + "temp"  # temp variable for quick'n'dirty temping

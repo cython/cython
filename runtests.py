@@ -294,57 +294,60 @@ def update_openmp_extension(ext):
     return EXCLUDE_EXT
 
 
-def update_cpp11_extension(ext):
-    """
-        update cpp11 extensions that will run on versions of gcc >4.8
-    """
-    gcc_version = get_gcc_version(ext.language)
-    already_has_std = any(ca for ca in ext.extra_compile_args if "-std" in ca)
-    if gcc_version:
-        compiler_version = gcc_version.group(1)
-        if float(compiler_version) > 4.8 and not already_has_std:
-            ext.extra_compile_args.append("-std=c++11")
-        return ext
+def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    def _update_cpp_extension(ext):
+        """
+        Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
+        """
+        # If the extension provides a -std=... option, assume that whatever C compiler we use
+        # will probably be ok with it.
+        already_has_std = any(
+            ca for ca in ext.extra_compile_args
+            if "-std" in ca and "-stdlib" not in ca
+        )
+        use_gcc = use_clang = already_has_std
 
-    clang_version = get_clang_version(ext.language)
-    if clang_version:
-        if not already_has_std:
-            ext.extra_compile_args.append("-std=c++11")
-        if sys.platform == "darwin":
-            ext.extra_compile_args.append("-stdlib=libc++")
-            ext.extra_compile_args.append("-mmacosx-version-min=10.7")
-        return ext
+        # check for a usable gcc version
+        gcc_version = get_gcc_version(ext.language)
+        if gcc_version:
+            if cpp_std >= 17 and sys.version_info[0] < 3:
+                # The Python 2.7 headers contain the 'register' modifier
+                # which gcc warns about in C++17 mode.
+                ext.extra_compile_args.append('-Wno-register')
+            if not already_has_std:
+                compiler_version = gcc_version.group(1)
+                if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
+                    use_gcc = True
+                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
 
-    return EXCLUDE_EXT
+            if use_gcc:
+                return ext
 
-def update_cpp17_extension(ext):
-    """
-        update cpp17 extensions that will run on versions of gcc >=5.0
-    """
-    gcc_version = get_gcc_version(ext.language)
-    if gcc_version:
-        compiler_version = gcc_version.group(1)
-        if sys.version_info[0] < 3:
-            # The Python 2.7 headers contain the 'register' modifier
-            # which gcc warns about in C++17 mode.
-            ext.extra_compile_args.append('-Wno-register')
-        if float(compiler_version) >= 5.0:
-            ext.extra_compile_args.append("-std=c++17")
-        return ext
+        # check for a usable clang version
+        clang_version = get_clang_version(ext.language)
+        if clang_version:
+            if cpp_std >= 17 and sys.version_info[0] < 3:
+                # The Python 2.7 headers contain the 'register' modifier
+                # which clang warns about in C++17 mode.
+                ext.extra_compile_args.append('-Wno-register')
+            if not already_has_std:
+                compiler_version = clang_version.group(1)
+                if not min_clang_version or float(compiler_version) >= float(min_clang_version):
+                    use_clang = True
+                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+            if sys.platform == "darwin":
+                ext.extra_compile_args.append("-stdlib=libc++")
+                if min_macos_version is not None:
+                    ext.extra_compile_args.append("-mmacosx-version-min=" + min_macos_version)
 
-    clang_version = get_clang_version(ext.language)
-    if clang_version:
-        ext.extra_compile_args.append("-std=c++17")
-        if sys.version_info[0] < 3:
-            # The Python 2.7 headers contain the 'register' modifier
-            # which clang warns about in C++17 mode.
-            ext.extra_compile_args.append('-Wno-register')
-        if sys.platform == "darwin":
-          ext.extra_compile_args.append("-stdlib=libc++")
-          ext.extra_compile_args.append("-mmacosx-version-min=10.13")
-        return ext
+            if use_clang:
+                return ext
 
-    return EXCLUDE_EXT
+        # no usable C compiler found => exclude the extension
+        return EXCLUDE_EXT
+
+    return _update_cpp_extension
+
 
 def require_gcc(version):
     def check(ext):
@@ -438,8 +441,9 @@ EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:gdb': update_gdb_extension,
-    'tag:cpp11': update_cpp11_extension,
-    'tag:cpp17': update_cpp17_extension,
+    'tag:cpp11': update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7"),
+    'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
+    'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
@@ -467,6 +471,7 @@ VER_DEP_MODULES = {
                                         'compile.extsetslice',
                                         'compile.extdelslice',
                                         'run.special_methods_T561_py2',
+                                        'run.builtin_type_inheritance_T608_py2only',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'build.cythonize_pep420_namespace',
@@ -1926,6 +1931,8 @@ class EndToEndTest(unittest.TestCase):
         os.chdir(self.old_dir)
 
     def _try_decode(self, content):
+        if not isinstance(content, bytes):
+            return content
         try:
             return content.decode()
         except UnicodeDecodeError:
@@ -1965,6 +1972,10 @@ class EndToEndTest(unittest.TestCase):
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
                         self.shard_num, c, self._try_decode(o), self._try_decode(e)))
+                sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
+                    self.name,
+                    '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
+                ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
                     ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
         self.success = True
@@ -2701,7 +2712,8 @@ def runtests(options, cmd_args, coverage=None):
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
-            ('cygwin_bugs.txt', sys.platform == 'cygwin')
+            ('cygwin_bugs.txt', sys.platform == 'cygwin'),
+            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9))
         ]
 
         exclude_selectors += [

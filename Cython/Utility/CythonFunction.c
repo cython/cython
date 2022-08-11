@@ -1062,7 +1062,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
         return NULL;
     }
 
-    return ((__Pyx_PyCMethod)(void(*)(void))def->ml_meth)(self, cls, args, nargs, kwnames);
+    return ((__Pyx_PyCMethod)(void(*)(void))def->ml_meth)(self, cls, args, (size_t)nargs, kwnames);
 }
 #endif
 
