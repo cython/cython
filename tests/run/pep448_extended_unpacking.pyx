@@ -185,6 +185,24 @@ def unpack_list_literal_mult():
     return [*([1, 2, *([4, 5] * 2)] * 3)]
 
 
+def unpack_list_tuple_mult():
+    """
+    >>> unpack_list_tuple_mult()
+    [1, 1]
+    """
+    return [*(1,) * 2]
+
+
+def unpack_list_tuple_bad_mult():
+    """
+    >>> unpack_list_tuple_bad_mult()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: ... 'float'
+    """
+    return [*(1,) * 1.5]
+
+
 @cython.test_fail_if_path_exists(
     "//ListNode//ListNode",
     "//MergedSequenceNode",

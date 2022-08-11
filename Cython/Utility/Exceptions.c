@@ -675,10 +675,8 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
     PyGILState_STATE state;
     if (nogil)
         state = PyGILState_Ensure();
-#ifdef _MSC_VER
     /* arbitrary, to suppress warning */
     else state = (PyGILState_STATE)-1;
-#endif
 #endif
     CYTHON_UNUSED_VAR(clineno);
     CYTHON_UNUSED_VAR(lineno);
@@ -727,7 +725,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@substitute: naming
 
 #ifndef CYTHON_CLINE_IN_TRACEBACK
-static int __Pyx_CLineForTraceback(CYTHON_NCP_UNUSED PyThreadState *tstate, int c_line) {
+static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -785,6 +783,12 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
@@ -792,9 +796,9 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     if (c_line) {
         // Avoid "unused" warning as long as we don't use this.
         (void) $cfilenm_cname;
-        c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
+        (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
-    _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
+    _PyTraceback_Add(funcname, filename, py_line);
 }
 #else
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
@@ -864,6 +868,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
     PyThreadState *tstate = __Pyx_PyThreadState_Current;
+    PyObject *ptype, *pvalue, *ptraceback;
 
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(tstate, c_line);
@@ -872,9 +877,18 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     // Negate to avoid collisions between py and c lines.
     py_code = $global_code_object_cache_find(c_line ? -c_line : py_line);
     if (!py_code) {
+        __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
         py_code = __Pyx_CreateCodeObjectForTraceback(
             funcname, c_line, py_line, filename);
-        if (!py_code) goto bad;
+        if (!py_code) {
+            /* If the code object creation fails, then we should clear the
+               fetched exception references and propagate the new exception */
+            Py_XDECREF(ptype);
+            Py_XDECREF(pvalue);
+            Py_XDECREF(ptraceback);
+            goto bad;
+        }
+        __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
         $global_code_object_cache_insert(c_line ? -c_line : py_line, py_code);
     }
     py_frame = PyFrame_New(

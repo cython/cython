@@ -231,14 +231,15 @@ def create_pipeline(context, mode, exclude_classes=()):
     return stages
 
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
-    if py:
-        mode = 'py'
-    else:
-        mode = 'pyx'
+    mode = 'py' if py else 'pyx'
+
     test_support = []
+    ctest_support = []
     if options.evaluate_tree_assertions:
         from ..TestUtils import TreeAssertVisitor
-        test_support.append(TreeAssertVisitor())
+        test_validator = TreeAssertVisitor()
+        test_support.append(test_validator)
+        ctest_support.append(test_validator.create_c_file_validator())
 
     if options.gdb_debug:
         from ..Debugger import DebugWriter  # requires Py2.5+
@@ -257,7 +258,9 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
          inject_utility_code_stage_factory(context),
          abort_on_errors],
         debug_transform,
-        [generate_pyx_code_stage_factory(options, result)]))
+        [generate_pyx_code_stage_factory(options, result)],
+        ctest_support,
+    ))
 
 def create_pxd_pipeline(context, scope, module_name):
     from .CodeGeneration import ExtractPxdCode

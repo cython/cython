@@ -15,8 +15,10 @@ according to the system used:
 
  - **Linux** The GNU C Compiler (gcc) is usually present, or easily
    available through the package system. On Ubuntu or Debian, for
-   instance, the command ``sudo apt-get install build-essential`` will
-   fetch everything you need.
+   instance, it is part of the ``build-essential`` package. Next to a
+   C compiler, Cython requires the Python header files. On Ubuntu or
+   Debian, the command ``sudo apt-get install build-essential python3-dev``
+   will fetch everything you need.
 
  - **Mac OS X** To retrieve gcc, one option is to install Apple's
    XCode, which can be retrieved from the Mac OS X's install DVDs or

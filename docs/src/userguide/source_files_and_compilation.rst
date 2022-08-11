@@ -23,6 +23,7 @@ into an extension module.
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
 
+
 .. _compiling_command_line:
 
 Compiling from the command line
@@ -103,6 +104,7 @@ that CPython generates for disambiguation, such as
 ``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
 of CPython 3.5.
 
+
 .. _basic_setup.py:
 
 Basic setup.py
@@ -139,6 +141,7 @@ documentation`_. To compile the extension for use in the current directory use:
 .. code-block:: text
 
     $ python setup.py build_ext --inplace
+
 
 Configuring the C-Build
 ------------------------
@@ -313,6 +316,7 @@ Just as an example, this adds ``mylib`` as library to every extension::
     If you Cythonize in parallel (using the ``nthreads`` argument),
     then the argument to ``create_extension`` must be pickleable.
     In particular, it cannot be a lambda function.
+
 
 .. _cythonize_arguments:
 
@@ -605,11 +609,12 @@ Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
 efficient re-use.
 
+
 Compiling with ``cython.compile``
 =================================
 
 Cython supports transparent compiling of the cython code in a function using the
-``@cython.compile`` dedorator::
+``@cython.compile`` decorator::
 
     @cython.compile
     def plus(a, b):
@@ -634,6 +639,7 @@ will produce following output::
     35
     8
 
+
 .. _compiling_with_sage:
 
 Compiling with Sage
@@ -647,6 +653,7 @@ running session.  Please check `Sage documentation
 
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
+
 
 .. _compiling_notebook:
 
@@ -807,11 +814,12 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
 ``initializedcheck`` (True / False)
-    If set to True, Cython checks that 
+    If set to True, Cython checks that
      - a memoryview is initialized whenever its elements are accessed 
-       or assigned to. 
+       or assigned to.
      - a C++ class is initialized when it is accessed 
        (only when ``cpp_locals`` is on)
+
     Setting this to False disables these checks.
     Default is True.
 
@@ -938,7 +946,8 @@ Cython code.  Here is the list of currently supported directives:
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
-    Must be set globally.
+    From Cython 3.0, ``annotation_typing`` can be set on a per-function or
+    per-class basis.
 
 ``emit_code_comments`` (True / False)
     Copy the original source code line by line into C code comments in the generated
@@ -976,6 +985,7 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
+
 
 .. _warnings:
 
