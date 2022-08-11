@@ -220,6 +220,21 @@ def example_generator():
     yield 0
     yield 1
 
+def lambda_for_genexpr(N):
+    """
+    This is being tested because: the .0 dummy name used in handling the
+    generator expression scope gets put in the closure. It needs to be omitted from
+    the pickle (since the name isn't a valid identifier so generates bad Cython code).
+    We need to confirm that omitting it from the pickle doesn't cause problems on
+    deallocation. N is deliberately not typed to ensure it's a ref-counted object
+    >>> originals = [ f for f in lambda_for_genexpr(5) ]
+    >>> reloadeds = [ pickle.loads(pickle.dumps(original)) for original in originals ]
+    >>> for original, reloaded in zip(originals, reloadeds):
+    ...    assert original() == reloaded()
+    """
+    return ( (lambda : x) for x in range(N) )
+
+
 def global_fused(cython.floating x):
     """
     # check that we haven't managed to block this by mistake

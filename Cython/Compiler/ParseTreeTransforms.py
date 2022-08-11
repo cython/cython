@@ -2149,7 +2149,12 @@ if VALUE is not None:
         cinit = None
         inherited_reduce = None
         while cls is not None:
-            all_members.extend(e for e in cls.scope.var_entries if e.name not in ('__weakref__', '__dict__'))
+            all_members.extend(e for e in cls.scope.var_entries if (
+                e.name not in ('__weakref__', '__dict__') and not e.name.startswith('.')))
+            # e.name.startwidth('.') guards against the '.0' variables used for generator expression
+            # arguments. These can be in the closure class when the closure *also* covers a generator
+            # expression. However, they should never be *used* in any pickled function so it's safe
+            # to omit them from the pickle.
             cinit = cinit or cls.scope.lookup('__cinit__')
             inherited_reduce = inherited_reduce or cls.scope.lookup('__reduce__') or cls.scope.lookup('__reduce_ex__')
             cls = cls.base_type
