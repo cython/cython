@@ -633,8 +633,8 @@ a :class:`TypeError` at runtime.  Cython will also prevent subtyping a
 final type or overriding a final method inside of the same module, i.e. creating
 an extension type that uses a final type as its base type will fail at compile time.
 Note, however, that this restriction does not currently propagate to
-other extension modules, so even final extension types can still be
-subtyped at the C level by foreign code.
+other extension modules, so Cython is unable to prevent final extension types
+from being subtyped at the C level by foreign code.
 
 
 .. _forward_declaring_extension_types:
