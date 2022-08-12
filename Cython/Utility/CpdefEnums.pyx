@@ -37,8 +37,28 @@ class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
     def __str__(self):
         return "%s.%s" % (self.__class__.__name__, self.name)
 
+cdef object __pyx_FlagBase
+class __pyx_FlagBase(int, metaclass=__Pyx_EnumMeta):
+    def __new__(cls, value, name=None):
+        for v in cls:
+            if v == value:
+                return v
+        res = int.__new__(cls, value)
+        if name is None:
+            # some bitwise combination, no validation here
+            res.name = ""
+        else:
+            res.name = name
+            setattr(cls, name, res)
+            cls.__members__[name] = res
+        return res
+    def __repr__(self):
+        return "<%s.%s: %d>" % (self.__class__.__name__, self.name, self)
+    def __str__(self):
+        return "%s.%s" % (self.__class__.__name__, self.name)
+
 if PY_VERSION_HEX >= 0x03040000:
-    from enum import IntEnum as __Pyx_EnumBase
+    from enum import IntEnum as __Pyx_EnumBase, IntFlag as __Pyx_FlagBase
 
 #################### EnumType ####################
 #@requires: EnumBase
@@ -48,8 +68,9 @@ cdef extern from *:
 
 cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03040000:
-    # create new IntEnum()
-    {{name}} = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+    # create new IntFlag() - the assumption is that C enums are sufficiently commonly
+    # used as flags that this is the most appropriate base class
+    {{name}} = __pyx_FlagBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
         ('{{item}}', {{enum_to_pyint_func}}({{item}})),
         {{endfor}}
@@ -62,7 +83,7 @@ if PY_VERSION_HEX >= 0x03040000:
     __Pyx_globals['{{item}}'] = {{name}}.{{item}}
     {{endfor}}
 else:
-    class {{name}}(__Pyx_EnumBase):
+    class {{name}}(__pyx_FlagBase):
         {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}({{enum_to_pyint_func}}({{item}}), '{{item}}')
@@ -73,7 +94,8 @@ else:
 cdef dict __Pyx_globals = globals()
 
 if PY_VERSION_HEX >= 0x03040000:
-    # create new IntEnum()
+    # create new IntEnum() - cpp scoped enums shouldn't really be used as flags and
+    # therefore enforcing fixed values seems appropriate
     __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
         ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
@@ -122,4 +144,8 @@ cdef {{funcname}}({{name}} c_val):
 {{endfor}}
     else:
         underlying_c_val = <{{underlying_type}}>c_val
+{{if is_flag}}
+        return __pyx_enum(underlying_c_val)
+{{else}}
         raise ValueError(f"{underlying_c_val} is not a valid {{name}}")
+{{endif}}

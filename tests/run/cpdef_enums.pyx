@@ -137,9 +137,10 @@ def to_from_py_conversion(PxdEnum val):
     """
     >>> to_from_py_conversion(RANK_1) is PxdEnum.RANK_1
     True
-    >>> to_from_py_conversion(500)
-    Traceback (most recent call last):
-    ...
-    ValueError: 500 is not a valid PxdEnum
+
+    C enums are commonly enough used as flags that it seems reasonable
+    to allow it in Cython
+    >>> to_from_py_conversion(RANK_1 | RANK_2) == (RANK_1 | RANK_2)
+    True
     """
     return val

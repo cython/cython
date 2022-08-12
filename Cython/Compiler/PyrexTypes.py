@@ -4181,7 +4181,8 @@ class CppScopedEnumType(CType):
                         "name": self.name,
                         "items": tuple(self.values),
                         "underlying_type": self.underlying_type.empty_declaration_code(),
-                        "module_name": module_name
+                        "module_name": module_name,
+                        "is_flag": False,
                         },
                 outer_module_scope=self.entry.scope  # ensure that "name" is findable
             ))
@@ -4344,6 +4345,7 @@ class CEnumType(CIntLike, CType):
                         "items": tuple(self.values),
                         "underlying_type": "int",
                         "module_name": module_name,
+                        "is_flag": True,
                         },
             outer_module_scope=self.entry.scope  # ensure that "name" is findable
             ))
