@@ -37,8 +37,8 @@ class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
     def __str__(self):
         return "%s.%s" % (self.__class__.__name__, self.name)
 
-cdef object __pyx_FlagBase
-class __pyx_FlagBase(int, metaclass=__Pyx_EnumMeta):
+cdef object __Pyx_FlagBase
+class __Pyx_FlagBase(int, metaclass=__Pyx_EnumMeta):
     def __new__(cls, value, name=None):
         for v in cls:
             if v == value:
@@ -70,7 +70,7 @@ cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03040000:
     # create new IntFlag() - the assumption is that C enums are sufficiently commonly
     # used as flags that this is the most appropriate base class
-    {{name}} = __pyx_FlagBase('{{name}}', __Pyx_OrderedDict([
+    {{name}} = __Pyx_FlagBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
         ('{{item}}', {{enum_to_pyint_func}}({{item}})),
         {{endfor}}
@@ -83,7 +83,7 @@ if PY_VERSION_HEX >= 0x03040000:
     __Pyx_globals['{{item}}'] = {{name}}.{{item}}
     {{endfor}}
 else:
-    class {{name}}(__pyx_FlagBase):
+    class {{name}}(__Pyx_FlagBase):
         {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}({{enum_to_pyint_func}}({{item}}), '{{item}}')
