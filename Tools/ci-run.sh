@@ -41,6 +41,14 @@ fi
 
 echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 
+if [[ $CC ]]; then
+  CC="ccache $CC"
+fi
+
+if [[ $CXX ]]; then
+  CXX="ccache $CXX"
+fi
+
 # Set up miniconda
 if [[ $STACKLESS == "true" ]]; then
   echo "Installing stackless python"
