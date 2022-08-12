@@ -151,8 +151,14 @@ class Context(object):
         if last_part != '__init__':
             # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
             # __init__.pyx/__init__.py file to determine if last part is package or not.
-            paths = self.find_file_with_suffix(qualified_name, suffix=('.pyx', '.py'))
-            is_package = self._is_init_file(paths[0]) if paths else False
+            is_package = False
+            for suffix in ('.py', '.pyx'):
+                path = self.search_include_directories(
+                    qualified_name, suffix=suffix, source_pos=None, source_file_path=None)
+                if path:
+                    is_package = self._is_init_file(path)
+                    break
+
             qualified_name_parts.append((last_part, is_package))
         return qualified_name_parts
 
@@ -270,15 +276,6 @@ class Context(object):
         # given fully-qualified module name, as for find_pxd_file().
         return self.search_include_directories(
             qualified_name, suffix=".pyx", source_pos=pos, source_file_path=source_file_path)
-
-    def find_file_with_suffix(self, qualified_name, pos=None, source_file_path=None, suffix=('.py', '.pyx', '.pxd')):
-        found = []
-        for s in suffix:
-            path = self.search_include_directories(
-                qualified_name, suffix=s, source_pos=pos, source_file_path=source_file_path)
-            if path:
-                found.append(path)
-        return found
 
     def find_include_file(self, filename, pos=None, source_file_path=None):
         # Search list of include directories for filename.
