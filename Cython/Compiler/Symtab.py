@@ -1417,18 +1417,16 @@ class ModuleScope(Scope):
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
-            if self.is_package:
-                # When file is __init__.pyx, current package is current module
-                # i.e. dot in `from . import ...` points to current package
-                while relative_level > 1 and relative_to:
-                    relative_to = relative_to.parent_module
-                    relative_level -= 1
-            else:
-                # When file is regular module, current package is parent module
-                # i.e. dot in `from . import ...` points to package where module is placed
-                while relative_level > 0 and relative_to:
-                    relative_to = relative_to.parent_module
-                    relative_level -= 1
+
+            top_level = 1 if self.is_package else 0
+            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            #   i.e. dot in `from . import ...` points to the current package
+            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            #   i.e. dot in `from . import ...` points to the package where module is placed
+            while relative_level > top_level and relative_to:
+                relative_to = relative_to.parent_module
+                relative_level -= 1
+
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
             relative_to = self.parent_module
