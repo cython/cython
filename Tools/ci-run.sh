@@ -50,11 +50,14 @@ PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
 echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
+
 echo "Python $PYTHON_SYS_VERSION"
+
 if [[ $CC ]]; then
   which ${CC%% *}
   ${CC%% *} --version
 fi
+
 if [[ $CXX ]]; then
   which ${CXX%% *}
   ${CXX%% *} --version
