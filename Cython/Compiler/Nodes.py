@@ -8744,11 +8744,13 @@ class FromCImportStatNode(StatNode):
             return
         qualified_name_components = env.qualified_name.count('.') + 1
         if self.relative_level:
-            if self.relative_level > qualified_name_components or (
-                    self.relative_level == qualified_name_components and not env.is_package):
+            if self.relative_level > qualified_name_components:
                 # 1. case: importing beyond package: from .. import pkg
-                # 2. case: importing from same level but current dir is not package: from . import module
                 error(self.pos, "relative cimport beyond main package is not allowed")
+                return
+            elif self.relative_level == qualified_name_components and not env.is_package:
+                # 2. case: importing from same level but current dir is not package: from . import module
+                error(self.pos, "relative cimport from non-package directory is not allowed")
                 return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
