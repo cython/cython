@@ -62,6 +62,7 @@ fi
 
 if [[ $OSTYPE == "msys" ]]; then
   which ccache.exe
+  which cl.exe
 fi
 
 echo "===================="
