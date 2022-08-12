@@ -32,10 +32,10 @@ jobs:
           # - "3.5"
           # - "3.6"
           # - "3.7"
-          - "3.8"
+          # - "3.8"
           - "3.9"
           - "3.10"
-          - "3.11-dev"
+          # - "3.11-dev"
           # - "3.12-dev"
         env: [{}]
 
@@ -179,26 +179,26 @@ jobs:
           #   python-version: 3.7
           #   backend: c
           #   env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-11
-            python-version: 3.8
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
+          # - os: macos-11
+          #   python-version: 3.8
+          #   backend: c
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
           - os: macos-11
             python-version: 3.9
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.9
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          # - os: macos-11
+          #   python-version: 3.9
+          #   backend: cpp
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
           - os: macos-11
             python-version: "3.10"
             backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          # - os: macos-11
+          #   python-version: "3.10"
+          #   backend: cpp
+          #   env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
         exclude:
           # fails due to lack of a compatible compiler
