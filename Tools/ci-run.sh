@@ -63,15 +63,7 @@ if [[ $CXX ]]; then
   ${CXX%% *} --version
 fi
 
-if [[ $OSTYPE == "msys" ]]; then
-  which ccache.exe
-
-  # set the build environment
-  # "$MICROSOFT_VS_PATH""Common7/Tools/VsDevCmd.bat"
-  "$(find "$MICROSOFT_VS_PATH" -type f -name "vcvarsall.bat")" x86_x64
-
-  which cl.exe
-fi
+which ccache
 
 echo "===================="
 
