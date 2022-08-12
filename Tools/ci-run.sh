@@ -41,12 +41,14 @@ fi
 
 echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 
-if [[ $CC ]]; then
-  CC="ccache $CC"
-fi
+if [[ $COVERAGE != "1" ]]; then
+  if [[ $CC ]]; then
+    CC="ccache $CC"
+  fi
 
-if [[ $CXX ]]; then
-  CXX="ccache $CXX"
+  if [[ $CXX ]]; then
+    CXX="ccache $CXX"
+  fi
 fi
 
 # Set up miniconda
