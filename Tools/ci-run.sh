@@ -59,6 +59,11 @@ if [[ $CXX ]]; then
   which ${CXX%% *}
   ${CXX%% *} --version
 fi
+
+if [[ $OSTYPE == "msys" ]]; then
+  which ccache.exe
+fi
+
 echo "===================="
 
 # Install python requirements
