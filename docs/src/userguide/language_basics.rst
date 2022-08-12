@@ -1094,7 +1094,7 @@ direct equivalent in Python.
 * There is an ``&`` operator in Cython, with the same semantics as in C.
   In pure python mode, use the ``cython.address()`` function instead.
 * The null C pointer is called ``NULL``, not ``0``. ``NULL`` is a reserved word in Cython
-  and special object in pure python mode.
+  and ``cython.NULL`` is a special object in pure python mode.
 * Type casts are written ``<type>value`` or ``cast(type, value)``, for example,
 
   .. tabs::

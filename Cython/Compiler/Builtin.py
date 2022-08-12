@@ -5,7 +5,7 @@
 from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
@@ -480,16 +480,33 @@ def get_known_standard_library_module_scope(module_name):
                 indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
             else:
                 indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
-            mod.declare_type(EncodedString(name), indexed_type, pos = None)
+            name = EncodedString(name)
+            entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.is_variable = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
 
         for name in ['ClassVar', 'Optional']:
+            name = EncodedString(name)
             indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
-            mod.declare_type(name, indexed_type, pos = None)
+            entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.is_variable = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)
         indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
-        mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        initvar_string = EncodedString("InitVar")
+        entry = mod.declare_type(initvar_string, indexed_type, pos = None)
+        var_entry = Entry(initvar_string, None, PyrexTypes.py_object_type)
+        var_entry.is_pyglobal = True
+        var_entry.scope = mod
+        entry.as_variable = var_entry
         _known_module_scopes[module_name] = mod
     return mod
 
