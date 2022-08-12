@@ -52,7 +52,7 @@ if cython.compiled:
                 globals_.update(g)
         except CompileError as exc:
             raised_message = str(exc)
-            if raised_message.endswith(".pyx"):
+            if raised_message and raised_message.endswith(".pyx"):
                 # unhelpfully Cython sometimes raises a compile error and sometimes just raises the filename
                 raised_message = []
                 for line in err_messages.split("\n"):
