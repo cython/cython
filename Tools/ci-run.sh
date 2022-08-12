@@ -4,7 +4,7 @@ GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
-  echo "Skipping compiler setup"
+  echo "Skipping compiler setup: Code style run"
 elif [[ $OSTYPE == "linux-gnu"* ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
@@ -31,7 +31,7 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
 else
-  echo "No setup specified for $OSTYPE"
+  echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
 
 echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
