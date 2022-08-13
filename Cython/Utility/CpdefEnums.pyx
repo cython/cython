@@ -78,6 +78,12 @@ if PY_VERSION_HEX >= 0x03060000:
         ('{{item}}', {{enum_to_pyint_func}}({{item}})),
         {{endfor}}
     ]))
+    if PY_VERSION_HEX >= 0x030B0000:
+        # Python 3.11 starts making the behaviour of flags stricter
+        # (only including powers of 2 when iterating). Since we're using
+        # "flag" because C enums *might* be used as flags, not because
+        # we want strict flag behaviour, manually undo some of this.
+        {{name}}._member_names_ = list({{name}}.__members__.keys())
     {{if enum_doc is not None}}
     {{name}}.__doc__ = {{ repr(enum_doc) }}
     {{endif}}
