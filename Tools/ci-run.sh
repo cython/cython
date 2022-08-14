@@ -39,17 +39,8 @@ else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
 
-echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
-
-if [[ $COVERAGE != "1" ]]; then
-  if [[ $CC ]]; then
-    CC="ccache $CC"
-  fi
-
-  if [[ $CXX ]]; then
-    CXX="ccache $CXX"
-  fi
-fi
+# echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
+echo "/usr/lib/ccache"$GITHUB_PATH > $GITHUB_PATH  # export ccache to path
 
 # Set up miniconda
 if [[ $STACKLESS == "true" ]]; then
@@ -81,6 +72,18 @@ fi
 which ccache
 
 echo "===================="
+
+# Prepend ccache after logging versions
+if [[ $COVERAGE != "1" ]]; then
+  if [[ $CC ]]; then
+    CC="ccache $CC"
+  fi
+
+  if [[ $CXX ]]; then
+    CXX="ccache $CXX"
+  fi
+fi
+# else and don't add ccache, it breaks the coverage runs
 
 # Install python requirements
 echo "Installing requirements [python]"
