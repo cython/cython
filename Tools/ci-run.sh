@@ -88,6 +88,7 @@ fi
 if [[ $OSTYPE == "msys" ]]; then
   CCACHE_CL_PATH=$(dirname $CCACHE_PATH)"/cl.exe"
   if [[ ! -e CCACHE_CL_PATH ]]; then
+    echo "Masking the cl.exe"
     ln -s $CCACHE_PATH $CCACHE_CL_PATH
   fi
 fi
