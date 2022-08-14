@@ -1431,6 +1431,8 @@ class CythonCompileTestCase(unittest.TestCase):
     def _match_output(self, expected_output, actual_output, write):
         try:
             for expected, actual in zip(expected_output, actual_output):
+                if expected != actual and '\\' in actual and os.sep == '\\' and '/' in expected and '\\' not in expected:
+                    expected = expected.replace('/', '\\')
                 self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
                 expected = expected_output[len(actual_output)]
