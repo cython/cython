@@ -51,12 +51,12 @@ if [[ $STACKLESS == "true" ]]; then
 fi
 
 PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
+CCACHE_PATH=$(which ccache)
 
 # Log versions in use
 echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
-
 echo "Python $PYTHON_SYS_VERSION"
 
 if [[ $CC ]]; then
@@ -69,8 +69,7 @@ if [[ $CXX ]]; then
   ${CXX%% *} --version
 fi
 
-which ccache
-
+echo CCACHE_PATH
 echo "===================="
 
 # Prepend ccache after logging versions
@@ -84,6 +83,14 @@ if [[ $COVERAGE != "1" ]]; then
   fi
 fi
 # else and don't add ccache, it breaks the coverage runs
+
+# For msvc we mask the original cl.exe if possible
+if [[ $OSTYPE == "msys" ]]; then
+  CCACHE_CL_PATH=$(dirname $CCACHE_PATH)"/cl.exe"
+  if [[ ! -e CCACHE_CL_PATH ]]; then
+    ln -s $CCACHE_PATH $CCACHE_CL_PATH
+  fi
+fi
 
 # Install python requirements
 echo "Installing requirements [python]"
