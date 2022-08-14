@@ -69,7 +69,7 @@ if [[ $CXX ]]; then
   ${CXX%% *} --version
 fi
 
-echo CCACHE_PATH
+echo $CCACHE_PATH
 echo "===================="
 
 # Prepend ccache after logging versions
