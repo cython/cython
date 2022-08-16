@@ -247,8 +247,61 @@ Types
 
 The Cython language uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
-``long long`` as well as their ``unsigned`` versions,
-e.g. ``unsigned int`` (``cython.uint`` in Python code).
+``long long`` as well as their ``/unsigned`` versions,
+e.g. ``unsigned int`` (``cython.uint`` in Python code):
+
+
+.. list-table:: Numeric Types
+   :widths: 25 25 25
+   :header-rows: 1
+
+   * - C type
+     - Cython type
+     - Pure Python type
+
+   * - ``char``
+     - ``char``
+     - ``cython.char``
+   * - ``signed char``
+     - ``signed char``
+     - ``cython.schar``
+   * - ``unsigned char``
+     - ``unsigned char``
+     - ``cython.uchar``
+   * - ``short``
+     - ``short``
+     - ``cython.short``
+   * - ``unsigned short``
+     - ``unsigned short``
+     - ``cython.ushort``
+   * - ``int``
+     - ``int``
+     - ``cython.int``
+   * - ``unsigned int``
+     - ``unsigned int``
+     - ``cython.uint``
+   * - ``long``
+     - ``long``
+     - ``cython.long``
+   * - ``unsigned long``
+     - ``unsigned long``
+     - ``cython.ulong``
+   * - ``long long``
+     - ``long long``
+     - ``cython.longlong``
+   * - ``unsigned long long``
+     - ``unsigned long long``
+     - ``cython.ulonglong``
+   * - ``float``
+     - ``float``
+     - ``cython.float``
+   * - ``double``
+     - ``double``
+     - ``cython.double``
+   * - ``long double``
+     - ``long double``
+     - ``cython.longdouble``
+
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
@@ -258,6 +311,44 @@ they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure pyt
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
 a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
 e.g. ``cython.pointer(cython.int)``.
+
+Cython supports following fixed width integer types:
+
+.. list-table:: Fixed width Integer Types
+   :widths: 25 25 25
+   :header-rows: 1
+
+   * - Length
+     - Signed
+     - Unsigned
+   * - 8-bit
+     - ``int8_t``
+     - ``uint8_t``
+   * - 16-bit
+     - ``int16_t``
+     - ``uint16_t``
+   * - 32-bit
+     - ``int32_t``
+     - ``uint32_t``
+   * - 64-bit
+     - ``int64_t``
+     - ``uint64_t``
+
+They can be cimported from ``libc.stdint``:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from cython.cimports.libc.stdint import uint8_t
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            from libc.stdint cimport uint8_t
 
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
