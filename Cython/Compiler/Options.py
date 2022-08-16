@@ -133,6 +133,8 @@ lookup_module_cpdef = False
 #: Default is False.
 embed = None
 
+embed_modules = []
+
 # In previous iterations of Cython, globals() gave the first non-Cython module
 # globals in the call stack.  Sage relies on this behavior for variable injection.
 old_style_globals = ShouldBeFromDirective('old_style_globals')

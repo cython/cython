@@ -3357,13 +3357,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wmain = "wmain"
         else:
             wmain = Options.embed
-        main_method = UtilityCode.load_cached("MainFunction", "Embed.c")
-        code.globalstate.use_utility_code(
-            main_method.specialize(
-                module_name=env.module_name,
-                module_is_main=module_is_main,
-                main_method=Options.embed,
-                wmain_method=wmain))
+        main_method = TempitaUtilityCode.load_cached(
+                "MainFunction", "Embed.c",
+                context={
+                    'module_name': env.module_name,
+                    'module_is_main': module_is_main,
+                    'main_method': Options.embed,
+                    'wmain_method': wmain,
+                    'embed_modules': tuple(Options.embed_modules)})
+        code.globalstate.use_utility_code(main_method)
 
     def punycode_module_name(self, prefix, name):
         # adapted from PEP483

@@ -118,6 +118,8 @@ def create_cython_argparser():
     parser.add_argument('--embed', action='store_const', const='main',
                       help='Generate a main() function that embeds the Python interpreter. '
                            'Pass --embed=<method_name> for a name other than main().')
+    parser.add_argument('--embed-modules', action='store', type=comma_list,
+                      help='')
     parser.add_argument('-2', dest='language_level', action='store_const', const=2,
                       help='Compile based on Python-2 syntax and code semantics.')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
@@ -169,6 +171,8 @@ def create_cython_argparser():
 
     return parser
 
+def comma_list(string):
+    return string.split(',')
 
 def parse_command_line_raw(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
