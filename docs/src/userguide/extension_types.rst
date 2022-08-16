@@ -621,7 +621,7 @@ usually set on an extension type or C method using a decorator:
                def describe(self): pass
 
 
-            @cython.cclass
+
             cdef class Lizard:
 
 
