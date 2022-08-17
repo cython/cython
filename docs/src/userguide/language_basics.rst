@@ -306,44 +306,6 @@ The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
 
-Cython supports following fixed width integer types:
-
-.. list-table:: Fixed width Integer Types
-   :widths: 25 25 25
-   :header-rows: 1
-
-   * - Length
-     - Signed
-     - Unsigned
-   * - 8-bit
-     - ``int8_t``
-     - ``uint8_t``
-   * - 16-bit
-     - ``int16_t``
-     - ``uint16_t``
-   * - 32-bit
-     - ``int32_t``
-     - ``uint32_t``
-   * - 64-bit
-     - ``int64_t``
-     - ``uint64_t``
-
-They can be cimported from ``libc.stdint``:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            from cython.cimports.libc.stdint import uint8_t
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            from libc.stdint cimport uint8_t
-
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
 they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
