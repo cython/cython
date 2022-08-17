@@ -306,12 +306,6 @@ The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
 
-Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
-they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
-use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
-a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
-e.g. ``cython.pointer(cython.int)``.
-
 Cython supports following fixed width integer types:
 
 .. list-table:: Fixed width Integer Types
@@ -350,6 +344,11 @@ They can be cimported from ``libc.stdint``:
 
             from libc.stdint cimport uint8_t
 
+Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
+they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
+use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
+a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
+e.g. ``cython.pointer(cython.int)``.
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
