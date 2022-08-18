@@ -90,17 +90,14 @@ skip_tests = frozenset(
         ("TestInit", "test_inherit_from_protocol"),
         ("TestAbstract", "test_abc_implementation"),
         ("TestAbstract", "test_maintain_abc"),
-        # Requires multiple inheritance from extension types (or to identify the second base and make it a regular class)
+        # Requires multiple inheritance from extension types
         ("TestCase", "test_post_init_not_auto_added"),
-        ("TestCase", "test_helper_asdict_namedtuple_derived"),
         # Refers to nonlocal from enclosing function
         (
             "TestCase",
             "test_post_init_staticmethod",
         ),  # TODO replicate the gist of the test elsewhere
-        # difficult to translate the test, requires non-cdef class
-        ("TestCase", "test_deliberately_mutable_defaults"),
-        ("TestCase", "test_is_dataclass_when_getattr_always_returns"),
+        # PEP487 isn't support in Cython
         ("TestDescriptors", "test_non_descriptor"),
         ("TestDescriptors", "test_set_name"),
         ("TestDescriptors", "test_setting_field_calls_set"),
@@ -267,19 +264,55 @@ class SubstituteName(SubstituteNameString):
             return node
 
 
-class ExtraDataclassesToTopLevel(ast.NodeTransformer):
+class IdentifyCdefClasses(ast.NodeVisitor):
     def __init__(self):
+        super().__init__()
+        self.top_level_class = True
+        self.classes = {}
+        self.cdef_classes = set()
+
+    def visit_ClassDef(self, node):
+        top_level_class, self.top_level_class = self.top_level_class, False
+        try:
+            if not top_level_class:
+                self.classes[node.name] = node
+                if dataclass_in_decorators(node.decorator_list):
+                    self.handle_cdef_class(node)
+                self.generic_visit(node)  # any nested classes in it?
+            else:
+                self.generic_visit(node)
+        finally:
+            self.top_level_class = top_level_class
+
+    def visit_FunctionDef(self, node):
+        classes, self.classes = self.classes, {}
+        self.generic_visit(node)
+        self.classes = classes
+
+    def handle_cdef_class(self, cls_node):
+        if cls_node not in self.cdef_classes:
+            self.cdef_classes.add(cls_node)
+            # go back through previous classes we've seen and pick out any first bases
+            if cls_node.bases and isinstance(cls_node.bases[0], ast.Name):
+                base0_node = self.classes.get(cls_node.bases[0].id)
+                if base0_node:
+                    self.handle_cdef_class(base0_node)
+
+
+class ExtractDataclassesToTopLevel(ast.NodeTransformer):
+    def __init__(self, cdef_classes_set):
         super().__init__()
         self.nested_name = []
         self.current_function_global_classes = []
         self.global_classes = []
+        self.cdef_classes_set = cdef_classes_set
         self.used_names = set()
         self.collected_substitutions = {}
         self.uses_unavailable_name = False
         self.top_level_class = True
 
     def visit_ClassDef(self, node):
-        if not self.top_level_class or dataclass_in_decorators(node.decorator_list):
+        if not self.top_level_class:
             # Include any non-toplevel class in this to be able
             # to test inheritance.
 
@@ -288,7 +321,9 @@ class ExtraDataclassesToTopLevel(ast.NodeTransformer):
                 node.body.append(ast.Pass)
 
             # First, make it a C class.
-            node.decorator_list.append(ast.Name(id="cclass", ctx=ast.Load()))
+            if node in self.cdef_classes_set:
+                node.decorator_list.append(ast.Name(id="cclass", ctx=ast.Load()))
+            # otherwise move it to the global scope, but don't make it cdef
             # change the name
             old_name = node.name
             new_name = "_".join([node.name] + self.nested_name)
@@ -393,7 +428,9 @@ def main():
     with open(py_module_path, "r") as f:
         tree = ast.parse(f.read(), filename)
 
-    transformer = ExtraDataclassesToTopLevel()
+    cdef_class_finder = IdentifyCdefClasses()
+    cdef_class_finder.visit(tree)
+    transformer = ExtractDataclassesToTopLevel(cdef_class_finder.cdef_classes)
     tree = transformer.visit(tree)
 
     output_path = os.path.join(script_path, "..", "tests", "run", filename + "x")
