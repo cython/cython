@@ -1883,7 +1883,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_self_cast(scope, code)
 
         # silence unused warnings about unused variables
-        if not py_attrs and not py_buffers and not base_type:
+        if not (py_attrs or py_buffers or base_type):
             code.putln("CYTHON_UNUSED_VAR(o);")
 
         if base_type:
