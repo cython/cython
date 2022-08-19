@@ -10,6 +10,11 @@ cdef extern from "cpp_iterators_simple.h":
         DoublePointerIter(double* start, int len)
         double* begin()
         double* end()
+    cdef cppclass DoublePointerIterDefaultConstructible:
+        DoublePointerIterDefaultConstructible()
+        DoublePointerIterDefaultConstructible(double* start, int len)
+        double* begin()
+        double* end()
 
 def test_vector(py_v):
     """
@@ -98,6 +103,35 @@ def test_custom():
     finally:
         del iter
 
+def test_custom_deref():
+    """
+    >>> test_custom_deref()
+    [1.0, 2.0, 3.0]
+    """
+    cdef double* values = [1, 2, 3]
+    cdef DoublePointerIter* iter
+    try:
+        iter = new DoublePointerIter(values, 3)
+        return [x for x in deref(iter)]
+    finally:
+        del iter
+
+def test_custom_genexp():
+    """
+    >>> test_custom_genexp()
+    [1.0, 2.0, 3.0]
+    """
+    def to_list(g):  # function to hide the intent to avoid inlined-generator expression optimization
+        return list(g)
+    cdef double* values = [1, 2, 3]
+    cdef DoublePointerIterDefaultConstructible* iter
+    try:
+        iter = new DoublePointerIterDefaultConstructible(values, 3)
+        # TODO: Only needs to copy once - currently copies twice
+        return to_list(x for x in iter[0])
+    finally:
+        del iter
+
 def test_iteration_over_heap_vector(L):
     """
     >>> test_iteration_over_heap_vector([1,2])
@@ -177,3 +211,60 @@ def test_iteration_from_function_call():
         print(i)
     for i in make_vec3():
         print(i)
+
+def test_const_iterator_calculations(py_v):
+    """
+    >>> print(test_const_iterator_calculations([1, 2, 3]))
+    [3, 3, 3, 3, True, True, False, False]
+    """
+    cdef deque[int] dint
+    for i in py_v:
+        dint.push_back(i)
+    cdef deque[int].iterator first = dint.begin()
+    cdef deque[int].iterator last = dint.end()
+    cdef deque[int].const_iterator cfirst = first
+    cdef deque[int].const_iterator clast = last
+
+    return [
+        last - first,
+        last - cfirst,
+        clast - first,
+        clast - cfirst,
+        first == cfirst,
+        last == clast,
+        first == clast,
+        last == cfirst
+    ]
+
+cdef extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
+    cdef cppclass HasIterableAttribute:
+        vector[int] vec
+        HasIterableAttribute()
+        HasIterableAttribute(vector[int])
+
+cdef HasIterableAttribute get_object_with_iterable_attribute():
+    return HasIterableAttribute()
+
+def test_iteration_over_attribute_of_call():
+    """
+    >>> test_iteration_over_attribute_of_call()
+    1
+    2
+    3
+    42
+    43
+    44
+    1
+    2
+    3
+    """
+    for i in HasIterableAttribute().vec:
+        print(i)
+    cdef vector[int] vec
+    for i in range(42, 45):
+        vec.push_back(i)
+    for i in HasIterableAttribute(vec).vec:
+        print(i)
+    for i in get_object_with_iterable_attribute().vec:
+        print(i)
+

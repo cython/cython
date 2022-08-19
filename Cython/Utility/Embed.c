@@ -5,12 +5,13 @@
 #endif
 
 #if PY_MAJOR_VERSION < 3
-int %(main_method)s(int argc, char** argv) {
+int %(main_method)s(int argc, char** argv)
 #elif defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
-int %(wmain_method)s(int argc, wchar_t **argv) {
+int %(wmain_method)s(int argc, wchar_t **argv)
 #else
-static int __Pyx_main(int argc, wchar_t **argv) {
+static int __Pyx_main(int argc, wchar_t **argv)
 #endif
+{
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP

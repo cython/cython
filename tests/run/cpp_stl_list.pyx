@@ -106,7 +106,6 @@ cdef list to_pylist(cpp_list[int]& l):
         incr(it)
     return L
 
-
 def item_ptr_test(L, int x):
     """
     >>> item_ptr_test(range(10), 100)

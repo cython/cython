@@ -30,6 +30,12 @@ cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Empty(Shape):
         pass
 
+    cdef cppclass EmptyWithDocstring(Shape):
+        """
+        This is a docstring !
+        """
+
+
     int constructor_count, destructor_count
 
 

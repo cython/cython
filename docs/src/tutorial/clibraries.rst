@@ -125,9 +125,6 @@ Here is a first start for the Queue class:
         .. literalinclude:: ../../examples/tutorial/clibraries/queue.py
             :caption: queue.py
 
-        .. note:: Currently, Cython contains a bug not allowing using
-            annotations with types containing pointers (GitHub issue :issue:`4293`).
-
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/tutorial/clibraries/queue.pyx
@@ -585,7 +582,7 @@ and check if the queue really is empty or not:
 
             @cython.cfunc
             @cython.exceptval(-1, check=True)
-            def int peek(self):
+            def peek(self) -> cython.int:
                 value: cython.int = cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
                 if value == 0:
                     # this may mean that the queue is empty, or

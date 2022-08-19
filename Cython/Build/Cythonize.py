@@ -74,6 +74,7 @@ def cython_compile(path_pattern, options):
                 compile_time_env=options.compile_time_env,
                 force=options.force,
                 quiet=options.quiet,
+                depfile=options.depfile,
                 **options.options)
 
             if ext_modules and options.build:
@@ -120,10 +121,18 @@ def run_distutils(args):
 
 
 def create_args_parser():
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter
     from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""\
+Environment variables:
+  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless
+        of modification times and changes.
+  Environment variables accepted by setuptools are supported to configure the C compiler and build:
+  https://setuptools.pypa.io/en/latest/userguide/ext_modules.html#compiler-and-linker-options"""
+    )
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='directives', default={}, type=str,
@@ -171,6 +180,7 @@ def create_args_parser():
                       help='compile as much as possible, ignore compilation failures')
     parser.add_argument('--no-docstrings', dest='no_docstrings', action='store_true', default=None,
                       help='strip docstrings')
+    parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
     parser.add_argument('sources', nargs='*')
     return parser
 

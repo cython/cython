@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -131,11 +131,23 @@ def p_lambdef(s, allow_conditional=True):
 #lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
 
 def p_lambdef_nocond(s):
-    return p_lambdef(s, allow_conditional=False)
+    return p_lambdef(s)
 
 #test: or_test ['if' or_test 'else' test] | lambdef
 
 def p_test(s):
+    # The check for a following ':=' is only for error reporting purposes.
+    # It simply changes a
+    #   expected ')', found ':='
+    # message into something a bit more descriptive.
+    # It is close to what the PEG parser does in CPython, where an expression has
+    # a lookahead assertion that it isn't followed by ':='
+    expr = p_test_allow_walrus_after(s)
+    if s.sy == ':=':
+        s.error("invalid syntax: assignment expression not allowed in this context")
+    return expr
+
+def p_test_allow_walrus_after(s):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
@@ -149,6 +161,7 @@ def p_test(s):
     else:
         return expr
 
+
 #test_nocond: or_test | lambdef_nocond
 
 def p_test_nocond(s):
@@ -156,6 +169,25 @@ def p_test_nocond(s):
         return p_lambdef_nocond(s)
     else:
         return p_or_test(s)
+
+def p_namedexpr_test(s):
+    # defined in the LL parser as
+    #  namedexpr_test: test [':=' test]
+    # The requirement that the LHS is a name is not enforced in the grammar.
+    # For comparison the PEG parser does:
+    #  1. look for "name :=", if found it's definitely a named expression
+    #     so look for expression
+    #  2. Otherwise, look for expression
+    lhs = p_test_allow_walrus_after(s)
+    if s.sy == ':=':
+        position = s.position()
+        if not lhs.is_name:
+            s.error("Left-hand side of assignment expression must be an identifier", fatal=False)
+        s.next()
+        rhs = p_test(s)
+        return ExprNodes.AssignmentExpressionNode(position, lhs=lhs, rhs=rhs)
+    return lhs
+
 
 #or_test: and_test ('or' and_test)*
 
@@ -215,6 +247,12 @@ def p_test_or_starred_expr(s):
         return p_starred_expr(s)
     else:
         return p_test(s)
+
+def p_namedexpr_test_or_starred_expr(s):
+    if s.sy == '*':
+        return p_starred_expr(s)
+    else:
+        return p_namedexpr_test(s)
 
 def p_starred_expr(s):
     pos = s.position()
@@ -488,7 +526,7 @@ def p_call_parse_args(s, allow_genexp=True):
             keyword_args.append(p_test(s))
             starstar_seen = True
         else:
-            arg = p_test(s)
+            arg = p_namedexpr_test(s)
             if s.sy == '=':
                 s.next()
                 if not arg.is_name:
@@ -636,9 +674,7 @@ def p_slice_element(s, follow_set):
         return None
 
 def expect_ellipsis(s):
-    s.expect('.')
-    s.expect('.')
-    s.expect('.')
+    s.expect('...')
 
 def make_slice_nodes(pos, subscripts):
     # Convert a list of subscripts as returned
@@ -684,7 +720,7 @@ def p_atom(s):
         return p_dict_or_set_maker(s)
     elif sy == '`':
         return p_backquote_expr(s)
-    elif sy == '.':
+    elif sy == '...':
         expect_ellipsis(s)
         return ExprNodes.EllipsisNode(pos)
     elif sy == 'INT':
@@ -1246,7 +1282,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
 # since PEP 448:
 # list_display  ::=     "[" [listmaker] "]"
-# listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
+# listmaker     ::=     (named_test|star_expr) ( comp_for | (',' (named_test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
 # comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
@@ -1259,7 +1295,7 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args=[])
 
-    expr = p_test_or_starred_expr(s)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
@@ -1274,7 +1310,7 @@ def p_list_maker(s):
     # (merged) list literal
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
     else:
         exprs = [expr]
     s.expect(']')
@@ -1465,6 +1501,15 @@ def p_test_or_starred_expr_list(s, expr=None):
         s.next()
     return exprs
 
+def p_namedexpr_test_or_starred_expr_list(s, expr=None):
+    exprs = expr is not None and [expr] or []
+    while s.sy not in expr_terminators:
+        exprs.append(p_namedexpr_test_or_starred_expr(s))
+        if s.sy != ',':
+            break
+        s.next()
+    return exprs
+
 
 #testlist: test (',' test)* [',']
 
@@ -1494,10 +1539,10 @@ def p_testlist_star_expr(s):
 
 def p_testlist_comp(s):
     pos = s.position()
-    expr = p_test_or_starred_expr(s)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
         return ExprNodes.TupleNode(pos, args = exprs)
     elif s.sy in ('for', 'async'):
         return p_genexp(s, expr)
@@ -1743,11 +1788,11 @@ def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
-    if s.sy == '.':
+    if s.sy in ('.', '...'):
         # count relative import level
         level = 0
-        while s.sy == '.':
-            level += 1
+        while s.sy in ('.', '...'):
+            level += len(s.sy)
             s.next()
     else:
         level = None
@@ -1885,7 +1930,7 @@ def p_if_statement(s):
 
 def p_if_clause(s):
     pos = s.position()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     return Nodes.IfClauseNode(pos,
         condition = test, body = body)
@@ -1901,7 +1946,7 @@ def p_while_statement(s):
     # s.sy == 'while'
     pos = s.position()
     s.next()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     else_clause = p_else_clause(s)
     return Nodes.WhileStatNode(pos,
@@ -2099,6 +2144,51 @@ def p_with_statement(s):
 
 
 def p_with_items(s, is_async=False):
+    """
+    Copied from CPython:
+    | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+        _PyAST_With(a, b, NULL, EXTRA) }
+    | 'with' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+        _PyAST_With(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    Therefore the first thing to try is the bracket-enclosed
+    version and if that fails try the regular version
+    """
+    brackets_succeeded = False
+    items = ()  # unused, but static analysis fails to track that below
+    if s.sy == '(':
+        with tentatively_scan(s) as errors:
+            s.next()
+            items = p_with_items_list(s, is_async)
+            s.expect(")")
+        brackets_succeeded = not errors
+    if not brackets_succeeded:
+        # try the non-bracket version
+        items = p_with_items_list(s, is_async)
+    body = p_suite(s)
+    for cls, pos, kwds in reversed(items):
+        # construct the actual nodes now that we know what the body is
+        body = cls(pos, body=body, **kwds)
+    return body
+
+
+def p_with_items_list(s, is_async):
+    items = []
+    while True:
+        items.append(p_with_item(s, is_async))
+        if s.sy != ",":
+            break
+        s.next()
+        if s.sy == ")":
+            # trailing commas allowed
+            break
+    return items
+
+
+def p_with_item(s, is_async):
+    # In contrast to most parsing functions, this returns a tuple of
+    #  class, pos, kwd_dict
+    # This is because GILStatNode does a reasonable amount of initialization in its
+    # constructor, and requires "body" to be set, which we don't currently have
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         if is_async:
@@ -2113,24 +2203,14 @@ def p_with_items(s, is_async=False):
             condition = p_test(s)
             s.expect(')')
 
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s)
-        else:
-            body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
+        return Nodes.GILStatNode, pos, {"state": state, "condition": condition}
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s, is_async=is_async)
-        else:
-            body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+        return Nodes.WithStatNode, pos, {"manager": manager, "target": target, "is_async": is_async}
 
 
 def p_with_template(s):
@@ -2284,8 +2364,16 @@ def p_statement(s, ctx, first_statement = 0):
         #    error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
+        warning(s.position(),
+                "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
+                "Consider using global variables, constants, and in-place literals instead. "
+                "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
+        warning(s.position(),
+                "The 'IF' statement is deprecated and will be removed in a future Cython version. "
+                "Consider using runtime conditions or C macros instead. "
+                "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
@@ -2366,13 +2454,14 @@ def p_statement(s, ctx, first_statement = 0):
             else:
                 if s.sy == 'IDENT' and s.systring == 'async':
                     ident_name = s.systring
+                    ident_pos = s.position()
                     # PEP 492 enables the async/await keywords when it spots "async def ..."
                     s.next()
                     if s.sy == 'def':
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back(u'IDENT', ident_name)  # re-insert original token
+                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2584,20 +2673,22 @@ def p_c_simple_base_type(s, nonempty, templates=None):
             name = p_ident(s)
     else:
         name = s.systring
+        name_pos = s.position()
         s.next()
         if nonempty and s.sy != 'IDENT':
             # Make sure this is not a declaration of a variable or function.
             if s.sy == '(':
+                old_pos = s.position()
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back(u'(', u'(')
+                    s.put_back(u'(', u'(', old_pos)
                 else:
-                    s.put_back(u'(', u'(')
-                    s.put_back(u'IDENT', name)
+                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back(u'IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back(u'IDENT', name)
+                s.put_back(u'IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2671,13 +2762,13 @@ def is_memoryviewslice_access(s):
     # a memoryview slice declaration is distinguishable from a buffer access
     # declaration by the first entry in the bracketed list.  The buffer will
     # not have an unnested colon in the first entry; the memoryview slice will.
-    saved = [(s.sy, s.systring)]
+    saved = [(s.sy, s.systring, s.position())]
     s.next()
     retval = False
     if s.systring == ':':
         retval = True
     elif s.sy == 'INT':
-        saved.append((s.sy, s.systring))
+        saved.append((s.sy, s.systring, s.position()))
         s.next()
         if s.sy == ':':
             retval = True
@@ -2712,15 +2803,16 @@ def looking_at_expr(s):
     elif s.sy == 'IDENT':
         is_type = False
         name = s.systring
+        name_pos = s.position()
         dotted_path = []
         s.next()
 
         while s.sy == '.':
             s.next()
-            dotted_path.append(s.systring)
+            dotted_path.append((s.systring, s.position()))
             s.expect('IDENT')
 
-        saved = s.sy, s.systring
+        saved = s.sy, s.systring, s.position()
         if s.sy == 'IDENT':
             is_type = True
         elif s.sy == '*' or s.sy == '**':
@@ -2738,10 +2830,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back(u'IDENT', p)
-            s.put_back(u'.', u'.')
+            s.put_back(u'IDENT', *p)
+            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
 
-        s.put_back(u'IDENT', name)
+        s.put_back(u'IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2753,23 +2845,14 @@ def looking_at_base_type(s):
 def looking_at_dotted_name(s):
     if s.sy == 'IDENT':
         name = s.systring
+        name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back(u'IDENT', name)
+        s.put_back(u'IDENT', name, name_pos)
         return result
     else:
         return 0
 
-def looking_at_call(s):
-    "See if we're looking at a.b.c("
-    # Don't mess up the original position, so save and restore it.
-    # Unfortunately there's no good way to handle this, as a subsequent call
-    # to next() will not advance the position until it reads a new token.
-    position = s.start_line, s.start_col
-    result = looking_at_expr(s) == u'('
-    if not result:
-        s.start_line, s.start_col = position
-    return result
 
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
@@ -3010,7 +3093,7 @@ def p_exception_value_clause(s):
     return exc_val, exc_check
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
-    '*', '**', '.', ')', ':', '/')))
+    '*', '**', '...', ')', ':', '/')))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -3029,7 +3112,7 @@ def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
     return args
 
 def p_optional_ellipsis(s):
-    if s.sy == '.':
+    if s.sy == '...':
         expect_ellipsis(s)
         return 1
     else:
@@ -3770,6 +3853,9 @@ def p_compiler_directive_comments(s):
             for name in new_directives:
                 if name not in result:
                     pass
+                elif Options.directive_types.get(name) is list:
+                    result[name] += new_directives[name]
+                    new_directives[name] = result[name]
                 elif new_directives[name] == result[name]:
                     warning(pos, "Duplicate directive found: %s" % (name,))
                 else:

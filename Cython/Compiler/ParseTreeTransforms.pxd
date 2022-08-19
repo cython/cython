@@ -6,8 +6,8 @@ from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 
-cdef class SkipDeclarations: # (object):
-    pass
+# Don't include mixins, only the main classes.
+#cdef class SkipDeclarations:
 
 cdef class NormalizeTree(CythonTransform):
     cdef bint is_in_statlist
@@ -29,7 +29,7 @@ cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs
 
 #class PxdPostParse(CythonTransform, SkipDeclarations):
 #class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
-#class WithTransform(CythonTransform, SkipDeclarations):
+#class WithTransform(VisitorTransform, SkipDeclarations):
 #class DecoratorTransform(CythonTransform, SkipDeclarations):
 
 #class AnalyseDeclarationsTransform(EnvTransform):

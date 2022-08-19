@@ -59,6 +59,11 @@ namespace shapes {
         float area() const { return 0; }
     };
 
+    class EmptyWithDocstring : public Shape {
+    public:
+        float area() const { return 0; }
+    };
+
 }
 
 #endif
