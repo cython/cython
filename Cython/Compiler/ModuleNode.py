@@ -139,7 +139,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # (for example inline cdef functions)
             tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
         # Cython-language utility code is inserted before user code (but is inserted in the order it
-        # is defined). This makes sense because the user code depends on the utility code, so 
+        # is defined). This makes sense because the user code depends on the utility code, so
         # potentially relies on it being fully executed.
         if isinstance(tree, Nodes.StatListNode):
             self.body.stats[self.user_code_starts_at:self.user_code_starts_at] = tree.stats
