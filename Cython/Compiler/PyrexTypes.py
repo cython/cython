@@ -13,6 +13,7 @@ try:
 except NameError:
     from functools import reduce
 from functools import partial
+from itertools import product
 
 from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
@@ -1835,7 +1836,27 @@ class FusedType(CType):
         for t in types:
             if t.is_fused:
                 # recursively merge in subtypes
-                for subtype in t.types:
+                if isinstance(t, FusedType):
+                    t_types = t.types
+                else:
+                    # handle types that aren't a fused type themselves but contain fused types
+                    # for example a C++ template where the template type is fused.
+                    t_fused_types = t.get_fused_types()
+                    t_types = []
+                    for substitution in product(
+                        *[fused_type.types for fused_type in t_fused_types]
+                    ):
+                        t_types.append(
+                            t.specialize(
+                                {
+                                    fused_type: sub
+                                    for fused_type, sub in zip(
+                                        t_fused_types, substitution
+                                    )
+                                }
+                            )
+                        )
+                for subtype in t_types:
                     if subtype not in flattened_types:
                         flattened_types.append(subtype)
             elif t not in flattened_types:
