@@ -158,6 +158,7 @@ class Field(object):
     def __init__(self, pos, default=MISSING, default_factory=MISSING,
                  repr=None, hash=None, init=None,
                  compare=None, metadata=None,
+                 kw_only=None,
                  is_initvar=False, is_classvar=False,
                  **additional_kwds):
         if default is not MISSING:
@@ -168,6 +169,7 @@ class Field(object):
         self.hash = hash or ExprNodes.NoneNode(pos)
         self.init = init or ExprNodes.BoolNode(pos, value=True)
         self.compare = compare or ExprNodes.BoolNode(pos, value=True)
+        self.kw_only = kw_only or ExprNodes.BoolNode(pos, value=False)
         self.metadata = metadata or ExprNodes.NoneNode(pos)
         self.is_initvar = is_initvar
         self.is_classvar = is_classvar
@@ -189,7 +191,7 @@ class Field(object):
                 yield key, value
 
 
-def process_class_get_fields(node):
+def process_class_get_fields(node, global_kw_only):
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
     var_entries = sorted(var_entries, key=operator.attrgetter('pos'))
@@ -211,7 +213,16 @@ def process_class_get_fields(node):
         # TODO - classvars aren't included in "var_entries" so are missed here
         # and thus this code is never triggered
         is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
+        is_kw_only_marker = entry.declared_with_pytyping_modifier("dataclasses.KW_ONLY")
+        if is_kw_only_marker:
+            # drop the entry for this field
+            node.scope.var_entries = [ e for e in node.scope.var_entries if e is not entry ]
+            del node.scope.entries[name]
+            global_kw_only = True  # all future fields are kw_only
+        global_kw_only_node = ExprNodes.BoolNode(node.pos, value=global_kw_only)
         if name in default_value_assignments:
+            if is_kw_only_marker:
+                error(entry.pos, "Cannot assignment to field typed with dataclasses.KW_ONLY placeholder.")
             assignment = default_value_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
                     and assignment.function.as_cython_attribute() == "dataclasses.field"):
@@ -225,6 +236,8 @@ def process_class_get_fields(node):
                           "of compile-time keyword arguments")
                     continue
                 keyword_args = assignment.keyword_args.as_python_dict()
+                if 'kw_only' not in keyword_args:
+                    keyword_args['kw_only'] = ExprNodes.BoolNode(node.pos, value=global_kw_only_node)
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
                     error(assignment.pos, "cannot specify both default and default_factory")
                     continue
@@ -242,9 +255,11 @@ def process_class_get_fields(node):
                     error(assignment.pos, "mutable default <class '{0}'> for field {1} is not allowed: "
                           "use default_factory".format(assignment.type.name, name))
 
-                field = Field(node.pos, default=assignment)
+                field = Field(node.pos, default=assignment, kw_only=global_kw_only_node)
         else:
-            field = Field(node.pos)
+            if is_kw_only_marker:
+                continue
+            field = Field(node.pos, kw_only=global_kw_only_node)
         field.is_initvar = is_initvar
         field.is_classvar = is_classvar
         if entry.visibility == "private":
@@ -269,12 +284,12 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
-            kwargs[k] = v
+            kwargs[k] = v.value
 
     # remove everything that does not belong into _DataclassParams()
-    kw_only = kwargs.pop("kw_only")
+    global_kw_only = kwargs.pop("kw_only")
 
-    fields = process_class_get_fields(node)
+    fields = process_class_get_fields(node, global_kw_only)
 
     dataclass_module = make_dataclasses_module_callnode(node.pos)
 
@@ -303,7 +318,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                                stats=[dataclass_params_assignment] + dataclass_fields_stats)
 
     code = TemplateCode()
-    generate_init_code(code, kwargs['init'], node, fields, kw_only)
+    generate_init_code(code, kwargs['init'], node, fields)
     generate_repr_code(code, kwargs['repr'], node, fields)
     generate_eq_code(code, kwargs['eq'], node, fields)
     generate_order_code(code, kwargs['order'], node, fields)
@@ -327,7 +342,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(code, init, node, fields, kw_only):
+def generate_init_code(code, init, node, fields):
     """
     All of these "generate_*_code" functions return a tuple of:
     - code string
@@ -350,12 +365,18 @@ def generate_init_code(code, init, node, fields, kw_only):
     if not init or node.scope.lookup_here("__init__"):
         return
 
+    positional_fields = []
+    keyword_only_fields = []
+    for field_name, field in fields.items():
+        if field.kw_only.value:
+            keyword_only_fields.append((field_name, field))
+        else:
+            positional_fields.append((field_name, field))
+    fields = positional_fields + keyword_only_fields  # recombine in correct order
+
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
-
-    if kw_only:
-        args.append("*")
 
     function_start_point = code.insertion_point()
 
@@ -370,7 +391,8 @@ def generate_init_code(code, init, node, fields, kw_only):
     default_factory_placeholder = code.new_placeholder(fields, has_default_factory)
 
     seen_default = False
-    for name, field in fields.items():
+    seen_first_kw_only = False
+    for name, field in fields:
         entry = node.scope.lookup(name)
         if entry.annotation:
             annotation = u": %s" % entry.annotation.string.value
@@ -384,11 +406,15 @@ def generate_init_code(code, init, node, fields, kw_only):
             else:
                 ph_name = code.new_placeholder(fields, field.default)  # 'default' should be a node
             assignment = u" = %s" % ph_name
-        elif seen_default and not kw_only and field.init.value:
+        elif seen_default and not field.kw_only.value and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
             code.reset(function_start_point)
             return
+
+        if field.kw_only.value and not seen_first_kw_only:
+            args.append(u"*")
+            seen_first_kw_only = True
 
         if field.init.value:
             args.append(u"%s%s%s" % (name, annotation, assignment))
