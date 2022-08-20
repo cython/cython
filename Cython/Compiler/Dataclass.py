@@ -207,6 +207,7 @@ def process_class_get_fields(node, global_kw_only):
     else:
         fields = OrderedDict()
 
+    seen_kw_only_marker = False
     for entry in var_entries:
         name = entry.name
         is_initvar = entry.declared_with_pytyping_modifier("dataclasses.InitVar")
@@ -215,6 +216,9 @@ def process_class_get_fields(node, global_kw_only):
         is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
         is_kw_only_marker = entry.declared_with_pytyping_modifier("dataclasses.KW_ONLY")
         if is_kw_only_marker:
+            if seen_kw_only_marker:
+                error(entry.pos, "%s is KW_ONLY, but KW_ONLY has already been specified", entry.name)
+            seen_kw_only_marker = True
             # drop the entry for this field
             node.scope.var_entries = [ e for e in node.scope.var_entries if e is not entry ]
             del node.scope.entries[name]
