@@ -237,7 +237,7 @@ def process_class_get_fields(node, global_kw_only):
                     continue
                 keyword_args = assignment.keyword_args.as_python_dict()
                 if 'kw_only' not in keyword_args:
-                    keyword_args['kw_only'] = ExprNodes.BoolNode(node.pos, value=global_kw_only_node)
+                    keyword_args['kw_only'] = global_kw_only_node
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
                     error(assignment.pos, "cannot specify both default and default_factory")
                     continue
@@ -365,6 +365,9 @@ def generate_init_code(code, init, node, fields):
     if not init or node.scope.lookup_here("__init__"):
         return
 
+    # selfname behaviour copied from the cpython module
+    selfname = "__dataclass_self__" if "self" in fields else "self"
+
     positional_fields = []
     keyword_only_fields = []
     for field_name, field in fields.items():
@@ -374,8 +377,6 @@ def generate_init_code(code, init, node, fields):
             positional_fields.append((field_name, field))
     fields = positional_fields + keyword_only_fields  # recombine in correct order
 
-    # selfname behaviour copied from the cpython module
-    selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
 
     function_start_point = code.insertion_point()
@@ -441,7 +442,7 @@ def generate_init_code(code, init, node, fields):
                     selfname, name, ph_name))
 
     if node.scope.lookup("__post_init__"):
-        post_init_vars = ", ".join(name for name, field in fields.items()
+        post_init_vars = ", ".join(name for name, field in fields
                                    if field.is_initvar)
         code.add_code_line("    %s.__post_init__(%s)" % (selfname, post_init_vars))
 
