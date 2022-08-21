@@ -17,7 +17,7 @@ def f():
 _ERRORS = u"""
 3:17: Buffer types only allowed as function local variables
 5:21: Buffer types only allowed as function local variables
-8:31: "fakeoption" is not a buffer option
+8:27: "fakeoption" is not a buffer option
 """
 #TODO:
 #7:22: "ndim" must be non-negative

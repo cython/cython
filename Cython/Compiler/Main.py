@@ -502,6 +502,10 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
+    if options.depfile:
+        from ..Build.Dependencies import create_dependency_tree
+        dependencies = create_dependency_tree(context).all_dependencies(result.main_source_file)
+        Utils.write_depfile(result.c_file, result.main_source_file, dependencies)
     return result
 
 
@@ -583,6 +587,9 @@ def compile_multiple(sources, options):
     a CompilationResultSet. Performs timestamp checking and/or recursion
     if these are specified in the options.
     """
+    if len(sources) > 1 and options.module_name:
+        raise RuntimeError('Full module name can only be set '
+                           'for single source compilation')
     # run_pipeline creates the context
     # context = Context.from_options(options)
     sources = [os.path.abspath(source) for source in sources]
@@ -601,8 +608,9 @@ def compile_multiple(sources, options):
             if (not timestamps) or out_of_date:
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
-
-                result = run_pipeline(source, options, context=context)
+                result = run_pipeline(source, options,
+                                      full_module_name=options.module_name,
+                                      context=context)
                 results.add(source, result)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.

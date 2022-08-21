@@ -652,7 +652,7 @@ through defined error return values.  For functions that return a Python object
 ``NULL`` pointer, so any function returning a Python object has a well-defined
 error return value.
 
-While this is always the case for C functions, functions
+While this is always the case for Python functions, functions
 defined as C functions or ``cpdef``/``@ccall`` functions can return arbitrary C types,
 which do not have such a well-defined error return value.  Thus, if an
 exception is detected in such a function, a warning message is printed,
@@ -1094,7 +1094,7 @@ direct equivalent in Python.
 * There is an ``&`` operator in Cython, with the same semantics as in C.
   In pure python mode, use the ``cython.address()`` function instead.
 * The null C pointer is called ``NULL``, not ``0``. ``NULL`` is a reserved word in Cython
-  and special object in pure python mode.
+  and ``cython.NULL`` is a special object in pure python mode.
 * Type casts are written ``<type>value`` or ``cast(type, value)``, for example,
 
   .. tabs::

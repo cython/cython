@@ -13,6 +13,7 @@ try:
 except ImportError:  # Py3
     import builtins
 
+from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError
 from .StringEncoding import EncodedString
 from . import Options, Naming
@@ -163,6 +164,7 @@ class Entry(object):
     # known_standard_library_import     Either None (default), an empty string (definitely can't be determined)
     #                             or a string of "modulename.something.attribute"
     #                             Used for identifying imports from typing/dataclasses etc
+    # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -237,6 +239,7 @@ class Entry(object):
     is_cgetter = False
     is_cpp_optional = False
     known_standard_library_import = None
+    pytyping_modifiers = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -281,6 +284,9 @@ class Entry(object):
         self.is_cpp_optional = True
         assert not self.utility_code  # we're not overwriting anything?
         self.utility_code_definition = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")
+
+    def declared_with_pytyping_modifier(self, modifier_name):
+        return modifier_name in self.pytyping_modifiers if self.pytyping_modifiers else False
 
 
 class InnerEntry(Entry):
@@ -336,11 +342,13 @@ class Scope(object):
     # is_builtin_scope  boolean            Is the builtin scope of Python/Cython
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
+    # is_local_scope    boolean            Is a local (i.e. function/method/generator) scope
     # is_closure_scope  boolean            Is a closure scope
     # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
+    # is_c_dataclass_scope     boolean or "frozen"  is a cython.dataclasses.dataclass
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -354,18 +362,22 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_local_scope = False
     is_generator_expression_scope = 0
     is_comprehension_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_c_dataclass_scope = False
     is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
     fused_to_specific = None
     return_type = None
+    # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
+    in_c_type_context = True
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -481,6 +493,14 @@ class Scope(object):
         if self.subscopes:
             for scope in sorted(self.subscopes, key=operator.attrgetter('scope_prefix')):
                 yield scope
+
+    @try_finally_contextmanager
+    def new_c_type_context(self, in_c_type_context=None):
+        old_c_type_context = self.in_c_type_context
+        if in_c_type_context is not None:
+            self.in_c_type_context = in_c_type_context
+        yield
+        self.in_c_type_context = old_c_type_context
 
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if
@@ -733,8 +753,8 @@ class Scope(object):
         return self.outer_scope.declare_tuple_type(pos, components)
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0):
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=False, pytyping_modifiers=None):
         # Add an entry for a variable.
         if not cname:
             if visibility != 'private' or api:
@@ -754,7 +774,16 @@ class Scope(object):
         if api:
             entry.api = 1
             entry.used = 1
+        if pytyping_modifiers:
+            entry.pytyping_modifiers = pytyping_modifiers
         return entry
+
+    def _reject_pytyping_modifiers(self, pos, modifiers, allowed=()):
+        if not modifiers:
+            return
+        for modifier in modifiers:
+            if modifier not in allowed:
+                error(pos, "Modifier '%s' is not allowed here." % modifier)
 
     def declare_assignment_expression_target(self, name, type, pos):
         # In most cases declares the variable as normal.
@@ -1515,14 +1544,15 @@ class ModuleScope(Scope):
         return entry
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0):
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=False, pytyping_modifiers=None):
         # Add an entry for a global variable. If it is a Python
         # object type, and not declared with cdef, it will live
         # in the module dictionary, otherwise it will be a C
         # global variable.
         if visibility not in ('private', 'public', 'extern'):
             error(pos, "Module-level variable cannot be declared %s" % visibility)
+        self._reject_pytyping_modifiers(pos, pytyping_modifiers, ('typing.Optional',))  # let's allow at least this one
         if not is_cdef:
             if type is unspecified_type:
                 type = py_object_type
@@ -1558,7 +1588,7 @@ class ModuleScope(Scope):
 
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility,
-                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef)
+                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef, pytyping_modifiers=pytyping_modifiers)
         if is_cdef:
             entry.is_cglobal = 1
             if entry.type.declaration_value:
@@ -1860,6 +1890,7 @@ class ModuleScope(Scope):
 
 
 class LocalScope(Scope):
+    is_local_scope = True
 
     # Does the function have a 'with gil:' block?
     has_with_gil_block = False
@@ -1889,15 +1920,15 @@ class LocalScope(Scope):
         return entry
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0):
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=False, pytyping_modifiers=None):
         name = self.mangle_class_private_name(name)
         # Add an entry for a local variable.
         if visibility in ('public', 'readonly'):
             error(pos, "Local variable cannot be declared %s" % visibility)
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility,
-                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef)
+                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef, pytyping_modifiers=pytyping_modifiers)
         if entry.type.declaration_value:
             entry.init = entry.type.declaration_value
         entry.is_local = 1
@@ -1995,13 +2026,14 @@ class ComprehensionScope(Scope):
         return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(prefix, name))
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = True):
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=True, pytyping_modifiers=None):
         if type is unspecified_type:
             # if the outer scope defines a type for this variable, inherit it
             outer_entry = self.outer_scope.lookup(name)
             if outer_entry and outer_entry.is_variable:
                 type = outer_entry.type  # may still be 'unspecified_type' !
+        self._reject_pytyping_modifiers(pos, pytyping_modifiers)
         # the parent scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
         cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
@@ -2084,8 +2116,8 @@ class StructOrUnionScope(Scope):
         Scope.__init__(self, name, None, None)
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0,
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=False, pytyping_modifiers=None,
                     allow_pyobject=False, allow_memoryview=False, allow_refcounted=False):
         # Add an entry for an attribute.
         if not cname:
@@ -2094,6 +2126,7 @@ class StructOrUnionScope(Scope):
                 cname = c_safe_identifier(cname)
         if type.is_cfunction:
             type = PyrexTypes.CPtrType(type)
+        self._reject_pytyping_modifiers(pos, pytyping_modifiers)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.var_entries.append(entry)
@@ -2171,15 +2204,15 @@ class PyClassScope(ClassScope):
     is_py_class_scope = 1
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0):
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=False, pytyping_modifiers=None):
         name = self.mangle_class_private_name(name)
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility,
-                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef)
+                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef, pytyping_modifiers=pytyping_modifiers)
         entry.is_pyglobal = 1
         entry.is_pyclass_attr = 1
         return entry
@@ -2301,17 +2334,21 @@ class CClassScope(ClassScope):
         return have_entries, (py_attrs, py_buffers, memoryview_slices)
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0):
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=False, pytyping_modifiers=None):
         name = self.mangle_class_private_name(name)
 
-        if type.python_type_constructor_name == "typing.ClassVar":
-            is_cdef = 0
-            type = type.resolve()
-
-        if (type.python_type_constructor_name == "dataclasses.InitVar" and
-                'dataclasses.dataclass' not in self.directives):
-            error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
+        if pytyping_modifiers:
+            if "typing.ClassVar" in pytyping_modifiers:
+                is_cdef = 0
+                if not type.is_pyobject:
+                    if not type.equivalent_type:
+                        warning(pos, "ClassVar[] requires the type to be a Python object type. Found '%s', using object instead." % type)
+                        type = py_object_type
+                    else:
+                        type = type.equivalent_type
+            if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_c_dataclass_scope:
+                error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:
             # Add an entry for an attribute.
@@ -2332,6 +2369,7 @@ class CClassScope(ClassScope):
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
+            entry.pytyping_modifiers = pytyping_modifiers
             if type.is_cpp_class and visibility != 'extern':
                 if self.directives['cpp_locals']:
                     entry.make_cpp_optional()
@@ -2369,7 +2407,7 @@ class CClassScope(ClassScope):
             # Add an entry for a class attribute.
             entry = Scope.declare_var(self, name, type, pos,
                                       cname=cname, visibility=visibility,
-                                      api=api, in_pxd=in_pxd, is_cdef=is_cdef)
+                                      api=api, in_pxd=in_pxd, is_cdef=is_cdef, pytyping_modifiers=pytyping_modifiers)
             entry.is_member = 1
             # xxx: is_pyglobal changes behaviour in so many places that I keep it in for now.
             # is_member should be enough later on
@@ -2612,11 +2650,12 @@ class CppClassScope(Scope):
                 template_entry.is_type = 1
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'extern',
-                    api = 0, in_pxd = 0, is_cdef = 0, defining = 0):
+                    cname=None, visibility='extern',
+                    api=False, in_pxd=False, is_cdef=False, defining=False, pytyping_modifiers=None):
         # Add an entry for an attribute.
         if not cname:
             cname = name
+        self._reject_pytyping_modifiers(pos, pytyping_modifiers)
         entry = self.lookup_here(name)
         if defining and entry is not None:
             if entry.type.same_as(type):
@@ -2746,10 +2785,11 @@ class CppScopedEnumScope(Scope):
         Scope.__init__(self, name, outer_scope, None)
 
     def declare_var(self, name, type, pos,
-                    cname=None, visibility='extern'):
+                    cname=None, visibility='extern', pytyping_modifiers=None):
         # Add an entry for an attribute.
         if not cname:
             cname = name
+        self._reject_pytyping_modifiers(pos, pytyping_modifiers)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = True
         return entry
