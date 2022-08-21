@@ -12824,7 +12824,7 @@ class CmpNode(object):
                     return True
                 elif isinstance(operand1, (IntNode, FloatNode)) or isinstance(self.operand2, (IntNode, FloatNode)):
                     # Where one side of the comparison is a known constant we can assume that the other side
-                    # of the comparison is probably a Python object with the same type. In this case the 
+                    # of the comparison is probably a Python object with the same type. In this case the
                     # actual optimization takes place in OptimizeBuiltinCalls, but it is safe to convert
                     # the type to bint
                     return True
