@@ -12822,6 +12822,12 @@ class CmpNode(object):
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("StrEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyString_Equals"
                     return True
+                elif isinstance(operand1, (IntNode, FloatNode)) or isinstance(self.operand2, (IntNode, FloatNode)):
+                    # Where one side of the comparison is a known constant we can assume that the other side
+                    # of the comparison is probably a Python object with the same type. In this case the 
+                    # actual optimization takes place in OptimizeBuiltinCalls, but it is safe to convert
+                    # the type to bint
+                    return True
         elif self.operator in ('in', 'not_in'):
             if self.operand2.type is Builtin.dict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
