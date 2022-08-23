@@ -381,6 +381,12 @@
   #endif
 #endif
 
+#if CYTHON_USE_MODULE_STATE && CYTHON_PEP489_MULTI_PHASE_INIT
+#error "Cannot combine CYTHON_USE_MODULE_STATE and CYTHON_PEP489_MULTI_PHASE_INIT"
+/* since PyState_FindModule requires that each module-def is linked to 1 (or 0) modules
+and multi-phase init allows the same module to be imported many times */
+#endif
+
 #if !defined(CYTHON_FAST_PYCCALL)
 #define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
 #endif
