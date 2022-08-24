@@ -2967,8 +2967,8 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s, ctx)
-    if nogil and (exc_val or exc_check):
+    exc_clause, exc_val, exc_check = p_exception_value_clause(s, ctx)
+    if nogil and exc_clause:
         warning(
             s.position(),
             "The keyword 'nogil' should appear at the end of the "
@@ -3086,27 +3086,27 @@ def p_with_gil(s):
         return 1
     else:
         return 0
-
 def p_exception_value_clause(s, ctx):
     """
     Parse exception value clause.
 
     Maps clauses to exc_check / exc_value as follows:
-     ___________________________________________________
-    |                           |           |           |
-    | Clause                    | exc_check | exc_value |
-    |___________________________|___________|___________|
-    |                           |           |           |
-    | <nothing> (default func.) | True      | None      |
-    | <nothing> (cdef extern)   | False     | None      |
-    | noexcept                  | False     | None      |
-    | except <val>              | False     | <val>     |
-    | except? <val>             | True      | <val>     |
-    | except +                  | '+'       | None      |
-    | except +*                 | '+'       | '*'       |
-    | except +<PyErr>           | '+'       | <PyErr>   |
-    |___________________________|___________|___________|
+     ______________________________________________________________________
+    |                             |            |             |             |
+    | Clause                      | exc_clause | exc_check   | exc_value   |
+    | ___________________________ | __________ | ___________ | ___________ |
+    |                             |            |             |             |
+    | <nothing> (default func.)   | False      | True        | None        |
+    | <nothing> (cdef extern)     | False      | False       | None        |
+    | noexcept                    | True       | False       | None        |
+    | except <val>                | True       | False       | <val>       |
+    | except? <val>               | True       | True        | <val>       |
+    | except +                    | True       | '+'         | None        |
+    | except +*                   | True       | '+'         | '*'         |
+    | except +<PyErr>             | True       | '+'         | <PyErr>     |
+    | ___________________________ | __________ | ___________ | ___________ |
     """
+    exc_clause = False
     exc_val = None
     if ctx.visibility  == 'extern':
         exc_check = False
@@ -3114,9 +3114,11 @@ def p_exception_value_clause(s, ctx):
         exc_check = True
 
     if s.sy == 'IDENT' and s.systring == 'noexcept':
+        exc_clause = True
         s.next()
         exc_check = False
     elif s.sy == 'except':
+        exc_clause = True
         s.next()
         if s.sy == '*':
             exc_check = True
@@ -3139,8 +3141,7 @@ def p_exception_value_clause(s, ctx):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    return exc_val, exc_check
-
+    return exc_clause, exc_val, exc_check,
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
     '*', '**', '...', ')', ':', '/')))
 
