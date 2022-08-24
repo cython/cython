@@ -5218,6 +5218,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
@@ -5307,6 +5309,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry

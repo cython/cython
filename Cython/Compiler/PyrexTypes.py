@@ -1522,6 +1522,7 @@ class PyExtensionType(PyObjectType):
     #  is_external      boolean          Defined in a extern block
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
+    #  multiple_bases    boolean          Does this class have multiple bases
 
     is_extension_type = 1
     has_attributes = 1
@@ -1529,6 +1530,7 @@ class PyExtensionType(PyObjectType):
 
     objtypedef_cname = None
     dataclass_fields = None
+    multiple_bases = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
