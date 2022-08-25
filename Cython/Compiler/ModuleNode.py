@@ -1675,23 +1675,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
-
-        has_del = False
-        current_type_scope = scope
-        while current_type_scope:
-            del_entry = current_type_scope.lookup_here("__del__")
-            if del_entry:
-                has_del = del_entry.is_special
-                break
-            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or 
-                    current_type_scope.parent_type.multiple_bases):
-                # we don't know if we have __del__, so assume we do and call it
-                has_del = True
-                break
-            current_base_type = current_type_scope.parent_type.base_type
-            current_type_scope = current_base_type.scope if current_base_type else None
         
-        if not is_final_type or has_del:
+        if not is_final_type or scope.may_have_finalize():
             # in Py3.4+, call tp_finalize() as early as possible
             code.putln("#if CYTHON_USE_TP_FINALIZE")
             if needs_gc:
