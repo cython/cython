@@ -3086,6 +3086,7 @@ def p_with_gil(s):
         return 1
     else:
         return 0
+
 def p_exception_value_clause(s, ctx):
     """
     Parse exception value clause.
@@ -3126,7 +3127,9 @@ def p_exception_value_clause(s, ctx):
         elif s.sy == '+':
             exc_check = '+'
             s.next()
-            if s.sy == 'IDENT':
+            if p_nogil(s):
+                ctx.nogil = 1
+            elif s.sy == 'IDENT':
                 name = s.systring
                 s.next()
                 exc_val = p_name(s, name)
