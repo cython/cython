@@ -1675,7 +1675,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
-        
+
         if not is_final_type or scope.may_have_finalize():
             # in Py3.4+, call tp_finalize() as early as possible
             code.putln("#if CYTHON_USE_TP_FINALIZE")

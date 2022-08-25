@@ -2325,7 +2325,7 @@ class CClassScope(ClassScope):
             del_entry = current_type_scope.lookup_here("__del__")
             if del_entry and del_entry.is_special:
                 return True
-            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or 
+            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or
                     current_type_scope.parent_type.multiple_bases):
                 # we don't know if we have __del__, so assume we do and call it
                 return True
