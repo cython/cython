@@ -7,12 +7,13 @@ PYTHON runtests.py
 
 import gc
 from testclasses import *
+import baseclasses
 
 def test_has_del():
     inst = HasIndirectDel()
     inst = None
     gc.collect()
-    assert HasIndirectDel.del_called_count
+    assert baseclasses.HasDel_del_called_count
     
 def test_no_del():
     inst = NoIndirectDel()
@@ -40,10 +41,12 @@ cdef class DoesntHaveDel:
     
 ####### baseclasses.pyx ######
 
+HasDel_del_called_count = 0
+
 cdef class HasDel:
-    del_called_count = 0
     def __del__(self):
-        HasDel.del_called_count += 1
+        global HasDel_del_called_count
+        HasDel_del_called_count += 1
         
 cdef class DoesntHaveDel:
     pass
