@@ -1677,19 +1677,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_self_cast(scope, code)
 
         has_del = False
-        type_scope = scope
-        while type_scope:
-            del_entry = type_scope.lookup_here("__del__")
+        current_type_scope = scope
+        while current_type_scope:
+            del_entry = current_type_scope.lookup_here("__del__")
             if del_entry:
                 has_del = del_entry.is_special
                 break
-            if (type_scope.parent_type.is_extern or not type_scope.implemented or 
-                    type_scope.parent_type.multiple_bases):
+            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or 
+                    current_type_scope.parent_type.multiple_bases):
                 # we don't know if we have __del__, so assume we do and call it
                 has_del = True
                 break
-            base_type = type_scope.parent_type.base_type
-            type_scope = base_type.scope if base_type else None
+            current_base_type = current_type_scope.parent_type.base_type
+            current_type_scope = current_base_type.scope if current_base_type else None
         
         if not is_final_type or has_del:
             # in Py3.4+, call tp_finalize() as early as possible
