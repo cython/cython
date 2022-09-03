@@ -519,8 +519,6 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixe
 
 /////////////////////////// ExtractExactDict.proto ////////////////
 
-#include <stdarg.h>
-
 // the variadic arguments are a list of PyObject** to subjects to be filled. They may be NULL
 // in which case they're ignored.
 //
@@ -564,8 +562,6 @@ static CYTHON_INLINE int __Pyx__MatchCase_Mapping_ExtractDict(void *__pyx_refnan
 // in which case they're ignored.
 //
 // This is a specialized version for the rarer case when the type isn't an exact dict.
-
-#include <stdarg.h>
 
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_Mapping_ExtractNonDict(...) __Pyx__MatchCase_Mapping_ExtractNonDict(__pyx_refnanny, __VA_ARGS__)
@@ -628,8 +624,6 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
 }
 
 ///////////////////////// ExtractGeneric.proto ////////////////////////////////
-
-#include <stdarg.h>
 
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_Mapping_Extract(...) __Pyx__MatchCase_Mapping_Extract(__pyx_refnanny, __VA_ARGS__)

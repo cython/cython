@@ -1755,6 +1755,10 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
     def generate_evaluation_code(self, code):
         code.putln("{")
         keys_str = ", ".join(k.result() for k in self.keys_array)
+        if not keys_str:
+            # GCC gets worried about overflow if we pass
+            # a genuinely empty array
+            keys_str = "NULL"
         code.putln("PyObject *%s[] = {%s};" % (
             MappingComparisonNode.keys_array_cname,
             keys_str,
@@ -1762,6 +1766,10 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
         subjects_str = ", ".join(
             "&"+subject.result() if subject is not None else "NULL" for subject in self.subjects_array
         )
+        if not subjects_str:
+            # GCC gets worried about overflow if we pass
+            # a genuinely empty array
+            subjects_str = "NULL"
         code.putln("PyObject **%s[] = {%s};" % (
             MappingComparisonNode.subjects_array_cname,
             subjects_str
