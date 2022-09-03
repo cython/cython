@@ -1100,7 +1100,7 @@ class MatchMappingPatternNode(PatternNode):
                 self.Pyx_mapping_check_duplicates_type,
                 utility_code=utility_code,
                 args=[
-                    MappingComparisonNode.make_keys_node(self.pos),
+                    MappingOrClassComparisonNode.make_keys_node(self.pos),
                     ExprNodes.IntNode(self.pos, value=str(n_fixed_keys)),
                     ExprNodes.IntNode(self.pos, value=str(len(self.keys)))
                 ],
@@ -1140,12 +1140,12 @@ class MatchMappingPatternNode(PatternNode):
             utility_code=util_code,
             args=[
                 subject_node,
-                MappingComparisonNode.make_keys_node(self.pos),
+                MappingOrClassComparisonNode.make_keys_node(self.pos),
                 ExprNodes.IntNode(
                     self.pos,
                     value=str(len(self.keys))
                 ),
-                MappingComparisonNode.make_subjects_node(self.pos),
+                MappingOrClassComparisonNode.make_subjects_node(self.pos),
             ],
         )
 
@@ -1168,7 +1168,7 @@ class MatchMappingPatternNode(PatternNode):
             utility_code=utility_code,
             args=[
                 subject_node,
-                MappingComparisonNode.make_keys_node(self.pos),
+                MappingOrClassComparisonNode.make_keys_node(self.pos),
                 ExprNodes.IntNode(self.pos, value=str(len(self.keys)))
             ],
         )
@@ -1231,7 +1231,7 @@ class MatchMappingPatternNode(PatternNode):
         else:
             body = all_tests
         if self.keys or self.double_star_capture_target:
-            body = MappingComparisonNode(
+            body = MappingOrClassComparisonNode(
                 body.pos,
                 arg=LazyCoerceToBool(body.pos, arg=body),
                 keys_array=self.keys,
@@ -1298,16 +1298,19 @@ class ClassPatternNode(PatternNode):
     keyword_pattern_names = []
     keyword_pattern_patterns = []
 
+    # as with the mapping functions, lie a little about some of the types for
+    # ease of declaration
     Pyx_positional_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type,
         [
             PyrexTypes.CFuncTypeArg("subject", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None),
-            PyrexTypes.CFuncTypeArg("keysnames_tuple", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("fixed_names", PyrexTypes.c_void_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("n_fixed", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("match_self", PyrexTypes.c_int_type, None),
-            PyrexTypes.CFuncTypeArg("num_args", PyrexTypes.c_int_type, None),
+            PyrexTypes.CFuncTypeArg("subjects", PyrexTypes.c_void_ptr_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("n_subjects", PyrexTypes.c_int_type, None),
         ],
-        has_varargs=True,
         exception_value="-1",
     )
 
@@ -1477,13 +1480,10 @@ class ClassPatternNode(PatternNode):
     def make_positional_args_call(self, subject_node, class_node):
         assert self.positional_patterns
         util_code = UtilityCode.load_cached("ClassPositionalPatterns", "MatchCase.c")
-        keynames = ExprNodes.TupleNode(
-            self.pos,
-            args=[
-                ExprNodes.StringNode(n.pos, value=n.name)
-                for n in self.keyword_pattern_names
-            ],
-        )
+        keynames = [
+            ExprNodes.StringNode(n.pos, value=n.name)
+            for n in self.keyword_pattern_names
+        ]
         # -1 is "unknown"
         match_self = (
             -1
@@ -1516,21 +1516,28 @@ class ClassPatternNode(PatternNode):
                     match_self = 0  # I think... Relies on knowing the bases
 
         match_self = ExprNodes.IntNode(self.pos, value=str(match_self))
-        len_ = ExprNodes.IntNode(self.pos, value=str(len(self.positional_patterns)))
-        subject_derefs = [
-            ExprNodes.NullNode(self.pos)
-            if t is None
-            else AddressOfPyObjectNode(self.pos, obj=t)
-            for t in self.positional_subject_temps
-        ]
-        return ExprNodes.PythonCapiCallNode(
+        n_subjects = ExprNodes.IntNode(self.pos, value=str(len(self.positional_patterns)))
+        return MappingOrClassComparisonNode(
             self.pos,
-            "__Pyx_MatchCase_ClassPositional",
-            self.Pyx_positional_type,
-            utility_code=util_code,
-            args=[subject_node, class_node, keynames, match_self, len_]
-            + subject_derefs,
+            arg=ExprNodes.PythonCapiCallNode(
+                self.pos,
+                "__Pyx_MatchCase_ClassPositional",
+                self.Pyx_positional_type,
+                utility_code=util_code,
+                args=[
+                    subject_node,
+                    class_node,
+                    MappingOrClassComparisonNode.make_keys_node(self.pos),
+                    ExprNodes.IntNode(self.pos, value=str(len(keynames))),
+                    match_self,
+                    MappingOrClassComparisonNode.make_subjects_node(self.pos),
+                    n_subjects,
+                ]
+            ),
+            subjects_array=self.positional_subject_temps,
+            keys_array=keynames,
         )
+        return 
 
     def make_subpattern_checks(self):
         patterns = self.keyword_pattern_patterns + self.positional_patterns
@@ -1945,27 +1952,6 @@ class CompilerDirectivesExprNode(ExprNodes.ProxyNode):
             self.arg.annotate(code)
 
 
-class AddressOfPyObjectNode(ExprNodes.ExprNode):
-    """
-    obj  - some temp node
-    """
-
-    type = PyrexTypes.c_void_ptr_ptr_type
-    is_temp = False
-    subexprs = ["obj"]
-
-    def analyse_types(self, env):
-        self.obj = self.obj.analyse_types(env)
-        assert self.obj.type.is_pyobject, repr(self.obj.type)
-        return self
-
-    def generate_result_code(self, code):
-        self.obj.generate_result_code(code)
-
-    def calculate_result_code(self):
-        return "&%s" % self.obj.result()
-
-
 class LazyCoerceToPyObject(ExprNodes.ExprNode):
     """
     Just calls "self.arg.coerce_to_pyobject" when it's analysed,
@@ -2018,13 +2004,14 @@ def generate_binop_tree_from_list(pos, operator, list_of_tests):
         )
 
 
-class MappingComparisonNode(ExprNodes.ExprNode):
+class MappingOrClassComparisonNode(ExprNodes.ExprNode):
     """
-    Combined with MappingComparisonNodeInner this is responsible 
-    for setting up up the arrays of subjects and keys
+    Combined with MappingOrClassComparisonNodeInner this is responsible 
+    for setting up up the arrays of subjects and keys that are used in
+    the function calls that handle these types of patterns
 
     Note that self.keys_array is owned by this but used by
-    MappingComparisonNodeInner - that's mainly to ensure that
+    MappingOrClassComparisonNodeInner - that's mainly to ensure that
     it gets evaluated in the correct order
     """
     subexprs = ["keys_array", "inner"]
@@ -2053,8 +2040,8 @@ class MappingComparisonNode(ExprNodes.ExprNode):
         )
 
     def __init__(self, pos, arg, subjects_array, **kwds):
-        super(MappingComparisonNode, self).__init__(pos, **kwds)
-        self.inner = MappingComparisonNodeInner(
+        super(MappingOrClassComparisonNode, self).__init__(pos, **kwds)
+        self.inner = MappingOrClassComparisonNodeInner(
             pos,
             arg=arg,
             keys_array = self.keys_array,
@@ -2075,7 +2062,7 @@ class MappingComparisonNode(ExprNodes.ExprNode):
         return self.inner.calculate_result_code()
 
 
-class MappingComparisonNodeInner(ExprNodes.ExprNode):
+class MappingOrClassComparisonNodeInner(ExprNodes.ExprNode):
     """
     Sets up the arrays of subjects and keys
 
@@ -2110,7 +2097,7 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
             # a genuinely empty array
             keys_str = "NULL"
         code.putln("PyObject *%s[] = {%s};" % (
-            MappingComparisonNode.keys_array_cname,
+            MappingOrClassComparisonNode.keys_array_cname,
             keys_str,
         ))
         subjects_str = ", ".join(
@@ -2121,10 +2108,10 @@ class MappingComparisonNodeInner(ExprNodes.ExprNode):
             # a genuinely empty array
             subjects_str = "NULL"
         code.putln("PyObject **%s[] = {%s};" % (
-            MappingComparisonNode.subjects_array_cname,
+            MappingOrClassComparisonNode.subjects_array_cname,
             subjects_str
         ))
-        super(MappingComparisonNodeInner, self).generate_evaluation_code(code)
+        super(MappingOrClassComparisonNodeInner, self).generate_evaluation_code(code)
         
         code.putln("}")
 

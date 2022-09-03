@@ -703,18 +703,16 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
 
 ////////////////////////////// ClassPositionalPatterns.proto ////////////////////////
 
-#include <stdarg.h>
-
 #if CYTHON_REFNANNY
 #define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(__pyx_refnanny, __VA_ARGS__)
 #else
 #define __Pyx_MatchCase_ClassPositional(...) __Pyx__MatchCase_ClassPositional(NULL, __VA_ARGS__)
 #endif
-static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...); /* proto */
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects); /* proto */
 
 /////////////////////////////// ClassPositionalPatterns //////////////////////////////
 
-static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObject *fixed_names_tuple, PyObject *match_args,  Py_ssize_t num_args) {
+static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObject *fixed_names[], Py_ssize_t n_fixed, PyObject *match_args,  Py_ssize_t num_args) {
     // a lot of the basic logic of this is shared with __Pyx_MatchCase_CheckMappingDuplicateKeys
     // but they take different input types so it isn't easy to actually share the code.
 
@@ -743,8 +741,8 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
             }
         }
     }
-    for (n=0; n < PyTuple_GET_SIZE(fixed_names_tuple); ++n) {
-        attr = PyTuple_GET_ITEM(fixed_names_tuple, n);
+    for (n=0; n < n_fixed; ++n) {
+        attr = fixed_names[n];
         contains = PySet_Contains(attrs_set, attr);
         if (contains < 0) {
             goto bad;
@@ -775,12 +773,11 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
 //                                   0 for "known to be false"
 //                                  -1 for "unknown", runtime test
 // nargs is >= 0 otherwise this function will be skipped
-static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *keysnames_tuple, int match_self, int num_args, ...)
+static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subject, PyTypeObject *type, PyObject *fixed_names[], Py_ssize_t n_fixed, int match_self, PyObject **subjects[], Py_ssize_t n_subjects)
 {
-    PyObject *match_args, *dup_key;
+    PyObject *match_args;
     Py_ssize_t allowed, i;
     int result;
-    va_list subjects;
 
     match_args = PyObject_GetAttrString((PyObject*)type, "__match_args__");
     if (!match_args) {
@@ -824,18 +821,17 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
 
     allowed = match_self ?
         1 : (match_args ? PyTuple_GET_SIZE(match_args) : 0);
-    if (allowed < num_args) {
+    if (allowed < n_subjects) {
         const char *plural = (allowed == 1) ? "" : "s";
         PyErr_Format(PyExc_TypeError,
                      "%s() accepts %d positional sub-pattern%s (%d given)",
                      type->tp_name,
-                     allowed, plural, num_args);
+                     allowed, plural, n_subjects);
         Py_XDECREF(match_args);
         return -1;
     }
-    va_start(subjects, num_args);
     if (match_self) {
-        PyObject **self_subject = va_arg(subjects, PyObject**);
+        PyObject **self_subject = subjects[0];
         if (self_subject) {
             // Easy. Copy the subject itself, and move on to kwargs.
             __Pyx_XDECREF_SET(*self_subject, subject);
@@ -845,12 +841,12 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
         goto end_match_self;
     }
     // next stage is to check for duplicate attributes.
-    if (__Pyx_MatchCase_ClassCheckDuplicateAttrs(type->tp_name, keysnames_tuple, match_args, num_args)) {
+    if (__Pyx_MatchCase_ClassCheckDuplicateAttrs(type->tp_name, fixed_names, n_fixed, match_args, n_subjects)) {
         result = -1;
         goto end;
     }
 
-    for (i = 0; i < num_args; i++) {
+    for (i = 0; i < n_subjects; i++) {
         PyObject *attr;
         PyObject **subject_i;
         PyObject *name = PyTuple_GET_ITEM(match_args, i);
@@ -868,7 +864,7 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
             result = 0;
             goto end;
         }
-        subject_i = va_arg(subjects, PyObject**);
+        subject_i = subjects[i];
         if (subject_i) {
             __Pyx_XDECREF_SET(*subject_i, attr);
             __Pyx_GOTREF(attr);
@@ -881,7 +877,6 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
     end:
     Py_DECREF(match_args);
     end_match_self:  // because match_args isn't set
-    va_end(subjects);
     return result;
 }
 
