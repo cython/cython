@@ -1187,16 +1187,12 @@ class MatchMappingPatternNode(PatternNode):
     def get_comparison_node(self, subject_node, sequence_mapping_temp=None):
         from . import UtilNodes
 
-        keys_for_array = []
         var_keys = []
         n_literal_keys = 0
         for k in self.keys:
-            if not k.arg.is_literal:
-                k = UtilNodes.ResultRefNode(k, is_temp=False)
-                keys_for_array.append(k)
+            if not k.is_literal:
                 var_keys.append(k)
             else:
-                keys_for_array.append(k.arg.clone_node())
                 n_literal_keys += 1
 
         all_tests = []
@@ -1234,16 +1230,13 @@ class MatchMappingPatternNode(PatternNode):
             body = UtilNodes.TempResultFromStatNode(test_result, body)
         else:
             body = all_tests
-        if keys_for_array or self.double_star_capture_target:
+        if self.keys or self.double_star_capture_target:
             body = MappingComparisonNode(
                 body.pos,
                 arg=LazyCoerceToBool(body.pos, arg=body),
-                keys_array=keys_for_array,
+                keys_array=self.keys,
                 subjects_array=self.subject_temps
             )
-        for k in var_keys:
-            if isinstance(k, UtilNodes.ResultRefNode):
-                body = UtilNodes.EvalWithTempExprNode(k, body)
         return LazyCoerceToBool(body.pos, arg=body)
 
     def analyse_pattern_expressions(self, env, sequence_mapping_temp):
@@ -1254,7 +1247,7 @@ class MatchMappingPatternNode(PatternNode):
                 return node.coerce_to_temp(env)
 
         self.keys = [
-            ExprNodes.ProxyNode(to_temp_or_literal(k.analyse_expressions(env)))
+            to_temp_or_literal(k.analyse_expressions(env))
             for k in self.keys
         ]
 
@@ -1674,22 +1667,24 @@ def generate_binop_tree_from_list(pos, operator, list_of_tests):
             operand2=operand2
         )
 
+
 class MappingComparisonNode(ExprNodes.ExprNode):
     """
-    Sets up the arrays of subjects and keys
+    Combined with MappingComparisonNodeInner this is responsible 
+    for setting up up the arrays of subjects and keys
 
-    has attributes:
-    * arg  - the main comparison node
-    * keys_array - list of ExprNodes representing keys
-    * subjects_array - list of ExprNodes representing subjects
+    Note that self.keys_array is owned by this but used by
+    MappingComparisonNodeInner - that's mainly to ensure that
+    it gets evaluated in the correct order
     """
-    subexprs = ['arg', 'keys_array']
+    subexprs = ["keys_array", "inner"]
+    
     keys_array_cname = "__pyx_match_mapping_keys"
     subjects_array_cname = "__pyx_match_mapping_subjects"
 
     @property
     def type(self):
-        return self.arg.type
+        return self.inner.type
 
     @classmethod
     def make_keys_node(cls, pos):
@@ -1707,6 +1702,47 @@ class MappingComparisonNode(ExprNodes.ExprNode):
             cname=cls.subjects_array_cname
         )
 
+    def __init__(self, pos, arg, subjects_array, **kwds):
+        super(MappingComparisonNode, self).__init__(pos, **kwds)
+        self.inner = MappingComparisonNodeInner(
+            pos,
+            arg=arg,
+            keys_array = self.keys_array,
+            subjects_array = subjects_array
+        )
+
+    def analyse_types(self, env):
+        self.inner = self.inner.analyse_types(env)
+        self.keys_array = [
+            key.analyse_types(env).coerce_to_simple(env) for key in self.keys_array
+        ]
+        return self
+
+    def generate_result_code(self, code):
+        pass
+
+    def calculate_result_code(self):
+        return self.inner.calculate_result_code()
+
+
+class MappingComparisonNodeInner(ExprNodes.ExprNode):
+    """
+    Sets up the arrays of subjects and keys
+
+    Created by the constructor of MappingComparisonNode
+    (no need to create directly)
+
+    has attributes:
+    * arg  - the main comparison node
+    * keys_array - list of ExprNodes representing keys
+    * subjects_array - list of ExprNodes representing subjects
+    """
+    subexprs = ['arg']
+
+    @property
+    def type(self):
+        return self.arg.type
+
     def analyse_types(self, env):
         self.arg = self.arg.analyse_types(env)
         for n in range(len(self.keys_array)):
@@ -1718,24 +1754,20 @@ class MappingComparisonNode(ExprNodes.ExprNode):
 
     def generate_evaluation_code(self, code):
         code.putln("{")
-        decl_insertion_point = code.insertion_point()
-        super(MappingComparisonNode, self).generate_evaluation_code(code)
-        
-        # defer evaluating k.result() until we've processed them in
-        # generate_subexpr_evaluation_code. This order is OK - the keys
-        # are either constants or ResultRefNodes
         keys_str = ", ".join(k.result() for k in self.keys_array)
-        decl_insertion_point.putln("PyObject *%s[] = {%s};" % (
-            self.keys_array_cname,
+        code.putln("PyObject *%s[] = {%s};" % (
+            MappingComparisonNode.keys_array_cname,
             keys_str,
         ))
         subjects_str = ", ".join(
             "&"+subject.result() if subject is not None else "NULL" for subject in self.subjects_array
         )
-        decl_insertion_point.putln("PyObject **%s[] = {%s};" % (
-            self.subjects_array_cname,
+        code.putln("PyObject **%s[] = {%s};" % (
+            MappingComparisonNode.subjects_array_cname,
             subjects_str
         ))
+        super(MappingComparisonNodeInner, self).generate_evaluation_code(code)
+        
         code.putln("}")
 
     def generate_result_code(self, code):
