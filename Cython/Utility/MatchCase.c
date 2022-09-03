@@ -786,19 +786,17 @@ static int __Pyx__MatchCase_ClassPositional(void *__pyx_refnanny, PyObject *subj
                                             _Py_TPFLAGS_MATCH_SELF);
                 #else
                 // probably an earlier version of Python. Go off the known list in the specification
-                match_self = (PyType_IsSubtype(type, &PyByteArray_Type) ||
-                              PyType_IsSubtype(type, &PyBytes_Type) ||
-                              PyType_IsSubtype(type, &PyDict_Type) ||
+                match_self = ((PyType_GetFlags(type) &
+                                // long should capture bool too
+                                (Py_TPFLAGS_LONG_SUBCLASS | Py_TPFLAGS_LIST_SUBCLASS | Py_TPFLAGS_TUPLE_SUBCLASS |
+                                 Py_TPFLAGS_BYTES_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS | Py_TPFLAGS_DICT_SUBCLASS
+                                 #if PY_MAJOR_VERSION < 3
+                                 | Py_TPFLAGS_IN_SUBCLASS
+                                 #endif
+                                )) ||
+                              PyType_IsSubtype(type, &PyByteArray_Type) ||
                               PyType_IsSubtype(type, &PyFloat_Type) ||
                               PyType_IsSubtype(type, &PyFrozenSet_Type) ||
-                              PyType_IsSubtype(type, &PyLong_Type) || // This should capture bool too
-                              #if PY_MAJOR_VERSION < 3
-                              PyType_IsSubtype(type, &PyInt_Type) ||
-                              #endif
-                              PyType_IsSubtype(type, &PyList_Type) ||
-                              PyType_IsSubtype(type, &PySet_Type) ||
-                              PyType_IsSubtype(type, &PyUnicode_Type) ||
-                              PyType_IsSubtype(type, &PyTuple_Type)
                               );
                 #endif
             }
@@ -887,6 +885,13 @@ static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type); /* proto */
 //////////////////////// MatchClassIsType /////////////////////////////
 
 static PyTypeObject* __Pyx_MatchCase_IsType(PyObject* type) {
+    #if PY_MAJOR_VERSION < 3
+    if (PyClass_Check(type)) {
+        // I don't really think it's worth the effort getting this to work!
+        PyErr_Format(PyExc_TypeError, "called match pattern must be a new-style class.");
+        return NULL;
+    }
+    #endif
     if (!PyType_Check(type)) {
         PyErr_Format(PyExc_TypeError, "called match pattern must be a type");
         return NULL;

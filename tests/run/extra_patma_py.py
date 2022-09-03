@@ -2,6 +2,9 @@
 # tag: pure3.10
 
 import array
+import sys
+
+__doc__ = ""
 
 def test_array_is_sequence(x):
     """
@@ -43,7 +46,7 @@ def test_duplicate_keys(key1, key2):
             return False
 
 
-class PyClass:
+class PyClass(object):
     pass
 
 
@@ -63,3 +66,20 @@ class PrivateAttrLookupOuter:
         match x:
             case PyClass(__something=y):
                 return y
+
+
+if sys.version_info[0] < 3:
+    class OldStyleClass:
+        pass
+
+    def test_oldstyle_class_failure(x):
+        match x:
+            case OldStyleClass():
+                return True
+
+    __doc__ += """
+    >>> test_oldstyle_class_failure(1)
+    Traceback (most recent call last):
+    ...
+    TypeError: called match pattern must be a new-style class.
+    """
