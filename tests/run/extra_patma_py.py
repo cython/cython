@@ -2,6 +2,7 @@
 # tag: pure3.10
 
 import array
+import sys
 
 def test_array_is_sequence(x):
     """
@@ -27,10 +28,15 @@ def test_duplicate_keys(key1, key2):
 
     >>> test_duplicate_keys("a", "b")
     True
-    >>> test_duplicate_keys("a", "a")
-    Traceback (most recent call last):
-    ...
-    ValueError: mapping pattern checks duplicate key ('a')
+
+    Slightly awkward doctest to work around Py2 incompatibility
+    >>> try:
+    ...    test_duplicate_keys("a", "a")
+    ... except ValueError as e:
+    ...    if sys.version_info[0] > 2:
+    ...        assert e.args[0] == "mapping pattern checks duplicate key ('a')", e.args[0]
+    ...    else:
+    ...        assert e.args[0] == "mapping pattern checks duplicate key"
     """
     class Keys:
         KEY_1 = key1

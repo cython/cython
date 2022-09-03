@@ -503,8 +503,15 @@ static int __Pyx_MatchCase_CheckDuplicateKeys(PyObject *keys[], Py_ssize_t nFixe
     return 0;
 
     raise_error:
+    #if PY_MAJOR_VERSION > 2
     PyErr_Format(PyExc_ValueError,
                  "mapping pattern checks duplicate key (%R)", key);
+    #else
+    // DW really can't be bothered working around features that don't exist in
+    // Python 2, so just provide less information!
+    PyErr_SetString(PyExc_ValueError,
+                    "mapping pattern checks duplicate key");
+    #endif
     bad:
     Py_DECREF(var_keys_set);
     return -1;
