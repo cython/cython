@@ -762,8 +762,14 @@ static int __Pyx_MatchCase_ClassCheckDuplicateAttrs(const char *tp_name, PyObjec
     return 0;
 
     raise_error:
+    #if PY_MAJOR_VERSION > 2
     PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute %R",
                     tp_name, attr);
+    #else
+    // DW has no interest in working around the lack of %R in Python 2.7
+    PyErr_Format(PyExc_TypeError, "%s() got multiple sub-patterns for attribute",
+                    tp_name);
+    #endif
     bad:
     Py_DECREF(attrs_set);
     return -1;
