@@ -2314,6 +2314,25 @@ class CClassScope(ClassScope):
         """
         return self.needs_gc() and not self.directives.get('no_gc_clear', False)
 
+    def may_have_finalize(self):
+        """
+        This covers cases where we definitely have a __del__ function
+        and also cases where one of the base classes could have a __del__
+        function but we don't know.
+        """
+        current_type_scope = self
+        while current_type_scope:
+            del_entry = current_type_scope.lookup_here("__del__")
+            if del_entry and del_entry.is_special:
+                return True
+            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or
+                    current_type_scope.parent_type.multiple_bases):
+                # we don't know if we have __del__, so assume we do and call it
+                return True
+            current_base_type = current_type_scope.parent_type.base_type
+            current_type_scope = current_base_type.scope if current_base_type else None
+        return False
+
     def get_refcounted_entries(self, include_weakref=False,
                                include_gc_simple=True):
         py_attrs = []
