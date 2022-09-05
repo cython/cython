@@ -7157,6 +7157,34 @@ class AttributeNode(ExprNode):
                 self.entry = entry.as_variable
                 self.analyse_as_python_attribute(env)
                 return self
+            elif entry and entry.is_cfunction and self.obj.type is not Builtin.type_type:
+                # "bound" cdef function.
+                # This implementation is likely a little inefficient and could be improved.
+                # Essentially it does:
+                #  __import__("functools").partial(coerce_to_object(self), self.obj)
+                from .UtilNodes import EvalWithTempExprNode, ResultRefNode
+                # take self.obj out to a temp because it's used twice
+                obj_node = ResultRefNode(self.obj, type=self.obj.type)
+                obj_node.result_ctype = self.obj.result_ctype
+                self.obj = obj_node
+                unbound_node = ExprNode.coerce_to(self, dst_type, env)
+                functools = SimpleCallNode(
+                    self.pos,
+                    function=NameNode(self.pos, name=StringEncoding.EncodedString("__import__")),
+                    args=[StringNode(self.pos, value=StringEncoding.EncodedString("functools"))],
+                )
+                partial = AttributeNode(
+                    self.pos,
+                    obj=functools,
+                    attribute=StringEncoding.EncodedString("partial"),
+                )
+                partial_call = SimpleCallNode(
+                    self.pos,
+                    function=partial,
+                    args=[unbound_node, obj_node],
+                )
+                complete_call = EvalWithTempExprNode(obj_node, partial_call)
+                return complete_call.analyse_types(env)
         return ExprNode.coerce_to(self, dst_type, env)
 
     def calculate_constant_result(self):
