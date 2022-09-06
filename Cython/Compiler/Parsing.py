@@ -3128,7 +3128,7 @@ def p_exception_value_clause(s, ctx):
             exc_check = '+'
             s.next()
             if p_nogil(s):
-                ctx.nogil = 1
+                ctx.nogil = True
             elif s.sy == 'IDENT':
                 name = s.systring
                 s.next()
