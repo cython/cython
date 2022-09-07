@@ -191,11 +191,12 @@ that are declared without an exception value::
 If you left out the exception value by mistake, i.e., the function
 should propagate Python exceptions, then the new behaviour will take
 care of this for you, and correctly propagate any exceptions.
+This was a common mistake in Cython code and the main reason to change the behaviour.
 
 On the other hand, if you didn't declare an exception value because
 you want to avoid exceptions propagating out of this function, the new behaviour
-will result in slightly less efficient code being generated.  To
-prevent that, you must declare the function explicitly as being
+will result in slightly less efficient code being generated, now involving an exception check.
+To prevent that, you must declare the function explicitly as being
 ``noexcept``::
 
   cdef int spam(int x) noexcept:

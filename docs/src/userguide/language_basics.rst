@@ -772,7 +772,7 @@ Some things to note:
   e.g., external functions that use the Python C API, you should explicitly declare
   them with an exception value.
 
-* ``cdef`` functions that are *not* ``extern`` are implicitly declared ``except *``.
+* ``cdef`` functions that are *not* ``extern`` are implicitly declared with a suitable exception specification for the return type (e.g. ``except *`` for a ``void`` return type, ``except? -1`` for an ``int`` return type).
 
 * Exception values can only be declared for functions returning a C integer,
   enum, float or pointer type, and the value must be a constant expression.

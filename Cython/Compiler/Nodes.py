@@ -739,7 +739,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     #   the signature must match the base type signature.
                     # - Same for function pointers, as we want them to be able to match functions
                     #   with any exception value.
-                    if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
+                    if not env.is_c_class_scope:
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode(
                             self.pos, value=return_type.exception_value, type=return_type)
