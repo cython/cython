@@ -47,7 +47,7 @@ def test_localtime():
     True
     """
     ltp = time.localtime()
-    ltc = ctime.localtime()
+    ltc = ctime.localtime(<ctime.time_t>(ctime.time()))
 
     i = 0
     while ltp.tm_sec != ltc.tm_sec:
@@ -56,9 +56,37 @@ def test_localtime():
         #  re-call.  This should not occur twice in a row.
         time.sleep(0.1)
         ltp = time.localtime()
-        ltc = ctime.localtime()
+        ltc = ctime.localtime(<ctime.time_t>(ctime.time()))
         i += 1
         if i > 10:
             break
 
+    return ltp, ltc
+
+
+def test_localtime_with_arg():
+    """
+    >>> ltp, ltc = test_localtime_with_arg()
+    >>> ltp.tm_year == ltc['tm_year']  or  (ltp.tm_year, ltc['tm_year'])
+    True
+    >>> ltp.tm_mon == ltc['tm_mon']  or  (ltp.tm_mon, ltc['tm_mon'])
+    True
+    >>> ltp.tm_mday == ltc['tm_mday']  or  (ltp.tm_mday, ltc['tm_mday'])
+    True
+    >>> ltp.tm_hour == ltc['tm_hour']  or  (ltp.tm_hour, ltc['tm_hour'])
+    True
+    >>> ltp.tm_min == ltc['tm_min']  or  (ltp.tm_min, ltc['tm_min'])
+    True
+    >>> ltp.tm_sec == ltc['tm_sec']  or  (ltp.tm_sec, ltc['tm_sec'])
+    True
+    >>> ltp.tm_wday == ltc['tm_wday']  or (ltp.tm_wday, ltc['tm_wday'])
+    True
+    >>> ltp.tm_yday == ltc['tm_yday']  or  (ltp.tm_yday, ltc['tm_yday'])
+    True
+    >>> ltp.tm_isdst == ltc['tm_isdst']  or  (ltp.tm_isdst, ltc['tm_isdst'])
+    True
+    """
+    # 1647471169 corresponds to 2022-03-16 22:52:49 UTC
+    ltp = time.localtime(1647471169)
+    ltc = ctime.localtime(1647471169)
     return ltp, ltc
