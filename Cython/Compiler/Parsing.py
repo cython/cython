@@ -3102,6 +3102,7 @@ def p_exception_value_clause(s, ctx):
     | noexcept                    | False       | None        | True       |
     | except <val>                | False       | <val>       | True       |
     | except? <val>               | True        | <val>       | True       |
+    | except *                    | True        | None        | True       |
     | except +                    | '+'         | None        | True       |
     | except +*                   | '+'         | '*'         | True       |
     | except +<PyErr>             | '+'         | <PyErr>     | True       |
