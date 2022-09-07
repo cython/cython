@@ -3106,6 +3106,10 @@ def p_exception_value_clause(s, ctx):
     | except +*                   | '+'         | '*'         | True       |
     | except +<PyErr>             | '+'         | <PyErr>     | True       |
     | ___________________________ | ___________ | ___________ | __________ |
+
+    Note that the only reason we need `exc_clause` is to raise a
+    warning when `'except'` or `'noexcept'` is placed after the
+    `'nogil'` keyword.
     """
     exc_clause = False
     exc_val = None
