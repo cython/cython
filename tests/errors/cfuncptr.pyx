@@ -19,7 +19,7 @@ cdef extern from *:
     cdef int exceptstar(int bad) except *
 
 def fail_exceptstar(bad):
-    cdef int (*fptr_a)(int) # noexcept
+    cdef int (*fptr_a)(int) noexcept
     cdef int (*fptr_b)(int) except -1
     cdef int (*fptr_c)(int) except ?-1
     fptr_a = exceptstar
@@ -30,7 +30,7 @@ _ERRORS = """
 13:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -2'
 14:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -1'
 15:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except? -1'
-25:13: Cannot assign type 'int (int) except *' to 'int (*)(int)'
+25:13: Cannot assign type 'int (int) except *' to 'int (*)(int) noexcept'
 26:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except -1'
 27:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except? -1'
 """
