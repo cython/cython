@@ -1,13 +1,13 @@
 from cython.parallel import prange
 
-
-
-cdef int func(Py_ssize_t n) except -1:
-    cdef Py_ssize_t i
+@cython.exceptval(-1)
+@cython.cfunc
+def func(n: cython.Py_ssize_t) -> cython.int:
+    i: cython.Py_ssize_t
 
     for i in prange(n, nogil=True):
         if i == 8:
-            with gil:
+            with cython.gil:
                 raise Exception()
         elif i == 4:
             break

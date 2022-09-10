@@ -333,6 +333,8 @@ class ExprNode(Node):
     #                            result_code/temp_result can safely be set to None
     #  is_numpy_attribute   boolean   Is a Numpy module attribute
     #  annotation   ExprNode or None    PEP526 annotation for names or expressions
+    #  generator_arg_tag  None or Node   A tag to mark ExprNodes that potentially need to
+    #                              be changed to a generator argument
 
     result_ctype = None
     type = None
@@ -342,6 +344,7 @@ class ExprNode(Node):
     use_managed_ref = True  # can be set by optimisation transforms
     result_is_used = True
     is_numpy_attribute = False
+    generator_arg_tag = None
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -2057,15 +2060,10 @@ class NameNode(AtomicExprNode):
                     atype = error_type
 
             visibility = 'private'
-            if 'dataclasses.dataclass' in env.directives:
+            if env.is_c_dataclass_scope:
                 # handle "frozen" directive - full inspection of the dataclass directives happens
                 # in Dataclass.py
-                frozen_directive = None
-                dataclass_directive = env.directives['dataclasses.dataclass']
-                if dataclass_directive:
-                    dataclass_directive_kwds = dataclass_directive[1]
-                    frozen_directive = dataclass_directive_kwds.get('frozen', None)
-                is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
+                is_frozen = env.is_c_dataclass_scope == "frozen"
                 if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
                     visibility = 'readonly' if is_frozen else 'public'
                     # If the object can't be coerced that's fine - we just don't create a property
@@ -2160,7 +2158,7 @@ class NameNode(AtomicExprNode):
             self.entry.known_standard_library_import = ""  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            is_dataclass = 'dataclasses.dataclass' in env.directives
+            is_dataclass = env.is_c_dataclass_scope
             # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
             # Hence, "as_target = not is_dataclass".
             self.declare_from_annotation(env, as_target=not is_dataclass)
@@ -2790,7 +2788,98 @@ class ImportNode(ExprNode):
         return self.module_name.value
 
 
-class IteratorNode(ExprNode):
+class ScopedExprNode(ExprNode):
+    # Abstract base class for ExprNodes that have their own local
+    # scope, such as generator expressions.
+    #
+    # expr_scope    Scope  the inner scope of the expression
+
+    subexprs = []
+    expr_scope = None
+
+    # does this node really have a local scope, e.g. does it leak loop
+    # variables or not?  non-leaking Py3 behaviour is default, except
+    # for list comprehensions where the behaviour differs in Py2 and
+    # Py3 (set in Parsing.py based on parser context)
+    has_local_scope = True
+
+    def init_scope(self, outer_scope, expr_scope=None):
+        if expr_scope is not None:
+            self.expr_scope = expr_scope
+        elif self.has_local_scope:
+            self.expr_scope = Symtab.ComprehensionScope(outer_scope)
+        elif not self.expr_scope:  # don't unset if it's already been set
+            self.expr_scope = None
+
+    def analyse_declarations(self, env):
+        self.init_scope(env)
+
+    def analyse_scoped_declarations(self, env):
+        # this is called with the expr_scope as env
+        pass
+
+    def analyse_types(self, env):
+        # no recursion here, the children will be analysed separately below
+        return self
+
+    def analyse_scoped_expressions(self, env):
+        # this is called with the expr_scope as env
+        return self
+
+    def generate_evaluation_code(self, code):
+        # set up local variables and free their references on exit
+        generate_inner_evaluation_code = super(ScopedExprNode, self).generate_evaluation_code
+        if not self.has_local_scope or not self.expr_scope.var_entries:
+            # no local variables => delegate, done
+            generate_inner_evaluation_code(code)
+            return
+
+        code.putln('{ /* enter inner scope */')
+        py_entries = []
+        for _, entry in sorted(item for item in self.expr_scope.entries.items() if item[0]):
+            if not entry.in_closure:
+                if entry.type.is_pyobject and entry.used:
+                    py_entries.append(entry)
+        if not py_entries:
+            # no local Python references => no cleanup required
+            generate_inner_evaluation_code(code)
+            code.putln('} /* exit inner scope */')
+            return
+
+        # must free all local Python references at each exit point
+        old_loop_labels = code.new_loop_labels()
+        old_error_label = code.new_error_label()
+
+        generate_inner_evaluation_code(code)
+
+        # normal (non-error) exit
+        self._generate_vars_cleanup(code, py_entries)
+
+        # error/loop body exit points
+        exit_scope = code.new_label('exit_scope')
+        code.put_goto(exit_scope)
+        for label, old_label in ([(code.error_label, old_error_label)] +
+                                 list(zip(code.get_loop_labels(), old_loop_labels))):
+            if code.label_used(label):
+                code.put_label(label)
+                self._generate_vars_cleanup(code, py_entries)
+                code.put_goto(old_label)
+        code.put_label(exit_scope)
+        code.putln('} /* exit inner scope */')
+
+        code.set_loop_labels(old_loop_labels)
+        code.error_label = old_error_label
+
+    def _generate_vars_cleanup(self, code, py_entries):
+        for entry in py_entries:
+            if entry.is_cglobal:
+                code.put_var_gotref(entry)
+                code.put_var_decref_set(entry, "Py_None")
+            else:
+                code.put_var_xdecref_clear(entry)
+
+
+class IteratorNode(ScopedExprNode):
     #  Used as part of for statement implementation.
     #
     #  Implements result = iter(sequence)
@@ -2802,10 +2891,13 @@ class IteratorNode(ExprNode):
     counter_cname = None
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
+    has_local_scope = False
 
     subexprs = ['sequence']
 
     def analyse_types(self, env):
+        if self.expr_scope:
+            env = self.expr_scope  # actually evaluate sequence in this scope instead
         self.sequence = self.sequence.analyse_types(env)
         if (self.sequence.type.is_array or self.sequence.type.is_ptr) and \
                 not self.sequence.type.is_string:
@@ -2828,7 +2920,7 @@ class IteratorNode(ExprNode):
             ]))
 
     def type_dependencies(self, env):
-        return self.sequence.type_dependencies(env)
+        return self.sequence.type_dependencies(self.expr_scope or env)
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
@@ -3162,7 +3254,7 @@ class NextNode(AtomicExprNode):
         self.iterator.generate_iter_next_result_code(self.result(), code)
 
 
-class AsyncIteratorNode(ExprNode):
+class AsyncIteratorNode(ScopedExprNode):
     #  Used as part of 'async for' statement implementation.
     #
     #  Implements result = sequence.__aiter__()
@@ -3174,11 +3266,14 @@ class AsyncIteratorNode(ExprNode):
     is_async = True
     type = py_object_type
     is_temp = 1
+    has_local_scope = False
 
     def infer_type(self, env):
         return py_object_type
 
     def analyse_types(self, env):
+        if self.expr_scope:
+            env = self.expr_scope
         self.sequence = self.sequence.analyse_types(env)
         if not self.sequence.type.is_pyobject:
             error(self.pos, "async for loops not allowed on C/C++ types")
@@ -7062,6 +7157,34 @@ class AttributeNode(ExprNode):
                 self.entry = entry.as_variable
                 self.analyse_as_python_attribute(env)
                 return self
+            elif entry and entry.is_cfunction and self.obj.type is not Builtin.type_type:
+                # "bound" cdef function.
+                # This implementation is likely a little inefficient and could be improved.
+                # Essentially it does:
+                #  __import__("functools").partial(coerce_to_object(self), self.obj)
+                from .UtilNodes import EvalWithTempExprNode, ResultRefNode
+                # take self.obj out to a temp because it's used twice
+                obj_node = ResultRefNode(self.obj, type=self.obj.type)
+                obj_node.result_ctype = self.obj.result_ctype
+                self.obj = obj_node
+                unbound_node = ExprNode.coerce_to(self, dst_type, env)
+                functools = SimpleCallNode(
+                    self.pos,
+                    function=NameNode(self.pos, name=StringEncoding.EncodedString("__import__")),
+                    args=[StringNode(self.pos, value=StringEncoding.EncodedString("functools"))],
+                )
+                partial = AttributeNode(
+                    self.pos,
+                    obj=functools,
+                    attribute=StringEncoding.EncodedString("partial"),
+                )
+                partial_call = SimpleCallNode(
+                    self.pos,
+                    function=partial,
+                    args=[unbound_node, obj_node],
+                )
+                complete_call = EvalWithTempExprNode(obj_node, partial_call)
+                return complete_call.analyse_types(env)
         return ExprNode.coerce_to(self, dst_type, env)
 
     def calculate_constant_result(self):
@@ -8175,7 +8298,7 @@ class SequenceNode(ExprNode):
             code.put_decref(target_list, py_object_type)
             code.putln('%s = %s; %s = NULL;' % (target_list, sublist_temp, sublist_temp))
             code.putln('#else')
-            code.putln('(void)%s;' % sublist_temp)  # avoid warning about unused variable
+            code.putln('CYTHON_UNUSED_VAR(%s);' % sublist_temp)
             code.funcstate.release_temp(sublist_temp)
             code.putln('#endif')
 
@@ -8488,97 +8611,6 @@ class ListNode(SequenceNode):
             raise InternalError("List type never specified")
 
 
-class ScopedExprNode(ExprNode):
-    # Abstract base class for ExprNodes that have their own local
-    # scope, such as generator expressions.
-    #
-    # expr_scope    Scope  the inner scope of the expression
-
-    subexprs = []
-    expr_scope = None
-
-    # does this node really have a local scope, e.g. does it leak loop
-    # variables or not?  non-leaking Py3 behaviour is default, except
-    # for list comprehensions where the behaviour differs in Py2 and
-    # Py3 (set in Parsing.py based on parser context)
-    has_local_scope = True
-
-    def init_scope(self, outer_scope, expr_scope=None):
-        if expr_scope is not None:
-            self.expr_scope = expr_scope
-        elif self.has_local_scope:
-            self.expr_scope = Symtab.ComprehensionScope(outer_scope)
-        else:
-            self.expr_scope = None
-
-    def analyse_declarations(self, env):
-        self.init_scope(env)
-
-    def analyse_scoped_declarations(self, env):
-        # this is called with the expr_scope as env
-        pass
-
-    def analyse_types(self, env):
-        # no recursion here, the children will be analysed separately below
-        return self
-
-    def analyse_scoped_expressions(self, env):
-        # this is called with the expr_scope as env
-        return self
-
-    def generate_evaluation_code(self, code):
-        # set up local variables and free their references on exit
-        generate_inner_evaluation_code = super(ScopedExprNode, self).generate_evaluation_code
-        if not self.has_local_scope or not self.expr_scope.var_entries:
-            # no local variables => delegate, done
-            generate_inner_evaluation_code(code)
-            return
-
-        code.putln('{ /* enter inner scope */')
-        py_entries = []
-        for _, entry in sorted(item for item in self.expr_scope.entries.items() if item[0]):
-            if not entry.in_closure:
-                if entry.type.is_pyobject and entry.used:
-                    py_entries.append(entry)
-        if not py_entries:
-            # no local Python references => no cleanup required
-            generate_inner_evaluation_code(code)
-            code.putln('} /* exit inner scope */')
-            return
-
-        # must free all local Python references at each exit point
-        old_loop_labels = code.new_loop_labels()
-        old_error_label = code.new_error_label()
-
-        generate_inner_evaluation_code(code)
-
-        # normal (non-error) exit
-        self._generate_vars_cleanup(code, py_entries)
-
-        # error/loop body exit points
-        exit_scope = code.new_label('exit_scope')
-        code.put_goto(exit_scope)
-        for label, old_label in ([(code.error_label, old_error_label)] +
-                                 list(zip(code.get_loop_labels(), old_loop_labels))):
-            if code.label_used(label):
-                code.put_label(label)
-                self._generate_vars_cleanup(code, py_entries)
-                code.put_goto(old_label)
-        code.put_label(exit_scope)
-        code.putln('} /* exit inner scope */')
-
-        code.set_loop_labels(old_loop_labels)
-        code.error_label = old_error_label
-
-    def _generate_vars_cleanup(self, code, py_entries):
-        for entry in py_entries:
-            if entry.is_cglobal:
-                code.put_var_gotref(entry)
-                code.put_var_decref_set(entry, "Py_None")
-            else:
-                code.put_var_xdecref_clear(entry)
-
-
 class ComprehensionNode(ScopedExprNode):
     # A list/set/dict comprehension
 
@@ -8593,6 +8625,12 @@ class ComprehensionNode(ScopedExprNode):
     def analyse_declarations(self, env):
         self.append.target = self  # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
+        # setup loop scope
+        if isinstance(self.loop, Nodes._ForInStatNode):
+            assert isinstance(self.loop.iterator, ScopedExprNode), self.loop.iterator
+            self.loop.iterator.init_scope(None, env)
+        else:
+            assert isinstance(self.loop, Nodes.ForFromStatNode), self.loop
 
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
@@ -10017,9 +10055,17 @@ class GeneratorExpressionNode(LambdaNode):
     #
     # loop      ForStatNode   the for-loop, containing a YieldExprNode
     # def_node  DefNode       the underlying generator 'def' node
+    # call_parameters [ExprNode]   (Internal) parameters passed to the DefNode call
 
     name = StringEncoding.EncodedString('genexpr')
     binding = False
+
+    child_attrs = LambdaNode.child_attrs + ["call_parameters"]
+    subexprs = LambdaNode.subexprs + ["call_parameters"]
+
+    def __init__(self, pos, *args, **kwds):
+        super(GeneratorExpressionNode, self).__init__(pos, *args, **kwds)
+        self.call_parameters = []
 
     def analyse_declarations(self, env):
         if hasattr(self, "genexpr_name"):
@@ -10033,13 +10079,22 @@ class GeneratorExpressionNode(LambdaNode):
         self.def_node.is_cyfunction = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
+        # setup loop scope
+        if isinstance(self.loop, Nodes._ForInStatNode):
+            assert isinstance(self.loop.iterator, ScopedExprNode)
+            self.loop.iterator.init_scope(None, env)
+        else:
+            assert isinstance(self.loop, Nodes.ForFromStatNode)
 
     def generate_result_code(self, code):
+        args_to_call = ([self.closure_result_code()] +
+                        [ cp.result() for cp in self.call_parameters ])
+        args_to_call = ", ".join(args_to_call)
         code.putln(
             '%s = %s(%s); %s' % (
                 self.result(),
                 self.def_node.entry.pyfunc_cname,
-                self.closure_result_code(),
+                args_to_call,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
@@ -10143,6 +10198,8 @@ class YieldExprNode(ExprNode):
             if type.is_pyobject:
                 code.putln('%s = 0;' % save_cname)
                 code.put_xgotref(cname, type)
+            elif type.is_memoryviewslice:
+                code.putln('%s.memview = NULL; %s.data = NULL;' % (save_cname, save_cname))
         self.generate_sent_value_handling_code(code, Naming.sent_value_cname)
         if self.result_is_used:
             self.allocate_temp_result(code)

@@ -3513,7 +3513,15 @@ class DefNode(FuncDefNode):
         # Move arguments into closure if required
         def put_into_closure(entry):
             if entry.in_closure:
-                code.putln('%s = %s;' % (entry.cname, entry.original_cname))
+                if entry.type.is_array:
+                    # This applies to generator expressions that iterate over C arrays (and need to
+                    # capture them by value), under most other circumstances C array arguments are dropped to
+                    # pointers so this copy isn't used
+                    assert entry.type.size is not None
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                    code.putln("memcpy({0}, {1}, sizeof({0}));".format(entry.cname, entry.original_cname))
+                else:
+                    code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
                     # TODO - at some point reference count of memoryviews should
                     # genuinely be unified with PyObjects
@@ -5169,7 +5177,6 @@ class CClassDefNode(ClassDefNode):
     check_size = None
     decorators = None
     shadow = False
-    is_dataclass = False
 
     @property
     def punycode_class_name(self):
@@ -5211,6 +5218,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
@@ -5219,8 +5228,6 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
-        if "dataclasses.dataclass" in env.directives:
-            self.is_dataclass = True
         if self.decorators:
             error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
         self.base_type = None
@@ -5302,6 +5309,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry
@@ -5310,6 +5319,15 @@ class CClassDefNode(ClassDefNode):
         self.scope = scope = self.entry.type.scope
         if scope is not None:
             scope.directives = env.directives
+            if "dataclasses.dataclass" in env.directives:
+                is_frozen = False
+                # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
+                dataclass_config = env.directives["dataclasses.dataclass"]
+                if dataclass_config:
+                    decorator_kwargs = dataclass_config[1]
+                    frozen_flag = decorator_kwargs.get('frozen')
+                    is_frozen = frozen_flag and frozen_flag.is_literal and frozen_flag.value
+                scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)

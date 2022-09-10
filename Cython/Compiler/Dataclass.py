@@ -104,7 +104,7 @@ class TemplateCode(object):
     def add_code_lines(self, code_lines):
         self.code_lines.extend(code_lines)
 
-    def add_placeholder(self, field_names, value):
+    def new_placeholder(self, field_names, value):
         name = self._new_placeholder_name(field_names)
         self.placeholders[name] = value
         return name
@@ -369,7 +369,7 @@ def generate_init_code(code, init, node, fields, kw_only):
         attribute=EncodedString("_HAS_DEFAULT_FACTORY")
     )
 
-    default_factory_placeholder = code.add_placeholder(fields, has_default_factory)
+    default_factory_placeholder = code.new_placeholder(fields, has_default_factory)
 
     seen_default = False
     for name, field in fields.items():
@@ -384,7 +384,7 @@ def generate_init_code(code, init, node, fields, kw_only):
             if field.default_factory is not MISSING:
                 ph_name = default_factory_placeholder
             else:
-                ph_name = code.add_placeholder(fields, field.default)  # 'default' should be a node
+                ph_name = code.new_placeholder(fields, field.default)  # 'default' should be a node
             assignment = u" = %s" % ph_name
         elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
@@ -404,7 +404,7 @@ def generate_init_code(code, init, node, fields, kw_only):
                 # not an argument to the function, but is still initialized
                 code.add_code_line(u"    %s.%s%s" % (selfname, name, assignment))
         else:
-            ph_name = code.add_placeholder(fields, field.default_factory)
+            ph_name = code.new_placeholder(fields, field.default_factory)
             if field.init.value:
                 # close to:
                 # def __init__(self, name=_PLACEHOLDER_VALUE):
