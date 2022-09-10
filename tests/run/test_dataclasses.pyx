@@ -36,39 +36,19 @@ class C_TestCase_test_field_named_object_frozen:
 
 @dataclass
 @cclass
-class C0_TestCase_test_0_field_compare:
-    pass
-
-@dataclass(order=False)
-@cclass
-class C1_TestCase_test_0_field_compare:
-    pass
-
-@dataclass(order=True)
-@cclass
-class C_TestCase_test_0_field_compare:
-    pass
-
-@dataclass
-@cclass
-class C0_TestCase_test_1_field_compare:
-    x: int
-
-@dataclass(order=False)
-@cclass
-class C1_TestCase_test_1_field_compare:
-    x: int
-
-@dataclass(order=True)
-@cclass
-class C_TestCase_test_1_field_compare:
-    x: int
-
-@dataclass
-@cclass
 class C_TestCase_test_not_in_compare:
     x: int = 0
     y: int = field(compare=False, default=4)
+
+class Mutable_TestCase_test_deliberately_mutable_defaults:
+
+    def __init__(self):
+        self.l = []
+
+@dataclass
+@cclass
+class C_TestCase_test_deliberately_mutable_defaults:
+    x: Mutable_TestCase_test_deliberately_mutable_defaults
 
 @dataclass
 @cclass
@@ -144,7 +124,6 @@ class Bar_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factor
 class Baz_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factory_derived):
     pass
 
-@cclass
 class NotDataClass_TestCase_test_is_dataclass:
     pass
 
@@ -159,13 +138,20 @@ class D_TestCase_test_is_dataclass:
     d: C_TestCase_test_is_dataclass
     e: int
 
+class A_TestCase_test_is_dataclass_when_getattr_always_returns:
+
+    def __getattr__(self, key):
+        return 0
+
+class B_TestCase_test_is_dataclass_when_getattr_always_returns:
+    pass
+
 @dataclass
 @cclass
 class C_TestCase_test_helper_fields_with_class_instance:
     x: int
     y: float
 
-@cclass
 class C_TestCase_test_helper_fields_exception:
     pass
 
@@ -249,6 +235,16 @@ class C_TestCase_test_helper_asdict_namedtuple:
 @cclass
 class C_TestCase_test_helper_asdict_namedtuple_key:
     f: dict
+
+class T_TestCase_test_helper_asdict_namedtuple_derived(namedtuple('Tbase', 'a')):
+
+    def my_a(self):
+        return self.a
+
+@dataclass
+@cclass
+class C_TestCase_test_helper_asdict_namedtuple_derived:
+    f: T_TestCase_test_helper_asdict_namedtuple_derived
 
 @dataclass
 @cclass
@@ -359,6 +355,19 @@ class R_TestCase_test_dataclasses_pickleable:
     x: int
     y: List[int] = field(default_factory=list)
 
+@dataclass(init=False)
+@cclass
+class C_TestInit_test_no_init:
+    i: int = 0
+
+@dataclass(init=False)
+@cclass
+class C_TestInit_test_no_init_:
+    i: int = 2
+
+    def __init__(self):
+        self.i = 3
+
 @dataclass
 @cclass
 class C_TestInit_test_overwriting_init:
@@ -406,19 +415,6 @@ class C_TestRepr_test_overwriting_repr__:
 
     def __repr__(self):
         return 'x'
-
-@dataclass(eq=False)
-@cclass
-class C_TestEq_test_no_eq:
-    x: int
-
-@dataclass(eq=False)
-@cclass
-class C_TestEq_test_no_eq_:
-    x: int
-
-    def __eq__(self, other):
-        return other == 10
 
 @dataclass
 @cclass
@@ -470,11 +466,9 @@ class C_TestHash_test_1_field_hash:
 class C_TestHash_test_1_field_hash_:
     x: int
 
-@cclass
 class Base1_TestMakeDataclass_test_base:
     pass
 
-@cclass
 class Base2_TestMakeDataclass_test_base:
     pass
 
@@ -483,7 +477,6 @@ class Base2_TestMakeDataclass_test_base:
 class Base1_TestMakeDataclass_test_base_dataclass:
     x: int
 
-@cclass
 class Base2_TestMakeDataclass_test_base_dataclass:
     pass
 
@@ -561,45 +554,24 @@ class TestCase(unittest.TestCase):
         c = C('foo')
         self.assertEqual(c.object, 'foo')
 
-    def test_0_field_compare(self):
-        C0 = C0_TestCase_test_0_field_compare
-        C1 = C1_TestCase_test_0_field_compare
-        for cls in [C0, C1]:
-            with self.subTest(cls=cls):
-                self.assertEqual(cls(), cls())
-                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
-                    with self.subTest(idx=idx):
-                        with self.assertRaises(TypeError):
-                            fn(cls(), cls())
-        C = C_TestCase_test_0_field_compare
-        self.assertLessEqual(C(), C())
-        self.assertGreaterEqual(C(), C())
-
-    def test_1_field_compare(self):
-        C0 = C0_TestCase_test_1_field_compare
-        C1 = C1_TestCase_test_1_field_compare
-        for cls in [C0, C1]:
-            with self.subTest(cls=cls):
-                self.assertEqual(cls(1), cls(1))
-                self.assertNotEqual(cls(0), cls(1))
-                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
-                    with self.subTest(idx=idx):
-                        with self.assertRaises(TypeError):
-                            fn(cls(0), cls(0))
-        C = C_TestCase_test_1_field_compare
-        self.assertLess(C(0), C(1))
-        self.assertLessEqual(C(0), C(1))
-        self.assertLessEqual(C(1), C(1))
-        self.assertGreater(C(1), C(0))
-        self.assertGreaterEqual(C(1), C(0))
-        self.assertGreaterEqual(C(1), C(1))
-
     def test_not_in_compare(self):
         C = C_TestCase_test_not_in_compare
         self.assertEqual(C(), C(0, 20))
         self.assertEqual(C(1, 10), C(1, 20))
         self.assertNotEqual(C(3), C(4, 10))
         self.assertNotEqual(C(3, 10), C(4, 10))
+
+    def test_deliberately_mutable_defaults(self):
+        Mutable = Mutable_TestCase_test_deliberately_mutable_defaults
+        C = C_TestCase_test_deliberately_mutable_defaults
+        lst = Mutable()
+        o1 = C(lst)
+        o2 = C(lst)
+        self.assertEqual(o1, o2)
+        o1.x.l.extend([1, 2])
+        self.assertEqual(o1, o2)
+        self.assertEqual(o1.x.l, [1, 2])
+        self.assertIs(o1.x, o2.x)
 
     def test_not_tuple(self):
         Point = Point_TestCase_test_not_tuple
@@ -617,6 +589,7 @@ class TestCase(unittest.TestCase):
         Point3Dv1 = Point3Dv1_TestCase_test_not_other_dataclass
         self.assertNotEqual(Point3D(0, 0, 0), Point3Dv1())
 
+    @skip_on_versions_below((3, 10))
     def test_post_init_classmethod(self):
         C = C_TestCase_test_post_init_classmethod
         self.assertFalse(C.flag)
@@ -633,6 +606,7 @@ class TestCase(unittest.TestCase):
         c = C(init_param=10)
         self.assertEqual(c.x, 20)
 
+    @skip_on_versions_below((3, 10))
     def test_init_var_preserve_type(self):
         self.assertEqual(InitVar[int].type, int)
         self.assertEqual(repr(InitVar[int]), 'dataclasses.InitVar[int]')
@@ -664,6 +638,23 @@ class TestCase(unittest.TestCase):
         self.assertFalse(is_dataclass(c.x))
         self.assertTrue(is_dataclass(d.d))
         self.assertFalse(is_dataclass(d.e))
+
+    def test_is_dataclass_when_getattr_always_returns(self):
+        A = A_TestCase_test_is_dataclass_when_getattr_always_returns
+        self.assertFalse(is_dataclass(A))
+        a = A()
+        B = B_TestCase_test_is_dataclass_when_getattr_always_returns
+        b = B()
+        b.__dataclass_fields__ = []
+        for obj in (a, b):
+            with self.subTest(obj=obj):
+                self.assertFalse(is_dataclass(obj))
+                with self.assertRaises(TypeError):
+                    asdict(obj)
+                with self.assertRaises(TypeError):
+                    astuple(obj)
+                with self.assertRaises(TypeError):
+                    replace(obj, x=0)
 
     def test_helper_fields_with_class_instance(self):
         C = C_TestCase_test_helper_fields_with_class_instance
@@ -764,6 +755,16 @@ class TestCase(unittest.TestCase):
         T = namedtuple('T', 'a')
         c = C({T('an a'): 0})
         self.assertEqual(asdict(c), {'f': {T(a='an a'): 0}})
+
+    def test_helper_asdict_namedtuple_derived(self):
+        T = T_TestCase_test_helper_asdict_namedtuple_derived
+        C = C_TestCase_test_helper_asdict_namedtuple_derived
+        t = T(6)
+        c = C(t)
+        d = asdict(c)
+        self.assertEqual(d, {'f': T(a=6)})
+        self.assertIsNot(d['f'], t)
+        self.assertEqual(d['f'].my_a(), 6)
 
     def test_helper_astuple(self):
         C = C_TestCase_test_helper_astuple
@@ -884,6 +885,12 @@ class TestFieldNoAnnotation(unittest.TestCase):
 
 class TestInit(unittest.TestCase):
 
+    def test_no_init(self):
+        C = C_TestInit_test_no_init
+        self.assertEqual(C().i, 0)
+        C = C_TestInit_test_no_init_
+        self.assertEqual(C().i, 3)
+
     def test_overwriting_init(self):
         C = C_TestInit_test_overwriting_init
         self.assertEqual(C(3).x, 6)
@@ -903,14 +910,6 @@ class TestRepr(unittest.TestCase):
         self.assertEqual(repr(C(0)), 'x')
 
 class TestEq(unittest.TestCase):
-
-    def test_no_eq(self):
-        C = C_TestEq_test_no_eq
-        self.assertNotEqual(C(0), C(0))
-        c = C(3)
-        self.assertEqual(c, c)
-        C = C_TestEq_test_no_eq_
-        self.assertEqual(C(3), 10)
 
     def test_overwriting_eq(self):
         C = C_TestEq_test_overwriting_eq
