@@ -355,19 +355,6 @@ class R_TestCase_test_dataclasses_pickleable:
     x: int
     y: List[int] = field(default_factory=list)
 
-@dataclass(init=False)
-@cclass
-class C_TestInit_test_no_init:
-    i: int = 0
-
-@dataclass(init=False)
-@cclass
-class C_TestInit_test_no_init_:
-    i: int = 2
-
-    def __init__(self):
-        self.i = 3
-
 @dataclass
 @cclass
 class C_TestInit_test_overwriting_init:
@@ -884,12 +871,6 @@ class TestFieldNoAnnotation(unittest.TestCase):
     pass
 
 class TestInit(unittest.TestCase):
-
-    def test_no_init(self):
-        C = C_TestInit_test_no_init
-        self.assertEqual(C().i, 0)
-        C = C_TestInit_test_no_init_
-        self.assertEqual(C().i, 3)
 
     def test_overwriting_init(self):
         C = C_TestInit_test_overwriting_init

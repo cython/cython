@@ -118,6 +118,8 @@ skip_tests = frozenset(
         # These tests are probably fine, but the string substitution in this file doesn't get it right
         ("TestRepr", "test_repr"),
         ("TestCase", "test_not_in_repr"),
+        # class variable doesn't exist in Cython so uninitialized variable appears differently - for now this is deliberate
+        ('TestInit', 'test_no_init'),
         # Bugs
         ("TestCase", "test_no_options"),  # @dataclass()
         ("TestCase", "test_field_no_default"),  # field()
