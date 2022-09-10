@@ -70,6 +70,16 @@ class C_TestCase_test_not_in_compare:
     x: int = 0
     y: int = field(compare=False, default=4)
 
+class Mutable_TestCase_test_deliberately_mutable_defaults:
+
+    def __init__(self):
+        self.l = []
+
+@dataclass
+@cclass
+class C_TestCase_test_deliberately_mutable_defaults:
+    x: Mutable_TestCase_test_deliberately_mutable_defaults
+
 @dataclass
 @cclass
 class Point_TestCase_test_not_tuple:
@@ -144,7 +154,6 @@ class Bar_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factor
 class Baz_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factory_derived):
     pass
 
-@cclass
 class NotDataClass_TestCase_test_is_dataclass:
     pass
 
@@ -159,13 +168,20 @@ class D_TestCase_test_is_dataclass:
     d: C_TestCase_test_is_dataclass
     e: int
 
+class A_TestCase_test_is_dataclass_when_getattr_always_returns:
+
+    def __getattr__(self, key):
+        return 0
+
+class B_TestCase_test_is_dataclass_when_getattr_always_returns:
+    pass
+
 @dataclass
 @cclass
 class C_TestCase_test_helper_fields_with_class_instance:
     x: int
     y: float
 
-@cclass
 class C_TestCase_test_helper_fields_exception:
     pass
 
@@ -249,6 +265,16 @@ class C_TestCase_test_helper_asdict_namedtuple:
 @cclass
 class C_TestCase_test_helper_asdict_namedtuple_key:
     f: dict
+
+class T_TestCase_test_helper_asdict_namedtuple_derived(namedtuple('Tbase', 'a')):
+
+    def my_a(self):
+        return self.a
+
+@dataclass
+@cclass
+class C_TestCase_test_helper_asdict_namedtuple_derived:
+    f: T_TestCase_test_helper_asdict_namedtuple_derived
 
 @dataclass
 @cclass
@@ -444,11 +470,9 @@ class C_TestEq_test_overwriting_eq__:
     def __eq__(self, other):
         return other == 5
 
-@cclass
 class Base1_TestMakeDataclass_test_base:
     pass
 
-@cclass
 class Base2_TestMakeDataclass_test_base:
     pass
 
@@ -457,7 +481,6 @@ class Base2_TestMakeDataclass_test_base:
 class Base1_TestMakeDataclass_test_base_dataclass:
     x: int
 
-@cclass
 class Base2_TestMakeDataclass_test_base_dataclass:
     pass
 
@@ -575,6 +598,18 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(C(3), C(4, 10))
         self.assertNotEqual(C(3, 10), C(4, 10))
 
+    def test_deliberately_mutable_defaults(self):
+        Mutable = Mutable_TestCase_test_deliberately_mutable_defaults
+        C = C_TestCase_test_deliberately_mutable_defaults
+        lst = Mutable()
+        o1 = C(lst)
+        o2 = C(lst)
+        self.assertEqual(o1, o2)
+        o1.x.l.extend([1, 2])
+        self.assertEqual(o1, o2)
+        self.assertEqual(o1.x.l, [1, 2])
+        self.assertIs(o1.x, o2.x)
+
     def test_not_tuple(self):
         Point = Point_TestCase_test_not_tuple
         self.assertNotEqual(Point(1, 2), (1, 2))
@@ -591,6 +626,7 @@ class TestCase(unittest.TestCase):
         Point3Dv1 = Point3Dv1_TestCase_test_not_other_dataclass
         self.assertNotEqual(Point3D(0, 0, 0), Point3Dv1())
 
+    @skip_on_versions_below((3, 10))
     def test_post_init_classmethod(self):
         C = C_TestCase_test_post_init_classmethod
         self.assertFalse(C.flag)
@@ -607,6 +643,7 @@ class TestCase(unittest.TestCase):
         c = C(init_param=10)
         self.assertEqual(c.x, 20)
 
+    @skip_on_versions_below((3, 10))
     def test_init_var_preserve_type(self):
         self.assertEqual(InitVar[int].type, int)
         self.assertEqual(repr(InitVar[int]), 'dataclasses.InitVar[int]')
@@ -638,6 +675,23 @@ class TestCase(unittest.TestCase):
         self.assertFalse(is_dataclass(c.x))
         self.assertTrue(is_dataclass(d.d))
         self.assertFalse(is_dataclass(d.e))
+
+    def test_is_dataclass_when_getattr_always_returns(self):
+        A = A_TestCase_test_is_dataclass_when_getattr_always_returns
+        self.assertFalse(is_dataclass(A))
+        a = A()
+        B = B_TestCase_test_is_dataclass_when_getattr_always_returns
+        b = B()
+        b.__dataclass_fields__ = []
+        for obj in (a, b):
+            with self.subTest(obj=obj):
+                self.assertFalse(is_dataclass(obj))
+                with self.assertRaises(TypeError):
+                    asdict(obj)
+                with self.assertRaises(TypeError):
+                    astuple(obj)
+                with self.assertRaises(TypeError):
+                    replace(obj, x=0)
 
     def test_helper_fields_with_class_instance(self):
         C = C_TestCase_test_helper_fields_with_class_instance
@@ -738,6 +792,16 @@ class TestCase(unittest.TestCase):
         T = namedtuple('T', 'a')
         c = C({T('an a'): 0})
         self.assertEqual(asdict(c), {'f': {T(a='an a'): 0}})
+
+    def test_helper_asdict_namedtuple_derived(self):
+        T = T_TestCase_test_helper_asdict_namedtuple_derived
+        C = C_TestCase_test_helper_asdict_namedtuple_derived
+        t = T(6)
+        c = C(t)
+        d = asdict(c)
+        self.assertEqual(d, {'f': T(a=6)})
+        self.assertIsNot(d['f'], t)
+        self.assertEqual(d['f'].my_a(), 6)
 
     def test_helper_astuple(self):
         C = C_TestCase_test_helper_astuple
