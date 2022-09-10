@@ -114,7 +114,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
-  CFLAGS="-Od /Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820"
+  CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
 else
   CFLAGS="-O0 -ggdb -Wall -Wextra"
 fi
@@ -122,10 +122,8 @@ fi
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
-  if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
-    if [[ $OSTYPE != "msys" ]]; then
-      BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
-    fi
+  if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" ]]; then
+    BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
   fi
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
     BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"

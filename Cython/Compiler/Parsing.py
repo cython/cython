@@ -108,7 +108,7 @@ def p_binop_expr(s, ops, p_sub_expr):
 
 #lambdef: 'lambda' [varargslist] ':' test
 
-def p_lambdef(s, allow_conditional=True):
+def p_lambdef(s):
     # s.sy == 'lambda'
     pos = s.position()
     s.next()
@@ -119,19 +119,11 @@ def p_lambdef(s, allow_conditional=True):
         args, star_arg, starstar_arg = p_varargslist(
             s, terminator=':', annotated=False)
     s.expect(':')
-    if allow_conditional:
-        expr = p_test(s)
-    else:
-        expr = p_test_nocond(s)
+    expr = p_test(s)
     return ExprNodes.LambdaNode(
         pos, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
         result_expr = expr)
-
-#lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
-
-def p_lambdef_nocond(s):
-    return p_lambdef(s)
 
 #test: or_test ['if' or_test 'else' test] | lambdef
 
@@ -160,15 +152,6 @@ def p_test_allow_walrus_after(s):
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
     else:
         return expr
-
-
-#test_nocond: or_test | lambdef_nocond
-
-def p_test_nocond(s):
-    if s.sy == 'lambda':
-        return p_lambdef_nocond(s)
-    else:
-        return p_or_test(s)
 
 def p_namedexpr_test(s):
     # defined in the LL parser as
@@ -1344,7 +1327,12 @@ def p_comp_if(s, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
-    test = p_test_nocond(s)
+    # Note that Python 3.9+ is actually more restrictive here and Cython now follows
+    # the Python 3.9+ behaviour: https://github.com/python/cpython/issues/86014
+    # On Python <3.9 `[i for i in range(10) if lambda: i if True else 1]` was disallowed
+    # but `[i for i in range(10) if lambda: i]` was allowed.
+    # On Python >=3.9 they're both disallowed.
+    test = p_or_test(s)
     return Nodes.IfStatNode(pos,
         if_clauses = [Nodes.IfClauseNode(pos, condition = test,
                                          body = p_comp_iter(s, body))],
