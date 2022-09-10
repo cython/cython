@@ -1617,7 +1617,7 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry and entry.defined_in_pxd:
             if entry.visibility != "private":
-                mangled_cname = self.mangle(Naming.var_prefix, name)
+                mangled_cname = self.mangle(Naming.func_prefix, name)
                 if entry.cname == mangled_cname:
                     cname = name
                     entry.cname = cname
