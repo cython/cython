@@ -584,9 +584,9 @@ def safe_spanning_type(types, might_overflow, scope):
         return result_type
     elif result_type.is_memoryviewslice:
         return result_type
-    elif result_type is PyrexTypes.c_double_complex_type:
-        return result_type
     elif result_type is PyrexTypes.soft_complex_type:
+        return result_type
+    elif result_type == PyrexTypes.c_double_complex_type:
         return result_type
     elif (result_type.is_int or result_type.is_enum) and not might_overflow:
         return result_type

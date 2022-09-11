@@ -306,7 +306,7 @@ static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
         PyErr_SetString(PyExc_TypeError,
             "Cannot convert 'complex' with non-zero imaginary component to 'double' "
             "(this most likely comes from the '**' operator; "
-            "use 'cython.cpow(False)' to return 'nan' instead of a "
+            "use 'cython.cpow(True)' to return 'nan' instead of a "
             "complex number).");
         return -1.;
     }

@@ -325,6 +325,7 @@ directive_types = {
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
     'cclass' : None,

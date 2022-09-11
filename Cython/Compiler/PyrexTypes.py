@@ -2535,6 +2535,11 @@ class SoftCComplexType(CComplexType):
         env.use_utility_code(UtilityCode.load_cached('SoftComplexToPy', 'Complex.c'))
         return True
 
+    def __repr__(self):
+        result = super(SoftCComplexType, self).__repr__()
+        assert result[-1] == ">"
+        return "%s (soft)%s" % (result[:-1], result[-1])
+
 class CPyTSSTType(CType):
     #
     #   PEP-539 "Py_tss_t" type
@@ -4950,6 +4955,14 @@ def widest_numeric_type(type1, type2):
             widest_numeric_type(
                 real_type(type1),
                 real_type(type2)))
+        if type1 is soft_complex_type or type2 is soft_complex_type:
+            type1_is_other_complex = type1 is not soft_complex_type and type1.is_complex
+            type2_is_other_complex = type2 is not soft_complex_type and type2.is_complex
+            if (not type1_is_other_complex and not type2_is_other_complex and
+                    widest_type.real_type == soft_complex_type.real_type):
+                # ensure we can do an actual "is" comparison
+                # (this possibly goes slightly wrong when mixing long double and soft complex)
+                widest_type = soft_complex_type
     elif type1.is_enum and type2.is_enum:
         widest_type = c_int_type
     elif type1.rank < type2.rank:
