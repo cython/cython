@@ -864,6 +864,17 @@ Cython code.  Here is the list of currently supported directives:
     division is performed with negative operands.  See `CEP 516
     <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
     False.
+    
+``cpow`` (True / False)
+    If set to True, the return type of ``a**b`` is always a C double
+    and is set to ``nan`` if a complex number would be produced. If set
+    to False, follows the Python behaviour and can produce a complex
+    number (at the cost of some speed).  Note that the behaviour does
+    not perfectly match that of Python - under some circumstances
+    Python will return a Python integer object while Cython will
+    always return a float or complex.  This option was added in Cython
+    3.0 with a default of False; before Cython 3 the behaviour matched
+    the True version.
 
 ``always_allow_keywords`` (True / False)
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when

@@ -2503,6 +2503,32 @@ complex_ops = {
 }
 
 
+class SoftCComplexType(CComplexType):
+    """
+    a**b in Python can return either a complex or a float
+    depending on the sign of a. This "soft complex" type is
+    stored as a C complex (and so is a little slower than a
+    direct C double) but it prints/coerces to a float if
+    the imaginary part is 0. Therefore it provides a C
+    representation of the Python behaviour.
+    """
+
+    def __init__(self):
+        super(SoftCComplexType, self).__init__(c_double_type)
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        base_result =  super(SoftCComplexType, self).declaration_code(
+            entity_code,
+            for_display=for_display,
+            dll_linkage=dll_linkage,
+            pyrex=pyrex
+        )
+        if for_display:
+            return "soft %s" % base_result
+        else:
+            return base_result
+
 class CPyTSSTType(CType):
     #
     #   PEP-539 "Py_tss_t" type
@@ -4570,6 +4596,8 @@ c_longdouble_type =  CFloatType(7, math_h_modifier='l')
 c_float_complex_type =      CComplexType(c_float_type)
 c_double_complex_type =     CComplexType(c_double_type)
 c_longdouble_complex_type = CComplexType(c_longdouble_type)
+
+soft_complex_type = SoftCComplexType()
 
 c_anon_enum_type =   CAnonEnumType(-1)
 c_returncode_type =  CReturnCodeType(RANK_INT)

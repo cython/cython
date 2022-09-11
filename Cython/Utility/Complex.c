@@ -289,3 +289,23 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
         }
     #endif
 #endif
+
+/////////////// SoftComplexToDouble.proto //////////////////
+
+static double __Pyx_soft_complex_to_double(__pyx_t_double_complex value); /* proto */
+
+/////////////// SoftComplexToDouble //////////////////
+//@requires: RealImag
+
+static double __Pyx_soft_complex_to_double(__pyx_t_double_complex value) {
+    double imag = __Pyx_CIMAG(value);
+    if (imag) {
+        PyErr_SetString(PyExc_TypeError,
+            "Cannot convert 'complex' with non-zero imaginary component to 'double' "
+            "(this most likely comes from the '**' operator; "
+            "use 'cython.cpow(False)' to return 'nan' instead of a "
+            "complex number).");
+        return -1.;
+    }
+    return __Pyx_CREAL(value);
+}

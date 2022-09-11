@@ -186,6 +186,7 @@ _directive_defaults = {
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
+    'cpow': False,  # was True before 3.0
     'cdivision_warnings': False,
     'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,

@@ -1061,6 +1061,10 @@ class ExprNode(Node):
               and src_type != dst_type
               and dst_type.assignable_from(src_type)):
             src = CoerceToComplexNode(src, dst_type, env)
+        elif (src_type is PyrexTypes.soft_complex_type
+              and src_type != dst_type
+              and not dst_type.assignable_from(src_type)):
+            src = coerce_from_soft_complex(src, dst_type, env)
         else:
             # neither src nor dst are py types
             # Added the string comparison, since for c types that
@@ -12205,6 +12209,24 @@ class ModNode(DivNode):
 class PowNode(NumBinopNode):
     #  '**' operator.
 
+    cpow = None
+
+    def _check_cpow(self, env):
+        if self.cpow is not None:
+            return  # already set, deliberately
+        if env.directives['cpow']:
+            self.cpow = True
+        else:
+            self.cpow = False
+
+    def infer_type(self, env):
+        self._check_cpow(env)
+        return super(PowNode, self).infer_type(env)
+
+    def analyse_types(self, env):
+        self._check_cpow(env)
+        return super(PowNode, self).analyse_types(env)
+
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
         if self.type.is_complex:
@@ -12229,9 +12251,18 @@ class PowNode(NumBinopNode):
                             (self.operand1.type, self.operand2.type))
 
     def compute_c_result_type(self, type1, type2):
-        c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
-        if isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0:
-            c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
+        op1_is_definitely_positive = (
+            self.operand1.constant_result is not not_a_constant
+            and self.operand1.constant_result >= 0
+        ) or (
+            type1.is_int and type1.signed == 0  # definitely unsigned
+        )
+        if self.cpow or op1_is_definitely_positive:
+            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
+            if isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0:
+                c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
+        else:
+            c_result_type = PyrexTypes.soft_complex_type
         return c_result_type
 
     def calculate_result_code(self):
@@ -12257,6 +12288,31 @@ class PowNode(NumBinopNode):
             else:
                 return '__Pyx_PyNumber_PowerOf2'
         return super(PowNode, self).py_operation_function(code)
+
+    def coerce_to(self, dst_type, env):
+        if (not self.cpow and self.type is PyrexTypes.soft_complex_type and
+                dst_type.is_float or dst_type.is_int):
+            # if we're trying to coerce this directly to a C float or int
+            # then fall back to the cpow == True behaviour since this is
+            # almost certainly the user intent.
+            # However, ensure that the operand types are suitable C types
+            def check_types(operand, recurse=True):
+                if operand.type.is_float or operand.type.is_int:
+                    return True, operand
+                if recurse and isinstance(operand, CoerceToComplexNode):
+                    return check_types(operand.arg, recurse=False), operand.arg
+                return False, None
+            check_op1, op1 = check_types(self.operand1)
+            check_op2, op2 = check_types(self.operand2)
+            if check_op1 and check_op2:
+                self.cpow = True
+                self.operand1 = op1
+                self.operand2 = op2
+                result = self.analyse_types(env)
+                if result.type != dst_type:
+                    result = result.coerce_to(dst_type, env)
+                return result
+        return super(PowNode, self).coerce_to(dst_type, env)
 
 
 class BoolBinopNode(ExprNode):
@@ -13872,6 +13928,27 @@ class CoerceToComplexNode(CoercionNode):
 
     def analyse_types(self, env):
         return self
+
+
+def coerce_from_soft_complex(arg, dst_type, env):
+    c_api_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type,
+        [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None) ],
+        exception_value = "-1",
+        exception_check = True
+    )
+    call = PythonCapiCallNode(
+        arg.pos,
+        "__Pyx_soft_complex_to_double",
+        c_api_type,
+        utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
+        args = [arg]
+    )
+    call = call.analyse_types(env)
+    if call.type != dst_type:
+        call = call.coerce_to(dst_type)
+    return call
+
 
 class CoerceToTempNode(CoercionNode):
     #  This node is used to force the result of another node
