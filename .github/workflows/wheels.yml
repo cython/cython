@@ -92,6 +92,9 @@ jobs:
             dist/*macos*.whl
             dist/*win32*.whl
             dist/*win_amd64*.whl
+          prerelease: >-
+            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
+              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
 
       - uses: actions/upload-artifact@v3
         with:
@@ -140,3 +143,6 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*-none-any.whl
+          prerelease: >-
+            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
+              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
