@@ -292,14 +292,17 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// SoftComplexToDouble.proto //////////////////
 
-static double __Pyx_soft_complex_to_double(__pyx_t_double_complex value); /* proto */
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value); /* proto */
 
 /////////////// SoftComplexToDouble //////////////////
 //@requires: RealImag
 
-static double __Pyx_soft_complex_to_double(__pyx_t_double_complex value) {
-    double imag = __Pyx_CIMAG(value);
-    if (imag) {
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
+    // This isn't an absolutely perfect match for the Python behaviour:
+    // In Python the type would be determined right after the number is
+    // created (usually '**'), while here it's determined when coerced
+    // to a PyObject, which may be a few operations later.
+    if (__Pyx_CIMAG(value)) {
         PyErr_SetString(PyExc_TypeError,
             "Cannot convert 'complex' with non-zero imaginary component to 'double' "
             "(this most likely comes from the '**' operator; "
@@ -308,4 +311,20 @@ static double __Pyx_soft_complex_to_double(__pyx_t_double_complex value) {
         return -1.;
     }
     return __Pyx_CREAL(value);
+}
+
+///////// SoftComplexToPy.proto ///////////////////////
+
+static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value); /* proto */
+
+//////// SoftComplexToPy ////////////////
+//@requires: ToPy
+//@requires: RealImag
+
+static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value) {
+    if (__Pyx_CIMAG(value)) {
+        return __pyx_PyComplex_FromComplex(value);
+    } else {
+        return PyFloat_FromDouble(__Pyx_CREAL(value));
+    }
 }

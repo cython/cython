@@ -2513,6 +2513,8 @@ class SoftCComplexType(CComplexType):
     representation of the Python behaviour.
     """
 
+    to_py_function = "__pyx_Py_FromSoftComplex"
+
     def __init__(self):
         super(SoftCComplexType, self).__init__(c_double_type)
 
@@ -2528,6 +2530,10 @@ class SoftCComplexType(CComplexType):
             return "soft %s" % base_result
         else:
             return base_result
+
+    def create_to_py_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('SoftComplexToPy', 'Complex.c'))
+        return True
 
 class CPyTSSTType(CType):
     #

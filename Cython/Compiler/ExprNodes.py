@@ -12210,14 +12210,12 @@ class PowNode(NumBinopNode):
     #  '**' operator.
 
     cpow = None
+    cpow_false_changed_result_type = False  # was the result type affected by cpow==False
 
     def _check_cpow(self, env):
         if self.cpow is not None:
-            return  # already set, deliberately
-        if env.directives['cpow']:
-            self.cpow = True
-        else:
-            self.cpow = False
+            return  # already set
+        self.cpow = env.directives['cpow']
 
     def infer_type(self, env):
         self._check_cpow(env)
@@ -12257,12 +12255,29 @@ class PowNode(NumBinopNode):
         ) or (
             type1.is_int and type1.signed == 0  # definitely unsigned
         )
-        if self.cpow or op1_is_definitely_positive:
+        type2_is_int = type2.is_int or (
+            self.operand2.constant_result is not not_a_constant and
+            int(self.operand2.constant_result) == self.operand2.constant_result
+        )
+        # if type2 is an integer than we can't end up going from real to complex
+        if self.cpow or op1_is_definitely_positive or type2_is_int:
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
-            if isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0:
+            if self.operand2.constant_result is not_a_constant:
+                needs_widening = not self.cpow and type2.is_int and type2.signed
+                if needs_widening:
+                    self.cpow_false_changed_result_type = True
+            else:
+                needs_widening = (
+                    isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
+                )
+            if needs_widening:
                 c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
         else:
+            # Allowable result types are double or complex double.
+            # Return the special "soft complex" type to store it as a
+            # complex number but with specialized coercions to Python
             c_result_type = PyrexTypes.soft_complex_type
+            self.cpow_false_changed_result_type = True
         return c_result_type
 
     def calculate_result_code(self):
@@ -12290,21 +12305,37 @@ class PowNode(NumBinopNode):
         return super(PowNode, self).py_operation_function(code)
 
     def coerce_to(self, dst_type, env):
-        if (not self.cpow and self.type is PyrexTypes.soft_complex_type and
+        if dst_type == self.type:
+            return self
+        if (self.cpow is None and self.cpow_false_changed_result_type and
                 dst_type.is_float or dst_type.is_int):
             # if we're trying to coerce this directly to a C float or int
             # then fall back to the cpow == True behaviour since this is
             # almost certainly the user intent.
             # However, ensure that the operand types are suitable C types
-            def check_types(operand, recurse=True):
-                if operand.type.is_float or operand.type.is_int:
-                    return True, operand
-                if recurse and isinstance(operand, CoerceToComplexNode):
-                    return check_types(operand.arg, recurse=False), operand.arg
-                return False, None
+            if self.type is PyrexTypes.soft_complex_type:
+                def check_types(operand, recurse=True):
+                    if operand.type.is_float or operand.type.is_int:
+                        return True, operand
+                    if recurse and isinstance(operand, CoerceToComplexNode):
+                        return check_types(operand.arg, recurse=False), operand.arg
+                    return False, None
+                msg_detail = "a non-complex C numeric type"
+            elif dst_type.is_int:
+                def check_types(operand):
+                    if operand.type.is_int:
+                        return True, operand
+                    else:
+                        # int, int doesn't seem to involve coercion nodes
+                        return False, None
+                msg_detail = "an integer C numeric type"
             check_op1, op1 = check_types(self.operand1)
             check_op2, op2 = check_types(self.operand2)
             if check_op1 and check_op2:
+                warning(self.pos, "Treating '**' as if 'cython.cpow(True)' since it "
+                    "is directly assigned to a %s. "
+                    "This is likely to be fragile and we recommend setting "
+                    "'cython.cpow' explicitly." % msg_detail)
                 self.cpow = True
                 self.operand1 = op1
                 self.operand2 = op2
@@ -13939,7 +13970,7 @@ def coerce_from_soft_complex(arg, dst_type, env):
     )
     call = PythonCapiCallNode(
         arg.pos,
-        "__Pyx_soft_complex_to_double",
+        "__Pyx_SoftComplexToDouble",
         c_api_type,
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
         args = [arg]

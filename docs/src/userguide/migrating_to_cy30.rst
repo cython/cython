@@ -226,3 +226,16 @@ To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the
 ``annotation_typing`` :ref:`directive <compiler-directives>` on a
 per-class or per-function level.
+
+``**`` power operator
+=====================
+
+Cython 3 has changed the behaviour of the power operator to be
+more like Python. The consequences are that
+
+#. ``a**b`` of two ints may return a floating point type,
+#. ``a**b`` of one or more non-complex floating point numbers may end
+   up return a complex number.
+
+The old behaviour can be restored by setting the ``cpow``
+:ref:`compiler directive <compiler-directives>` to ``True``.

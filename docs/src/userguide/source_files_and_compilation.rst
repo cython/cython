@@ -866,13 +866,20 @@ Cython code.  Here is the list of currently supported directives:
     False.
     
 ``cpow`` (True / False)
-    If set to True, the return type of ``a**b`` is always a C double
-    and is set to ``nan`` if a complex number would be produced. If set
-    to False, follows the Python behaviour and can produce a complex
-    number (at the cost of some speed).  Note that the behaviour does
-    not perfectly match that of Python - under some circumstances
-    Python will return a Python integer object while Cython will
-    always return a float or complex.  This option was added in Cython
+    ``cpow`` has two effects on the behaviour of ``a**b``.
+    
+    #. If both types are C integers then setting ``cpow`` to True 
+       forces the result type to be an integer. Otherwise the result 
+       type is a C floating point number if ``b`` can't be determined
+       to definitely be positive (the False case deviates from Python
+       slightly, since Python will dynamically pick either a Python
+       ``int`` or a Python ``float``).
+    #. If either or ``a`` or ``b`` is a floating point type then
+       setting ``cpow`` to True forces the result type to be a C
+       double, with a value of ``NaN`` if the result would be a
+       complex number. Otherwise the result can be either a real or
+       a complex number, at the cost of some speed.
+    This option was added in Cython
     3.0 with a default of False; before Cython 3 the behaviour matched
     the True version.
 
