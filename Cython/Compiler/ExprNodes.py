@@ -12249,6 +12249,7 @@ class PowNode(NumBinopNode):
                             (self.operand1.type, self.operand2.type))
 
     def compute_c_result_type(self, type1, type2):
+        c_result_type = None
         op1_is_definitely_positive = (
             self.operand1.constant_result is not not_a_constant
             and self.operand1.constant_result >= 0
@@ -12272,7 +12273,7 @@ class PowNode(NumBinopNode):
                 )
             if needs_widening:
                 c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
-        else:
+        elif self.c_types_okay(type1, type2):
             # Allowable result types are double or complex double.
             # Return the special "soft complex" type to store it as a
             # complex number but with specialized coercions to Python
