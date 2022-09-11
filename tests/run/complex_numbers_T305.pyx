@@ -80,6 +80,8 @@ def test_pow(double complex z, double complex w, tol=None):
     True
     >>> test_pow(-0.5, 1j, tol=1e-15)
     True
+    >>> test_pow(-1, 0.5, tol=1e-15)
+    True
     """
     if tol is None:
         return z**w
