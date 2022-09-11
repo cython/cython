@@ -12308,7 +12308,7 @@ class PowNode(NumBinopNode):
         if dst_type == self.type:
             return self
         if (self.cpow is None and self.cpow_false_changed_result_type and
-                dst_type.is_float or dst_type.is_int):
+                (dst_type.is_float or dst_type.is_int)):
             # if we're trying to coerce this directly to a C float or int
             # then fall back to the cpow == True behaviour since this is
             # almost certainly the user intent.
