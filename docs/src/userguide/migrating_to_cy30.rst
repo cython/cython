@@ -226,3 +226,16 @@ To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the
 ``annotation_typing`` :ref:`directive <compiler-directives>` on a
 per-class or per-function level.
+
+C++ postincrement/postdecrement operator
+========================================
+
+Cython 3 differentiates between pre/post-increment and pre/pos-decrement
+operators (Cython 0.29 implemented both as predecrement operator).
+This only has an effect when using ``operator.postdecrement`` / ``operator.postincrement``.
+When running into an error it is required to add the corresponding operator::
+
+    cdef cppclass Example:
+        Example operator++(int)
+        Example operator--(int)
+
