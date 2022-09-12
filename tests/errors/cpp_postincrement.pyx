@@ -21,6 +21,6 @@ cdef void foo():
 
 
 _ERRORS = u"""
-17:19: Invalid operand type for '++'. Wrap Foo::operator++(int)
-19:19: Invalid operand type for '--'. Wrap Foo::operator--(int)
+17:19: No 'operator++(int)' declared for postfix '++' (operand type is 'Foo')
+19:19: No 'operator--(int)' declared for postfix '--' (operand type is 'Foo')
 """

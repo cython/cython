@@ -10702,11 +10702,11 @@ class DecrementIncrementNode(CUnopNode):
     def type_error(self):
         if not self.operand.type.is_error:
             if self.is_prefix:
-                error(self.pos, "Invalid operand type for '%s'. Wrap %s::operator%s()" %
-                    (self.operator, self.operand.type, self.operator))
+                error(self.pos, "No match for 'operator%s' (operand type is '%s')" %
+                    (self.operator, self.operand.type))
             else:
-                error(self.pos, "Invalid operand type for '%s'. Wrap %s::operator%s(int)" %
-                    (self.operator, self.operand.type, self.operator))
+                error(self.pos, "No 'operator%s(int)' declared for postfix '%s' (operand type is '%s')" %
+                    (self.operator, self.operator, self.operand.type))
         self.type = PyrexTypes.error_type
 
     def analyse_c_operation(self, env):

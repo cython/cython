@@ -21,6 +21,6 @@ cdef void foo():
 
 
 _ERRORS = u"""
-18:19: Invalid operand type for '++'. Wrap Bar::operator++()
-20:19: Invalid operand type for '--'. Wrap Bar::operator--()
+18:19: No match for 'operator++' (operand type is 'Bar')
+20:19: No match for 'operator--' (operand type is 'Bar')
 """
