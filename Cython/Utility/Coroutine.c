@@ -800,6 +800,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
     // cycle.
 #if CYTHON_COMPILING_IN_PYPY
     // FIXME: what to do in PyPy?
+    CYTHON_UNUSED_VAR(exc_state);
 #else
     PyObject *exc_tb;
 
