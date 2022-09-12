@@ -3,8 +3,8 @@ Welcome to Cython!
 
 |OpenSSF Scorecard !|
 
-.. |OpenSSF Scorecard !| image:: https://api.securityscorecards.dev/projects/github.com/joycebrum/cython/badge
-   :target: https://api.securityscorecards.dev/projects/github.com/joycebrum/cython
+.. |OpenSSF Scorecard !| image:: https://api.securityscorecards.dev/projects/github.com/cython/cython/badge
+   :target: https://api.securityscorecards.dev/projects/github.com/cython/cython
 
 Cython is a language that makes writing C extensions for
 Python as easy as Python itself.  Cython is based on
