@@ -17,6 +17,7 @@ pyunicode_identifier_prefix = pyrex_prefix + 'U'
 
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
+genexpr_arg_prefix = pyrex_prefix + "genexpr_arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
 func_prefix       = pyrex_prefix + "f_"
@@ -126,6 +127,7 @@ cur_scope_cname  = pyrex_prefix + "cur_scope"
 enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
+error_without_exception_cname = pyrex_prefix + "error_without_exception"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 quick_temp_cname = pyrex_prefix + "temp"  # temp variable for quick'n'dirty temping
@@ -135,6 +137,10 @@ type_dict_guard_temp = pyrex_prefix + "typedict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
 cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
 fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
+# the name "dflt" was picked by analogy with the CPython dataclass module which stores
+# the default values in variables named f"_dflt_{field.name}" in a hidden scope that's
+# passed to the __init__ function. (The name is unimportant to the exact workings though)
+dataclass_field_default_cname = pyrex_prefix + "dataclass_dflt"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'

@@ -6,16 +6,13 @@ Lib/test/test_gdb.py in the Python source. These tests are run in gdb and
 called from test_libcython_in_gdb.main()
 """
 
-import os
-import sys
-
 import gdb
 
 from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 
 from . import test_libcython_in_gdb
-from .test_libcython_in_gdb import _debug, inferior_python_version
+from .test_libcython_in_gdb import inferior_python_version
 
 
 class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):

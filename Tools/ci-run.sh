@@ -108,11 +108,23 @@ export PATH="/usr/lib/ccache:$PATH"
 # Most modern compilers allow the last conflicting option
 # to override the previous ones, so '-O0 -O3' == '-O3'
 # This is true for the latest msvc, gcc and clang
-CFLAGS="-O0 -ggdb -Wall -Wextra"
+if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
+  # /wd disables warnings
+  # 4711 warns that function `x` was selected for automatic inline expansion
+  # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
+  # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
+  # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
+  CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
+else
+  CFLAGS="-O0 -ggdb -Wall -Wextra"
+fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
+  if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" ]]; then
+    BUILD_CFLAGS="$CFLAGS -O3 -g0 -mtune=generic"  # make wheel sizes comparable to standard wheel build
+  fi
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
     BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
   fi
@@ -132,16 +144,19 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
-  # CYTHON_COMPILE_ALL can be either  "" (empty or not set) or "1" (when we set it)
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
-        $CYTHON_COMPILE_ALL != "1" && $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
+        $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
+    ls -l dist/ || true
   fi
+
+  echo "Extension modules created during the build:"
+  find Cython -name "*.so" -ls | sort -k11
 fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   make -C docs html || exit 1
-elif [[ $PYTHON_VERSION != "pypy"* ]]; then
+elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
