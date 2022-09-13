@@ -3752,7 +3752,7 @@ class DefNodeWrapper(FuncDefNode):
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        header = "%sstatic %s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
