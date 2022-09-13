@@ -1001,6 +1001,28 @@ disable this auto-generation and can be used to support pickling of more
 complicated types.
 
 
+Pattern matching and extension types (Python 3.10+)
+===================================================
+
+Python 3.10 introduced the structural pattern matching feature, where
+Python objects can be decomposed if they meet a particular set of rules.
+For a type to be treated as a sequence in pattern matching it must
+have the flag ``Py_TPFLAGS_SEQUENCE`` in its internal "type flags",
+and similarly for a type to be treated as a mapping it must have
+``Py_TPFLAGS_MAPPING`` set.
+
+For normal classes, one of the main ways to mark as class as a
+sequence or mapping would be to register the class with 
+either ``abc.collections.Sequence`` or ``abc.collections.Mapping``.
+Unfortunately for Cython extension types this does not work because
+Cython extension types are immutable (usually, with certain C defines
+set this may not always be true).
+
+Therefore a Cython extension type can be decorated with
+``cython.collection_type("sequence")`` or 
+``cython.collection_type("mapping")`` to enable pattern matching to
+use the type as intended.
+
 Public and external extension types
 ====================================
 

@@ -743,6 +743,12 @@ class __Pyx_FakeReference {
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
+#ifndef Py_TPFLAGS_SEQUENCE
+  #define Py_TPFLAGS_SEQUENCE 0
+#endif
+#ifndef Py_TPFLAGS_MAPPING
+  #define Py_TPFLAGS_MAPPING 0
+#endif
 
 #ifndef METH_STACKLESS
   // already defined for Stackless Python (all versions) and C-Python >= 3.7

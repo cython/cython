@@ -1748,6 +1748,11 @@ class ModuleScope(Scope):
 
         if self.directives.get('final'):
             entry.type.is_final_type = True
+        collection_type = self.directives.get('collection_type')
+        if collection_type == 'sequence':
+            entry.type.has_sequence_flag = True
+        elif collection_type == 'mapping':
+            entry.type.has_mapping_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
