@@ -77,3 +77,9 @@ def test_mapping_then_sequence(x):
     'M'
     >>> test_sequence_then_mapping(Neither())
     """
+else:
+    # Python 2 really wants to run a test or else it crashes!
+    __doc__ = """
+    >>> True
+    True
+    """
