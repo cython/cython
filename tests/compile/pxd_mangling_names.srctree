@@ -2,7 +2,7 @@
 # ticket: 2940
 
 PYTHON setup.py build_ext --inplace
-#PYTHON -c "import a; a.test()"
+PYTHON -c "import a; a.test()"
 
 ######## setup.py ########
 
@@ -31,9 +31,12 @@ def test():
 
 ######## b.h ########
 
-#pragma once
+#ifndef B_H
+#define B_H
 
 int bar();
+
+#endif
 
 ######## b.c ########
 
