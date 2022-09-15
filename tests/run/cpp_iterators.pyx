@@ -2,6 +2,10 @@
 # tag: cpp, werror, no-cpp-locals
 
 from libcpp.deque cimport deque
+from libcpp.list cimport list as stdlist
+from libcpp.map cimport map as stdmap
+from libcpp.set cimport set as stdset
+from libcpp.string cimport string
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
 
@@ -268,3 +272,68 @@ def test_iteration_over_attribute_of_call():
     for i in get_object_with_iterable_attribute().vec:
         print(i)
 
+def test_iteration_over_reversed_list(py_v):
+    """
+    >>> test_iteration_over_reversed_list([2, 4, 6])
+    6
+    4
+    2
+    """
+    cdef stdlist[int] lint
+    for e in py_v:
+        lint.push_back(e)
+    for e in reversed(lint):
+        print(e)
+
+def test_iteration_over_reversed_map(py_v):
+    """
+    >>> test_iteration_over_reversed_map([(1, 10), (2, 20), (3, 30)])
+    3 30
+    2 20
+    1 10
+    """
+    cdef stdmap[int, int] m
+    for k, v in py_v:
+        m[k] = v
+    for k, v in reversed(m):
+        print("%s %s" % (k, v))
+
+def test_iteration_over_reversed_set(py_v):
+    """
+    >>> test_iteration_over_reversed_set([1, 2, 3])
+    3
+    2
+    1
+    """
+    cdef stdset[int] s
+    for e in py_v:
+        s.insert(e)
+    for e in reversed(s):
+        print(e)
+
+def test_iteration_over_reversed_string():
+    """
+    >>> test_iteration_over_reversed_string()
+    n
+    o
+    h
+    t
+    y
+    c
+    """
+    cdef string cppstr = "cython"
+    for c in reversed(cppstr):
+        print(chr(c))
+
+def test_iteration_over_reversed_vector(py_v):
+    """
+    >>> test_iteration_over_reversed_vector([1, 2, 3])
+    3
+    2
+    1
+    """
+    cdef vector[int] vint
+    for e in py_v:
+        vint.push_back(e)
+    for e in reversed(vint):
+        print(e)

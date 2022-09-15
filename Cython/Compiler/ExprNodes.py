@@ -2905,6 +2905,9 @@ class IteratorNode(ScopedExprNode):
             self.type = self.sequence.type
         elif self.sequence.type.is_cpp_class:
             return CppIteratorNode(self.pos, sequence=self.sequence).analyse_types(env)
+        elif self.has_reversed_cpp_iteration():
+            sequence = self.sequence.arg_tuple.args[0].arg
+            return CppIteratorNode(self.pos, sequence=sequence, reversed=True).analyse_types(env)
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type in (list_type, tuple_type):
@@ -2918,6 +2921,20 @@ class IteratorNode(ScopedExprNode):
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
             ]))
+
+    def has_reversed_cpp_iteration(self):
+        """
+        Returns True if the 'reversed' function is applied to a C++ iterable.
+
+        This supports C++ classes with reverse_iterator implemented.
+        """
+        reversed_cpp_iterable = False
+        if (isinstance(self.sequence, SimpleCallNode) and self.sequence.function.is_name and self.sequence.function.name == "reversed"):
+            arg = self.sequence.arg_tuple.args[0]
+            if isinstance(arg, CoercionNode) and arg.arg.is_name:
+                arg = arg.arg.entry
+                reversed_cpp_iterable = arg.type.is_cpp_class
+        return reversed_cpp_iterable
 
     def type_dependencies(self, env):
         return self.sequence.type_dependencies(self.expr_scope or env)
@@ -3082,25 +3099,39 @@ class CppIteratorNode(ExprNode):
     cpp_attribute_op = "."
     extra_dereference = ""
     is_temp = True
+    reversed = False
 
     subexprs = ['sequence']
+
+    def _get_begin_name(self):
+        """
+        Returns the name of function that returns the first iterator.
+        """
+        return "begin" if not self.reversed else "rbegin"
+
+    def _get_end_name(self):
+        """
+        Returns the name of function that returns the last iterator.
+        """
+        return "end" if not self.reversed else "rend"
 
     def analyse_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:
             sequence_type = sequence_type.base_type
-        begin = sequence_type.scope.lookup("begin")
-        end = sequence_type.scope.lookup("end")
+        begin_name, end_name = self._get_begin_name(), self._get_end_name()
+        begin = sequence_type.scope.lookup(begin_name)
+        end = sequence_type.scope.lookup(end_name)
         if (begin is None
                 or not begin.type.is_cfunction
                 or begin.type.args):
-            error(self.pos, "missing begin() on %s" % self.sequence.type)
+            error(self.pos, "missing %s() on %s" % (begin_name, self.sequence.type))
             self.type = error_type
             return self
         if (end is None
                 or not end.type.is_cfunction
                 or end.type.args):
-            error(self.pos, "missing end() on %s" % self.sequence.type)
+            error(self.pos, "missing %s() on %s" % (end_name, self.sequence.type))
             self.type = error_type
             return self
         iter_type = begin.type.return_type
@@ -3111,37 +3142,39 @@ class CppIteratorNode(ExprNode):
                     self.pos,
                     "!=",
                     [iter_type, end.type.return_type]) is None:
-                error(self.pos, "missing operator!= on result of begin() on %s" % self.sequence.type)
+                error(self.pos, "missing operator!= on result of %s() on %s" % (begin_name, self.sequence.type))
                 self.type = error_type
                 return self
             if env.lookup_operator_for_types(self.pos, '++', [iter_type]) is None:
-                error(self.pos, "missing operator++ on result of begin() on %s" % self.sequence.type)
+                error(self.pos, "missing operator++ on result of %s() on %s" % (begin_name, self.sequence.type))
                 self.type = error_type
                 return self
             if env.lookup_operator_for_types(self.pos, '*', [iter_type]) is None:
-                error(self.pos, "missing operator* on result of begin() on %s" % self.sequence.type)
+                error(self.pos, "missing operator* on result of %s() on %s" % (begin_name, self.sequence.type))
                 self.type = error_type
                 return self
             self.type = iter_type
         elif iter_type.is_ptr:
             if not (iter_type == end.type.return_type):
-                error(self.pos, "incompatible types for begin() and end()")
+                error(self.pos, "incompatible types for %s() and %s()" % (begin_name, end_name))
             self.type = iter_type
         else:
-            error(self.pos, "result type of begin() on %s must be a C++ class or pointer" % self.sequence.type)
+            error(self.pos, "result type of %s() on %s must be a C++ class or pointer" % (begin_name, self.sequence.type))
             self.type = error_type
         return self
 
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
+        begin_name = self._get_begin_name()
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
             #    of the user
-            code.putln("%s = %s%sbegin();" % (self.result(),
+            code.putln("%s = %s%s%s();" % (self.result(),
                                                 self.sequence.result(),
-                                                self.cpp_attribute_op))
+                                                self.cpp_attribute_op,
+                                                begin_name))
         else:
                 # (while it'd be nice to limit the scope of the loop temp, it's essentially
                 # impossible to do while supporting generators)
@@ -3159,17 +3192,20 @@ class CppIteratorNode(ExprNode):
                 code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
                                            "&" if temp_type.is_ptr else "",
                                            self.sequence.move_result_rhs()))
-                code.putln("%s = %s%sbegin();" % (self.result(), self.cpp_sequence_cname,
-                                                  self.cpp_attribute_op))
+                code.putln("%s = %s%s%s();" % (self.result(), self.cpp_sequence_cname,
+                                                  self.cpp_attribute_op,
+                                                  begin_name))
 
     def generate_iter_next_result_code(self, result_name, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        code.putln("if (!(%s%s != %s%send())) break;" % (
+        end_name = self._get_end_name()
+        code.putln("if (!(%s%s != %s%s%s())) break;" % (
                         self.extra_dereference,
                         self.result(),
                         self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op))
+                        self.cpp_attribute_op,
+                        end_name))
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
@@ -3245,8 +3281,35 @@ class NextNode(AtomicExprNode):
                               type=PyrexTypes.c_py_ssize_t_type))
             return fake_index_node.infer_type(env)
 
+    @staticmethod
+    def remove_const(item_type):
+        """
+        Removes the constness of a given type and its underlying templates
+        if any.
+
+        This is to solve the compilation error when the temporary variable used to
+        store the result of an iterator cannot be changed due to its constness.
+        For example, the value_type of std::map, which will also be the type of
+        the temporarry variable, is std::pair<const Key, T>. This means the first
+        component of the variable cannot be reused to store the result of each
+        iteration, which leads to a compilation error.
+        """
+        if item_type.is_const:
+            item_type = item_type.cv_base_type
+        if item_type.is_typedef:
+            item_type = NextNode.remove_const(item_type.typedef_base_type)
+        if item_type.is_cpp_class and item_type.templates:
+            templates = [NextNode.remove_const(t) if t.is_const else t for t in item_type.templates]
+            template_type = item_type.template_type
+            item_type = PyrexTypes.CppClassType(
+                template_type.name, template_type.scope,
+                template_type.cname, template_type.base_classes,
+                templates, template_type)
+        return item_type
+
     def analyse_types(self, env):
         self.type = self.infer_type(env, self.iterator.type)
+        self.type = NextNode.remove_const(self.type)
         self.is_temp = 1
         return self
 
