@@ -49,23 +49,42 @@
     #define __Pyx_SET_CIMAG(z,y) __Pyx_CIMAG(z) = (y)
 #endif
 
-/////////////// RealImagCy.proto /////////////
+/////////////// RealImag_Cy.proto ///////////////
 
-// alternative version of RealImag.proto where we definitely want to use
-// Cython utility code implementation. Mainly for integer complex types
-// which simply aren't covered by the C or C++ standards (although
-// practically will probably work in C++)
+// alternative version of RealImag.proto for the case where
+// we definitely want to force it to use the Cython utility
+// code version of complex.
+// Because integer complex types simply aren't covered by
+// the C or C++ standards
+// (although practically will probably work in C++).
 
-#define __Pyx_CREAL_CY(z) ((z).real)
-#define __Pyx_CIMAG_CY(z) ((z).imag)
+#define __Pyx_CREAL_Cy(z) ((z).real)
+#define __Pyx_CIMAG_Cy(z) ((z).imag)
+#define __Pyx_SET_CREAL_Cy(z,x) __Pyx_CREAL_Cy(z) = (x)
+#define __Pyx_SET_CIMAG_Cy(z,y) __Pyx_CIMAG_cy(z) = (y)
 
-#define __Pyx_SET_CREAL_CY(z,x) __Pyx_CREAL_CY(z) = (x)
-#define __Pyx_SET_CIMAG_CY(z,y) __Pyx_CIMAG_CY(z) = (y)
+/////////////// RealImag_CyTypedef.proto //////////
+//@requires: RealImag
+//@requires: RealImag_Cy
+
+#if __cplusplus
+// C++ is fine with complexes based on typedefs because the template sees through them
+#define __Pyx_CREAL_CyTypedef(z) __Pyx_CREAL(z)
+#define __Pyx_CIMAG_CyTypedef(z) __Pyx_CIMAG(z)
+#define __Pyx_SET_CREAL_CyTypedef(z,x) __Pyx_SET_CREAL(z)
+#define __Pyx_SET_CIMAG_CyTypedef(z,x) __Pyx_SET_CIMAG(z)
+#else
+// C isn't
+#define __Pyx_CREAL_CyTypedef(z) __Pyx_CREAL_Cy(z)
+#define __Pyx_CIMAG_CyTypedef(z) __Pyx_CIMAG_Cy(z)
+#define __Pyx_SET_CREAL_CyTypedef(z,x) __Pyx_SET_CREAL_Cy(z)
+#define __Pyx_SET_CIMAG_CyTypedef(z,x) __Pyx_SET_CIMAG_Cy(z)
+#endif
 
 /////////////// Declarations.proto ///////////////
 //@proto_block: complex_type_declarations
 
-#if CYTHON_CCOMPLEX && ({{is_float}})
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
   #ifdef __cplusplus
     typedef ::std::complex< {{real_type}} > {{type_name}};
   #else
@@ -79,7 +98,7 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// Declarations ///////////////
 
-#if CYTHON_CCOMPLEX && ({{is_float}})
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
   #ifdef __cplusplus
     static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}} x, {{real_type}} y) {
       return ::std::complex< {{real_type}} >(x, y);
@@ -101,10 +120,10 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// ToPy.proto ///////////////
 
-#define __pyx_PyComplex_FromComplex{{"" if is_float else "_Cy"}}(z) \
-        PyComplex_FromDoubles((double)__Pyx_CREAL{{"" if is_float else "_CY"}}(z), \
-                              (double)__Pyx_CIMAG{{"" if is_float else "_CY"}}(z))
-
+{{py: func_suffix = "_CyTypedef" if is_extern_float_typedef else ("" if is_float else "_Cy")}}
+#define __pyx_PyComplex_FromComplex{{func_suffix}}(z) \
+        PyComplex_FromDoubles((double)__Pyx_CREAL{{func_suffix}}(z), \
+                              (double)__Pyx_CIMAG{{func_suffix}}(z))
 
 /////////////// FromPy.proto ///////////////
 
@@ -128,7 +147,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic.proto ///////////////
 
-#if CYTHON_CCOMPLEX && ({{is_float}})
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
     #define __Pyx_c_eq{{func_suffix}}(a, b)   ((a)==(b))
     #define __Pyx_c_sum{{func_suffix}}(a, b)  ((a)+(b))
     #define __Pyx_c_diff{{func_suffix}}(a, b) ((a)-(b))
@@ -167,7 +186,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic ///////////////
 
-#if CYTHON_CCOMPLEX && ({{is_float}})
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
 #else
     static CYTHON_INLINE int __Pyx_c_eq{{func_suffix}}({{type}} a, {{type}} b) {
        return (a.real == b.real) && (a.imag == b.imag);

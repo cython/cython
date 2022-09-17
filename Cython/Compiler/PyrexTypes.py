@@ -2343,15 +2343,22 @@ class CComplexType(CNumericType):
 
     @property
     def to_py_function(self):
-        if self.real_type.is_float:
-            return "__pyx_PyComplex_FromComplex"
-        else:
-            return "__pyx_PyComplex_FromComplex_Cy"
+        return "__pyx_PyComplex_FromComplex%s" % self.implementation_suffix
 
     def __init__(self, real_type):
         while real_type.is_typedef and not real_type.typedef_is_external:
             real_type = real_type.typedef_base_type
         self.funcsuffix = "_%s" % real_type.specialization_name()
+        if not real_type.is_float:
+            # neither C nor C++ supports non-floating complex numbers,
+            # so fall back the on Cython implementation.
+            self.implementation_suffix = "_Cy"
+        elif real_type.is_typedef and real_type.typedef_is_external:
+            # C can't handle typedefs in complex numbers,
+            # so in this case also fall back on the Cython implementation.
+            self.implementation_suffix = "_CyTypedef"
+        else:
+            self.implementation_suffix = ""
         if real_type.is_float:
             self.math_h_modifier = real_type.math_h_modifier
         else:
@@ -2443,7 +2450,9 @@ class CComplexType(CNumericType):
             'real_type': self.real_type.empty_declaration_code(),
             'func_suffix': self.funcsuffix,
             'm': self.math_h_modifier,
-            'is_float': int(self.real_type.is_float)
+            'is_float': int(self.real_type.is_float),
+            'is_extern_float_typedef': int(
+                self.real_type.is_float and self.real_type.is_typedef and self.real_type.typedef_is_external)
         }
 
     def create_declaration_utility_code(self, env):
@@ -2451,16 +2460,13 @@ class CComplexType(CNumericType):
         # across multiple compilations (the one created in the module scope)
         if self.real_type.is_float:
             env.use_utility_code(UtilityCode.load_cached('Header', 'Complex.c'))
-        env.use_utility_code(
-            UtilityCode.load_cached(
-                'RealImag' if self.real_type.is_float else 'RealImagCy',
-                'Complex.c'
-            )
-        )
+        utility_code_context = self._utility_code_context()
+        env.use_utility_code(UtilityCode.load_cached(
+            'RealImag' + self.implementation_suffix, 'Complex.c'))
         env.use_utility_code(TempitaUtilityCode.load_cached(
-            'Declarations', 'Complex.c', self._utility_code_context()))
+            'Declarations', 'Complex.c', utility_code_context))
         env.use_utility_code(TempitaUtilityCode.load_cached(
-            'Arithmetic', 'Complex.c', self._utility_code_context()))
+            'Arithmetic', 'Complex.c', utility_code_context))
         return True
 
     def can_coerce_to_pyobject(self, env):
@@ -2505,12 +2511,10 @@ class CComplexType(CNumericType):
         return expr_code
 
     def real_code(self, expr_code):
-        func_postfix = "" if self.real_type.is_float else "_CY"
-        return "__Pyx_CREAL%s(%s)" % (func_postfix, expr_code)
+        return "__Pyx_CREAL%s(%s)" % (self.implementation_suffix, expr_code)
 
     def imag_code(self, expr_code):
-        func_postfix = "" if self.real_type.is_float else "_CY"
-        return "__Pyx_CIMAG%s(%s)" % (func_postfix, expr_code)
+        return "__Pyx_CIMAG%s(%s)" % (self.implementation_suffix, expr_code)
 
 complex_ops = {
     (1, '-'): 'neg',
