@@ -25,7 +25,6 @@
   #define _Complex_I 1.0fj
 #endif
 
-
 /////////////// RealImag.proto ///////////////
 
 #if CYTHON_CCOMPLEX
@@ -50,11 +49,23 @@
     #define __Pyx_SET_CIMAG(z,y) __Pyx_CIMAG(z) = (y)
 #endif
 
+/////////////// RealImagCy.proto /////////////
+
+// alternative version of RealImag.proto where we definitely want to use
+// Cython utility code implementation. Mainly for integer complex types
+// which simply aren't covered by the C or C++ standards (although
+// practically will probably work in C++)
+
+#define __Pyx_CREAL_CY(z) ((z).real)
+#define __Pyx_CIMAG_CY(z) ((z).imag)
+
+#define __Pyx_SET_CREAL_CY(z,x) __Pyx_CREAL_CY(z) = (x)
+#define __Pyx_SET_CIMAG_CY(z,y) __Pyx_CIMAG_CY(z) = (y)
 
 /////////////// Declarations.proto ///////////////
 //@proto_block: complex_type_declarations
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}})
   #ifdef __cplusplus
     typedef ::std::complex< {{real_type}} > {{type_name}};
   #else
@@ -68,7 +79,7 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// Declarations ///////////////
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}})
   #ifdef __cplusplus
     static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}} x, {{real_type}} y) {
       return ::std::complex< {{real_type}} >(x, y);
@@ -90,9 +101,9 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// ToPy.proto ///////////////
 
-#define __pyx_PyComplex_FromComplex(z) \
-        PyComplex_FromDoubles((double)__Pyx_CREAL(z), \
-                              (double)__Pyx_CIMAG(z))
+#define __pyx_PyComplex_FromComplex{{"" if is_float else "_Cy"}}(z) \
+        PyComplex_FromDoubles((double)__Pyx_CREAL{{"" if is_float else "_CY"}}(z), \
+                              (double)__Pyx_CIMAG{{"" if is_float else "_CY"}}(z))
 
 
 /////////////// FromPy.proto ///////////////
@@ -117,7 +128,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic.proto ///////////////
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}})
     #define __Pyx_c_eq{{func_suffix}}(a, b)   ((a)==(b))
     #define __Pyx_c_sum{{func_suffix}}(a, b)  ((a)+(b))
     #define __Pyx_c_diff{{func_suffix}}(a, b) ((a)-(b))
@@ -156,7 +167,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic ///////////////
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}})
 #else
     static CYTHON_INLINE int __Pyx_c_eq{{func_suffix}}({{type}} a, {{type}} b) {
        return (a.real == b.real) && (a.imag == b.imag);

@@ -2338,9 +2338,15 @@ class CFloatType(CNumericType):
 class CComplexType(CNumericType):
 
     is_complex = 1
-    to_py_function = "__pyx_PyComplex_FromComplex"
     has_attributes = 1
     scope = None
+
+    @property
+    def to_py_function(self):
+        if self.real_type.is_float:
+            return "__pyx_PyComplex_FromComplex"
+        else:
+            return "__pyx_PyComplex_FromComplex_Cy"
 
     def __init__(self, real_type):
         while real_type.is_typedef and not real_type.typedef_is_external:
@@ -2443,8 +2449,14 @@ class CComplexType(CNumericType):
     def create_declaration_utility_code(self, env):
         # This must always be run, because a single CComplexType instance can be shared
         # across multiple compilations (the one created in the module scope)
-        env.use_utility_code(UtilityCode.load_cached('Header', 'Complex.c'))
-        env.use_utility_code(UtilityCode.load_cached('RealImag', 'Complex.c'))
+        if self.real_type.is_float:
+            env.use_utility_code(UtilityCode.load_cached('Header', 'Complex.c'))
+        env.use_utility_code(
+            UtilityCode.load_cached(
+                'RealImag' if self.real_type.is_float else 'RealImagCy',
+                'Complex.c'
+            )
+        )
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'Declarations', 'Complex.c', self._utility_code_context()))
         env.use_utility_code(TempitaUtilityCode.load_cached(
@@ -2458,7 +2470,8 @@ class CComplexType(CNumericType):
         return True
 
     def create_to_py_utility_code(self, env):
-        env.use_utility_code(UtilityCode.load_cached('ToPy', 'Complex.c'))
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            'ToPy', 'Complex.c', self._utility_code_context()))
         return True
 
     def create_from_py_utility_code(self, env):
@@ -2490,6 +2503,14 @@ class CComplexType(CNumericType):
 
     def cast_code(self, expr_code):
         return expr_code
+
+    def real_code(self, expr_code):
+        func_postfix = "" if self.real_type.is_float else "_CY"
+        return "__Pyx_CREAL%s(%s)" % (func_postfix, expr_code)
+
+    def imag_code(self, expr_code):
+        func_postfix = "" if self.real_type.is_float else "_CY"
+        return "__Pyx_CIMAG%s(%s)" % (func_postfix, expr_code)
 
 complex_ops = {
     (1, '-'): 'neg',
