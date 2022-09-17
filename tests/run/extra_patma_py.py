@@ -4,6 +4,9 @@
 from __future__ import print_function
 
 import array
+import sys
+
+__doc__ = ""
 
 def test_type_inference(x):
     """
@@ -63,10 +66,15 @@ def test_duplicate_keys(key1, key2):
 
     >>> test_duplicate_keys("a", "b")
     True
-    >>> test_duplicate_keys("a", "a")
-    Traceback (most recent call last):
-    ...
-    ValueError: mapping pattern checks duplicate key ('a')
+
+    Slightly awkward doctest to work around Py2 incompatibility
+    >>> try:
+    ...    test_duplicate_keys("a", "a")
+    ... except ValueError as e:
+    ...    if sys.version_info[0] > 2:
+    ...        assert e.args[0] == "mapping pattern checks duplicate key ('a')", e.args[0]
+    ...    else:
+    ...        assert e.args[0] == "mapping pattern checks duplicate key"
     """
     class Keys:
         KEY_1 = key1
@@ -79,7 +87,7 @@ def test_duplicate_keys(key1, key2):
             return False
 
 
-class PyClass:
+class PyClass(object):
     pass
 
 
@@ -99,3 +107,20 @@ class PrivateAttrLookupOuter:
         match x:
             case PyClass(__something=y):
                 return y
+
+
+if sys.version_info[0] < 3:
+    class OldStyleClass:
+        pass
+
+    def test_oldstyle_class_failure(x):
+        match x:
+            case OldStyleClass():
+                return True
+
+    __doc__ += """
+    >>> test_oldstyle_class_failure(1)
+    Traceback (most recent call last):
+    ...
+    TypeError: called match pattern must be a new-style class.
+    """
