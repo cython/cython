@@ -5,6 +5,21 @@
 cimport cython
 
 import array
+import sys
+
+__doc__ = ""
+
+if sys.version_info[0] > 2:
+    __doc__ += """
+    array.array doesn't have the buffer protocol in Py2 and
+    this doesn't really feel worth working around to test
+    >>> print(test_memoryview(array.array('i', [0, 1, 2])))
+    a 1
+    >>> print(test_memoryview(array.array('i', [])))
+    b
+    >>> print(test_memoryview(array.array('i', [5])))
+    c [5]
+    """
 
 # goes via .shape instead
 @cython.test_fail_if_path_exists("//CallNode//NameNode[@name = 'len']")
@@ -12,14 +27,8 @@ import array
 @cython.test_fail_if_path_exists("//PythonCapiCallNode//PythonCapiFunctionNode[@cname = '__Pyx_MatchCase_IsSequence']")
 def test_memoryview(int[:] x):
     """
-    >>> print(test_memoryview(array.array('i', [0, 1, 2])))
-    a 1
-    >>> print(test_memoryview(array.array('i', [])))
-    b
     >>> print(test_memoryview(None))
     no!
-    >>> print(test_memoryview(array.array('i', [5])))
-    c [5]
     """
     match x:
         case [0, y, 2]:
@@ -71,3 +80,4 @@ def test_ctuple_to_sequence((int, int) x):
         case [a, b]:
             assert cython.typeof(a) == "int", cython.typeof(a)  # test that types have inferred
             return a, b
+
