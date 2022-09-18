@@ -10551,7 +10551,7 @@ class UnopNode(ExprNode):
         else:
             self.exception_check = ''
             self.exception_value = ''
-        if not getattr(self, 'is_prefix', True):
+        if self.is_inc_dec_op and not self.is_prefix:
             cpp_type = self.operand.type.find_cpp_operation_type(
                 self.operator, operand_type=PyrexTypes.c_int_type
             )
