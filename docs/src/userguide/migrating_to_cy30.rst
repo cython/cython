@@ -232,7 +232,7 @@ C++ postincrement/postdecrement operator
 
 Cython 3 differentiates between pre/post-increment and pre/post-decrement
 operators (Cython 0.29 implemented both as pre(in/de)crement operator).
-This only has an effect when using ``operator.postdecrement`` / ``operator.postincrement``.
+This only has an effect when using ``cython.operator.postdecrement`` / ``cython.operator.postincrement``.
 When running into an error it is required to add the corresponding operator::
 
     cdef cppclass Example:
