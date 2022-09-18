@@ -337,3 +337,21 @@ def test_iteration_over_reversed_vector(py_v):
         vint.push_back(e)
     for e in reversed(vint):
         print(e)
+
+def test_non_built_in_reversed_function(py_v):
+    """
+    >>> test_non_built_in_reversed_function([1, 3, 5])
+    Non-built-in reversed called.
+    5
+    3
+    1
+    """
+    def reversed(arg):
+        print("Non-built-in reversed called.")
+        return arg[::-1]
+
+    cdef vector[int] vint
+    for e in py_v:
+        vint.push_back(e)
+    for e in reversed(vint):
+        print(e)
