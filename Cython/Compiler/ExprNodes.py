@@ -2905,7 +2905,7 @@ class IteratorNode(ScopedExprNode):
             self.type = self.sequence.type
         elif self.sequence.type.is_cpp_class:
             return CppIteratorNode(self.pos, sequence=self.sequence).analyse_types(env)
-        elif self.has_reversed_cpp_iteration():
+        elif self.is_reversed_cpp_iteration():
             sequence = self.sequence.arg_tuple.args[0].arg
             return CppIteratorNode(self.pos, sequence=sequence, reversed=True).analyse_types(env)
         else:
@@ -2922,19 +2922,23 @@ class IteratorNode(ScopedExprNode):
             PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
             ]))
 
-    def has_reversed_cpp_iteration(self):
+    def is_reversed_cpp_iteration(self):
         """
         Returns True if the 'reversed' function is applied to a C++ iterable.
 
         This supports C++ classes with reverse_iterator implemented.
         """
-        reversed_cpp_iterable = False
-        if (isinstance(self.sequence, SimpleCallNode) and self.sequence.function.is_name and self.sequence.function.name == "reversed"):
+        if not isinstance(self.sequence, SimpleCallNode):
+            return False
+        func = self.sequence.function
+        if func.is_name and func.name == "reversed":
+            if not func.entry.is_builtin:
+                return False
             arg = self.sequence.arg_tuple.args[0]
             if isinstance(arg, CoercionNode) and arg.arg.is_name:
                 arg = arg.arg.entry
-                reversed_cpp_iterable = arg.type.is_cpp_class
-        return reversed_cpp_iterable
+                return arg.type.is_cpp_class
+        return False
 
     def type_dependencies(self, env):
         return self.sequence.type_dependencies(self.expr_scope or env)
@@ -3103,23 +3107,14 @@ class CppIteratorNode(ExprNode):
 
     subexprs = ['sequence']
 
-    def _get_begin_name(self):
-        """
-        Returns the name of function that returns the first iterator.
-        """
-        return "begin" if not self.reversed else "rbegin"
-
-    def _get_end_name(self):
-        """
-        Returns the name of function that returns the last iterator.
-        """
-        return "end" if not self.reversed else "rend"
+    def get_iterator_func_names(self):
+        return ("begin", "end") if not self.reversed else ("rbegin", "rend")
 
     def analyse_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:
             sequence_type = sequence_type.base_type
-        begin_name, end_name = self._get_begin_name(), self._get_end_name()
+        begin_name, end_name = self.get_iterator_func_names()
         begin = sequence_type.scope.lookup(begin_name)
         end = sequence_type.scope.lookup(end_name)
         if (begin is None
@@ -3165,16 +3160,17 @@ class CppIteratorNode(ExprNode):
 
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
-        begin_name = self._get_begin_name()
+        begin_name, _ = self.get_iterator_func_names()
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
             #    of the user
-            code.putln("%s = %s%s%s();" % (self.result(),
-                                                self.sequence.result(),
-                                                self.cpp_attribute_op,
-                                                begin_name))
+            code.putln("%s = %s%s%s();" % (
+                self.result(),
+                self.sequence.result(),
+                self.cpp_attribute_op,
+                begin_name))
         else:
                 # (while it'd be nice to limit the scope of the loop temp, it's essentially
                 # impossible to do while supporting generators)
@@ -3192,14 +3188,16 @@ class CppIteratorNode(ExprNode):
                 code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
                                            "&" if temp_type.is_ptr else "",
                                            self.sequence.move_result_rhs()))
-                code.putln("%s = %s%s%s();" % (self.result(), self.cpp_sequence_cname,
-                                                  self.cpp_attribute_op,
-                                                  begin_name))
+                code.putln("%s = %s%s%s();" % (
+                    self.result(),
+                    self.cpp_sequence_cname,
+                    self.cpp_attribute_op,
+                    begin_name))
 
     def generate_iter_next_result_code(self, result_name, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        end_name = self._get_end_name()
+        _, end_name = self.get_iterator_func_names()
         code.putln("if (!(%s%s != %s%s%s())) break;" % (
                         self.extra_dereference,
                         self.result(),
@@ -3239,6 +3237,32 @@ class CppIteratorNode(ExprNode):
             code.funcstate.release_temp(self.cpp_sequence_cname)
         # skip over IteratorNode since we don't use any of the temps it does
         ExprNode.free_temps(self, code)
+
+
+def remove_const(item_type):
+    """
+    Removes the constness of a given type and its underlying templates
+    if any.
+
+    This is to solve the compilation error when the temporary variable used to
+    store the result of an iterator cannot be changed due to its constness.
+    For example, the value_type of std::map, which will also be the type of
+    the temporarry variable, is std::pair<const Key, T>. This means the first
+    component of the variable cannot be reused to store the result of each
+    iteration, which leads to a compilation error.
+    """
+    if item_type.is_const:
+        item_type = item_type.cv_base_type
+    if item_type.is_typedef:
+        item_type = remove_const(item_type.typedef_base_type)
+    if item_type.is_cpp_class and item_type.templates:
+        templates = [remove_const(t) if t.is_const else t for t in item_type.templates]
+        template_type = item_type.template_type
+        item_type = PyrexTypes.CppClassType(
+            template_type.name, template_type.scope,
+            template_type.cname, template_type.base_classes,
+            templates, template_type)
+    return item_type
 
 
 class NextNode(AtomicExprNode):
@@ -3281,35 +3305,9 @@ class NextNode(AtomicExprNode):
                               type=PyrexTypes.c_py_ssize_t_type))
             return fake_index_node.infer_type(env)
 
-    @staticmethod
-    def remove_const(item_type):
-        """
-        Removes the constness of a given type and its underlying templates
-        if any.
-
-        This is to solve the compilation error when the temporary variable used to
-        store the result of an iterator cannot be changed due to its constness.
-        For example, the value_type of std::map, which will also be the type of
-        the temporarry variable, is std::pair<const Key, T>. This means the first
-        component of the variable cannot be reused to store the result of each
-        iteration, which leads to a compilation error.
-        """
-        if item_type.is_const:
-            item_type = item_type.cv_base_type
-        if item_type.is_typedef:
-            item_type = NextNode.remove_const(item_type.typedef_base_type)
-        if item_type.is_cpp_class and item_type.templates:
-            templates = [NextNode.remove_const(t) if t.is_const else t for t in item_type.templates]
-            template_type = item_type.template_type
-            item_type = PyrexTypes.CppClassType(
-                template_type.name, template_type.scope,
-                template_type.cname, template_type.base_classes,
-                templates, template_type)
-        return item_type
-
     def analyse_types(self, env):
         self.type = self.infer_type(env, self.iterator.type)
-        self.type = NextNode.remove_const(self.type)
+        self.type = remove_const(self.type)
         self.is_temp = 1
         return self
 
