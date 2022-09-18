@@ -19,8 +19,15 @@ cdef void foo():
     cython.operator.postdecrement(f)
     cython.operator.postdecrement(b)
 
+    cython.operator.preincrement(f)
+    cython.operator.preincrement(b)
+    cython.operator.predecrement(f)
+    cython.operator.predecrement(b)
+
 
 _ERRORS = u"""
 17:19: No 'operator++(int)' declared for postfix '++' (operand type is 'Foo')
 19:19: No 'operator--(int)' declared for postfix '--' (operand type is 'Foo')
+23:19: No match for 'operator++' (operand type is 'Bar')
+25:19: No match for 'operator--' (operand type is 'Bar')
 """
