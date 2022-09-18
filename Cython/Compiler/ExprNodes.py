@@ -10535,7 +10535,7 @@ class UnopNode(ExprNode):
 
     def analyse_cpp_operation(self, env, overload_check=True):
         operand_types = [self.operand.type]
-        if not getattr(self, 'is_prefix', True):
+        if self.is_inc_dec_op and not self.is_prefix:
             operand_types.append(PyrexTypes.c_int_type)
         entry = env.lookup_operator_for_types(self.pos, self.operator, operand_types)
         if overload_check and not entry:
