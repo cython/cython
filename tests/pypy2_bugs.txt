@@ -16,7 +16,7 @@ run.partial_circular_import
 # https://foss.heptapod.net/pypy/pypy/issues/3185
 run.language_level
 run.pure_pxd
-run.pxd_mangling_names
+compile.pxd_mangling_names
 
 # Silly error with doctest matching slightly different string outputs rather than
 # an actual bug but one I can't easily resolve
