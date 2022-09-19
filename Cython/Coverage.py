@@ -54,7 +54,7 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         else:  # No mismatches detected
             matching_abs_path = os.path.splitext(main_file)[0] + extension
             if os.path.exists(matching_abs_path):
-                return matching_abs_path
+                return canonical_filename(matching_abs_path)
 
     # search sys.path for external locations if a valid file hasn't been found
     if not os.path.exists(abs_path):
