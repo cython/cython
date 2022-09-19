@@ -47,6 +47,8 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         # We check if the paths match by matching the directories in reverse order.
         # pkg/module.pyx /long/absolute_path/bla/bla/site-packages/pkg/module.c should match.
         # this will match the pairs: module-module and pkg-pkg. After which there is nothing left to zip.
+        abs_no_ext = os.path.normpath(abs_no_ext)
+        file_no_ext = os.path.normpath(file_no_ext)
         matching_paths = zip(reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep)))
         for one, other in matching_paths:
             if one != other:
