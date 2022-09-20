@@ -1039,18 +1039,12 @@ If your Cython class would become a sequence or mapping
 through inheritance then it does not need the decorators
 although you may choose to provide them for clarity.
 
-As an example::
+As an example:
 
-    @cython.collection_type("sequence")
-    @cython.cclass
-    class Range5:
-        # be sure to define the sequence methods!
-        def __len__(self):
-            return 5
-        def __getitem__(self, index):
-            return index
+.. literalinclude:: ../../examples/userguide/extension_types/sequence.py
             
-    # in Python (Cython doesn't currently implement pattern matching)
+Then in Python (since Cython doesn't currently implement pattern matching)::
+
     r5 = Range5()
     match r5:
         case [*_]:
