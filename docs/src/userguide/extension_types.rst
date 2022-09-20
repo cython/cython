@@ -1018,11 +1018,11 @@ There's a number of ways for these flags to be set: they're
 set for a number of builtin types.  They will be set on a
 type where one of the base classes has the flag (including
 the builtin types, and also the relevant abstract base
-class in ``abc.collections``).
+class in ``collections.abc``).
 
 A third way to mark a Python class as a
 sequence or mapping would be to register the class with 
-either ``abc.collections.Sequence`` or ``abc.collections.Mapping``
+either ``collections.abc.Sequence`` or ``collections.abc.Mapping``
 using their ``.register`` function.
 Unfortunately for Cython extension types this does not work because
 Cython extension types are immutable (usually, with certain C defines
@@ -1032,7 +1032,7 @@ Therefore a Cython extension type can be decorated with
 ``cython.collection_type("sequence")`` or 
 ``cython.collection_type("mapping")`` to enable pattern matching to
 use the type as intended.  These decorators are only needed
-to make the ``abc.collections`` type registration work
+to make the ``collections.abc`` type registration work
 (we recommend you use them *in addition* to type registration
 although pattern matching will work with the decorator alone).
 If your Cython class would become a sequence or mapping
