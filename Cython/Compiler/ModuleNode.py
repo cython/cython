@@ -262,7 +262,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code_start.putln("#ifndef %s" % api_guard)
             h_code_start.putln("")
-            self.generate_extern_c_macro_definition(h_code_start)
+            self.generate_extern_c_macro_definition(h_code_start, env)
             h_code_start.putln("")
             self.generate_dl_import_macro(h_code_start)
             if h_extension_types:
@@ -804,7 +804,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
         code.putln("")
-        self.generate_extern_c_macro_definition(code)
+        self.generate_extern_c_macro_definition(code, env)
         code.putln("")
 
         code.putln("#define %s" % self.api_name(Naming.h_guard_prefix, env))
@@ -876,14 +876,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
-    def generate_extern_c_macro_definition(self, code):
+    def generate_extern_c_macro_definition(self, code, env):
         name = Naming.extern_c_macro
         code.putln("#ifndef %s" % name)
-        code.putln("  #ifdef __cplusplus")
-        code.putln('    #define %s extern "C"' % name)
-        code.putln("  #else")
-        code.putln("    #define %s extern" % name)
-        code.putln("  #endif")
+        if env.is_cpp():
+            code.putln('    #define %s extern "C++"' % name)
+        else:
+            code.putln("  #ifdef __cplusplus")
+            code.putln('    #define %s extern "C"' % name)
+            code.putln("  #else")
+            code.putln("    #define %s extern" % name)
+            code.putln("  #endif")
         code.putln("#endif")
 
     def generate_dl_import_macro(self, code):
