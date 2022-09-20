@@ -3475,7 +3475,9 @@ def p_c_modifiers(s):
 def p_c_func_or_var_declaration(s, pos, ctx):
     cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
+    return_type_pos = s.position()
     base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
+    has_return_type = return_type_pos != s.position()
     declarator = p_c_declarator(s, ctx(modifiers=modifiers), cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
@@ -3484,28 +3486,31 @@ def p_c_func_or_var_declaration(s, pos, ctx):
         is_const_method = 1
     else:
         is_const_method = 0
+    return_type_annotation = None
     if s.sy == '->':
-        # Special enough to give a better error message and keep going.
-        s.error(
-            "Return type annotation is not allowed in cdef/cpdef signatures. "
-            "Please define it before the function name, as in C signatures.",
-            fatal=False)
+        if has_return_type:
+            # Special enough to give a better error message and keep going.
+            s.error(
+                "Either C-style return type or return type annotation can be given, not both.",
+                fatal=False)
         s.next()
-        p_test(s)  # Keep going, but ignore result.
+        return_type_annotation = p_annotation(s)
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
         doc, suite = p_suite_with_docstring(s, Ctx(level='function'))
         result = Nodes.CFuncDefNode(pos,
-            visibility = ctx.visibility,
-            base_type = base_type,
-            declarator = declarator,
-            body = suite,
-            doc = doc,
-            modifiers = modifiers,
-            api = ctx.api,
-            overridable = ctx.overridable,
-            is_const_method = is_const_method)
+            visibility=ctx.visibility,
+            base_type=base_type,
+            declarator=declarator,
+            body=suite,
+            doc=doc,
+            modifiers=modifiers,
+            api=ctx.api,
+            overridable=ctx.overridable,
+            is_const_method=is_const_method,
+            return_type_annotation=return_type_annotation,
+        )
     else:
         #if api:
         #    s.error("'api' not allowed with variable declaration")

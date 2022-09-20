@@ -4,6 +4,7 @@
 cimport cython
 from cython cimport typeof
 from cpython.ref cimport PyObject
+import sys
 
 try:
     from typing import Optional
@@ -359,6 +360,22 @@ cdef class ClassTurnOffTyping:
         return typeof(self.x), typeof(self.d), typeof(arg)
 
 
+def return_types_def() -> int:
+    """
+    >>> import inspect
+    >>> inspect.signature(return_types_def).return_annotation if sys.version_info.major >= 3 else 'int'
+    'int'
+    """
+
+
+cpdef return_types_cpdef() -> int:
+    """
+    >>> import inspect
+    >>> inspect.signature(return_types_cpdef).return_annotation if sys.version_info.major >= 3 else 'int'
+    'int'
+    """
+
+
 _WARNINGS = """
 14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -382,4 +399,5 @@ _WARNINGS = """
 181:0: 'struct_convert' redeclared
 200:0: 'exception_default' redeclared
 231:0: 'exception_default_uint' redeclared
+372:6: 'return_types_cpdef' redeclared
 """
