@@ -1,0 +1,107 @@
+# mode: run
+# tag: cpp
+# ticket: 1839
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from foo import test; test()"
+PYTHON -c "from bar import test; test()"
+"""
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+from distutils.core import setup
+
+compile_args = ["-Wno-deprecated-declarations", "-Werror"]
+
+foo = Extension(
+    "foo",
+    ["foo.pyx", "foo1.cpp", "foo2.cpp"],
+    extra_compile_args = compile_args,
+)
+bar = Extension(
+    "bar",
+    ["bar.pyx", "bar1.c", "bar2.cpp"],
+    extra_compile_args = compile_args,
+)
+
+setup(
+    ext_modules=cythonize([foo, bar]),
+)
+
+######## foo.pyx ########
+
+# distutils: language = c++
+
+from libcpp cimport vector
+
+cdef public vector.vector[int] get_vector():
+    return [1,2,3]
+
+cdef extern from "foo_header.h":
+    cdef size_t size_vector1()
+    cdef size_t size_vector2()
+
+def test():
+    assert size_vector1() == 3
+    assert size_vector2() == 3
+
+######## foo_header.h ########
+
+size_t size_vector1();
+size_t size_vector2();
+
+######## foo1.cpp ########
+
+#include <vector>
+#include "foo.h"
+
+size_t size_vector1() {
+    return get_vector().size();
+}
+
+######## foo2.cpp ########
+
+#include <vector>
+extern "C" {
+#include "foo.h"
+}
+
+size_t size_vector2() {
+    return get_vector().size();
+}
+
+######## bar.pyx ########
+
+cdef public char get_char():
+    return 42
+
+cdef extern from "bar_header.h":
+    cdef int get_int1()
+    cdef int get_int2()
+
+def test():
+    assert get_int1() == 42
+    assert get_int2() == 42
+
+######## bar_header.h ########
+
+int get_int1();
+int get_int2();
+
+######## bar1.c ########
+
+#include "bar.h"
+
+int get_int1() { return (int)get_char(); }
+
+######## bar2.cpp ########
+
+extern "C" {
+#include "bar.h"
+}
+
+extern "C" int get_int2() { return (int)get_char(); }
+
