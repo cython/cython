@@ -34,6 +34,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+permissions:
+  contents: write # to create GitHub release (softprops/action-gh-release)
+
 jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }}
