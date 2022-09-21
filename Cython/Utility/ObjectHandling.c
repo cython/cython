@@ -72,10 +72,9 @@ static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected) {
         Py_DECREF(retval);
         __Pyx_RaiseTooManyValuesError(expected);
         return -1;
-    } else {
-        return __Pyx_IterFinish();
     }
-    return 0;
+
+    return __Pyx_IterFinish();
 }
 
 /////////////// UnpackTuple2.proto ///////////////
@@ -858,6 +857,12 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
             PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length = Py{{type}}_GET_SIZE(src);
     __Pyx_crop_slice(&start, &stop, &length);
+{{if type=='List'}}
+    if (length <= 0) {
+        // Avoid undefined behaviour when accessing `ob_item` of an empty list.
+        return PyList_New(0);
+    }
+{{endif}}
     return __Pyx_Py{{type}}_FromArray(((Py{{type}}Object*)src)->ob_item + start, length);
 }
 {{endfor}}
@@ -2442,13 +2447,25 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 #define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 #endif
 
+#if !CYTHON_VECTORCALL
+#if PY_VERSION_HEX >= 0x03080000
+  #include "frameobject.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
+  #define __Pxy_PyFrame_Initialize_Offsets()
+  #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
+#else
   // Initialised by module init code.
   static size_t __pyx_pyframe_localsplus_offset = 0;
 
   #include "frameobject.h"
   // This is the long runtime version of
   //     #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-  // offsetof(PyFrameObject, f_localsplus) differs between regular C-Python and Stackless Python.
+  // offsetof(PyFrameObject, f_localsplus) differs between regular C-Python and Stackless Python < 3.8.
   // Therefore the offset is computed at run time from PyFrame_type.tp_basicsize. That is feasible,
   // because f_localsplus is the last field of PyFrameObject (checked by Py_BUILD_ASSERT_EXPR below).
   #define __Pxy_PyFrame_Initialize_Offsets()  \
@@ -2457,6 +2474,9 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
   #define __Pyx_PyFrame_GetLocalsplus(frame)  \
     (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
 #endif
+#endif /* !CYTHON_VECTORCALL */
+
+#endif /* CYTHON_FAST_PYCALL */
 
 
 /////////////// PyFunctionFastCall ///////////////
@@ -3030,6 +3050,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
 }
 #endif
 
+
 /////////////// RaiseUnexpectedTypeError.proto ///////////////
 
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
@@ -3044,4 +3065,56 @@ __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
                  expected, obj_type_name);
     __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
+}
+
+
+/////////////// RaiseUnboundLocalError.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundLocalError ///////////////
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
+}
+
+
+/////////////// RaiseClosureNameError.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);/*proto*/
+
+/////////////// RaiseClosureNameError ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
+}
+
+
+/////////////// RaiseUnboundMemoryviewSliceNogil.proto ///////////////
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundMemoryviewSliceNogil ///////////////
+//@requires: RaiseUnboundLocalError
+
+// Don't inline the function, it should really never be called in production
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
+    #ifdef WITH_THREAD
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    #endif
+    __Pyx_RaiseUnboundLocalError(varname);
+    #ifdef WITH_THREAD
+    PyGILState_Release(gilstate);
+    #endif
+}
+
+//////////////// RaiseCppGlobalNameError.proto ///////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname); /*proto*/
+
+/////////////// RaiseCppGlobalNameError //////////////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "C++ global '%s' is not initialized", varname);
+}
+
+//////////////// RaiseCppAttributeError.proto ///////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*proto*/
+
+/////////////// RaiseCppAttributeError //////////////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
+    PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
 }

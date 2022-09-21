@@ -10,7 +10,6 @@ import os
 import shutil
 import subprocess
 import re, sys, time
-import warnings
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
@@ -44,7 +43,7 @@ except:
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
+    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler.Options import CompilationOptions, default_options
@@ -86,11 +85,14 @@ def extended_iglob(pattern):
                 for path in extended_iglob(before + case + after):
                     yield path
             return
-    if '**/' in pattern:
+
+    # We always accept '/' and also '\' on Windows,
+    # because '/' is generally common for relative paths.
+    if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = pattern.split('**/', 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
         if first:
-            first = iglob(first+'/')
+            first = iglob(first + os.sep)
         else:
             first = ['']
         for root in first:
@@ -98,7 +100,7 @@ def extended_iglob(pattern):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(join_path(root, '*', '**/' + rest)):
+            for path in extended_iglob(join_path(root, '*', '**', rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
@@ -534,7 +536,7 @@ class DependencyTree(object):
         for include in self.parse_dependencies(filename)[1]:
             include_path = join_path(os.path.dirname(filename), include)
             if not path_exists(include_path):
-                include_path = self.context.find_include_file(include, None)
+                include_path = self.context.find_include_file(include, source_file_path=filename)
             if include_path:
                 if '.' + os.path.sep in include_path:
                     include_path = os.path.normpath(include_path)
@@ -588,17 +590,18 @@ class DependencyTree(object):
                     return None   # FIXME: error?
                 module_path.pop(0)
             relative = '.'.join(package_path + module_path)
-            pxd = self.context.find_pxd_file(relative, None)
+            pxd = self.context.find_pxd_file(relative, source_file_path=filename)
             if pxd:
                 return pxd
         if is_relative:
             return None   # FIXME: error?
-        return self.context.find_pxd_file(module, None)
+        return self.context.find_pxd_file(module, source_file_path=filename)
 
     @cached_method
     def cimported_files(self, filename):
-        if filename[-4:] == '.pyx' and path_exists(filename[:-4] + '.pxd'):
-            pxd_list = [filename[:-4] + '.pxd']
+        filename_root, filename_ext = os.path.splitext(filename)
+        if filename_ext in ('.pyx', '.py') and path_exists(filename_root + '.pxd'):
+            pxd_list = [filename_root + '.pxd']
         else:
             pxd_list = []
         # Cimports generates all possible combinations package.module
@@ -882,7 +885,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
+def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=None, language=None,
               exclude_failures=False, show_all_warnings=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
@@ -956,6 +959,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     :param compiler_directives: Allow to set compiler directives in the ``setup.py`` like this:
                                 ``compiler_directives={'embedsignature': True}``.
                                 See :ref:`compiler-directives`.
+
+    :param depfile: produce depfiles for the sources if True.
     """
     if exclude is None:
         exclude = []
@@ -964,12 +969,17 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'common_utility_include_dir' in options:
         safe_makedirs(options['common_utility_include_dir'])
 
+    depfile = options.pop('depfile', None)
+
     if pythran is None:
         pythran_options = None
     else:
         pythran_options = CompilationOptions(**options)
         pythran_options.cplus = True
         pythran_options.np_pythran = True
+
+    if force is None:
+        force = os.environ.get("CYTHON_FORCE_REGEN") == "1"  # allow global overrides for build systems
 
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
@@ -1033,12 +1043,19 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 # setup for out of place build directory if enabled
                 if build_dir:
                     if os.path.isabs(c_file):
-                        warnings.warn("build_dir has no effect for absolute source paths")
+                        c_file = os.path.splitdrive(c_file)[1]
+                        c_file = c_file.split(os.sep, 1)[1]
                     c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
                     safe_makedirs_once(dir)
 
-                if os.path.exists(c_file):
+                # write out the depfile, if requested
+                if depfile:
+                    dependencies = deps.all_dependencies(source)
+                    write_depfile(c_file, source, dependencies)
+
+                # Missing files and those generated by other Cython versions should always be recreated.
+                if Utils.file_generated_by_this_cython(c_file):
                     c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1

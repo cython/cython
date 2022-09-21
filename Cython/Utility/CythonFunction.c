@@ -320,6 +320,8 @@ __Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value, void 
                         "__defaults__ must be set to a tuple object");
         return -1;
     }
+    PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__defaults__ will not "
+                 "currently affect the values used in function calls", 1);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(op->defaults_tuple, value);
     return 0;
@@ -352,6 +354,8 @@ __Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value, voi
                         "__kwdefaults__ must be set to a dict object");
         return -1;
     }
+    PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__kwdefaults__ will not "
+                 "currently affect the values used in function calls", 1);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(op->defaults_kwdict, value);
     return 0;
@@ -776,6 +780,9 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
         self = PyTuple_GetItem(args, 0);
         if (unlikely(!self)) {
             Py_DECREF(new_args);
+            PyErr_Format(PyExc_TypeError,
+                         "unbound method %.200S() needs an argument",
+                         cyfunc->func_qualname);
             return NULL;
         }
 
@@ -927,7 +934,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
         return NULL;
     }
 
-    return ((__Pyx_PyCMethod)(void(*)(void))def->ml_meth)(self, cls, args, nargs, kwnames);
+    return ((__Pyx_PyCMethod)(void(*)(void))def->ml_meth)(self, cls, args, (size_t)nargs, kwnames);
 }
 #endif
 
@@ -952,7 +959,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
     Py_TPFLAGS_METHOD_DESCRIPTOR |
 #endif
-#ifdef _Py_TPFLAGS_HAVE_VECTORCALL
+#if (defined(_Py_TPFLAGS_HAVE_VECTORCALL) && CYTHON_METH_FASTCALL)
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
@@ -1031,13 +1038,13 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b1
+#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                  /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
     0,                                          /*tp_pypy_flags*/
 #endif
 };
@@ -1048,7 +1055,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
     if (unlikely(__pyx_CyFunctionType == NULL)) {
@@ -1227,6 +1234,15 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     if (obj == Py_None)
         obj = NULL;
 
+    if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
+        obj = type;
+
+    if (obj == NULL) {
+        // We aren't actually binding to anything, save the effort of rebinding
+        Py_INCREF(self);
+        return self;
+    }
+
     meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_New(
                     ((PyCFunctionObject *) func)->m_ml,
                     ((__pyx_CyFunctionObject *) func)->flags,
@@ -1266,9 +1282,6 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     Py_XINCREF(func->func.defaults_tuple);
     meth->func.defaults_tuple = func->func.defaults_tuple;
-
-    if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
-        obj = type;
 
     Py_XINCREF(obj);
     meth->self = obj;
@@ -1450,30 +1463,17 @@ bad:
     return result;
 }
 
-static PyObject *
-__Pyx_FusedFunction_get_self(__pyx_FusedFunctionObject *m, void *closure)
-{
-    PyObject *self = m->self;
-    CYTHON_UNUSED_VAR(closure);
-    if (unlikely(!self)) {
-        PyErr_SetString(PyExc_AttributeError, "'function' object has no attribute '__self__'");
-    } else {
-        Py_INCREF(self);
-    }
-    return self;
-}
-
 static PyMemberDef __pyx_FusedFunction_members[] = {
     {(char *) "__signatures__",
      T_OBJECT,
      offsetof(__pyx_FusedFunctionObject, __signatures__),
      READONLY,
      0},
+    {(char *) "__self__", T_OBJECT_EX, offsetof(__pyx_FusedFunctionObject, self), READONLY, 0},
     {0, 0, 0, 0, 0},
 };
 
 static PyGetSetDef __pyx_FusedFunction_getsets[] = {
-    {(char *) "__self__", (getter)__Pyx_FusedFunction_get_self, 0, 0, 0},
     // __doc__ is None for the fused function type, but we need it to be
     // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
     // (all other descriptors are inherited)
@@ -1566,13 +1566,13 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b1
+#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                  /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
     0,                                          /*tp_pypy_flags*/
 #endif
 };
@@ -1587,7 +1587,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
     __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
@@ -1601,7 +1601,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 //////////////////// ClassMethod.proto ////////////////////
 
 #include "descrobject.h"
-static CYTHON_UNUSED PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 //////////////////// ClassMethod ////////////////////
 

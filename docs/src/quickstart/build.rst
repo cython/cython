@@ -3,7 +3,7 @@ Building Cython code
 
 Cython code must, unlike Python, be compiled. This happens in two stages:
 
- - A ``.pyx`` file is compiled by Cython to a ``.c`` file, containing
+ - A ``.pyx`` or ``.py`` file is compiled by Cython to a ``.c`` file, containing
    the code of a Python extension module.
  - The ``.c`` file is compiled by a C compiler to
    a ``.so`` file (or ``.pyd`` on Windows) which can be
@@ -18,6 +18,10 @@ one may want to read more about
 There are several ways to build Cython code:
 
  - Write a setuptools ``setup.py``. This is the normal and recommended way.
+ - Run the ``cythonize`` command-line utility. This is a good approach for
+   compiling a single Cython source file directly to an extension.
+   A source file can be built "in place" (so that the extension module is created
+   next to the source file, ready to be imported) with ``cythonize -i filename.pyx``.
  - Use :ref:`Pyximport<pyximport>`, importing Cython ``.pyx`` files as if they
    were ``.py`` files (using setuptools to compile and build in the background).
    This method is easier than writing a ``setup.py``, but is not very flexible.
@@ -73,14 +77,32 @@ and load the ``Cython`` extension from within the Jupyter notebook::
 
     %load_ext Cython
 
-Then, prefix a cell with the ``%%cython`` marker to compile it::
+Then, prefix a cell with the ``%%cython`` marker to compile it
 
-    %%cython
+.. tabs::
 
-    cdef int a = 0
-    for i in range(10):
-        a += i
-    print(a)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            %%cython
+
+            a: cython.int = 0
+            for i in range(10):
+                a += i
+            print(a)
+
+
+    .. group-tab:: Cython
+
+        .. code-block:: python
+
+            %%cython
+
+            cdef int a = 0
+            for i in range(10):
+                a += i
+            print(a)
 
 You can show Cython's code analysis by passing the ``--annotate`` option::
 

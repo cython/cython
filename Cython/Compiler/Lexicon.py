@@ -74,10 +74,11 @@ def make_lexicon():
 
     bra = Any("([{")
     ket = Any(")]}")
+    ellipsis = Str("...")
     punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
-                    "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||")
+                    "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||", ':=')
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
@@ -89,7 +90,7 @@ def make_lexicon():
         (intliteral, Method('strip_underscores', symbol='INT')),
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),
-        (punct | diphthong, TEXT),
+        (ellipsis | punct | diphthong, TEXT),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),

@@ -2,18 +2,15 @@
 # either in PyPy, PyPy's cpyext, or Cython under PyPy,
 # which will be skipped in the normal testing run.
 
-broken_exception
 bufaccess
 memoryview.memoryview$
-sequential_parallel
 
-yield_from_pep380
-memoryview_inplace_division
-
-run.pycontextvar
-run.unicodemethods
+# looks like a doctest issue? It's failing to match output that looks
+# identical to my eye
+#run.unicodemethods
+# multiphase import not supported
 run.unicode_imports
-run.test_genericclass
+
 run.tp_new
 run.test_fstring
 run.test_exceptions
@@ -23,12 +20,10 @@ run.special_method_docstrings
 run.slice_ptr
 compile.min_async
 run.cython_includes
-run.pyarray
 run.test_unicode
 run.__getattribute__
 run.__getattribute_subclasses__
 run.__debug__
-run.array_cimport
 run.builtin_abs
 run.builtincomplex
 run.cdef_multiple_inheritance_errors
@@ -57,6 +52,7 @@ run.async_iter_pep492
 run.embedsignatures
 run.py35_asyncio_async_def
 run.asyncio_generators
+run.py35_pep492_interop
 
 # gc issue?
 external_ref_reassignment
@@ -65,3 +61,6 @@ run.exttype_dealloc
 # bugs in cpyext
 run.special_methods_T561
 run.special_methods_T561_py2
+
+# unicode is a PyVarObject on PyPy3
+run.builtin_type_inheritance_T608

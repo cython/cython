@@ -13,13 +13,14 @@ try:
 except NameError:
     from functools import reduce
 from functools import partial
+from itertools import product
 
 from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning, CannotSpecialize
+from .Errors import error, CannotSpecialize
 
 
 class BaseType(object):
@@ -78,7 +79,7 @@ class BaseType(object):
         """
         return self
 
-    def get_fused_types(self, result=None, seen=None, subtypes=None):
+    def get_fused_types(self, result=None, seen=None, subtypes=None, include_function_return_type=False):
         subtypes = subtypes or self.subtypes
         if not subtypes:
             return None
@@ -91,10 +92,10 @@ class BaseType(object):
             list_or_subtype = getattr(self, attr)
             if list_or_subtype:
                 if isinstance(list_or_subtype, BaseType):
-                    list_or_subtype.get_fused_types(result, seen)
+                    list_or_subtype.get_fused_types(result, seen, include_function_return_type=include_function_return_type)
                 else:
                     for subtype in list_or_subtype:
-                        subtype.get_fused_types(result, seen)
+                        subtype.get_fused_types(result, seen, include_function_return_type=include_function_return_type)
 
         return result
 
@@ -186,12 +187,15 @@ class PyrexType(BaseType):
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
+    #  is_cpp_class          boolean     Is a C++ class
+    #  is_optional_cpp_class boolean     Is a C++ class with variable lifetime handled with std::optional
     #  is_enum               boolean     Is a C enum type
     #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
+    #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
@@ -202,6 +206,7 @@ class PyrexType(BaseType):
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
+    #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
@@ -246,6 +251,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_fake_reference = 0
     is_rvalue_reference = 0
     is_const = 0
     is_volatile = 0
@@ -253,6 +259,8 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_optional_cpp_class = 0
+    python_type_constructor_name = None
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -271,6 +279,7 @@ class PyrexType(BaseType):
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
+    equivalent_type = None
     default_value = ""
     declaration_value = ""
 
@@ -335,7 +344,8 @@ class PyrexType(BaseType):
         return 0
 
     def _assign_from_py_code(self, source_code, result_code, error_pos, code,
-                             from_py_function=None, error_condition=None, extra_args=None):
+                             from_py_function=None, error_condition=None, extra_args=None,
+                             special_none_cvalue=None):
         args = ', ' + ', '.join('%s' % arg for arg in extra_args) if extra_args else ''
         convert_call = "%s(%s%s)" % (
             from_py_function or self.from_py_function,
@@ -344,6 +354,10 @@ class PyrexType(BaseType):
         )
         if self.is_enum:
             convert_call = typecast(self, c_long_type, convert_call)
+        if special_none_cvalue:
+            # NOTE: requires 'source_code' to be simple!
+            convert_call = "(__Pyx_Py_IsNone(%s) ? (%s) : (%s))" % (
+                source_code, special_none_cvalue, convert_call)
         return '%s = %s; %s' % (
             result_code,
             convert_call,
@@ -373,6 +387,10 @@ class PyrexType(BaseType):
                                       self)
         code.putln("1")
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None):
+        # declares an std::optional c++ variable
+        raise NotImplementedError(
+            "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
 
 
 def public_decl(base_code, dll_linkage):
@@ -381,20 +399,15 @@ def public_decl(base_code, dll_linkage):
     else:
         return base_code
 
+
 def create_typedef_type(name, base_type, cname, is_external=0, namespace=None):
-    is_fused = base_type.is_fused
-    if base_type.is_complex or is_fused:
-        if is_external:
-            if is_fused:
-                msg = "Fused"
-            else:
-                msg = "Complex"
-
-            raise ValueError("%s external typedefs not supported" % msg)
-
+    if is_external:
+        if base_type.is_complex or base_type.is_fused:
+            raise ValueError("%s external typedefs not supported" % (
+                "Fused" if base_type.is_fused else "Complex"))
+    if base_type.is_complex or base_type.is_fused:
         return base_type
-    else:
-        return CTypedefType(name, base_type, cname, is_external, namespace)
+    return CTypedefType(name, base_type, cname, is_external, namespace)
 
 
 class CTypedefType(BaseType):
@@ -550,11 +563,13 @@ class CTypedefType(BaseType):
             source_code, result_code, result_type, to_py_function)
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         return self.typedef_base_type.from_py_call_code(
             source_code, result_code, error_pos, code,
             from_py_function or self.from_py_function,
-            error_condition or self.error_condition(result_code)
+            error_condition or self.error_condition(result_code),
+            special_none_cvalue=special_none_cvalue,
         )
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
@@ -973,13 +988,16 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         # NOTE: auto-detection of readonly buffers is disabled:
         # writable = self.writable_needed or not self.dtype.is_const
         writable = not self.dtype.is_const
         return self._assign_from_py_code(
             source_code, result_code, error_pos, code, from_py_function, error_condition,
-            extra_args=['PyBUF_WRITABLE' if writable else '0'])
+            extra_args=['PyBUF_WRITABLE' if writable else '0'],
+            special_none_cvalue=special_none_cvalue,
+        )
 
     def create_to_py_utility_code(self, env):
         self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
@@ -1489,7 +1507,6 @@ class PyExtensionType(PyObjectType):
     #
     #  name             string
     #  scope            CClassScope      Attribute namespace
-    #  visibility       string
     #  typedef_flag     boolean
     #  base_type        PyExtensionType or None
     #  module_name      string or None   Qualified name of defining module
@@ -1503,13 +1520,18 @@ class PyExtensionType(PyObjectType):
     #  vtable_cname     string           Name of C method table definition
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
+    #  is_external      boolean          Defined in a extern block
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
+    #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
+    #  multiple_bases    boolean          Does this class have multiple bases
 
     is_extension_type = 1
     has_attributes = 1
     early_init = 1
 
     objtypedef_cname = None
+    dataclass_fields = None
+    multiple_bases = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1667,9 +1689,11 @@ class CType(PyrexType):
             source_code or 'NULL')
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         return self._assign_from_py_code(
-            source_code, result_code, error_pos, code, from_py_function, error_condition)
+            source_code, result_code, error_pos, code, from_py_function, error_condition,
+            special_none_cvalue=special_none_cvalue)
 
 
 
@@ -1814,7 +1838,27 @@ class FusedType(CType):
         for t in types:
             if t.is_fused:
                 # recursively merge in subtypes
-                for subtype in t.types:
+                if isinstance(t, FusedType):
+                    t_types = t.types
+                else:
+                    # handle types that aren't a fused type themselves but contain fused types
+                    # for example a C++ template where the template type is fused.
+                    t_fused_types = t.get_fused_types()
+                    t_types = []
+                    for substitution in product(
+                        *[fused_type.types for fused_type in t_fused_types]
+                    ):
+                        t_types.append(
+                            t.specialize(
+                                {
+                                    fused_type: sub
+                                    for fused_type, sub in zip(
+                                        t_fused_types, substitution
+                                    )
+                                }
+                            )
+                        )
+                for subtype in t_types:
                     if subtype not in flattened_types:
                         flattened_types.append(subtype)
             elif t not in flattened_types:
@@ -1838,7 +1882,7 @@ class FusedType(CType):
         else:
             raise CannotSpecialize()
 
-    def get_fused_types(self, result=None, seen=None):
+    def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
         if result is None:
             return [self]
 
@@ -2668,8 +2712,10 @@ class CArrayType(CPointerBaseType):
         return True
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         assert not error_condition, '%s: %s' % (error_pos, error_condition)
+        assert not special_none_cvalue, '%s: %s' % (error_pos, special_none_cvalue)  # not currently supported
         call_code = "%s(%s, %s, %s)" % (
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)
@@ -2750,6 +2796,11 @@ class CPtrType(CPointerBaseType):
             return self.base_type.find_cpp_operation_type(operator, operand_type)
         return None
 
+    def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
+        # For function pointers, include the return type - unlike for fused functions themselves,
+        # where the return type cannot be an independent fused type (i.e. is derived or non-fused).
+        return super(CPointerBaseType, self).get_fused_types(result, seen, include_function_return_type=True)
+
 
 class CNullPtrType(CPtrType):
 
@@ -2761,6 +2812,8 @@ class CReferenceBaseType(BaseType):
     is_fake_reference = 0
 
     # Common base type for C reference and C++ rvalue reference types.
+
+    subtypes = ['ref_base_type']
 
     def __init__(self, base_type):
         self.ref_base_type = base_type
@@ -3018,6 +3071,9 @@ class CFuncType(CType):
             # must catch C++ exceptions if we raise them
             return 0
         if not other_type.exception_check or other_type.exception_value is not None:
+            # There's no problem if this type doesn't emit exceptions but the other type checks
+            if other_type.exception_check and not (self.exception_check or self.exception_value):
+                return 1
             # if other does not *always* check exceptions, self must comply
             if not self._same_exception_value(other_type.exception_value):
                 return 0
@@ -3103,8 +3159,10 @@ class CFuncType(CType):
         if (pyrex or for_display) and not self.return_type.is_pyobject:
             if self.exception_value and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value:
+            elif self.exception_value and not self.exception_check:
                 trailer = " except %s" % self.exception_value
+            elif not self.exception_value and not self.exception_check:
+                trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
             elif self.exception_check and for_display:
@@ -3225,10 +3283,13 @@ class CFuncType(CType):
 
         return result
 
-    def get_fused_types(self, result=None, seen=None, subtypes=None):
+    def get_fused_types(self, result=None, seen=None, subtypes=None, include_function_return_type=False):
         """Return fused types in the order they appear as parameter types"""
-        return super(CFuncType, self).get_fused_types(result, seen,
-                                                      subtypes=['args'])
+        return super(CFuncType, self).get_fused_types(
+            result, seen,
+            # for function pointer types, we consider the result type; for plain function
+            # types we don't (because it must be derivable from the arguments)
+            subtypes=self.subtypes if include_function_return_type else ['args'])
 
     def specialize_entry(self, entry, cname):
         assert not self.is_fused
@@ -3799,10 +3860,12 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
+            # Override directives that should not be inherited from user code.
             from .UtilityCode import CythonUtilityCode
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context, compiler_directives=directives))
             self.from_py_function = cname
             return True
 
@@ -3845,16 +3908,18 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             from .UtilityCode import CythonUtilityCode
+            # Override directives that should not be inherited from user code.
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context, compiler_directives=directives))
             self.to_py_function = cname
             return True
 
     def is_template_type(self):
         return self.templates is not None and self.template_type is None
 
-    def get_fused_types(self, result=None, seen=None):
+    def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
         if result is None:
             result = []
             seen = set()
@@ -3865,7 +3930,7 @@ class CppClassType(CType):
                 T.get_fused_types(result, seen)
         return result
 
-    def specialize_here(self, pos, template_values=None):
+    def specialize_here(self, pos, env, template_values=None):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
@@ -3890,10 +3955,12 @@ class CppClassType(CType):
             return error_type
         has_object_template_param = False
         for value in template_values:
-            if value.is_pyobject:
+            if value.is_pyobject or value.needs_refcounting:
                 has_object_template_param = True
+                type_description = "Python object" if value.is_pyobject else "Reference-counted"
                 error(pos,
-                      "Python object type '%s' cannot be used as a template argument" % value)
+                      "%s type '%s' cannot be used as a template argument" % (
+                          type_description, value))
         if has_object_template_param:
             return error_type
         return self.specialize(dict(zip(self.templates, template_values)))
@@ -3986,6 +4053,12 @@ class CppClassType(CType):
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None, template_params=None):
+        return "__Pyx_Optional_Type<%s> %s" % (
+                self.declaration_code("", False, dll_linkage, False,
+                                    template_params),
+                entity_code)
+
     def is_subclass(self, other_type):
         if self.same_as_resolved_type(other_type):
             return 1
@@ -4067,6 +4140,11 @@ class CppClassType(CType):
         constructor = self.scope.lookup(u'<init>')
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
+
+    def cpp_optional_check_for_null_code(self, cname):
+        # only applies to c++ classes that are being declared as std::optional
+        return "(%s.has_value())" % cname
+
 
 class CppScopedEnumType(CType):
     # name    string
@@ -4380,6 +4458,69 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
+class PythonTypeConstructor(PyObjectType):
+    """Used to help Cython interpret indexed types from the typing module (or similar)
+    """
+    modifier_name = None
+
+    def __init__(self, name, base_type=None):
+        self.python_type_constructor_name = name
+        self.base_type = base_type
+
+    def specialize_here(self, pos, env, template_values=None):
+        if self.base_type:
+            # for a lot of the typing classes it doesn't really matter what the template is
+            # (i.e. typing.Dict[int] is really just a dict)
+            return self.base_type
+        return self
+
+    def __repr__(self):
+        if self.base_type:
+            return "%s[%r]" % (self.name, self.base_type)
+        else:
+            return self.name
+
+    def is_template_type(self):
+        return True
+
+
+class PythonTupleTypeConstructor(PythonTypeConstructor):
+    def specialize_here(self, pos, env, template_values=None):
+        if (template_values and None not in template_values and
+                not any(v.is_pyobject for v in template_values)):
+            entry = env.declare_tuple_type(pos, template_values)
+            if entry:
+                entry.used = True
+                return entry.type
+        return super(PythonTupleTypeConstructor, self).specialize_here(pos, env, template_values)
+
+
+class SpecialPythonTypeConstructor(PythonTypeConstructor):
+    """
+    For things like ClassVar, Optional, etc, which are not types and disappear during type analysis.
+    """
+
+    def __init__(self, name):
+        super(SpecialPythonTypeConstructor, self).__init__(name, base_type=None)
+        self.modifier_name = name
+
+    def __repr__(self):
+        return self.name
+
+    def resolve(self):
+        return self
+
+    def specialize_here(self, pos, env, template_values=None):
+        if len(template_values) != 1:
+            error(pos, "'%s' takes exactly one template argument." % self.name)
+            return error_type
+        if template_values[0] is None:
+            # FIXME: allowing unknown types for now since we don't recognise all Python types.
+            return None
+        # Replace this type with the actual 'template' argument.
+        return template_values[0].resolve()
+
+
 rank_to_type_name = (
     "char",          # 0
     "short",         # 1
@@ -4391,10 +4532,9 @@ rank_to_type_name = (
     "long double",   # 7
 )
 
-_rank_to_type_name = list(rank_to_type_name)
-RANK_INT  = _rank_to_type_name.index('int')
-RANK_LONG = _rank_to_type_name.index('long')
-RANK_FLOAT = _rank_to_type_name.index('float')
+RANK_INT  = rank_to_type_name.index('int')
+RANK_LONG = rank_to_type_name.index('long')
+RANK_FLOAT = rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 
@@ -4810,14 +4950,19 @@ def independent_spanning_type(type1, type2):
             type1 = type1.ref_base_type
         else:
             type2 = type2.ref_base_type
-    if type1 == type2:
+
+    resolved_type1 = type1.resolve()
+    resolved_type2 = type2.resolve()
+    if resolved_type1 == resolved_type2:
         return type1
-    elif (type1 is c_bint_type or type2 is c_bint_type) and (type1.is_numeric and type2.is_numeric):
+    elif ((resolved_type1 is c_bint_type or resolved_type2 is c_bint_type)
+            and (type1.is_numeric and type2.is_numeric)):
         # special case: if one of the results is a bint and the other
         # is another C integer, we must prevent returning a numeric
         # type so that we do not lose the ability to coerce to a
         # Python bool if we have to.
         return py_object_type
+
     span_type = _spanning_type(type1, type2)
     if span_type is None:
         return error_type

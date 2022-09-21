@@ -13,7 +13,8 @@ import Cython
 from ..Compiler.Main import Context
 from ..Compiler.Options import default_options
 
-from ..Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, EnvTransform
+from ..Compiler.Visitor import CythonTransform, EnvTransform
+from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
@@ -40,18 +41,19 @@ if sys.version_info < (3, 5):
     def load_dynamic(name, module_path):
         return imp.load_dynamic(name, module_path)
 else:
-    import importlib.util as _importlib_util
-    def load_dynamic(name, module_path):
-        spec = _importlib_util.spec_from_file_location(name, module_path)
-        module = _importlib_util.module_from_spec(spec)
-        # sys.modules[name] = module
+    import importlib.util
+    from importlib.machinery import ExtensionFileLoader
+
+    def load_dynamic(name, path):
+        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+        module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
-        CythonTransform.__init__(self, None)
+        super(EnvTransform, self).__init__(context=None)
         self.unbound = set()
     def visit_NameNode(self, node):
         if not self.current_env().lookup(node.name):

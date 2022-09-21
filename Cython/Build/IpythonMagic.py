@@ -46,7 +46,6 @@ Parts of this code were taken from Cython.inline.
 
 from __future__ import absolute_import, print_function
 
-import imp
 import io
 import os
 import re
@@ -58,11 +57,6 @@ import textwrap
 
 IO_ENCODING = sys.getfilesystemencoding()
 IS_PY2 = sys.version_info[0] < 3
-
-try:
-    from importlib import reload
-except ImportError:   # Python 2 had a builtin function
-    pass
 
 import hashlib
 from distutils.core import Distribution, Extension
@@ -80,9 +74,9 @@ from IPython.utils.text import dedent
 
 from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
-from .Inline import cython_inline
+from .Inline import cython_inline, load_dynamic
 from .Dependencies import cythonize
-from ..Utils import captured_fd
+from ..Utils import captured_fd, print_captured
 
 
 PGO_CONFIG = {
@@ -105,37 +99,6 @@ if IS_PY2:
 else:
     def encode_fs(name):
         return name
-
-
-def get_encoding_candidates():
-    candidates = [sys.getdefaultencoding()]
-    for stream in (sys.stdout, sys.stdin, sys.__stdout__, sys.__stdin__):
-        encoding = getattr(stream, 'encoding', None)
-        # encoding might be None (e.g. somebody redirects stdout):
-        if encoding is not None and encoding not in candidates:
-            candidates.append(encoding)
-    return candidates
-
-
-def prepare_captured(captured):
-    captured_bytes = captured.strip()
-    if not captured_bytes:
-        return None
-    for encoding in get_encoding_candidates():
-        try:
-            return captured_bytes.decode(encoding)
-        except UnicodeDecodeError:
-            pass
-    # last resort: print at least the readable ascii parts correctly.
-    return captured_bytes.decode('latin-1')
-
-
-def print_captured(captured, output, header_line=None):
-    captured = prepare_captured(captured)
-    if captured:
-        if header_line:
-            output.write(header_line)
-        output.write(captured)
 
 
 @magics_class
@@ -393,7 +356,7 @@ class CythonMagics(Magics):
         # Build seems ok, but we might still want to show any warnings that occurred
         print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
 
-        module = imp.load_dynamic(module_name, module_path)
+        module = load_dynamic(module_name, module_path)
         self._import_all(module)
 
         if args.annotate:
@@ -456,7 +419,7 @@ class CythonMagics(Magics):
 
         # import and execute module code to generate profile
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
-        imp.load_dynamic(pgo_module_name, so_module_path)
+        load_dynamic(pgo_module_name, so_module_path)
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')

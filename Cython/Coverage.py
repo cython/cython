@@ -2,6 +2,48 @@
 A Cython plugin for coverage.py
 
 Requires the coverage package at least in version 4.0 (which added the plugin API).
+
+This plugin requires the generated C sources to be available, next to the extension module.
+It parses the C file and reads the original source files from it, which are stored in C comments.
+It then reports a source file to coverage.py when it hits one of its lines during line tracing.
+
+Basically, Cython can (on request) emit explicit trace calls into the C code that it generates,
+and as a general human debugging helper, it always copies the current source code line
+(and its surrounding context) into the C files before it generates code for that line, e.g.
+
+::
+
+      /* "line_trace.pyx":147
+       * def cy_add_with_nogil(a,b):
+       *     cdef int z, x=a, y=b         # 1
+       *     with nogil:                  # 2             # <<<<<<<<<<<<<<
+       *         z = 0                    # 3
+       *         z += cy_add_nogil(x, y)  # 4
+       */
+       __Pyx_TraceLine(147,1,__PYX_ERR(0, 147, __pyx_L4_error))
+      [C code generated for file line_trace.pyx, line 147, follows here]
+
+The crux is that multiple source files can contribute code to a single C (or C++) file
+(and thus, to a single extension module) besides the main module source file (.py/.pyx),
+usually shared declaration files (.pxd) but also literally included files (.pxi).
+
+Therefore, the coverage plugin doesn't actually try to look at the file that happened
+to contribute the current source line for the trace call, but simply looks up the single
+.c file from which the extension was compiled (which usually lies right next to it after
+the build, having the same name), and parses the code copy comments from that .c file
+to recover the original source files and their code as a line-to-file mapping.
+
+That mapping is then used to report the ``__Pyx_TraceLine()`` calls to the coverage tool.
+The plugin also reports the line of source code that it found in the C file to the coverage
+tool to support annotated source representations.  For this, again, it does not look at the
+actual source files but only reports the source code that it found in the C code comments.
+
+Apart from simplicity (read one file instead of finding and parsing many), part of the
+reasoning here is that any line in the original sources for which there is no comment line
+(and trace call) in the generated C code cannot count as executed, really, so the C code
+comments are a very good source for coverage reporting.  They already filter out purely
+declarative code lines that do not contribute executable code, and such (missing) lines
+can then be marked as excluded from coverage analysis.
 """
 
 from __future__ import absolute_import

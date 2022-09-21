@@ -104,10 +104,11 @@ class MarkParallelAssignments(EnvTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
+        iterator_scope = node.iterator.expr_scope or self.current_env()
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
@@ -115,7 +116,7 @@ class MarkParallelAssignments(EnvTransform):
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
-                                iterator_type = iterator.infer_type(self.current_env())
+                                iterator_type = iterator.infer_type(iterator_scope)
                                 if iterator_type.is_builtin_type:
                                     # assume that builtin types have a length within Py_ssize_t
                                     self.mark_assignment(
@@ -127,7 +128,7 @@ class MarkParallelAssignments(EnvTransform):
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name in ('range', 'xrange'):
                         is_special = True
@@ -358,12 +359,17 @@ class SimpleAssignmentTypeInferer(object):
     Note: in order to support cross-closure type inference, this must be
     applies to nested scopes in top-down order.
     """
-    def set_entry_type(self, entry, entry_type):
+    def set_entry_type(self, entry, entry_type, scope):
         for e in entry.all_entries():
             e.type = entry_type
             if e.type.is_memoryviewslice:
                 # memoryview slices crash if they don't get initialized
                 e.init = e.type.default_value
+            if e.type.is_cpp_class:
+                if scope.directives['cpp_locals']:
+                    e.make_cpp_optional()
+                else:
+                    e.type.check_nullary_constructor(entry.pos)
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
@@ -376,7 +382,7 @@ class SimpleAssignmentTypeInferer(object):
         else:
             for entry in scope.entries.values():
                 if entry.type is unspecified_type:
-                    self.set_entry_type(entry, py_object_type)
+                    self.set_entry_type(entry, py_object_type, scope)
             return
 
         # Set of assignments
@@ -405,7 +411,7 @@ class SimpleAssignmentTypeInferer(object):
             else:
                 entry = node.entry
                 node_type = spanning_type(
-                    types, entry.might_overflow, entry.pos, scope)
+                    types, entry.might_overflow, scope)
             node.inferred_type = node_type
 
         def infer_name_node_type_partial(node):
@@ -414,7 +420,7 @@ class SimpleAssignmentTypeInferer(object):
             if not types:
                 return
             entry = node.entry
-            return spanning_type(types, entry.might_overflow, entry.pos, scope)
+            return spanning_type(types, entry.might_overflow, scope)
 
         def inferred_types(entry):
             has_none = False
@@ -489,9 +495,9 @@ class SimpleAssignmentTypeInferer(object):
                 types = inferred_types(entry)
                 if types and all(types):
                     entry_type = spanning_type(
-                        types, entry.might_overflow, entry.pos, scope)
+                        types, entry.might_overflow, scope)
                     inferred.add(entry)
-            self.set_entry_type(entry, entry_type)
+            self.set_entry_type(entry, entry_type, scope)
 
         def reinfer():
             dirty = False
@@ -499,9 +505,9 @@ class SimpleAssignmentTypeInferer(object):
                 for assmt in entry.cf_assignments:
                     assmt.infer_type()
                 types = inferred_types(entry)
-                new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
+                new_type = spanning_type(types, entry.might_overflow, scope)
                 if new_type != entry.type:
-                    self.set_entry_type(entry, new_type)
+                    self.set_entry_type(entry, new_type, scope)
                     dirty = True
             return dirty
 
@@ -531,22 +537,20 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def simply_type(result_type, pos):
+def simply_type(result_type):
     if result_type.is_reference:
         result_type = result_type.ref_base_type
     if result_type.is_cv_qualified:
         result_type = result_type.cv_base_type
-    if result_type.is_cpp_class:
-        result_type.check_nullary_constructor(pos)
     if result_type.is_array:
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type
 
-def aggressive_spanning_type(types, might_overflow, pos, scope):
-    return simply_type(reduce(find_spanning_type, types), pos)
+def aggressive_spanning_type(types, might_overflow, scope):
+    return simply_type(reduce(find_spanning_type, types))
 
-def safe_spanning_type(types, might_overflow, pos, scope):
-    result_type = simply_type(reduce(find_spanning_type, types), pos)
+def safe_spanning_type(types, might_overflow, scope):
+    result_type = simply_type(reduce(find_spanning_type, types))
     if result_type.is_pyobject:
         # In theory, any specific Python type is always safe to
         # infer. However, inferring str can cause some existing code

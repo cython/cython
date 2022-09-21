@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "3.0a7"
+__version__ = "3.0.0a11"
 
 try:
     from __builtin__ import basestring
@@ -116,10 +116,10 @@ returns = wraparound = boundscheck = initializedcheck = nonecheck = \
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
-optimization = _Optimization()
+optimize = _Optimization()
 
-overflowcheck.fold = optimization.use_switch = \
-    optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
+overflowcheck.fold = optimize.use_switch = \
+    optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
 
@@ -337,7 +337,7 @@ class UnionType(CythonType):
             setattr(self, key, value)
 
     def __setattr__(self, key, value):
-        if key in '__dict__':
+        if key == '__dict__':
             CythonType.__setattr__(self, key, value)
         elif key in self._members:
             self.__dict__ = {key: cast(self._members[key], value)}
@@ -385,7 +385,7 @@ class typedef(CythonType):
     __getitem__ = index_type
 
 class _FusedType(CythonType):
-    pass
+    __getitem__ = index_type
 
 
 def fused_type(*args):
@@ -525,6 +525,30 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
+class CythonDotImportedFromElsewhere(object):
+    """
+    cython.dataclasses just shadows the standard library modules of the same name
+    """
+    def __init__(self, module):
+        self.__path__ = []
+        self.__file__ = None
+        self.__name__ = module
+        self.__package__ = module
+
+    def __getattr__(self, attr):
+        # we typically only expect this to be called once
+        from importlib import import_module
+        import sys
+        try:
+            mod = import_module(self.__name__)
+        except ImportError:
+            # but if they don't exist (Python is not sufficiently up-to-date) then
+            # you can't use them
+            raise AttributeError("%s: the standard library module %s is not available" %
+                                 (attr, self.__name__))
+        sys.modules['cython.%s' % self.__name__] = mod
+        return getattr(mod, attr)
+
 
 class CythonCImports(object):
     """
@@ -547,4 +571,7 @@ sys.modules['cython.parallel'] = CythonDotParallel()
 sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
 sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
 sys.modules['cython.cimports.libc.math'] = math
+# In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
+# shadow the standard library ones (if they are available)
+dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys

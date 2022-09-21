@@ -445,7 +445,7 @@ static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set
         return iterable;
     }
 #else
-    (void)is_set;
+    CYTHON_UNUSED_VAR(is_set);
     *p_source_is_set = 0;
 #endif
     *p_orig_length = 0;
@@ -461,8 +461,8 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         if (unlikely(!*value)) {
             return __Pyx_IterFinish();
         }
-        (void)orig_length;
-        (void)ppos;
+        CYTHON_UNUSED_VAR(orig_length);
+        CYTHON_UNUSED_VAR(ppos);
         return 1;
     }
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -904,7 +904,7 @@ static CYTHON_INLINE int __Pyx__PyBytes_AsDouble_IsSpace(char ch) {
     return (ch == 0x20) | !((ch < 0x9) | (ch > 0xd));
 }
 
-static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
+CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
     double value;
     Py_ssize_t i, digits;
     const char *last = start + length;
@@ -1318,7 +1318,8 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
             }
         {{else}}
             {{if c_op == '*'}}
-                (void)a; (void)b;
+                CYTHON_UNUSED_VAR(a);
+                CYTHON_UNUSED_VAR(b);
                 #ifdef HAVE_LONG_LONG
                 ll{{ival}} = {{ival}};
                 goto long_long;
@@ -1464,8 +1465,8 @@ def zerodiv_check(operand, _is_mod=op == 'Remainder', _needs_check=(order == 'CO
 static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
-    // Prevent "unused" warnings.
-    (void)inplace; (void)zerodivision_check;
+    CYTHON_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
@@ -1517,8 +1518,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
                 CYTHON_FALLTHROUGH;
             {{endfor}}
             default:
-        #else
-        {
         #endif
         {{if op in ('Eq', 'Ne')}}
             return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
@@ -1532,7 +1531,9 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             #endif
             {{endif}}
         {{endif}}
+        #if CYTHON_USE_PYLONG_INTERNALS
         }
+        #endif
     } else {
         {{if op in ('Eq', 'Ne')}}
         return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(

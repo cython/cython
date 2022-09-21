@@ -154,6 +154,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt unique_copy[ExecutionPolicy, InputIt, OutputIt, BinaryPred](
         ExecutionPolicy&& policy, InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
 
+    SampleIt sample[PopulationIt, SampleIt, Distance, URBG](PopulationIt first, PopulationIt last, SampleIt out, Distance n, URBG&& g) except +
+
     # Partitioning operations
     bool is_partitioned[Iter, Pred](Iter first, Iter last, Pred p) except +
     bool is_partitioned[ExecutionPolicy, Iter, Pred](ExecutionPolicy&& policy, Iter first, Iter last, Pred p) except +
@@ -226,8 +228,45 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool binary_search[ExecutionPolicy, Iter, T, Compare](ExecutionPolicy&& policy, Iter first, Iter last, const T& value, Compare comp) except +
 
     # Other operations on sorted ranges
+    OutputIt merge[InputIt1, InputIt2, OutputIt](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
+    OutputIt merge[InputIt1, InputIt2, OutputIt, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
+    
+    void inplace_merge[BidirIt](BidirIt first, BidirIt middle, BidirIt last) except +
+    void inplace_merge[BidirIt, Compare](BidirIt first, BidirIt middle, BidirIt last, Compare comp) except +
 
     # Set operations (on sorted ranges)
+    bool includes[InputIt1, InputIt2](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+        
+    bool includes[InputIt1, InputIt2, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Compare comp) except +
+
+    OutputIt set_difference[InputIt1, InputIt2, OutputIt](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
+
+    OutputIt set_difference[InputIt1, InputIt2, OutputIt, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, 
+        OutputIt out, Compare comp) except +
+    
+    OutputIt set_intersection[InputIt1, InputIt2, OutputIt](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
+
+    OutputIt set_intersection[InputIt1, InputIt2, OutputIt, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
+    
+    OutputIt set_symmetric_difference[InputIt1, InputIt2, OutputIt](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
+
+    OutputIt set_symmetric_difference[InputIt1, InputIt2, OutputIt, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
+    
+    OutputIt set_union[InputIt1, InputIt2, OutputIt](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
+
+    OutputIt set_union[InputIt1, InputIt2, OutputIt, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
 
     # Heap operations
     void make_heap[Iter](Iter first, Iter last) except +
@@ -244,9 +283,38 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     # Minimum/maximum operations
     Iter min_element[Iter](Iter first, Iter last) except +
+    Iter min_element[Iter, Compare](Iter first, Iter last, Compare comp) except +
     Iter min_element[ExecutionPolicy, Iter](ExecutionPolicy&& policy, Iter first, Iter last) except +
+    Iter max_element[Iter](Iter first, Iter last) except +
+    Iter max_element[Iter, Compare](Iter first, Iter last, Compare comp) except +
+    Iter max_element[ExecutionPolicy, Iter](ExecutionPolicy&& policy, Iter first, Iter last) except +
+    pair[T, T] minmax[T](const T& a, const T& b) except +
+    pair[T, T] minmax[T, Compare](const T& a, const T& b, Compare comp) except +
+    pair[Iter, Iter] minmax_element[Iter](Iter first, Iter last) except +
+    pair[Iter, Iter] minmax_element[Iter, Compare](Iter first, Iter last, Compare comp) except +
+    pair[Iter, Iter] minmax_element[ExecutionPolicy, Iter](ExecutionPolicy&& policy, Iter first, Iter last) except +
+    const T& clamp[T](const T& v, const T& lo, const T& hi) except +
+    const T& clamp[T, Compare](const T& v, const T& lo, const T& hi, Compare comp) except +
 
     # Comparison operations
+    bool equal[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2) except +
+    bool equal[InputIt1, InputIt2, BinPred](InputIt1 first1, InputIt1 last1, InputIt2 first2, BinPred pred) except +
+    # ambiguous with previous overload
+    #bool equal[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+    bool equal[InputIt1, InputIt2, BinPred](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, BinPred pred) except +
+    
+    bool lexicographical_compare[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+    # ambiguous with next overload
+    #bool lexicographical_compare[InputIt1, InputIt2, ExecutionPolicy](ExecutionPolicy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+    bool lexicographical_compare[InputIt1, InputIt2, Compare](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Compare comp) except +
 
     # Permutation operations
-
+    bool is_permutation[ForwardIt1, ForwardIt2](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2) except +
+    bool is_permutation[ForwardIt1, ForwardIt2, BinaryPred](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2, BinaryPred p) except +
+    # ambiguous with previous overload
+    #bool is_permutation[ForwardIt1, ForwardIt2](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2, ForwardIt2 last2) except +
+    bool is_permutation[ForwardIt1, ForwardIt2, BinaryPred](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2, ForwardIt2 last2, BinaryPred p) except +
+    bool next_permutation[BidirIt](BidirIt first, BidirIt last) except +
+    bool next_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
+    bool prev_permutation[BidirIt](BidirIt first, BidirIt last) except +
+    bool prev_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
