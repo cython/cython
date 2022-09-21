@@ -6,6 +6,7 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "from foo import test; test()"
 PYTHON -c "from bar import test; test()"
+PYTHON -c "from baz import test; test()"
 """
 
 ######## setup.py ########
@@ -14,21 +15,22 @@ from Cython.Build import cythonize
 from Cython.Distutils.extension import Extension
 from distutils.core import setup
 
-compile_args = ["-Wno-deprecated-declarations", "-Werror"]
-
 foo = Extension(
     "foo",
     ["foo.pyx", "foo1.cpp", "foo2.cpp"],
-    extra_compile_args = compile_args,
 )
 bar = Extension(
     "bar",
     ["bar.pyx", "bar1.c", "bar2.cpp"],
-    extra_compile_args = compile_args,
+)
+baz = Extension(
+    "baz",
+    ["baz.pyx", "baz1.c", "baz2.cpp"],
+    define_macros = [("__PYX_EXTERN_C", 'extern "C"')],
 )
 
 setup(
-    ext_modules=cythonize([foo, bar]),
+    ext_modules=cythonize([foo, bar, baz]),
 )
 
 ######## foo.pyx ########
@@ -105,3 +107,42 @@ extern "C" {
 
 extern "C" int get_int2() { return (int)get_char(); }
 
+######## baz.pyx ########
+
+# distutils: language = c++
+
+cdef public char get_char():
+    return 42
+
+cdef extern from "baz_header.h":
+    cdef int get_int1()
+    cdef int get_int2()
+
+def test():
+    assert get_int1() == 42
+    assert get_int2() == 42
+
+######## baz_header.h ########
+
+#ifdef __cplusplus
+  #define BAZ_EXTERN_C extern "C"
+#else
+  #define BAZ_EXTERN_C
+#endif
+
+BAZ_EXTERN_C int get_int1();
+int get_int2();
+
+######## baz1.c ########
+
+#undef __PYX_EXTERN_C
+#define __PYX_EXTERN_C
+#include "baz.h"
+
+int get_int1() { return (int)get_char(); }
+
+######## baz2.cpp ########
+
+#include "baz.h"
+
+int get_int2() { return (int)get_char(); }
