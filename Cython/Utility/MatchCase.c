@@ -564,6 +564,9 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
     PyObject *dummy=NULL, *get=NULL;
     Py_ssize_t i;
     int result = 0;
+#if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
+    PyObject *get_method = NULL, *get_self = NULL;
+#endif
 
     dummy = PyObject_CallObject((PyObject *)&PyBaseObject_Type, NULL);
     if (!dummy) {
@@ -574,16 +577,32 @@ static int __Pyx__MatchCase_Mapping_ExtractNonDict(void *__pyx_refnanny, PyObjec
         result = -1;
         goto end;
     }
+#if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
+    if (likely(PyMethod_Check(get))) {
+        // both of these are borrowed
+        get_method = PyMethod_GET_FUNCTION(get);
+        get_self = PyMethod_GET_SELF(get);
+    }
+#endif
 
     for (i=0; i<nKeys; ++i) {
         PyObject **subject;
         PyObject *value = NULL;
         PyObject *key = keys[i];
 
-        // TODO - there's an optimization here (although it deviates from the strict definition of pattern matching). 
+        // TODO - there's an optimization here (although it deviates from the strict definition of pattern matching).
         // If we don't need the values then we can call PyObject_Contains instead of "get". If we don't need *any*
         // of the values then we can skip initialization "get" and "dummy"
-        value = __Pyx_PyObject_Call2Args(get, key, dummy);
+#if CYTHON_UNPACK_METHODS && CYTHON_VECTORCALL
+        if (likely(get_method)) {
+            PyObject *args[] = { get_self, key, dummy };
+            value = _PyObject_Vectorcall(get_method, args, 3, NULL);
+        }
+        else
+#endif
+        {
+            value = __Pyx_PyObject_Call2Args(get, key, dummy);
+        }
         if (!value) {
             result = -1;
             goto end;
@@ -685,4 +704,3 @@ static PyObject* __Pyx_MatchCase_DoubleStarCapture{{tag}}(PyObject *mapping, PyO
     }
     return dict_out;
 }
-
