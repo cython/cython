@@ -66,6 +66,11 @@ class C_TestCase_test_1_field_compare:
 
 @dataclass
 @cclass
+class C_TestCase_test_field_no_default:
+    x: int = field()
+
+@dataclass
+@cclass
 class C_TestCase_test_not_in_compare:
     x: int = 0
     y: int = field(compare=False, default=4)
@@ -79,6 +84,11 @@ class Mutable_TestCase_test_deliberately_mutable_defaults:
 @cclass
 class C_TestCase_test_deliberately_mutable_defaults:
     x: Mutable_TestCase_test_deliberately_mutable_defaults
+
+@dataclass()
+@cclass
+class C_TestCase_test_no_options:
+    x: int
 
 @dataclass
 @cclass
@@ -580,6 +590,12 @@ class TestCase(unittest.TestCase):
         self.assertGreaterEqual(C(1), C(0))
         self.assertGreaterEqual(C(1), C(1))
 
+    def test_field_no_default(self):
+        C = C_TestCase_test_field_no_default
+        self.assertEqual(C(5).x, 5)
+        with self.assertRaises(TypeError):
+            C()
+
     def test_not_in_compare(self):
         C = C_TestCase_test_not_in_compare
         self.assertEqual(C(), C(0, 20))
@@ -598,6 +614,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(o1, o2)
         self.assertEqual(o1.x.l, [1, 2])
         self.assertIs(o1.x, o2.x)
+
+    def test_no_options(self):
+        C = C_TestCase_test_no_options
+        self.assertEqual(C(42).x, 42)
 
     def test_not_tuple(self):
         Point = Point_TestCase_test_not_tuple

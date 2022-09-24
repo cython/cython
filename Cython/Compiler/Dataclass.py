@@ -217,14 +217,16 @@ def process_class_get_fields(node):
                     and assignment.function.as_cython_attribute() == "dataclasses.field"):
                 # I believe most of this is well-enforced when it's treated as a directive
                 # but it doesn't hurt to make sure
-                if (not isinstance(assignment, ExprNodes.GeneralCallNode)
-                        or not isinstance(assignment.positional_args, ExprNodes.TupleNode)
-                        or assignment.positional_args.args
-                        or not isinstance(assignment.keyword_args, ExprNodes.DictNode)):
+                valid_general_call = (isinstance(assignment, ExprNodes.GeneralCallNode)
+                        and isinstance(assignment.positional_args, ExprNodes.TupleNode)
+                        and not assignment.positional_args.args
+                        and (assignment.keyword_args is None or isinstance(assignment.keyword_args, ExprNodes.DictNode)))
+                valid_simple_call = (isinstance(assignment, ExprNodes.SimpleCallNode) and not assignment.args)
+                if not (valid_general_call or valid_simple_call):
                     error(assignment.pos, "Call to 'cython.dataclasses.field' must only consist "
                           "of compile-time keyword arguments")
                     continue
-                keyword_args = assignment.keyword_args.as_python_dict()
+                keyword_args = assignment.keyword_args.as_python_dict() if valid_general_call and assignment.keyword_args else {}
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
                     error(assignment.pos, "cannot specify both default and default_factory")
                     continue
