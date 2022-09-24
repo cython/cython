@@ -183,18 +183,6 @@ skip_tests = frozenset(
             "test_class_var_with_default",
         ),  # possibly to do with ClassVar being assigned a field
         (
-            "TestHash",
-            "test_unsafe_hash",
-        ),  # not sure if it's a bug or just a difference in how the hash is calculated
-        (
-            "TestHash",
-            "test_1_field_hash",
-        ),  # not sure if it's a bug or just a difference in how the hash is calculated
-        (
-            "TestHash",
-            "test_0_field_hash",
-        ),  # not sure if it's a bug or just a difference in how the hash is calculated
-        (
             "TestDescriptors",
         ),  # mostly don't work - I think this may be a limitation of cdef classes but needs investigating
     }
