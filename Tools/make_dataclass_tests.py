@@ -130,24 +130,21 @@ skip_tests = frozenset(
         ('TestOrdering', 'test_no_order'),
         # not possible to add attributes on extension types
         ("TestCase", "test_post_init_classmethod"),
+        # Cannot redefine the same field in a base dataclass (tested in dataclass_e6)
+        ("TestCase", "test_field_order"),
+        (
+            "TestCase",
+            "test_overwrite_fields_in_derived_class",
+        ),
         # Bugs
         #======
         # not specifically a dataclass issue - a C int crashes classvar
         ("TestCase", "test_class_var"),
-        ("TestCase", "test_field_order"),  # invalid C code (__pyx_base?)
-        (
-            "TestCase",
-            "test_overwrite_fields_in_derived_class",
-        ),  # invalid C code (__pyx_base?)
         ("TestReplace", "test_recursive_repr"),  # recursion error
         ("TestReplace", "test_recursive_repr_two_attrs"),  # recursion error
         ("TestReplace", "test_recursive_repr_misc_attrs"),  # recursion error
         ("TestReplace", "test_recursive_repr_indirection"),  # recursion error
         ("TestReplace", "test_recursive_repr_indirection_two"),  # recursion error
-        (
-            "TestCase",
-            "test_intermediate_non_dataclass",
-        ),  # issue with propagating through intermediate class
         (
             "TestFrozen",
         ),  # raises AttributeError, not FrozenInstanceError (may be hard to fix)

@@ -200,10 +200,16 @@ def process_class_get_fields(node):
     transform(node)
     default_value_assignments = transform.removed_assignments
 
-    if node.base_type and node.base_type.dataclass_fields:
-        fields = node.base_type.dataclass_fields.copy()
-    else:
-        fields = OrderedDict()
+    base_type = node.base_type
+    fields = OrderedDict()
+    while base_type:
+        if base_type.is_external or not base_type.scope.implemented:
+            warning(node.pos, "Cannot reliably handle Cython dataclasses with base types "
+                "in external modules since it is not possible to tell what fields they have", 2)
+        if base_type.dataclass_fields:
+            fields = base_type.dataclass_fields.copy()
+            break
+        base_type = base_type.base_type
 
     for entry in var_entries:
         name = entry.name

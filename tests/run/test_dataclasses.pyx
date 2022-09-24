@@ -153,6 +153,23 @@ class Bar_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factor
 class Baz_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factory_derived):
     pass
 
+@dataclass
+@cclass
+class A_TestCase_test_intermediate_non_dataclass:
+    x: int
+
+@cclass
+class B_TestCase_test_intermediate_non_dataclass(A_TestCase_test_intermediate_non_dataclass):
+    y: int
+
+@dataclass
+@cclass
+class C_TestCase_test_intermediate_non_dataclass(B_TestCase_test_intermediate_non_dataclass):
+    z: int
+
+class D_TestCase_test_intermediate_non_dataclass(C_TestCase_test_intermediate_non_dataclass):
+    t: int
+
 class NotDataClass_TestCase_test_is_dataclass:
     pass
 
@@ -686,6 +703,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(Bar().y, 1)
         Baz = Baz_TestCase_test_default_factory_derived
         self.assertEqual(Baz().x, {})
+
+    def test_intermediate_non_dataclass(self):
+        A = A_TestCase_test_intermediate_non_dataclass
+        B = B_TestCase_test_intermediate_non_dataclass
+        C = C_TestCase_test_intermediate_non_dataclass
+        c = C(1, 3)
+        self.assertEqual((c.x, c.z), (1, 3))
+        with self.assertRaises(AttributeError):
+            c.y
+        D = D_TestCase_test_intermediate_non_dataclass
+        d = D(4, 5)
+        self.assertEqual((d.x, d.z), (4, 5))
 
     def test_is_dataclass(self):
         NotDataClass = NotDataClass_TestCase_test_is_dataclass
