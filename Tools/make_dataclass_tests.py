@@ -56,6 +56,7 @@ skip_tests = frozenset(
         ("TestDescriptors", "test_lookup_on_instance"),
         ("TestCase", "test_default_factory_not_called_if_value_given"),
         ("TestCase", "test_class_attrs"),
+        ("TestCase", "test_hash_field_rules"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
         # Currently unsupported
         # =====================
@@ -130,8 +131,9 @@ skip_tests = frozenset(
         # not possible to add attributes on extension types
         ("TestCase", "test_post_init_classmethod"),
         # Bugs
-        ("TestCase", "test_hash_field_rules"),  # compiler crash
-        ("TestCase", "test_class_var"),  # not sure but compiler crash
+        #======
+        # not specifically a dataclass issue - a C int crashes classvar
+        ("TestCase", "test_class_var"),
         ("TestCase", "test_field_order"),  # invalid C code (__pyx_base?)
         (
             "TestCase",
