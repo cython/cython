@@ -269,7 +269,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
-            kwargs[k] = v
+            kwargs[k] = v.value
 
     # remove everything that does not belong into _DataclassParams()
     kw_only = kwargs.pop("kw_only")
@@ -329,12 +329,6 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
 def generate_init_code(code, init, node, fields, kw_only):
     """
-    All of these "generate_*_code" functions return a tuple of:
-    - code string
-    - placeholder dict (often empty)
-    - stat list (often empty)
-    which can then be combined later and processed once.
-
     Notes on CPython generated "__init__":
     * Implemented in `_init_fn`.
     * The use of the `dataclasses._HAS_DEFAULT_FACTORY` sentinel value as
@@ -346,6 +340,11 @@ def generate_init_code(code, init, node, fields, kw_only):
     * seen_default and the associated error message are copied directly from Python
     * Call to user-defined __post_init__ function (if it exists) is copied from
       CPython.
+
+    Cython behaviour deviates a little here (to be decided if this is right...)
+    Because the class variable from the assignment does not exist Cython fields will
+    return None (or whatever their type default is) if not initialized while Python
+    dataclasses will fall back to looking up the class variable.
     """
     if not init or node.scope.lookup_here("__init__"):
         return
@@ -455,9 +454,6 @@ def generate_cmp_code(code, op, funcname, node, fields):
         return
 
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
-
-    if not names:
-        return  # no comparable types
 
     code.add_code_lines([
         "def %s(self, other):" % funcname,

@@ -120,6 +120,12 @@ skip_tests = frozenset(
         # These tests are probably fine, but the string substitution in this file doesn't get it right
         ("TestRepr", "test_repr"),
         ("TestCase", "test_not_in_repr"),
+        ('TestRepr', 'test_no_repr'),
+        # class variable doesn't exist in Cython so uninitialized variable appears differently - for now this is deliberate
+        ('TestInit', 'test_no_init'),
+        # I believe the test works but the ordering functions do appear in the class dict (and default slot wrappers which
+        # just raise NotImplementedError
+        ('TestOrdering', 'test_no_order'),
         # not possible to add attributes on extension types
         ("TestCase", "test_post_init_classmethod"),
         # Bugs
@@ -139,18 +145,14 @@ skip_tests = frozenset(
         ("TestReplace", "test_recursive_repr_misc_attrs"),  # recursion error
         ("TestReplace", "test_recursive_repr_indirection"),  # recursion error
         ("TestReplace", "test_recursive_repr_indirection_two"),  # recursion error
-        ("TestCase", "test_0_field_compare"),  # should return False
-        ("TestCase", "test_1_field_compare"),  # order=False is apparently ignored
-        ("TestOrdering", "test_no_order"),  # probably order=False being ignored
-        ("TestRepr", "test_no_repr"),  # turning off repr doesn't work
         (
             "TestCase",
             "test_intermediate_non_dataclass",
         ),  # issue with propagating through intermediate class
-        ("TestCase", "test_post_init"),  # init=False being ignored
         (
             "TestFrozen",
         ),  # raises AttributeError, not FrozenInstanceError (may be hard to fix)
+        ('TestCase', 'test_post_init'),  # Works except for AttributeError instead of FrozenInstanceError
         ("TestReplace", "test_frozen"),  # AttributeError not FrozenInstanceError
         (
             "TestCase",
@@ -158,7 +160,6 @@ skip_tests = frozenset(
         ),  # doesn't define __setattr__ and just relies on Cython to enforce readonly properties
         ("TestCase", "test_compare_subclasses"),  # wrong comparison
         ("TestCase", "test_simple_compare"),  # wrong comparison
-        ("TestEq", "test_no_eq"),  # wrong comparison (probably eq=False being ignored)
         (
             "TestCase",
             "test_field_named_self",
@@ -209,7 +210,6 @@ version_specific_skips = {
         10,
     ),  # needs language support for | operator on types
 }
-
 
 class DataclassInDecorators(ast.NodeVisitor):
     found = False
