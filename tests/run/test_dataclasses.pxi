@@ -1,8 +1,12 @@
 from cython.dataclasses cimport dataclass, field
 from cython cimport cclass
 from dataclasses import (
-    fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace
+    fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace,
 )
+try:
+    from dataclasses import KW_ONLY
+except ImportError:
+    pass  # version dependent
 import unittest
 from unittest.mock import Mock
 import pickle

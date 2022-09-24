@@ -68,11 +68,9 @@ skip_tests = frozenset(
         ("TestCase", "test_missing_repr"),  # MISSING
         ("TestSlots",),  # __slots__ isn't understood
         ("TestMatchArgs",),
+        # will be enabled as part of enhanced kwonly introspection PR
         ("TestKeywordArgs", "test_field_marked_as_kwonly"),
         ("TestKeywordArgs", "test_match_args"),
-        ("TestKeywordArgs", "test_KW_ONLY"),
-        ("TestKeywordArgs", "test_KW_ONLY_as_string"),
-        ("TestKeywordArgs", "test_post_init"),
         (
             "TestCase",
             "test_class_var_frozen",
@@ -194,6 +192,10 @@ version_specific_skips = {
         3,
         10,
     ),  # needs language support for | operator on types
+    ("TestKeywordArgs", "test_field_marked_as_kwonly"): (
+        3,
+        10,
+    ),  # Field attribute not available for inspection
 }
 
 class DataclassInDecorators(ast.NodeVisitor):

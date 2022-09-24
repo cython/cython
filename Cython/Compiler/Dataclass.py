@@ -214,7 +214,11 @@ def process_class_get_fields(node, global_kw_only):
         # TODO - classvars aren't included in "var_entries" so are missed here
         # and thus this code is never triggered
         is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
-        is_kw_only_marker = entry.declared_with_pytyping_modifier("dataclasses.KW_ONLY")
+        is_kw_only_marker = (entry.declared_with_pytyping_modifier("dataclasses.KW_ONLY") or
+            # a string of "dataclasses.KW_ONLY" is also tested for in CPython.
+            # TODO this logic perhaps should be caught by declared_with_pytyping_modifier
+            (entry.annotation and entry.annotation.expr.is_string_literal and
+            entry.annotation.expr.value in [b'dataclasses.KW_ONLY', u'dataclasses.KW_ONLY']))
         if is_kw_only_marker:
             if seen_kw_only_marker:
                 error(entry.pos, "%s is KW_ONLY, but KW_ONLY has already been specified", entry.name)
