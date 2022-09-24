@@ -17,6 +17,7 @@ unavailable_functions = frozenset(
 skip_tests = frozenset(
     {
         # needs Cython compile
+        # ====================
         ("TestCase", "test_field_default_default_factory_error"),
         ("TestCase", "test_two_fields_one_default"),
         ("TestCase", "test_overwrite_hash"),
@@ -57,6 +58,7 @@ skip_tests = frozenset(
         ("TestCase", "test_class_attrs"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
         # Currently unsupported
+        # =====================
         (
             "TestOrdering",
             "test_functools_total_ordering",
@@ -120,7 +122,10 @@ skip_tests = frozenset(
         ("TestCase", "test_not_in_repr"),
         # class variable doesn't exist in Cython so uninitialized variable appears differently - for now this is deliberate
         ('TestInit', 'test_no_init'),
+        # not possible to add attributes on extension types
+        ("TestCase", "test_post_init_classmethod"),
         # Bugs
+        # ====
         ("TestCase", "test_no_options"),  # @dataclass()
         ("TestCase", "test_field_no_default"),  # field()
         ("TestCase", "test_init_in_order"),  # field()
@@ -168,6 +173,7 @@ skip_tests = frozenset(
         ("TestCase", "test_init_var_with_default"),  # not sure...
         ("TestReplace", "test_initvar_with_default_value"),  # needs investigating
         # Maybe bugs?
+        # ==========
         # non-default argument 'z' follows default argument in dataclass __init__ - this message looks right to me!
         ("TestCase", "test_class_marker"),
         # cython.dataclasses.field parameter 'metadata' must be a literal value - possibly not something we can support?
@@ -192,10 +198,6 @@ version_specific_skips = {
         3,
         10,
     ),  # needs language support for | operator on types
-    ("TestCase", "test_post_init_classmethod"): (
-        3,
-        10,
-    ),  # not possible to add attributes on extension types
 }
 
 
