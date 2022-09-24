@@ -130,6 +130,7 @@ skip_tests = frozenset(
         # not possible to add attributes on extension types
         ("TestCase", "test_post_init_classmethod"),
         # Bugs
+        # ====
         ("TestCase", "test_hash_field_rules"),  # compiler crash
         ("TestCase", "test_class_var"),  # not sure but compiler crash
         ("TestCase", "test_field_order"),  # invalid C code (__pyx_base?)
@@ -137,11 +138,6 @@ skip_tests = frozenset(
             "TestCase",
             "test_overwrite_fields_in_derived_class",
         ),  # invalid C code (__pyx_base?)
-        ("TestReplace", "test_recursive_repr"),  # recursion error
-        ("TestReplace", "test_recursive_repr_two_attrs"),  # recursion error
-        ("TestReplace", "test_recursive_repr_misc_attrs"),  # recursion error
-        ("TestReplace", "test_recursive_repr_indirection"),  # recursion error
-        ("TestReplace", "test_recursive_repr_indirection_two"),  # recursion error
         (
             "TestCase",
             "test_intermediate_non_dataclass",
@@ -231,12 +227,11 @@ class SubstituteNameString(ast.NodeTransformer):
             if node.value.find("<locals>") != -1:
                 import re
 
-                new_value = re.sub("[\w.]*<locals>", "", node.value)
+                new_value = new_value2 = re.sub("[\w.]*<locals>", "", node.value)
                 for key, value in self.substitutions.items():
-                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value)
-                    if new_value != new_value2:
-                        node.value = new_value2
-                        break
+                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value2)
+                if new_value != new_value2:
+                    node.value = new_value2
         return node
 
 

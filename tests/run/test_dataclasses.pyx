@@ -548,6 +548,48 @@ class C_TestReplace_test_initvar_is_specified:
     def __post_init__(self, y):
         self.x *= y
 
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr:
+    f: 'C'
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_two_attrs:
+    f: 'C'
+    g: 'C'
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_indirection:
+    f: 'D'
+
+@dataclass
+@cclass
+class D_TestReplace_test_recursive_repr_indirection:
+    f: 'C'
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_indirection_two:
+    f: 'D'
+
+@dataclass
+@cclass
+class D_TestReplace_test_recursive_repr_indirection_two:
+    f: 'E'
+
+@dataclass
+@cclass
+class E_TestReplace_test_recursive_repr_indirection_two:
+    f: 'C'
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_misc_attrs:
+    f: 'C'
+    g: int
+
 class CustomError(Exception):
     pass
 
@@ -1065,6 +1107,46 @@ class TestReplace(unittest.TestCase):
             replace(c, x=3)
         c = replace(c, x=3, y=5)
         self.assertEqual(c.x, 15)
+
+    def test_recursive_repr(self):
+        C = C_TestReplace_test_recursive_repr
+        c = C(None)
+        c.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr(f=...)')
+
+    def test_recursive_repr_two_attrs(self):
+        C = C_TestReplace_test_recursive_repr_two_attrs
+        c = C(None, None)
+        c.f = c
+        c.g = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_two_attrs(f=..., g=...)')
+
+    def test_recursive_repr_indirection(self):
+        C = C_TestReplace_test_recursive_repr_indirection
+        D = D_TestReplace_test_recursive_repr_indirection
+        c = C(None)
+        d = D(None)
+        c.f = d
+        d.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_indirection(f=D_TestReplace_test_recursive_repr_indirection(f=...))')
+
+    def test_recursive_repr_indirection_two(self):
+        C = C_TestReplace_test_recursive_repr_indirection_two
+        D = D_TestReplace_test_recursive_repr_indirection_two
+        E = E_TestReplace_test_recursive_repr_indirection_two
+        c = C(None)
+        d = D(None)
+        e = E(None)
+        c.f = d
+        d.f = e
+        e.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_indirection_two(f=D_TestReplace_test_recursive_repr_indirection_two(f=E_TestReplace_test_recursive_repr_indirection_two(f=...)))')
+
+    def test_recursive_repr_misc_attrs(self):
+        C = C_TestReplace_test_recursive_repr_misc_attrs
+        c = C(None, 1)
+        c.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_misc_attrs(f=..., g=1)')
 
 class TestAbstract(unittest.TestCase):
     pass
