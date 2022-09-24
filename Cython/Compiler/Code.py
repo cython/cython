@@ -2103,10 +2103,10 @@ class CCodeWriter(object):
         if entry.visibility == "private" and not entry.used:
             #print "...private and not used, skipping", entry.cname ###
             return
-        if storage_class:
-            self.put("%s " % storage_class)
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
+        if storage_class:
+            self.put("%s " % storage_class)
         if entry.is_cpp_optional:
             self.put(entry.type.cpp_optional_declaration_code(
                 entry.cname, dll_linkage=dll_linkage))

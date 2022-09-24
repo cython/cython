@@ -482,6 +482,7 @@ VER_DEP_MODULES = {
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          'run.test_unicode',  # taken from Py3.7, difficult to backport
                                          'run.pep442_tp_finalize',
+                                         'run.pep442_tp_finalize_cimport',
                                          ]),
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
@@ -496,6 +497,7 @@ VER_DEP_MODULES = {
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
+                                         'run.test_dataclasses',
                                          ]),
 }
 
@@ -1431,6 +1433,8 @@ class CythonCompileTestCase(unittest.TestCase):
     def _match_output(self, expected_output, actual_output, write):
         try:
             for expected, actual in zip(expected_output, actual_output):
+                if expected != actual and '\\' in actual and os.sep == '\\' and '/' in expected and '\\' not in expected:
+                    expected = expected.replace('/', '\\')
                 self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
                 expected = expected_output[len(actual_output)]

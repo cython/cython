@@ -232,14 +232,16 @@ def process_class_get_fields(node, global_kw_only):
                     and assignment.function.as_cython_attribute() == "dataclasses.field"):
                 # I believe most of this is well-enforced when it's treated as a directive
                 # but it doesn't hurt to make sure
-                if (not isinstance(assignment, ExprNodes.GeneralCallNode)
-                        or not isinstance(assignment.positional_args, ExprNodes.TupleNode)
-                        or assignment.positional_args.args
-                        or not isinstance(assignment.keyword_args, ExprNodes.DictNode)):
+                valid_general_call = (isinstance(assignment, ExprNodes.GeneralCallNode)
+                        and isinstance(assignment.positional_args, ExprNodes.TupleNode)
+                        and not assignment.positional_args.args
+                        and (assignment.keyword_args is None or isinstance(assignment.keyword_args, ExprNodes.DictNode)))
+                valid_simple_call = (isinstance(assignment, ExprNodes.SimpleCallNode) and not assignment.args)
+                if not (valid_general_call or valid_simple_call):
                     error(assignment.pos, "Call to 'cython.dataclasses.field' must only consist "
                           "of compile-time keyword arguments")
                     continue
-                keyword_args = assignment.keyword_args.as_python_dict()
+                keyword_args = assignment.keyword_args.as_python_dict() if valid_general_call and assignment.keyword_args else {}
                 if 'kw_only' not in keyword_args:
                     keyword_args['kw_only'] = global_kw_only_node
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
@@ -348,12 +350,6 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
 def generate_init_code(code, init, node, fields):
     """
-    All of these "generate_*_code" functions return a tuple of:
-    - code string
-    - placeholder dict (often empty)
-    - stat list (often empty)
-    which can then be combined later and processed once.
-
     Notes on CPython generated "__init__":
     * Implemented in `_init_fn`.
     * The use of the `dataclasses._HAS_DEFAULT_FACTORY` sentinel value as
@@ -365,6 +361,11 @@ def generate_init_code(code, init, node, fields):
     * seen_default and the associated error message are copied directly from Python
     * Call to user-defined __post_init__ function (if it exists) is copied from
       CPython.
+
+    Cython behaviour deviates a little here (to be decided if this is right...)
+    Because the class variable from the assignment does not exist Cython fields will
+    return None (or whatever their type default is) if not initialized while Python
+    dataclasses will fall back to looking up the class variable.
     """
     if not init or node.scope.lookup_here("__init__"):
         return
@@ -487,9 +488,6 @@ def generate_cmp_code(code, op, funcname, node, fields):
 
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
 
-    if not names:
-        return  # no comparable types
-
     code.add_code_lines([
         "def %s(self, other):" % funcname,
         "    if not isinstance(other, %s):" % node.class_name,
@@ -605,11 +603,11 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
         if not field.is_initvar and (
             field.compare.value if field.hash.value is None else field.hash.value)
     ]
-    if not names:
-        return  # nothing to hash
 
     # make a tuple of the hashes
-    hash_tuple_items = u", ".join(u"hash(self.%s)" % name for name in names)
+    hash_tuple_items = u", ".join(u"self.%s" % name for name in names)
+    if hash_tuple_items:
+        hash_tuple_items += u","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
     code.add_code_lines([

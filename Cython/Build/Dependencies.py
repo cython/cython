@@ -85,11 +85,14 @@ def extended_iglob(pattern):
                 for path in extended_iglob(before + case + after):
                     yield path
             return
-    if '**/' in pattern:
+
+    # We always accept '/' and also '\' on Windows,
+    # because '/' is generally common for relative paths.
+    if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = pattern.split('**/', 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
         if first:
-            first = iglob(first+'/')
+            first = iglob(first + os.sep)
         else:
             first = ['']
         for root in first:
@@ -97,7 +100,7 @@ def extended_iglob(pattern):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(join_path(root, '*', '**/' + rest)):
+            for path in extended_iglob(join_path(root, '*', '**', rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path

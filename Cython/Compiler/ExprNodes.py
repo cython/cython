@@ -7167,6 +7167,34 @@ class AttributeNode(ExprNode):
                 self.entry = entry.as_variable
                 self.analyse_as_python_attribute(env)
                 return self
+            elif entry and entry.is_cfunction and self.obj.type is not Builtin.type_type:
+                # "bound" cdef function.
+                # This implementation is likely a little inefficient and could be improved.
+                # Essentially it does:
+                #  __import__("functools").partial(coerce_to_object(self), self.obj)
+                from .UtilNodes import EvalWithTempExprNode, ResultRefNode
+                # take self.obj out to a temp because it's used twice
+                obj_node = ResultRefNode(self.obj, type=self.obj.type)
+                obj_node.result_ctype = self.obj.result_ctype
+                self.obj = obj_node
+                unbound_node = ExprNode.coerce_to(self, dst_type, env)
+                functools = SimpleCallNode(
+                    self.pos,
+                    function=NameNode(self.pos, name=StringEncoding.EncodedString("__import__")),
+                    args=[StringNode(self.pos, value=StringEncoding.EncodedString("functools"))],
+                )
+                partial = AttributeNode(
+                    self.pos,
+                    obj=functools,
+                    attribute=StringEncoding.EncodedString("partial"),
+                )
+                partial_call = SimpleCallNode(
+                    self.pos,
+                    function=partial,
+                    args=[unbound_node, obj_node],
+                )
+                complete_call = EvalWithTempExprNode(obj_node, partial_call)
+                return complete_call.analyse_types(env)
         return ExprNode.coerce_to(self, dst_type, env)
 
     def calculate_constant_result(self):
@@ -8287,7 +8315,7 @@ class SequenceNode(ExprNode):
             code.put_decref(target_list, py_object_type)
             code.putln('%s = %s; %s = NULL;' % (target_list, sublist_temp, sublist_temp))
             code.putln('#else')
-            code.putln('(void)%s;' % sublist_temp)  # avoid warning about unused variable
+            code.putln('CYTHON_UNUSED_VAR(%s);' % sublist_temp)
             code.funcstate.release_temp(sublist_temp)
             code.putln('#endif')
 
@@ -10412,6 +10440,7 @@ class UnopNode(ExprNode):
 
     subexprs = ['operand']
     infix = True
+    is_inc_dec_op = False
 
     def calculate_constant_result(self):
         func = compile_time_unary_operators[self.operator]
@@ -10523,7 +10552,10 @@ class UnopNode(ExprNode):
         self.type = PyrexTypes.error_type
 
     def analyse_cpp_operation(self, env, overload_check=True):
-        entry = env.lookup_operator(self.operator, [self.operand])
+        operand_types = [self.operand.type]
+        if self.is_inc_dec_op and not self.is_prefix:
+            operand_types.append(PyrexTypes.c_int_type)
+        entry = env.lookup_operator_for_types(self.pos, self.operator, operand_types)
         if overload_check and not entry:
             self.type_error()
             return
@@ -10537,7 +10569,12 @@ class UnopNode(ExprNode):
         else:
             self.exception_check = ''
             self.exception_value = ''
-        cpp_type = self.operand.type.find_cpp_operation_type(self.operator)
+        if self.is_inc_dec_op and not self.is_prefix:
+            cpp_type = self.operand.type.find_cpp_operation_type(
+                self.operator, operand_type=PyrexTypes.c_int_type
+            )
+        else:
+            cpp_type = self.operand.type.find_cpp_operation_type(self.operator)
         if overload_check and cpp_type is None:
             error(self.pos, "'%s' operator not defined for %s" % (
                 self.operator, type))
@@ -10679,6 +10716,17 @@ class DereferenceNode(CUnopNode):
 
 class DecrementIncrementNode(CUnopNode):
     #  unary ++/-- operator
+    is_inc_dec_op = True
+
+    def type_error(self):
+        if not self.operand.type.is_error:
+            if self.is_prefix:
+                error(self.pos, "No match for 'operator%s' (operand type is '%s')" %
+                    (self.operator, self.operand.type))
+            else:
+                error(self.pos, "No 'operator%s(int)' declared for postfix '%s' (operand type is '%s')" %
+                    (self.operator, self.operator, self.operand.type))
+        self.type = PyrexTypes.error_type
 
     def analyse_c_operation(self, env):
         if self.operand.type.is_numeric:

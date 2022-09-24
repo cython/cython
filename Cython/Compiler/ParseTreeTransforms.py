@@ -1225,7 +1225,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return (optname, directivetype(optname, str(args[0].value)))
         elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
             # signal to pass things on without processing
-            return (optname, (args, kwds.as_python_dict()))
+            return (optname, (args, kwds.as_python_dict() if kwds else {}))
         else:
             assert False
 

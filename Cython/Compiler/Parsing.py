@@ -108,7 +108,7 @@ def p_binop_expr(s, ops, p_sub_expr):
 
 #lambdef: 'lambda' [varargslist] ':' test
 
-def p_lambdef(s, allow_conditional=True):
+def p_lambdef(s):
     # s.sy == 'lambda'
     pos = s.position()
     s.next()
@@ -119,19 +119,11 @@ def p_lambdef(s, allow_conditional=True):
         args, star_arg, starstar_arg = p_varargslist(
             s, terminator=':', annotated=False)
     s.expect(':')
-    if allow_conditional:
-        expr = p_test(s)
-    else:
-        expr = p_test_nocond(s)
+    expr = p_test(s)
     return ExprNodes.LambdaNode(
         pos, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
         result_expr = expr)
-
-#lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
-
-def p_lambdef_nocond(s):
-    return p_lambdef(s)
 
 #test: or_test ['if' or_test 'else' test] | lambdef
 
@@ -160,15 +152,6 @@ def p_test_allow_walrus_after(s):
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
     else:
         return expr
-
-
-#test_nocond: or_test | lambdef_nocond
-
-def p_test_nocond(s):
-    if s.sy == 'lambda':
-        return p_lambdef_nocond(s)
-    else:
-        return p_or_test(s)
 
 def p_namedexpr_test(s):
     # defined in the LL parser as
@@ -1344,7 +1327,12 @@ def p_comp_if(s, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
-    test = p_test_nocond(s)
+    # Note that Python 3.9+ is actually more restrictive here and Cython now follows
+    # the Python 3.9+ behaviour: https://github.com/python/cpython/issues/86014
+    # On Python <3.9 `[i for i in range(10) if lambda: i if True else 1]` was disallowed
+    # but `[i for i in range(10) if lambda: i]` was allowed.
+    # On Python >=3.9 they're both disallowed.
+    test = p_or_test(s)
     return Nodes.IfStatNode(pos,
         if_clauses = [Nodes.IfClauseNode(pos, condition = test,
                                          body = p_comp_iter(s, body))],
@@ -2957,7 +2945,17 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s)
+    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx)
+    if nogil and exc_clause:
+        warning(
+            s.position(),
+            "The keyword 'nogil' should appear at the end of the "
+            "function signature line. Placing it before 'except' "
+            "or 'noexcept' will be disallowed in a future version "
+            "of Cython.",
+            level=2
+        )
+    nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
@@ -3067,18 +3065,54 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s):
+def p_exception_value_clause(s, ctx):
+    """
+    Parse exception value clause.
+
+    Maps clauses to exc_check / exc_value / exc_clause as follows:
+     ______________________________________________________________________
+    |                             |             |             |            |
+    | Clause                      | exc_check   | exc_value   | exc_clause |
+    | ___________________________ | ___________ | ___________ | __________ |
+    |                             |             |             |            |
+    | <nothing> (default func.)   | True        | None        | False      |
+    | <nothing> (cdef extern)     | False       | None        | False      |
+    | noexcept                    | False       | None        | True       |
+    | except <val>                | False       | <val>       | True       |
+    | except? <val>               | True        | <val>       | True       |
+    | except *                    | True        | None        | True       |
+    | except +                    | '+'         | None        | True       |
+    | except +*                   | '+'         | '*'         | True       |
+    | except +<PyErr>             | '+'         | <PyErr>     | True       |
+    | ___________________________ | ___________ | ___________ | __________ |
+
+    Note that the only reason we need `exc_clause` is to raise a
+    warning when `'except'` or `'noexcept'` is placed after the
+    `'nogil'` keyword.
+    """
+    exc_clause = False
     exc_val = None
-    exc_check = 0
-    if s.sy == 'except':
+    if ctx.visibility  == 'extern':
+        exc_check = False
+    else:
+        exc_check = True
+
+    if s.sy == 'IDENT' and s.systring == 'noexcept':
+        exc_clause = True
+        s.next()
+        exc_check = False
+    elif s.sy == 'except':
+        exc_clause = True
         s.next()
         if s.sy == '*':
-            exc_check = 1
+            exc_check = True
             s.next()
         elif s.sy == '+':
             exc_check = '+'
             s.next()
-            if s.sy == 'IDENT':
+            if p_nogil(s):
+                ctx.nogil = True
+            elif s.sy == 'IDENT':
                 name = s.systring
                 s.next()
                 exc_val = p_name(s, name)
@@ -3087,10 +3121,13 @@ def p_exception_value_clause(s):
                 s.next()
         else:
             if s.sy == '?':
-                exc_check = 1
+                exc_check = True
                 s.next()
+            else:
+                exc_check = False
+            # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    return exc_val, exc_check
+    return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
     '*', '**', '...', ')', ':', '/')))

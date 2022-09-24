@@ -102,7 +102,9 @@ Similar projects that have a relevance today include:
 
   * Pros: highly language compliant, reasonable performance gains,
     support for static application linking (similar to
-    `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_)
+    `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
+    but with the ability to bundle library dependencies into a self-contained
+    executable)
   * Cons: no support for low-level optimisations and typing
 
 In comparison to the above, Cython provides

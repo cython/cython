@@ -1,5 +1,9 @@
 # mode: run
 
+from __future__ import print_function
+
+cimport cython
+
 import gc
 
 cdef class nontrivial_del:
@@ -49,6 +53,80 @@ def test_del_and_dealloc():
     gc.collect()
     print("finish")
 
+@cython.final
+cdef class FinalClass:
+    def __init__(self):
+        print("init")
+    def __del__(self):
+        print("del")
+
+def test_final_class():
+    """
+    >>> test_final_class()
+    start
+    init
+    del
+    finish
+    """
+    print("start")
+    d = FinalClass()
+    d = None
+    gc.collect()
+    print("finish")
+
+@cython.final
+cdef class FinalInherits(nontrivial_del):
+    def __init__(self):
+        super().__init__()
+        print("FinalInherits init")
+    # no __del__ but nontrivial_del should still be called
+    def __dealloc__(self):
+        pass  # define __dealloc__ so as not to fall back on base __dealloc__
+
+def test_final_inherited():
+    """
+    >>> test_final_inherited()
+    start
+    init
+    FinalInherits init
+    del
+    finish
+    """
+    print("start")
+    d = FinalInherits()
+    d = None
+    gc.collect()
+    print("finish")
+
+cdef class DummyBase:
+    pass
+
+class RegularClass:
+    __slots__ = ()
+    def __del__(self):
+        print("del")
+
+@cython.final
+cdef class FinalMultipleInheritance(DummyBase, RegularClass):
+    def __init__(self):
+        super().__init__()
+        print("init")
+    def __dealloc__(self):
+        pass
+
+def test_final_multiple_inheritance():
+    """
+    >>> test_final_multiple_inheritance()
+    start
+    init
+    del
+    finish
+    """
+    print("start")
+    d = FinalMultipleInheritance()
+    d = None
+    gc.collect()
+    print("finish")
 
 cdef class del_with_exception:
     def __init__(self):
@@ -301,3 +379,4 @@ class derived_python_child(cdef_nontrivial_parent):
         raise RuntimeError("End function")
 
     func(derived_python_child)
+
