@@ -21,7 +21,7 @@ cdef cppclass RegularPolygon(Shape):
     __init__(int n, float radius):
         this.n = n
         this.radius = radius
-    float area() const:
+    float area() noexcept const:
         cdef double theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
     void do_with() except *:

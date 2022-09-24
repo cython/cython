@@ -74,7 +74,7 @@ def test_global():
     >>> global_csqrt.__doc__
     'wrap(x: float) -> float'
     >>> test_global()
-    double (double) nogil
+    double (double) noexcept nogil
     Python object
     """
     print cython.typeof(sqrt)

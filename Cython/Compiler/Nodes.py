@@ -730,13 +730,15 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
-                        # Ideally the function-pointer test would be better after self.base is analysed
-                        # however that is hard to do with the current implementation so it lives here
-                        # for now
-                        and not isinstance(self.base, CPtrDeclaratorNode)):
-                    # Extension types are more difficult because the signature must match the base type signature.
-                    if not env.is_c_class_scope:
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)):
+                    # - We skip this optimization for extension types; they are more difficult because
+                    #   the signature must match the base type signature.
+                    # - Same for function pointers, as we want them to be able to match functions
+                    #   with any exception value.
+                    # - Ideally the function-pointer test would be better after self.base is analysed
+                    #   however that is hard to do with the current implementation so it lives here
+                    #   for now.
+                    if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode(
                             self.pos, value=return_type.exception_value, type=return_type)
@@ -3750,7 +3752,7 @@ class DefNodeWrapper(FuncDefNode):
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        header = "%sstatic %s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
