@@ -273,7 +273,7 @@ def run_build():
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
         """),
-        license='Apache',
+        license='Apache-2.0',
         classifiers=[
             dev_status(version),
             "Intended Audience :: Developers",

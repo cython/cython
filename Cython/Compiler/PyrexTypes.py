@@ -3159,8 +3159,10 @@ class CFuncType(CType):
         if (pyrex or for_display) and not self.return_type.is_pyobject:
             if self.exception_value and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value:
+            elif self.exception_value and not self.exception_check:
                 trailer = " except %s" % self.exception_value
+            elif not self.exception_value and not self.exception_check:
+                trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
             elif self.exception_check and for_display:
