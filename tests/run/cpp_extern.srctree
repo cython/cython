@@ -68,6 +68,9 @@ size_t size_vector1() {
 
 #include <vector>
 extern "C" {
+// #include within `extern "C"` is legal.
+// We want to make sure here that Cython C++ functions are flagged as `extern "C++"`.
+// Otherwise they would be interpreted with C-linkage if the header is include within a `extern "C"` block.
 #include "foo.h"
 }
 
