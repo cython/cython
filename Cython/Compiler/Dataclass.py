@@ -446,14 +446,30 @@ def generate_repr_code(code, repr, node, fields):
     if not repr or node.scope.lookup("__repr__"):
         return
 
-    code.add_code_line("__pyx_recursive_repr_guard = __import__('threading').local()")
-    code.add_code_line("__pyx_recursive_repr_guard.running = set()")
+    # The recursive guard is likely a little costly, so skip it if possible.
+    # is_gc_simple defines where it can contain recursive objects
+    needs_recursive_guard = False
+    for name in fields.keys():
+        entry = node.scope.lookup(name)
+        type_ = entry.type
+        if type_.is_memoryviewslice:
+            type_ = type_.dtype
+        if not type_.is_pyobject:
+            continue  # no GC
+        if not type_.is_gc_simple:
+            needs_recursive_guard = True
+            break
+
+    if needs_recursive_guard:
+        code.add_code_line("__pyx_recursive_repr_guard = __import__('threading').local()")
+        code.add_code_line("__pyx_recursive_repr_guard.running = set()")
     code.add_code_line("def __repr__(self):")
-    code.add_code_line("    key = id(self)")
-    code.add_code_line("    guard_set = self.__pyx_recursive_repr_guard.running")
-    code.add_code_line("    if key in guard_set: return '...'")
-    code.add_code_line("    guard_set.add(key)")
-    code.add_code_line("    try:")
+    if needs_recursive_guard:
+        code.add_code_line("    key = id(self)")
+        code.add_code_line("    guard_set = self.__pyx_recursive_repr_guard.running")
+        code.add_code_line("    if key in guard_set: return '...'")
+        code.add_code_line("    guard_set.add(key)")
+        code.add_code_line("    try:")
     strs = [u"%s={self.%s!r}" % (name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
@@ -461,8 +477,9 @@ def generate_repr_code(code, repr, node, fields):
 
     code.add_code_line(u'        name = getattr(type(self), "__qualname__", type(self).__name__)')
     code.add_code_line(u"        return f'{name}(%s)'" % format_string)
-    code.add_code_line("    finally:")
-    code.add_code_line("        guard_set.remove(key)")
+    if needs_recursive_guard:
+        code.add_code_line("    finally:")
+        code.add_code_line("        guard_set.remove(key)")
 
 
 def generate_cmp_code(code, op, funcname, node, fields):
