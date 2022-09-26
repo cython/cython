@@ -140,3 +140,43 @@ bad:
 }
 #endif
 
+/////////////// FetchCommonFunction.proto ///////////////
+
+static PyObject* __Pyx_FetchCommonFunction(PyMethodDef *method_def);
+
+/////////////// FetchCommonFunction ///////////////
+//@requires:CommonStructures.c::FetchCommonType
+
+static PyObject* __Pyx_FetchCommonFunction(PyMethodDef *method_def) {
+    PyObject* abi_module;
+    const char* object_name;
+    PyObject *func;
+    PyObject *cached_func = NULL;
+
+    abi_module = __Pyx_FetchSharedCythonABIModule();
+    if (!abi_module) return NULL;
+    object_name = method_def->ml_name;
+    cached_func = PyObject_GetAttrString(abi_module, object_name);
+    if (cached_func) {
+        // TODO: Verify?
+        goto done;
+    }
+
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+    PyErr_Clear();
+    if ((func = PyCFunction_NewEx(method_def, abi_module, abi_module)) == NULL) goto bad;
+    if (PyObject_SetAttrString(abi_module, object_name, (PyObject *)func) < 0)
+        goto bad;
+    Py_INCREF(func);
+    cached_func = func;
+
+done:
+    Py_DECREF(abi_module);
+    // NOTE: always returns owned reference, or NULL on error
+    return cached_func;
+
+bad:
+    Py_XDECREF(cached_func);
+    cached_func = NULL;
+    goto done;
+}

@@ -137,6 +137,7 @@ type_dict_guard_temp = pyrex_prefix + "typedict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
 cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
 fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
+dummy_tracer_cname = pyrex_prefix + "dummy_tracer"
 # the name "dflt" was picked by analogy with the CPython dataclass module which stores
 # the default values in variables named f"_dflt_{field.name}" in a hidden scope that's
 # passed to the __init__ function. (The name is unimportant to the exact workings though)

@@ -199,6 +199,17 @@
   static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, PyThreadState* tstate, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
 
+#if !CYTHON_USE_MODULE_STATE
+static PyObject *$dummy_tracer_cname = NULL;
+#endif
+
+static PyObject *__Pyx_dummy_tracer(PyObject *self, PyObject *args);
+
+static PyMethodDef __pyx_dummy_tracer_methods[] = {
+    {"dummy_tracer", __Pyx_dummy_tracer, METH_VARARGS, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
 #else
 
   #define __Pyx_TraceDeclarations
@@ -241,7 +252,7 @@
               PyThreadState *tstate;                                                       \
               PyGILState_STATE state = __Pyx_PyGILState_Ensure();                          \
               tstate = __Pyx_PyThreadState_Current;                                        \
-              if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
+              if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc) {                  \
                   ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               }                                                                            \
               __Pyx_PyGILState_Release(state);                                             \
@@ -249,7 +260,7 @@
           }                                                                                \
       } else {                                                                             \
           PyThreadState* tstate = __Pyx_PyThreadState_Current;                             \
-          if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
+          if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc) {                      \
               int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
@@ -259,7 +270,7 @@
   #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       PyThreadState* tstate = __Pyx_PyThreadState_Current;                                 \
-      if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
+      if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc) {                          \
           int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);              \
           if (unlikely(ret)) goto_error;                                                   \
       }                                                                                    \
@@ -272,6 +283,7 @@
 
 /////////////// Profile ///////////////
 //@substitute: naming
+//@requires: CommonStructures.c::FetchCommonFunction
 
 #if CYTHON_PROFILE
 
@@ -295,11 +307,19 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
+#if PY_VERSION_HEX < 0x031000B1
+        // For Python versions older than 3.10 (Before PEP626), set a dummy tracer so that Python
+        // updates f_lineno
         if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
-            // this enables "f_lineno" lookup, at least in CPython ...
-            Py_INCREF(Py_None);
-            (*frame)->f_trace = Py_None;
+            if ($dummy_tracer_cname == NULL) {
+                $dummy_tracer_cname = __Pyx_FetchCommonFunction(&__pyx_dummy_tracer_methods[0]);
+                if ($dummy_tracer_cname == NULL) return 0;
+            }
+
+            Py_INCREF($dummy_tracer_cname);
+            (*frame)->f_trace = $dummy_tracer_cname;
         }
+#endif
 #if PY_VERSION_HEX < 0x030400B1
     } else {
         (*frame)->f_tstate = tstate;
@@ -372,6 +392,11 @@ bad:
 #endif
 
     return py_code;
+}
+
+static PyObject *__Pyx_dummy_tracer(PyObject *self, PyObject *args) {
+    Py_INCREF($dummy_tracer_cname);
+    return $dummy_tracer_cname;
 }
 
 #endif /* CYTHON_PROFILE */
