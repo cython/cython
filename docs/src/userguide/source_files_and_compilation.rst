@@ -866,22 +866,22 @@ Cython code.  Here is the list of currently supported directives:
     False.
     
 ``cpow`` (True / False)
-    ``cpow`` has two effects on the behaviour of ``a**b``.
+    ``cpow`` has modifies the return type of ``a**b``, as shown in the
+    table below:
     
-    #. If both types are C integers then setting ``cpow`` to True 
-       forces the result type to be an integer. Otherwise the result 
-       type is a C floating point number if ``b`` can't be determined
-       to definitely be positive (the False case deviates from Python
-       slightly, since Python will dynamically pick either a Python
-       ``int`` or a Python ``float``).
-    #. If either or ``a`` or ``b`` is a floating point type then
-       setting ``cpow`` to True forces the result type to be a C
-       double, with a value of ``NaN`` if the result would be a
-       complex number. Otherwise the result can be either a real or
-       a complex number, at the cost of some speed.
-    This option was added in Cython
-    3.0 with a default of False; before Cython 3 the behaviour matched
-    the True version.
+        .. csv-table:: cpow behaviour
+            :file: cpow_table.csv
+            :header-rows: 1
+            :class: longtable
+            :widths: 1 1 3 3
+    
+    The ``cpow==True`` behaviour largely keeps the result type the
+    same as the operand types, while the ``cpow==False`` behaviour
+    follows Python and returns a flexible type depending on the
+    inputs.
+
+    Introduced in Cython 3.0 with a default of False;
+    before Cython 3 the behaviour matched the ``cpow=True`` version.
 
 ``always_allow_keywords`` (True / False)
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
