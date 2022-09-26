@@ -58,9 +58,9 @@ class StringIOTree(object):
         self.markers = []
 
     def empty(self):
-        if any(x.empty() for x in self.prepended_children):
+        if self.stream.tell():
             return False
-        return not self.stream.tell()
+        return all(child.empty() for child in self.prepended_children)
 
     def getvalue(self):
         content = []
