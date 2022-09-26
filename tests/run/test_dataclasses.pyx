@@ -551,43 +551,43 @@ class C_TestReplace_test_initvar_is_specified:
 @dataclass
 @cclass
 class C_TestReplace_test_recursive_repr:
-    f: 'C'
+    f: object
 
 @dataclass
 @cclass
 class C_TestReplace_test_recursive_repr_two_attrs:
-    f: 'C'
-    g: 'C'
+    f: object
+    g: object
 
 @dataclass
 @cclass
 class C_TestReplace_test_recursive_repr_indirection:
-    f: 'D'
+    f: object
 
 @dataclass
 @cclass
 class D_TestReplace_test_recursive_repr_indirection:
-    f: 'C'
+    f: object
 
 @dataclass
 @cclass
 class C_TestReplace_test_recursive_repr_indirection_two:
-    f: 'D'
+    f: object
 
 @dataclass
 @cclass
 class D_TestReplace_test_recursive_repr_indirection_two:
-    f: 'E'
+    f: object
 
 @dataclass
 @cclass
 class E_TestReplace_test_recursive_repr_indirection_two:
-    f: 'C'
+    f: object
 
 @dataclass
 @cclass
 class C_TestReplace_test_recursive_repr_misc_attrs:
-    f: 'C'
+    f: object
     g: int
 
 class CustomError(Exception):

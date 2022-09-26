@@ -317,6 +317,7 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
             self.used_names.add(new_name)
             # hmmmm... possibly there's a few cases where there's more than one name?
             self.collected_substitutions[old_name] = node.name
+
             return ast.Assign(
                 targets=[ast.Name(id=old_name, ctx=ast.Store())],
                 value=ast.Name(id=new_name, ctx=ast.Load()),
@@ -401,6 +402,17 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
     def visit_Module(self, node):
         self.generic_visit(node)
         node.body[0:0] = self.global_classes
+        return node
+
+    def visit_AnnAssign(self, node):
+        # string annotations are forward declarations but the string will be wrong
+        # (because we're renaming the class)
+        if (isinstance(node.annotation, ast.Constant) and
+                isinstance(node.annotation.value, str)):
+            # although it'd be good to resolve these declarations, for the
+            # sake of the tests they only need to be "object"
+            node.annotation = ast.Name(id="object", ctx=ast.Load)
+
         return node
 
 
