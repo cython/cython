@@ -12229,7 +12229,7 @@ class ModNode(DivNode):
 class PowNode(NumBinopNode):
     #  '**' operator.
 
-    cpow = None
+    is_cpow = None
     cpow_false_changed_result_type = False  # was the result type affected by cpow==False
 
     def _check_cpow(self, env):

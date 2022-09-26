@@ -302,7 +302,7 @@ static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
     // In Python the type would be determined right after the number is
     // created (usually '**'), while here it's determined when coerced
     // to a PyObject, which may be a few operations later.
-    if (__Pyx_CIMAG(value)) {
+    if (unlikely(__Pyx_CIMAG(value))) {
         PyErr_SetString(PyExc_TypeError,
             "Cannot convert 'complex' with non-zero imaginary component to 'double' "
             "(this most likely comes from the '**' operator; "
