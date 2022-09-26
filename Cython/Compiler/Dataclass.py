@@ -81,7 +81,7 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
         return node
 
 
-class TemplateCode(PyxCodeWriter):
+class TemplateCode(object):
     """
     Adds the ability to keep track of placeholder argument names to PyxCodeWriter.
 
@@ -90,14 +90,28 @@ class TemplateCode(PyxCodeWriter):
     """
     _placeholder_count = 0
 
-    def __init__(self, *args, **kwds):
-        super(TemplateCode, self).__init__(*args, **kwds)
-        self.placeholders = {}
-        self.extra_stats = []
+    def __init__(self, writer = None, placeholders = None, extra_stats=None):
+        self.writer = PyxCodeWriter() if writer is None else writer
+        self.placeholders = {} if placeholders is None else placeholders
+        self.extra_stats = [] if extra_stats is None else extra_stats
+
+    def add_code_line(self, code_line):
+        self.writer.putln(code_line)
 
     def add_code_lines(self, code_lines):
         for line in code_lines:
-            self.putln(line)
+            self.writer.putln(line)
+
+    def reset(self):
+        # don't attempt to reset placeholders - it really doesn't matter if
+        # we have unused placeholders
+        self.writer.reset()
+
+    def empty(self):
+        return self.writer.empty()
+
+    def indenter(self):
+        return self.writer.indenter()
 
     def new_placeholder(self, field_names, value):
         name = self._new_placeholder_name(field_names)
@@ -122,7 +136,7 @@ class TemplateCode(PyxCodeWriter):
 
     def generate_tree(self, level='c_class'):
         stat_list_node = TreeFragment(
-            self.getvalue(),
+            self.writer.getvalue(),
             level=level,
             pipeline=[NormalizeTree(None)],
         ).substitute(self.placeholders)
@@ -131,11 +145,12 @@ class TemplateCode(PyxCodeWriter):
         return stat_list_node
 
     def insertion_point(self):
-        insertion_point = super(TemplateCode, self).insertion_point()
-        insertion_point.placeholders = self.placeholders
-        insertion_point._placeholder_count = self._placeholder_count
-        insertion_point.extra_stats = None
-        return insertion_point
+        new_writer = self.writer.insertion_point()
+        return TemplateCode(
+            writer=new_writer,
+            placeholders=self.placeholders,
+            extra_stats=self.extra_stats
+        )
 
 
 class _MISSING_TYPE(object):
@@ -403,33 +418,33 @@ def generate_init_code(code, init, node, fields, kw_only):
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
-                code.putln(u"    %s.%s = %s" % (selfname, name, name))
+                code.add_code_line(u"    %s.%s = %s" % (selfname, name, name))
             elif assignment:
                 # not an argument to the function, but is still initialized
-                code.putln(u"    %s.%s%s" % (selfname, name, assignment))
+                code.add_code_line(u"    %s.%s%s" % (selfname, name, assignment))
         else:
             ph_name = code.new_placeholder(fields, field.default_factory)
             if field.init.value:
                 # close to:
                 # def __init__(self, name=_PLACEHOLDER_VALUE):
                 #     self.name = name_default_factory() if name is _PLACEHOLDER_VALUE else name
-                code.putln(u"    %s.%s = %s() if %s is %s else %s" % (
+                code.add_code_line(u"    %s.%s = %s() if %s is %s else %s" % (
                     selfname, name, ph_name, name, default_factory_placeholder, name))
             else:
                 # still need to use the default factory to initialize
-                code.putln(u"    %s.%s = %s()" % (
+                code.add_code_line(u"    %s.%s = %s()" % (
                     selfname, name, ph_name))
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
-        code.putln("    %s.__post_init__(%s)" % (selfname, post_init_vars))
+        code.add_code_line("    %s.__post_init__(%s)" % (selfname, post_init_vars))
 
     if code.empty():
-        code.putln("    pass")
+        code.add_code_line("    pass")
 
     args = u", ".join(args)
-    function_start_point.putln(u"def __init__(%s):" % args)
+    function_start_point.add_code_line(u"def __init__(%s):" % args)
 
 
 def generate_repr_code(code, repr, node, fields):
@@ -446,14 +461,14 @@ def generate_repr_code(code, repr, node, fields):
     if not repr or node.scope.lookup("__repr__"):
         return
 
-    code.putln("def __repr__(self):")
+    code.add_code_line("def __repr__(self):")
     strs = [u"%s={self.%s!r}" % (name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)
 
-    code.putln(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
-    code.putln(u"    return f'{name}(%s)'" % format_string)
+    code.add_code_line(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
+    code.add_code_line(u"    return f'{name}(%s)'" % format_string)
 
 
 def generate_cmp_code(code, op, funcname, node, fields):
@@ -487,12 +502,12 @@ def generate_cmp_code(code, op, funcname, node, fields):
             name, op, name))
 
     if checks:
-        code.putln("    return " + " and ".join(checks))
+        code.add_code_line("    return " + " and ".join(checks))
     else:
         if "=" in op:
-            code.putln("    return True")  # "() == ()" is True
+            code.add_code_line("    return True")  # "() == ()" is True
         else:
-            code.putln("    return False")
+            code.add_code_line("    return False")
 
 
 def generate_eq_code(code, eq, node, fields):
