@@ -12233,9 +12233,9 @@ class PowNode(NumBinopNode):
     cpow_false_changed_result_type = False  # was the result type affected by cpow==False
 
     def _check_cpow(self, env):
-        if self.cpow is not None:
+        if self.is_cpow is not None:
             return  # already set
-        self.cpow = env.directives['cpow']
+        self.is_cpow = env.directives['cpow']
 
     def infer_type(self, env):
         self._check_cpow(env)
@@ -12281,10 +12281,10 @@ class PowNode(NumBinopNode):
             int(self.operand2.constant_result) == self.operand2.constant_result
         )
         # if type2 is an integer than we can't end up going from real to complex
-        if self.cpow or op1_is_definitely_positive or type2_is_int:
+        if self.is_cpow or op1_is_definitely_positive or type2_is_int:
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
             if self.operand2.constant_result is not_a_constant:
-                needs_widening = not self.cpow and type2.is_int and type2.signed
+                needs_widening = not self.is_cpow and type2.is_int and type2.signed
                 if needs_widening:
                     self.cpow_false_changed_result_type = True
             else:
@@ -12328,7 +12328,7 @@ class PowNode(NumBinopNode):
     def coerce_to(self, dst_type, env):
         if dst_type == self.type:
             return self
-        if (self.cpow is None and self.cpow_false_changed_result_type and
+        if (self.is_cpow is None and self.cpow_false_changed_result_type and
                 (dst_type.is_float or dst_type.is_int)):
             # if we're trying to coerce this directly to a C float or int
             # then fall back to the cpow == True behaviour since this is
@@ -12357,7 +12357,7 @@ class PowNode(NumBinopNode):
                     "is directly assigned to a %s. "
                     "This is likely to be fragile and we recommend setting "
                     "'cython.cpow' explicitly." % msg_detail)
-                self.cpow = True
+                self.is_cpow = True
                 self.operand1 = op1
                 self.operand2 = op2
                 result = self.analyse_types(env)
