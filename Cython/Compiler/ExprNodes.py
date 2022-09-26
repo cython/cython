@@ -12277,13 +12277,13 @@ class PowNode(NumBinopNode):
             type1.is_int and type1.signed == 0  # definitely unsigned
         )
         type2_is_int = type2.is_int or (
-            self.operand2.constant_result is not not_a_constant and
+            self.operand2.has_constant_result() and
             int(self.operand2.constant_result) == self.operand2.constant_result
         )
         # if type2 is an integer than we can't end up going from real to complex
         if self.is_cpow or op1_is_definitely_positive or type2_is_int:
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
-            if self.operand2.constant_result is not_a_constant:
+            if self.operand2.has_constant_result():
                 needs_widening = not self.is_cpow and type2.is_int and type2.signed
                 if needs_widening:
                     self.cpow_false_changed_result_type = True
