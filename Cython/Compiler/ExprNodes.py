@@ -12280,11 +12280,20 @@ class PowNode(NumBinopNode):
             self.operand2.has_constant_result() and
             int(self.operand2.constant_result) == self.operand2.constant_result
         )
-        # if type2 is an integer than we can't end up going from real to complex
-        if self.is_cpow or op1_is_definitely_positive or type2_is_int:
+        if self.is_cpow:
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
-            if self.operand2.has_constant_result():
-                needs_widening = not self.is_cpow and type2.is_int and type2.signed
+            needs_widening = False
+            if not self.operand2.has_constant_result():
+                needs_widening = (
+                    isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
+                )
+                if needs_widening:
+                    c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
+        elif op1_is_definitely_positive or type2_is_int:  # cpow==False
+            # if type2 is an integer than we can't end up going from real to complex
+            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
+            if not self.operand2.has_constant_result():
+                needs_widening = type2.is_int and type2.signed
                 if needs_widening:
                     self.cpow_false_changed_result_type = True
             else:
