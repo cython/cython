@@ -12271,7 +12271,7 @@ class PowNode(NumBinopNode):
     def compute_c_result_type(self, type1, type2):
         c_result_type = None
         op1_is_definitely_positive = (
-            self.operand1.constant_result is not not_a_constant
+            self.operand1.has_constant_result()
             and self.operand1.constant_result >= 0
         ) or (
             type1.is_int and type1.signed == 0  # definitely unsigned
