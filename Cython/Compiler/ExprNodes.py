@@ -12230,7 +12230,8 @@ class PowNode(NumBinopNode):
     #  '**' operator.
 
     is_cpow = None
-    cpow_false_changed_result_type = False  # was the result type affected by cpow==False
+    type_was_inferred = False  # was the result type affected by cpow==False?
+            # Intended to allow it to be changed if the node is coerced.
 
     def _check_cpow(self, env):
         if self.is_cpow is not None:
@@ -12295,7 +12296,7 @@ class PowNode(NumBinopNode):
             if not self.operand2.has_constant_result():
                 needs_widening = type2.is_int and type2.signed
                 if needs_widening:
-                    self.cpow_false_changed_result_type = True
+                    self.type_was_inferred = True
             else:
                 needs_widening = (
                     isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
@@ -12307,7 +12308,7 @@ class PowNode(NumBinopNode):
             # Return the special "soft complex" type to store it as a
             # complex number but with specialized coercions to Python
             c_result_type = PyrexTypes.soft_complex_type
-            self.cpow_false_changed_result_type = True
+            self.type_was_inferred = True
         return c_result_type
 
     def calculate_result_code(self):
@@ -12337,7 +12338,7 @@ class PowNode(NumBinopNode):
     def coerce_to(self, dst_type, env):
         if dst_type == self.type:
             return self
-        if (self.is_cpow is None and self.cpow_false_changed_result_type and
+        if (self.is_cpow is None and self.type_was_inferred and
                 (dst_type.is_float or dst_type.is_int)):
             # if we're trying to coerce this directly to a C float or int
             # then fall back to the cpow == True behaviour since this is
