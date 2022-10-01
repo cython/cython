@@ -3566,14 +3566,7 @@ def p_decorators(s):
     while s.sy == '@':
         pos = s.position()
         s.next()
-        decstring = p_dotted_name(s, as_allowed=0)[2]
-        names = decstring.split('.')
-        decorator = ExprNodes.NameNode(pos, name=s.context.intern_ustring(names[0]))
-        for name in names[1:]:
-            decorator = ExprNodes.AttributeNode(
-                pos, attribute=s.context.intern_ustring(name), obj=decorator)
-        if s.sy == '(':
-            decorator = p_call(s, decorator)
+        decorator = p_namedexpr_test(s)
         decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
         s.expect_newline("Expected a newline after decorator")
     return decorators
