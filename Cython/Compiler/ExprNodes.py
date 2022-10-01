@@ -2928,7 +2928,7 @@ class IteratorNode(ScopedExprNode):
 
         This supports C++ classes with reverse_iterator implemented.
         """
-        if not (isinstance(self.sequence, SimpleCallNode) and 
+        if not (isinstance(self.sequence, SimpleCallNode) and
                 self.sequence.arg_tuple and len(self.sequence.arg_tuple.args) == 1):
             return False
         func = self.sequence.function
