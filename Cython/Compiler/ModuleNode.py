@@ -1288,6 +1288,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
+        module_state_typeobj = module_state.insertion_point()
+        module_state_defines_typeobj = module_state.insertion_point()
+        for writer in [module_state_typeobj, module_state_defines_typeobj]:
+            writer.putln("#if CYTHON_USE_MODULE_STATE")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
@@ -1302,8 +1306,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "Py_VISIT(traverse_module_state->%s);" %
                     entry.type.typeptr_cname)
                 if entry.type.typeobj_cname is not None:
-                    module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.putln("#define %s %s->%s" % (
+                    module_state_typeobj.putln("PyObject *%s;" % entry.type.typeobj_cname)
+                    module_state_defines_typeobj.putln("#define %s %s->%s" % (
                         entry.type.typeobj_cname,
                         Naming.modulestateglobal_cname,
                         entry.type.typeobj_cname))
@@ -1313,6 +1317,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module_state_traverse.putln(
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
+        for writer in [module_state_typeobj, module_state_defines_typeobj]:
+            writer.putln("#endif")
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
