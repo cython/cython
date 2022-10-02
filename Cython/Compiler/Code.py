@@ -1574,7 +1574,7 @@ class GlobalState(object):
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
-            w.putln("int __Pyx_CreateStringTabAndInitStrings(void) {")
+            w.putln("static int __Pyx_CreateStringTabAndInitStrings(void) {")
             # the stringtab is a function local rather than a global to
             # ensure that it doesn't conflict with module state
             w.putln("__Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
