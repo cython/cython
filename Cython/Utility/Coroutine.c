@@ -1890,10 +1890,6 @@ static int __pyx_Coroutine_init(PyObject *module) {
 
 //////////////////// IterableCoroutine.proto ////////////////////
 
-#define __Pyx_IterableCoroutine_USED
-
-static PyTypeObject *__pyx_IterableCoroutineType = 0;
-
 #undef __Pyx_Coroutine_Check
 #define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || __Pyx_IS_TYPE(obj, __pyx_IterableCoroutineType))
 

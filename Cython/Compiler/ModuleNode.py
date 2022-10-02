@@ -857,12 +857,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
-        code.putln('static PyObject *%s;' % env.module_dict_cname)
-        code.putln('static PyObject *%s;' % Naming.builtins_cname)
-        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
-        code.putln('static PyObject *%s;' % Naming.empty_tuple)
-        code.putln('static PyObject *%s;' % Naming.empty_bytes)
-        code.putln('static PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('#endif')
@@ -1294,11 +1288,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
-        code.putln("#if !CYTHON_USE_MODULE_STATE")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
-                code.putln("static PyTypeObject *%s = 0;" % (
-                    entry.type.typeptr_cname))
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
                 module_state_defines.putln("#define %s %s->%s" % (
                     entry.type.typeptr_cname,
@@ -1322,7 +1313,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module_state_traverse.putln(
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
-        code.putln("#endif")
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
@@ -2740,7 +2730,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2764,6 +2753,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse = globalstate['module_state_traverse']
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
+        module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
         module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
@@ -2784,8 +2774,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#define %s (PyState_FindModule(&%s))' % (
             env.module_cname,
             Naming.pymoduledef_cname))
+        module_state.putln("#else")
+        module_state.putln('static %s %s_static = {};' % (
+            Naming.modulestate_cname,
+            Naming.modulestateglobal_cname
+        ))
+        module_state.putln('static %s *%s = &%s_static;' % (
+            Naming.modulestate_cname,
+            Naming.modulestateglobal_cname,
+            Naming.modulestateglobal_cname
+        ))
         module_state.putln("#endif")
-        module_state_defines.putln("#endif")
         module_state_clear.putln("return 0;")
         module_state_clear.putln("}")
         module_state_clear.putln("#endif")
@@ -2794,7 +2793,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('#define %s %s->%s' % (
             env.module_dict_cname,
             Naming.modulestateglobal_cname,
@@ -2824,18 +2822,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.preimport_cname,
                 Naming.modulestateglobal_cname,
                 Naming.preimport_cname))
-        code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('#define %s %s->%s' % (
-            Naming.cyfunction_type_cname,
-            Naming.modulestateglobal_cname,
-            Naming.cyfunction_type_cname))
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('#define %s %s->%s' %
-            (Naming.fusedfunction_type_cname,
-            Naming.modulestateglobal_cname,
-            Naming.fusedfunction_type_cname))
-        code.putln('#endif')
+        for used_name, cnames in [
+            ('__Pyx_CyFunction_USED', [Naming.cyfunction_type_cname]),
+            ('__Pyx_FusedFunction_USED', [Naming.fusedfunction_type_cname]),
+            ('__Pyx_Generator_USED', ['__pyx_GeneratorType']),
+            ('__Pyx_IterableCoroutine_USED', ['__pyx_IterableCoroutineType']),
+            ('__Pyx_Coroutine_USED', ['__pyx_CoroutineType', '__pyx_CoroutineAwaitType'])
+        ]:
+            code.putln('#ifdef %s' % used_name)
+            for cname in cnames:
+                code.putln('#define %s %s->%s' % (
+                    cname,
+                    Naming.modulestateglobal_cname,
+                    cname))
+            code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
