@@ -1203,9 +1203,10 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
 
-    def declare_builtin_type(self, name, cname, utility_code = None, objstruct_cname = None):
+    def declare_builtin_type(self, name, cname, utility_code=None,
+                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
         name = EncodedString(name)
-        type = PyrexTypes.BuiltinObjectType(name, cname, objstruct_cname)
+        type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern')
         scope.directives = {}
         if name == 'bool':

@@ -399,7 +399,13 @@ def init_builtin_types():
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
-        the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname)
+        type_class = PyrexTypes.BuiltinObjectType
+        if name in ['dict', 'list', 'set', 'frozenset']:
+            type_class = PyrexTypes.BuiltinTypeConstructorObjectType
+        elif name == 'tuple':
+            type_class = PyrexTypes.PythonTupleTypeConstructor
+        the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname,
+                                                      type_class=type_class)
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
@@ -476,12 +482,8 @@ def get_known_standard_library_module_scope(module_name):
                 ('Set', set_type),
                 ('FrozenSet', frozenset_type),
                 ]:
-            if name == "Tuple":
-                indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
-            else:
-                indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
             name = EncodedString(name)
-            entry = mod.declare_type(name, indexed_type, pos = None)
+            entry = mod.declare_type(name, tp, pos = None)
             var_entry = Entry(name, None, PyrexTypes.py_object_type)
             var_entry.is_pyglobal = True
             var_entry.is_variable = True
