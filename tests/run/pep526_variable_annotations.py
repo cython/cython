@@ -226,6 +226,20 @@ def test_use_typing_attributes_as_non_annotations():
     print(y1, str(y2) in allowed_optional_strings)
     print(z1, str(z2) in allowed_optional_strings)
 
+try:
+    import numpy.typing as npt
+    import numpy as np
+except ImportError:
+    # we can't actually use numpy typing right now, it was just part
+    # of a reproducer that caused a compiler crash. We don't need it
+    # available to use it in annotations, so don't fail if it's not there
+    pass
+
+def list_float_to_numpy(z: List[float]) -> List[npt.NDArray[np.float64]]:
+    # since we're not actually requiring numpy, don't make the return type match
+    assert(cython.typeof(z) == 'list')
+    return [z[0]]
+
 if cython.compiled:
     __doc__ = """
     # passing non-dicts to variables declared as dict now fails
