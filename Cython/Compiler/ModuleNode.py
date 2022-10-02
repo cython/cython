@@ -2739,12 +2739,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
-        code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
-        code.putln('#endif')
+        for used_name, type_cnames in Naming.used_macros_and_types:
+            code.putln('#ifdef %s' % used_name)
+            for type_cname in type_cnames:
+                code.putln('PyTypeObject *%s;' % type_cname)
+            code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
@@ -2822,13 +2821,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.preimport_cname,
                 Naming.modulestateglobal_cname,
                 Naming.preimport_cname))
-        for used_name, cnames in [
-            ('__Pyx_CyFunction_USED', [Naming.cyfunction_type_cname]),
-            ('__Pyx_FusedFunction_USED', [Naming.fusedfunction_type_cname]),
-            ('__Pyx_Generator_USED', ['__pyx_GeneratorType']),
-            ('__Pyx_IterableCoroutine_USED', ['__pyx_IterableCoroutineType']),
-            ('__Pyx_Coroutine_USED', ['__pyx_CoroutineType', '__pyx_CoroutineAwaitType'])
-        ]:
+        for used_name, cnames in Naming.used_macros_and_types:
             code.putln('#ifdef %s' % used_name)
             for cname in cnames:
                 code.putln('#define %s %s->%s' % (
