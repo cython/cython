@@ -1538,7 +1538,7 @@ def _analyse_name_as_type(name, pos, env):
     global_entry = env.global_scope().lookup(name)
     if global_entry and global_entry.is_type:
         type = global_entry.type
-        if (not env.in_c_type_context and 
+        if (not env.in_c_type_context and
                 name == 'int' and type == Builtin.int_type):
             # While we still support Python2 this needs to be downgraded
             # to a generic Python object to include both int and long
