@@ -443,8 +443,6 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
-static PyTypeObject *__pyx_CoroutineType = 0;
-static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_CoroutineType)
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
