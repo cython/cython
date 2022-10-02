@@ -1289,7 +1289,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
         module_state_typeobj = module_state.insertion_point()
-        module_state_defines_typeobj = module_state.insertion_point()
+        module_state_defines_typeobj = module_state_defines.insertion_point()
         for writer in [module_state_typeobj, module_state_defines_typeobj]:
             writer.putln("#if CYTHON_USE_MODULE_STATE")
         for entry in env.c_class_entries:
