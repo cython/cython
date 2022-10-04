@@ -11779,6 +11779,14 @@ class ModNode(DivNode):
 class PowNode(NumBinopNode):
     #  '**' operator.
 
+    def analyse_types(self, env):
+        if not env.directives['cpow']:
+            # Note - the check here won't catch cpow directives that don't use '**'
+            # but that's probably OK for a placeholder forward compatibility directive
+            error(self.pos, "The 'cpow' directive is provided for forward compatibility "
+                  "and must be True")
+        return super(PowNode, self).analyse_types(env)
+
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
         if self.type.is_complex:
