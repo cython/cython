@@ -1,11 +1,11 @@
- 
-cdef class Rectangle:
-    cdef int x0, y0
-    cdef int x1, y1
+@cython.cclass
+class Rectangle:
+    x0: cython.int
+    y0: cython.int
+    x1: cython.int
+    y1: cython.int
 
-
-
-    def __init__(self, int x0, int y0, int x1, int y1):
+    def __init__(self, x0: cython.int, y0: cython.int, x1: cython.int, y1: cython.int):
         self.x0 = x0
         self.y0 = y0
         self.x1 = x1
