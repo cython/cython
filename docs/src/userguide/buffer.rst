@@ -16,7 +16,15 @@ The following Cython/C++ code implements a matrix of floats,
 where the number of columns is fixed at construction time
 but rows can be added dynamically.
 
-.. literalinclude:: ../../examples/userguide/buffer/matrix.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix.pyx
 
 There are no methods to do anything productive with the matrices' contents.
 We could implement custom ``__getitem__``, ``__setitem__``, etc. for this,
@@ -27,7 +35,15 @@ Implementing the buffer protocol requires adding two methods,
 ``__getbuffer__`` and ``__releasebuffer__``,
 which Cython handles specially.
 
-.. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.pyx
 
 The method ``Matrix.__getbuffer__`` fills a descriptor structure,
 called a ``Py_buffer``, that is defined by the Python C-API.
@@ -75,7 +91,15 @@ This is where ``__releasebuffer__`` comes in.
 We can add a reference count to each matrix,
 and lock it for mutation whenever a view exists.
 
-.. literalinclude:: ../../examples/userguide/buffer/view_count.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/buffer/view_count.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/buffer/view_count.pyx
 
 Flags
 -----
