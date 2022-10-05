@@ -299,10 +299,11 @@ def run_build():
             "Topic :: Software Development :: Libraries :: Python Modules"
         ],
         project_urls={
-            'Documentation': 'https://cython.readthedocs.io/',
-            'Funding': 'https://cython.readthedocs.io/en/latest/src/donating.html',
-            'Source': 'https://github.com/cython/cython',
-            'Tracker': 'https://github.com/cython/cython/issues',
+            "Documentation": "https://cython.readthedocs.io/",
+            "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
+            "Source code": "https://github.com/cython/cython",
+            "Bug tracker": "https://github.com/cython/cython/issues",
+            "User group": "https://groups.google.com/g/cython-users",
         },
 
         scripts=scripts,
