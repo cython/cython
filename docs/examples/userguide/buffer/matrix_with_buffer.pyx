@@ -19,7 +19,7 @@ cdef class Matrix:
     def __getbuffer__(self, Py_buffer *buffer, int flags):
         cdef Py_ssize_t itemsize = sizeof(self.v[0])
 
-        self.shape[0] = self.v.size() / self.ncols
+        self.shape[0] = self.v.size() // self.ncols
         self.shape[1] = self.ncols
 
         # Stride 1 is the distance, in bytes, between two items in a row;
