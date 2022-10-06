@@ -78,10 +78,10 @@ Bugs fixed
   (Github issue :issue:`5026`)
 
 * Relative imports failed in compiled ``__init__.py`` package modules.
-  Patches by Matus Valo.  (Github issues :issue:`4941`, :issue:``)
+  Patches by Matus Valo.  (Github issue :issue:`4941`)
 
 * Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
-  Patches by Matus Valo.  (Github issues :issue:`4941`, :issue:``)
+  Patches by Matus Valo.  (Github issue :issue:`4941`)
 
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
