@@ -352,9 +352,11 @@ usages, this can be disabled with the directive ``annotation_typing=False``.
 
   .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
-Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
-an ``int`` annotation to a C integer by default since the behaviour can be
-quite different with respect to overflow and division.
+Note the use of ``cython.int`` rather than ``int`` - By default Cython does not 
+translate an ``int`` annotation to a C integer since the behaviour can be
+quite different with respect to overflow and division. However with 
+``annotation_typing=True`` Cython will translate treat your annotations
+literally and translate ``int`` to a C ``int``.
 
 Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
 return types:

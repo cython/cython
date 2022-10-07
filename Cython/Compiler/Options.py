@@ -199,7 +199,7 @@ _directive_defaults = {
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
-    'annotation_typing': True,  # read type declarations from Python function annotations
+    'annotation_typing': "safe",  # read type declarations from Python function annotations
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
@@ -271,6 +271,15 @@ def one_of(*args):
     return validate
 
 
+def annotation_typing(name, value):
+    one_of('safe', 'full', 'True', 'False')(name, value)
+    if value == 'True':
+        return 'safe'  # 'True' == 'safe' for backward compatibility reasons
+    if value == 'False':
+        return False  # to make comparison to False easier
+    else:
+        return value
+
 def normalise_encoding_name(option_name, encoding):
     """
     >>> normalise_encoding_name('c_string_encoding', 'ascii')
@@ -338,6 +347,8 @@ directive_types = {
     'total_ordering': bool,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    # 'True' == 'safe' for backward compatibility reasons
+    'annotation_typing': annotation_typing,
 }
 
 for key, val in _directive_defaults.items():
