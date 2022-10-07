@@ -5,8 +5,8 @@ from cython.cimports.libcpp.vector import vector
 @cython.cclass
 class Matrix:
     ncols: cython.Py_ssize_t
-    shape = cython.declare(Py_ssize_t[2])
-    strides = cython.declare(Py_ssize_t[2])
+    shape: cython.Py_ssize_t[2]
+    strides: cython.Py_ssize_t[2]
     v: vector[cython.float]
 
     def __cinit__(self, ncols: cython.Py_ssize_t):
