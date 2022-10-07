@@ -3,6 +3,10 @@
 Implementing the buffer protocol
 ================================
 
+.. include::
+    ../two-syntax-variants-used
+
+
 Cython objects can expose memory buffers to Python code
 by implementing the "buffer protocol".
 This chapter shows how to implement the protocol
