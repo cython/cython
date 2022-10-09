@@ -13723,7 +13723,6 @@ class CoerceToPyTypeNode(CoercionNode):
 
     def __init__(self, arg, env, type=py_object_type):
         if not arg.type.create_to_py_utility_code(env):
-            import pdb; pdb.set_trace()
             error(arg.pos, "Cannot convert '%s' to Python object" % arg.type)
         elif arg.type.is_complex:
             # special case: complex coercion is so complex that it
