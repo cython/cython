@@ -2014,7 +2014,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     } else
 #endif
     // bound classmethods need special treatment
-#if PY_MAJOR_VERSION >= 3
+#if PY_VERSION_HEX >= 0x03090000
     if (PyCFunction_CheckExact(method))
 #else
     if (PyCFunction_Check(method))
