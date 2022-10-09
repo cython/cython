@@ -169,7 +169,7 @@
   #undef CYTHON_USE_EXC_INFO_STACK
   #define CYTHON_USE_EXC_INFO_STACK 0
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
-    #define CYTHON_UPDATE_DESCRIPTOR_DOC (PYPY_VERSION_HEX >= 0x07030900)
+    #define CYTHON_UPDATE_DESCRIPTOR_DOC (PYPY_VERSION_NUM >= 0x07030900)
   #endif
 
 #elif defined(CYTHON_LIMITED_API)
@@ -2121,14 +2121,4 @@ static void __Pyx_FastGilFuncInit(void) {
 
 #if _MSV_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
-#endif
-
-//////////////////// IsPyPy2.proto ////////////////////////////////////
-
-// to help identify a specific bug in memoryviews and buffers for
-// fused types
-#if defined(PYPY_VERSION) && PY_MAJOR_VERSION < 3
-#define __PYX_IS_PYPY2 1
-#else
-#define __PYX_IS_PYPY2 0
 #endif

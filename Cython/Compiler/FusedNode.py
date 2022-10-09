@@ -516,7 +516,7 @@ class FusedCFuncDefNode(StatListNode):
 
                 void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
-                bint __PYX_IS_PYPY2
+                bint __PYX_IS_PYPY2 "(CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION == 2)"
             """)
 
         pyx_code.local_variable_declarations.put_chunk(
@@ -747,8 +747,6 @@ class FusedCFuncDefNode(StatListNode):
 
         if all_buffer_types:
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
-            if any(dt.dtype.is_struct or dt.dtype.is_pyobject for dt in all_buffer_types):
-                env.use_utility_code(Code.UtilityCode.load_cached("IsPyPy2", "ModuleSetupCode.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
