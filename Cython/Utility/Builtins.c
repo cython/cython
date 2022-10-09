@@ -508,21 +508,23 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
 
 ///////////////// memoryview_get_from_buffer.proto ////////////////////
 
-#if !CYTHON_LIMITED_API
+// buffer is in limited api from Py3.11
+#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
 #define __Pyx_PyMemoryview_Get_{{name}}(o) PyMemoryView_GET_BUFFER(o)->{{name}}
 #else
 {{py:
 out_types = dict(
     ndim='int', readonly='int',
     len='Py_ssize_t', itemsize='Py_ssize_t')
-}} # can't get format like this unfortunately. It's unicode via getattr
+}} // can't get format like this unfortunately. It's unicode via getattr
 {{py: out_type = out_types[name]}}
 static {{out_type}} __Pyx_PyMemoryview_Get_{{name}}(PyObject *obj); /* proto */
 #endif
 
 ////////////// memoryview_get_from_buffer /////////////////////////
 
-#if CYTHON_LIMITED_API
+#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#else
 {{py:
 out_types = dict(
     ndim='int', readonly='int',

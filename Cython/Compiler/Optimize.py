@@ -2731,7 +2731,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     args = [pos_args[0]],
                     is_temp = node.is_temp,
                     py_name = "memoryview")
-            elif pos_args[0].type is Builtin.py_buffer_type:
+            elif pos_args[0].type.is_ptr and pos_args[0].base_type is Builtin.py_buffer_type:
+                # TODO - this currently doesn't work because the buffer fails a
+                # "can coerce to python object" test earlier. But it'd be nice to support
                 return ExprNodes.PythonCapiCallNode(
                     node.pos, "PyMemoryView_FromBuffer",
                     self.PyMemoryView_FromBuffer_func_type,
