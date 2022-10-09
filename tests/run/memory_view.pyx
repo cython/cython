@@ -12,7 +12,7 @@ cimport cython
 def test_convert_from_obj(o):
     """
     >>> abc = b'abc'
-    >>> test_convert_from_obj(abc).obj == abc
+    >>> all(x == y for x, y in zip(test_convert_from_obj(abc), abc))
     True
     """
     return memoryview(o)
@@ -24,7 +24,7 @@ def test_create_from_buffer():
     """
     memoryview from Py_buffer exists and is special-cased
     >>> mview = test_create_from_buffer()
-    >>> mview.obj == b'argh!'
+    >>> >>> all(x == y for x, y in zip(mview, b'argh!'))
     True
     """
     other_view = memoryview(b'argh!')
