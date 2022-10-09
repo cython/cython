@@ -2014,7 +2014,10 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     } else
 #endif
     // bound classmethods need special treatment
-#if PY_VERSION_HEX >= 0x03090000
+#if defined(CYTHON_COMPILING_IN_PYPY)
+    // In these functions are regular methods, so just do
+    // the self check
+#elif PY_VERSION_HEX >= 0x03090000
     if (PyCFunction_CheckExact(method))
 #else
     if (PyCFunction_Check(method))
@@ -2022,9 +2025,11 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     {
         PyObject *self = NULL;
         int self_found = 0;
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
-        if (!self) goto cleanup_failed;
+        if (!self) {
+            PyErr_Clear();
+        }
 #else
         self = PyCFunction_GET_SELF(method);
 #endif
