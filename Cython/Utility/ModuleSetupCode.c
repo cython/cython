@@ -2122,3 +2122,13 @@ static void __Pyx_FastGilFuncInit(void) {
 #if _MSV_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif
+
+//////////////////// IsPyPy2.proto ////////////////////////////////////
+
+// to help identify a specific bug in memoryviews and buffers for
+// fused types
+#if defined(PYPY_VERSION) && PY_MAJOR_VERSION < 3
+#define __PYX_IS_PYPY2 1
+#else
+#define __PYX_IS_PYPY2 0
+#endif

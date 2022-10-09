@@ -402,7 +402,8 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.context.update(
             specialized_type_name=specialized_type.specialization_string,
             sizeof_dtype=self._sizeof_dtype(dtype),
-            ndim_dtype=specialized_type.ndim)
+            ndim_dtype=specialized_type.ndim,
+            dtype_is_struct_obj=int(dtype.is_struct or dtype.is_pyobject))
 
         # use the memoryview object to check itemsize and ndim.
         # In principle it could check more, but these are the easiest to do quickly
@@ -412,7 +413,16 @@ class FusedCFuncDefNode(StatListNode):
                 if (((itemsize == -1 and arg_as_memoryview.itemsize == {{sizeof_dtype}})
                         or itemsize == {{sizeof_dtype}})
                         and arg_as_memoryview.ndim == {{ndim_dtype}}):
-                    memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
+                    {{if dtype_is_struct_obj}}
+                    if __PYX_IS_PYPY2:
+                        # I wasn't able to diagnose why, but PyPy2 fails to convert a
+                        # memoryview to a Cython memoryview in this case
+                        memslice = {{coerce_from_py_func}}(arg, 0)
+                    else:
+                    {{else}}
+                    if True:
+                    {{endif}}
+                        memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
                     if memslice.memview:
                         __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
@@ -506,6 +516,7 @@ class FusedCFuncDefNode(StatListNode):
 
                 void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
+                bint __PYX_IS_PYPY2
             """)
 
         pyx_code.local_variable_declarations.put_chunk(
@@ -736,6 +747,8 @@ class FusedCFuncDefNode(StatListNode):
 
         if all_buffer_types:
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
+            if any(dt.dtype.is_struct or dt.dtype.is_pyobject for dt in all_buffer_types):
+                env.use_utility_code(Code.UtilityCode.load_cached("IsPyPy2", "ModuleSetupCode.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
