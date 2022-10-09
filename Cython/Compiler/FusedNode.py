@@ -489,8 +489,8 @@ class FusedCFuncDefNode(StatListNode):
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
 
-        # creating a Cython memoryview from a Python memoryview is efficient
-        # so therefore convert the argument to a memoryview once, and we can
+        # creating a Cython memoryview from a Python memoryview avoids the
+        # need to get the buffer multiple times, and we can
         # also use it to check itemsizes etc
         pyx_code.put_chunk(
             """
