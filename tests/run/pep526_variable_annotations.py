@@ -288,7 +288,7 @@ except ImportError:
 
 def list_float_to_numpy(z: List[float]) -> List[npt.NDArray[np.float64]]:
     # since we're not actually requiring numpy, don't make the return type match
-    assert(cython.typeof(z) == 'list')
+    assert cython.typeof(z) == 'list'
     return [z[0]]
 
 if cython.compiled:
