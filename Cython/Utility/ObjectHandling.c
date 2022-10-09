@@ -2000,16 +2000,78 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     target->method = method;
 #if CYTHON_COMPILING_IN_CPYTHON
     #if PY_MAJOR_VERSION >= 3
-    // method descriptor type isn't exported in Py2.x, cannot easily check the type there
     if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
+    #else
+    // method descriptor type isn't exported in Py2.x, cannot easily check the type there.
+    // Therefore, reverse the check to the most likely alternative
+    // (which is returned for class methods)
+    if (likely(!PyCFunction_Check(method)))
     #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
         target->func = descr->d_method->ml_meth;
         target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
-    }
+    } else
 #endif
+    // bound classmethods need special treatment
+#if PY_MAJOR_VERSION >= 3
+    if (PyCFunction_CheckExact(method))
+#else
+    if (PyCFunction_Check(method))
+#endif
+    {
+        PyObject *self = NULL;
+        int self_found = 0;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        self = PyObject_GetAttrString(method, "__self__");
+        if (!self) goto cleanup_failed;
+#else
+        self = PyCFunction_GET_SELF(method);
+#endif
+        self_found = (self && self != Py_None);
+#if CYTHON_COMPILING_IN_LIMITED_API
+        Py_XDECREF(self);
+#endif
+        if (self_found) {
+            // This is almost certainly a pessimization - we have a bound classmethod
+            // which will be passed "self". We therefore just create a lambda function
+            // to ignore the "self" argument. However, there are only 5 builtin
+            // type classmethods as of 2022, and they'll mostly be called as
+            // "dict.fromkeys" instead of "{}.fromkeys". Therefore it's unlikely to
+            // be an important pessimization, and it does allow us to keep the
+            // general "bound methods of builtin types" optimization largely unchanged.
+            PyObject *dict = PyDict_New();
+            PyObject *compiled = NULL, *unbound_method = NULL;
+            if (!dict) goto cleanup_failed;
+            if (PyDict_SetItemString(dict, "method", method)) {
+                Py_DECREF(dict);
+                goto cleanup_failed;
+            }
+            compiled = Py_CompileString("lambda ignore, *args, **kwds: method(*args, **kwds)",
+                                        "<bound_method_wrapper>", Py_eval_input);
+            if (!compiled) {
+                Py_DECREF(dict);
+                goto cleanup_failed;
+            }
+            unbound_method = PyEval_EvalCode(
+#if PY_MAJOR_VERSION == 2
+                (PyCodeObject *)
+#endif
+                compiled, dict, dict);
+            Py_DECREF(compiled);
+            Py_DECREF(dict);
+            if (!compiled) {
+                goto cleanup_failed;
+            }
+            Py_DECREF(target->method);
+            target->method = unbound_method;
+        }
+    }
     return 0;
+
+    cleanup_failed:
+    Py_CLEAR(target->method);
+    return -1;
 }
 
 
