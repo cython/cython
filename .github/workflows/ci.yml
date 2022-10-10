@@ -37,24 +37,16 @@ jobs:
       #  allowed_failure     whether the job is allowed to fail
       #  extra_hash          extra hash str to differentiate from other caches with similar name (must always start with '-')
       matrix:
-        os: []
-        backend: []
-        python-version: []
-        env: []
+        os: [ubuntu-18.04]
+        backend: [c]
+        python-version: [pypy-3.7]
+        env: [{ NO_CYTHON_COMPILE: 1 }]
 
         include:
           # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
           #- python-version: 3.12-dev
           #  allowed_failure: true
 
-          # Ubuntu sub-jobs:
-          # ================
-          # Pypy
-          - os: ubuntu-18.04
-            python-version: pypy-3.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          # Coverage
 
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
