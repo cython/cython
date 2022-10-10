@@ -594,6 +594,8 @@ class __Pyx_FakeReference {
     // TODO(robertwb): Delegate all operators (or auto-generate unwrapping code where needed).
     template<typename U> bool operator ==(const U& other) const { return *ptr == other; }
     template<typename U> bool operator !=(const U& other) const { return *ptr != other; }
+    bool operator==(const __Pyx_FakeReference& other) const { return *ptr == *other.ptr; }
+    bool operator!=(const __Pyx_FakeReference& other) const { return *ptr != *other.ptr; }
   private:
     T *ptr;
 };
