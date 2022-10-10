@@ -42,11 +42,6 @@ jobs:
         python-version: [pypy-3.7]
         env: [{ NO_CYTHON_COMPILE: 1 }]
 
-        include:
-          # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
-          #- python-version: 3.12-dev
-          #  allowed_failure: true
-
 
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
