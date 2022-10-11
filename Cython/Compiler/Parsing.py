@@ -1799,18 +1799,18 @@ def p_from_import_statement(s, first_statement = 0):
     is_cimport = kind == 'cimport'
     is_parenthesized = False
     if s.sy == '*':
-        imported_names = [(s.position(), s.context.intern_ustring("*"), None, None)]
+        imported_names = [(s.position(), s.context.intern_ustring("*"), None)]
         s.next()
     else:
         if s.sy == '(':
             is_parenthesized = True
             s.next()
-        imported_names = [p_imported_name(s, is_cimport)]
+        imported_names = [p_imported_name(s)]
     while s.sy == ',':
         s.next()
         if is_parenthesized and s.sy == ')':
             break
-        imported_names.append(p_imported_name(s, is_cimport))
+        imported_names.append(p_imported_name(s))
     if is_parenthesized:
         s.expect(')')
     if dotted_name == '__future__':
@@ -1819,7 +1819,7 @@ def p_from_import_statement(s, first_statement = 0):
         elif level:
             s.error("invalid syntax")
         else:
-            for (name_pos, name, as_name, kind) in imported_names:
+            for (name_pos, name, as_name) in imported_names:
                 if name == "braces":
                     s.error("not a chance", name_pos)
                     break
@@ -1830,7 +1830,7 @@ def p_from_import_statement(s, first_statement = 0):
                     break
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
-    elif kind == 'cimport':
+    elif is_cimport:
         return Nodes.FromCImportStatNode(
             pos, module_name=dotted_name,
             relative_level=level,
@@ -1838,7 +1838,7 @@ def p_from_import_statement(s, first_statement = 0):
     else:
         imported_name_strings = []
         items = []
-        for (name_pos, name, as_name, kind) in imported_names:
+        for (name_pos, name, as_name) in imported_names:
             imported_name_strings.append(
                 ExprNodes.IdentifierStringNode(name_pos, value=name))
             items.append(
@@ -1853,18 +1853,11 @@ def p_from_import_statement(s, first_statement = 0):
             items = items)
 
 
-imported_name_kinds = cython.declare(frozenset, frozenset((
-    'class', 'struct', 'union')))
-
-def p_imported_name(s, is_cimport):
+def p_imported_name(s):
     pos = s.position()
-    kind = None
-    if is_cimport and s.systring in imported_name_kinds:
-        kind = s.systring
-        s.next()
     name = p_ident(s)
     as_name = p_as_name(s)
-    return (pos, name, as_name, kind)
+    return (pos, name, as_name)
 
 
 def p_dotted_name(s, as_allowed):
