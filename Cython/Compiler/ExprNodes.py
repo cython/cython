@@ -14259,7 +14259,7 @@ class AnnotationNode(ExprNode):
             arg_type = annotation.analyse_as_type(env)
 
         if arg_type is None:
-            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
+            warning(annotation.pos, "Unknown type declaration in annotation, ignoring", level=1)
             return [], arg_type
 
         if annotation.is_string_literal:
