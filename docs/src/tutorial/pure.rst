@@ -348,7 +348,7 @@ PEP-484 type annotations
 Python `type hints <https://www.python.org/dev/peps/pep-0484>`_
 can be used to declare argument types, as shown in the
 following example.  To avoid conflicts with other kinds of annotation
-usages, this can be disabled with the directive ``annotation_typing=False``.
+usages, this can be disabled with the :ref:`compiler directive<compiler-directives>` ``annotation_typing=False``.
 
   .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
