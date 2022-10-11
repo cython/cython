@@ -347,8 +347,7 @@ PEP-484 type annotations
 
 Python `type hints <https://www.python.org/dev/peps/pep-0484>`_
 can be used to declare argument types, as shown in the
-following example.  To avoid conflicts with other kinds of annotation
-usages, this can be disabled with the :ref:`compiler directive<compiler-directives>` ``annotation_typing=False``.
+following example:
 
   .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
@@ -377,6 +376,19 @@ declare types of variables in a Python 3.6 compatible way as follows:
 .. literalinclude:: ../../examples/tutorial/pure/pep_526.py
 
 There is currently no way to express the visibility of object attributes.
+
+Disabling annotations
+^^^^^^^^^^^^^^^^^^^^^
+
+To avoid conflicts with other kinds of annotation
+usages, reading of annotation by Cython can be disabled with the ``@cython.annotation_typing(False)`` decorator:
+
+.. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
+
+Another way to disable annotations is by using :ref:`compiler directive<compiler-directives>` ``annotation_typing=False``::
+
+    cython -X annotation_typing=False ignored_annotations.py
+
 
 ``typing`` Module
 ^^^^^^^^^^^^^^^^^
