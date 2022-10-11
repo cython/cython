@@ -49,25 +49,25 @@ cdef class FunctionKeeper:
     """
     cdef cpp_function_lib.FunctionKeeper* function_keeper
     
-    cdef function[double(double, int)]* _get_function_ptr_from_name(self, function_name):
-        cdef function[double(double, int)] *f
+    cdef function[double(double, int) noexcept]* _get_function_ptr_from_name(self, function_name):
+        cdef function[double(double, int) noexcept] *f
         
         if function_name == 'add_one':
-            f = new function[double(double, int)](cpp_function_lib.add_one)
+            f = new function[double(double, int) noexcept](cpp_function_lib.add_one)
         elif function_name == 'add_two':
-            f = new function[double(double, int)](cpp_function_lib.add_two)
+            f = new function[double(double, int) noexcept](cpp_function_lib.add_two)
         elif function_name == 'AddAnotherFunctor5':
-            f = new function[double(double, int)]()
+            f = new function[double(double, int) noexcept]()
             f[0] = cpp_function_lib.AddAnotherFunctor(5.0)
         elif function_name == 'NULL':
-            f = new function[double(double, int)](NULL)
+            f = new function[double(double, int) noexcept](NULL)
         elif function_name == 'default':
-            f = new function[double(double, int)]()
+            f = new function[double(double, int) noexcept]()
             
         return f
    
     def __cinit__(self, function_name):
-        cdef function[double(double, int)] *f = self._get_function_ptr_from_name(function_name)
+        cdef function[double(double, int) noexcept] *f = self._get_function_ptr_from_name(function_name)
         self.function_keeper = new cpp_function_lib.FunctionKeeper(f[0])
         del f
 
@@ -81,6 +81,6 @@ cdef class FunctionKeeper:
         return <bint> self.function_keeper.get_function()
 
     def set_function(self, function_name):
-        cdef function[double(double, int)] *f = self._get_function_ptr_from_name(function_name)
+        cdef function[double(double, int) noexcept] *f = self._get_function_ptr_from_name(function_name)
         self.function_keeper.set_function(f[0])
         del f

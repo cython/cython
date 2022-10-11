@@ -110,7 +110,9 @@ cdef class CCodeWriter(object):
     cdef bint bol
 
     cpdef write(self, s)
-    cpdef write_lines(self, s)
+    @cython.final
+    cdef _write_lines(self, s)
+    cpdef _write_to_buffer(self, s)
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
@@ -118,6 +120,8 @@ cdef class CCodeWriter(object):
     cdef increase_indent(self)
     @cython.final
     cdef decrease_indent(self)
+    @cython.final
+    cdef indent(self)
 
 
 cdef class PyrexCodeWriter:

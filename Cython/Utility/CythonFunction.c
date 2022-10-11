@@ -780,9 +780,17 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
         self = PyTuple_GetItem(args, 0);
         if (unlikely(!self)) {
             Py_DECREF(new_args);
+#if PY_MAJOR_VERSION > 2
             PyErr_Format(PyExc_TypeError,
                          "unbound method %.200S() needs an argument",
                          cyfunc->func_qualname);
+#else
+            // %S doesn't work in PyErr_Format on Py2 and replicating
+            // the formatting seems more trouble than it's worth
+            // (so produce a less useful error message).
+            PyErr_SetString(PyExc_TypeError,
+                            "unbound method needs an argument");
+#endif
             return NULL;
         }
 
@@ -1055,7 +1063,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
     if (unlikely(__pyx_CyFunctionType == NULL)) {
@@ -1587,7 +1595,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
     __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
@@ -1601,7 +1609,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 //////////////////// ClassMethod.proto ////////////////////
 
 #include "descrobject.h"
-static CYTHON_UNUSED PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 //////////////////// ClassMethod ////////////////////
 

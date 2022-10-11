@@ -1632,7 +1632,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entry = scope.lookup_here("__del__")
         if entry is None or not entry.is_special:
             return  # nothing to wrap
-        slot_func_cname = scope.mangle_internal("tp_finalize")
         code.putln("")
 
         if tp_slot.used_ifdef:
@@ -1677,7 +1676,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
-        if not is_final_type:
+        if not is_final_type or scope.may_have_finalize():
             # in Py3.4+, call tp_finalize() as early as possible
             code.putln("#if CYTHON_USE_TP_FINALIZE")
             if needs_gc:

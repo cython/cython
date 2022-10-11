@@ -123,10 +123,18 @@ def run_distutils(args):
 
 
 def create_args_parser():
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter
     from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""\
+Environment variables:
+  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless
+        of modification times and changes.
+  Environment variables accepted by setuptools are supported to configure the C compiler and build:
+  https://setuptools.pypa.io/en/latest/userguide/ext_modules.html#compiler-and-linker-options"""
+    )
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='directives', default={}, type=str,

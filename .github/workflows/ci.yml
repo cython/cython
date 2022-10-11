@@ -1,6 +1,24 @@
 name: CI
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    paths:
+      - '**'
+      - '!.github/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - '**'
+      - '!.github/**'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
 
 jobs:
   ci:
@@ -68,12 +86,12 @@ jobs:
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-18.04
-            python-version: 3.9
+            python-version: "3.10"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-18.04
-            python-version: 3.9
+            python-version: "3.10"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
@@ -260,7 +278,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
-          name: wheels-${{ runner.os }}
+          name: wheels-${{ runner.os }}${{ matrix.extra_hash }}
           path: dist/*.whl
           if-no-files-found: ignore
 

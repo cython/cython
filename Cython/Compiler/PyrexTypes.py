@@ -13,6 +13,7 @@ try:
 except NameError:
     from functools import reduce
 from functools import partial
+from itertools import product
 
 from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
@@ -1522,6 +1523,7 @@ class PyExtensionType(PyObjectType):
     #  is_external      boolean          Defined in a extern block
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
+    #  multiple_bases    boolean          Does this class have multiple bases
 
     is_extension_type = 1
     has_attributes = 1
@@ -1529,6 +1531,7 @@ class PyExtensionType(PyObjectType):
 
     objtypedef_cname = None
     dataclass_fields = None
+    multiple_bases = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1835,7 +1838,27 @@ class FusedType(CType):
         for t in types:
             if t.is_fused:
                 # recursively merge in subtypes
-                for subtype in t.types:
+                if isinstance(t, FusedType):
+                    t_types = t.types
+                else:
+                    # handle types that aren't a fused type themselves but contain fused types
+                    # for example a C++ template where the template type is fused.
+                    t_fused_types = t.get_fused_types()
+                    t_types = []
+                    for substitution in product(
+                        *[fused_type.types for fused_type in t_fused_types]
+                    ):
+                        t_types.append(
+                            t.specialize(
+                                {
+                                    fused_type: sub
+                                    for fused_type, sub in zip(
+                                        t_fused_types, substitution
+                                    )
+                                }
+                            )
+                        )
+                for subtype in t_types:
                     if subtype not in flattened_types:
                         flattened_types.append(subtype)
             elif t not in flattened_types:
@@ -2790,6 +2813,8 @@ class CReferenceBaseType(BaseType):
 
     # Common base type for C reference and C++ rvalue reference types.
 
+    subtypes = ['ref_base_type']
+
     def __init__(self, base_type):
         self.ref_base_type = base_type
 
@@ -3134,8 +3159,10 @@ class CFuncType(CType):
         if (pyrex or for_display) and not self.return_type.is_pyobject:
             if self.exception_value and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value:
+            elif self.exception_value and not self.exception_check:
                 trailer = " except %s" % self.exception_value
+            elif not self.exception_value and not self.exception_check:
+                trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
             elif self.exception_check and for_display:

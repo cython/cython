@@ -730,13 +730,15 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
-                        # Ideally the function-pointer test would be better after self.base is analysed
-                        # however that is hard to do with the current implementation so it lives here
-                        # for now
-                        and not isinstance(self.base, CPtrDeclaratorNode)):
-                    # Extension types are more difficult because the signature must match the base type signature.
-                    if not env.is_c_class_scope:
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)):
+                    # - We skip this optimization for extension types; they are more difficult because
+                    #   the signature must match the base type signature.
+                    # - Same for function pointers, as we want them to be able to match functions
+                    #   with any exception value.
+                    # - Ideally the function-pointer test would be better after self.base is analysed
+                    #   however that is hard to do with the current implementation so it lives here
+                    #   for now.
+                    if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode(
                             self.pos, value=return_type.exception_value, type=return_type)
@@ -3513,7 +3515,15 @@ class DefNode(FuncDefNode):
         # Move arguments into closure if required
         def put_into_closure(entry):
             if entry.in_closure:
-                code.putln('%s = %s;' % (entry.cname, entry.original_cname))
+                if entry.type.is_array:
+                    # This applies to generator expressions that iterate over C arrays (and need to
+                    # capture them by value), under most other circumstances C array arguments are dropped to
+                    # pointers so this copy isn't used
+                    assert entry.type.size is not None
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                    code.putln("memcpy({0}, {1}, sizeof({0}));".format(entry.cname, entry.original_cname))
+                else:
+                    code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.type.is_memoryviewslice:
                     # TODO - at some point reference count of memoryviews should
                     # genuinely be unified with PyObjects
@@ -3742,7 +3752,7 @@ class DefNodeWrapper(FuncDefNode):
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        header = "%sstatic %s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
@@ -5169,7 +5179,6 @@ class CClassDefNode(ClassDefNode):
     check_size = None
     decorators = None
     shadow = False
-    is_dataclass = False
 
     @property
     def punycode_class_name(self):
@@ -5211,6 +5220,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
@@ -5219,8 +5230,6 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
-        if "dataclasses.dataclass" in env.directives:
-            self.is_dataclass = True
         if self.decorators:
             error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
         self.base_type = None
@@ -5302,6 +5311,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry
@@ -5310,6 +5321,15 @@ class CClassDefNode(ClassDefNode):
         self.scope = scope = self.entry.type.scope
         if scope is not None:
             scope.directives = env.directives
+            if "dataclasses.dataclass" in env.directives:
+                is_frozen = False
+                # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
+                dataclass_config = env.directives["dataclasses.dataclass"]
+                if dataclass_config:
+                    decorator_kwargs = dataclass_config[1]
+                    frozen_flag = decorator_kwargs.get('frozen')
+                    is_frozen = frozen_flag and frozen_flag.is_literal and frozen_flag.value
+                scope.is_c_dataclass_scope = "frozen" if is_frozen else True
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
@@ -8717,7 +8737,7 @@ class FromCImportStatNode(StatNode):
     #
     #  module_name     string                        Qualified name of module
     #  relative_level  int or None                   Relative import: number of dots before module_name
-    #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
+    #  imported_names  [(pos, name, as_name)]  Names to be imported
 
     child_attrs = []
     module_name = None
@@ -8728,35 +8748,34 @@ class FromCImportStatNode(StatNode):
         if not env.is_module_scope:
             error(self.pos, "cimport only allowed at module level")
             return
-        if self.relative_level and self.relative_level > env.qualified_name.count('.'):
-            error(self.pos, "relative cimport beyond main package is not allowed")
-            return
+        qualified_name_components = env.qualified_name.count('.') + 1
+        if self.relative_level:
+            if self.relative_level > qualified_name_components:
+                # 1. case: importing beyond package: from .. import pkg
+                error(self.pos, "relative cimport beyond main package is not allowed")
+                return
+            elif self.relative_level == qualified_name_components and not env.is_package:
+                # 2. case: importing from same level but current dir is not package: from . import module
+                error(self.pos, "relative cimport from non-package directory is not allowed")
+                return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
-        for pos, name, as_name, kind in self.imported_names:
+        for pos, name, as_name in self.imported_names:
             if name == "*":
                 for local_name, entry in list(module_scope.entries.items()):
                     env.add_imported_entry(local_name, entry, pos)
             else:
                 entry = module_scope.lookup(name)
                 if entry:
-                    if kind and not self.declaration_matches(entry, kind):
-                        entry.redeclared(pos)
                     entry.used = 1
                 else:
-                    if kind == 'struct' or kind == 'union':
-                        entry = module_scope.declare_struct_or_union(
-                            name, kind=kind, scope=None, typedef_flag=0, pos=pos)
-                    elif kind == 'class':
-                        entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
+                    submodule_scope = env.context.find_module(
+                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                    if submodule_scope.parent_module is module_scope:
+                        env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:
-                        submodule_scope = env.context.find_module(
-                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
-                        if submodule_scope.parent_module is module_scope:
-                            env.declare_module(as_name or name, submodule_scope, self.pos)
-                        else:
-                            error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
+                        error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
 
                 if entry:
                     local_name = as_name or name
@@ -8765,7 +8784,7 @@ class FromCImportStatNode(StatNode):
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
                 env.use_utility_code(utility_code_for_cimports[module_name]())
-            for _, name, _, _ in self.imported_names:
+            for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
                     env.use_utility_code(utility_code_for_cimports[fqname]())

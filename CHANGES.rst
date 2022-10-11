@@ -2,7 +2,116 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 11 (2022-0?-??)
+3.0.0 alpha 12 (2022-??-??)
+===========================
+
+Features added
+--------------
+
+* Cython implemented C functions now propagate exceptions by default, rather than
+  swallowing them in non-object returning function if the user forgot to add an
+  ``except`` declaration to the signature.  This was a long-standing source of bugs,
+  but can require adding the ``noexcept`` declaration to existing functions if
+  exception propagation is really undesired.
+  (Github issue :issue:`4280`)
+
+* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+  decorators can now be arbitrary Python expressions.
+  (Github issue :issue:`4570`)
+
+* Bound C methods can now coerce to Python objects.
+  (Github issue :issue:`4890`)
+
+* ``reversed()`` can now be used together with C++ iteration.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5002`)
+
+* Standard C/C++ atomic operations are now used for memory views, if available.
+  (Github issue :issue:`4925`)
+
+* ``cythonize --help`` now also prints information about the supported environment variables.
+  Patch by Matus Valo.  (Github issue :issue:`1711`)
+
+* Declarations were added for the bit operations in C++20.
+  Patch by Jonathan Helgert.  (Github issue :issue:`4962`)
+
+Bugs fixed
+----------
+
+* Generator expressions and comprehensions now look up their outer-most iterable
+  on creation, as Python does, and not later on start, as they did previously.
+  (Github issue :issue:`1159`)
+
+* Iterating over memoryviews in generator expressions could leak a buffer reference.
+  (Github issue :issue:`4968`)
+
+* ``__del__`` finaliser methods were not always called if they were only inherited.
+  (Github issue :issue:`4995`)
+
+* ``cdef public`` functions declared in .pxd files could use an incorrectly mangled C name.
+  Patch by EpigeneMax.  (Github issue :issue:`2940`)
+
+* C++ post-increment/-decrement operators were not correctly looked up on declared C++
+  classes, thus allowing Cython declarations to be missing for them and incorrect C++
+  code to be generated.
+  Patch by Max Bachmann.  (Github issue :issue:`4536`)
+
+* C++ iteration more safely stores the iterable in temporary variables.
+  Patch by Xavier.  (Github issue :issue:`3828`)
+
+* C++ references did not work on fused types.
+  (Github issue :issue:`4717`)
+
+* Nesting fused types in other fused types could fail to specialise the inner type.
+  (Github issue :issue:`4725`)
+
+* Coverage analysis failed in projects with a separate source subdirectory.
+  Patch by Sviatoslav Sydorenko and Ruben Vorderman.  (Github issue :issue:`3636`)
+
+* The ``@dataclass`` directive was accidentally inherited by methods and subclasses.
+  (Github issue :issue:`4953`)
+
+* Some issues with Cython ``@dataclass`` arguments, hashing and ``repr()`` were resolved.
+  (Github issue :issue:`4956`)
+
+* cdef data classes (not their instances) were accidentally modifiable after creation,
+  which lead to potential problems and crashes.  They are now immutable.
+  (Github issue :issue:`5026`)
+
+* Relative imports failed in compiled ``__init__.py`` package modules.
+  Patches by Matus Valo.  (Github issue :issue:`4941`)
+
+* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
+  Patches by Matus Valo.  (Github issue :issue:`4941`)
+
+* Invalid and misspelled ``cython.*`` module names were not reported as errors.
+  (Github issue :issue:`4947`)
+
+* Extended glob paths with ``/**/`` and ``\**\`` failed on Windows.
+
+* Annotated HTML generation was missing newlines in 3.0.0a11.
+  (Github issue :issue:`4945`)
+
+* Some parser issues were resolved.
+  (Github issue :issue:`4992`)
+
+* Some C/C++ warnings were resolved.
+  Patches by Max Bachmann at al.
+  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`)
+
+* Intel C compilers could complain about unsupported gcc pragmas.
+  Patch by Ralf Gommers.  (Github issue :issue:`5052`)
+
+Other changes
+-------------
+
+* The wheel building process was migrated to use the ``cibuildwheel`` tool.
+  Patch by Thomas Li.  (Github issue :issue:`4736`)
+
+* Wheels now include a compiled parser again, which increases their size a little
+  but gives about a 10% speed-up when running Cython.
+
+
+3.0.0 alpha 11 (2022-07-31)
 ===========================
 
 Features added
@@ -17,21 +126,35 @@ Features added
   ``:=``) were implemented.
   Patch by David Woods.  (Github issue :issue:`2636`)
 
+* Context managers can be written in parentheses.
+  Patch by David Woods.  (Github issue :issue:`4814`)
+
 * Cython avoids raising ``StopIteration`` in ``__next__`` methods when possible.
   Patch by David Woods.  (Github issue :issue:`3447`)
 
-* Some C++ library declarations were extended and fixed.
+* Some C++ and CPython library declarations were extended and fixed.
   Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion, Wenjun Si.
   (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`,
-  :issue:`4751`, :issue:`4818`, :issue:`4762`)
+  :issue:`4751`, :issue:`4818`, :issue:`4762`, :issue:`4910`)
 
-* The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
-  files for the compilation unit.  This can be used by external build tools to track
-  these dependencies.  Already available in Cython :ref:`0.29.27`.
-  Patch by Evgeni Burovski.  (Github issue :issue:`1214`)
+* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
+  to generate ``.dep`` dependency files for the compilation unit.  This can be used
+  by external build tools to track these dependencies.
+  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
+  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
 
 * ``cythonize()`` and the corresponding CLI command now regenerate the output files
   also when they already exist but were generated by a different Cython version.
+
+* Memory views and the internal Cython array type now identify as ``collections.abc.Sequence``.
+  Patch by David Woods.  (Github issue :issue:`4817`)
+
+* Cython generators and coroutines now identify as ``CO_ASYNC_GENERATOR``,
+  ``CO_COROUTINE`` and ``CO_GENERATOR`` accordingly.
+  (Github issue :issue:`4902`)
+
+* Memory views can use atomic CPU instructions instead of locks in more cases.
+  Patch by Sam Gross.  (Github issue :issue:`4912`)
 
 * The environment variable ``CYTHON_FORCE_REGEN=1`` can be used to force ``cythonize``
   to regenerate the output files regardless of modification times and changes.
@@ -53,8 +176,15 @@ Bugs fixed
 * Exceptions within for-loops that run over memoryviews could lead to a ref-counting error.
   Patch by David Woods.  (Github issue :issue:`4662`)
 
+* Using memoryview arguments in closures of inner functions could lead to ref-counting errors.
+  Patch by David Woods.  (Github issue :issue:`4798`)
+
 * Several optimised string methods failed to accept ``None`` as arguments to their options.
   Test patch by Kirill Smelkov.  (Github issue :issue:`4737`)
+
+* A regression in 3.0.0a10 was resolved that prevented property setter methods from
+  having the same name as their value argument.
+  Patch by David Woods.  (Github issue :issue:`4836`)
 
 * Typedefs for the ``bint`` type did not always behave like ``bint``.
   Patch by Nathan Manville and 0dminnimda.  (Github issue :issue:`4660`)
@@ -69,6 +199,9 @@ Bugs fixed
 
 * ``pyximport`` no longer uses the deprecated ``imp`` module.
   Patch by Matus Valo.  (Github issue :issue:`4560`)
+
+* ``pyximport`` failed for long filenames on Windows.
+  Patch by Matti Picus.  (Github issue :issue:`4630`)
 
 * The generated C code failed to compile in CPython 3.11a4 and later.
   (Github issue :issue:`4500`)
@@ -85,6 +218,14 @@ Bugs fixed
   compatible exception specifications.  Patches by David Woods.
   (Github issues :issue:`4770`, :issue:`4689`)
 
+* The runtime size check for imported ``PyVarObject`` types was improved
+  to reduce false positives and adapt to Python 3.11.
+  Patch by David Woods.  (Github issues :issue:`4827`, :issue:`4894`)
+
+* The generated modules no longer import NumPy internally when using
+  fused types but no memoryviews.
+  Patch by David Woods.  (Github issue :issue:`4935`)
+
 * Improve compatibility with forthcoming CPython 3.12 release.
 
 * Limited API C preprocessor warning is compatible with MSVC. Patch by
@@ -96,7 +237,8 @@ Bugs fixed
 * The parser allowed some invalid spellings of ``...``.
   Patch by 0dminnimda.  (Github issue :issue:`4868`)
 
-* Includes all bug-fixes from the 0.29 branch up to the :ref:`0.29.31` release.
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.32` release.
 
 Other changes
 -------------

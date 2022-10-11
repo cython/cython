@@ -348,6 +348,7 @@ class Scope(object):
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
+    # is_c_dataclass_scope     boolean or "frozen"  is a cython.dataclasses.dataclass
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -368,6 +369,7 @@ class Scope(object):
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_c_dataclass_scope = False
     is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
@@ -1296,19 +1298,13 @@ class ModuleScope(Scope):
     is_cython_builtin = 0
     old_style_globals = 0
 
-    def __init__(self, name, parent_module, context):
+    def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
         self.parent_module = parent_module
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
-        if name == "__init__":
-            # Treat Spam/__init__.pyx specially, so that when Python loads
-            # Spam/__init__.so, initSpam() is defined.
-            self.module_name = parent_module.module_name
-            self.is_package = True
-        else:
-            self.module_name = name
-            self.is_package = False
+        self.is_package = is_package
+        self.module_name = name
         self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
@@ -1421,9 +1417,16 @@ class ModuleScope(Scope):
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
-            while relative_level > 0 and relative_to:
+
+            top_level = 1 if self.is_package else 0
+            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            #   i.e. dot in `from . import ...` points to the current package
+            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            #   i.e. dot in `from . import ...` points to the package where module is placed
+            while relative_level > top_level and relative_to:
                 relative_to = relative_to.parent_module
                 relative_level -= 1
+
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
             relative_to = self.parent_module
@@ -1433,7 +1436,7 @@ class ModuleScope(Scope):
         return module_scope.context.find_module(
             module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
-    def find_submodule(self, name):
+    def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
         if '.' in name:
@@ -1442,10 +1445,10 @@ class ModuleScope(Scope):
             submodule = None
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name, parent_module=self, context=self.context)
+            scope = ModuleScope(name, parent_module=self, context=self.context, is_package=True if submodule else as_package)
             self.module_entries[name] = scope
         if submodule:
-            scope = scope.find_submodule(submodule)
+            scope = scope.find_submodule(submodule, as_package=as_package)
         return scope
 
     def lookup_submodule(self, name):
@@ -1615,7 +1618,7 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry and entry.defined_in_pxd:
             if entry.visibility != "private":
-                mangled_cname = self.mangle(Naming.var_prefix, name)
+                mangled_cname = self.mangle(Naming.func_prefix, name)
                 if entry.cname == mangled_cname:
                     cname = name
                     entry.cname = cname
@@ -2312,6 +2315,25 @@ class CClassScope(ClassScope):
         """
         return self.needs_gc() and not self.directives.get('no_gc_clear', False)
 
+    def may_have_finalize(self):
+        """
+        This covers cases where we definitely have a __del__ function
+        and also cases where one of the base classes could have a __del__
+        function but we don't know.
+        """
+        current_type_scope = self
+        while current_type_scope:
+            del_entry = current_type_scope.lookup_here("__del__")
+            if del_entry and del_entry.is_special:
+                return True
+            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or
+                    current_type_scope.parent_type.multiple_bases):
+                # we don't know if we have __del__, so assume we do and call it
+                return True
+            current_base_type = current_type_scope.parent_type.base_type
+            current_type_scope = current_base_type.scope if current_base_type else None
+        return False
+
     def get_refcounted_entries(self, include_weakref=False,
                                include_gc_simple=True):
         py_attrs = []
@@ -2345,7 +2367,7 @@ class CClassScope(ClassScope):
                         type = py_object_type
                     else:
                         type = type.equivalent_type
-            if  "dataclasses.InitVar" in pytyping_modifiers and 'dataclasses.dataclass' not in self.directives:
+            if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_c_dataclass_scope:
                 error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:

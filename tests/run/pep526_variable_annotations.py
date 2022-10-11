@@ -203,6 +203,29 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
 
+def test_use_typing_attributes_as_non_annotations():
+    """
+    >>> test_use_typing_attributes_as_non_annotations()
+    typing.Tuple typing.Tuple[int]
+    typing.Optional True
+    typing.Optional True
+    """
+    x1 = typing.Tuple
+    x2 = typing.Tuple[int]
+    y1 = typing.Optional
+    y2 = typing.Optional[typing.Dict]
+    z1 = Optional
+    z2 = Optional[Dict]
+    # The result of printing "Optional[type]" is slightly version-dependent
+    # so accept both possible forms
+    allowed_optional_strings = [
+        "typing.Union[typing.Dict, NoneType]",
+        "typing.Optional[typing.Dict]"
+    ]
+    print(x1, x2)
+    print(y1, str(y2) in allowed_optional_strings)
+    print(z1, str(z2) in allowed_optional_strings)
+
 if cython.compiled:
     __doc__ = """
     # passing non-dicts to variables declared as dict now fails
@@ -218,7 +241,6 @@ if cython.compiled:
     ...
     TypeError: Expected dict, got D
     """
-
 
 _WARNINGS = """
 """

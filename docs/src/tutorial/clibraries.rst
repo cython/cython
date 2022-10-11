@@ -125,9 +125,6 @@ Here is a first start for the Queue class:
         .. literalinclude:: ../../examples/tutorial/clibraries/queue.py
             :caption: queue.py
 
-        .. note:: Currently, Cython contains a bug not allowing using
-            annotations with types containing pointers (GitHub issue :issue:`4293`).
-
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/tutorial/clibraries/queue.pyx
