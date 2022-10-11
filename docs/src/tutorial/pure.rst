@@ -383,7 +383,7 @@ Disabling annotations
 To avoid conflicts with other kinds of annotation
 usages, Cython's use of annotations to specify types can be disabled with the
 ``annotation_typing`` compiler directive<compiler-directives>. From Cython 3
-you can use this as a decorator, as shown in the following example:
+you can use this as a decorator or a with statement, as shown in the following example:
 
 .. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
 
