@@ -381,13 +381,12 @@ Disabling annotations
 ^^^^^^^^^^^^^^^^^^^^^
 
 To avoid conflicts with other kinds of annotation
-usages, reading of annotation by Cython can be disabled with the ``@cython.annotation_typing(False)`` decorator:
+usages, Cython's use of annotations to specify types can be disabled with the
+``annotation_typing`` compiler directive<compiler-directives>. From Cython 3
+you can use this as a decorator, as shown in the following example:
 
 .. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
 
-Another way to disable annotations is by using :ref:`compiler directive<compiler-directives>` ``annotation_typing=False``::
-
-    cython -X annotation_typing=False ignored_annotations.py
 
 
 ``typing`` Module
