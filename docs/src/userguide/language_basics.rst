@@ -128,51 +128,6 @@ the declaration in most cases:
                 cdef float *g = [1, 2, 3, 4]
                 cdef float *h = &f
 
-In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
-are supported:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
-
-        .. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
-
-        See also :ref:`struct-union-enum-styles`
-
-        .. note::
-
-            Structs can be declared as ``cdef packed struct``, which has
-            the same effect as the C directive ``#pragma pack(1)``.
-
-        Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
-
-            cpdef enum CheeseState:
-                hard = 1
-                soft = 2
-                runny = 3
-
-        There is currently no special syntax for defining a constant, but you can use
-        an anonymous :keyword:`enum` declaration for this purpose, for example,::
-
-            cdef enum:
-                tons_of_spam = 3
-
-        .. note::
-            the words ``struct``, ``union`` and ``enum`` are used only when
-            defining a type, not when referring to it. For example, to declare a variable
-            pointing to a ``Grail`` struct, you would write::
-
-                cdef Grail *gp
-
-            and not::
-
-                cdef struct Grail *gp  # WRONG
 
 .. note::
 
@@ -197,6 +152,67 @@ are supported:
 
                 ctypedef int* IntPtr
 
+.. _structs:
+
+Structs, Uions, Enums
+---------------------
+
+In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
+are supported:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/struct.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/struct.pyx
+
+    .. note::
+
+        Structs can be declared as ``cdef packed struct``, which has
+        the same effect as the C directive ``#pragma pack(1)``.
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/union.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/union.pyx
+
+.. literalinclude:: ../../examples/userguide/language_basics/enum.pyx
+
+
+.. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
+
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+
+    cpdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+There is currently no special syntax for defining a constant, but you can use
+an anonymous :keyword:`enum` declaration for this purpose, for example,::
+
+    cdef enum:
+        tons_of_spam = 3
+
+.. note::
+    In the Cython syntax, the words ``struct``, ``union`` and ``enum`` are used only when
+    defining a type, not when referring to it. For example, to declare a variable
+    pointing to a ``Grail`` struct, you would write::
+
+        cdef Grail *gp
+
+    and not::
+
+        cdef struct Grail *gp  # WRONG
 
 You can create a C function by declaring it with :keyword:`cdef` or by decorating a Python function with ``@cfunc``:
 
@@ -634,7 +650,15 @@ parameters and has two required keyword parameters.
 Function Pointers
 -----------------
 
-Functions declared in a ``struct`` are automatically converted to function pointers.
+.. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
+Following example shows declaring ``ptr_add`` function pointer and assigning ``add`` function to it:
+
+.. literalinclude:: ../../examples/userguide/language_basics/function_pointer.pyx
+
+Functions declared in a ``struct`` are automatically converted to function pointers:
+
+.. literalinclude:: ../../examples/userguide/language_basics/function_pointer_struct.pyx
 
 For using error return values with function pointers, see the note at the bottom
 of :ref:`error_return_values`.
