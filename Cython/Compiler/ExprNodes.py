@@ -14258,8 +14258,16 @@ class AnnotationNode(ExprNode):
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)
 
+            if isinstance(annotation, NameNode):
+                if not env.lookup(annotation.name):
+                    warning(annotation.pos, "Unknown type declaration in annotation, ignoring", level=1)
+            if isinstance(annotation, AttributeNode):
+                module_scope = annotation.obj.analyse_as_module(env)
+                if module_scope and module_scope.name == 'cython' and not module_scope.lookup_type(annotation.attribute):
+                    warning(annotation.pos, "Unknown type declaration in annotation, ignoring", level=1)
+
         if arg_type is None:
-            warning(annotation.pos, "Unknown type declaration in annotation, ignoring", level=1)
+            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
             return [], arg_type
 
         if annotation.is_string_literal:
