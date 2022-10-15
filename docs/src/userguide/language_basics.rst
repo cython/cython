@@ -652,7 +652,7 @@ Function Pointers
 
 .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
 
-Following example shows declaring ``ptr_add`` function pointer and assigning ``add`` function to it:
+The following example shows declaring a ``ptr_add`` function pointer and assigning the ``add`` function to it:
 
 .. literalinclude:: ../../examples/userguide/language_basics/function_pointer.pyx
 
