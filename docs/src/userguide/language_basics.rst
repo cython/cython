@@ -154,7 +154,7 @@ the declaration in most cases:
 
 .. _structs:
 
-Structs, Uions, Enums
+Structs, Unions, Enums
 ---------------------
 
 In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
