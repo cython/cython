@@ -155,7 +155,7 @@ the declaration in most cases:
 .. _structs:
 
 Structs, Unions, Enums
----------------------
+----------------------
 
 In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
 are supported:
@@ -170,10 +170,22 @@ are supported:
 
         .. literalinclude:: ../../examples/userguide/language_basics/struct.pyx
 
-    .. note::
+Structs can be declared as ``cdef packed struct``, which has
+the same effect as the C directive ``#pragma pack(1)``:
 
-        Structs can be declared as ``cdef packed struct``, which has
-        the same effect as the C directive ``#pragma pack(1)``.
+.. literalinclude:: ../../examples/userguide/language_basics/packed_struct.pyx
+
+
+.. note::
+    This declaration removes the empty
+    space between members that C automatically to ensure that they're aligned in memory
+    (see `Wikipedia article <https://en.wikipedia.org/wiki/Data_structure_alignment>`_ for more details).
+    The main use is that numpy structured arrays store their data in packed form, so a ``cdef packed struct``
+    can be used in a memoryview to match that.
+
+    Pure python mode does not support packed structs.
+
+The following example shows a declaration of unions:
 
 .. tabs::
 
@@ -184,6 +196,8 @@ are supported:
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/language_basics/union.pyx
+
+Enums are created by ``cdef enum`` statement:
 
 .. literalinclude:: ../../examples/userguide/language_basics/enum.pyx
 
