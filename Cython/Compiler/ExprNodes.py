@@ -14259,13 +14259,29 @@ class AnnotationNode(ExprNode):
             arg_type = annotation.analyse_as_type(env)
 
             if isinstance(annotation, NameNode):
+                # Validate annotation in form `var: type`
                 if not env.lookup(annotation.name):
-                    warning(annotation.pos, "Unknown type declaration in annotation, ignoring", level=1)
-            if isinstance(annotation, AttributeNode):
-                module_scope = annotation.obj.analyse_as_module(env)
-                if module_scope and module_scope.name == 'cython' and not module_scope.lookup_type(annotation.attribute):
-                    warning(annotation.pos, "Unknown type declaration in annotation, ignoring", level=1)
-
+                    warning(annotation.pos, "Unknown type declaration '%s' in annotation, ignoring" % annotation.name, level=1)
+            elif isinstance(annotation, AttributeNode):
+                # Validate annotation in form `var: module.type`
+                if not env.lookup(annotation.obj.name):
+                    # `module` is undeclared
+                    warning(annotation.pos,
+                            "Unknown type declaration '%s.%s' in annotation, ignoring" % (annotation.obj.name, annotation.attribute),
+                            level=1)
+                elif annotation.obj.is_cython_module:
+                    # `module` is cython
+                    module_scope = annotation.obj.analyse_as_module(env)
+                    if module_scope and not module_scope.lookup_type(annotation.attribute):
+                        warning(annotation.pos,
+                                "Unknown type declaration '%s.%s' in annotation, ignoring" % (annotation.obj.name, annotation.attribute),
+                                level=1)
+                else:
+                    module_scope = annotation.obj.analyse_as_module(env)
+                    if module_scope and module_scope.pxd_file_loaded and not annotation.analyse_as_type(env):
+                        warning(annotation.pos,
+                                "Unknown type declaration '%s.%s' in annotation, ignoring" % (annotation.obj.name, annotation.attribute),
+                                level=1)
         if arg_type is None:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
             return [], arg_type
