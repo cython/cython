@@ -162,3 +162,12 @@ def for_in_gen(N):
     """
     for i in range(N):
         yield i
+
+def for_in_range_invalid_arg_count():
+    """
+    >>> for_in_range_invalid_arg_count()     # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    for i in range(1, 2, 3, 4):
+        pass

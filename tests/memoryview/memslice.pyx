@@ -1,11 +1,13 @@
 # mode: run
 
+# Test the behaviour of memoryview slicing and indexing, contiguity, etc.
+
 # Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
 
 cimport cython
 from cython cimport view
@@ -21,6 +23,12 @@ if sys.version_info[0] < 3:
 else:
     import builtins
 
+try:
+    from Cython.Tests.this_module_does_not_exist import *
+except ImportError:
+    # Fails, but the existence of "import *" interacted badly with some utility code
+    pass
+
 
 def testcase(func):
     @wraps(func)
@@ -34,7 +42,7 @@ def testcase(func):
 
 
 include "../buffers/mockbuffers.pxi"
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 def _print_attributes(memview):
     print "shape: " + " ".join(map(str, memview.shape))
@@ -1058,6 +1066,8 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -1130,6 +1140,49 @@ def assign_temporary_to_object(object[:] buf):
     """
     buf[1] = {3-2: 2+(2*4)-2}
 
+@testcase
+def check_object_nulled_1d(object[:] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a])
+    >>> check_object_nulled_1d(A, 0, a)
+    >>> check_object_nulled_1d(A, 1, a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], strides=(2,))
+    >>> check_object_nulled_1d(A, 0, a)  # only 0 due to stride
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef ObjectMockBuffer omb = buf.base
+    cdef PyObject **data = <PyObject**>(omb.buffer)
+    Py_CLEAR(data[idx])
+    res = buf[idx]  # takes None
+    buf[idx] = obj
+    return res
+
+@testcase
+def check_object_nulled_2d(object[:, ::1] buf, int idx1, int idx2, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], shape=(2, 2))
+    >>> check_object_nulled_2d(A, 0, 0, a)
+    >>> check_object_nulled_2d(A, 1, 1, a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef ObjectMockBuffer omb = buf.base
+    cdef PyObject **data = <PyObject**>(omb.buffer)
+    Py_CLEAR(data[idx1 + 2*idx2])
+    res = buf[idx1, idx2]  # takes None
+    buf[idx1, idx2] = obj
+    return res
+
+
 #
 # Test __cythonbufferdefaults__
 #
@@ -1155,9 +1208,21 @@ def basic_struct(MyStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))  # , writable=False))
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))  # , writable=False))
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))
+    1 2 3 4 5
+    """
+    print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
+
+@testcase
+def const_struct(const MyStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], writable=False))
+    1 2 3 4 5
+    >>> const_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii", writable=False))
     1 2 3 4 5
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
@@ -1167,9 +1232,21 @@ def nested_struct(NestedStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))  # , writable=False))
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))  # , writable=False))
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
+    1 2 3 4 5
+    """
+    print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
+
+@testcase
+def const_nested_struct(const NestedStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], writable=False))
+    1 2 3 4 5
+    >>> const_nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i", writable=False))
     1 2 3 4 5
     """
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
@@ -1179,11 +1256,26 @@ def packed_struct(PackedStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)]))  # , writable=False))
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)]))
     1 2
-    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}"))  # , writable=False))
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}"))
     1 2
-    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}"))  # , writable=False))
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}"))
+    1 2
+
+    """
+    print buf[0].a, buf[0].b
+
+@testcase
+def const_packed_struct(const PackedStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_packed_struct(PackedStructMockBuffer(None, [(1, 2)], writable=False))
+    1 2
+    >>> const_packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}", writable=False))
+    1 2
+    >>> const_packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}", writable=False))
     1 2
 
     """
@@ -1194,11 +1286,26 @@ def nested_packed_struct(NestedPackedStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))  # , writable=False))
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i"))  # , writable=False))
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i"))
     1 2 3 4 5
-    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))  # , writable=False))
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))
+    1 2 3 4 5
+    """
+    print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
+
+
+@testcase
+def const_nested_packed_struct(const NestedPackedStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], writable=False))
+    1 2 3 4 5
+    >>> const_nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i", writable=False))
+    1 2 3 4 5
+    >>> const_nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i", writable=False))
     1 2 3 4 5
     """
     print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
@@ -1523,7 +1630,7 @@ def test_index_slicing_away_direct_indirect():
     All dimensions preceding dimension 1 must be indexed and not sliced
     """
     cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
-    a_obj = a
+    cdef object a_obj = a
 
     print a[1][2][3]
     print a[1, 2, 3]
@@ -1621,7 +1728,7 @@ def test_oob():
     print a[:, 20]
 
 
-cdef int nogil_oob(int[:, :] a) nogil except 0:
+cdef int nogil_oob(int[:, :] a) except 0 nogil:
     a[100, 9:]
     return 1
 
@@ -1665,7 +1772,7 @@ def test_nogil_oob2():
         a[100, 9:]
 
 @cython.boundscheck(False)
-cdef int cdef_nogil(int[:, :] a) nogil except 0:
+cdef int cdef_nogil(int[:, :] a) except 0 nogil:
     cdef int i, j
     cdef int[:, :] b = a[::-1, 3:10:2]
     for i in range(b.shape[0]):
@@ -2141,7 +2248,7 @@ def test_object_dtype_copying():
     7
     8
     9
-    2 5
+    5
     1 5
     """
     cdef int i
@@ -2162,10 +2269,12 @@ def test_object_dtype_copying():
         print m2[i]
 
     obj = m2[5]
-    print get_refcount(obj), obj
+    refcount1 = get_refcount(obj)
+    print obj
 
     del m2
-    print get_refcount(obj), obj
+    refcount2 = get_refcount(obj)
+    print refcount1 - refcount2, obj
 
     assert unique_refcount == get_refcount(unique), (unique_refcount, get_refcount(unique))
 
@@ -2456,3 +2565,136 @@ def test_const_buffer(const int[:] a):
     cdef const int[:] c = a
     print(a[0])
     print(c[-1])
+
+
+@testcase
+def test_loop(int[:] a, throw_exception):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> test_loop(A, False)
+    acquired A
+    15
+    released A
+    >>> try:
+    ...     test_loop(A, True)
+    ... except ValueError:
+    ...     pass
+    acquired A
+    released A
+    """
+    cdef int sum = 0
+    for ai in a:
+        sum += ai
+    if throw_exception:
+        raise ValueError()
+    print(sum)
+
+
+@testcase
+def test_loop_reassign(int[:] a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> test_loop_reassign(A)
+    acquired A
+    0
+    1
+    2
+    3
+    4
+    5
+    15
+    released A
+    """
+    cdef int sum = 0
+    for ai in a:
+        sum += ai
+        print(ai)
+        a = None  # this should not mess up the loop though!
+    print(sum)
+    # release happens in the wrapper function
+
+
+@testcase
+def test_arg_in_closure(int [:] a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    def inner():
+        return (a[0], a[1])
+    return inner
+
+
+cdef arg_in_closure_cdef(int [:] a):
+    def inner():
+        return (a[0], a[1])
+    return inner
+
+def test_arg_in_closure_cdef(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_arg_in_closure_cdef(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    return arg_in_closure_cdef(a)
+
+
+@testcase
+def test_local_in_closure(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_local_in_closure(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    cdef int[:] a_view = a
+    def inner():
+        return (a_view[0], a_view[1])
+    return inner
+
+@testcase
+def test_local_in_generator_expression(a, initialize, execute_now):
+    """
+    >>> A1 = IntMockBuffer("A1", range(6), shape=(6,))
+    >>> A2 = IntMockBuffer("A2", range(6), shape=(6,))
+    >>> test_local_in_generator_expression(A1, initialize=False, execute_now=False)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    UnboundLocalError...
+
+    >>> test_local_in_generator_expression(A1, initialize=True, execute_now=True)
+    acquired A1
+    released A1
+    True
+
+    >>> genexp = test_local_in_generator_expression(A2, initialize=True, execute_now=False)
+    acquired A2
+    >>> sum(genexp)
+    released A2
+    2
+    """
+    cdef int[:] a_view
+    if initialize:
+        a_view = a
+    if execute_now:
+        return any(ai > 3 for ai in a_view)
+    else:
+        return (ai > 3 for ai in a_view)

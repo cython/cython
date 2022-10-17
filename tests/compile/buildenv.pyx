@@ -34,14 +34,17 @@ cdef extern from *:
 
     # Cython config
     cdef int CYTHON_COMPILING_IN_CPYTHON
+    cdef int CYTHON_COMPILING_IN_LIMITED_API
     cdef int CYTHON_COMPILING_IN_PYPY
-    cdef int CYTHON_COMPILING_IN_PYSTON
+    cdef int CYTHON_COMPILING_IN_GRAAL
+    cdef int CYTHON_COMPILING_IN_NOGIL
     cdef int CYTHON_USE_PYLONG_INTERNALS
     cdef int CYTHON_USE_PYLIST_INTERNALS
     cdef int CYTHON_USE_UNICODE_INTERNALS
     cdef int CYTHON_USE_UNICODE_WRITER
     cdef int CYTHON_AVOID_BORROWED_REFS
     cdef int CYTHON_ASSUME_SAFE_MACROS
+    cdef int CYTHON_USE_TYPE_SLOTS
     cdef int CYTHON_UNPACK_METHODS
     cdef int CYTHON_FAST_THREAD_STATE
     cdef int CYTHON_FAST_PYCALL
@@ -76,8 +79,10 @@ Python  {sys.version_info}
 PY_VERSION_HEX  0x{PY_VERSION_HEX:X}
 
 CYTHON_COMPILING_IN_CPYTHON  {CYTHON_COMPILING_IN_CPYTHON}
+CYTHON_COMPILING_IN_LIMITED_API  {CYTHON_COMPILING_IN_LIMITED_API}
 CYTHON_COMPILING_IN_PYPY  {CYTHON_COMPILING_IN_PYPY}
-CYTHON_COMPILING_IN_PYSTON  {CYTHON_COMPILING_IN_PYSTON}
+CYTHON_COMPILING_IN_GRAAL  {CYTHON_COMPILING_IN_GRAAL}
+CYTHON_COMPILING_IN_NOGIL  {CYTHON_COMPILING_IN_NOGIL}
 
 CYTHON_USE_PYLONG_INTERNALS  {CYTHON_USE_PYLONG_INTERNALS}
 CYTHON_USE_PYLIST_INTERNALS  {CYTHON_USE_PYLIST_INTERNALS}
@@ -85,6 +90,7 @@ CYTHON_USE_UNICODE_INTERNALS  {CYTHON_USE_UNICODE_INTERNALS}
 CYTHON_USE_UNICODE_WRITER  {CYTHON_USE_UNICODE_WRITER}
 CYTHON_AVOID_BORROWED_REFS  {CYTHON_AVOID_BORROWED_REFS}
 CYTHON_ASSUME_SAFE_MACROS  {CYTHON_ASSUME_SAFE_MACROS}
+CYTHON_USE_TYPE_SLOTS  {CYTHON_USE_TYPE_SLOTS}
 CYTHON_UNPACK_METHODS  {CYTHON_UNPACK_METHODS}
 CYTHON_FAST_THREAD_STATE  {CYTHON_FAST_THREAD_STATE}
 CYTHON_FAST_PYCALL  {CYTHON_FAST_PYCALL}
@@ -107,6 +113,15 @@ SIZEOF_VOID_P  {SIZEOF_VOID_P}  ({sizeof(void*)})
 SIZEOF_UINTPTR_T  {SIZEOF_UINTPTR_T}  ({sizeof(unsigned int *)})
 SIZEOF_OFF_T  {SIZEOF_OFF_T}
 
+Paths:
+sys.executable = {sys.executable}
+sys.exec_prefix = {sys.exec_prefix}
+sys.base_exec_prefix = {getattr(sys, 'base_exec_prefix', "")}
+sys.prefix = {sys.prefix}
+sys.path = {sys.path}
+PYTHONPATH (env) = {get_env('PYTHONPATH', '')}
+PYTHONHOME (env) = {get_env('PYTHONHOME', '')}
+
 Distutils:
 INCDIR = {sysconfig.get_python_inc()}
 LIBS = {config_var('LIBS')}
@@ -121,4 +136,12 @@ CFLAGS (distutils) = {config_var('CFLAGS')}
 CFLAGS (env) = {get_env('CFLAGS', '')}
 LINKCC (distutils) = {config_var('LINKCC')}
 LINKCC (env) = {get_env('LINKCC', '')}
+
+Encodings:
+sys maxunicode = {sys.maxunicode}
+LANG (env) = {get_env('LANG', '')}
+PYTHONIOENCODING (env) = {get_env('PYTHONIOENCODING', '')}
+sys stdout encoding = {sys.stdout.encoding}
+sys default encoding = {sys.getdefaultencoding()}
+sys FS encoding = {sys.getfilesystemencoding()}
 """)

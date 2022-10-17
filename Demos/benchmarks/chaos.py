@@ -130,7 +130,7 @@ class Spline(object):
                 I = ii
                 break
         else:
-             I = dom[1] - 1
+            I = dom[1] - 1
         return I
 
     def __len__(self):

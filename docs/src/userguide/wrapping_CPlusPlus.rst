@@ -11,8 +11,8 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can be dynamically allocated with ``new`` and ``del`` keywords.
-* C++ objects can be stack-allocated.
+* C++ objects can be :term:`dynamically allocated<Dynamic allocation or Heap allocation>` with ``new`` and ``del`` keywords.
+* C++ objects can be :term:`stack-allocated<Stack allocation>`.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
 * Overloaded functions are supported.
@@ -97,7 +97,7 @@ We use the lines::
         pass
 
 to include the C++ code from :file:`Rectangle.cpp`. It is also possible to specify to
-distutils that :file:`Rectangle.cpp` is a source. To do that, you can add this directive at the
+setuptools that :file:`Rectangle.cpp` is a source. To do that, you can add this directive at the
 top of the ``.pyx`` (not ``.pxd``) file::
 
     # distutils: sources = Rectangle.cpp
@@ -136,6 +136,9 @@ a "default" constructor::
     def func():
         cdef Foo foo
         ...
+        
+See the section on the :ref:`cpp_locals directive` for a way
+to avoid requiring a nullary/default constructor.
 
 Note that, like C++, if the class has only one constructor and it
 is a nullary one, it's not necessary to declare it.
@@ -162,7 +165,9 @@ attribute access, you could just implement some properties:
 
 Cython initializes C++ class attributes of a cdef class using the nullary constructor.
 If the class you're wrapping does not have a nullary constructor, you must store a pointer
-to the wrapped class and manually allocate and deallocate it.
+to the wrapped class and manually allocate and deallocate it.  Alternatively, the
+:ref:`cpp_locals directive` avoids the need for the pointer and only initializes the
+C++ class attribute when it is assigned to.
 A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
 which are guaranteed to be called exactly once upon creation and deletion of the Python
 instance.
@@ -331,19 +336,27 @@ arguments) or by an explicit cast, e.g.:
 
 The following coercions are available:
 
-+------------------+----------------+-----------------+
-| Python type =>   | *C++ type*     | => Python type  |
-+==================+================+=================+
-| bytes            | std::string    | bytes           |
-+------------------+----------------+-----------------+
-| iterable         | std::vector    | list            |
-+------------------+----------------+-----------------+
-| iterable         | std::list      | list            |
-+------------------+----------------+-----------------+
-| iterable         | std::set       | set             |
-+------------------+----------------+-----------------+
-| iterable (len 2) | std::pair      | tuple (len 2)   |
-+------------------+----------------+-----------------+
++------------------+------------------------+-----------------+
+| Python type =>   | *C++ type*             | => Python type  |
++==================+========================+=================+
+| bytes            | std::string            | bytes           |
++------------------+------------------------+-----------------+
+| iterable         | std::vector            | list            |
++------------------+------------------------+-----------------+
+| iterable         | std::list              | list            |
++------------------+------------------------+-----------------+
+| iterable         | std::set               | set             |
++------------------+------------------------+-----------------+
+| iterable         | std::unordered_set     | set             |
++------------------+------------------------+-----------------+
+| mapping          | std::map               | dict            |
++------------------+------------------------+-----------------+
+| mapping          | std::unordered_map     | dict            |
++------------------+------------------------+-----------------+
+| iterable (len 2) | std::pair              | tuple (len 2)   |
++------------------+------------------------+-----------------+
+| complex          | std::complex           | complex         |
++------------------+------------------------+-----------------+
 
 All conversions create a new container and copy the data into it.
 The items in the containers are converted to a corresponding type
@@ -454,7 +467,7 @@ Static member method
 
 If the Rectangle class has a static member:
 
-.. sourcecode:: c++
+.. code-block:: c++
 
     namespace shapes {
         class Rectangle {
@@ -482,6 +495,33 @@ Note, however, that it is unnecessary to declare the arguments of extern
 functions as references (const or otherwise) as it has no impact on the
 caller's syntax.
 
+Scoped Enumerations
+-------------------
+
+Cython supports scoped enumerations (:keyword:`enum class`) in C++ mode::
+
+    cdef enum class Cheese:
+        cheddar = 1
+        camembert = 2
+
+As with "plain" enums, you may access the enumerators as attributes of the type.
+Unlike plain enums however, the enumerators are not visible to the
+enclosing scope::
+
+    cdef Cheese c1 = Cheese.cheddar  # OK
+    cdef Cheese c2 = cheddar  # ERROR!
+
+Optionally, you may specify the underlying type of a scoped enumeration.
+This is especially important when declaring an external scoped enumeration
+with an underlying type::
+
+    cdef extern from "Foo.h":
+        cdef enum class Spam(unsigned int):
+	    x = 10
+	    y = 20
+	    ...
+
+Declaring an enum class as ``cpdef`` will create a :pep:`435`-style Python wrapper.
 
 ``auto`` Keyword
 ----------------
@@ -527,7 +567,7 @@ Specify C++ language in setup.py
 Instead of specifying the language and the sources in the source files, it is
 possible to declare them in the :file:`setup.py` file::
 
-   from distutils.core import setup
+   from setuptools import setup
    from Cython.Build import cythonize
 
    setup(ext_modules = cythonize(
@@ -553,7 +593,7 @@ recognize the ``language`` option and it needs to be specified as an
 option to an :class:`Extension` that describes your extension and that
 is then handled by ``cythonize()`` as follows::
 
-   from distutils.core import setup, Extension
+   from setuptools import Extension, setup
    from Cython.Build import cythonize
 
    setup(ext_modules = cythonize(Extension(
@@ -568,7 +608,7 @@ often preferable (and overrides any global option).  Starting with
 version 0.17, Cython also allows passing external source files into the
 ``cythonize()`` command this way.  Here is a simplified setup.py file::
 
-   from distutils.core import setup
+   from setuptools import setup
    from Cython.Build import cythonize
 
    setup(
@@ -586,13 +626,51 @@ any source code, to compile it in C++ mode and link it statically against the
 .. note::
 
      When using distutils directives, the paths are relative to the working
-     directory of the distutils run (which is usually the
-     project root where the :file:`setup.py` resides).
+     directory of the setuptools run (which is usually the project root where
+     the :file:`setup.py` resides).
 
 To compile manually (e.g. using ``make``), the ``cython`` command-line
 utility can be used to generate a C++ ``.cpp`` file, and then compile it
 into a python extension.  C++ mode for the ``cython`` command is turned
 on with the ``--cplus`` option.
+
+.. _cpp_locals directive:
+
+``cpp_locals`` directive
+========================
+
+The ``cpp_locals`` compiler directive is an experimental feature that makes
+C++ variables behave like normal Python object variables.  With this
+directive they are only initialized at their first assignment, and thus
+they no longer require a nullary constructor to be stack-allocated.  Trying to
+access an uninitialized C++ variable will generate an ``UnboundLocalError``
+(or similar) in the same way as a Python variable would.  For example::
+
+    def function(dont_write):
+        cdef SomeCppClass c  # not initialized
+        if dont_write:
+            return c.some_cpp_function()  # UnboundLocalError
+        else:
+            c = SomeCppClass(...)  # initialized
+            return c.some_cpp_function()  # OK
+            
+Additionally, the directive avoids initializing temporary C++ objects before
+they are assigned, for cases where Cython needs to use such objects in its
+own code-generation (often for return values of functions that can throw
+exceptions).
+
+For extra speed, the ``initializedcheck`` directive disables the check for an
+unbound-local.  With this directive on, accessing a variable that has not
+been initialized will trigger undefined behaviour, and it is entirely the user's
+responsibility to avoid such access.
+
+The ``cpp_locals`` directive is currently implemented using ``std::optional``
+and thus requires a C++17 compatible compiler. Defining
+``CYTHON_USE_BOOST_OPTIONAL`` (as define for the C++ compiler) uses ``boost::optional``
+instead (but is even more experimental and untested).  The directive may
+come with a memory and performance cost due to the need to store and check 
+a boolean that tracks if a variable is initialized, but the C++ compiler should
+be able to eliminate the check in most cases.
 
 
 Caveats and Limitations

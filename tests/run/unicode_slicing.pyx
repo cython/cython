@@ -151,30 +151,52 @@ __doc__ = u"""
     >>> slice_none_none(None, 2, 4)
     Traceback (most recent call last):    
     TypeError: 'NoneType' object is not subscriptable
+
+    >>> slice_start_end(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    <BLANKLINE>
+    >>> slice_start(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    <BLANKLINE>
+    >>> slice_end(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    abcdef
+    >>> slice_all(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    abcdef
+    >>> slice_start_none(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    <BLANKLINE>
+    >>> slice_none_end(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    abcdef
+    >>> slice_none_none(u'abcdef', SSIZE_T_MAX, SSIZE_T_MIN)
+    abcdef
 """
+
+cdef extern from *:
+    cdef Py_ssize_t PY_SSIZE_T_MIN
+    cdef Py_ssize_t PY_SSIZE_T_MAX
+
+SSIZE_T_MAX = PY_SSIZE_T_MAX
+SSIZE_T_MIN = PY_SSIZE_T_MIN
 
 import sys
 
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u"(u'", u"('").replace(u" u'", u" '")
 
-def slice_start_end(unicode s, int i, int j):
+def slice_start_end(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[i:j])
 
-def slice_start(unicode s, int i, int j):
+def slice_start(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[i:])
 
-def slice_end(unicode s, int i, int j):
+def slice_end(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[:i])
 
-def slice_all(unicode s, int i, int j):
+def slice_all(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[:])
 
-def slice_start_none(unicode s, int i, int j):
+def slice_start_none(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[i:None])
 
-def slice_none_end(unicode s, int i, int j):
+def slice_none_end(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[None:i])
 
-def slice_none_none(unicode s, int i, int j):
+def slice_none_none(unicode s, Py_ssize_t i, Py_ssize_t j):
     print(s[None:None])

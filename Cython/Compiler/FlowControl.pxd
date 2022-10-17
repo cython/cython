@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
 
@@ -36,6 +36,7 @@ cdef class NameAssignment:
     cdef public set refs
     cdef public object bit
     cdef public object inferred_type
+    cdef public object rhs_scope
 
 cdef class AssignmentList:
     cdef public object bit
@@ -58,12 +59,14 @@ cdef class ControlFlow:
 
      cdef public dict assmts
 
+     cdef public Py_ssize_t in_try_block
+
      cpdef newblock(self, ControlBlock parent=*)
      cpdef nextblock(self, ControlBlock parent=*)
      cpdef bint is_tracked(self, entry)
      cpdef bint is_statically_assigned(self, entry)
      cpdef mark_position(self, node)
-     cpdef mark_assignment(self, lhs, rhs, entry)
+     cpdef mark_assignment(self, lhs, rhs, entry, rhs_scope=*)
      cpdef mark_argument(self, lhs, rhs, entry)
      cpdef mark_deletion(self, node, entry)
      cpdef mark_reference(self, node, entry)
@@ -101,12 +104,11 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef object gv_ctx
     cdef object constant_folder
     cdef set reductions
-    cdef list env_stack
-    cdef list stack
+    cdef list stack  # a stack of (env, flow) tuples
     cdef object env
     cdef ControlFlow flow
     cdef object object_expr
     cdef bint in_inplace_assignment
 
-    cpdef mark_assignment(self, lhs, rhs=*)
+    cpdef mark_assignment(self, lhs, rhs=*, rhs_scope=*)
     cpdef mark_position(self, node)

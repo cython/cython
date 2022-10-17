@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 from unittest import TestCase
 try:
     from StringIO import StringIO
@@ -27,7 +28,7 @@ class CmdLineParserTest(TestCase):
         no_value = object()
         for name in default_options.__dict__.keys():
             if name not in white_list:
-               self.assertEqual(getattr(options, name, no_value), getattr(default_options, name), msg="error in option " + name)
+                self.assertEqual(getattr(options, name, no_value), getattr(default_options, name), msg="error in option " + name)
 
     def test_short_options(self):
         options, sources = parse_command_line([
@@ -157,149 +158,149 @@ class CmdLineParserTest(TestCase):
         self.assertEqual(Options.annotate, 'fullc')
 
     def test_short_w(self):
-       options, sources = parse_command_line([
-                '-w', 'my_working_path',
-                'source.pyx'
-       ])
-       self.assertEqual(options.working_path, 'my_working_path')
-       self.check_default_global_options()
-       self.check_default_options(options, ['working_path'])
+        options, sources = parse_command_line([
+            '-w', 'my_working_path',
+            'source.pyx'
+        ])
+        self.assertEqual(options.working_path, 'my_working_path')
+        self.check_default_global_options()
+        self.check_default_options(options, ['working_path'])
 
     def test_short_o(self):
-       options, sources = parse_command_line([
-                '-o', 'my_output',
-                'source.pyx'
-       ])
-       self.assertEqual(options.output_file, 'my_output')
-       self.check_default_global_options()
-       self.check_default_options(options, ['output_file'])
+        options, sources = parse_command_line([
+            '-o', 'my_output',
+            'source.pyx'
+        ])
+        self.assertEqual(options.output_file, 'my_output')
+        self.check_default_global_options()
+        self.check_default_options(options, ['output_file'])
 
     def test_short_z(self):
-       options, sources = parse_command_line([
-                '-z', 'my_preimport',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.pre_import, 'my_preimport')
-       self.check_default_global_options(['pre_import'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '-z', 'my_preimport',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.pre_import, 'my_preimport')
+        self.check_default_global_options(['pre_import'])
+        self.check_default_options(options)
 
     def test_convert_range(self):
-       options, sources = parse_command_line([
-                '--convert-range',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.convert_range, True)
-       self.check_default_global_options(['convert_range'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--convert-range',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.convert_range, True)
+        self.check_default_global_options(['convert_range'])
+        self.check_default_options(options)
 
     def test_line_directives(self):
-       options, sources = parse_command_line([
-                '--line-directives',
-                'source.pyx'
-       ])
-       self.assertEqual(options.emit_linenums, True)
-       self.check_default_global_options()
-       self.check_default_options(options, ['emit_linenums'])
+        options, sources = parse_command_line([
+            '--line-directives',
+            'source.pyx'
+        ])
+        self.assertEqual(options.emit_linenums, True)
+        self.check_default_global_options()
+        self.check_default_options(options, ['emit_linenums'])
 
     def test_no_c_in_traceback(self):
-       options, sources = parse_command_line([
-                '--no-c-in-traceback',
-                'source.pyx'
-       ])
-       self.assertEqual(options.c_line_in_traceback, False)
-       self.check_default_global_options()
-       self.check_default_options(options, ['c_line_in_traceback'])
+        options, sources = parse_command_line([
+            '--no-c-in-traceback',
+            'source.pyx'
+        ])
+        self.assertEqual(options.c_line_in_traceback, False)
+        self.check_default_global_options()
+        self.check_default_options(options, ['c_line_in_traceback'])
 
     def test_gdb(self):
-       options, sources = parse_command_line([
-                '--gdb',
-                'source.pyx'
-       ])
-       self.assertEqual(options.gdb_debug, True)
-       self.assertEqual(options.output_dir, os.curdir)
-       self.check_default_global_options()
-       self.check_default_options(options, ['gdb_debug', 'output_dir'])
+        options, sources = parse_command_line([
+            '--gdb',
+            'source.pyx'
+        ])
+        self.assertEqual(options.gdb_debug, True)
+        self.assertEqual(options.output_dir, os.curdir)
+        self.check_default_global_options()
+        self.check_default_options(options, ['gdb_debug', 'output_dir'])
 
     def test_3str(self):
-       options, sources = parse_command_line([
-                '--3str',
-                'source.pyx'
-       ])
-       self.assertEqual(options.language_level, '3str')
-       self.check_default_global_options()
-       self.check_default_options(options, ['language_level'])
+        options, sources = parse_command_line([
+            '--3str',
+            'source.pyx'
+        ])
+        self.assertEqual(options.language_level, '3str')
+        self.check_default_global_options()
+        self.check_default_options(options, ['language_level'])
 
     def test_capi_reexport_cincludes(self):
-       options, sources = parse_command_line([
-                '--capi-reexport-cincludes',
-                'source.pyx'
-       ])
-       self.assertEqual(options.capi_reexport_cincludes, True)
-       self.check_default_global_options()
-       self.check_default_options(options, ['capi_reexport_cincludes'])
+        options, sources = parse_command_line([
+            '--capi-reexport-cincludes',
+            'source.pyx'
+        ])
+        self.assertEqual(options.capi_reexport_cincludes, True)
+        self.check_default_global_options()
+        self.check_default_options(options, ['capi_reexport_cincludes'])
 
     def test_fast_fail(self):
-       options, sources = parse_command_line([
-                '--fast-fail',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.fast_fail, True)
-       self.check_default_global_options(['fast_fail'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--fast-fail',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.fast_fail, True)
+        self.check_default_global_options(['fast_fail'])
+        self.check_default_options(options)
 
     def test_cimport_from_pyx(self):
-       options, sources = parse_command_line([
-                '--cimport-from-pyx',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.cimport_from_pyx, True)
-       self.check_default_global_options(['cimport_from_pyx'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--cimport-from-pyx',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.cimport_from_pyx, True)
+        self.check_default_global_options(['cimport_from_pyx'])
+        self.check_default_options(options)
 
     def test_Werror(self):
-       options, sources = parse_command_line([
-                '-Werror',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.warning_errors, True)
-       self.check_default_global_options(['warning_errors'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '-Werror',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.warning_errors, True)
+        self.check_default_global_options(['warning_errors'])
+        self.check_default_options(options)
 
     def test_warning_errors(self):
-       options, sources = parse_command_line([
-                '--warning-errors',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.warning_errors, True)
-       self.check_default_global_options(['warning_errors'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--warning-errors',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.warning_errors, True)
+        self.check_default_global_options(['warning_errors'])
+        self.check_default_options(options)
 
     def test_Wextra(self):
-       options, sources = parse_command_line([
-                '-Wextra',
-                'source.pyx'
-       ])
-       self.assertEqual(options.compiler_directives, Options.extra_warnings)
-       self.check_default_global_options()
-       self.check_default_options(options, ['compiler_directives'])
+        options, sources = parse_command_line([
+            '-Wextra',
+            'source.pyx'
+        ])
+        self.assertEqual(options.compiler_directives, Options.extra_warnings)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
 
     def test_warning_extra(self):
-       options, sources = parse_command_line([
-                '--warning-extra',
-                'source.pyx'
-       ])
-       self.assertEqual(options.compiler_directives, Options.extra_warnings)
-       self.check_default_global_options()
-       self.check_default_options(options, ['compiler_directives'])
+        options, sources = parse_command_line([
+            '--warning-extra',
+            'source.pyx'
+        ])
+        self.assertEqual(options.compiler_directives, Options.extra_warnings)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
 
     def test_old_style_globals(self):
-       options, sources = parse_command_line([
-                '--old-style-globals',
-                'source.pyx'
-       ])
-       self.assertEqual(Options.old_style_globals, True)
-       self.check_default_global_options(['old_style_globals'])
-       self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--old-style-globals',
+            'source.pyx'
+        ])
+        self.assertEqual(Options.old_style_globals, True)
+        self.check_default_global_options(['old_style_globals'])
+        self.check_default_options(options)
 
     def test_directive_multiple(self):
         options, source = parse_command_line([
@@ -485,32 +486,72 @@ class CmdLineParserTest(TestCase):
         self.check_default_options(options)
 
     def test_warning_extra_dont_overwrite(self):
-       options, sources = parse_command_line([
-                '-X', 'cdivision=True',
-                '--warning-extra',
-                '-X', 'c_string_type=bytes',
-                'source.pyx'
-       ])
-       self.assertTrue(len(options.compiler_directives), len(Options.extra_warnings) + 1)
-       self.check_default_global_options()
-       self.check_default_options(options, ['compiler_directives'])
+        options, sources = parse_command_line([
+            '-X', 'cdivision=True',
+            '--warning-extra',
+            '-X', 'c_string_type=bytes',
+            'source.pyx'
+        ])
+        self.assertTrue(len(options.compiler_directives), len(Options.extra_warnings) + 1)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
+
+    def test_module_name(self):
+        options, sources = parse_command_line([
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, None)
+        self.check_default_global_options()
+        self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--module-name', 'foo.bar',
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, 'foo.bar')
+        self.check_default_global_options()
+        self.check_default_options(options, ['module_name'])
 
     def test_errors(self):
-        def error(*args):
+        def error(args, regex=None):
             old_stderr = sys.stderr
             stderr = sys.stderr = StringIO()
             try:
                 self.assertRaises(SystemExit, parse_command_line, list(args))
             finally:
                 sys.stderr = old_stderr
-            self.assertTrue(stderr.getvalue())
+            msg = stderr.getvalue()
+            err_msg = 'Message "{}"'.format(msg.strip())
+            self.assertTrue(msg.startswith('usage: '),
+                            '%s does not start with "usage :"' % err_msg)
+            self.assertTrue(': error: ' in msg,
+                            '%s does not contain ": error :"' % err_msg)
+            if regex:
+                self.assertTrue(re.search(regex, msg),
+                                '%s does not match search "%s"' %
+                                (err_msg, regex))
 
-        error('-1')
-        error('-I')
-        error('--version=-a')
-        error('--version=--annotate=true')
-        error('--working')
-        error('--verbose=1')
-        error('--verbose=1')
-        error('--cleanup')
-        error('--debug-disposal-code-wrong-name', 'file3.pyx')
+        error(['-1'],
+              'unknown option -1')
+        error(['-I'],
+              'argument -I/--include-dir: expected one argument')
+        error(['--version=-a'],
+              "argument -V/--version: ignored explicit argument '-a'")
+        error(['--version=--annotate=true'],
+              "argument -V/--version: ignored explicit argument "
+              "'--annotate=true'")
+        error(['--working'],
+              "argument -w/--working: expected one argument")
+        error(['--verbose=1'],
+              "argument -v/--verbose: ignored explicit argument '1'")
+        error(['--cleanup'],
+              "argument --cleanup: expected one argument")
+        error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
+              "unknown option --debug-disposal-code-wrong-name")
+        error(['--module-name', 'foo.pyx'],
+              "Need at least one source file")
+        error(['--module-name', 'foo.bar'],
+              "Need at least one source file")
+        error(['--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx'],
+              "Only one source file allowed when using --module-name")
+        error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
+              "Cannot use --module-name with --timestamps")

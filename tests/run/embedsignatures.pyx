@@ -462,7 +462,7 @@ Foo.m04(self, a: 3.14, b: +3.14, c: -3.14) -> float
 Foo.m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex
 
 >>> print(Foo.m06.__doc__)
-Foo.m06(self, a: 'abc', b: b'abc', c: u'abc') -> (str, bytes, unicode)
+Foo.m06(self, a: 'abc', b: b'abc', c: 'abc') -> (str, bytes, unicode)
 
 >>> print(Foo.m07.__doc__)
 Foo.m07(self, a: [1, 2, 3], b: []) -> list

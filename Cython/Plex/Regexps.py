@@ -6,12 +6,10 @@ Regular Expressions
 from __future__ import absolute_import
 
 import types
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
 
 from . import Errors
+
+maxint = 2**31-1  # sentinel value
 
 #
 #     Constants

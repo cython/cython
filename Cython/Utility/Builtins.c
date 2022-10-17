@@ -20,15 +20,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    PyObject *globals;
-#if CYTHON_COMPILING_IN_LIMITED_API
-    globals = PyModule_GetDict($module_cname);
-    if (unlikely(!globals)) return NULL;
-#else
-    globals = $moddict_cname;
-#endif
-    Py_INCREF(globals);
-    return globals;
+    return __Pyx_NewRef($moddict_cname);
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -36,17 +28,11 @@ static PyObject* __Pyx_Globals(void) {
 static PyObject* __Pyx_PyExecGlobals(PyObject*);
 
 //////////////////// PyExecGlobals ////////////////////
-//@requires: Globals
+//@substitute: naming
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    PyObject* result;
-    PyObject* globals = __Pyx_Globals();
-    if (unlikely(!globals))
-        return NULL;
-    result = __Pyx_PyExec2(code, globals);
-    Py_DECREF(globals);
-    return result;
+    return __Pyx_PyExec2(code, $moddict_cname);
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -68,9 +54,13 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
-    } else if (!PyDict_Check(globals)) {
-        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
-                     Py_TYPE(globals)->tp_name);
+    } else if (unlikely(!PyDict_Check(globals))) {
+        __Pyx_TypeName globals_type_name =
+            __Pyx_PyType_GetName(Py_TYPE(globals));
+        PyErr_Format(PyExc_TypeError,
+                     "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
+                     globals_type_name);
+        __Pyx_DECREF_TypeName(globals_type_name);
         goto bad;
     }
     if (!locals || locals == Py_None) {
@@ -78,17 +68,17 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     }
 
     if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
-        if (PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0)
+        if (unlikely(PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0))
             goto bad;
     }
 
     if (PyCode_Check(o)) {
-        if (__Pyx_PyCode_HasFreeVars((PyCodeObject *)o)) {
+        if (unlikely(__Pyx_PyCode_HasFreeVars((PyCodeObject *)o))) {
             PyErr_SetString(PyExc_TypeError,
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-        #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030200B1
+        #if PY_VERSION_HEX < 0x030200B1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030400)
         result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
         #else
         result = PyEval_EvalCode(o, globals, locals);
@@ -96,19 +86,24 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     } else {
         PyCompilerFlags cf;
         cf.cf_flags = 0;
+#if PY_VERSION_HEX >= 0x030800A3
+        cf.cf_feature_version = PY_MINOR_VERSION;
+#endif
         if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
             s = PyUnicode_AsUTF8String(o);
-            if (!s) goto bad;
+            if (unlikely(!s)) goto bad;
             o = s;
         #if PY_MAJOR_VERSION >= 3
-        } else if (!PyBytes_Check(o)) {
+        } else if (unlikely(!PyBytes_Check(o))) {
         #else
-        } else if (!PyString_Check(o)) {
+        } else if (unlikely(!PyString_Check(o))) {
         #endif
+            __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object, got %.200s",
-                Py_TYPE(o)->tp_name);
+                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
+                o_type_name);
+            __Pyx_DECREF_TypeName(o_type_name);
             goto bad;
         }
         #if PY_MAJOR_VERSION >= 3
@@ -180,7 +175,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         return -1;
     }
     r = __Pyx_GetAttr(o, n);
-    if (unlikely(!r)) {
+    if (!r) {
         PyErr_Clear();
         return 0;
     } else {
@@ -194,11 +189,12 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
 static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 
 //////////////////// Intern ////////////////////
+//@requires: ObjectHandling.c::RaiseUnexpectedTypeError
 
 static PyObject* __Pyx_Intern(PyObject* s) {
-    if (!(likely(PyString_CheckExact(s)))) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(s)->tp_name);
-        return 0;
+    if (unlikely(!PyString_CheckExact(s))) {
+        __Pyx_RaiseUnexpectedTypeError("str", s);
+        return NULL;
     }
     Py_INCREF(s);
     #if PY_MAJOR_VERSION >= 3
@@ -257,7 +253,8 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
-            Py_SIZE(copy) = -(Py_SIZE(copy));
+            // negate the size to swap the sign
+            __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
         }
         return copy;
     }
@@ -306,8 +303,11 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
+        __Pyx_TypeName c_type_name = __Pyx_PyType_GetName(Py_TYPE(c));
         PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but %.200s found", c->ob_type->tp_name);
+            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
+            c_type_name);
+        __Pyx_DECREF_TypeName(c_type_name);
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
@@ -461,9 +461,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if (likely(PySet_GET_SIZE(result)))
+        if ((PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
             return result;
-        // empty frozenset is a singleton
+        // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
 #endif

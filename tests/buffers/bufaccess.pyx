@@ -10,10 +10,8 @@
 from __future__ import unicode_literals
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
 cimport cython
-
-__test__ = {}
 
 import sys
 #import re
@@ -27,8 +25,7 @@ if getattr(sys, 'pypy_version_info', None) is not None:
 def testcase(func):
     for e in exclude:
         if e(func.__name__):
-            return func
-    __test__[func.__name__] = func.__doc__
+            func.__doc__ = ""  # disable the test
     return func
 
 
@@ -959,6 +956,8 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -991,18 +990,59 @@ def assign_to_object(object[object] buf, int idx, obj):
     See comments on printbuf_object above.
 
     >>> a, b = [1, 2, 3], [4, 5, 6]
-    >>> get_refcount(a), get_refcount(b)
-    (2, 2)
+    >>> rca1, rcb1 = get_refcount(a), get_refcount(b)
+    >>> rca1 == rcb1
+    True
     >>> addref(a)
     >>> A = ObjectMockBuffer(None, [1, a]) # 1, ...,otherwise it thinks nested lists...
-    >>> get_refcount(a), get_refcount(b)
-    (3, 2)
+    >>> get_refcount(a) == rca1+1, get_refcount(b) == rcb1
+    (True, True)
     >>> assign_to_object(A, 1, b)
-    >>> get_refcount(a), get_refcount(b)
-    (2, 3)
+    >>> get_refcount(a) == rca1, get_refcount(b) == rcb1+1
+    (True, True)
     >>> decref(b)
     """
     buf[idx] = obj
+
+@testcase
+def check_object_nulled_1d(MockBuffer[object, ndim=1] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a])
+    >>> check_object_nulled_1d(A, 0, a)
+    >>> check_object_nulled_1d(A, 1, a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], strides=(2,))
+    >>> check_object_nulled_1d(A, 0, a)  # only 0 due to stride
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef PyObject **data = <PyObject **>buf.buffer
+    Py_CLEAR(data[idx])
+    res = buf[idx]  # takes None
+    buf[idx] = obj
+    return res
+
+@testcase
+def check_object_nulled_2d(MockBuffer[object, ndim=2] buf, int idx1, int idx2, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], shape=(2, 2))
+    >>> check_object_nulled_2d(A, 0, 0, a)
+    >>> check_object_nulled_2d(A, 1, 1, a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef PyObject **data = <PyObject **>buf.buffer
+    Py_CLEAR(data[idx1 + 2*idx2])
+    res = buf[idx1, idx2]  # takes None
+    buf[idx1, idx2] = obj
+    return res
 
 @testcase
 def assign_temporary_to_object(object[object] buf):
@@ -1010,15 +1050,14 @@ def assign_temporary_to_object(object[object] buf):
     See comments on printbuf_object above.
 
     >>> a, b = [1, 2, 3], {4:23}
-    >>> get_refcount(a)
-    2
+    >>> rc1 = get_refcount(a)
     >>> addref(a)
     >>> A = ObjectMockBuffer(None, [b, a])
-    >>> get_refcount(a)
-    3
+    >>> get_refcount(a) == rc1+1
+    True
     >>> assign_temporary_to_object(A)
-    >>> get_refcount(a)
-    2
+    >>> get_refcount(a) == rc1
+    True
 
     >>> printbuf_object(A, (2,))
     {4: 23} 2

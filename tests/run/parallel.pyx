@@ -8,6 +8,9 @@ from libc.stdlib cimport malloc, free
 
 openmp.omp_set_nested(1)
 
+cdef int forward(int x) nogil:
+    return x
+
 def test_parallel():
     """
     >>> test_parallel()
@@ -20,13 +23,16 @@ def test_parallel():
 
     with nogil, cython.parallel.parallel():
         buf[threadid()] = threadid()
+        # Recognise threadid() also when it's used in a function argument.
+        # See https://github.com/cython/cython/issues/3594
+        buf[forward(cython.parallel.threadid())] = forward(threadid())
 
     for i in range(maxthreads):
         assert buf[i] == i
 
     free(buf)
 
-cdef int get_num_threads() with gil:
+cdef int get_num_threads() noexcept with gil:
     print "get_num_threads called"
     return 3
 

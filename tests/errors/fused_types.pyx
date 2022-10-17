@@ -49,6 +49,18 @@ def outer(cython.floating f):
     def inner():
         cdef cython.floating g
 
+
+# Mixing const and non-const type makes fused type ambiguous
+cdef fused mix_const_t:
+    int
+    const int
+
+cdef cdef_func_with_mix_const_type(mix_const_t val):
+    print(val)
+
+cdef_func_with_mix_const_type(1)
+
+
 # This is all valid
 dtype5 = fused_type(int, long, float)
 dtype6 = cython.fused_type(int, long)
@@ -64,16 +76,15 @@ ctypedef fused fused2:
 
 func(x, y)
 
+cdef floating return_type_unfindable1(cython.integral x):
+    return 1.0
 
-cdef fused mix_const_t:
-    int
-    const int
+cpdef floating return_type_unfindable2(cython.integral x):
+    return 1.0
 
-cdef cdef_func_with_mix_const_type(mix_const_t val):
-    print(val)
-
-# Mixing const and non-const type makes fused type ambiguous
-cdef_func_with_mix_const_type(1)
+cdef void contents_unfindable1(cython.integral x):
+    z: floating = 1  # note: cdef variables also fail with an error but not by the time this test aborts
+    sz = sizeof(floating)
 
 
 _ERRORS = u"""
@@ -88,7 +99,17 @@ _ERRORS = u"""
 37:6: Invalid base type for memoryview slice: int *
 40:0: Fused lambdas not allowed
 43:5: Fused types not allowed here
+43:21: cdef variable 'x' declared after it is used
 46:9: Fused types not allowed here
-76:0: Invalid use of fused types, type cannot be specialized
-76:29: ambiguous overloaded method
+61:0: Invalid use of fused types, type cannot be specialized
+61:29: ambiguous overloaded method
+# Possibly duplicates the errors more often than we want
+79:5: Return type is a fused type that cannot be determined from the function arguments
+82:6: Return type is a fused type that cannot be determined from the function arguments
+86:4: 'z' cannot be specialized since its type is not a fused argument to this function
+86:4: 'z' cannot be specialized since its type is not a fused argument to this function
+86:4: 'z' cannot be specialized since its type is not a fused argument to this function
+87:16: Type cannot be specialized since it is not a fused argument to this function
+87:16: Type cannot be specialized since it is not a fused argument to this function
+87:16: Type cannot be specialized since it is not a fused argument to this function
 """

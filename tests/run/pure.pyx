@@ -25,10 +25,12 @@ def test_declare(n):
     (100, 100)
     >>> test_declare(100.5)
     (100, 100)
-    >>> test_declare(None)
+
+    # CPython: "TypeError: an integer is required"
+    >>> test_declare(None) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     x = cython.declare(cython.int)
     y = cython.declare(cython.int, n)

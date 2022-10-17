@@ -1,4 +1,4 @@
-### COPIED FROM CPython 3.5 - ADDED PART FOLLOWS ###
+### COPIED FROM CPython 3.9 - ADDED PART FOLLOWS ###
 # cython: language_level=3
 
 import cython
@@ -38,6 +38,11 @@ def check_syntax_error(test, code, msg=None):
     assert not result.c_file
 
 
+def check_syntax_warning(test, code, *args):
+    # ignore for now
+    return _compile(code)
+
+
 if cython.compiled:
     def compile(code, name, what):
         assert what == 'exec'
@@ -56,6 +61,10 @@ if cython.compiled:
                 return cython_inline(code)
         except CompileError as exc:
             raise SyntaxError(str(exc))
+
+
+def use_old_parser():
+    return False
 
 
 import unittest
@@ -87,7 +96,7 @@ skip = unittest.skip
 # Python test set -- part 1, grammar.
 # This just tests whether the parser accepts them all.
 
-#from test.support import check_syntax_error
+#from test.support import check_syntax_error, check_syntax_warning, use_old_parser
 import inspect
 import unittest
 import sys
@@ -187,6 +196,7 @@ INVALID_UNDERSCORE_LITERALS = [
 
 class TokenTests(unittest.TestCase):
 
+    #from test.support import check_syntax_error
     check_syntax_error = check_syntax_error
 
     def test_backslash(self):
@@ -289,10 +299,12 @@ class TokenTests(unittest.TestCase):
         check("0x1_", "invalid hexadecimal literal")
         check("0x", "invalid hexadecimal literal")
         check("1_", "invalid decimal literal")
-        # FIXME: must still support PY_VERSION_HEX < 3 :(
-        #check("012",
-        #      "leading zeros in decimal integer literals are not permitted; "
-        #      "use an 0o prefix for octal integers")
+        # FIXME: not currently a syntax error
+        """
+        check("012",
+              "leading zeros in decimal integer literals are not permitted; "
+              "use an 0o prefix for octal integers")
+        """
         check("1.2_", "invalid decimal literal")
         check("1e2_", "invalid decimal literal")
         check("1e+", "invalid decimal literal")
@@ -350,7 +362,7 @@ the \'lazy\' dog.\n\
                 compile(s, "<test>", "exec")
             self.assertIn("unexpected EOF", str(cm.exception))
 
-var_annot_global: int # a global annotated is necessary for test_var_annot
+var_annot_global: int  # a global annotated is necessary for test_var_annot
 
 # custom namespace for testing __annotations__
 
@@ -365,7 +377,17 @@ class CNS:
 
 class GrammarTests(unittest.TestCase):
 
-    check_syntax_error = check_syntax_error
+    #from test.support import check_syntax_error, check_syntax_warning
+    check_syntax_error, check_syntax_warning = check_syntax_error, check_syntax_warning
+
+    if not hasattr(unittest.TestCase, 'subTest'):
+        @contextlib.contextmanager
+        def subTest(self, source=None, case=None, **kwargs):
+            try:
+                yield
+            except Exception:
+                print(source or case)
+                raise
 
     # single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
     # XXX can't test in a script -- this rule is only used when interactive
@@ -392,7 +414,7 @@ class GrammarTests(unittest.TestCase):
         my_lst[one()-1]: int = 5
         self.assertEqual(my_lst, [5])
 
-    @skip("Bug: global vs. local declarations do not currently raise an error")
+    @skip("Cython Bug: global vs. local declarations do not currently raise an error")
     def test_var_annot_syntax_errors(self):
         # parser pass
         check_syntax_error(self, "def f: int")
@@ -413,7 +435,6 @@ class GrammarTests(unittest.TestCase):
                                  "    global x\n"
                                  "    x: int\n")
 
-    @skip("Class annotations not implemented")
     def test_var_annot_basic_semantics(self):
         # execution order
         with self.assertRaises(ZeroDivisionError):
@@ -431,21 +452,21 @@ class GrammarTests(unittest.TestCase):
         def f_OK():
             x: 1/0
         f_OK()
-
-        ### The following are compile time errors in Cython.
-
-        #def fbad():
-        #    x: int
-        #    print(x)
-        #with self.assertRaises(UnboundLocalError):
-        #    fbad()
-        #def f2bad():
-        #    (no_such_global): int
-        #    print(no_such_global)
-        #try:
-        #    f2bad()
-        #except Exception as e:
-        #    self.assertIs(type(e), NameError)
+        # Compile-time errors in Cython:
+        """
+        def fbad():
+            x: int
+            print(x)
+        with self.assertRaises(UnboundLocalError):
+            fbad()
+        def f2bad():
+            (no_such_global): int
+            print(no_such_global)
+        try:
+            f2bad()
+        except Exception as e:
+            self.assertIs(type(e), NameError)
+        """
 
         # class semantics
         class C:
@@ -454,7 +475,8 @@ class GrammarTests(unittest.TestCase):
             z = 2
             def __init__(self, x):
                 self.x: int = x
-        self.assertEqual(C.__annotations__, {'_C__foo': int, 's': str})
+
+        self.assertEqual(C.__annotations__, {'_C__foo': 'int', 's': 'str'})
         with self.assertRaises(NameError):
             class CBad:
                 no_such_name_defined.attr: int = 0
@@ -463,7 +485,7 @@ class GrammarTests(unittest.TestCase):
                 x: int
                 x.y: list = []
 
-    @skip("Class annotations not implemented")
+    @skip("Not currently supported: https://github.com/cython/cython/issues/3839")
     def test_var_annot_metaclass_semantics(self):
         class CMeta(type):
             @classmethod
@@ -555,9 +577,13 @@ class GrammarTests(unittest.TestCase):
         exec(stmt, ns)
         self.assertEqual(list(ns['f']()), [None])
 
+        ns = {"a": 1, 'b': (2, 3, 4), "c":5, "Tuple": typing.Tuple}
+        exec('x: Tuple[int, ...] = a,*b,c', ns)
+        self.assertEqual(ns['x'], (1, 2, 3, 4, 5))
+
     def test_funcdef(self):
         ### [decorators] 'def' NAME parameters ['->' test] ':' suite
-        ### decorator: '@' dotted_name [ '(' [arglist] ')' ] NEWLINE
+        ### decorator: '@' namedexpr_test NEWLINE
         ### decorators: decorator+
         ### parameters: '(' [typedargslist] ')'
         ### typedargslist: ((tfpdef ['=' test] ',')*
@@ -696,9 +722,10 @@ class GrammarTests(unittest.TestCase):
         pos2key2dict(1,2,k2=100,tokwarg1=100,tokwarg2=200)
         pos2key2dict(1,2,tokwarg1=100,tokwarg2=200, k2=100)
 
-        self.assertRaises(SyntaxError, eval, "def f(*): pass")
-        self.assertRaises(SyntaxError, eval, "def f(*,): pass")
-        self.assertRaises(SyntaxError, eval, "def f(*, **kwds): pass")
+        # FIXME: currently does not raise an error
+        #self.assertRaises(SyntaxError, eval, "def f(*): pass")
+        #self.assertRaises(SyntaxError, eval, "def f(*,): pass")
+        #self.assertRaises(SyntaxError, eval, "def f(*, **kwds): pass")
 
         # keyword arguments after *arglist
         def f(*args, **kwargs):
@@ -718,37 +745,70 @@ class GrammarTests(unittest.TestCase):
 
         # argument annotation tests
         def f(x) -> list: pass
-        self.assertEqual(f.__annotations__, {'return': list})
+        self.assertEqual(f.__annotations__, {'return': 'list'})
         def f(x: int): pass
-        self.assertEqual(f.__annotations__, {'x': int})
+        self.assertEqual(f.__annotations__, {'x': 'int'})
+        def f(x: int, /): pass
+        self.assertEqual(f.__annotations__, {'x': 'int'})
+        def f(x: int = 34, /): pass
+        self.assertEqual(f.__annotations__, {'x': 'int'})
         def f(*x: str): pass
-        self.assertEqual(f.__annotations__, {'x': str})
+        self.assertEqual(f.__annotations__, {'x': 'str'})
         def f(**x: float): pass
-        self.assertEqual(f.__annotations__, {'x': float})
+        self.assertEqual(f.__annotations__, {'x': 'float'})
         def f(x, y: 1+2): pass
-        self.assertEqual(f.__annotations__, {'y': 3})
+        self.assertEqual(f.__annotations__, {'y': '1 + 2'})
+        def f(x, y: 1+2, /): pass
+        self.assertEqual(f.__annotations__, {'y': '1 + 2'})
         def f(a, b: 1, c: 2, d): pass
-        self.assertEqual(f.__annotations__, {'b': 1, 'c': 2})
+        self.assertEqual(f.__annotations__, {'b': '1', 'c': '2'})
+        def f(a, b: 1, /, c: 2, d): pass
+        self.assertEqual(f.__annotations__, {'b': '1', 'c': '2'})
         def f(a, b: 1, c: 2, d, e: 3 = 4, f=5, *g: 6): pass
         self.assertEqual(f.__annotations__,
-                         {'b': 1, 'c': 2, 'e': 3, 'g': 6})
+                         {'b': '1', 'c': '2', 'e': '3', 'g': '6'})
         def f(a, b: 1, c: 2, d, e: 3 = 4, f=5, *g: 6, h: 7, i=8, j: 9 = 10,
               **k: 11) -> 12: pass
         self.assertEqual(f.__annotations__,
-                         {'b': 1, 'c': 2, 'e': 3, 'g': 6, 'h': 7, 'j': 9,
-                          'k': 11, 'return': 12})
+                         {'b': '1', 'c': '2', 'e': '3', 'g': '6', 'h': '7', 'j': '9',
+                          'k': '11', 'return': '12'})
+        # FIXME: compile failure on positional-only argument declaration
+        """
+        def f(a, b: 1, c: 2, d, e: 3 = 4, f: int = 5, /, *g: 6, h: 7, i=8, j: 9 = 10,
+              **k: 11) -> 12: pass
+        self.assertEqual(f.__annotations__,
+                          {'b': 1, 'c': 2, 'e': 3, 'f': int, 'g': 6, 'h': 7, 'j': 9,
+                           'k': 11, 'return': 12})
+        """
         # Check for issue #20625 -- annotations mangling
         class Spam:
             def f(self, *, __kw: 1):
                 pass
         class Ham(Spam): pass
-        self.assertEqual(Spam.f.__annotations__, {'_Spam__kw': 1})
-        self.assertEqual(Ham.f.__annotations__, {'_Spam__kw': 1})
+        # FIXME: not currently mangled
+        """
+        self.assertEqual(Spam.f.__annotations__, {'_Spam__kw': '1'})
+        self.assertEqual(Ham.f.__annotations__, {'_Spam__kw': '1'})
+        """
         # Check for SF Bug #1697248 - mixing decorators and a return annotation
         def null(x): return x
         @null
         def f(x) -> list: pass
-        self.assertEqual(f.__annotations__, {'return': list})
+        self.assertEqual(f.__annotations__, {'return': 'list'})
+
+        # Test expressions as decorators (PEP 614):
+        @False or null
+        def f(x): pass
+        @d := null
+        def f(x): pass
+        @lambda f: null(f)
+        def f(x): pass
+        @[..., null, ...][1]
+        def f(x): pass
+        @null(null)(null)
+        def f(x): pass
+        @[null][0].__call__.__call__
+        def f(x): pass
 
         # test closures with a variety of opargs
         closure = 1
@@ -778,7 +838,7 @@ class GrammarTests(unittest.TestCase):
         ### lambdef: 'lambda' [varargslist] ':' test
         l1 = lambda : 0
         self.assertEqual(l1(), 0)
-        l2 = lambda : a[d] # XXX just testing the expression
+        l2 = lambda : a[d]  # XXX just testing the expression
         l3 = lambda : [2 < x for x in [-1, 3, 0]]
         self.assertEqual(l3(), [0, 1, 0])
         l4 = lambda x = lambda y = lambda z=1 : z : y() : x()
@@ -855,11 +915,13 @@ class GrammarTests(unittest.TestCase):
             for case in cases:
                 source = case.format(keyword)
                 with self.subTest(source=source):
-                    with self.assertRaisesRegex(SyntaxError, custom_msg):
+                    #with self.assertRaisesRegex(SyntaxError, custom_msg):
+                    with self.assertRaises(SyntaxError):
                         exec(source)
                 source = source.replace("foo", "(foo.)")
                 with self.subTest(source=source):
-                    with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
+                    #with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
+                    with self.assertRaises(SyntaxError):
                         exec(source)
 
     def test_del_stmt(self):
@@ -870,6 +932,24 @@ class GrammarTests(unittest.TestCase):
 
         del abc
         del x, y, (z, xyz)
+
+        x, y, z = "xyz"
+        del x
+        del y,
+        del (z)
+        del ()
+
+        a, b, c, d, e, f, g = "abcdefg"
+        del a, (b, c), (d, (e, f))
+
+        a, b, c, d, e, f, g = "abcdefg"
+        del a, [b, c], (d, [e, f])
+
+        abcd = list("abcd")
+        del abcd[1:2]
+
+        # FIXME: currently fails to compile
+        #compile("del a, (b[0].c, (d.e, f.g[1:2])), [h.i.j], ()", "<testcase>", "exec")
 
     def test_pass_stmt(self):
         # 'pass'
@@ -1075,6 +1155,62 @@ class GrammarTests(unittest.TestCase):
                 return 4
         self.assertEqual(g3(), 4)
 
+    @skip("FIXME: currently crashes because the iterable is cleaned up on 'return', not on loop exit")
+    def test_break_in_finally_after_return(self):
+        # See issue #37830
+        def g1(x):
+            for count in [0, 1]:
+                count2 = 0
+                while count2 < 20:
+                    count2 += 10
+                    try:
+                        return count + count2
+                    finally:
+                        if x:
+                            break
+            return 'end', count, count2
+        self.assertEqual(g1(False), 10)
+        self.assertEqual(g1(True), ('end', 1, 10))
+
+        def g2(x):
+            for count in [0, 1]:
+                for count2 in [10, 20]:
+                    try:
+                        return count + count2
+                    finally:
+                        if x:
+                            break
+            return 'end', count, count2
+        self.assertEqual(g2(False), 10)
+        self.assertEqual(g2(True), ('end', 1, 10))
+
+    @skip("FIXME: currently crashes because the iterable is cleaned up on 'return', not on loop exit")
+    def test_continue_in_finally_after_return(self):
+        # See issue #37830
+        def g1(x):
+            count = 0
+            while count < 100:
+                count += 1
+                try:
+                    return count
+                finally:
+                    if x:
+                        continue
+            return 'end', count
+        self.assertEqual(g1(False), 1)
+        self.assertEqual(g1(True), ('end', 100))
+
+        def g2(x):
+            for count in [0, 1]:
+                try:
+                    return count
+                finally:
+                    if x:
+                        continue
+            return 'end', count
+        self.assertEqual(g2(False), 0)
+        self.assertEqual(g2(True), ('end', 1))
+
     def test_yield(self):
         # Allowed as standalone statement
         def g(): yield 1
@@ -1112,23 +1248,15 @@ class GrammarTests(unittest.TestCase):
         check_syntax_error(self, "class foo:yield 1")
         check_syntax_error(self, "class foo:yield from ()")
         # Check annotation refleak on SyntaxError
-        #check_syntax_error(self, "def g(a:(yield)): pass") # no longer a syntax error with PEP563
+        #check_syntax_error(self, "def g(a:(yield)): pass")  # no longer a syntax error with PEP-563
 
-    @skip("DeprecationWarning not implemented")
+    @skip("Not currently a syntax error")
     def test_yield_in_comprehensions(self):
         # Check yield in comprehensions
         def g(): [x for x in [(yield 1)]]
         def g(): [x for x in [(yield from ())]]
 
-        def check(code, warntext):
-            with self.assertWarnsRegex(DeprecationWarning, warntext):
-                compile(code, '<test string>', 'exec')
-            import warnings
-            with warnings.catch_warnings():
-                warnings.filterwarnings('error', category=DeprecationWarning)
-                with self.assertRaisesRegex(SyntaxError, warntext):
-                    compile(code, '<test string>', 'exec')
-
+        check = self.check_syntax_error
         check("def g(): [(yield x) for x in ()]",
               "'yield' inside list comprehension")
         check("def g(): [x for x in () if not (yield x)]",
@@ -1219,6 +1347,15 @@ class GrammarTests(unittest.TestCase):
         else:
             self.fail("AssertionError not raised by 'assert False'")
 
+        self.check_syntax_warning('assert(x, "msg")',
+                                  'assertion is always true')
+        # FIXME: currently fails to compile
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', SyntaxWarning)
+            compile('assert x, "msg"', '<testcase>', 'exec')
+        """
+
 
     ### compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | funcdef | classdef
     # Tested below
@@ -1281,7 +1418,7 @@ class GrammarTests(unittest.TestCase):
     def test_try(self):
         ### try_stmt: 'try' ':' suite (except_clause ':' suite)+ ['else' ':' suite]
         ###         | 'try' ':' suite 'finally' ':' suite
-        ### except_clause: 'except' [expr ['as' expr]]
+        ### except_clause: 'except' [expr ['as' NAME]]
         try:
             1/0
         except ZeroDivisionError:
@@ -1299,6 +1436,9 @@ class GrammarTests(unittest.TestCase):
         except (EOFError, TypeError, ZeroDivisionError) as msg: pass
         try: pass
         finally: pass
+        with self.assertRaises(SyntaxError):
+            compile("try:\n    pass\nexcept Exception as a.b:\n    pass", "?", "exec")
+            compile("try:\n    pass\nexcept Exception as a[b]:\n    pass", "?", "exec")
 
     def test_suite(self):
         # simple_stmt | NEWLINE INDENT NEWLINE* (stmt NEWLINE*)+ DEDENT
@@ -1343,15 +1483,9 @@ class GrammarTests(unittest.TestCase):
         if 1 not in (): pass
         if 1 < 1 > 1 == 1 >= 1 <= 1 != 1 in 1 not in x is x is not x: pass
 
-    @skip("DeprecationWarning not implemented")
     def test_comparison_is_literal(self):
         def check(test, msg='"is" with a literal'):
-            with self.assertWarnsRegex(SyntaxWarning, msg):
-                compile(test, '<testcase>', 'exec')
-            with warnings.catch_warnings():
-                warnings.filterwarnings('error', category=SyntaxWarning)
-                with self.assertRaisesRegex(SyntaxError, msg):
-                    compile(test, '<testcase>', 'exec')
+            self.check_syntax_warning(test, msg)
 
         check('x is 1')
         check('x is "thing"')
@@ -1359,12 +1493,100 @@ class GrammarTests(unittest.TestCase):
         check('x is y is 1')
         check('x is not 1', '"is not" with a literal')
 
+        # FIXME: this fails to compile
+        """
         with warnings.catch_warnings():
-            warnings.filterwarnings('error', category=SyntaxWarning)
+            warnings.simplefilter('error', SyntaxWarning)
             compile('x is None', '<testcase>', 'exec')
             compile('x is False', '<testcase>', 'exec')
             compile('x is True', '<testcase>', 'exec')
             compile('x is ...', '<testcase>', 'exec')
+        """
+
+    def test_warn_missed_comma(self):
+        # FIXME: would be nice if this could actually raise a compile time warning as well
+        def check(test):
+            self.check_syntax_warning(test, msg)
+
+        msg=r'is not callable; perhaps you missed a comma\?'
+        check('[(1, 2) (3, 4)]')
+        check('[(x, y) (3, 4)]')
+        check('[[1, 2] (3, 4)]')
+        check('[{1, 2} (3, 4)]')
+        check('[{1: 2} (3, 4)]')
+        check('[[i for i in range(5)] (3, 4)]')
+        check('[{i for i in range(5)} (3, 4)]')
+        check('[(i for i in range(5)) (3, 4)]')
+        check('[{i: i for i in range(5)} (3, 4)]')
+        check('[f"{x}" (3, 4)]')
+        check('[f"x={x}" (3, 4)]')
+        check('["abc" (3, 4)]')
+        check('[b"abc" (3, 4)]')
+        check('[123 (3, 4)]')
+        check('[12.3 (3, 4)]')
+        check('[12.3j (3, 4)]')
+        check('[None (3, 4)]')
+        check('[True (3, 4)]')
+        check('[... (3, 4)]')
+
+        msg=r'is not subscriptable; perhaps you missed a comma\?'
+        check('[{1, 2} [i, j]]')
+        check('[{i for i in range(5)} [i, j]]')
+        check('[(i for i in range(5)) [i, j]]')
+        check('[(lambda x, y: x) [i, j]]')
+        check('[123 [i, j]]')
+        check('[12.3 [i, j]]')
+        check('[12.3j [i, j]]')
+        check('[None [i, j]]')
+        check('[True [i, j]]')
+        check('[... [i, j]]')
+
+        msg=r'indices must be integers or slices, not tuple; perhaps you missed a comma\?'
+        check('[(1, 2) [i, j]]')
+        check('[(x, y) [i, j]]')
+        check('[[1, 2] [i, j]]')
+        check('[[i for i in range(5)] [i, j]]')
+        check('[f"{x}" [i, j]]')
+        check('[f"x={x}" [i, j]]')
+        check('["abc" [i, j]]')
+        check('[b"abc" [i, j]]')
+
+        msg=r'indices must be integers or slices, not tuple;'
+        check('[[1, 2] [3, 4]]')
+        msg=r'indices must be integers or slices, not list;'
+        check('[[1, 2] [[3, 4]]]')
+        check('[[1, 2] [[i for i in range(5)]]]')
+        msg=r'indices must be integers or slices, not set;'
+        check('[[1, 2] [{3, 4}]]')
+        check('[[1, 2] [{i for i in range(5)}]]')
+        msg=r'indices must be integers or slices, not dict;'
+        check('[[1, 2] [{3: 4}]]')
+        check('[[1, 2] [{i: i for i in range(5)}]]')
+        msg=r'indices must be integers or slices, not generator;'
+        check('[[1, 2] [(i for i in range(5))]]')
+        msg=r'indices must be integers or slices, not function;'
+        check('[[1, 2] [(lambda x, y: x)]]')
+        msg=r'indices must be integers or slices, not str;'
+        check('[[1, 2] [f"{x}"]]')
+        check('[[1, 2] [f"x={x}"]]')
+        check('[[1, 2] ["abc"]]')
+        msg=r'indices must be integers or slices, not'
+        check('[[1, 2] [b"abc"]]')
+        check('[[1, 2] [12.3]]')
+        check('[[1, 2] [12.3j]]')
+        check('[[1, 2] [None]]')
+        check('[[1, 2] [...]]')
+
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', SyntaxWarning)
+            compile('[(lambda x, y: x) (3, 4)]', '<testcase>', 'exec')
+            compile('[[1, 2] [i]]', '<testcase>', 'exec')
+            compile('[[1, 2] [0]]', '<testcase>', 'exec')
+            compile('[[1, 2] [True]]', '<testcase>', 'exec')
+            compile('[[1, 2] [1:2]]', '<testcase>', 'exec')
+            compile('[{(1, 2): 3} [i, j]]', '<testcase>', 'exec')
+        """
 
     def test_binary_mask_ops(self):
         x = 1 & 1
@@ -1472,12 +1694,26 @@ class GrammarTests(unittest.TestCase):
             def meth2(self, arg): pass
             def meth3(self, a1, a2): pass
 
-        # decorator: '@' dotted_name [ '(' [arglist] ')' ] NEWLINE
+        # decorator: '@' namedexpr_test NEWLINE
         # decorators: decorator+
         # decorated: decorators (classdef | funcdef)
         def class_decorator(x): return x
         @class_decorator
         class G: pass
+
+        # Test expressions as decorators (PEP 614):
+        @False or class_decorator
+        class H: pass
+        @d := class_decorator
+        class I: pass
+        @lambda c: class_decorator(c)
+        class J: pass
+        @[..., class_decorator, ...][1]
+        class K: pass
+        @class_decorator(class_decorator)(class_decorator)
+        class L: pass
+        @[class_decorator][0].__call__.__call__
+        class M: pass
 
     def test_dictcomps(self):
         # dictorsetmaker: ( (test ':' test (comp_for |
@@ -1575,7 +1811,7 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(sum(b), sum([x for x in range(10)]))
 
         self.assertEqual(sum(x**2 for x in range(10)), sum([x**2 for x in range(10)]))
-        self.assertEqual(sum(x*x for x in range(10) if x%2), sum([x*x for x in range(10) if x%2]))
+        self.assertEqual(sum(x*x for x in range(10) if x % 2), sum([x*x for x in range(10) if x % 2]))
         self.assertEqual(sum(x for x in (y for y in range(10))), sum([x for x in range(10)]))
         self.assertEqual(sum(x for x in (y for y in (z for z in range(10)))), sum([x for x in range(10)]))
         self.assertEqual(sum(x for x in [y for y in (z for z in range(10))]), sum([x for x in range(10)]))
@@ -1586,6 +1822,8 @@ class GrammarTests(unittest.TestCase):
 
     def test_comprehension_specials(self):
         # test for outmost iterable precomputation
+        # FIXME: https://github.com/cython/cython/issues/1159
+        """
         x = 10; g = (i for i in range(x)); x = 5
         self.assertEqual(len(list(g)), 10)
 
@@ -1593,6 +1831,7 @@ class GrammarTests(unittest.TestCase):
         x = 10; t = False; g = ((i,j) for i in range(x) if t for j in range(x))
         x = 5; t = True;
         self.assertEqual([(i,j) for i in range(10) for j in range(5)], list(g))
+        """
 
         # Grammar allows multiple adjacent 'if's in listcomps and genexps,
         # even though it's silly. Make sure it works (ifelse broke this.)
@@ -1622,6 +1861,55 @@ class GrammarTests(unittest.TestCase):
             pass
         with manager() as x, manager():
             pass
+
+        with (
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x
+        ):
+            pass
+
+        with (
+            manager() as (x, y),
+            manager() as z,
+        ):
+            pass
+
+        with (
+            manager(),
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y,
+            manager() as z,
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y,
+            manager(),
+        ):
+            pass
+
 
     def test_if_else_expr(self):
         # Test ifelse expressions in various cases
@@ -1744,27 +2032,6 @@ class GrammarTests(unittest.TestCase):
 
         with self.assertRaises(Done):
             foo().send(None)
-
-
-### END OF COPY ###
-
-GrammarTests.assertRaisesRegex = lambda self, exc, msg: self.assertRaises(exc)
-
-
-if not hasattr(unittest.TestCase, 'subTest'):
-    @contextlib.contextmanager
-    def subTest(self, source, **kwargs):
-        try:
-            yield
-        except Exception:
-            print(source)
-            raise
-    GrammarTests.subTest = subTest
-
-
-# FIXME: disabling some tests for real Cython bugs here
-del GrammarTests.test_comprehension_specials  # iterable pre-calculation in generator expression
-del GrammarTests.test_funcdef  # annotation mangling
 
 
 if __name__ == '__main__':

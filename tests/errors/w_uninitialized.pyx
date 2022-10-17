@@ -112,6 +112,10 @@ def class_py3k_args():
     args = []
     kwargs = {}
 
+def uninitialized_in_sizeof():
+    cdef int i
+    print sizeof(i)
+
 _ERRORS = """
 6:10: local variable 'a' referenced before assignment
 12:11: local variable 'a' might be referenced before assignment
@@ -123,10 +127,10 @@ _ERRORS = """
 66:10: local variable 'foo' referenced before assignment
 71:14: local variable 'exc' referenced before assignment
 71:19: local variable 'msg' referenced before assignment
-78:4: local variable 'decorator' referenced before assignment
+78:5: local variable 'decorator' referenced before assignment
 85:16: local variable 'default' referenced before assignment
 91:14: local variable 'bar' referenced before assignment
-97:4: local variable 'decorator' referenced before assignment
+97:5: local variable 'decorator' referenced before assignment
 104:24: local variable 'Meta' referenced before assignment
 110:15: local variable 'args' referenced before assignment
 110:23: local variable 'kwargs' referenced before assignment

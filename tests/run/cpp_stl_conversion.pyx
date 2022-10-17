@@ -2,6 +2,8 @@
 # tag: cpp, werror, cpp11
 
 import sys
+from collections import defaultdict
+
 from libcpp.map cimport map
 from libcpp.unordered_map cimport unordered_map
 from libcpp.set cimport set as cpp_set
@@ -15,7 +17,7 @@ py_set = set
 py_xrange = xrange
 py_unicode = unicode
 
-cdef string add_strings(string a, string b):
+cdef string add_strings(string a, string b) except *:
     return a + b
 
 def normalize(bytes b):
@@ -97,6 +99,23 @@ def test_int_vector(o):
     cdef vector[int] v = o
     return v
 
+cdef vector[int] takes_vector(vector[int] x):
+    return x
+
+def test_list_literal_to_vector():
+    """
+    >>> test_list_literal_to_vector()
+    [1, 2, 3]
+    """
+    return takes_vector([1, 2, 3])
+
+def test_tuple_literal_to_vector():
+    """
+    >>> test_tuple_literal_to_vector()
+    [1, 2, 3]
+    """
+    return takes_vector((1, 2, 3))
+
 def test_string_vector(s):
     """
     >>> list(map(normalize, test_string_vector('ab cd ef gh'.encode('ascii'))))
@@ -143,10 +162,12 @@ def test_typedef_vector(o):
     Traceback (most recent call last):
     ...
     OverflowError: ...
+
+    "TypeError: an integer is required" on CPython
     >>> test_typedef_vector([1, 2, None])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef vector[my_int] v = o
     return v
@@ -193,22 +214,36 @@ def test_unordered_set(o):
 
 def test_map(o):
     """
-    >>> test_map({1: 1.0, 2: 0.5, 3: 0.25})
+    >>> d = {1: 1.0, 2: 0.5, 3: 0.25}
+    >>> test_map(d)
+    {1: 1.0, 2: 0.5, 3: 0.25}
+    >>> dd = defaultdict(float)
+    >>> dd.update(d)
+    >>> test_map(dd)  # try with a non-dict
     {1: 1.0, 2: 0.5, 3: 0.25}
     """
     cdef map[int, double] m = o
     return m
 
 def test_unordered_map(o):
-   """
-   >>> d = test_map({1: 1.0, 2: 0.5, 3: 0.25})
-   >>> sorted(d)
-   [1, 2, 3]
-   >>> (d[1], d[2], d[3])
-   (1.0, 0.5, 0.25)
-   """
-   cdef unordered_map[int, double] m = o
-   return m
+    """
+    >>> d = {1: 1.0, 2: 0.5, 3: 0.25}
+    >>> m = test_map(d)
+    >>> sorted(m)
+    [1, 2, 3]
+    >>> (m[1], m[2], m[3])
+    (1.0, 0.5, 0.25)
+
+    >>> dd = defaultdict(float)
+    >>> dd.update(d)
+    >>> m = test_map(dd)
+    >>> sorted(m)
+    [1, 2, 3]
+    >>> (m[1], m[2], m[3])
+    (1.0, 0.5, 0.25)
+    """
+    cdef unordered_map[int, double] m = o
+    return m
 
 def test_nested(o):
     """
@@ -239,3 +274,14 @@ def test_enum_map(o):
     """
     cdef map[Color, Color] m = o
     return m
+
+cdef map[unsigned int, unsigned int] takes_map(map[unsigned int, unsigned int] m):
+    return m
+
+def test_dict_literal_to_map():
+    """
+    >>> test_dict_literal_to_map()
+    {1: 1}
+    """
+    return takes_map({1: 1})  # https://github.com/cython/cython/pull/4228
+                              # DictNode could not be converted directly

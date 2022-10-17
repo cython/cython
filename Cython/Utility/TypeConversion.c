@@ -126,7 +126,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #else
 #define __Pyx_PyNumber_Int(x) (PyInt_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Int(x))
 #endif
-#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Float(x))
+// __Pyx_PyNumber_Float is now in it's own section since it has dependencies (needed to make
+// string conversion work the same in all circumstances)
 
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
@@ -314,23 +315,27 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 }
 
 static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const char* type_name) {
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
 #if PY_MAJOR_VERSION >= 3
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
-                "__int__ returned non-int (type %.200s).  "
-                "The ability to return an instance of a strict subclass of int "
-                "is deprecated, and may be removed in a future version of Python.",
-                __Pyx_PyType_Name(Py_TYPE(result)))) {
+                "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ").  "
+                "The ability to return an instance of a strict subclass of int is deprecated, "
+                "and may be removed in a future version of Python.",
+                result_type_name)) {
+            __Pyx_DECREF_TypeName(result_type_name);
             Py_DECREF(result);
             return NULL;
         }
+        __Pyx_DECREF_TypeName(result_type_name);
         return result;
     }
 #endif
     PyErr_Format(PyExc_TypeError,
-                 "__%.4s__ returned non-%.4s (type %.200s)",
-                 type_name, type_name, __Pyx_PyType_Name(Py_TYPE(result)));
+                 "__%.4s__ returned non-%.4s (type " __Pyx_FMT_TYPENAME ")",
+                 type_name, type_name, result_type_name);
+    __Pyx_DECREF_TypeName(result_type_name);
     Py_DECREF(result);
     return NULL;
 }
@@ -433,7 +438,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
   if (sizeof(Py_hash_t) == sizeof(Py_ssize_t)) {
-    return __Pyx_PyIndex_AsSsize_t(o);
+    return (Py_hash_t) __Pyx_PyIndex_AsSsize_t(o);
 #if PY_MAJOR_VERSION < 3
   } else if (likely(PyInt_CheckExact(o))) {
     return PyInt_AS_LONG(o);
@@ -458,6 +463,65 @@ static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
 }
+
+/////////////// pynumber_float.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */
+#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : __Pyx__PyNumber_Float(x))
+
+/////////////// pynumber_float ///////////////
+//@requires: Optimize.c::pybytes_as_double
+//@requires: Optimize.c::pyunicode_as_double
+
+static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
+    // 'obj is PyFloat' is handled in the calling macro
+    double val;
+    if (PyLong_CheckExact(obj)) {
+#if CYTHON_USE_PYLONG_INTERNALS
+        const digit* digits = ((PyLongObject*)obj)->ob_digit;
+        switch (Py_SIZE(obj)) {
+            case 0:
+                val = 0.0;
+                goto no_error;
+            // single digit PyLong values always cast safely to double
+            case 1:
+                val = (double) digits[0];
+                goto no_error;
+            case -1:
+                val = (double) - (sdigit) digits[0];
+                goto no_error;
+            default:
+                val = PyLong_AsDouble(obj);
+        }
+#else
+        val = PyLong_AsDouble(obj);
+#endif
+    } else if (PyUnicode_CheckExact(obj)) {
+        val = __Pyx_PyUnicode_AsDouble(obj);
+    } else if (PyBytes_CheckExact(obj)) {
+        val = __Pyx_PyBytes_AsDouble(obj);
+    } else if (PyByteArray_CheckExact(obj)) {
+        val = __Pyx_PyByteArray_AsDouble(obj);
+    } else {
+        return PyNumber_Float(obj);
+    }
+
+    if (unlikely(val == -1 && PyErr_Occurred())) {
+        return NULL;
+    }
+#if CYTHON_USE_PYLONG_INTERNALS
+no_error:
+#endif
+    return PyFloat_FromDouble(val);
+}
+
+/////////////// GCCDiagnostics.proto ///////////////
+
+// GCC diagnostic pragmas were introduced in GCC 4.6
+// Used to silence conversion warnings that are ok but cannot be avoided.
+#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#define __Pyx_HAS_GCC_DIAGNOSTIC
+#endif
 
 
 /////////////// ToPyCTupleUtility.proto ///////////////
@@ -492,7 +556,10 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
     {{struct_type_decl}} result;
 
     if (!PyTuple_Check(o) || PyTuple_GET_SIZE(o) != {{size}}) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s of size %d, got %.200s", "a tuple", {{size}}, Py_TYPE(o)->tp_name);
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        PyErr_Format(PyExc_TypeError,
+                     "Expected a tuple of size %d, got " __Pyx_FMT_TYPENAME, {{size}}, o_type_name);
+        __Pyx_DECREF_TypeName(o_type_name);
         goto bad;
     }
 
@@ -646,9 +713,17 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
+//@requires: GCCDiagnostics
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
@@ -715,15 +790,13 @@ static const char DIGITS_HEX[2*16+1] = {
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
+//@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
 //@requires: CIntToDigits
+//@requires: GCCDiagnostics
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
-// GCC diagnostic pragmas were introduced in GCC 4.6
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#define GCC_DIAGNOSTIC
-#endif
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
@@ -733,12 +806,12 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     Py_ssize_t length, ulength;
     int prepend_sign, last_one_off;
     {{TYPE}} remaining;
-#ifdef GCC_DIAGNOSTIC
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #endif
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
-#ifdef GCC_DIAGNOSTIC
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic pop
 #endif
     const int is_unsigned = neg_one > const_zero;
@@ -759,14 +832,14 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
             digit_pos = abs((int)(remaining % (8*8)));
             remaining = ({{TYPE}}) (remaining / (8*8));
             dpos -= 2;
-            *(uint16_t*)dpos = ((const uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
+            memcpy(dpos, DIGIT_PAIRS_8 + digit_pos * 2, 2); /* copy 2 digits at a time, unaligned */
             last_one_off = (digit_pos < 8);
             break;
         case 'd':
             digit_pos = abs((int)(remaining % (10*10)));
             remaining = ({{TYPE}}) (remaining / (10*10));
             dpos -= 2;
-            *(uint16_t*)dpos = ((const uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
+            memcpy(dpos, DIGIT_PAIRS_10 + digit_pos * 2, 2); /* copy 2 digits at a time, unaligned */
             last_one_off = (digit_pos < 10);
             break;
         case 'x':
@@ -779,10 +852,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
         }
     } while (unlikely(remaining != 0));
 
-    if (last_one_off) {
-        assert(*dpos == '0');
-        dpos++;
-    }
+    // Correct dpos by 1 if we read an excess digit.
+    assert(!last_one_off || *dpos == '0');
+    dpos += last_one_off;
+
     length = end - dpos;
     ulength = length;
     prepend_sign = 0;
@@ -865,15 +938,23 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 /////////////// CIntFromPy ///////////////
 //@requires: CIntFromPyVerify
+//@requires: GCCDiagnostics
 
 {{py: from Cython.Utility import pylong_join }}
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
-        if (sizeof({{TYPE}}) < sizeof(long)) {
+        if ((sizeof({{TYPE}}) < sizeof(long))) {
             __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyInt_AS_LONG(x))
         } else {
             long val = PyInt_AS_LONG(x);
@@ -893,10 +974,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
                 {{for _size in (2, 3, 4)}}
                 case {{_size}}:
-                    if (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT) {
-                        if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT) {
+                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                             __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
-                        } else if (8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT) {
+                        } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
                             return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
                         }
                     }
@@ -918,10 +999,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                     goto raise_neg_overflow;
             }
 #endif
-            if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
+            if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
 #ifdef HAVE_LONG_LONG
-            } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
+            } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
 #endif
             }
@@ -936,10 +1017,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{for _size in (2, 3, 4)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
-                    if (8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT) {
-                        if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT) {
+                    if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                             __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
-                        } else if (8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT) {
+                        } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
                             return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
                         }
                     }
@@ -948,10 +1029,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{endfor}}
             }
 #endif
-            if (sizeof({{TYPE}}) <= sizeof(long)) {
+            if ((sizeof({{TYPE}}) <= sizeof(long))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
 #ifdef HAVE_LONG_LONG
-            } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
+            } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
 #endif
             }

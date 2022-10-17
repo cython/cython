@@ -8,14 +8,14 @@ cdef void g(int x) nogil:
     cdef object z
     z = None
 
-cdef void h(int x) nogil:
+cdef void h(int x) nogil:  # allowed
     p()
 
 cdef object p() nogil:
     pass
 
-cdef void r() nogil:
-    q()
+cdef void r() nogil:  # allowed
+    q()  # allowed
 
 cdef object m():
     cdef object x, y = 0, obj
@@ -23,11 +23,11 @@ cdef object m():
     global fred
     q()
     with nogil:
-        r()
+        r()  # allowed to call plain C functions
         q()
-        i = 42
+        i = 42   # allowed with type inference
         obj = None
-        17L
+        17L  # allowed
         <object>7j
         help
         xxx = `"Hello"`
@@ -45,14 +45,14 @@ cdef object m():
         {x, y}
         obj and x
         t(obj)
-#        f(42) # Cython handles this internally
+        f(42)
         x + obj
         -obj
         x = y = obj
         x, y = y, x
         obj[i] = x
         obj.fred = x
-        print obj
+        print obj  # allowed!
         del fred
         return obj
         raise obj  # allowed!
@@ -90,8 +90,13 @@ def bare_pyvar_name(object x):
     with nogil:
         x
 
-# For m(), the important thing is that there are errors on all lines in the range 23-69
-# except these: 29, 34, 44, 56, 58, 60, 62-64
+cdef int fstrings(int x, object obj) except -1 nogil:
+    f""         # allowed
+    f"a"        # allowed
+    f"a"f"b"    # allowed
+    f"{x}"
+    f"{obj}"
+
 
 _ERRORS = u"""
 4:5: Function with Python return type cannot be declared nogil
@@ -105,14 +110,10 @@ _ERRORS = u"""
 31:16: Constructing complex number not allowed without gil
 33:8: Assignment of Python object not allowed without gil
 33:14: Backquote expression not allowed without gil
-33:15: Operation not allowed without gil
 34:15: Assignment of Python object not allowed without gil
-34:15: Operation not allowed without gil
 34:15: Python import not allowed without gil
-35:8: Operation not allowed without gil
 35:13: Python import not allowed without gil
 35:25: Constructing Python list not allowed without gil
-35:25: Operation not allowed without gil
 36:17: Iterating over Python object not allowed without gil
 38:11: Discarding owned Python object not allowed without gil
 38:11: Indexing Python object not allowed without gil
@@ -137,6 +138,7 @@ _ERRORS = u"""
 46:12: Discarding owned Python object not allowed without gil
 46:12: Truth-testing Python object not allowed without gil
 47:10: Python type test not allowed without gil
+48:9: Discarding owned Python object not allowed without gil
 49:10: Discarding owned Python object not allowed without gil
 49:10: Operation not allowed without gil
 50:8: Discarding owned Python object not allowed without gil
@@ -151,10 +153,10 @@ _ERRORS = u"""
 53:11: Indexing Python object not allowed without gil
 54:11: Accessing Python attribute not allowed without gil
 54:11: Assignment of Python object not allowed without gil
-55:8: Constructing Python tuple not allowed without gil
-55:8: Python print statement not allowed without gil
+
 56:8: Deleting Python object not allowed without gil
 57:8: Returning Python object not allowed without gil
+
 59:11: Truth-testing Python object not allowed without gil
 61:14: Truth-testing Python object not allowed without gil
 63:8: For-loop using object bounds or target not allowed without gil
@@ -162,4 +164,9 @@ _ERRORS = u"""
 63:24: Coercion from Python not allowed without the GIL
 65:8: Try-except statement not allowed without gil
 86:8: For-loop using object bounds or target not allowed without gil
+
+97:4: Discarding owned Python object not allowed without gil
+97:6: String formatting not allowed without gil
+98:4: Discarding owned Python object not allowed without gil
+98:6: String formatting not allowed without gil
 """

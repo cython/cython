@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: 478
+# ticket: t478
 
 __doc__ = """
     >>> Num(13).is_prime()

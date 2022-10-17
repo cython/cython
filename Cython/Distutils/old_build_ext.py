@@ -8,7 +8,6 @@ Note that this module is deprecated.  Use cythonize() instead.
 
 __revision__ = "$Id:$"
 
-import inspect
 import sys
 import os
 from distutils.errors import DistutilsPlatformError
@@ -16,7 +15,6 @@ from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
-import warnings
 
 
 try:
@@ -25,22 +23,30 @@ except ImportError:
     basestring = str
 
 
+# FIXME: the below does not work as intended since importing 'Cython.Distutils' already
+#        imports this module through 'Cython/Distutils/build_ext.py', so the condition is
+#        always false and never prints the warning.
+"""
+import inspect
+import warnings
+
 def _check_stack(path):
-  try:
-    for frame in inspect.getouterframes(inspect.currentframe(), 0):
-      if path in frame[1].replace(os.sep, '/'):
-        return True
-  except Exception:
-    pass
-  return False
+    try:
+        for frame in inspect.getouterframes(inspect.currentframe(), 0):
+            if path in frame[1].replace(os.sep, '/'):
+                return True
+    except Exception:
+        pass
+    return False
+
 
 if (not _check_stack('setuptools/extensions.py')
-    and not _check_stack('pyximport/pyxbuild.py')
-    and not _check_stack('Cython/Distutils/build_ext.py')):
+        and not _check_stack('pyximport/pyxbuild.py')
+        and not _check_stack('Cython/Distutils/build_ext.py')):
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprecated.")
-
+"""
 
 extension_name_re = _build_ext.extension_name_re
 
@@ -84,9 +90,9 @@ class old_build_ext(_build_ext.build_ext):
     description = "build C/C++ and Cython extensions (compile/link to build directory)"
 
     sep_by = _build_ext.build_ext.sep_by
-    user_options = _build_ext.build_ext.user_options
-    boolean_options = _build_ext.build_ext.boolean_options
-    help_options = _build_ext.build_ext.help_options
+    user_options = _build_ext.build_ext.user_options[:]
+    boolean_options = _build_ext.build_ext.boolean_options[:]
+    help_options = _build_ext.build_ext.help_options[:]
 
     # Add the pyrex specific data.
     user_options.extend([
@@ -163,7 +169,7 @@ class old_build_ext(_build_ext.build_ext):
             # _build_ext.build_ext.__setattr__(self, name, value)
             self.__dict__[name] = value
 
-    def finalize_options (self):
+    def finalize_options(self):
         _build_ext.build_ext.finalize_options(self)
         if self.cython_include_dirs is None:
             self.cython_include_dirs = []
@@ -241,7 +247,7 @@ class old_build_ext(_build_ext.build_ext):
         includes = list(self.cython_include_dirs)
         try:
             for i in extension.cython_include_dirs:
-                if not i in includes:
+                if i not in includes:
                     includes.append(i)
         except AttributeError:
             pass
@@ -250,7 +256,7 @@ class old_build_ext(_build_ext.build_ext):
         # result
         extension.include_dirs = list(extension.include_dirs)
         for i in extension.include_dirs:
-            if not i in includes:
+            if i not in includes:
                 includes.append(i)
 
         # Set up Cython compiler directives:
@@ -315,8 +321,8 @@ class old_build_ext(_build_ext.build_ext):
         for source in cython_sources:
             target = cython_targets[source]
             depends = [source] + list(extension.depends or ())
-            if(source[-4:].lower()==".pyx" and os.path.isfile(source[:-3]+"pxd")):
-                depends += [source[:-3]+"pxd"]
+            if source[-4:].lower() == ".pyx" and os.path.isfile(source[:-3] + "pxd"):
+                depends += [source[:-3] + "pxd"]
             rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
                 rebuild = newer(newest_dependency, target)

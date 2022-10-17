@@ -1,6 +1,9 @@
 ########## TestClass ##########
 # These utilities are for testing purposes
 
+# The "cythonscope" test calls METH_O functions with their (self, arg) signature.
+# cython: always_allow_keywords=False
+
 from __future__ import print_function
 
 cdef extern from *:

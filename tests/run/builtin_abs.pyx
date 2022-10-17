@@ -1,5 +1,6 @@
 # mode: run
-# ticket: 698
+# ticket: t698
+# distutils: extra_compile_args=-fwrapv
 
 cdef extern from *:
     int INT_MAX
@@ -62,7 +63,7 @@ def int_abs(int a):
 @cython.overflowcheck(True)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'abs']")
-cdef int c_int_abs(int a) nogil except *:
+cdef int c_int_abs(int a) except * nogil:
     return abs(a)
 
 def test_c_int_abs(int a):
@@ -124,7 +125,7 @@ def long_abs(long a):
 @cython.overflowcheck(True)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'labs']")
-cdef long c_long_abs(long a) nogil except *:
+cdef long c_long_abs(long a) except * nogil:
     return abs(a)
 
 def test_c_long_abs(long a):
@@ -188,7 +189,7 @@ def long_long_abs(long long a):
 @cython.overflowcheck(True)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
-cdef long long c_long_long_abs(long long a) nogil except *:
+cdef long long c_long_long_abs(long long a) except * nogil:
     return abs(a)
 
 def test_c_long_long_abs(long long a):
