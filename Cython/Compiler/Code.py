@@ -1559,7 +1559,7 @@ class GlobalState(object):
 
             init_globals = self.parts['init_globals']
             init_globals.putln(
-                "if (__Pyx_InitStrings(%s) < 0) %s;" % (
+                "if (__Pyx_InitStrings(%s) < 0) %s" % (
                     Naming.stringtab_cname,
                     init_globals.error_goto(self.module_pos)))
 
