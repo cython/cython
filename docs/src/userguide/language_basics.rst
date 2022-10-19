@@ -316,12 +316,12 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
-Extention Types
+Extension Types
 ---------------
 
 It is also possible to declare :ref:`extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
-Those will have a behavior very close to python classes (e.g. creating subclasses), but are faster. Typing variable
-as extention type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
+Those will have a behaviour very close to python classes (e.g. creating subclasses), but are faster. Typing variable
+as extension type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
 The C code uses a variable which is a pointer to a structure of the
 specific type, something like ``struct MyExtensionTypeObject*``.
 
