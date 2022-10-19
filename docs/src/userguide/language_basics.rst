@@ -228,46 +228,6 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
         cdef struct Grail *gp  # WRONG
 
-You can create a C function by declaring it with :keyword:`cdef` or by decorating a Python function with ``@cfunc``:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            @cython.cfunc
-            def eggs(l: cython.ulong, f: cython.float) -> cython.int:
-                ...
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            cdef int eggs(unsigned long l, float f):
-                ...
-
-You can read more about them in :ref:`python_functions_vs_c_functions`.
-
-Classes can be declared as :ref:`extension-types`.  Those will
-have a behavior very close to python classes, but are faster because they use a ``struct``
-internally to store attributes.
-They are declared with the :keyword:`cdef` keyword or the ``@cclass`` class decorator.
-
-Here is a simple example:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
-
-You can read more about them in :ref:`extension-types`.
-
 
 .. _typing_types:
 .. _types:
@@ -356,11 +316,28 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+Extention Types
+---------------
+
 It is also possible to declare :ref:`extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
-This does allow subclasses. This typing is mostly used to access
-``cdef``/``@cfunc`` methods and attributes of the extension type.
+Those will have a behavior very close to python classes (e.g. creating subclasses), but are faster. Typing variable
+as extention type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
 The C code uses a variable which is a pointer to a structure of the
 specific type, something like ``struct MyExtensionTypeObject*``.
+
+Here is a simple example:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+
+You can read more about them in :ref:`extension-types`.
 
 
 Grouping multiple C declarations
