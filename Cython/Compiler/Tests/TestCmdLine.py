@@ -2,10 +2,10 @@ import os
 import sys
 import re
 from unittest import TestCase
-if sys.version_info < (3, 3):
-    from mock import patch, Mock
-else:
+try:
     from unittest.mock import patch, Mock
+except ImportError:  # Py2
+    from mock import patch, Mock
 try:
     from StringIO import StringIO
 except ImportError:
