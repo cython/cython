@@ -171,17 +171,18 @@ are supported:
         .. literalinclude:: ../../examples/userguide/language_basics/struct.pyx
 
 Structs can be declared as ``cdef packed struct``, which has
-the same effect as the C directive ``#pragma pack(1)``:
+the same effect as the C directive ``#pragma pack(1)``::
 
-.. literalinclude:: ../../examples/userguide/language_basics/packed_struct.pyx
-
+    cdef packed struct StructArray:
+        int spam[4]
+        signed char eggs[5]
 
 .. note::
     This declaration removes the empty
     space between members that C automatically to ensure that they're aligned in memory
     (see `Wikipedia article <https://en.wikipedia.org/wiki/Data_structure_alignment>`_ for more details).
     The main use is that numpy structured arrays store their data in packed form, so a ``cdef packed struct``
-    can be used in a memoryview to match that.
+    can be :ref:`used in a memoryview<using_memoryviews>` to match that.
 
     Pure python mode does not support packed structs.
 
