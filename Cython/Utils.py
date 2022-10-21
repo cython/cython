@@ -543,7 +543,6 @@ def print_captured(captured, output, header_line=None):
     if captured:
         if header_line:
             output.write(header_line)
-        captured = captured.encode(errors='replace').decode()
         output.write(captured)
 
 
