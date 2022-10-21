@@ -64,6 +64,10 @@ Bugs fixed
 * Nesting fused types in other fused types could fail to specialise the inner type.
   (Github issue :issue:`4725`)
 
+* The special methods ``__matmul__``, ``__truediv__``, ``__floordiv__`` failed to type
+  their ``self`` argument.
+  (Github issue :issue:`5067`)
+
 * Coverage analysis failed in projects with a separate source subdirectory.
   Patch by Sviatoslav Sydorenko and Ruben Vorderman.  (Github issue :issue:`3636`)
 
@@ -78,10 +82,10 @@ Bugs fixed
   (Github issue :issue:`5026`)
 
 * Relative imports failed in compiled ``__init__.py`` package modules.
-  Patches by Matus Valo.  (Github issue :issue:`4941`)
+  Patch by Matus Valo.  (Github issue :issue:`3442`)
 
 * Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
-  Patches by Matus Valo.  (Github issue :issue:`4941`)
+  Patch by Matus Valo.  (Github issue :issue:`4640`)
 
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
@@ -103,6 +107,11 @@ Bugs fixed
 
 Other changes
 -------------
+
+* The undocumented, untested and apparently useless syntax
+  ``from somemodule cimport class/struct/union somename`` was removed.  The type
+  modifier is not needed here and a plain ``cimport`` of the name will do.
+  (Github issue :issue:`4904`)
 
 * The wheel building process was migrated to use the ``cibuildwheel`` tool.
   Patch by Thomas Li.  (Github issue :issue:`4736`)
