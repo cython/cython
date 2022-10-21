@@ -320,7 +320,8 @@ Extension Types
 ---------------
 
 It is also possible to declare :ref:`extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
-Those will have a behaviour very close to python classes (e.g. creating subclasses), but are faster. Typing a variable
+Those will have a behaviour very close to python classes (e.g. creating subclasses),
+but access to their members is faster from Cython code. Typing a variable
 as extension type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
 The C code uses a variable which is a pointer to a structure of the
 specific type, something like ``struct MyExtensionTypeObject*``.
