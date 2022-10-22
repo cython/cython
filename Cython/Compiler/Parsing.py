@@ -3120,6 +3120,9 @@ def p_exception_value_clause(s, ctx):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
+    if not exc_clause and ctx.visibility  != 'extern' and s.context.compiler_directives.get('noexcept', False):
+        exc_check = False
+        warning(s.position(), "Function should be declared as 'noexcept'", level=2)
     return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((

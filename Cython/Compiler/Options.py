@@ -189,6 +189,7 @@ _directive_defaults = {
     'cdivision_warnings': False,
     'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,
+    'noexcept': False,
     'overflowcheck.fold': True,
     'always_allow_keywords': True,
     'allow_none_for_extension_args': True,
