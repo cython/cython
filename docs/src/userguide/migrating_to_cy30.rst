@@ -210,6 +210,12 @@ The behaviour for any ``cdef`` function that is declared with an
 explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
 also unchanged.
 
+.. note::
+  The legacy semantics of default not propagating exceptions can be enabled by
+  setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
+  to ``True``.
+  
+
 Annotation typing
 =================
 
