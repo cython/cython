@@ -963,7 +963,8 @@ Cython code.  Here is the list of currently supported directives:
     When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
     the function will behave same way as if declared with `noexcept` keyword. See
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
-    cause Cython to have same semantics as Cython 0.2X.
+    cause Cython to have same semantics as Cython 0.2X. This directive is intended to help
+    migrate legacy code written before Cython 3. We recommend leaving it off for new code.
 
 
 .. _configurable_optimisations:
