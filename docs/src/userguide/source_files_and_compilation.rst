@@ -960,7 +960,7 @@ Cython code.  Here is the list of currently supported directives:
     function.  See :ref:`cpp_locals directive` for more detail.
 
 ``legacy_implicit_noexcept`` (True / False)
-    When enabled, ``cdef`` functions will not propagate raised exception by default. Hence,
+    When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
     the function will behave same way as if declared with `noexcept` keyword. See
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
     cause Cython to have same semantics as Cython 0.2X.
