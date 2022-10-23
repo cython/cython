@@ -3122,7 +3122,7 @@ def p_exception_value_clause(s, ctx):
             exc_val = p_test(s)
     if not exc_clause and ctx.visibility  != 'extern' and s.context.legacy_implicit_noexcept:
         exc_check = False
-        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should have 'noexcept' keyword.", level=2)
+        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.", level=2)
     return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
