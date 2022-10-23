@@ -61,16 +61,17 @@ class Context(object):
     #  the root of the module import namespace and the list
     #  of directories to search for include files.
     #
-    #  modules               {string : ModuleScope}
-    #  include_directories   [string]
-    #  future_directives     [object]
-    #  language_level        int     currently 2 or 3 for Python 2/3
+    #  modules                  {string : ModuleScope}
+    #  include_directories      [string]
+    #  future_directives        [object]
+    #  language_level           int     currently 2 or 3 for Python 2/3
+    #  legacy_implicit_noexcept [bool]
 
     cython_scope = None
     language_level = None  # warn when not set but default to Py2
 
     def __init__(self, include_directories, compiler_directives, cpp=False,
-                 language_level=None, options=None):
+                 language_level=None, legacy_implicit_noexcept=None, options=None):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
@@ -91,12 +92,15 @@ class Context(object):
         if language_level is not None:
             self.set_language_level(language_level)
 
+        if legacy_implicit_noexcept is not None:
+            self.legacy_implicit_noexcept = legacy_implicit_noexcept
+
         self.gdb_debug_outputwriter = None
 
     @classmethod
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
-                   options.cplus, options.language_level, options=options)
+                   options.cplus, options.language_level, options.legacy_implicit_noexcept, options=options)
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop

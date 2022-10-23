@@ -3120,9 +3120,9 @@ def p_exception_value_clause(s, ctx):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    if not exc_clause and ctx.visibility  != 'extern' and s.context.compiler_directives.get('noexcept', False):
+    if not exc_clause and ctx.visibility  != 'extern' and s.context.legacy_implicit_noexcept:
         exc_check = False
-        warning(s.position(), "Function should be declared as 'noexcept'", level=2)
+        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should have 'noexcept' keyword.", level=2)
     return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
@@ -3891,6 +3891,9 @@ def p_compiler_directive_comments(s):
             if 'language_level' in new_directives:
                 # Make sure we apply the language level already to the first token that follows the comments.
                 s.context.set_language_level(new_directives['language_level'])
+            if 'legacy_implicit_noexcept' in new_directives:
+                s.context.legacy_implicit_noexcept = new_directives['legacy_implicit_noexcept']
+
 
             result.update(new_directives)
 
