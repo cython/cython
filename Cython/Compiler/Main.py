@@ -65,7 +65,7 @@ class Context(object):
     #  include_directories      [string]
     #  future_directives        [object]
     #  language_level           int     currently 2 or 3 for Python 2/3
-    #  legacy_implicit_noexcept [bool]
+    #  legacy_implicit_noexcept bool
 
     cython_scope = None
     language_level = None  # warn when not set but default to Py2
