@@ -29,7 +29,12 @@ cdef int(*ptr_func_noexcept)(int, int) noexcept
 ptr_func_noexcept = func_noexcept
 
 @cython.cfunc
-def pure_func_implicit():
+def func_pure_implicit() -> cython.int:
+    raise RuntimeError
+
+@cython.excetval(check=False)
+@cython.cfunc
+def func_pure_noexcept() -> cython.int:
     raise RuntimeError
 
 def test_noexcept():
@@ -127,7 +132,28 @@ def test_pure_implicit():
     ...
     RuntimeError
     """
-    pure_func_implicit()
+    func_pure_implicit()
+
+def test_pure_noexcept():
+    """
+    >>> test_pure_noexcept()
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    """
+    """
+    >>> print(test_pure_noexcept())  # doctest: +ELLIPSIS
+    RuntimeError
+    Exception...ignored...
+    """
+    import sys
+    old_stderr = sys.stderr
+    stderr = sys.stderr = StringIO()
+    try:
+        func_pure_noexcept()
+    finally:
+        sys.stderr = old_stderr
+    return stderr.getvalue().strip()
 
 _WARNINGS = """
 10:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
