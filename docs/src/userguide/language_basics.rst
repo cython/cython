@@ -708,7 +708,7 @@ form of exception value declaration
             def spam() -> cython.int:
                 ...
 
-        The keyword argument ``check=True`` indicates that the value ``-1`` _may_ signal an error.
+        The keyword argument ``check=True`` indicates that the value ``-1`` **may** signal an error.
 
     .. group-tab:: Cython
 
@@ -717,7 +717,7 @@ form of exception value declaration
             cdef int spam() except? -1:
                 ...
 
-        The ``?`` indicates that the value ``-1`` _may_ signal an error.
+        The ``?`` indicates that the value ``-1`` **may** signal an error.
 
 In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
@@ -760,21 +760,37 @@ See :ref:`wrapping-cplusplus` for more details.
 
 Finally, if you are certain that your function should not raise an exception, (e.g., it
 does not use Python objects at all, or you plan to use it as a callback in C code that
-is unaware of Python exceptions), you can declare it as such using ``noexcept``::
+is unaware of Python exceptions), you can declare it as such using ``noexcept`` or by ``@cython.exceptval(check=False)``:
 
-    cdef int spam() noexcept
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(check=False)
+            def spam() -> cython.int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int spam() noexcept:
+                ...
 
 If a ``noexcept`` function *does* finish with an exception then it will print a warning message but not allow the exception to propagate further.
 Some things to note:
 
-* ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept``.
-  In the uncommon case of external C/C++ functions that _can_  raise Python exceptions,
+* ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept`` or ``@cython.exceptval(check=False)``.
+  In the uncommon case of external C/C++ functions that **can**  raise Python exceptions,
   e.g., external functions that use the Python C API, you should explicitly declare
   them with an exception value.
 
 * ``cdef`` functions that are *not* ``extern`` are implicitly declared with a suitable
-  exception specification for the return type (e.g. ``except *`` for a ``void`` return
-  type, ``except? -1`` for an ``int`` return type).
+  exception specification for the return type (e.g. ``except *`` or ``@cython.exceptval(check=True)`` for a ``void`` return
+  type, ``except? -1`` or ``@cython.exceptval(-1, check=True)`` for an ``int`` return type).
 
 * Exception values can only be declared for functions returning a C integer,
   enum, float or pointer type, and the value must be a constant expression.
