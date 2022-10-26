@@ -961,7 +961,7 @@ Cython code.  Here is the list of currently supported directives:
 
 ``legacy_implicit_noexcept`` (True / False)
     When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
-    the function will behave same way as if declared with `noexcept` keyword. See
+    the function will behave in the same way as if declared with `noexcept` keyword. See
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
