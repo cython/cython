@@ -646,10 +646,6 @@ class CompilationOptions(object):
             options['language_level'] = directives['language_level']
         elif not options.get('language_level'):
             options['language_level'] = directive_defaults.get('language_level')
-        if 'legacy_implicit_noexcept' in directives and 'legacy_implicit_noexcept' not in kw:
-            options['legacy_implicit_noexcept'] = directives['legacy_implicit_noexcept']
-        elif not options.get('legacy_implicit_noexcept'):
-            options['legacy_implicit_noexcept'] = directive_defaults.get('legacy_implicit_noexcept')
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
         if options['cache'] is True:
@@ -783,5 +779,5 @@ default_options = dict(
     cache=None,
     create_extension=None,
     np_pythran=False,
-    legacy_implicit_noexcept=False,
+    legacy_implicit_noexcept=None,
 )
