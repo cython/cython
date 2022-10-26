@@ -1,6 +1,8 @@
 # cython: legacy_implicit_noexcept=True
 # mode: run
 # tag: warnings
+import sys
+import functools
 import cython
 try:
     from StringIO import StringIO
@@ -37,65 +39,54 @@ def func_pure_implicit() -> cython.int:
 def func_pure_noexcept() -> cython.int:
     raise RuntimeError
 
+def return_stderr(func):
+    @functools.wraps(func)
+    def testfunc():
+        old_stderr = sys.stderr
+        stderr = sys.stderr = StringIO()
+        try:
+            func()
+        finally:
+            sys.stderr = old_stderr
+        return stderr.getvalue().strip()
+
+    return testfunc
+
+@return_stderr
 def test_noexcept():
     """
     >>> print(test_noexcept())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
-    import sys
-    old_stderr = sys.stderr
-    stderr = sys.stderr = StringIO()
-    try:
-        func_noexcept(3, 5)
-    finally:
-        sys.stderr = old_stderr
-    return stderr.getvalue().strip()
+    func_noexcept(3, 5)
 
+@return_stderr
 def test_ptr_noexcept():
     """
     >>> print(test_ptr_noexcept())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
-    import sys
-    old_stderr = sys.stderr
-    stderr = sys.stderr = StringIO()
-    try:
-        ptr_func_noexcept(3, 5)
-    finally:
-        sys.stderr = old_stderr
-    return stderr.getvalue().strip()
+    ptr_func_noexcept(3, 5)
 
+@return_stderr
 def test_implicit():
     """
     >>> print(test_implicit())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
-    import sys
-    old_stderr = sys.stderr
-    stderr = sys.stderr = StringIO()
-    try:
-        func_implicit(1, 2)
-    finally:
-        sys.stderr = old_stderr
-    return stderr.getvalue().strip()
+    func_implicit(1, 2)
 
+@return_stderr
 def test_ptr_implicit():
     """
     >>> print(test_ptr_implicit())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
-    import sys
-    old_stderr = sys.stderr
-    stderr = sys.stderr = StringIO()
-    try:
-        ptr_func_implicit(1, 2)
-    finally:
-        sys.stderr = old_stderr
-    return stderr.getvalue().strip()
+    ptr_func_implicit(1, 2)
 
 def test_star():
     """
@@ -141,24 +132,12 @@ def test_pure_noexcept():
     ...
     RuntimeError
     """
-    """
-    >>> print(test_pure_noexcept())  # doctest: +ELLIPSIS
-    RuntimeError
-    Exception...ignored...
-    """
-    import sys
-    old_stderr = sys.stderr
-    stderr = sys.stderr = StringIO()
-    try:
-        func_pure_noexcept()
-    finally:
-        sys.stderr = old_stderr
-    return stderr.getvalue().strip()
+    func_pure_noexcept()
 
 _WARNINGS = """
-10:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
-10:36: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-13:5: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
-22:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-25:38: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+12:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
+12:36: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+15:5: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
+24:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+27:38: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 """
