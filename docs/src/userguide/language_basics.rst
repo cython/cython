@@ -655,8 +655,8 @@ error return value.
 While this is always the case for Python functions, functions
 defined as C functions or ``cpdef``/``@ccall`` functions can return arbitrary C types,
 which do not have such a well-defined error return value.
-Cython by default uses dedicated value to propagate exceptions from a non-external ``cpdef``/``@ccall``
-functions. Moreover, the way how an exception is propagated can be changed if needed.
+By default Cython uses a dedicated return value to signal that an exception has been raised from non-external ``cpdef``/``@ccall``
+functions. However, how Cython handles exceptions from these functions can be changed if needed.
 
 A ``cdef`` function may be declared with an exception return value for it
 as a contract with the caller. Here is an example:
