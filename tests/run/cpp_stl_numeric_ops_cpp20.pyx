@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, werror, cpp20
 
-from libcpp.numeric cimport midpoint, lerp
+from libcpp.numeric cimport midpoint
 
 def test_midpoint_integer(int a, int b):
     """
