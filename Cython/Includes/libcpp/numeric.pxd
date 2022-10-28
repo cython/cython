@@ -129,6 +129,3 @@ cdef extern from "<numeric>" namespace "std" nogil:
 
     # C++20
     T midpoint[T](T a, T b) except +
-    float lerp(float a, float b, float c) except +
-    double lerp(double a, double b, double c) except +
-    long double lerp(long double a, long double b, long double c) except +

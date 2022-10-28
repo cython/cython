@@ -21,12 +21,3 @@ def test_midpoint_float(float a, float b):
     """
     cdef float res = midpoint[float](a, b)
     return res
-
-def test_lerp(float a, float b, float t):
-    """
-    Test lerp for float
-    >>> test_lerp(1.0, 2.0, 0.5)
-    1.5
-    """
-    cdef float res = lerp(a, b, t)
-    return res
