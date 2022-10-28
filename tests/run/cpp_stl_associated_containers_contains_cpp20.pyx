@@ -1,5 +1,7 @@
 # mode: run
-# tag: cpp, werror, cpp20
+# tag: cpp, cpp20
+
+# cython: language_level=3
 
 from libcpp.map cimport map, multimap
 from libcpp.set cimport set, multiset

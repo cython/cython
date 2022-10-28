@@ -279,7 +279,7 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
 def test_gcd(int a, int b):
     """
     Test gcd
-    >>> test_gcd(2, 3)
+    >>> test_gcd(12, 18)
     6
     """
     return gcd[int](a, b)
