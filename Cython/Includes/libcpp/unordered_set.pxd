@@ -75,6 +75,8 @@ cdef extern from "<unordered_set>" namespace "std" nogil:
         size_t max_bucket_count()
         size_t bucket_size(size_t)
         size_t bucket(const T&)
+        # C++20
+        bint contains(const key_type&)
 
     cdef cppclass unordered_multiset[T,HASH=*,PRED=*,ALLOCATOR=*]:
         ctypedef T value_type
@@ -146,3 +148,5 @@ cdef extern from "<unordered_set>" namespace "std" nogil:
         size_t max_bucket_count()
         size_t bucket_size(size_t)
         size_t bucket(const T&)
+        # C++20
+        bint contains(const key_type&)

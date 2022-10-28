@@ -121,6 +121,8 @@ cdef extern from "<map>" namespace "std" nogil:
         iterator upper_bound(const T&)
         const_iterator const_upper_bound "upper_bound"(const T&)
         #value_compare value_comp()
+        # C++20
+        bint contains(const key_type&)
 
     cdef cppclass multimap[T, U, COMPARE=*, ALLOCATOR=*]:
         ctypedef T key_type
@@ -239,3 +241,4 @@ cdef extern from "<map>" namespace "std" nogil:
         iterator upper_bound(const T&)
         const_iterator const_upper_bound "upper_bound"(const T&)
         #value_compare value_comp()
+        bint contains(const key_type&)
