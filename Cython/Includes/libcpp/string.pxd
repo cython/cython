@@ -257,8 +257,8 @@ cdef extern from "<string>" namespace "std" nogil:
         bint ends_with(char c) except +
         bint ends_with(const char* s)
         # C++23
-        #bint contains(char c) except +
-        #bint contains(const char* s)
+        bint contains(char c) except +
+        bint contains(const char* s)
 
         #string& operator= (const string&)
         #string& operator= (const char*)
