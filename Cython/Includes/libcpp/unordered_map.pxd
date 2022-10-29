@@ -95,6 +95,8 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         size_t max_bucket_count()
         size_t bucket_size(size_t)
         size_t bucket(const T&)
+        # C++20
+        bint contains(const T&)
 
     cdef cppclass unordered_multimap[T, U, HASH=*, PRED=*, ALLOCATOR=*]:
         ctypedef T key_type
@@ -186,3 +188,5 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         size_t max_bucket_count()
         size_t bucket_size(size_t)
         size_t bucket(const T&)
+        # C++20
+        bint contains(const T&)
