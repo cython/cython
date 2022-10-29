@@ -1,3 +1,4 @@
+scikit-build<0.16  # line-profiler dependency, 0.16 version dropped python 2 support
 attrs==20.3.0
 backports-abc==0.5
 backports.functools-lru-cache==1.6.3
