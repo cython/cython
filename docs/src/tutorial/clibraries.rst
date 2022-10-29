@@ -619,7 +619,7 @@ The only way calling code can deal with this situation is to call
 ``PyErr_Occurred()`` when returning from a function to check if an
 exception was raised, and if so, propagate the exception.  This
 obviously has a performance penalty.  Cython therefore uses a dedicated value
-it should implicitly return in the case of an
+that it implicitly returns in the case of an
 exception, so that the surrounding code only needs to check for an
 exception when receiving this exact value.
 
