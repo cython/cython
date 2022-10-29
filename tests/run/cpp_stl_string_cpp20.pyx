@@ -9,7 +9,7 @@ b_F = b'F'
 b_abc = b"ABC"
 b_def = b"DEF"
 
-def test_string_starts_with_char(py_str):
+def test_string_starts_with_char(bytes py_str):
     """
     Test std::string.starts_with() with char type argument
     >>> test_string_starts_with_char(b'A')
@@ -22,7 +22,7 @@ def test_string_starts_with_char(py_str):
     return s.starts_with(c)
 
 
-def test_string_starts_with_cstr(py_str):
+def test_string_starts_with_cstr(bytes py_str):
     """
     Test std::string.starts_with() with c str type argument (char*)
     >>> test_string_starts_with_cstr(b"ABC")
@@ -35,7 +35,7 @@ def test_string_starts_with_cstr(py_str):
     return s.starts_with(c)
 
 
-def test_string_ends_with_char(py_str):
+def test_string_ends_with_char(bytes py_str):
     """
     Test std::string.ends_with() with char type argument
     >>> test_string_ends_with_char(b'F')
@@ -48,7 +48,7 @@ def test_string_ends_with_char(py_str):
     return s.ends_with(c)
 
 
-def test_string_ends_with_cstr(py_str):
+def test_string_ends_with_cstr(bytes py_str):
     """
     Test std::string.ends_with() with c str type argument (char*)
     >>> test_string_ends_with_cstr(b"DEF")
