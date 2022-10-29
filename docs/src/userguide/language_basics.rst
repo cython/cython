@@ -128,51 +128,6 @@ the declaration in most cases:
                 cdef float *g = [1, 2, 3, 4]
                 cdef float *h = &f
 
-In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
-are supported:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
-
-        .. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
-
-        See also :ref:`struct-union-enum-styles`
-
-        .. note::
-
-            Structs can be declared as ``cdef packed struct``, which has
-            the same effect as the C directive ``#pragma pack(1)``.
-
-        Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
-
-            cpdef enum CheeseState:
-                hard = 1
-                soft = 2
-                runny = 3
-
-        There is currently no special syntax for defining a constant, but you can use
-        an anonymous :keyword:`enum` declaration for this purpose, for example,::
-
-            cdef enum:
-                tons_of_spam = 3
-
-        .. note::
-            the words ``struct``, ``union`` and ``enum`` are used only when
-            defining a type, not when referring to it. For example, to declare a variable
-            pointing to a ``Grail`` struct, you would write::
-
-                cdef Grail *gp
-
-            and not::
-
-                cdef struct Grail *gp  # WRONG
 
 .. note::
 
@@ -197,46 +152,82 @@ are supported:
 
                 ctypedef int* IntPtr
 
+.. _structs:
 
-You can create a C function by declaring it with :keyword:`cdef` or by decorating a Python function with ``@cfunc``:
+Structs, Unions, Enums
+----------------------
 
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            @cython.cfunc
-            def eggs(l: cython.ulong, f: cython.float) -> cython.int:
-                ...
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            cdef int eggs(unsigned long l, float f):
-                ...
-
-You can read more about them in :ref:`python_functions_vs_c_functions`.
-
-Classes can be declared as :ref:`extension-types`.  Those will
-have a behavior very close to python classes, but are faster because they use a ``struct``
-internally to store attributes.
-They are declared with the :keyword:`cdef` keyword or the ``@cclass`` class decorator.
-
-Here is a simple example:
+In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
+are supported:
 
 .. tabs::
 
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+        .. literalinclude:: ../../examples/userguide/language_basics/struct.py
 
     .. group-tab:: Cython
 
-        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+        .. literalinclude:: ../../examples/userguide/language_basics/struct.pyx
 
-You can read more about them in :ref:`extension-types`.
+Structs can be declared as ``cdef packed struct``, which has
+the same effect as the C directive ``#pragma pack(1)``::
+
+    cdef packed struct StructArray:
+        int spam[4]
+        signed char eggs[5]
+
+.. note::
+    This declaration removes the empty
+    space between members that C automatically to ensure that they're aligned in memory
+    (see `Wikipedia article <https://en.wikipedia.org/wiki/Data_structure_alignment>`_ for more details).
+    The main use is that numpy structured arrays store their data in packed form, so a ``cdef packed struct``
+    can be :ref:`used in a memoryview<using_memoryviews>` to match that.
+
+    Pure python mode does not support packed structs.
+
+The following example shows a declaration of unions:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/union.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/union.pyx
+
+Enums are created by ``cdef enum`` statement:
+
+.. literalinclude:: ../../examples/userguide/language_basics/enum.pyx
+
+
+.. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
+
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+
+    cpdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+There is currently no special syntax for defining a constant, but you can use
+an anonymous :keyword:`enum` declaration for this purpose, for example,::
+
+    cdef enum:
+        tons_of_spam = 3
+
+.. note::
+    In the Cython syntax, the words ``struct``, ``union`` and ``enum`` are used only when
+    defining a type, not when referring to it. For example, to declare a variable
+    pointing to a ``Grail`` struct, you would write::
+
+        cdef Grail *gp
+
+    and not::
+
+        cdef struct Grail *gp  # WRONG
 
 
 .. _typing_types:
@@ -326,11 +317,29 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+Extension Types
+---------------
+
 It is also possible to declare :ref:`extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
-This does allow subclasses. This typing is mostly used to access
-``cdef``/``@cfunc`` methods and attributes of the extension type.
+Those will have a behaviour very close to python classes (e.g. creating subclasses),
+but access to their members is faster from Cython code. Typing a variable
+as extension type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
 The C code uses a variable which is a pointer to a structure of the
 specific type, something like ``struct MyExtensionTypeObject*``.
+
+Here is a simple example:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+
+You can read more about them in :ref:`extension-types`.
 
 
 Grouping multiple C declarations
@@ -634,7 +643,15 @@ parameters and has two required keyword parameters.
 Function Pointers
 -----------------
 
-Functions declared in a ``struct`` are automatically converted to function pointers.
+.. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
+The following example shows declaring a ``ptr_add`` function pointer and assigning the ``add`` function to it:
+
+.. literalinclude:: ../../examples/userguide/language_basics/function_pointer.pyx
+
+Functions declared in a ``struct`` are automatically converted to function pointers:
+
+.. literalinclude:: ../../examples/userguide/language_basics/function_pointer_struct.pyx
 
 For using error return values with function pointers, see the note at the bottom
 of :ref:`error_return_values`.

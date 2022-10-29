@@ -224,10 +224,6 @@ annotations and it is well worth reading
 :ref:`the pure Python tutorial<pep484_type_annotations>` to understand
 some of the improvements.
 
-A notable backwards-compatible change is that ``x: int`` is now typed
-such that ``x`` is an exact Python ``int`` (Cython 0.29 would accept
-any Python object for ``x``).
-
 To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the
 ``annotation_typing`` :ref:`directive <compiler-directives>` on a
