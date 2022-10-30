@@ -2900,6 +2900,15 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
     #define __Pyx_PyMethod_New PyMethod_New
 #endif
 
+///////////// PyMethodNew2Arg.proto /////////////
+
+// Another wrapping of PyMethod_New that matches the Python3 signature
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyMethod_New2Arg PyMethod_New
+#else
+#define __Pyx_PyMethod_New2Arg(func, self) PyMethod_New(func, self, (PyObject*)Py_TYPE(self))
+#endif
+
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
 # if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
