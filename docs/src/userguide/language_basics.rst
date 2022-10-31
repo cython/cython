@@ -687,19 +687,24 @@ as a contract with the caller. Here is an example:
             @cython.cfunc
             @cython.exceptval(-1)
             def spam() -> cython.int:
-                ...
+                raise ValueError()
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
             cdef int spam() except -1:
-                ...
+                raise ValueError()
+
 
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
 a call to spam returns ``-1``, the caller will assume that an exception has
-occurred and can now process or propagate it.
+occurred and can now process or propagate it. Calling ``spam()`` is roughly equivalent to::
+
+    ret_val = spam()
+    if ret_val == -1:
+        raise ValueError()
 
 When you declare an exception value for a function, you should never explicitly
 or implicitly return that value.  This includes empty :keyword:`return`
@@ -723,7 +728,7 @@ form of exception value declaration
             @cython.cfunc
             @cython.exceptval(-1, check=True)
             def spam() -> cython.int:
-                ...
+                raise ValueError()
 
         The keyword argument ``check=True`` indicates that the value ``-1`` **may** signal an error.
 
@@ -732,13 +737,18 @@ form of exception value declaration
         .. code-block:: cython
 
             cdef int spam() except? -1:
-                ...
+                raise ValueError()
 
         The ``?`` indicates that the value ``-1`` **may** signal an error.
 
 In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
-result.
+result. Calling ``spam()`` is roughly equivalent to::
+
+    ret_val = spam()
+    if ret_val == -1:
+        if PyErr_Occurred():
+            raise ValueError()
 
 There is also a third form of exception value declaration
 
@@ -750,18 +760,24 @@ There is also a third form of exception value declaration
 
             @cython.cfunc
             @cython.exceptval(check=True)
-            def spam() -> cython.int:
-                ...
+            def spam() -> cython.void:
+                raise ValueError()
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int spam() except *:
-                ...
+            cdef void spam() except *:
+                raise ValueError()
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
-*every* call to spam, regardless of what value it returns. If you have a
+*every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly equivalent to::
+
+    spam()
+    if PyErr_Occurred():
+        raise ValueError()
+
+If you have a
 function returning ``void`` that needs to propagate errors, you will have to
 use this form, since there isn't any error return value to test.
 Otherwise, an explicit error return value allows the C compiler to generate
@@ -798,6 +814,8 @@ is unaware of Python exceptions), you can declare it as such using ``noexcept`` 
                 ...
 
 If a ``noexcept`` function *does* finish with an exception then it will print a warning message but not allow the exception to propagate further.
+On the other hand, calling a ``noexcept`` function has zero overhead related to managing exceptions, unlike the previous declarations.
+
 Some things to note:
 
 * ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept`` or ``@cython.exceptval(check=False)``.
@@ -823,6 +841,10 @@ Some things to note:
       int (*grail)(int, char*) except -1
 
   .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
+* If the returning type of a ``cdef`` function with ``except *`` or ``@cython.exceptval(check=True)`` is C integer,
+  enum, float or pointer type, Cython is calling :c:func:`PyErr_Occurred` only when
+  dedicated value is returned instead of checking after every call of the function.
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
