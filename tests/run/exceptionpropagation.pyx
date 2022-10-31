@@ -57,3 +57,25 @@ def test_except_promotion_compare(bint fire):
     RuntimeError
     """
     except_promotion_compare(fire)
+
+
+cdef int cdef_function_that_raises():
+    raise RuntimeError
+
+cdef int cdef_noexcept_function_that_raises() noexcept:
+    raise RuntimeError
+
+def test_except_raise_by_default():
+    """
+    >>> test_except_raise_by_default()
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    """
+    cdef_function_that_raises()
+
+def test_noexcept():
+    """
+    >>> test_noexcept()
+    """
+    cdef_noexcept_function_that_raises()

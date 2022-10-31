@@ -143,6 +143,29 @@ class Context(object):
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
+    def _split_qualified_name(self, qualified_name):
+        # Splits qualified_name into parts in form of 2-tuples: (PART_NAME, IS_PACKAGE).
+        qualified_name_parts = qualified_name.split('.')
+        last_part = qualified_name_parts.pop()
+        qualified_name_parts = [(p, True) for p in qualified_name_parts]
+        if last_part != '__init__':
+            # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
+            # __init__.pyx/__init__.py file to determine if last part is package or not.
+            is_package = False
+            for suffix in ('.py', '.pyx'):
+                path = self.search_include_directories(
+                    qualified_name, suffix=suffix, source_pos=None, source_file_path=None)
+                if path:
+                    is_package = self._is_init_file(path)
+                    break
+
+            qualified_name_parts.append((last_part, is_package))
+        return qualified_name_parts
+
+    @staticmethod
+    def _is_init_file(path):
+        return os.path.basename(path) in ('__init__.pyx', '__init__.py', '__init__.pxd') if path else False
+
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
                     absolute_fallback=True):
         # Finds and returns the module scope corresponding to
@@ -182,16 +205,16 @@ class Context(object):
             if not scope:
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
                 if pxd_pathname:
-                    scope = relative_to.find_submodule(module_name)
+                    is_package = self._is_init_file(pxd_pathname)
+                    scope = relative_to.find_submodule(module_name, as_package=is_package)
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")
             if absolute_fallback:
                 qualified_name = module_name
             scope = self
-            for name in qualified_name.split("."):
-                scope = scope.find_submodule(name)
-
+            for name, is_package in self._split_qualified_name(qualified_name):
+                scope = scope.find_submodule(name, as_package=is_package)
         if debug_find_module:
             print("...scope = %s" % scope)
         if not scope.pxd_file_loaded:
@@ -321,12 +344,12 @@ class Context(object):
         # Look up a top-level module. Returns None if not found.
         return self.modules.get(name, None)
 
-    def find_submodule(self, name):
+    def find_submodule(self, name, as_package=False):
         # Find a top-level module, creating a new one if needed.
         scope = self.lookup_submodule(name)
         if not scope:
             scope = ModuleScope(name,
-                parent_module = None, context = self)
+                parent_module = None, context = self, is_package=as_package)
             self.modules[name] = scope
         return scope
 

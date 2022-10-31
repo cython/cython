@@ -427,6 +427,7 @@ def init_builtins():
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
     global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
+    global int_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -443,6 +444,8 @@ def init_builtins():
     long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+    # Be careful with int type while Py2 is still supported
+    int_type = builtin_scope.lookup('int').type
 
     # Set up type inference links between equivalent Python/C types
     bool_type.equivalent_type = PyrexTypes.c_bint_type
