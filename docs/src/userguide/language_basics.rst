@@ -700,11 +700,12 @@ as a contract with the caller. Here is an example:
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
 a call to spam returns ``-1``, the caller will assume that an exception has
-occurred and can now process or propagate it. Calling ``spam()`` is roughly equivalent to::
+occurred and can now process or propagate it. Calling ``spam()`` is roughly translated to the following C code:
 
-    ret_val = spam()
-    if ret_val == -1:
-        raise ValueError()
+.. code-block:: C
+
+    ret_val = spam();
+    if (ret_val == -1) goto error_label;
 
 When you declare an exception value for a function, you should never explicitly
 or implicitly return that value.  This includes empty :keyword:`return`
@@ -743,12 +744,13 @@ form of exception value declaration
 
 In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
-result. Calling ``spam()`` is roughly equivalent to::
+result. Calling ``spam()`` is roughly translated to the following C code:
 
-    ret_val = spam()
-    if ret_val == -1:
-        if PyErr_Occurred():
-            raise ValueError()
+
+.. code-block:: C
+
+    ret_val = spam();
+    if (ret_val == -1 && PyErr_Occurred()) goto error_label;
 
 There is also a third form of exception value declaration
 
@@ -771,11 +773,13 @@ There is also a third form of exception value declaration
                 raise ValueError()
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
-*every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly equivalent to::
+*every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly translated to the following C code:
+
+.. code-block:: C
 
     spam()
-    if PyErr_Occurred():
-        raise ValueError()
+    ret_val = spam();
+    if (PyErr_Occurred()) goto error_label;
 
 If you have a
 function returning ``void`` that needs to propagate errors, you will have to
