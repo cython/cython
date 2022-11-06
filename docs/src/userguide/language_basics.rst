@@ -687,14 +687,14 @@ as a contract with the caller. Here is an example:
             @cython.cfunc
             @cython.exceptval(-1)
             def spam() -> cython.int:
-                raise ValueError()
+                ...
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
             cdef int spam() except -1:
-                raise ValueError()
+                ...
 
 
 With this declaration, whenever an exception occurs inside ``spam``, it will
@@ -729,7 +729,7 @@ form of exception value declaration
             @cython.cfunc
             @cython.exceptval(-1, check=True)
             def spam() -> cython.int:
-                raise ValueError()
+                ...
 
         The keyword argument ``check=True`` indicates that the value ``-1`` **may** signal an error.
 
@@ -738,7 +738,7 @@ form of exception value declaration
         .. code-block:: cython
 
             cdef int spam() except? -1:
-                raise ValueError()
+                ...
 
         The ``?`` indicates that the value ``-1`` **may** signal an error.
 
@@ -763,14 +763,14 @@ There is also a third form of exception value declaration
             @cython.cfunc
             @cython.exceptval(check=True)
             def spam() -> cython.void:
-                raise ValueError()
+                ...
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
             cdef void spam() except *:
-                raise ValueError()
+                ...
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 *every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly translated to the following C code:
