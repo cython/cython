@@ -696,7 +696,6 @@ as a contract with the caller. Here is an example:
             cdef int spam() except -1:
                 ...
 
-
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
 a call to spam returns ``-1``, the caller will assume that an exception has
