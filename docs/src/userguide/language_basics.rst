@@ -705,7 +705,7 @@ occurred and can now process or propagate it. Calling ``spam()`` is roughly tran
 .. code-block:: C
 
     ret_val = spam();
-    if (ret_val == -1) goto error_label;
+    if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
 or implicitly return that value.  This includes empty :keyword:`return`
@@ -750,7 +750,7 @@ result. Calling ``spam()`` is roughly translated to the following C code:
 .. code-block:: C
 
     ret_val = spam();
-    if (ret_val == -1 && PyErr_Occurred()) goto error_label;
+    if (ret_val == -1 && PyErr_Occurred()) goto error_handler;
 
 There is also a third form of exception value declaration
 
@@ -779,7 +779,7 @@ This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 
     spam()
     ret_val = spam();
-    if (PyErr_Occurred()) goto error_label;
+    if (PyErr_Occurred()) goto error_handler;
 
 If you have a
 function returning ``void`` that needs to propagate errors, you will have to
