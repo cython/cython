@@ -846,7 +846,7 @@ Some things to note:
   .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
 
 * If the returning type of a ``cdef`` function with ``except *`` or ``@cython.exceptval(check=True)`` is C integer,
-  enum, float or pointer type, Cython is calling :c:func:`PyErr_Occurred` only when
+  enum, float or pointer type, Cython calls :c:func:`PyErr_Occurred` only when
   dedicated value is returned instead of checking after every call of the function.
 
 * You don't need to (and shouldn't) declare exception values for functions
