@@ -1,5 +1,3 @@
- 
-
 fused_type1 = cython.fused_type(cython.double, cython.float)
 
 

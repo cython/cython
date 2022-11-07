@@ -1,5 +1,3 @@
- 
-
 bunch_of_types = cython.fused_type(bytes, cython.int, cython.float)
 
 
