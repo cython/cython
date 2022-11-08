@@ -777,7 +777,6 @@ This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 .. code-block:: C
 
     spam()
-    ret_val = spam();
     if (PyErr_Occurred()) goto error_handler;
 
 If you have a
