@@ -6,6 +6,9 @@
 Fused Types (Templates)
 ***********************
 
+.. include::
+    ../two-syntax-variants-used
+
 Fused types allow you to have one type definition that can refer to multiple
 types.  This allows you to write a single static-typed cython algorithm that can
 operate on values of multiple types. Thus fused types allow `generic
@@ -58,7 +61,7 @@ This declares a new type called ``my_fused_type`` which can be *either* an
     my_fused_type = cython.fused_type(cython.int, cython.float)
 
 Only names may be used for the constituent types, but they may be any
-(non-fused) type, including a typedef.  i.e. one may write:
+(non-fused) type, including a typedef. I.e. one may write:
 
 .. tabs::
 
@@ -310,7 +313,10 @@ Index functions can be called directly from python:
     >>> import cython
     >>> import indexing
     cfunc called: double 5.0 double 1.0
+    cpfunc called: float 1.0 double 2.0
     func called: float 1.0 double 2.0
+    >>> indexing.cpfunc[cython.float, cython.float](1, 2)
+    cpfunc called: float 1.0 float 2.0
     >>> indexing.func[cython.float, cython.float](1, 2)
     func called: float 1.0 float 2.0
 
