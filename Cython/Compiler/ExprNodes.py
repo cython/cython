@@ -7239,22 +7239,23 @@ class AttributeNode(ExprNode):
                 obj_node.result_ctype = self.obj.result_ctype
                 self.obj = obj_node
                 unbound_node = ExprNode.coerce_to(self, dst_type, env)
-                functools = SimpleCallNode(
-                    self.pos,
-                    function=NameNode(self.pos, name=StringEncoding.EncodedString("__import__")),
-                    args=[StringNode(self.pos, value=StringEncoding.EncodedString("functools"))],
+                utility_code=UtilityCode.load_cached(
+                    "PyMethodNew2Arg", "ObjectHandling.c"
                 )
-                partial = AttributeNode(
-                    self.pos,
-                    obj=functools,
-                    attribute=StringEncoding.EncodedString("partial"),
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.py_object_type, [
+                        PyrexTypes.CFuncTypeArg("func", PyrexTypes.py_object_type, None),
+                        PyrexTypes.CFuncTypeArg("self", PyrexTypes.py_object_type, None)
+                    ],
                 )
-                partial_call = SimpleCallNode(
+                binding_call = PythonCapiCallNode(
                     self.pos,
-                    function=partial,
+                    function_name="__Pyx_PyMethod_New2Arg",
+                    func_type=func_type,
                     args=[unbound_node, obj_node],
+                    utility_code=utility_code,
                 )
-                complete_call = EvalWithTempExprNode(obj_node, partial_call)
+                complete_call = EvalWithTempExprNode(obj_node, binding_call)
                 return complete_call.analyse_types(env)
         return ExprNode.coerce_to(self, dst_type, env)
 
