@@ -11,7 +11,7 @@ def plus_one(var: char_or_float) -> char_or_float:
 
 def show_me():
 
-    a:cython.char = 127
+    a: cython.char = 127
     b: cython.float = 127
     print('char', plus_one(a))
     print('float', plus_one(b))
