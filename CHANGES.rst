@@ -77,10 +77,6 @@ Bugs fixed
 * Some issues with Cython ``@dataclass`` arguments, hashing and ``repr()`` were resolved.
   (Github issue :issue:`4956`)
 
-* cdef data classes (not their instances) were accidentally modifiable after creation,
-  which lead to potential problems and crashes.  They are now immutable.
-  (Github issue :issue:`5026`)
-
 * Relative imports failed in compiled ``__init__.py`` package modules.
   Patch by Matus Valo.  (Github issue :issue:`3442`)
 
