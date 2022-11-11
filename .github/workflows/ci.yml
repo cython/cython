@@ -63,16 +63,16 @@ jobs:
 
           # Ubuntu sub-jobs:
           # ================
-          # GCC 11
+          # GCC 11 (with latest language standards)
           - os: ubuntu-18.04
             python-version: 3.9
             backend: c
-            env: { GCC_VERSION: 11 }
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-18.04
             python-version: 3.9
             backend: cpp
-            env: { GCC_VERSION: 11 }
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
           # compile all modules
           - os: ubuntu-18.04
