@@ -230,15 +230,6 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
-#if PY_VERSION_HEX >= 0x030A0000
-        // As of https://github.com/python/cpython/pull/25520
-        // PyType_Ready marks types as immutable if they are static types
-        // and requires the Py_TPFLAGS_IMMUTABLETYPE flag to mark types as
-        // immutable
-        // Manually set the Py_TPFLAGS_IMMUTABLETYPE flag, since the type
-        // is immutable
-        t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
-#endif
 #else
         // avoid C warning about unused helper function
         (void)__Pyx_PyObject_CallMethod0;
