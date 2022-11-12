@@ -1163,6 +1163,47 @@ Other changes
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
+.. _0.29.33:
+
+0.29.33 (????-??-??)
+====================
+
+Features added
+--------------
+
+* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
+  to generate ``.dep`` dependency files for the compilation unit.  This can be used
+  by external build tools to track these dependencies.
+  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
+  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
+
+Bugs fixed
+----------
+
+* Fixed various compiler warnings. One patch by Lisandro Dalcin.
+  (Github issues :issue:`4948`, :issue:`5086`)
+
+* Fixed error when calculating complex powers of negative numbers.
+  (Github issue :issue:`5014`)
+  
+* Corrected a small mis-formatting of exception messages on Python 2.
+  (Github issue :issue:`5018`)
+
+Other changes
+-------------
+  
+* The undocumented, untested and apparently useless syntax
+  ``from somemodule cimport class/struct/union somename`` was deprecated
+  in anticipation of its removal in Cython 3.  The type
+  modifier is not needed here and a plain ``cimport`` of the name will do.
+  (Github issue :issue:`4905`)
+  
+* Properly disable generation of descriptor docstrings on PyPy since
+  they cause crashes. It was previously disabled, but only accidentally 
+  via a typo. Patch by Matti Picus.
+  (Github issue :issue:`5083`)
+
+
 
 .. _0.29.32:
 
