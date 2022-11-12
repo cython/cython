@@ -100,6 +100,9 @@ Bugs fixed
 
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
+  
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.33` release.
 
 Other changes
 -------------
