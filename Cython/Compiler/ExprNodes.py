@@ -2171,6 +2171,9 @@ class NameNode(AtomicExprNode):
             # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
             # Hence, "as_target = not is_dataclass".
             self.declare_from_annotation(env, as_target=not is_dataclass)
+        elif (self.entry and self.entry.is_inherited and 
+                self.annotation and env.is_c_dataclass_scope):
+            error(self.pos, "Cannot redeclare inherited fields in Cython dataclasses")
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
