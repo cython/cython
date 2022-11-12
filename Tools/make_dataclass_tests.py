@@ -407,7 +407,9 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
         # string annotations are forward declarations but the string will be wrong
         # (because we're renaming the class)
         if (isinstance(node.annotation, ast.Constant) and
-                isinstance(node.annotation.value, str)):
+                isinstance(node.annotation.value, str) and
+                # except KW_ONLY which is a special test
+                not node.annotation.value == "dataclasses.KW_ONLY"):
             # although it'd be good to resolve these declarations, for the
             # sake of the tests they only need to be "object"
             node.annotation = ast.Name(id="object", ctx=ast.Load)

@@ -635,7 +635,7 @@ class C_TestKeywordArgs_test_KW_ONLY:
 @cclass
 class A_TestKeywordArgs_test_KW_ONLY_as_string:
     a: int
-    _: object
+    _: 'dataclasses.KW_ONLY'
     b: int
     c: int
 
