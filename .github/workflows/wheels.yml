@@ -74,7 +74,7 @@ jobs:
           platforms: all
       
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.8.1
+        uses: pypa/cibuildwheel@v2.11.2
         env:
           # TODO: Build Cython with the compile-all flag?
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}

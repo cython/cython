@@ -262,7 +262,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code_start.putln("#ifndef %s" % api_guard)
             h_code_start.putln("")
-            self.generate_extern_c_macro_definition(h_code_start)
+            self.generate_extern_c_macro_definition(h_code_start, env.is_cpp())
             h_code_start.putln("")
             self.generate_dl_import_macro(h_code_start)
             if h_extension_types:
@@ -804,7 +804,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
         code.putln("")
-        self.generate_extern_c_macro_definition(code)
+        self.generate_extern_c_macro_definition(code, env.is_cpp())
         code.putln("")
 
         code.putln("#define %s" % self.api_name(Naming.h_guard_prefix, env))
@@ -876,14 +876,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
-    def generate_extern_c_macro_definition(self, code):
+    def generate_extern_c_macro_definition(self, code, is_cpp):
         name = Naming.extern_c_macro
         code.putln("#ifndef %s" % name)
-        code.putln("  #ifdef __cplusplus")
-        code.putln('    #define %s extern "C"' % name)
-        code.putln("  #else")
-        code.putln("    #define %s extern" % name)
-        code.putln("  #endif")
+        if is_cpp:
+            code.putln('    #define %s extern "C++"' % name)
+        else:
+            code.putln("  #ifdef __cplusplus")
+            code.putln('    #define %s extern "C"' % name)
+            code.putln("  #else")
+            code.putln("    #define %s extern" % name)
+            code.putln("  #endif")
         code.putln("#endif")
 
     def generate_dl_import_macro(self, code):
@@ -3111,7 +3114,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
-            code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+            code.putln("if (__Pyx_RegisterCleanup()) %s" % code.error_goto(self.pos))
 
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
@@ -3525,7 +3528,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
         code.putln(
-            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
+            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s' % (
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))

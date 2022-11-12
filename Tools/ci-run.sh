@@ -68,12 +68,14 @@ if [[ $PYTHON_VERSION == "2.7"* ]]; then
 elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
+elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
+  pip install wheel || exit 1
+  pip install -r test-requirements-pypy27.txt || exit 1
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
-
     if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi

@@ -1,7 +1,7 @@
 # distutils: language = c++
-
 from cpython cimport Py_buffer
 from libcpp.vector cimport vector
+
 
 cdef class Matrix:
     cdef Py_ssize_t ncols
@@ -19,7 +19,7 @@ cdef class Matrix:
     def __getbuffer__(self, Py_buffer *buffer, int flags):
         cdef Py_ssize_t itemsize = sizeof(self.v[0])
 
-        self.shape[0] = self.v.size() / self.ncols
+        self.shape[0] = self.v.size() // self.ncols
         self.shape[1] = self.ncols
 
         # Stride 1 is the distance, in bytes, between two items in a row;
@@ -27,6 +27,9 @@ cdef class Matrix:
         # Stride 0 is the distance between the first elements of adjacent rows.
         self.strides[1] = <Py_ssize_t>(  <char *>&(self.v[1])
                                        - <char *>&(self.v[0]))
+
+
+
         self.strides[0] = self.ncols * self.strides[1]
 
         buffer.buf = <char *>&(self.v[0])
