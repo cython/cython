@@ -298,6 +298,13 @@ def run_build():
             "Topic :: Software Development :: Compilers",
             "Topic :: Software Development :: Libraries :: Python Modules"
         ],
+        project_urls={
+            "Documentation": "https://cython.readthedocs.io/",
+            "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
+            "Source Code": "https://github.com/cython/cython",
+            "Bug Tracker": "https://github.com/cython/cython/issues",
+            "User Group": "https://groups.google.com/g/cython-users",
+        },
 
         scripts=scripts,
         packages=packages,

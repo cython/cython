@@ -11,7 +11,8 @@ from distutils.command.build_ext import build_ext
 
 import Cython
 from ..Compiler.Main import Context
-from ..Compiler.Options import default_options
+from ..Compiler.Options import (default_options, CompilationOptions,
+    get_directive_defaults)
 
 from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
@@ -68,7 +69,8 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
 def unbound_symbols(code, context=None):
     code = to_unicode(code)
     if context is None:
-        context = Context([], default_options)
+        context = Context([], get_directive_defaults(),
+                          options=CompilationOptions(default_options))
     from ..Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
     tree = parse_from_strings('(tree fragment)', code)
     for phase in Pipeline.create_pipeline(context, 'pyx'):
@@ -129,7 +131,11 @@ def _get_build_extension():
 
 @cached_function
 def _create_context(cython_include_dirs):
-    return Context(list(cython_include_dirs), default_options)
+    return Context(
+        list(cython_include_dirs),
+        get_directive_defaults(),
+        options=CompilationOptions(default_options)
+    )
 
 
 _cython_inline_cache = {}

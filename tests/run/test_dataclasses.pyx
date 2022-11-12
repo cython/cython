@@ -153,6 +153,23 @@ class Bar_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factor
 class Baz_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factory_derived):
     pass
 
+@dataclass
+@cclass
+class A_TestCase_test_intermediate_non_dataclass:
+    x: int
+
+@cclass
+class B_TestCase_test_intermediate_non_dataclass(A_TestCase_test_intermediate_non_dataclass):
+    y: int
+
+@dataclass
+@cclass
+class C_TestCase_test_intermediate_non_dataclass(B_TestCase_test_intermediate_non_dataclass):
+    z: int
+
+class D_TestCase_test_intermediate_non_dataclass(C_TestCase_test_intermediate_non_dataclass):
+    t: int
+
 class NotDataClass_TestCase_test_is_dataclass:
     pass
 
@@ -550,6 +567,48 @@ class C_TestReplace_test_initvar_is_specified:
 
 @dataclass
 @cclass
+class C_TestReplace_test_recursive_repr:
+    f: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_two_attrs:
+    f: object
+    g: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_indirection:
+    f: object
+
+@dataclass
+@cclass
+class D_TestReplace_test_recursive_repr_indirection:
+    f: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_indirection_two:
+    f: object
+
+@dataclass
+@cclass
+class D_TestReplace_test_recursive_repr_indirection_two:
+    f: object
+
+@dataclass
+@cclass
+class E_TestReplace_test_recursive_repr_indirection_two:
+    f: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_misc_attrs:
+    f: object
+    g: int
+
+@dataclass
+@cclass
 class A_TestKeywordArgs_test_KW_ONLY:
     a: int
     _: KW_ONLY
@@ -576,7 +635,7 @@ class C_TestKeywordArgs_test_KW_ONLY:
 @cclass
 class A_TestKeywordArgs_test_KW_ONLY_as_string:
     a: int
-    _: 'dataclasses.KW_ONLY'
+    _: object
     b: int
     c: int
 
@@ -743,6 +802,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(Bar().y, 1)
         Baz = Baz_TestCase_test_default_factory_derived
         self.assertEqual(Baz().x, {})
+
+    def test_intermediate_non_dataclass(self):
+        A = A_TestCase_test_intermediate_non_dataclass
+        B = B_TestCase_test_intermediate_non_dataclass
+        C = C_TestCase_test_intermediate_non_dataclass
+        c = C(1, 3)
+        self.assertEqual((c.x, c.z), (1, 3))
+        with self.assertRaises(AttributeError):
+            c.y
+        D = D_TestCase_test_intermediate_non_dataclass
+        d = D(4, 5)
+        self.assertEqual((d.x, d.z), (4, 5))
 
     def test_is_dataclass(self):
         NotDataClass = NotDataClass_TestCase_test_is_dataclass
@@ -1122,6 +1193,46 @@ class TestReplace(unittest.TestCase):
             replace(c, x=3)
         c = replace(c, x=3, y=5)
         self.assertEqual(c.x, 15)
+
+    def test_recursive_repr(self):
+        C = C_TestReplace_test_recursive_repr
+        c = C(None)
+        c.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr(f=...)')
+
+    def test_recursive_repr_two_attrs(self):
+        C = C_TestReplace_test_recursive_repr_two_attrs
+        c = C(None, None)
+        c.f = c
+        c.g = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_two_attrs(f=..., g=...)')
+
+    def test_recursive_repr_indirection(self):
+        C = C_TestReplace_test_recursive_repr_indirection
+        D = D_TestReplace_test_recursive_repr_indirection
+        c = C(None)
+        d = D(None)
+        c.f = d
+        d.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_indirection(f=D_TestReplace_test_recursive_repr_indirection(f=...))')
+
+    def test_recursive_repr_indirection_two(self):
+        C = C_TestReplace_test_recursive_repr_indirection_two
+        D = D_TestReplace_test_recursive_repr_indirection_two
+        E = E_TestReplace_test_recursive_repr_indirection_two
+        c = C(None)
+        d = D(None)
+        e = E(None)
+        c.f = d
+        d.f = e
+        e.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_indirection_two(f=D_TestReplace_test_recursive_repr_indirection_two(f=E_TestReplace_test_recursive_repr_indirection_two(f=...)))')
+
+    def test_recursive_repr_misc_attrs(self):
+        C = C_TestReplace_test_recursive_repr_misc_attrs
+        c = C(None, 1)
+        c.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_misc_attrs(f=..., g=1)')
 
 class TestAbstract(unittest.TestCase):
     pass

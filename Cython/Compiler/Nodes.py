@@ -1635,6 +1635,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 elif isinstance(attr, CompilerDirectivesNode):
                     for sub_attr in func_attributes(attr.body.stats):
                         yield sub_attr
+                elif isinstance(attr, CppClassNode) and attr.attributes is not None:
+                    for sub_attr in func_attributes(attr.attributes):
+                        yield sub_attr
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -8737,7 +8740,7 @@ class FromCImportStatNode(StatNode):
     #
     #  module_name     string                        Qualified name of module
     #  relative_level  int or None                   Relative import: number of dots before module_name
-    #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
+    #  imported_names  [(pos, name, as_name)]  Names to be imported
 
     child_attrs = []
     module_name = None
@@ -8748,35 +8751,34 @@ class FromCImportStatNode(StatNode):
         if not env.is_module_scope:
             error(self.pos, "cimport only allowed at module level")
             return
-        if self.relative_level and self.relative_level > env.qualified_name.count('.'):
-            error(self.pos, "relative cimport beyond main package is not allowed")
-            return
+        qualified_name_components = env.qualified_name.count('.') + 1
+        if self.relative_level:
+            if self.relative_level > qualified_name_components:
+                # 1. case: importing beyond package: from .. import pkg
+                error(self.pos, "relative cimport beyond main package is not allowed")
+                return
+            elif self.relative_level == qualified_name_components and not env.is_package:
+                # 2. case: importing from same level but current dir is not package: from . import module
+                error(self.pos, "relative cimport from non-package directory is not allowed")
+                return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
-        for pos, name, as_name, kind in self.imported_names:
+        for pos, name, as_name in self.imported_names:
             if name == "*":
                 for local_name, entry in list(module_scope.entries.items()):
                     env.add_imported_entry(local_name, entry, pos)
             else:
                 entry = module_scope.lookup(name)
                 if entry:
-                    if kind and not self.declaration_matches(entry, kind):
-                        entry.redeclared(pos)
                     entry.used = 1
                 else:
-                    if kind == 'struct' or kind == 'union':
-                        entry = module_scope.declare_struct_or_union(
-                            name, kind=kind, scope=None, typedef_flag=0, pos=pos)
-                    elif kind == 'class':
-                        entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
+                    submodule_scope = env.context.find_module(
+                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                    if submodule_scope.parent_module is module_scope:
+                        env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:
-                        submodule_scope = env.context.find_module(
-                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
-                        if submodule_scope.parent_module is module_scope:
-                            env.declare_module(as_name or name, submodule_scope, self.pos)
-                        else:
-                            error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
+                        error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
 
                 if entry:
                     local_name = as_name or name
@@ -8785,7 +8787,7 @@ class FromCImportStatNode(StatNode):
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
                 env.use_utility_code(utility_code_for_cimports[module_name]())
-            for _, name, _, _ in self.imported_names:
+            for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
                     env.use_utility_code(utility_code_for_cimports[fqname]())

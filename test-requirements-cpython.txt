@@ -1,3 +1,4 @@
 jupyter
+pytest  # needed by IPython/Jupyter integration tests
 line_profiler
 setuptools<60

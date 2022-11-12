@@ -202,10 +202,16 @@ def process_class_get_fields(node, global_kw_only):
     transform(node)
     default_value_assignments = transform.removed_assignments
 
-    if node.base_type and node.base_type.dataclass_fields:
-        fields = node.base_type.dataclass_fields.copy()
-    else:
-        fields = OrderedDict()
+    base_type = node.base_type
+    fields = OrderedDict()
+    while base_type:
+        if base_type.is_external or not base_type.scope.implemented:
+            warning(node.pos, "Cannot reliably handle Cython dataclasses with base types "
+                "in external modules since it is not possible to tell what fields they have", 2)
+        if base_type.dataclass_fields:
+            fields = base_type.dataclass_fields.copy()
+            break
+        base_type = base_type.base_type
 
     seen_kw_only_marker = False
     for entry in var_entries:
@@ -464,7 +470,7 @@ def generate_init_code(code, init, node, fields):
 
 def generate_repr_code(code, repr, node, fields):
     """
-    The CPython implementation is just:
+    The core of the CPython implementation is just:
     ['return self.__class__.__qualname__ + f"(' +
                      ', '.join([f"{f.name}={{self.{f.name}!r}}"
                                 for f in fields]) +
@@ -472,18 +478,49 @@ def generate_repr_code(code, repr, node, fields):
 
     The only notable difference here is self.__class__.__qualname__ -> type(self).__name__
     which is because Cython currently supports Python 2.
+
+    However, it also has some guards for recursive repr invokations. In the standard
+    library implementation they're done with a wrapper decorator that captures a set
+    (with the set keyed by id and thread). Here we create a set as a thread local
+    variable and key only by id.
     """
     if not repr or node.scope.lookup("__repr__"):
         return
 
+    # The recursive guard is likely a little costly, so skip it if possible.
+    # is_gc_simple defines where it can contain recursive objects
+    needs_recursive_guard = False
+    for name in fields.keys():
+        entry = node.scope.lookup(name)
+        type_ = entry.type
+        if type_.is_memoryviewslice:
+            type_ = type_.dtype
+        if not type_.is_pyobject:
+            continue  # no GC
+        if not type_.is_gc_simple:
+            needs_recursive_guard = True
+            break
+
+    if needs_recursive_guard:
+        code.add_code_line("__pyx_recursive_repr_guard = __import__('threading').local()")
+        code.add_code_line("__pyx_recursive_repr_guard.running = set()")
     code.add_code_line("def __repr__(self):")
+    if needs_recursive_guard:
+        code.add_code_line("    key = id(self)")
+        code.add_code_line("    guard_set = self.__pyx_recursive_repr_guard.running")
+        code.add_code_line("    if key in guard_set: return '...'")
+        code.add_code_line("    guard_set.add(key)")
+        code.add_code_line("    try:")
     strs = [u"%s={self.%s!r}" % (name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)
 
-    code.add_code_line(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
-    code.add_code_line(u"    return f'{name}(%s)'" % format_string)
+    code.add_code_line(u'        name = getattr(type(self), "__qualname__", type(self).__name__)')
+    code.add_code_line(u"        return f'{name}(%s)'" % format_string)
+    if needs_recursive_guard:
+        code.add_code_line("    finally:")
+        code.add_code_line("        guard_set.remove(key)")
 
 
 def generate_cmp_code(code, op, funcname, node, fields):
