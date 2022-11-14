@@ -29,7 +29,11 @@ according to the system used:
    built with. This is usually a specific version of Microsoft Visual
    C/C++ (MSVC) - see https://wiki.python.org/moin/WindowsCompilers. 
    MSVC is the only compiler that Cython is currently tested with on 
-   Windows.  A possible alternative is the open source MinGW (a
+   Windows.  If you're having difficulty making setuptools detect
+   MSVC then `PyMSVC <https://github.com/kdschlosser/python_msvc>`_
+   aims to solve this.
+   
+   A possible alternative is the open source MinGW (a
    Windows distribution of gcc). See the appendix for instructions for
    setting up MinGW manually. Enthought Canopy and Python(x,y) bundle
    MinGW, but some of the configuration steps in the appendix might

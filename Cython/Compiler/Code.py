@@ -1650,7 +1650,7 @@ class GlobalState(object):
 
             init_constants.putln("#if !CYTHON_USE_MODULE_STATE")
             init_constants.putln(
-                "if (__Pyx_InitStrings(%s) < 0) %s;" % (
+                "if (__Pyx_InitStrings(%s) < 0) %s" % (
                     Naming.stringtab_cname,
                     init_constants.error_goto(self.module_pos)))
             init_constants.putln("#endif")

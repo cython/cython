@@ -998,8 +998,7 @@ class InterpretCompilerDirectives(CythonTransform):
             self._check_valid_cython_module(node.pos, module_name)
             submodule = (module_name + u".")[7:]
             newimp = []
-
-            for pos, name, as_name, kind in node.imported_names:
+            for pos, name, as_name in node.imported_names:
                 full_name = submodule + name
                 qualified_name = u"cython." + full_name
                 if self.is_parallel_directive(qualified_name, node.pos):
@@ -1008,15 +1007,12 @@ class InterpretCompilerDirectives(CythonTransform):
                     self.parallel_directives[as_name or name] = qualified_name
                 elif self.is_cython_directive(full_name):
                     self.directive_names[as_name or name] = full_name
-                    if kind is not None:
-                        self.context.nonfatal_error(PostParseError(pos,
-                            "Compiler directive imports must be plain imports"))
                 elif full_name in ['dataclasses', 'typing']:
                     self.directive_names[as_name or name] = full_name
                     # unlike many directives, still treat it as a regular module
-                    newimp.append((pos, name, as_name, kind))
+                    newimp.append((pos, name, as_name))
                 else:
-                    newimp.append((pos, name, as_name, kind))
+                    newimp.append((pos, name, as_name))
 
             if not newimp:
                 return None
@@ -1031,7 +1027,7 @@ class InterpretCompilerDirectives(CythonTransform):
             imported_names = []
             for name, name_node in node.items:
                 imported_names.append(
-                    (name_node.pos, name, None if name == name_node.name else name_node.name, None))
+                    (name_node.pos, name, None if name == name_node.name else name_node.name))
             return self._create_cimport_from_import(
                 node.pos, module_name, import_node.level, imported_names)
         elif module_name == u"cython" or module_name.startswith(u"cython."):
@@ -1070,7 +1066,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     module_name=dotted_name,
                     as_name=as_name,
                     is_absolute=level == 0)
-                for pos, dotted_name, as_name, _ in imported_names
+                for pos, dotted_name, as_name in imported_names
             ]
 
     def visit_SingleAssignmentNode(self, node):

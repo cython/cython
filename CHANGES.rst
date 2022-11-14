@@ -64,6 +64,10 @@ Bugs fixed
 * Nesting fused types in other fused types could fail to specialise the inner type.
   (Github issue :issue:`4725`)
 
+* The special methods ``__matmul__``, ``__truediv__``, ``__floordiv__`` failed to type
+  their ``self`` argument.
+  (Github issue :issue:`5067`)
+
 * Coverage analysis failed in projects with a separate source subdirectory.
   Patch by Sviatoslav Sydorenko and Ruben Vorderman.  (Github issue :issue:`3636`)
 
@@ -73,15 +77,11 @@ Bugs fixed
 * Some issues with Cython ``@dataclass`` arguments, hashing and ``repr()`` were resolved.
   (Github issue :issue:`4956`)
 
-* cdef data classes (not their instances) were accidentally modifiable after creation,
-  which lead to potential problems and crashes.  They are now immutable.
-  (Github issue :issue:`5026`)
-
 * Relative imports failed in compiled ``__init__.py`` package modules.
-  Patches by Matus Valo.  (Github issue :issue:`4941`)
+  Patch by Matus Valo.  (Github issue :issue:`3442`)
 
 * Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
-  Patches by Matus Valo.  (Github issue :issue:`4941`)
+  Patch by Matus Valo.  (Github issue :issue:`4640`)
 
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
@@ -100,9 +100,17 @@ Bugs fixed
 
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
+  
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.33` release.
 
 Other changes
 -------------
+
+* The undocumented, untested and apparently useless syntax
+  ``from somemodule cimport class/struct/union somename`` was removed.  The type
+  modifier is not needed here and a plain ``cimport`` of the name will do.
+  (Github issue :issue:`4904`)
 
 * The wheel building process was migrated to use the ``cibuildwheel`` tool.
   Patch by Thomas Li.  (Github issue :issue:`4736`)
@@ -1157,6 +1165,47 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+.. _0.29.33:
+
+0.29.33 (????-??-??)
+====================
+
+Features added
+--------------
+
+* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
+  to generate ``.dep`` dependency files for the compilation unit.  This can be used
+  by external build tools to track these dependencies.
+  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
+  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
+
+Bugs fixed
+----------
+
+* Fixed various compiler warnings. One patch by Lisandro Dalcin.
+  (Github issues :issue:`4948`, :issue:`5086`)
+
+* Fixed error when calculating complex powers of negative numbers.
+  (Github issue :issue:`5014`)
+  
+* Corrected a small mis-formatting of exception messages on Python 2.
+  (Github issue :issue:`5018`)
+
+Other changes
+-------------
+  
+* The undocumented, untested and apparently useless syntax
+  ``from somemodule cimport class/struct/union somename`` was deprecated
+  in anticipation of its removal in Cython 3.  The type
+  modifier is not needed here and a plain ``cimport`` of the name will do.
+  (Github issue :issue:`4905`)
+  
+* Properly disable generation of descriptor docstrings on PyPy since
+  they cause crashes. It was previously disabled, but only accidentally 
+  via a typo. Patch by Matti Picus.
+  (Github issue :issue:`5083`)
+
 
 
 .. _0.29.32:

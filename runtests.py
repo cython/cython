@@ -2546,12 +2546,17 @@ def configure_cython(options):
         CompilationOptions, \
         default_options as pyrex_default_options
     from Cython.Compiler.Options import _directive_defaults as directive_defaults
+
     from Cython.Compiler import Errors
     Errors.LEVEL = 0  # show all warnings
+
     from Cython.Compiler import Options
     Options.generate_cleanup_code = 3  # complete cleanup code
+
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
+    DebugFlags.debug_no_exception_intercept = 1  # provide better crash output in CI runs
+
     pyrex_default_options['formal_grammar'] = options.use_formal_grammar
     if options.profile:
         directive_defaults['profile'] = True
