@@ -866,7 +866,7 @@ Cython code.  Here is the list of currently supported directives:
     False.
     
 ``cpow`` (True / False)
-    ``cpow`` has modifies the return type of ``a**b``, as shown in the
+    ``cpow`` modifies the return type of ``a**b``, as shown in the
     table below:
     
         .. csv-table:: cpow behaviour
@@ -881,7 +881,7 @@ Cython code.  Here is the list of currently supported directives:
     inputs.
 
     Introduced in Cython 3.0 with a default of False;
-    before Cython 3 the behaviour matched the ``cpow=True`` version.
+    before that, the behaviour matched the ``cpow=True`` version.
 
 ``always_allow_keywords`` (True / False)
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
