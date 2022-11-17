@@ -1,6 +1,6 @@
-
 class HardWorker(object):
-    u"Almost Sisyphus"
+    "Almost Sisyphus"
+
     def __init__(self, task):
         self.task = task
 

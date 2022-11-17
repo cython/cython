@@ -2,6 +2,7 @@
 # ticket: t264
 # tag: property, decorator
 
+
 class Prop(object):
     """
     >>> p = Prop()

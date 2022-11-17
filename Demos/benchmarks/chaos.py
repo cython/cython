@@ -11,6 +11,7 @@ import time
 import operator
 import optparse
 import random
+
 random.seed(1234)
 
 from functools import reduce
@@ -20,18 +21,16 @@ if not cython.compiled:
 
 
 class GVector(object):
-    def __init__(self, x = 0, y = 0, z = 0):
+    def __init__(self, x=0, y=0, z=0):
         self.x = x
         self.y = y
         self.z = z
 
     def Mag(self):
-        return sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
+        return sqrt(self.x**2 + self.y**2 + self.z**2)
 
     def dist(self, other):
-        return sqrt((self.x - other.x) ** 2 +
-                    (self.y - other.y) ** 2 +
-                    (self.z - other.z) ** 2)
+        return sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2)
 
     @cython.locals(self="GVector", other="GVector")
     def __add__(self, other):
@@ -48,14 +47,13 @@ class GVector(object):
     def __mul__(self, other):
         v = GVector(self.x * other, self.y * other, self.z * other)
         return v
+
     __rmul__ = __mul__
 
     @cython.locals(other="GVector", l1=cython.double, l2_=cython.double)
     def linear_combination(self, other, l1, l2=None):
         l2_ = 1 - l1 if l2 is None else l2
-        v = GVector(self.x * l1 + other.x * l2_,
-                    self.y * l1 + other.y * l2_,
-                    self.z * l1 + other.z * l2_)
+        v = GVector(self.x * l1 + other.x * l2_, self.y * l1 + other.y * l2_, self.z * l1 + other.z * l2_)
         return v
 
     def __str__(self):
@@ -73,7 +71,8 @@ def GetKnots(points, degree):
 
 class Spline(object):
     """Class for representing B-Splines and NURBS of arbitrary degree"""
-    def __init__(self, points, degree = 3, knots = None):
+
+    def __init__(self, points, degree=3, knots=None):
         """Creates a Spline. points is a list of GVector, degree is the degree of the Spline."""
         if knots is None:
             self.knots = GetKnots(points, degree)
@@ -93,12 +92,9 @@ class Spline(object):
 
     def GetDomain(self):
         """Returns the domain of the B-Spline"""
-        return (self.knots[self.degree - 1],
-                self.knots[len(self.knots) - self.degree])
+        return (self.knots[self.degree - 1], self.knots[len(self.knots) - self.degree])
 
-    @cython.locals(ik=cython.long, ii=cython.long, I=cython.long,
-                   ua=cython.long, ub=cython.long, u=cython.double,
-                   dom=(cython.long, cython.long))
+    @cython.locals(ik=cython.long, ii=cython.long, I=cython.long, ua=cython.long, ub=cython.long, u=cython.double, dom=(cython.long, cython.long))
     def __call__(self, u):
         """Calculates a point of the B-Spline using de Boors Algorithm"""
         dom = self.GetDomain()
@@ -109,8 +105,7 @@ class Spline(object):
         if u == dom[1]:
             return self.points[-1]
         I = self.GetIndex(u)
-        d = [self.points[I - self.degree + 1 + ii]
-             for ii in range(self.degree + 1)]
+        d = [self.points[I - self.degree + 1 + ii] for ii in range(self.degree + 1)]
         U = self.knots
         for ik in range(1, self.degree + 1):
             for ii in range(I - self.degree + ik + 1, I + 2):
@@ -141,8 +136,18 @@ class Spline(object):
 
 
 class Chaosgame(object):
-    @cython.locals(splines=list, thickness=cython.double, maxlength=cython.double, length=cython.double,
-                   curr=GVector, last=GVector, p=GVector, spl=Spline, t=cython.double, i=int)
+    @cython.locals(
+        splines=list,
+        thickness=cython.double,
+        maxlength=cython.double,
+        length=cython.double,
+        curr=GVector,
+        last=GVector,
+        p=GVector,
+        spl=Spline,
+        t=cython.double,
+        i=int,
+    )
     def __init__(self, splines, thickness=0.1):
         self.splines = splines
         self.thickness = thickness
@@ -174,9 +179,15 @@ class Chaosgame(object):
             l += self.num_trafos[i]
         return len(self.num_trafos) - 1, random.randrange(self.num_trafos[-1])
 
-    @cython.locals(neighbour="GVector", basepoint="GVector", derivative="GVector",
-                   seg_length=cython.double, start=cython.double, end=cython.double,
-                   t=cython.double)
+    @cython.locals(
+        neighbour="GVector",
+        basepoint="GVector",
+        derivative="GVector",
+        seg_length=cython.double,
+        start=cython.double,
+        end=cython.double,
+        t=cython.double,
+    )
     def transform_point(self, point, trafo=None):
         x = (point.x - self.minx) / self.width
         y = (point.y - self.miny) / self.height
@@ -187,19 +198,17 @@ class Chaosgame(object):
         seg_length = length / self.num_trafos[trafo[0]]
         t = start + seg_length * trafo[1] + seg_length * x
         basepoint = self.splines[trafo[0]](t)
-        if t + 1/50000 > end:
-            neighbour = self.splines[trafo[0]](t - 1/50000)
+        if t + 1 / 50000 > end:
+            neighbour = self.splines[trafo[0]](t - 1 / 50000)
             derivative = neighbour - basepoint
         else:
-            neighbour = self.splines[trafo[0]](t + 1/50000)
+            neighbour = self.splines[trafo[0]](t + 1 / 50000)
             derivative = basepoint - neighbour
         if derivative.Mag() != 0:
-            basepoint.x += derivative.y / derivative.Mag() * (y - 0.5) * \
-                           self.thickness
-            basepoint.y += -derivative.x / derivative.Mag() * (y - 0.5) * \
-                           self.thickness
+            basepoint.x += derivative.y / derivative.Mag() * (y - 0.5) * self.thickness
+            basepoint.y += -derivative.x / derivative.Mag() * (y - 0.5) * self.thickness
         else:
-            print("r", end='')
+            print("r", end="")
         self.truncate(basepoint)
         return basepoint
 
@@ -216,8 +225,7 @@ class Chaosgame(object):
     @cython.locals(x=cython.long, y=cython.long)
     def create_image_chaos(self, timer, w, h, n):
         im = [[1] * h for i in range(w)]
-        point = GVector((self.maxx + self.minx) / 2,
-                        (self.maxy + self.miny) / 2, 0)
+        point = GVector((self.maxx + self.minx) / 2, (self.maxy + self.miny) / 2, 0)
         times = []
         for _ in range(n):
             t1 = timer()
@@ -237,37 +245,48 @@ class Chaosgame(object):
 
 def main(n, timer=time.time):
     splines = [
-        Spline([
-            GVector(1.597350, 3.304460, 0.000000),
-            GVector(1.575810, 4.123260, 0.000000),
-            GVector(1.313210, 5.288350, 0.000000),
-            GVector(1.618900, 5.329910, 0.000000),
-            GVector(2.889940, 5.502700, 0.000000),
-            GVector(2.373060, 4.381830, 0.000000),
-            GVector(1.662000, 4.360280, 0.000000)],
-            3, [0, 0, 0, 1, 1, 1, 2, 2, 2]),
-        Spline([
-            GVector(2.804500, 4.017350, 0.000000),
-            GVector(2.550500, 3.525230, 0.000000),
-            GVector(1.979010, 2.620360, 0.000000),
-            GVector(1.979010, 2.620360, 0.000000)],
-            3, [0, 0, 0, 1, 1, 1]),
-        Spline([
-            GVector(2.001670, 4.011320, 0.000000),
-            GVector(2.335040, 3.312830, 0.000000),
-            GVector(2.366800, 3.233460, 0.000000),
-            GVector(2.366800, 3.233460, 0.000000)],
-            3, [0, 0, 0, 1, 1, 1])
-        ]
+        Spline(
+            [
+                GVector(1.597350, 3.304460, 0.000000),
+                GVector(1.575810, 4.123260, 0.000000),
+                GVector(1.313210, 5.288350, 0.000000),
+                GVector(1.618900, 5.329910, 0.000000),
+                GVector(2.889940, 5.502700, 0.000000),
+                GVector(2.373060, 4.381830, 0.000000),
+                GVector(1.662000, 4.360280, 0.000000),
+            ],
+            3,
+            [0, 0, 0, 1, 1, 1, 2, 2, 2],
+        ),
+        Spline(
+            [
+                GVector(2.804500, 4.017350, 0.000000),
+                GVector(2.550500, 3.525230, 0.000000),
+                GVector(1.979010, 2.620360, 0.000000),
+                GVector(1.979010, 2.620360, 0.000000),
+            ],
+            3,
+            [0, 0, 0, 1, 1, 1],
+        ),
+        Spline(
+            [
+                GVector(2.001670, 4.011320, 0.000000),
+                GVector(2.335040, 3.312830, 0.000000),
+                GVector(2.366800, 3.233460, 0.000000),
+                GVector(2.366800, 3.233460, 0.000000),
+            ],
+            3,
+            [0, 0, 0, 1, 1, 1],
+        ),
+    ]
     c = Chaosgame(splines, 0.25)
     return c.create_image_chaos(timer, 1000, 1200, n)
 
 
 if __name__ == "__main__":
     import util
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Test the performance of the Chaos benchmark")
+
+    parser = optparse.OptionParser(usage="%prog [options]", description="Test the performance of the Chaos benchmark")
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 

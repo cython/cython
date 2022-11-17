@@ -40,5 +40,6 @@ class Test(object):
     Traceback (most recent call last):
     AttributeError: 'Test' object has no attribute 'global_in_class'
     """
+
     global global_in_class
     global_in_class = 9

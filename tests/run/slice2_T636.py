@@ -2,6 +2,7 @@
 # ticket 636
 # tag: slicing, getitem
 
+
 class Sliceable(object):
     """
     >>> sl = Sliceable()
@@ -26,10 +27,12 @@ class Sliceable(object):
     >>> py_slice2(sl, None, None)
     (None, None, None)
     """
+
     def __getitem__(self, sl):
         return (sl.start, sl.stop, sl.step)
 
-def py_slice2(obj,a,b):
+
+def py_slice2(obj, a, b):
     """
     >>> [1,2,3][1:2]
     [2]

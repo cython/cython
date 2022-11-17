@@ -6,6 +6,7 @@ import cython
 import sys
 import pickle
 
+
 def test_optional_posonly_args1(a, b=10, /, c=100):
     """
     >>> test_optional_posonly_args1(1, 2, 3)
@@ -22,6 +23,7 @@ def test_optional_posonly_args1(a, b=10, /, c=100):
     TypeError: test_optional_posonly_args1() got ... keyword argument... 'b'
     """
     return a + b + c
+
 
 def test_optional_posonly_args2(a=1, b=10, /, c=100):
     """
@@ -42,8 +44,9 @@ def test_optional_posonly_args2(a=1, b=10, /, c=100):
     """
     return a + b + c
 
+
 # TODO: this causes a line that is too long for old versions of Clang
-#def many_args(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,
+# def many_args(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,
 #              a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33,a34,a35,a36,a37,a38,a39,a40,
 #              a41,a42,a43,a44,a45,a46,a47,a48,a49,a50,a51,a52,a53,a54,a55,a56,a57,a58,a59,
 #              a60,a61,a62,a63,a64,a65,a66,a67,a68,a69,a70,a71,a72,a73,a74,a75,a76,a77,a78,
@@ -72,7 +75,7 @@ def test_optional_posonly_args2(a=1, b=10, /, c=100):
 #    """
 #    return (a299, b, c, d)
 
-#TODO: update this test for Python 3.8 final
+# TODO: update this test for Python 3.8 final
 @cython.binding(True)
 def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
     """
@@ -83,6 +86,7 @@ def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
     >>> func_introspection1.__defaults__
     (1,)
     """
+
 
 @cython.binding(True)
 def func_introspection2(a, b, c=1, /, d=2, e=3, *, f, g=4):
@@ -95,12 +99,14 @@ def func_introspection2(a, b, c=1, /, d=2, e=3, *, f, g=4):
     (1, 2, 3)
     """
 
+
 def test_pos_only_call_via_unpacking(a, b, /):
     """
     >>> test_pos_only_call_via_unpacking(*[1,2])
     3
     """
     return a + b
+
 
 def test_use_positional_as_keyword1(a, /):
     """
@@ -109,6 +115,7 @@ def test_use_positional_as_keyword1(a, /):
     Traceback (most recent call last):
     TypeError: test_use_positional_as_keyword1() ... keyword argument...
     """
+
 
 def test_use_positional_as_keyword2(a, /, b):
     """
@@ -119,6 +126,7 @@ def test_use_positional_as_keyword2(a, /, b):
     TypeError: test_use_positional_as_keyword2() ... positional...argument...
     """
 
+
 def test_use_positional_as_keyword3(a, b, /):
     """
     >>> test_use_positional_as_keyword3(1, 2)
@@ -126,6 +134,7 @@ def test_use_positional_as_keyword3(a, b, /):
     Traceback (most recent call last):
     TypeError: test_use_positional_as_keyword3() got ... keyword argument...
     """
+
 
 def test_positional_only_and_arg_invalid_calls(a, b, /, c):
     """
@@ -142,6 +151,7 @@ def test_positional_only_and_arg_invalid_calls(a, b, /, c):
     TypeError: test_positional_only_and_arg_invalid_calls() takes ... positional arguments ...4 ...given...
     """
 
+
 def test_positional_only_and_optional_arg_invalid_calls(a, b, /, c=3):
     """
     >>> test_positional_only_and_optional_arg_invalid_calls(1, 2)
@@ -155,6 +165,7 @@ def test_positional_only_and_optional_arg_invalid_calls(a, b, /, c=3):
     Traceback (most recent call last):
     TypeError: test_positional_only_and_optional_arg_invalid_calls() takes ... positional arguments ...4 ...given...
     """
+
 
 def test_positional_only_and_kwonlyargs_invalid_calls(a, b, /, c, *, d, e):
     """
@@ -182,6 +193,7 @@ def test_positional_only_and_kwonlyargs_invalid_calls(a, b, /, c, *, d, e):
     TypeError: test_positional_only_and_kwonlyargs_invalid_calls() got an unexpected keyword argument 'f'
     """
 
+
 def test_positional_only_invalid_calls(a, b, /):
     """
     >>> test_positional_only_invalid_calls(1, 2)
@@ -196,6 +208,7 @@ def test_positional_only_invalid_calls(a, b, /):
     TypeError: test_positional_only_invalid_calls() takes ... positional arguments ...3 ...given...
     """
 
+
 def test_positional_only_with_optional_invalid_calls(a, b=2, /):
     """
     >>> test_positional_only_with_optional_invalid_calls(1)
@@ -207,6 +220,7 @@ def test_positional_only_with_optional_invalid_calls(a, b=2, /):
     TypeError: test_positional_only_with_optional_invalid_calls() takes ... positional arguments ...3 ...given...
     """
 
+
 def test_no_standard_args_usage(a, b, /, *, c):
     """
     >>> test_no_standard_args_usage(1, 2, c=3)
@@ -215,7 +229,8 @@ def test_no_standard_args_usage(a, b, /, *, c):
     TypeError: test_no_standard_args_usage() ... positional... argument...
     """
 
-#def test_change_default_pos_only():
+
+# def test_change_default_pos_only():
 # TODO: probably remove this, since  __defaults__ is not writable in Cython?
 #    """
 #    >>> test_change_default_pos_only()
@@ -229,6 +244,7 @@ def test_no_standard_args_usage(a, b, /, *, c):
 #    f.__defaults__ = (1, 2, 3)
 #    print(f(1, 2, 3) == 6)
 
+
 def test_lambdas():
     """
     >>> test_lambdas()
@@ -239,8 +255,8 @@ def test_lambdas():
     3
     """
     x = lambda a, /, b: a + b
-    print(x(1,2))
-    print(x(1,b=2))
+    print(x(1, 2))
+    print(x(1, b=2))
 
     x = lambda a, /, b=2: a + b
     print(x(1))
@@ -248,8 +264,9 @@ def test_lambdas():
     x = lambda a, b, /: a + b
     print(x(1, 2))
 
-    x = lambda a, b, /, : a + b
+    x = lambda a, b, /,: a + b
     print(x(1, 2))
+
 
 class TestPosonlyMethods(object):
     """
@@ -266,8 +283,10 @@ class TestPosonlyMethods(object):
     Traceback (most recent call last):
     TypeError: ...f() got ... keyword argument... 'b'
     """
+
     def f(self, a, b, /):
         return a, b
+
 
 class TestMangling(object):
     """
@@ -289,11 +308,13 @@ class TestMangling(object):
     #>>> TestMangling().f4(1, _TestMangling__b=2, _TestMangling__c=3)
     #(1, 2, 3)
     """
+
     def f(self, *, __a=42):
         return __a
 
     def f2(self, __a=42, /):
         return __a
+
 
 # FIXME: https://github.com/cython/cython/issues/1382
 #    def f3(self, __a=42, /, __b=43):
@@ -301,6 +322,7 @@ class TestMangling(object):
 
 #    def f4(self, __a=42, /, __b=43, *, __c=44):
 #        return (__a, __b, __c)
+
 
 def test_module_function(a, b, /):
     """
@@ -310,7 +332,8 @@ def test_module_function(a, b, /):
     TypeError: test_module_function() ... positional arguments...
     """
 
-def test_closures1(x,y):
+
+def test_closures1(x, y):
     """
     >>> test_closures1(1,2)(3,4)
     10
@@ -321,17 +344,22 @@ def test_closures1(x,y):
     Traceback (most recent call last):
     TypeError: ...g() ... positional argument...
     """
+
     def g(x2, /, y2):
         return x + y + x2 + y2
+
     return g
+
 
 def test_closures2(x, /, y):
     """
     >>> test_closures2(1,2)(3,4)
     10
     """
-    def g(x2,y2):
+
+    def g(x2, y2):
         return x + y + x2 + y2
+
     return g
 
 
@@ -346,8 +374,10 @@ def test_closures3(x, /, y):
     Traceback (most recent call last):
     TypeError: ...g() ... positional argument...
     """
+
     def g(x2, /, y2):
         return x + y + x2 + y2
+
     return g
 
 
@@ -363,6 +393,7 @@ def test_same_keyword_as_positional_with_kwargs(something, /, **kwargs):
     """
     return (something, kwargs)
 
+
 def test_serialization1(a, b, /):
     """
     >>> pickled_posonly = pickle.dumps(test_serialization1)
@@ -375,6 +406,7 @@ def test_serialization1(a, b, /):
     """
     return (a, b)
 
+
 def test_serialization2(a, /, b):
     """
     >>> pickled_optional = pickle.dumps(test_serialization2)
@@ -386,6 +418,7 @@ def test_serialization2(a, /, b):
     TypeError: test_serialization2() ... positional... argument...
     """
     return (a, b)
+
 
 def test_serialization3(a=1, /, b=2):
     """
@@ -446,26 +479,30 @@ def test_generator(a=1, /, b=2):
     """
     yield a, b
 
-def f_call_1_0_0(a,/):
+
+def f_call_1_0_0(a, /):
     """
     >>> f_call_1_0_0(1)
     (1,)
     """
     return (a,)
 
+
 def f_call_1_1_0(a, /, b):
     """
     >>> f_call_1_1_0(1,2)
     (1, 2)
     """
-    return (a,b)
+    return (a, b)
+
 
 def f_call_1_1_1(a, /, b, *, c):
     """
     >>> f_call_1_1_1(1,2,c=3)
     (1, 2, 3)
     """
-    return (a,b,c)
+    return (a, b, c)
+
 
 def f_call_1_1_1_star(a, /, b, *args, c):
     """
@@ -474,7 +511,8 @@ def f_call_1_1_1_star(a, /, b, *args, c):
     >>> f_call_1_1_1_star(1,2,3,4,5,6,7,8,c=9)
     (1, 2, (3, 4, 5, 6, 7, 8), 9)
     """
-    return (a,b,args,c)
+    return (a, b, args, c)
+
 
 def f_call_1_1_1_kwds(a, /, b, *, c, **kwds):
     """
@@ -483,7 +521,8 @@ def f_call_1_1_1_kwds(a, /, b, *, c, **kwds):
     >>> f_call_1_1_1_kwds(1,2,c=3,d=4,e=5) == (1, 2, 3, {'d': 4, 'e': 5})
     True
     """
-    return (a,b,c,kwds)
+    return (a, b, c, kwds)
+
 
 def f_call_1_1_1_star_kwds(a, /, b, *args, c, **kwds):
     """
@@ -492,7 +531,8 @@ def f_call_1_1_1_star_kwds(a, /, b, *args, c, **kwds):
     >>> f_call_1_1_1_star_kwds(1,2,3,4,c=5,d=6,e=7) == (1, 2, (3, 4), 5, {'d': 6, 'e': 7})
     True
     """
-    return (a,b,args,c,kwds)
+    return (a, b, args, c, kwds)
+
 
 def f_call_one_optional_kwd(a, /, *, b=2):
     """
@@ -501,7 +541,8 @@ def f_call_one_optional_kwd(a, /, *, b=2):
     >>> f_call_one_optional_kwd(1, b=3)
     (1, 3)
     """
-    return (a,b)
+    return (a, b)
+
 
 def f_call_posonly_stararg(a, /, *args):
     """
@@ -510,7 +551,8 @@ def f_call_posonly_stararg(a, /, *args):
     >>> f_call_posonly_stararg(1, 2, 3, 4)
     (1, (2, 3, 4))
     """
-    return (a,args)
+    return (a, args)
+
 
 def f_call_posonly_kwarg(a, /, **kw):
     """
@@ -520,7 +562,8 @@ def f_call_posonly_kwarg(a, /, **kw):
     >>> all_args == (1, {'b': 2, 'c': 3, 'd': 4}) or all_args
     True
     """
-    return (a,kw)
+    return (a, kw)
+
 
 def f_call_posonly_stararg_kwarg(a, /, *args, **kw):
     """
@@ -535,7 +578,8 @@ def f_call_posonly_stararg_kwarg(a, /, *args, **kw):
     >>> all_args == (1, (2,), {'b': 3, 'c': 4}) or all_args
     True
     """
-    return (a,args,kw)
+    return (a, args, kw)
+
 
 def test_empty_kwargs(a, b, /):
     """
@@ -547,7 +591,7 @@ def test_empty_kwargs(a, b, /):
     Traceback (most recent call last):
     TypeError: test_empty_kwargs() got an unexpected keyword argument 'c'
     """
-    return (a,b)
+    return (a, b)
 
 
 @cython.cclass
@@ -564,5 +608,6 @@ class TestExtensionClass:
     Traceback (most recent call last):
     TypeError: ...f() got multiple values for ...argument 'c'
     """
+
     def f(self, a, b, /, c=3):
-        return (a,b,c)
+        return (a, b, c)

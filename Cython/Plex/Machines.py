@@ -9,7 +9,7 @@ from __future__ import absolute_import
 import cython
 from .Transitions import TransitionMap
 
-maxint = 2**31-1  # sentinel value
+maxint = 2**31 - 1  # sentinel value
 
 if not cython.compiled:
     try:
@@ -22,6 +22,7 @@ LOWEST_PRIORITY = -maxint
 
 class Machine(object):
     """A collection of Nodes representing an NFA or DFA."""
+
     def __init__(self):
         self.states = []  # [Node]
         self.initial_states = {}  # {(name, bol): Node}
@@ -67,10 +68,10 @@ class Node(object):
     def __init__(self):
         # Preinitialise the list of empty transitions, because
         # the nfa-to-dfa algorithm needs it
-        self.transitions = TransitionMap()      # TransitionMap
+        self.transitions = TransitionMap()  # TransitionMap
         self.action_priority = LOWEST_PRIORITY  # integer
         self.action = None  # Action
-        self.number = 0     # for debug output
+        self.number = 0  # for debug output
         self.epsilon_closure = None  # used by nfa_to_dfa()
 
     def destroy(self):
@@ -83,7 +84,7 @@ class Node(object):
 
     def link_to(self, state):
         """Add an epsilon-move from this state to another state."""
-        self.add_transition('', state)
+        self.add_transition("", state)
 
     def set_action(self, action, priority):
         """Make this an accepting state with the given action. If
@@ -130,13 +131,12 @@ class FastMachine(object):
     FastMachine is a deterministic machine represented in a way that
     allows fast scanning.
     """
+
     def __init__(self):
         self.initial_states = {}  # {state_name:state}
-        self.states = []          # [state]  where state = {event:state, 'else':state, 'action':Action}
-        self.next_number = 1      # for debugging
-        self.new_state_template = {
-            '': None, 'bol': None, 'eol': None, 'eof': None, 'else': None
-        }
+        self.states = []  # [state]  where state = {event:state, 'else':state, 'action':Action}
+        self.next_number = 1  # for debugging
+        self.new_state_template = {"": None, "bol": None, "eol": None, "eof": None, "else": None}
 
     def __del__(self):
         for state in self.states:
@@ -146,8 +146,8 @@ class FastMachine(object):
         number = self.next_number
         self.next_number = number + 1
         result = self.new_state_template.copy()
-        result['number'] = number
-        result['action'] = action
+        result["number"] = number
+        result["action"] = action
         self.states.append(result)
         return result
 
@@ -159,7 +159,7 @@ class FastMachine(object):
         if type(event) is tuple:
             code0, code1 = event
             if code0 == -maxint:
-                state['else'] = new_state
+                state["else"] = new_state
             elif code1 != maxint:
                 while code0 < code1:
                     state[unichr(code0)] = new_state
@@ -174,17 +174,17 @@ class FastMachine(object):
         file.write("Plex.FastMachine:\n")
         file.write("   Initial states:\n")
         for name, state in sorted(self.initial_states.items()):
-            file.write("      %s: %s\n" % (repr(name), state['number']))
+            file.write("      %s: %s\n" % (repr(name), state["number"]))
         for state in self.states:
             self.dump_state(state, file)
 
     def dump_state(self, state, file):
         # Header
-        file.write("   State %d:\n" % state['number'])
+        file.write("   State %d:\n" % state["number"])
         # Transitions
         self.dump_transitions(state, file)
         # Action
-        action = state['action']
+        action = state["action"]
         if action is not None:
             file.write("      %s\n" % action)
 
@@ -209,11 +209,11 @@ class FastMachine(object):
         for ranges in sorted(ranges_to_state):
             key = self.ranges_to_string(ranges)
             state = ranges_to_state[ranges]
-            file.write("      %s --> State %d\n" % (key, state['number']))
-        for key in ('bol', 'eol', 'eof', 'else'):
+            file.write("      %s --> State %d\n" % (key, state["number"]))
+        for key in ("bol", "eol", "eof", "else"):
             state = special_to_state.get(key, None)
             if state:
-                file.write("      %s --> State %d\n" % (key, state['number']))
+                file.write("      %s --> State %d\n" % (key, state["number"]))
 
     @cython.locals(char_list=list, i=cython.Py_ssize_t, n=cython.Py_ssize_t, c1=cython.long, c2=cython.long)
     def chars_to_ranges(self, char_list):
@@ -232,7 +232,7 @@ class FastMachine(object):
         return tuple(result)
 
     def ranges_to_string(self, range_list):
-        return ','.join(map(self.range_to_string, range_list))
+        return ",".join(map(self.range_to_string, range_list))
 
     def range_to_string(self, range_tuple):
         (c1, c2) = range_tuple

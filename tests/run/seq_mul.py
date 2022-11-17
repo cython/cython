@@ -89,7 +89,7 @@ def tuple_times_cint(n: cython.int):
 
 
 # TODO: enable in Cython 3.1 when we can infer unsafe C int operations as PyLong
-#@cython.test_fail_if_path_exists("//MulNode")
+# @cython.test_fail_if_path_exists("//MulNode")
 def list_times_pyint(n: cython.longlong):
     """
     >>> list_times_cint(3)

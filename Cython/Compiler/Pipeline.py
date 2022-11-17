@@ -17,11 +17,13 @@ def dumptree(t):
     print(t.dump())
     return t
 
+
 def abort_on_errors(node):
     # Stop the pipeline if there are any errors.
     if Errors.get_errors_count() != 0:
         raise AbortError("pipeline break")
     return node
+
 
 def parse_stage_factory(context):
     def parse(compsrc):
@@ -29,29 +31,33 @@ def parse_stage_factory(context):
         full_module_name = compsrc.full_module_name
         initial_pos = (source_desc, 1, 0)
         saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
-        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+        scope = context.find_module(full_module_name, pos=initial_pos, need_pxd=0)
         Options.cimport_from_pyx = saved_cimport_from_pyx
-        tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
+        tree = context.parse(source_desc, scope, pxd=0, full_module_name=full_module_name)
         tree.compilation_source = compsrc
         tree.scope = scope
         tree.is_pxd = False
         return tree
+
     return parse
+
 
 def parse_pxd_stage_factory(context, scope, module_name):
     def parse(source_desc):
-        tree = context.parse(source_desc, scope, pxd=True,
-                             full_module_name=module_name)
+        tree = context.parse(source_desc, scope, pxd=True, full_module_name=module_name)
         tree.scope = scope
         tree.is_pxd = True
         return tree
+
     return parse
+
 
 def generate_pyx_code_stage_factory(options, result):
     def generate_pyx_code_stage(module_node):
         module_node.process_implementation(options, result)
         result.compilation_source = module_node.compilation_source
         return result
+
     return generate_pyx_code_stage
 
 
@@ -60,6 +66,7 @@ def inject_pxd_code_stage_factory(context):
         for name, (statlistnode, scope) in context.pxds.items():
             module_node.merge_in(statlistnode, scope)
         return module_node
+
     return inject_pxd_code_stage
 
 
@@ -89,9 +96,9 @@ def sorted_utility_codes_and_deps(utilcodes):
         if rank is None:
             ranks[utilcode] = 0  # prevent infinite recursion on circular dependencies
             original_order = len(ranks)
-            rank = ranks[utilcode] = 1 + (
-                min([calculate_rank(dep) for dep in utilcode.requires]) if utilcode.requires else -1
-                ) + original_order * 1e-8
+            rank = ranks[utilcode] = (
+                1 + (min([calculate_rank(dep) for dep in utilcode.requires]) if utilcode.requires else -1) + original_order * 1e-8
+            )
         return rank
 
     for utilcode in utilcodes:
@@ -102,7 +109,7 @@ def sorted_utility_codes_and_deps(utilcodes):
 
 
 def normalize_deps(utilcodes):
-    deps = {utilcode:utilcode for utilcode in utilcodes}
+    deps = {utilcode: utilcode for utilcode in utilcodes}
     for utilcode in utilcodes:
         utilcode.requires = [deps.setdefault(dep, dep) for dep in utilcode.requires or ()]
 
@@ -129,8 +136,7 @@ def inject_utility_code_stage_factory(context):
                         utility_code_list.append(dep)
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
-                module_node.merge_in(tree.with_compiler_directives(),
-                                     tree.scope, merge_scope=True)
+                module_node.merge_in(tree.with_compiler_directives(), tree.scope, merge_scope=True)
         return module_node
 
     return inject_utility_code_stage
@@ -140,8 +146,9 @@ def inject_utility_code_stage_factory(context):
 # Pipeline factories
 #
 
+
 def create_pipeline(context, mode, exclude_classes=()):
-    assert mode in ('pyx', 'py', 'pxd')
+    assert mode in ("pyx", "py", "pxd")
     from .Visitor import PrintTree
     from .ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
     from .ParseTreeTransforms import ForwardDeclareTypes, InjectGilHandling, AnalyseDeclarationsTransform
@@ -165,15 +172,14 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .Buffer import IntroduceBufferAuxiliaryVars
     from .ModuleNode import check_c_declarations, check_c_declarations_pxd
 
-
-    if mode == 'pxd':
+    if mode == "pxd":
         _check_c_declarations = check_c_declarations_pxd
         _specific_post_parse = PxdPostParse(context)
     else:
         _check_c_declarations = check_c_declarations
         _specific_post_parse = None
 
-    if mode == 'py':
+    if mode == "py":
         _align_function_definitions = AlignFunctionDefinitions(context)
     else:
         _align_function_definitions = None
@@ -225,18 +231,20 @@ def create_pipeline(context, mode, exclude_classes=()):
         FinalOptimizePhase(context),
         CoerceCppTemps(context),
         GilCheck(),
-        ]
+    ]
     if exclude_classes:
         stages = [s for s in stages if s.__class__ not in exclude_classes]
     return stages
 
+
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
-    mode = 'py' if py else 'pyx'
+    mode = "py" if py else "pyx"
 
     test_support = []
     ctest_support = []
     if options.evaluate_tree_assertions:
         from ..TestUtils import TreeAssertVisitor
+
         test_validator = TreeAssertVisitor()
         test_support.append(test_validator)
         ctest_support.append(test_validator.create_c_file_validator())
@@ -244,53 +252,51 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
     if options.gdb_debug:
         from ..Debugger import DebugWriter  # requires Py2.5+
         from .ParseTreeTransforms import DebugTransform
-        context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
-            options.output_dir)
+
+        context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(options.output_dir)
         debug_transform = [DebugTransform(context, options, result)]
     else:
         debug_transform = []
 
-    return list(itertools.chain(
-        [parse_stage_factory(context)],
-        create_pipeline(context, mode, exclude_classes=exclude_classes),
-        test_support,
-        [inject_pxd_code_stage_factory(context),
-         inject_utility_code_stage_factory(context),
-         abort_on_errors],
-        debug_transform,
-        [generate_pyx_code_stage_factory(options, result)],
-        ctest_support,
-    ))
+    return list(
+        itertools.chain(
+            [parse_stage_factory(context)],
+            create_pipeline(context, mode, exclude_classes=exclude_classes),
+            test_support,
+            [inject_pxd_code_stage_factory(context), inject_utility_code_stage_factory(context), abort_on_errors],
+            debug_transform,
+            [generate_pyx_code_stage_factory(options, result)],
+            ctest_support,
+        )
+    )
+
 
 def create_pxd_pipeline(context, scope, module_name):
     from .CodeGeneration import ExtractPxdCode
 
     # The pxd pipeline ends up with a CCodeWriter containing the
     # code of the pxd, as well as a pxd scope.
-    return [
-        parse_pxd_stage_factory(context, scope, module_name)
-        ] + create_pipeline(context, 'pxd') + [
-        ExtractPxdCode()
-        ]
+    return [parse_pxd_stage_factory(context, scope, module_name)] + create_pipeline(context, "pxd") + [ExtractPxdCode()]
+
 
 def create_py_pipeline(context, options, result):
     return create_pyx_pipeline(context, options, result, py=True)
 
+
 def create_pyx_as_pxd_pipeline(context, result):
-    from .ParseTreeTransforms import AlignFunctionDefinitions, \
-        MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform
+    from .ParseTreeTransforms import AlignFunctionDefinitions, MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform
     from .Optimize import ConstantFolding, FlattenInListTransform
     from .Nodes import StatListNode
+
     pipeline = []
-    pyx_pipeline = create_pyx_pipeline(context, context.options, result,
-                                       exclude_classes=[
-                                           AlignFunctionDefinitions,
-                                           MarkClosureVisitor,
-                                           ConstantFolding,
-                                           FlattenInListTransform,
-                                           WithTransform
-                                           ])
+    pyx_pipeline = create_pyx_pipeline(
+        context,
+        context.options,
+        result,
+        exclude_classes=[AlignFunctionDefinitions, MarkClosureVisitor, ConstantFolding, FlattenInListTransform, WithTransform],
+    )
     from .Visitor import VisitorTransform
+
     class SetInPxdTransform(VisitorTransform):
         # A number of nodes have an "in_pxd" attribute which affects AnalyseDeclarationsTransform
         # (for example controlling pickling generation). Set it, to make sure we don't mix them up with
@@ -309,16 +315,19 @@ def create_pyx_as_pxd_pipeline(context, result):
         if isinstance(stage, AnalyseDeclarationsTransform):
             pipeline.insert(-1, SetInPxdTransform())
             break  # This is the last stage we need.
+
     def fake_pxd(root):
         for entry in root.scope.entries.values():
             if not entry.in_cinclude:
                 entry.defined_in_pxd = 1
-                if entry.name == entry.cname and entry.visibility != 'extern':
+                if entry.name == entry.cname and entry.visibility != "extern":
                     # Always mangle non-extern cimported entries.
                     entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
         return StatListNode(root.pos, stats=[]), root.scope
+
     pipeline.append(fake_pxd)
     return pipeline
+
 
 def insert_into_pipeline(pipeline, transform, before=None, after=None):
     """
@@ -340,6 +349,7 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 
     return pipeline[:i] + [transform] + pipeline[i:]
 
+
 #
 # Running a pipeline
 #
@@ -349,7 +359,10 @@ _pipeline_entry_points = {}
 try:
     from threading import local as _threadlocal
 except ImportError:
-    class _threadlocal(object): pass
+
+    class _threadlocal(object):
+        pass
+
 
 threadlocal = _threadlocal()
 
@@ -363,6 +376,7 @@ def get_timings():
 
 def run_pipeline(pipeline, source, printtree=True):
     from .Visitor import PrintTree
+
     exec_ns = globals().copy() if DebugFlags.debug_verbose_pipeline else None
 
     try:
@@ -383,7 +397,7 @@ def run_pipeline(pipeline, source, printtree=True):
                 if not printtree and isinstance(phase, PrintTree):
                     continue
 
-                phase_name = getattr(phase, '__name__', type(phase).__name__)
+                phase_name = getattr(phase, "__name__", type(phase).__name__)
                 if DebugFlags.debug_verbose_pipeline:
                     print("Entering pipeline phase %r" % phase)
                     # create a new wrapper for each step to show the name in profiles

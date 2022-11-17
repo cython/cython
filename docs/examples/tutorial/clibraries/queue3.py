@@ -1,6 +1,7 @@
 from cython.cimports import cqueue
 from cython import cast
 
+
 @cython.cclass
 class Queue:
     """A queue class for C integer values.
@@ -12,7 +13,9 @@ class Queue:
     >>> q.pop()
     5
     """
+
     _c_queue = cython.declare(cython.pointer(cqueue.Queue))
+
     def __cinit__(self):
         self._c_queue = cqueue.queue_new()
         if self._c_queue is cython.NULL:
@@ -24,8 +27,7 @@ class Queue:
 
     @cython.ccall
     def append(self, value: cython.int):
-        if not cqueue.queue_push_tail(self._c_queue,
-                cast(cython.p_void, cast(cython.Py_ssize_t, value))):
+        if not cqueue.queue_push_tail(self._c_queue, cast(cython.p_void, cast(cython.Py_ssize_t, value))):
             raise MemoryError()
 
     # The `cpdef` feature is obviously not available for the original "extend()"

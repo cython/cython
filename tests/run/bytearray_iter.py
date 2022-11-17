@@ -3,6 +3,7 @@
 
 import cython
 
+
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
@@ -18,6 +19,7 @@ def basic_bytearray_iter(x):
     for a in x:
         print(chr(a))
 
+
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
@@ -32,6 +34,7 @@ def reversed_bytearray_iter(x):
     """
     for a in reversed(x):
         print(chr(a))
+
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
@@ -51,6 +54,7 @@ def modifying_bytearray_iter1(x):
         count += 1
     print(count)
 
+
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 @cython.locals(x=bytearray)
@@ -68,6 +72,7 @@ def modifying_bytearray_iter2(x):
         del x[0]
         count += 1
     print(count)
+
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
@@ -89,7 +94,9 @@ def modifying_reversed_bytearray_iter(x):
         print(chr(a))
         del x[0]
 
+
 # ticket: 3473
+
 
 def test_bytearray_iteration(src):
     """

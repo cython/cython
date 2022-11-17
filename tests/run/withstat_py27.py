@@ -3,11 +3,11 @@ import sys
 
 def typename(t):
     name = type(t).__name__
-    if sys.version_info < (2,5):
-        if name == 'classobj' and issubclass(t, MyException):
-            name = 'type'
-        elif name == 'instance' and isinstance(t, MyException):
-            name = 'MyException'
+    if sys.version_info < (2, 5):
+        if name == "classobj" and issubclass(t, MyException):
+            name = "type"
+        elif name == "instance" and isinstance(t, MyException):
+            name = "MyException"
     return "<type '%s'>" % name
 
 
@@ -16,7 +16,7 @@ class MyException(Exception):
 
 
 class ContextManager(object):
-    def __init__(self, value, exit_ret = None):
+    def __init__(self, value, exit_ret=None):
         self.value = value
         self.exit_ret = exit_ret
 
@@ -49,18 +49,22 @@ def multimanager():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
-    with ContextManager(1), ContextManager(2) as x, ContextManager('value') as y,\
-            ContextManager(3), ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
-        with ContextManager('nested') as nested:
+    with ContextManager(1), ContextManager(2) as x, ContextManager("value") as y, ContextManager(3), ContextManager((1, 2, (3, (4, 5)))) as (
+        a,
+        b,
+        (c, (d, e)),
+    ):
+        with ContextManager("nested") as nested:
             print(x)
             print(y)
-            print('%s %s %s %s %s' % (a, b, c, d, e))
+            print("%s %s %s %s %s" % (a, b, c, d, e))
             print(nested)
 
 
 class GetManager(object):
     def get(self, *args):
         return ContextManager(*args)
+
 
 def manager_from_expression():
     """
@@ -83,6 +87,7 @@ def manager_from_expression():
 # modified to follow the constraints of Cython.
 import unittest
 
+
 class Dummy(object):
     def __init__(self, value=None, gobble=False):
         if value is None:
@@ -102,16 +107,27 @@ class Dummy(object):
         if self.gobble:
             return True
 
+
 class InitRaises(object):
-    def __init__(self): raise RuntimeError()
+    def __init__(self):
+        raise RuntimeError()
+
 
 class EnterRaises(object):
-    def __enter__(self): raise RuntimeError()
-    def __exit__(self, *exc_info): pass
+    def __enter__(self):
+        raise RuntimeError()
+
+    def __exit__(self, *exc_info):
+        pass
+
 
 class ExitRaises(object):
-    def __enter__(self): pass
-    def __exit__(self, *exc_info): raise RuntimeError()
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *exc_info):
+        raise RuntimeError()
+
 
 class NestedWith(unittest.TestCase):
     """
@@ -144,11 +160,11 @@ class NestedWith(unittest.TestCase):
     def testExceptionInEnter(self):
         try:
             with Dummy() as a, EnterRaises():
-                self.fail('body of bad with executed')
+                self.fail("body of bad with executed")
         except RuntimeError:
             pass
         else:
-            self.fail('RuntimeError not reraised')
+            self.fail("RuntimeError not reraised")
         self.assertTrue(a.enter_called)
         self.assertTrue(a.exit_called)
 
@@ -162,8 +178,7 @@ class NestedWith(unittest.TestCase):
         self.assertNotEqual(a.exc_info[0], None)
 
     def testEnterReturnsTuple(self):
-        with Dummy(value=(1,2)) as (a1, a2), \
-             Dummy(value=(10, 20)) as (b1, b2):
+        with Dummy(value=(1, 2)) as (a1, a2), Dummy(value=(10, 20)) as (b1, b2):
             self.assertEqual(1, a1)
             self.assertEqual(2, a2)
             self.assertEqual(10, b1)

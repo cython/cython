@@ -1,15 +1,18 @@
 import cython
 from cython import cfunc, cclass, ccall
 
-@cython.test_assert_path_exists('//CFuncDefNode')
+
+@cython.test_assert_path_exists("//CFuncDefNode")
 @cython.cfunc
 def ftang():
     x = 0
 
-@cython.test_assert_path_exists('//CFuncDefNode')
+
+@cython.test_assert_path_exists("//CFuncDefNode")
 @cfunc
 def fpure(a):
-    return a*2
+    return a * 2
+
 
 def test():
     """
@@ -19,36 +22,36 @@ def test():
     ftang()
     return fpure(2)
 
+
 with cfunc:
-    @cython.test_assert_path_exists('//CFuncDefNode')
+
+    @cython.test_assert_path_exists("//CFuncDefNode")
     def fwith1(a):
-        return a*3
+        return a * 3
 
-    @cython.test_assert_path_exists('//CFuncDefNode')
+    @cython.test_assert_path_exists("//CFuncDefNode")
     def fwith2(a):
-        return a*4
+        return a * 4
 
-    @cython.test_assert_path_exists(
-        '//CFuncDefNode',
-        '//LambdaNode',
-        '//GeneratorDefNode',
-        '//GeneratorBodyDefNode',
-    )
+    @cython.test_assert_path_exists("//CFuncDefNode", "//LambdaNode", "//GeneratorDefNode", "//GeneratorBodyDefNode")
     def f_with_genexpr(a):
-        f = lambda x: x+1
+        f = lambda x: x + 1
         return (f(x) for x in a)
 
 
 with cclass:
-    @cython.test_assert_path_exists('//CClassDefNode')
+
+    @cython.test_assert_path_exists("//CClassDefNode")
     class Egg(object):
         pass
-    @cython.test_assert_path_exists('//CClassDefNode')
+
+    @cython.test_assert_path_exists("//CClassDefNode")
     class BigEgg(object):
-        @cython.test_assert_path_exists('//CFuncDefNode')
+        @cython.test_assert_path_exists("//CFuncDefNode")
         @cython.cfunc
         def f(self, a):
-            return a*10
+            return a * 10
+
 
 def test_with():
     """
@@ -57,7 +60,8 @@ def test_with():
     """
     return fwith1(1), fwith2(1), BigEgg().f(5)
 
-@cython.test_assert_path_exists('//CClassDefNode')
+
+@cython.test_assert_path_exists("//CClassDefNode")
 @cython.cclass
 class PureFoo(object):
     a = cython.declare(cython.double)
@@ -68,10 +72,11 @@ class PureFoo(object):
     def __call__(self):
         return self.a
 
-    @cython.test_assert_path_exists('//CFuncDefNode')
+    @cython.test_assert_path_exists("//CFuncDefNode")
     @cython.cfunc
     def puremeth(self, a):
-        return a*2
+        return a * 2
+
 
 def test_method():
     """
@@ -87,15 +92,18 @@ def test_method():
         print(True)
     return
 
+
 @cython.ccall
 def ccall_sqr(x):
-    return x*x
+    return x * x
+
 
 @cclass
 class Overidable(object):
     @ccall
     def meth(self):
         return 0
+
 
 def test_ccall():
     """
@@ -105,6 +113,7 @@ def test_ccall():
     25
     """
     return ccall_sqr(5)
+
 
 def test_ccall_method(x):
     """
@@ -122,11 +131,13 @@ def test_ccall_method(x):
     """
     return x.meth()
 
+
 @cython.cfunc
 @cython.returns(cython.p_int)
 @cython.locals(xptr=cython.p_int)
 def typed_return(xptr):
     return xptr
+
 
 def test_typed_return():
     """

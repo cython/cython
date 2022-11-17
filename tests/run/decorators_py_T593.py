@@ -7,6 +7,7 @@
 False
 """
 
+
 def testme(func):
     try:
         am_i_buggy
@@ -14,18 +15,24 @@ def testme(func):
     except NameError:
         return False
 
+
 @testme
 def am_i_buggy():
     pass
 
-def called_deco(a,b,c):
-    a.append( (1,b,c) )
+
+def called_deco(a, b, c):
+    a.append((1, b, c))
+
     def count(f):
-        a.append( (2,b,c) )
+        a.append((2, b, c))
         return f
+
     return count
 
+
 L = []
+
 
 @called_deco(L, 5, c=6)
 @called_deco(L, c=3, b=4)
@@ -56,6 +63,7 @@ def class_in_closure(x):
     >>> c0.__class__.smeth0()
     1
     """
+
     class ClosureClass1(object):
         @staticmethod
         def smeth1(*args):
@@ -68,6 +76,7 @@ def class_in_closure(x):
 
     return ClosureClass1, ClosureClass0()
 
+
 def class_not_in_closure():
     """
     >>> c = class_not_in_closure()
@@ -76,6 +85,7 @@ def class_not_in_closure():
     >>> c.__class__.smeth0()
     1
     """
+
     class ClosureClass0(object):
         @staticmethod
         def smeth0():

@@ -29,7 +29,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
 
     def setUp(self):
         super(TestPrettyPrinters, self).setUp()
-        self.break_and_run('b = c = d = 0')
+        self.break_and_run("b = c = d = 0")
 
     def get_pyobject(self, code):
         value = gdb.parse_and_eval(code)
@@ -38,9 +38,9 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
 
     def pyobject_fromcode(self, code, gdbvar=None):
         if gdbvar is not None:
-            d = {'varname':gdbvar, 'code':code}
-            gdb.execute('set $%(varname)s = %(code)s' % d)
-            code = '$' + gdbvar
+            d = {"varname": gdbvar, "code": code}
+            gdb.execute("set $%(varname)s = %(code)s" % d)
+            code = "$" + gdbvar
 
         return libpython.PyObjectPtr.from_pyobject_ptr(self.get_pyobject(code))
 
@@ -49,25 +49,24 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
 
     def alloc_bytestring(self, string, gdbvar=None):
         if inferior_python_version < (3, 0):
-            funcname = 'PyString_FromStringAndSize'
+            funcname = "PyString_FromStringAndSize"
         else:
-            funcname = 'PyBytes_FromStringAndSize'
+            funcname = "PyBytes_FromStringAndSize"
 
         assert b'"' not in string
 
         # ensure double quotes
-        code = '(PyObject *) %s("%s", %d)' % (funcname, string.decode('iso8859-1'), len(string))
+        code = '(PyObject *) %s("%s", %d)' % (funcname, string.decode("iso8859-1"), len(string))
         return self.pyobject_fromcode(code, gdbvar=gdbvar)
 
     def alloc_unicodestring(self, string, gdbvar=None):
         postfix = libpython.get_inferior_unicode_postfix()
-        funcname = 'PyUnicode%s_DecodeUnicodeEscape' % (postfix,)
+        funcname = "PyUnicode%s_DecodeUnicodeEscape" % (postfix,)
 
-        data = string.encode("unicode_escape").decode('iso8859-1')
+        data = string.encode("unicode_escape").decode("iso8859-1")
         return self.pyobject_fromcode(
-            '(PyObject *) %s("%s", %d, "strict")' % (
-                funcname, data.replace('"', r'\"').replace('\\', r'\\'), len(data)),
-            gdbvar=gdbvar)
+            '(PyObject *) %s("%s", %d, "strict")' % (funcname, data.replace('"', r"\"").replace("\\", r"\\"), len(data)), gdbvar=gdbvar
+        )
 
     def test_bytestring(self):
         bytestring = self.alloc_bytestring(b"spam")
@@ -83,30 +82,29 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         self.assertEqual(self.get_repr(bytestring), expected)
 
     def test_unicode(self):
-        unicode_string = self.alloc_unicodestring(u"spam ἄλφα")
+        unicode_string = self.alloc_unicodestring("spam ἄλφα")
 
-        expected = u"'spam ἄλφα'"
+        expected = "'spam ἄλφα'"
         if inferior_python_version < (3, 0):
-            expected = 'u' + expected
+            expected = "u" + expected
 
         self.assertEqual(type(unicode_string), libpython.PyUnicodeObjectPtr)
         self.assertEqual(self.get_repr(unicode_string), expected)
 
     def test_int(self):
         if inferior_python_version < (3, 0):
-            intval = self.pyobject_fromcode('PyInt_FromLong(100)')
+            intval = self.pyobject_fromcode("PyInt_FromLong(100)")
             self.assertEqual(type(intval), libpython.PyIntObjectPtr)
-            self.assertEqual(self.get_repr(intval), '100')
+            self.assertEqual(self.get_repr(intval), "100")
 
     def test_long(self):
-        longval = self.pyobject_fromcode('PyLong_FromLong(200)',
-                                         gdbvar='longval')
-        assert gdb.parse_and_eval('$longval->ob_type == &PyLong_Type')
+        longval = self.pyobject_fromcode("PyLong_FromLong(200)", gdbvar="longval")
+        assert gdb.parse_and_eval("$longval->ob_type == &PyLong_Type")
 
         self.assertEqual(type(longval), libpython.PyLongObjectPtr)
-        self.assertEqual(self.get_repr(longval), '200')
+        self.assertEqual(self.get_repr(longval), "200")
 
     def test_frame_type(self):
-        frame = self.pyobject_fromcode('PyEval_GetFrame()')
+        frame = self.pyobject_fromcode("PyEval_GetFrame()")
 
         self.assertEqual(type(frame), libpython.PyFrameObjectPtr)

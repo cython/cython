@@ -3,6 +3,7 @@
 # cython: language_level=3str
 
 import sys
+
 HAS_NATIVE_SUPPORT = sys.version_info >= (3, 6)
 IS_PY2 = sys.version_info[0] == 2
 
@@ -16,12 +17,13 @@ skip_if_not_native = unittest.skipIf(not HAS_NATIVE_SUPPORT, "currently requires
 
 
 class Test(unittest.TestCase):
-    if not hasattr(unittest.TestCase, 'assertRegex'):
-        def assertRegex(self, value, regex):
-            self.assertTrue(re.search(regex, str(value)),
-                            "'%s' did not match '%s'" % (value, regex))
+    if not hasattr(unittest.TestCase, "assertRegex"):
 
-    if not hasattr(unittest.TestCase, 'assertCountEqual'):
+        def assertRegex(self, value, regex):
+            self.assertTrue(re.search(regex, str(value)), "'%s' did not match '%s'" % (value, regex))
+
+    if not hasattr(unittest.TestCase, "assertCountEqual"):
+
         def assertCountEqual(self, first, second):
             self.assertEqual(set(first), set(second))
             self.assertEqual(len(first), len(second))
@@ -72,6 +74,7 @@ class Test(unittest.TestCase):
                 raise RuntimeError
 
         with self.assertRaises(RuntimeError):
+
             class B(A):
                 pass
 
@@ -81,6 +84,7 @@ class Test(unittest.TestCase):
                 pass
 
         with self.assertRaises(TypeError):
+
             class B(A):
                 pass
 
@@ -155,6 +159,7 @@ class Test(unittest.TestCase):
 
         class A(metaclass=Meta):
             d = Descriptor()
+
         self.assertEqual(A, 0)
 
     def test_set_name_error(self):
@@ -163,13 +168,14 @@ class Test(unittest.TestCase):
                 1 / ZERO
 
         with self.assertRaises(RuntimeError) as cm:
+
             class NotGoingToWork:
                 attr = Descriptor()
 
         exc = cm.exception
-        self.assertRegex(str(exc), r'\bNotGoingToWork\b')
-        self.assertRegex(str(exc), r'\battr\b')
-        self.assertRegex(str(exc), r'\bDescriptor\b')
+        self.assertRegex(str(exc), r"\bNotGoingToWork\b")
+        self.assertRegex(str(exc), r"\battr\b")
+        self.assertRegex(str(exc), r"\bDescriptor\b")
         if HAS_NATIVE_SUPPORT:
             self.assertIsInstance(exc.__cause__, ZeroDivisionError)
 
@@ -179,18 +185,20 @@ class Test(unittest.TestCase):
                 pass
 
         with self.assertRaises(RuntimeError) as cm:
+
             class NotGoingToWork:
                 attr = Descriptor()
 
         exc = cm.exception
-        self.assertRegex(str(exc), r'\bNotGoingToWork\b')
-        self.assertRegex(str(exc), r'\battr\b')
-        self.assertRegex(str(exc), r'\bDescriptor\b')
+        self.assertRegex(str(exc), r"\bNotGoingToWork\b")
+        self.assertRegex(str(exc), r"\battr\b")
+        self.assertRegex(str(exc), r"\bDescriptor\b")
         if HAS_NATIVE_SUPPORT:
             self.assertIsInstance(exc.__cause__, TypeError)
 
     def test_set_name_lookup(self):
         resolved = []
+
         class NonDescriptor:
             def __getattr__(self, name):
                 resolved.append(name)
@@ -198,8 +206,7 @@ class Test(unittest.TestCase):
         class A:
             d = NonDescriptor()
 
-        self.assertNotIn('__set_name__', resolved,
-                         '__set_name__ is looked up in instance dict')
+        self.assertNotIn("__set_name__", resolved, "__set_name__ is looked up in instance dict")
 
     @skip_if_not_native
     def test_set_name_init_subclass(self):
@@ -224,15 +231,16 @@ class Test(unittest.TestCase):
             d = Descriptor()
 
         self.assertIs(B.owner, B)
-        self.assertEqual(B.name, 'd')
+        self.assertEqual(B.name, "d")
         self.assertIs(B.meta_owner, B)
-        self.assertEqual(B.name, 'd')
+        self.assertEqual(B.name, "d")
 
     def test_set_name_modifying_dict(self):
         notified = []
+
         class Descriptor:
             def __set_name__(self, owner, name):
-                setattr(owner, name + 'x', None)
+                setattr(owner, name + "x", None)
                 notified.append(name)
 
         class A:
@@ -242,28 +250,28 @@ class Test(unittest.TestCase):
             d = Descriptor()
             e = Descriptor()
 
-        self.assertCountEqual(notified, ['a', 'b', 'c', 'd', 'e'])
+        self.assertCountEqual(notified, ["a", "b", "c", "d", "e"])
 
     def test_errors(self):
         class MyMeta(type):
             pass
 
         with self.assertRaises(TypeError):
+
             class MyClass(metaclass=MyMeta, otherarg=1):
                 pass
 
         if not IS_PY2:
             with self.assertRaises(TypeError):
-                types.new_class("MyClass", (object,),
-                                dict(metaclass=MyMeta, otherarg=1))
-            types.prepare_class("MyClass", (object,),
-                                dict(metaclass=MyMeta, otherarg=1))
+                types.new_class("MyClass", (object,), dict(metaclass=MyMeta, otherarg=1))
+            types.prepare_class("MyClass", (object,), dict(metaclass=MyMeta, otherarg=1))
 
         class MyMeta(type):
             def __init__(self, name, bases, namespace, otherarg):
                 super().__init__(name, bases, namespace)
 
         with self.assertRaises(TypeError):
+
             class MyClass(metaclass=MyMeta, otherarg=1):
                 pass
 
@@ -285,10 +293,10 @@ class Test(unittest.TestCase):
         # These tests failed before Python 3.6, PEP 487
         class MyMeta(type):
             def __new__(cls, name, bases, namespace):
-                return super().__new__(cls, name=name, bases=bases,
-                                       dict=namespace)
+                return super().__new__(cls, name=name, bases=bases, dict=namespace)
 
         with self.assertRaises(TypeError):
+
             class MyClass(metaclass=MyMeta):
                 pass
 
@@ -304,12 +312,12 @@ class Test(unittest.TestCase):
         self.assertEqual(MyClass.otherarg, 1)
 
     def test_type(self):
-        t = type('NewClass', (object,), {})
+        t = type("NewClass", (object,), {})
         self.assertIsInstance(t, type)
-        self.assertEqual(t.__name__, 'NewClass')
+        self.assertEqual(t.__name__, "NewClass")
 
         with self.assertRaises(TypeError):
-            type(name='NewClass', bases=(object,), dict={})
+            type(name="NewClass", bases=(object,), dict={})
 
 
 if __name__ == "__main__":

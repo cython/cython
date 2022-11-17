@@ -29,17 +29,16 @@ class StringParseContext(Main.Context):
             include_directories = []
         if compiler_directives is None:
             compiler_directives = {}
-        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level='3str')
+        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level="3str")
         self.module_name = name
 
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, absolute_fallback=True):
-        if module_name not in (self.module_name, 'cython'):
+        if module_name not in (self.module_name, "cython"):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module=None, context=self)
 
 
-def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
-                       context=None, allow_struct_enum_decorator=False):
+def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None, context=None, allow_struct_enum_decorator=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -71,8 +70,7 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
 
     buf = StringIO(code)
 
-    scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
-                     scope = scope, context = context, initial_pos = initial_pos)
+    scanner = PyrexScanner(buf, code_source, source_encoding=encoding, scope=scope, context=context, initial_pos=initial_pos)
     ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
 
     if level is None:
@@ -150,9 +148,7 @@ class TemplateTransform(VisitorTransform):
         self.tempmap = tempmap
         result = super(TemplateTransform, self).__call__(node)
         if temps:
-            result = UtilNodes.TempsBlockNode(self.get_pos(node),
-                                              temps=temphandles,
-                                              body=result)
+            result = UtilNodes.TempsBlockNode(self.get_pos(node), temps=temphandles, body=result)
         return result
 
     def get_pos(self, node):
@@ -175,7 +171,8 @@ class TemplateTransform(VisitorTransform):
         sub = self.substitutions.get(key)
         if sub is not None:
             pos = self.pos
-            if pos is None: pos = node.pos
+            if pos is None:
+                pos = node.pos
             return ApplyPositionAndCopy(pos)(sub)
         else:
             return self.visit_Node(node)  # make copy as usual
@@ -201,13 +198,13 @@ def copy_code_tree(node):
     return TreeCopier()(node)
 
 
-_match_indent = re.compile(u"^ *").match
+_match_indent = re.compile("^ *").match
 
 
 def strip_common_indent(lines):
     """Strips empty lines and common indentation from the list of strings given in lines"""
     # TODO: Facilitate textwrap.indent instead
-    lines = [x for x in lines if x.strip() != u""]
+    lines = [x for x in lines if x.strip() != ""]
     if lines:
         minindent = min([len(_match_indent(x).group(0)) for x in lines])
         lines = [x[minindent:] for x in lines]
@@ -226,7 +223,9 @@ class TreeFragment(object):
             name = "(tree fragment)"
 
         if isinstance(code, _unicode):
-            def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
+
+            def fmt(x):
+                return "\n".join(strip_common_indent(x.split("\n")))
 
             fmt_code = fmt(code)
             fmt_pxds = {}
@@ -253,14 +252,12 @@ class TreeFragment(object):
     def copy(self):
         return copy_code_tree(self.root)
 
-    def substitute(self, nodes=None, temps=None, pos = None):
+    def substitute(self, nodes=None, temps=None, pos=None):
         if nodes is None:
             nodes = {}
         if temps is None:
             temps = []
-        return TemplateTransform()(self.root,
-                                   substitutions = nodes,
-                                   temps = self.temps + temps, pos = pos)
+        return TemplateTransform()(self.root, substitutions=nodes, temps=self.temps + temps, pos=pos)
 
 
 class SetPosTransform(VisitorTransform):

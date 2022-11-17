@@ -9,22 +9,23 @@ import types
 
 from . import Errors
 
-maxint = 2**31-1  # sentinel value
+maxint = 2**31 - 1  # sentinel value
 
 #
 #     Constants
 #
 
-BOL = 'bol'
-EOL = 'eol'
-EOF = 'eof'
+BOL = "bol"
+EOL = "eol"
+EOF = "eof"
 
-nl_code = ord('\n')
+nl_code = ord("\n")
 
 
 #
 #     Helper functions
 #
+
 
 def chars_to_ranges(s):
     """
@@ -54,10 +55,10 @@ def uppercase_range(code1, code2):
     If the range of characters from code1 to code2-1 includes any
     lower case letters, return the corresponding upper case range.
     """
-    code3 = max(code1, ord('a'))
-    code4 = min(code2, ord('z') + 1)
+    code3 = max(code1, ord("a"))
+    code4 = min(code2, ord("z") + 1)
     if code3 < code4:
-        d = ord('A') - ord('a')
+        d = ord("A") - ord("a")
         return (code3 + d, code4 + d)
     else:
         return None
@@ -68,10 +69,10 @@ def lowercase_range(code1, code2):
     If the range of characters from code1 to code2-1 includes any
     upper case letters, return the corresponding lower case range.
     """
-    code3 = max(code1, ord('A'))
-    code4 = min(code2, ord('Z') + 1)
+    code3 = max(code1, ord("A"))
+    code4 = min(code2, ord("Z") + 1)
     if code3 < code4:
-        d = ord('a') - ord('A')
+        d = ord("a") - ord("A")
         return (code3 + d, code4 + d)
     else:
         return None
@@ -92,9 +93,7 @@ def CodeRange(code1, code2):
     with a code |c| in the range |code1| <= |c| < |code2|.
     """
     if code1 <= nl_code < code2:
-        return Alt(RawCodeRange(code1, nl_code),
-                   RawNewline,
-                   RawCodeRange(nl_code + 1, code2))
+        return Alt(RawCodeRange(code1, nl_code), RawNewline, RawCodeRange(nl_code + 1, code2))
     else:
         return RawCodeRange(code1, code2)
 
@@ -102,6 +101,7 @@ def CodeRange(code1, code2):
 #
 #     Abstract classes
 #
+
 
 class RE(object):
     """RE is the base class for regular expression constructors.
@@ -113,10 +113,9 @@ class RE(object):
 
     nullable = 1  # True if this RE can match 0 input symbols
     match_nl = 1  # True if this RE can match a string ending with '\n'
-    str = None    # Set to a string to override the class's __str__ result
+    str = None  # Set to a string to override the class's __str__ result
 
-    def build_machine(self, machine, initial_state, final_state,
-                      match_bol, nocase):
+    def build_machine(self, machine, initial_state, final_state, match_bol, nocase):
         """
         This method should add states to |machine| to implement this
         RE, starting at |initial_state| and ending at |final_state|.
@@ -124,8 +123,7 @@ class RE(object):
         beginning of a line. If nocase is true, upper and lower case
         letters should be treated as equivalent.
         """
-        raise NotImplementedError("%s.build_machine not implemented" %
-                                  self.__class__.__name__)
+        raise NotImplementedError("%s.build_machine not implemented" % self.__class__.__name__)
 
     def build_opt(self, m, initial_state, c):
         """
@@ -154,25 +152,23 @@ class RE(object):
             self.wrong_type(num, value, "Plex.RE instance")
 
     def check_string(self, num, value):
-        if type(value) != type(''):
+        if type(value) != type(""):
             self.wrong_type(num, value, "string")
 
     def check_char(self, num, value):
         self.check_string(num, value)
         if len(value) != 1:
-            raise Errors.PlexValueError("Invalid value for argument %d of Plex.%s."
-                                        "Expected a string of length 1, got: %s" % (
-                                            num, self.__class__.__name__, repr(value)))
+            raise Errors.PlexValueError(
+                "Invalid value for argument %d of Plex.%s." "Expected a string of length 1, got: %s" % (num, self.__class__.__name__, repr(value))
+            )
 
     def wrong_type(self, num, value, expected):
         if type(value) == types.InstanceType:
-            got = "%s.%s instance" % (
-                value.__class__.__module__, value.__class__.__name__)
+            got = "%s.%s instance" % (value.__class__.__module__, value.__class__.__name__)
         else:
             got = type(value).__name__
-        raise Errors.PlexTypeError("Invalid type for argument %d of Plex.%s "
-                                   "(expected %s, got %s" % (
-                                       num, self.__class__.__name__, expected, got))
+        raise Errors.PlexTypeError("Invalid type for argument %d of Plex.%s " "(expected %s, got %s" % (num, self.__class__.__name__, expected, got))
+
 
 #
 #     Primitive RE constructors
@@ -200,9 +196,10 @@ class RawCodeRange(RE):
     with a code |c| in the range |code1| <= |c| < |code2|, where the range
     does not include newline. For internal use only.
     """
+
     nullable = 0
     match_nl = 0
-    range = None            # (code, code)
+    range = None  # (code, code)
     uppercase_range = None  # (code, code) or None
     lowercase_range = None  # (code, code) or None
 
@@ -230,6 +227,7 @@ class _RawNewline(RE):
     RawNewline is a low-level RE which matches a newline character.
     For internal use only.
     """
+
     nullable = 0
     match_nl = 1
 
@@ -248,6 +246,7 @@ class SpecialSymbol(RE):
     SpecialSymbol(sym) is an RE which matches the special input
     symbol |sym|, which is one of BOL, EOL or EOF.
     """
+
     nullable = 0
     match_nl = 0
     sym = None
@@ -303,7 +302,7 @@ class Seq(RE):
                 match_bol = re.match_nl or (match_bol and re.nullable)
 
     def calc_str(self):
-        return "Seq(%s)" % ','.join(map(str, self.re_list))
+        return "Seq(%s)" % ",".join(map(str, self.re_list))
 
 
 class Alt(RE):
@@ -342,7 +341,7 @@ class Alt(RE):
                 re.build_machine(m, initial_state, final_state, 0, nocase)
 
     def calc_str(self):
-        return "Alt(%s)" % ','.join(map(str, self.re_list))
+        return "Alt(%s)" % ",".join(map(str, self.re_list))
 
 
 class Rep1(RE):
@@ -372,6 +371,7 @@ class SwitchCase(RE):
     but treating upper and lower case letters according to |nocase|. If
     |nocase| is true, case is ignored, otherwise it is not.
     """
+
     re = None
     nocase = None
 
@@ -382,8 +382,7 @@ class SwitchCase(RE):
         self.match_nl = re.match_nl
 
     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
-        self.re.build_machine(m, initial_state, final_state, match_bol,
-                              self.nocase)
+        self.re.build_machine(m, initial_state, final_state, match_bol, self.nocase)
 
     def calc_str(self):
         if self.nocase:
@@ -401,8 +400,7 @@ class SwitchCase(RE):
 #
 
 Empty = Seq()
-Empty.__doc__ = \
-    """
+Empty.__doc__ = """
     Empty is an RE which matches the empty string.
     """
 Empty.str = "Empty"
@@ -426,7 +424,7 @@ def Str(*strs):
         return Str1(strs[0])
     else:
         result = Alt(*tuple(map(Str1, strs)))
-        result.str = "Str(%s)" % ','.join(map(repr, strs))
+        result.str = "Str(%s)" % ",".join(map(repr, strs))
         return result
 
 
@@ -453,8 +451,7 @@ def AnyBut(s):
 
 
 AnyChar = AnyBut("")
-AnyChar.__doc__ = \
-    """
+AnyChar.__doc__ = """
     AnyChar is an RE which matches any single character (including a newline).
     """
 AnyChar.str = "AnyChar"
@@ -519,22 +516,19 @@ def Case(re):
 #
 
 Bol = Char(BOL)
-Bol.__doc__ = \
-    """
+Bol.__doc__ = """
     Bol is an RE which matches the beginning of a line.
     """
 Bol.str = "Bol"
 
 Eol = Char(EOL)
-Eol.__doc__ = \
-    """
+Eol.__doc__ = """
     Eol is an RE which matches the end of a line.
     """
 Eol.str = "Eol"
 
 Eof = Char(EOF)
-Eof.__doc__ = \
-    """
+Eof.__doc__ = """
     Eof is an RE which matches the end of the file.
     """
 Eof.str = "Eof"

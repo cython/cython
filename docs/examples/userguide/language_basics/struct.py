@@ -1,6 +1,5 @@
-Grail = cython.struct(
-    age=cython.int,
-    volume=cython.float)
+Grail = cython.struct(age=cython.int, volume=cython.float)
+
 
 def main():
     grail: Grail = Grail(5, 3.0)

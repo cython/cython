@@ -13,5 +13,10 @@ exclude = '''
     | build
     | dist
   )/
+  | Doc/s5/ep2008/stupidlowercase.py
+  | tests/errors/e_cdef_in_py.py
+  | tests/errors/e_int_literals_py2.py
+  | tests/errors/e_int_literals_py3.py
+  | tests/errors/e_tuple_args_T692.py
 )
 '''

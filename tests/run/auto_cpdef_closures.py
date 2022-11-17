@@ -2,15 +2,19 @@
 # mode:run
 # tag: directive,auto_cpdef,closures
 
+
 def closure_func(x):
     """
     >>> c = closure_func(2)
     >>> c()
     2
     """
+
     def c():
         return x
+
     return c
+
 
 def generator_func():
     """

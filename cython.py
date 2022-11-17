@@ -4,7 +4,7 @@
 #   Cython -- Main Program, generic
 #
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import os
     import sys
@@ -14,11 +14,13 @@ if __name__ == '__main__':
     sys.path.insert(0, cythonpath)
 
     from Cython.Compiler.Main import main
-    main(command_line = 1)
+
+    main(command_line=1)
 
 else:
     # Void cython.* directives.
     from Cython.Shadow import *
+
     ## and bring in the __version__
     from Cython import __version__
     from Cython import load_ipython_extension

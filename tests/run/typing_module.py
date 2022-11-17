@@ -28,6 +28,7 @@ def test_subscripted_types():
     print(cython.typeof(b) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
+
 @cython.cclass
 class TestClassVar:
     """
@@ -38,5 +39,6 @@ class TestClassVar:
         ...
     AttributeError:
     """
+
     regular: int
     cls: typing.ClassVar[int] = 5  # this is a little redundant really because the assignment ensures it

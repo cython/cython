@@ -45,6 +45,7 @@ import sys
 import time
 from unittest import TestResult, TextTestResult, TextTestRunner
 import xml.dom.minidom
+
 try:
     from StringIO import StringIO
 except ImportError:
@@ -53,7 +54,7 @@ except ImportError:
 
 class XMLDocument(xml.dom.minidom.Document):
     def createCDATAOrText(self, data):
-        if ']]>' in data:
+        if "]]>" in data:
             return self.createTextNode(data)
         return self.createCDATASection(data)
 
@@ -72,8 +73,8 @@ class _TestInfo(object):
         self.test_method = test_method
         self.outcome = outcome
         self.err = err
-        self.stdout = test_result.stdout and test_result.stdout.getvalue().strip() or ''
-        self.stderr = test_result.stdout and test_result.stderr.getvalue().strip() or ''
+        self.stdout = test_result.stdout and test_result.stdout.getvalue().strip() or ""
+        self.stderr = test_result.stdout and test_result.stderr.getvalue().strip() or ""
 
     def get_elapsed_time(self):
         """Return the time that shows how long the test method took to
@@ -90,9 +91,8 @@ class _TestInfo(object):
         method.
         """
         if not self.err:
-            return ''
-        return self.test_result._exc_info_to_string(
-            self.err, self.test_method)
+            return ""
+        return self.test_result._exc_info_to_string(self.err, self.test_method)
 
 
 class _XMLTestResult(TextTestResult):
@@ -100,8 +100,8 @@ class _XMLTestResult(TextTestResult):
 
     Used by XMLTestRunner.
     """
-    def __init__(self, stream=sys.stderr, descriptions=1, verbosity=1,
-                 elapsed_times=True):
+
+    def __init__(self, stream=sys.stderr, descriptions=1, verbosity=1, elapsed_times=True):
         "Create a new instance of _XMLTestResult."
         TextTestResult.__init__(self, stream, descriptions, verbosity)
         self.successes = []
@@ -114,6 +114,7 @@ class _XMLTestResult(TextTestResult):
         method to be called by stopTest method.
         """
         target_list.append(test_info)
+
         def callback():
             """This callback prints the test method outcome to the stream,
             as well as the elapsed time.
@@ -124,10 +125,10 @@ class _XMLTestResult(TextTestResult):
                 self.start_time = self.stop_time = 0
 
             if self.showAll:
-                self.stream.writeln('(%.3fs) %s' %
-                    (test_info.get_elapsed_time(), verbose_str))
+                self.stream.writeln("(%.3fs) %s" % (test_info.get_elapsed_time(), verbose_str))
             elif self.dots:
                 self.stream.write(short_str)
+
         self.callback = callback
 
     def _patch_standard_output(self):
@@ -137,8 +138,7 @@ class _XMLTestResult(TextTestResult):
         if not self.output_patched:
             (self.old_stdout, self.old_stderr) = (sys.stdout, sys.stderr)
             self.output_patched = True
-        (sys.stdout, sys.stderr) = (self.stdout, self.stderr) = \
-            (StringIO(), StringIO())
+        (sys.stdout, sys.stderr) = (self.stdout, self.stderr) = (StringIO(), StringIO())
 
     def _restore_standard_output(self):
         "Restore the stdout and stderr streams."
@@ -152,7 +152,7 @@ class _XMLTestResult(TextTestResult):
         TestResult.startTest(self, test)
 
         if self.showAll:
-            self.stream.write('  ' + self.getDescription(test))
+            self.stream.write("  " + self.getDescription(test))
             self.stream.write(" ... ")
 
     def stopTest(self, test):
@@ -167,18 +167,15 @@ class _XMLTestResult(TextTestResult):
 
     def addSuccess(self, test):
         "Called when a test executes successfully."
-        self._prepare_callback(_TestInfo(self, test),
-                               self.successes, 'OK', '.')
+        self._prepare_callback(_TestInfo(self, test), self.successes, "OK", ".")
 
     def addFailure(self, test, err):
         "Called when a test method fails."
-        self._prepare_callback(_TestInfo(self, test, _TestInfo.FAILURE, err),
-                               self.failures, 'FAIL', 'F')
+        self._prepare_callback(_TestInfo(self, test, _TestInfo.FAILURE, err), self.failures, "FAIL", "F")
 
     def addError(self, test, err):
         "Called when a test method raises an error."
-        self._prepare_callback(_TestInfo(self, test, _TestInfo.ERROR, err),
-                               self.errors, 'ERROR', 'E')
+        self._prepare_callback(_TestInfo(self, test, _TestInfo.ERROR, err), self.errors, "ERROR", "E")
 
     def printErrorList(self, flavour, errors):
         "Write some information about the FAIL or ERROR to the stream."
@@ -203,9 +200,9 @@ class _XMLTestResult(TextTestResult):
                 err_info = str(test_info)
 
             self.stream.writeln(self.separator1)
-            self.stream.writeln('%s [%.3fs]: %s' % (flavour, t, descr))
+            self.stream.writeln("%s [%.3fs]: %s" % (flavour, t, descr))
             self.stream.writeln(self.separator2)
-            self.stream.writeln('%s' % err_info)
+            self.stream.writeln("%s" % err_info)
 
     def _get_info_by_testcase(self):
         """This method organizes test results by TestCase module. This
@@ -222,9 +219,9 @@ class _XMLTestResult(TextTestResult):
                 testcase = type(test_info.test_method)
 
                 # Ignore module name if it is '__main__'
-                module = testcase.__module__ + '.'
-                if module == '__main__.':
-                    module = ''
+                module = testcase.__module__ + "."
+                if module == "__main__.":
+                    module = ""
                 testcase_name = module + testcase.__name__
 
                 if testcase_name not in tests_by_testcase:
@@ -235,20 +232,19 @@ class _XMLTestResult(TextTestResult):
 
     def _report_testsuite(suite_name, tests, xml_document):
         "Appends the testsuite section to the XML document."
-        testsuite = xml_document.createElement('testsuite')
+        testsuite = xml_document.createElement("testsuite")
         xml_document.appendChild(testsuite)
 
-        testsuite.setAttribute('name', str(suite_name))
-        testsuite.setAttribute('tests', str(len(tests)))
+        testsuite.setAttribute("name", str(suite_name))
+        testsuite.setAttribute("tests", str(len(tests)))
 
-        testsuite.setAttribute('time', '%.3f' %
-            sum([e.get_elapsed_time() for e in tests]))
+        testsuite.setAttribute("time", "%.3f" % sum([e.get_elapsed_time() for e in tests]))
 
         failures = len([1 for e in tests if e.outcome == _TestInfo.FAILURE])
-        testsuite.setAttribute('failures', str(failures))
+        testsuite.setAttribute("failures", str(failures))
 
         errors = len([1 for e in tests if e.outcome == _TestInfo.ERROR])
-        testsuite.setAttribute('errors', str(errors))
+        testsuite.setAttribute("errors", str(errors))
 
         return testsuite
 
@@ -256,22 +252,22 @@ class _XMLTestResult(TextTestResult):
 
     def _report_testcase(suite_name, test_result, xml_testsuite, xml_document):
         "Appends a testcase section to the XML document."
-        testcase = xml_document.createElement('testcase')
+        testcase = xml_document.createElement("testcase")
         xml_testsuite.appendChild(testcase)
 
-        testcase.setAttribute('classname', str(suite_name))
-        testcase.setAttribute('name', test_result.test_method.shortDescription()
-                              or getattr(test_result.test_method, '_testMethodName',
-                                         str(test_result.test_method)))
-        testcase.setAttribute('time', '%.3f' % test_result.get_elapsed_time())
+        testcase.setAttribute("classname", str(suite_name))
+        testcase.setAttribute(
+            "name", test_result.test_method.shortDescription() or getattr(test_result.test_method, "_testMethodName", str(test_result.test_method))
+        )
+        testcase.setAttribute("time", "%.3f" % test_result.get_elapsed_time())
 
-        if (test_result.outcome != _TestInfo.SUCCESS):
-            elem_name = ('failure', 'error')[test_result.outcome-1]
+        if test_result.outcome != _TestInfo.SUCCESS:
+            elem_name = ("failure", "error")[test_result.outcome - 1]
             failure = xml_document.createElement(elem_name)
             testcase.appendChild(failure)
 
-            failure.setAttribute('type', str(test_result.err[0].__name__))
-            failure.setAttribute('message', str(test_result.err[1]))
+            failure.setAttribute("type", str(test_result.err[0].__name__))
+            failure.setAttribute("message", str(test_result.err[1]))
 
             error_info = test_result.get_error_info()
             failureText = xml_document.createCDATAOrText(error_info)
@@ -281,13 +277,13 @@ class _XMLTestResult(TextTestResult):
 
     def _report_output(test_runner, xml_testsuite, xml_document, stdout, stderr):
         "Appends the system-out and system-err sections to the XML document."
-        systemout = xml_document.createElement('system-out')
+        systemout = xml_document.createElement("system-out")
         xml_testsuite.appendChild(systemout)
 
         systemout_text = xml_document.createCDATAOrText(stdout)
         systemout.appendChild(systemout_text)
 
-        systemerr = xml_document.createElement('system-err')
+        systemerr = xml_document.createElement("system-err")
         xml_testsuite.appendChild(systemerr)
 
         systemerr_text = xml_document.createCDATAOrText(stderr)
@@ -311,16 +307,14 @@ class _XMLTestResult(TextTestResult):
             for test in tests:
                 _XMLTestResult._report_testcase(suite, test, testsuite, doc)
                 if test.stdout:
-                    stdout.extend(['*****************', test.get_description(), test.stdout])
+                    stdout.extend(["*****************", test.get_description(), test.stdout])
                 if test.stderr:
-                    stderr.extend(['*****************', test.get_description(), test.stderr])
-            _XMLTestResult._report_output(test_runner, testsuite, doc,
-                                          '\n'.join(stdout), '\n'.join(stderr))
-            xml_content = doc.toprettyxml(indent='\t')
+                    stderr.extend(["*****************", test.get_description(), test.stderr])
+            _XMLTestResult._report_output(test_runner, testsuite, doc, "\n".join(stdout), "\n".join(stderr))
+            xml_content = doc.toprettyxml(indent="\t")
 
             if type(test_runner.output) is str:
-                report_file = open('%s%sTEST-%s.xml' %
-                    (test_runner.output, os.sep, suite), 'w')
+                report_file = open("%s%sTEST-%s.xml" % (test_runner.output, os.sep, suite), "w")
                 try:
                     report_file.write(xml_content)
                 finally:
@@ -331,9 +325,9 @@ class _XMLTestResult(TextTestResult):
 
 
 class XMLTestRunner(TextTestRunner):
-    """A test runner class that outputs the results in JUnit like XML files.
-    """
-    def __init__(self, output='.', stream=None, descriptions=True, verbose=False, elapsed_times=True):
+    """A test runner class that outputs the results in JUnit like XML files."""
+
+    def __init__(self, output=".", stream=None, descriptions=True, verbose=False, elapsed_times=True):
         "Create a new instance of XMLTestRunner."
         if stream is None:
             stream = sys.stderr
@@ -346,8 +340,7 @@ class XMLTestRunner(TextTestRunner):
         """Create the TestResult object which will be used to store
         information about the executed tests.
         """
-        return _XMLTestResult(self.stream, self.descriptions,
-            self.verbosity, self.elapsed_times)
+        return _XMLTestResult(self.stream, self.descriptions, self.verbosity, self.elapsed_times)
 
     def run(self, test):
         "Run the given test case or test suite."
@@ -356,7 +349,7 @@ class XMLTestRunner(TextTestRunner):
 
         # Print a nice header
         self.stream.writeln()
-        self.stream.writeln('Running tests...')
+        self.stream.writeln("Running tests...")
         self.stream.writeln(result.separator2)
 
         # Execute tests
@@ -367,15 +360,14 @@ class XMLTestRunner(TextTestRunner):
 
         # Generate reports
         self.stream.writeln()
-        self.stream.writeln('Generating XML reports...')
+        self.stream.writeln("Generating XML reports...")
         result.generate_reports(self)
 
         # Print results
         result.printErrors()
         self.stream.writeln(result.separator2)
         run = result.testsRun
-        self.stream.writeln("Ran %d test%s in %.3fs" %
-            (run, run != 1 and "s" or "", time_taken))
+        self.stream.writeln("Ran %d test%s in %.3fs" % (run, run != 1 and "s" or "", time_taken))
         self.stream.writeln()
 
         # Error traces

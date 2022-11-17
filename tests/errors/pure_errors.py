@@ -3,6 +3,7 @@
 
 import cython
 
+
 @cython.cfunc
 @cython.locals(x=cython.int)
 @cython.returns(cython.int)
@@ -40,8 +41,8 @@ def test_cdef_nogil(x):
     cdef_nogil_false(x)  # ok
     cdef_nogil_true(x)  # ok
     with cython.nogil:
-        cdef_nogil_true(x)   # ok
-        cdef_needs_gil(x)    # not ok
+        cdef_nogil_true(x)  # ok
+        cdef_needs_gil(x)  # not ok
         cdef_nogil_false(x)  # not ok
 
 

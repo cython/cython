@@ -6,7 +6,7 @@ def primes(nb_primes: cython.int):
         nb_primes = 1000
 
     if not cython.compiled:  # Only if regular Python is running
-        p = [0] * 1000       # Make p work almost like a C array
+        p = [0] * 1000  # Make p work almost like a C array
 
     len_p: cython.int = 0  # The current number of elements in p.
     n: cython.int = 2

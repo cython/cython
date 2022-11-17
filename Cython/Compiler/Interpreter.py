@@ -17,7 +17,9 @@ class EmptyScope(object):
     def lookup(self, name):
         return None
 
+
 empty_scope = EmptyScope()
+
 
 def interpret_compiletime_options(optlist, optdict, type_env=None, type_args=()):
     """
@@ -46,9 +48,7 @@ def interpret_compiletime_options(optlist, optdict, type_env=None, type_args=())
             else:
                 raise CompileError(node.pos, "Type not allowed here.")
         else:
-            if (sys.version_info[0] >=3 and
-                    isinstance(node, StringNode) and
-                    node.unicode_value is not None):
+            if sys.version_info[0] >= 3 and isinstance(node, StringNode) and node.unicode_value is not None:
                 return (node.unicode_value, node.pos)
             return (node.compile_time_value(empty_scope), node.pos)
 

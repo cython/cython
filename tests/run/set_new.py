@@ -12,10 +12,13 @@ True
 True
 """
 
+
 def make_class_with_new(n):
     class X(object):
         __new__ = n
+
     return X
+
 
 def cynew(cls):
     return object.__new__(cls)

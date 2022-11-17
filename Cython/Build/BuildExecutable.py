@@ -16,78 +16,80 @@ import os
 from distutils import sysconfig
 
 
-def get_config_var(name, default=''):
+def get_config_var(name, default=""):
     return sysconfig.get_config_var(name) or default
 
+
 INCDIR = sysconfig.get_python_inc()
-LIBDIR1 = get_config_var('LIBDIR')
-LIBDIR2 = get_config_var('LIBPL')
-PYLIB = get_config_var('LIBRARY')
-PYLIB_DYN = get_config_var('LDLIBRARY')
+LIBDIR1 = get_config_var("LIBDIR")
+LIBDIR2 = get_config_var("LIBPL")
+PYLIB = get_config_var("LIBRARY")
+PYLIB_DYN = get_config_var("LDLIBRARY")
 if PYLIB_DYN == PYLIB:
     # no shared library
-    PYLIB_DYN = ''
+    PYLIB_DYN = ""
 else:
     PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0]  # 'lib(XYZ).so' -> XYZ
 
-CC = get_config_var('CC', os.environ.get('CC', ''))
-CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
-LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
-LINKFORSHARED = get_config_var('LINKFORSHARED')
-LIBS = get_config_var('LIBS')
-SYSLIBS = get_config_var('SYSLIBS')
-EXE_EXT = sysconfig.get_config_var('EXE')
+CC = get_config_var("CC", os.environ.get("CC", ""))
+CFLAGS = get_config_var("CFLAGS") + " " + os.environ.get("CFLAGS", "")
+LINKCC = get_config_var("LINKCC", os.environ.get("LINKCC", CC))
+LINKFORSHARED = get_config_var("LINKFORSHARED")
+LIBS = get_config_var("LIBS")
+SYSLIBS = get_config_var("SYSLIBS")
+EXE_EXT = sysconfig.get_config_var("EXE")
 
 
 def _debug(msg, *args):
     if DEBUG:
         if args:
             msg = msg % args
-        sys.stderr.write(msg + '\n')
+        sys.stderr.write(msg + "\n")
 
 
 def dump_config():
-    _debug('INCDIR: %s', INCDIR)
-    _debug('LIBDIR1: %s', LIBDIR1)
-    _debug('LIBDIR2: %s', LIBDIR2)
-    _debug('PYLIB: %s', PYLIB)
-    _debug('PYLIB_DYN: %s', PYLIB_DYN)
-    _debug('CC: %s', CC)
-    _debug('CFLAGS: %s', CFLAGS)
-    _debug('LINKCC: %s', LINKCC)
-    _debug('LINKFORSHARED: %s', LINKFORSHARED)
-    _debug('LIBS: %s', LIBS)
-    _debug('SYSLIBS: %s', SYSLIBS)
-    _debug('EXE_EXT: %s', EXE_EXT)
+    _debug("INCDIR: %s", INCDIR)
+    _debug("LIBDIR1: %s", LIBDIR1)
+    _debug("LIBDIR2: %s", LIBDIR2)
+    _debug("PYLIB: %s", PYLIB)
+    _debug("PYLIB_DYN: %s", PYLIB_DYN)
+    _debug("CC: %s", CC)
+    _debug("CFLAGS: %s", CFLAGS)
+    _debug("LINKCC: %s", LINKCC)
+    _debug("LINKFORSHARED: %s", LINKFORSHARED)
+    _debug("LIBS: %s", LIBS)
+    _debug("SYSLIBS: %s", SYSLIBS)
+    _debug("EXE_EXT: %s", EXE_EXT)
 
 
 def _parse_args(args):
     cy_args = []
     last_arg = None
     for i, arg in enumerate(args):
-        if arg.startswith('-'):
+        if arg.startswith("-"):
             cy_args.append(arg)
-        elif last_arg in ('-X', '--directive'):
+        elif last_arg in ("-X", "--directive"):
             cy_args.append(arg)
         else:
             input_file = arg
-            args = args[i+1:]
+            args = args[i + 1 :]
             break
         last_arg = arg
     else:
-        raise ValueError('no input file provided')
+        raise ValueError("no input file provided")
 
     return input_file, cy_args, args
 
 
 def runcmd(cmd, shell=True):
     if shell:
-        cmd = ' '.join(cmd)
+        cmd = " ".join(cmd)
         _debug(cmd)
     else:
-        _debug(' '.join(cmd))
+        _debug(" ".join(cmd))
 
     import subprocess
+
     returncode = subprocess.call(cmd, shell=shell)
 
     if returncode:
@@ -95,19 +97,24 @@ def runcmd(cmd, shell=True):
 
 
 def clink(basename):
-    runcmd([LINKCC, '-o', basename + EXE_EXT, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2]
-           + [PYLIB_DYN and ('-l'+PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
-           + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split())
+    runcmd(
+        [LINKCC, "-o", basename + EXE_EXT, basename + ".o", "-L" + LIBDIR1, "-L" + LIBDIR2]
+        + [PYLIB_DYN and ("-l" + PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
+        + LIBS.split()
+        + SYSLIBS.split()
+        + LINKFORSHARED.split()
+    )
 
 
 def ccompile(basename):
-    runcmd([CC, '-c', '-o', basename+'.o', basename+'.c', '-I' + INCDIR] + CFLAGS.split())
+    runcmd([CC, "-c", "-o", basename + ".o", basename + ".c", "-I" + INCDIR] + CFLAGS.split())
 
 
 def cycompile(input_file, options=()):
     from ..Compiler import Version, CmdLine, Main
-    options, sources = CmdLine.parse_command_line(list(options or ()) + ['--embed', input_file])
-    _debug('Using Cython %s to compile %s', Version.version, input_file)
+
+    options, sources = CmdLine.parse_command_line(list(options or ()) + ["--embed", input_file])
+    _debug("Using Cython %s to compile %s", Version.version, input_file)
     result = Main.compile(sources, options)
     if result.num_errors > 0:
         sys.exit(1)
@@ -127,8 +134,7 @@ def build(input_file, compiler_args=(), force=False):
     exe_file = basename + EXE_EXT
     if not force and os.path.abspath(exe_file) == os.path.abspath(input_file):
         raise ValueError("Input and output file names are the same, refusing to overwrite")
-    if (not force and os.path.exists(exe_file) and os.path.exists(input_file)
-            and os.path.getmtime(input_file) <= os.path.getmtime(exe_file)):
+    if not force and os.path.exists(exe_file) and os.path.exists(input_file) and os.path.getmtime(input_file) <= os.path.getmtime(exe_file):
         _debug("File is up to date, not regenerating %s", exe_file)
         return exe_file
     cycompile(input_file, compiler_args)
@@ -153,5 +159,5 @@ def _build(args):
     return program_name, args
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _build(sys.argv[1:])

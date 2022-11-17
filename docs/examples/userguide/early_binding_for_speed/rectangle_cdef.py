@@ -21,6 +21,7 @@ class Rectangle:
     def area(self):
         return self._area()
 
+
 def rectArea(x0, y0, x1, y1):
     rect: Rectangle = Rectangle(x0, y0, x1, y1)
     return rect._area()

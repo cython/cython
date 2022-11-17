@@ -7,6 +7,7 @@ import cython
 # https://github.com/cython/cython/issues/3954
 # calls to the __class__ attributes of builtin types were optimized to something invalid
 
+
 @cython.locals(d=dict)
 def test_dict(d):
     """
@@ -16,6 +17,7 @@ def test_dict(d):
     """
     print(d.__class__.__name__)
     print(d.__class__())
+
 
 @cython.locals(i=int)
 def test_int(i):
@@ -27,10 +29,12 @@ def test_int(i):
     print(i.__class__.__name__)
     print(i.__class__())
 
+
 @cython.cclass
 class C:
     def __str__(self):
         return "I'm a C object"
+
 
 @cython.locals(c=C)
 def test_cdef_class(c):
@@ -42,6 +46,7 @@ def test_cdef_class(c):
     """
     print(c.__class__.__name__)
     print(c.__class__())
+
 
 @cython.locals(d=object)
 def test_object(o):

@@ -26,6 +26,6 @@ class TestClass(object):
 
     nested_list = [[1, 2, 3], [4, 5, 6]]
 
-    #gen2 = (i * 2 for i in x for x in nested_list)  # move to error test
+    # gen2 = (i * 2 for i in x for x in nested_list)  # move to error test
 
     gen3 = (i * 2 for x in nested_list for i in x)

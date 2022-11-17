@@ -2,7 +2,7 @@
 # tag: global, nameerror
 
 try:
-    from heapq import *   # just to confuse the compiler
+    from heapq import *  # just to confuse the compiler
 except ImportError:
     pass
 

@@ -23,8 +23,8 @@ cpdef bacon():
 
 linemap = dict(enumerate(code.splitlines()))
 
-class TestStringIOTree(unittest.TestCase):
 
+class TestStringIOTree(unittest.TestCase):
     def setUp(self):
         self.tree = stringtree.StringIOTree()
 
@@ -41,8 +41,7 @@ class TestStringIOTree(unittest.TestCase):
         line_4_insertion_point = line_4_to_6_insertion_point.insertion_point()
         self.write_lines((5, 6), tree=line_4_to_6_insertion_point)
 
-        line_9_to_12_insertion_point = (
-            line_9_to_13_insertion_point.insertion_point())
+        line_9_to_12_insertion_point = line_9_to_13_insertion_point.insertion_point()
         self.write_line(13, tree=line_9_to_13_insertion_point)
 
         self.write_line(4, tree=line_4_insertion_point)
@@ -55,7 +54,6 @@ class TestStringIOTree(unittest.TestCase):
         self.assertEqual(self.tree.allmarkers(), list(range(1, 17)))
         self.assertEqual(code.strip(), self.tree.getvalue().strip())
 
-
     def write_lines(self, linenos, tree=None):
         for lineno in linenos:
             self.write_line(lineno, tree=tree)
@@ -64,4 +62,4 @@ class TestStringIOTree(unittest.TestCase):
         if tree is None:
             tree = self.tree
         tree.markers.append(lineno)
-        tree.write(linemap[lineno] + '\n')
+        tree.write(linemap[lineno] + "\n")

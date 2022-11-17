@@ -12,6 +12,7 @@ try:
 except NameError:
     from functools import reduce
 
+
 def run_benchmark(options, num_runs, bench_func, *args):
     """Run the given benchmark, print results to stdout.
 
@@ -24,6 +25,7 @@ def run_benchmark(options, num_runs, bench_func, *args):
     """
     if options.profile:
         import cProfile
+
         prof = cProfile.Profile()
         prof.runcall(bench_func, num_runs, *args)
         prof.print_stats(sort=options.profile_sort)
@@ -45,11 +47,7 @@ def add_standard_options_to(parser):
     Args:
         parser: optparse.OptionParser instance.
     """
-    parser.add_option("-n", action="store", type="int", default=100,
-                      dest="num_runs", help="Number of times to run the test.")
-    parser.add_option("--profile", action="store_true",
-                      help="Run the benchmark through cProfile.")
-    parser.add_option("--profile_sort", action="store", type="str",
-                      default="time", help="Column to sort cProfile output by.")
-    parser.add_option("--take_geo_mean", action="store_true",
-                      help="Return the geo mean, rather than individual data.")
+    parser.add_option("-n", action="store", type="int", default=100, dest="num_runs", help="Number of times to run the test.")
+    parser.add_option("--profile", action="store_true", help="Run the benchmark through cProfile.")
+    parser.add_option("--profile_sort", action="store", type="str", default="time", help="Column to sort cProfile output by.")
+    parser.add_option("--take_geo_mean", action="store_true", help="Return the geo mean, rather than individual data.")

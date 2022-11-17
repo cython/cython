@@ -12,4 +12,4 @@ def test_inside_lambda():
     >>> try: next(obj)
     ... except StopIteration: pass
     """
-    return lambda:((yield 1), (yield 2))
+    return lambda: ((yield 1), (yield 2))

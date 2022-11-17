@@ -1,8 +1,10 @@
 # mode: run
 
+
 class plop(object):
     def __init__(self):
         pass
+
 
 class testobj(object):
     def __init__(self):
@@ -10,6 +12,7 @@ class testobj(object):
 
     def __eq__(self, other):
         return plop()
+
 
 def test_equals(x):
     """
@@ -22,5 +25,5 @@ def test_equals(x):
     >>> test_equals('coucou')
     True
     """
-    eq = x == 'coucou'  # not every str equals returns a bool ...
+    eq = x == "coucou"  # not every str equals returns a bool ...
     return eq

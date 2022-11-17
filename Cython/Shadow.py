@@ -11,13 +11,13 @@ except ImportError:
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
 
+
 class _ArrayType(object):
 
     is_array = True
-    subtypes = ['dtype']
+    subtypes = ["dtype"]
 
-    def __init__(self, dtype, ndim, is_c_contig=False, is_f_contig=False,
-                 inner_contig=False, broadcasting=None):
+    def __init__(self, dtype, ndim, is_c_contig=False, is_f_contig=False, inner_contig=False, broadcasting=None):
         self.dtype = dtype
         self.ndim = ndim
         self.is_c_contig = is_c_contig
@@ -41,30 +41,25 @@ def index_type(base_type, item):
     a 2D strided array of doubles. The syntax is the same as for
     Cython memoryviews.
     """
+
     class InvalidTypeSpecification(Exception):
         pass
 
     def verify_slice(s):
         if s.start or s.stop or s.step not in (None, 1):
-            raise InvalidTypeSpecification(
-                "Only a step of 1 may be provided to indicate C or "
-                "Fortran contiguity")
+            raise InvalidTypeSpecification("Only a step of 1 may be provided to indicate C or " "Fortran contiguity")
 
     if isinstance(item, tuple):
         step_idx = None
         for idx, s in enumerate(item):
             verify_slice(s)
             if s.step and (step_idx or idx not in (0, len(item) - 1)):
-                raise InvalidTypeSpecification(
-                    "Step may only be provided once, and only in the "
-                    "first or last dimension.")
+                raise InvalidTypeSpecification("Step may only be provided once, and only in the " "first or last dimension.")
 
             if s.step == 1:
                 step_idx = idx
 
-        return _ArrayType(base_type, len(item),
-                          is_c_contig=step_idx == len(item) - 1,
-                          is_f_contig=step_idx == 0)
+        return _ArrayType(base_type, len(item), is_c_contig=step_idx == len(item) - 1, is_f_contig=step_idx == 0)
     elif isinstance(item, slice):
         verify_slice(item)
         return _ArrayType(base_type, 1, is_c_contig=bool(item.step))
@@ -72,6 +67,7 @@ def index_type(base_type, item):
         # int[8] etc.
         assert int(item) == item  # array size must be a plain integer
         return array(base_type, item)
+
 
 # END shameless copy
 
@@ -82,44 +78,62 @@ _Unspecified = object()
 
 # Function decorators
 
+
 def _empty_decorator(x):
     return x
+
 
 def locals(**arg_types):
     return _empty_decorator
 
+
 def test_assert_path_exists(*paths):
     return _empty_decorator
+
 
 def test_fail_if_path_exists(*paths):
     return _empty_decorator
 
+
 class _EmptyDecoratorAndManager(object):
     def __call__(self, x):
         return x
+
     def __enter__(self):
         pass
+
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
 
 class _Optimization(object):
     pass
 
+
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    embedsignature = cdivision = cdivision_warnings = \
-    always_allows_keywords = profile = linetrace = infer_types = \
-    unraisable_tracebacks = freelist = \
-        lambda _: _EmptyDecoratorAndManager()
+returns = (
+    wraparound
+) = (
+    boundscheck
+) = (
+    initializedcheck
+) = (
+    nonecheck
+) = (
+    embedsignature
+) = (
+    cdivision
+) = (
+    cdivision_warnings
+) = always_allows_keywords = profile = linetrace = infer_types = unraisable_tracebacks = freelist = lambda _: _EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
 
-overflowcheck.fold = optimize.use_switch = \
-    optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
+overflowcheck.fold = optimize.use_switch = optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
 
@@ -127,6 +141,8 @@ binding = lambda _: _empty_decorator
 
 
 _cython_inline = None
+
+
 def inline(f, *args, **kwds):
     if isinstance(f, basestring):
         global _cython_inline
@@ -140,10 +156,12 @@ def inline(f, *args, **kwds):
 
 def compile(f):
     from Cython.Build.Inline import RuntimeCompiledFunction
+
     return RuntimeCompiledFunction(f)
 
 
 # Special functions
+
 
 def cdiv(a, b):
     if a < 0:
@@ -152,6 +170,7 @@ def cdiv(a, b):
     if b < 0:
         return (a + b + 1) // b
     return a // b
+
 
 def cmod(a, b):
     r = a % b
@@ -162,8 +181,9 @@ def cmod(a, b):
 
 # Emulated language constructs
 
+
 def cast(t, *args, **kwargs):
-    kwargs.pop('typecheck', None)
+    kwargs.pop("typecheck", None)
     assert not kwargs
 
     if isinstance(t, typedef):
@@ -174,21 +194,26 @@ def cast(t, *args, **kwargs):
 
     return args[0]
 
+
 def sizeof(arg):
     return 1
+
 
 def typeof(arg):
     return arg.__class__.__name__
     # return type(arg)
 
+
 def address(arg):
     return pointer(type(arg))([arg])
+
 
 def _is_value_type(t):
     if isinstance(t, typedef):
         return _is_value_type(t._basetype)
 
     return isinstance(t, type) and issubclass(t, (StructType, UnionType, ArrayType))
+
 
 def declare(t=None, value=_Unspecified, **kwds):
     if value is not _Unspecified:
@@ -198,9 +223,10 @@ def declare(t=None, value=_Unspecified, **kwds):
     else:
         return None
 
+
 class _nogil(object):
-    """Support for 'with nogil' statement and @nogil decorator.
-    """
+    """Support for 'with nogil' statement and @nogil decorator."""
+
     def __call__(self, x):
         if callable(x):
             # Used as function decorator => return the function unchanged.
@@ -210,8 +236,10 @@ class _nogil(object):
 
     def __enter__(self):
         pass
+
     def __exit__(self, exc_class, exc, tb):
         return exc_class is None
+
 
 nogil = _nogil()
 gil = _nogil()
@@ -220,22 +248,23 @@ del _nogil
 
 # Emulated types
 
-class CythonMetaType(type):
 
+class CythonMetaType(type):
     def __getitem__(type, ix):
         return array(type, ix)
 
-CythonTypeObject = CythonMetaType('CythonTypeObject', (object,), {})
+
+CythonTypeObject = CythonMetaType("CythonTypeObject", (object,), {})
+
 
 class CythonType(CythonTypeObject):
-
     def _pointer(self, n=1):
         for i in range(n):
             self = pointer(self)
         return self
 
-class PointerType(CythonType):
 
+class PointerType(CythonType):
     def __init__(self, value=None):
         if isinstance(value, (ArrayType, PointerType)):
             self._items = [cast(self._basetype, a) for a in value._items]
@@ -267,8 +296,8 @@ class PointerType(CythonType):
     def __repr__(self):
         return "%s *" % (self._basetype,)
 
-class ArrayType(PointerType):
 
+class ArrayType(PointerType):
     def __init__(self, value=None):
         if value is None:
             self._items = [None] * self._n
@@ -277,16 +306,15 @@ class ArrayType(PointerType):
 
 
 class StructType(CythonType):
-
     def __init__(self, *posargs, **data):
         if not (posargs or data):
             return
         if posargs and data:
-            raise ValueError('Cannot accept both positional and keyword arguments.')
+            raise ValueError("Cannot accept both positional and keyword arguments.")
 
         # Allow 'cast_from' as single positional or keyword argument.
-        if data and len(data) == 1 and 'cast_from' in data:
-            cast_from = data.pop('cast_from')
+        if data and len(data) == 1 and "cast_from" in data:
+            cast_from = data.pop("cast_from")
         elif len(posargs) == 1 and type(posargs[0]) is type(self):
             cast_from, posargs = posargs[0], ()
         elif posargs:
@@ -296,16 +324,15 @@ class StructType(CythonType):
         else:
             for key, value in data.items():
                 if key not in self._members:
-                    raise ValueError("Invalid struct attribute for %s: %s" % (
-                        self.__class__.__name__, key))
+                    raise ValueError("Invalid struct attribute for %s: %s" % (self.__class__.__name__, key))
                 setattr(self, key, value)
             return
 
         # do cast
         if data:
-            raise ValueError('Cannot accept keyword arguments when casting.')
+            raise ValueError("Cannot accept keyword arguments when casting.")
         if type(cast_from) is not type(self):
-            raise ValueError('Cannot cast from %s' % cast_from)
+            raise ValueError("Cannot cast from %s" % cast_from)
         for key, value in cast_from.__dict__.items():
             setattr(self, key, value)
 
@@ -317,18 +344,17 @@ class StructType(CythonType):
 
 
 class UnionType(CythonType):
-
     def __init__(self, cast_from=_Unspecified, **data):
         if cast_from is not _Unspecified:
             # do type cast
             if len(data) > 0:
-                raise ValueError('Cannot accept keyword arguments when casting.')
+                raise ValueError("Cannot accept keyword arguments when casting.")
             if isinstance(cast_from, dict):
                 datadict = cast_from
             elif type(cast_from) is type(self):
                 datadict = cast_from.__dict__
             else:
-                raise ValueError('Cannot cast from %s' % cast_from)
+                raise ValueError("Cannot cast from %s" % cast_from)
         else:
             datadict = data
         if len(datadict) > 1:
@@ -337,40 +363,48 @@ class UnionType(CythonType):
             setattr(self, key, value)
 
     def __setattr__(self, key, value):
-        if key == '__dict__':
+        if key == "__dict__":
             CythonType.__setattr__(self, key, value)
         elif key in self._members:
             self.__dict__ = {key: cast(self._members[key], value)}
         else:
             raise AttributeError("Union has no member '%s'" % key)
 
+
 def pointer(basetype):
     class PointerInstance(PointerType):
         _basetype = basetype
+
     return PointerInstance
+
 
 def array(basetype, n):
     class ArrayInstance(ArrayType):
         _basetype = basetype
         _n = n
+
     return ArrayInstance
+
 
 def struct(**members):
     class StructInstance(StructType):
         _members = members
+
     for key in members:
         setattr(StructInstance, key, None)
     return StructInstance
 
+
 def union(**members):
     class UnionInstance(UnionType):
         _members = members
+
     for key in members:
         setattr(UnionInstance, key, None)
     return UnionInstance
 
-class typedef(CythonType):
 
+class typedef(CythonType):
     def __init__(self, type, name=None):
         self._basetype = type
         self.name = name
@@ -383,6 +417,7 @@ class typedef(CythonType):
         return self.name or str(self._basetype)
 
     __getitem__ = index_type
+
 
 class _FusedType(CythonType):
     __getitem__ = index_type
@@ -425,41 +460,17 @@ py_complex = typedef(complex, "double complex")
 
 # Predefined types
 
-int_types = [
-    'char',
-    'short',
-    'Py_UNICODE',
-    'int',
-    'Py_UCS4',
-    'long',
-    'longlong',
-    'Py_hash_t',
-    'Py_ssize_t',
-    'size_t',
-]
-float_types = [
-    'longdouble',
-    'double',
-    'float',
-]
-complex_types = [
-    'longdoublecomplex',
-    'doublecomplex',
-    'floatcomplex',
-    'complex',
-]
-other_types = [
-    'bint',
-    'void',
-    'Py_tss_t',
-]
+int_types = ["char", "short", "Py_UNICODE", "int", "Py_UCS4", "long", "longlong", "Py_hash_t", "Py_ssize_t", "size_t"]
+float_types = ["longdouble", "double", "float"]
+complex_types = ["longdoublecomplex", "doublecomplex", "floatcomplex", "complex"]
+other_types = ["bint", "void", "Py_tss_t"]
 
 to_repr = {
-    'longlong': 'long long',
-    'longdouble': 'long double',
-    'longdoublecomplex': 'long double complex',
-    'doublecomplex': 'double complex',
-    'floatcomplex': 'float complex',
+    "longlong": "long long",
+    "longdouble": "long double",
+    "longdoublecomplex": "long double complex",
+    "doublecomplex": "double complex",
+    "floatcomplex": "float complex",
 }.get
 
 gs = globals()
@@ -470,15 +481,15 @@ try:
 except ImportError:  # Py3
     import builtins
 
-gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
+gs["unicode"] = typedef(getattr(builtins, "unicode", str), "unicode")
 del builtins
 
 for name in int_types:
     reprname = to_repr(name, name)
     gs[name] = typedef(py_int, reprname)
-    if name not in ('Py_UNICODE', 'Py_UCS4') and not name.endswith('size_t'):
-        gs['u'+name] = typedef(py_int, "unsigned " + reprname)
-        gs['s'+name] = typedef(py_int, "signed " + reprname)
+    if name not in ("Py_UNICODE", "Py_UCS4") and not name.endswith("size_t"):
+        gs["u" + name] = typedef(py_int, "unsigned " + reprname)
+        gs["s" + name] = typedef(py_int, "signed " + reprname)
 
 for name in float_types:
     gs[name] = typedef(py_float, to_repr(name, name))
@@ -492,23 +503,24 @@ Py_tss_t = typedef(None, "Py_tss_t")
 
 for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+        gs["%s_%s" % ("p" * i, t)] = gs[t]._pointer(i)
 
-NULL = gs['p_void'](0)
+NULL = gs["p_void"](0)
 
 # looks like 'gs' has some users out there by now...
-#del gs
+# del gs
 
 integral = floating = numeric = _FusedType()
 
 type_ordering = [py_int, py_long, py_float, py_complex]
+
 
 class CythonDotParallel(object):
     """
     The cython.parallel module.
     """
 
-    __all__ = ['parallel', 'prange', 'threadid']
+    __all__ = ["parallel", "prange", "threadid"]
 
     def parallel(self, num_threads=None):
         return nogil
@@ -523,12 +535,14 @@ class CythonDotParallel(object):
         return 0
 
     # def threadsavailable(self):
-        # return 1
+    # return 1
+
 
 class CythonDotImportedFromElsewhere(object):
     """
     cython.dataclasses just shadows the standard library modules of the same name
     """
+
     def __init__(self, module):
         self.__path__ = []
         self.__file__ = None
@@ -539,14 +553,14 @@ class CythonDotImportedFromElsewhere(object):
         # we typically only expect this to be called once
         from importlib import import_module
         import sys
+
         try:
             mod = import_module(self.__name__)
         except ImportError:
             # but if they don't exist (Python is not sufficiently up-to-date) then
             # you can't use them
-            raise AttributeError("%s: the standard library module %s is not available" %
-                                 (attr, self.__name__))
-        sys.modules['cython.%s' % self.__name__] = mod
+            raise AttributeError("%s: the standard library module %s is not available" % (attr, self.__name__))
+        sys.modules["cython.%s" % self.__name__] = mod
         return getattr(mod, attr)
 
 
@@ -554,6 +568,7 @@ class CythonCImports(object):
     """
     Simplistic module mock to make cimports sort-of work in Python code.
     """
+
     def __init__(self, module):
         self.__path__ = []
         self.__file__ = None
@@ -561,17 +576,18 @@ class CythonCImports(object):
         self.__package__ = module
 
     def __getattr__(self, item):
-        if item.startswith('__') and item.endswith('__'):
+        if item.startswith("__") and item.endswith("__"):
             raise AttributeError(item)
         return __import__(item)
 
 
 import math, sys
-sys.modules['cython.parallel'] = CythonDotParallel()
-sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
-sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
-sys.modules['cython.cimports.libc.math'] = math
+
+sys.modules["cython.parallel"] = CythonDotParallel()
+sys.modules["cython.cimports"] = CythonCImports("cython.cimports")
+sys.modules["cython.cimports.libc"] = CythonCImports("cython.cimports.libc")
+sys.modules["cython.cimports.libc.math"] = math
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
-dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
+dataclasses = sys.modules["cython.dataclasses"] = CythonDotImportedFromElsewhere("dataclasses")
 del math, sys

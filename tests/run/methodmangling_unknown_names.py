@@ -1,6 +1,7 @@
 # mode: run
 # tag: allow_unknown_names, pure2.0, pure3.0
 
+
 class Test(object):
     def run(self):
         """
@@ -13,12 +14,12 @@ class Test(object):
             print(__something)
         except NameError:
             print("NameError1")  # correct - shouldn't exist
-        globals()['__something'] = 'found unmangled'
+        globals()["__something"] = "found unmangled"
         try:
             print(__something)
         except NameError:
             print("NameError2")  # correct - shouldn't exist
-        globals()['_Test__something'] = 'found mangled'
+        globals()["_Test__something"] = "found mangled"
         try:
             print(__something)  # should print this
         except NameError:

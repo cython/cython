@@ -10,7 +10,7 @@ def test_set_literal():
     >>> sorted(test_set_literal())
     ['a', 'b', 1]
     """
-    s1 = {1, 'a', 1, 'b', 'a'}
+    s1 = {1, "a", 1, "b", "a"}
     return s1
 
 
@@ -23,7 +23,7 @@ def test_set_add():
     """
     s1 = {1, (1, 2)}
     s1.add(1)
-    s1.add('a')
+    s1.add("a")
     s1.add(1)
     s1.add((1, 2))
     return s1
@@ -65,10 +65,13 @@ def test_set_sideeffect_unhashable_failure_literal():
     def unhashable_value(x):
         L.append(x)
         return set()
+
     try:
         s = {1, sideeffect(2), 3, unhashable_value(4), sideeffect(5)}
-    except TypeError: pass
-    else: assert False, "expected exception not raised"
+    except TypeError:
+        pass
+    else:
+        assert False, "expected exception not raised"
     return L
 
 
@@ -89,11 +92,14 @@ def test_set_comp_sideeffect_unhashable_failure():
     def unhashable_value(x):
         L.append(x)
         return set()
+
     s = None
     try:
         s = {f(i) for i, f in enumerate([value, sideeffect, value, unhashable_value, sideeffect], 1)}
-    except TypeError: pass
-    else: assert False, "expected exception not raised"
+    except TypeError:
+        pass
+    else:
+        assert False, "expected exception not raised"
     return s, L
 
 
@@ -112,4 +118,4 @@ def sorted(it):
     nums.sort()
     chars.sort()
     tuples.sort()
-    return chars+nums+tuples
+    return chars + nums + tuples

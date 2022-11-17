@@ -1,6 +1,7 @@
 # mode: run
 # tag: del, slicing
 
+
 def del_constant_start_stop(x):
     """
     >>> l = [1,2,3,4]

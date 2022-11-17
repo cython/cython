@@ -14,8 +14,8 @@ def run():
     x = 2
     n = 5
     i = 12345678
-    s = 'abc'
-    u = u'üöä'
+    s = "abc"
+    u = "üöä"
 
     # repeat without fast looping ...
     f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
@@ -236,9 +236,8 @@ def main(n):
 if __name__ == "__main__":
     import optparse
     import util
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Test the performance of fstring literal formatting")
+
+    parser = optparse.OptionParser(usage="%prog [options]", description="Test the performance of fstring literal formatting")
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 

@@ -1,6 +1,7 @@
 # mode: run
 # tag: control-flow, uninitialized
 
+
 def conditional(cond):
     """
     >>> conditional(True)
@@ -14,6 +15,7 @@ def conditional(cond):
         a = []
     return a
 
+
 def inside_loop(iter):
     """
     >>> inside_loop([1,2,3])
@@ -26,6 +28,7 @@ def inside_loop(iter):
     for i in iter:
         pass
     return i
+
 
 def try_except(cond):
     """
@@ -43,6 +46,7 @@ def try_except(cond):
     except ValueError:
         return a
 
+
 def try_finally(cond):
     """
     >>> try_finally(True)
@@ -59,6 +63,7 @@ def try_finally(cond):
     finally:
         return a
 
+
 def deleted(cond):
     """
     >>> deleted(False)
@@ -73,6 +78,7 @@ def deleted(cond):
         del a
     return a
 
+
 def test_nested(cond):
     """
     >>> test_nested(True)
@@ -82,9 +88,12 @@ def test_nested(cond):
     UnboundLocalError: ...local variable 'a'...
     """
     if cond:
+
         def a():
             pass
+
     return a()
+
 
 def test_outer(cond):
     """
@@ -97,9 +106,12 @@ def test_outer(cond):
     """
     if cond:
         a = {}
+
     def inner():
         return a
+
     return a
+
 
 def test_inner(cond):
     """
@@ -112,9 +124,12 @@ def test_inner(cond):
     """
     if cond:
         a = {}
+
     def inner():
         return a
+
     return inner()
+
 
 def test_class(cond):
     """
@@ -126,8 +141,10 @@ def test_class(cond):
     UnboundLocalError: ...local variable 'A'...
     """
     if cond:
+
         class A:
             x = 1
+
     return A.x
 
 

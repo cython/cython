@@ -17,6 +17,7 @@ class TempHandle(object):
     # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
+
     def __init__(self, type, needs_cleanup=None):
         self.type = type
         if needs_cleanup is None:
@@ -45,7 +46,8 @@ class TempRefNode(AtomicExprNode):
 
     def calculate_result_code(self):
         result = self.handle.temp
-        if result is None: result = "<error>"  # might be called and overwritten
+        if result is None:
+            result = "<error>"  # might be called and overwritten
         return result
 
     def generate_result_code(self, code):
@@ -56,10 +58,7 @@ class TempRefNode(AtomicExprNode):
             rhs.make_owned_reference(code)
             # TODO: analyse control flow to see if this is necessary
             code.put_xdecref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (
-            self.result(),
-            rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
-        ))
+        code.putln("%s = %s;" % (self.result(), rhs.result() if overloaded_assignment else rhs.result_as(self.ctype())))
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
 
@@ -84,8 +83,7 @@ class TempsBlockNode(Node):
 
     def generate_execution_code(self, code):
         for handle in self.temps:
-            handle.temp = code.funcstate.allocate_temp(
-                handle.type, manage_ref=handle.needs_cleanup)
+            handle.temp = code.funcstate.allocate_temp(handle.type, manage_ref=handle.needs_cleanup)
         self.body.generate_execution_code(code)
         for handle in self.temps:
             if handle.needs_cleanup:
@@ -202,10 +200,7 @@ class ResultRefNode(AtomicExprNode):
             rhs.make_owned_reference(code)
             if not self.lhs_of_first_assignment:
                 code.put_decref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (
-            self.result(),
-            rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
-        ))
+        code.putln("%s = %s;" % (self.result(), rhs.result() if overloaded_assignment else rhs.result_as(self.ctype())))
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
 
@@ -237,8 +232,7 @@ class LetNodeMixin:
                 self.temp_expression.make_owned_memoryviewslice(code)
             else:
                 self.temp_expression.make_owned_reference(code)
-            self.temp = code.funcstate.allocate_temp(
-                self.temp_type, manage_ref=True)
+            self.temp = code.funcstate.allocate_temp(self.temp_type, manage_ref=True)
             code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
             self.temp_expression.generate_disposal_code(code)
             self.temp_expression.free_temps(code)
@@ -258,7 +252,7 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
     # A wrapper around a subexpression that moves an expression into a
     # temp variable and provides it to the subexpression.
 
-    subexprs = ['temp_expression', 'subexpression']
+    subexprs = ["temp_expression", "subexpression"]
 
     def __init__(self, lazy_temp, subexpression):
         self.set_temp_expr(lazy_temp)
@@ -308,7 +302,7 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
     # Usually used after analysis phase, but forwards analysis methods
     # to its children
 
-    child_attrs = ['temp_expression', 'body']
+    child_attrs = ["temp_expression", "body"]
 
     def __init__(self, lazy_temp, body):
         self.set_temp_expr(lazy_temp)
@@ -341,7 +335,7 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     # node, which then becomes the result of this node.
 
     subexprs = []
-    child_attrs = ['body']
+    child_attrs = ["body"]
 
     def __init__(self, result_ref, body):
         self.result_ref = result_ref

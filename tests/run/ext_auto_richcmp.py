@@ -1,9 +1,11 @@
 # mode: run
 
 import cython
+
 compiled = cython.compiled
 
 import sys
+
 IS_PY2 = sys.version_info[0] == 2
 
 
@@ -82,6 +84,7 @@ class ClassEq(X):
     >>> print(a.__eq__.__doc__)
     EQ
     """
+
     def __eq__(self, other):
         """EQ"""
         assert 1 <= self.x <= 2
@@ -151,6 +154,7 @@ class ClassEqNe(ClassEq):
     >>> print(a.__ne__.__doc__)
     NE
     """
+
     def __ne__(self, other):
         """NE"""
         assert 1 <= self.x <= 2
@@ -257,7 +261,8 @@ class ClassEqNeGe(ClassEqNe):
     #NE
     >>> print(a.__ge__.__doc__)
     GE
-   """
+    """
+
     def __ge__(self, other):
         """GE"""
         assert 1 <= self.x <= 2
@@ -290,6 +295,7 @@ class ClassRichcmpOverride(ClassEqNeGe):
     Traceback (most recent call last):
     TypeError...
     """
+
     def __richcmp__(self, other, op):
         return NotImplemented
 
@@ -348,6 +354,7 @@ class ClassLe(X):
     Traceback (most recent call last):
     TypeError...
     """
+
     def __le__(self, other):
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassLe), type(self)
@@ -420,6 +427,7 @@ class ClassLt(X):
     Traceback (most recent call last):
     TypeError...
     """
+
     def __lt__(self, other):
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassLt), type(self)
@@ -469,6 +477,7 @@ class ClassLtGtInherited(X):
     >>> sorted([b, a, c])
     [<1>, <1>, <2>]
     """
+
     def __gt__(self, other):
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassLtGtInherited), type(self)
@@ -544,6 +553,7 @@ class ClassLtGt(X):
     Traceback (most recent call last):
     TypeError...
     """
+
     def __lt__(self, other):
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassLtGt), type(self)
@@ -577,5 +587,6 @@ class List(list):
     >>> notl != notl  # implemented by base type
     False
     """
+
     def __eq__(self, other):
         return self is other or list(self) != list(other)

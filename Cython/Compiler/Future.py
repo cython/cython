@@ -1,7 +1,9 @@
 def _get_feature(name):
     import __future__
+
     # fall back to a unique fake object for earlier Python versions or Python 3
     return getattr(__future__, name, object())
+
 
 unicode_literals = _get_feature("unicode_literals")
 with_statement = _get_feature("with_statement")  # dummy

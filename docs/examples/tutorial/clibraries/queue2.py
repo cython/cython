@@ -1,5 +1,6 @@
 from cython.cimports import cqueue
 
+
 @cython.cclass
 class Queue:
     _c_queue = cython.declare(cython.pointer(cqueue.Queue))

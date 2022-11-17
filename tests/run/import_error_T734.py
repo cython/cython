@@ -1,6 +1,7 @@
 # mode: run
 # ticket: t734
 
+
 def test_import_error():
     """
     >>> test_import_error()   # doctest: +ELLIPSIS

@@ -17,6 +17,7 @@ class Color:
     >>> Color(green=1, blue=2, red=3, alpha=40)
     Color(red=3, green=1, blue=2, alpha=40)
     """
+
     red: int
     green: int
     blue: int
@@ -37,6 +38,7 @@ class NamedColor(Color):
     >>> NamedColor(1, 2, 3, names=["blackish", "very dark cyan"])
     NamedColor(red=1, green=2, blue=3, alpha=255, names=['blackish', 'very dark cyan'])
     """
+
     names: Sequence[str] = dataclasses.field(default_factory=list)
 
 
@@ -50,5 +52,6 @@ class IceCream:
     >>> IceCream("vanilla") == IceCream("vanilla", num_toppings=2)
     True
     """
+
     flavour: str
     num_toppings: int = 2

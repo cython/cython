@@ -62,8 +62,8 @@ from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_fi
 from . import __version__
 
 
-C_FILE_EXTENSIONS = ['.c', '.cpp', '.cc', '.cxx']
-MODULE_FILE_EXTENSIONS = set(['.py', '.pyx', '.pxd'] + C_FILE_EXTENSIONS)
+C_FILE_EXTENSIONS = [".c", ".cpp", ".cc", ".cxx"]
+MODULE_FILE_EXTENSIONS = set([".py", ".pyx", ".pxd"] + C_FILE_EXTENSIONS)
 
 
 def _find_c_source(base_path):
@@ -77,8 +77,7 @@ def _find_c_source(base_path):
 
 def _find_dep_file_path(main_file, file_path, relative_path_search=False):
     abs_path = os.path.abspath(file_path)
-    if not os.path.exists(abs_path) and (file_path.endswith('.pxi') or
-                                         relative_path_search):
+    if not os.path.exists(abs_path) and (file_path.endswith(".pxi") or relative_path_search):
         # files are looked up relative to the main source file
         rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
         if os.path.exists(rel_file_path):
@@ -122,7 +121,7 @@ class Plugin(CoveragePlugin):
     _excluded_line_patterns = ()
 
     def sys_info(self):
-        return [('Cython version', __version__)]
+        return [("Cython version", __version__)]
 
     def configure(self, config):
         # Entry point for coverage "configurer".
@@ -133,7 +132,7 @@ class Plugin(CoveragePlugin):
         """
         Try to find a C source file for a file path found by the tracer.
         """
-        if filename.startswith('<') or filename.startswith('memory:'):
+        if filename.startswith("<") or filename.startswith("memory:"):
             return None
         c_file = py_file = None
         filename = canonical_filename(os.path.abspath(filename))
@@ -161,8 +160,8 @@ class Plugin(CoveragePlugin):
 
     def file_reporter(self, filename):
         # TODO: let coverage.py handle .py files itself
-        #ext = os.path.splitext(filename)[1].lower()
-        #if ext == '.py':
+        # ext = os.path.splitext(filename)[1].lower()
+        # if ext == '.py':
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
@@ -176,30 +175,24 @@ class Plugin(CoveragePlugin):
             rel_file_path, code = self._read_source_lines(c_file, filename)
             if code is None:
                 return None  # no source found
-        return CythonModuleReporter(
-            c_file,
-            filename,
-            rel_file_path,
-            code,
-            self._excluded_lines_map.get(rel_file_path, frozenset())
-        )
+        return CythonModuleReporter(c_file, filename, rel_file_path, code, self._excluded_lines_map.get(rel_file_path, frozenset()))
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
         ext = ext.lower()
         if ext in MODULE_FILE_EXTENSIONS:
             pass
-        elif ext == '.pyd':
+        elif ext == ".pyd":
             # Windows extension module
-            platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', basename, re.I)
+            platform_suffix = re.search(r"[.]cp[0-9]+-win[_a-z0-9]*$", basename, re.I)
             if platform_suffix:
-                basename = basename[:platform_suffix.start()]
-        elif ext == '.so':
+                basename = basename[: platform_suffix.start()]
+        elif ext == ".so":
             # Linux/Unix/Mac extension module
-            platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$', basename, re.I)
+            platform_suffix = re.search(r"[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$", basename, re.I)
             if platform_suffix:
-                basename = basename[:platform_suffix.start()]
-        elif ext == '.pxi':
+                basename = basename[: platform_suffix.start()]
+        elif ext == ".pxi":
             # if we get here, it means that the first traced line of a Cython module was
             # not in the main module but in an include file, so try a little harder to
             # find the main source file
@@ -216,12 +209,12 @@ class Plugin(CoveragePlugin):
             package_root = find_root_package_dir.uncached(filename)
             package_path = os.path.relpath(basename, package_root).split(os.path.sep)
             if len(package_path) > 1:
-                test_basepath = os.path.join(os.path.dirname(filename), '.'.join(package_path))
+                test_basepath = os.path.join(os.path.dirname(filename), ".".join(package_path))
                 c_file = _find_c_source(test_basepath)
 
         py_source_file = None
         if c_file:
-            py_source_file = os.path.splitext(c_file)[0] + '.py'
+            py_source_file = os.path.splitext(c_file)[0] + ".py"
             if not os.path.exists(py_source_file):
                 py_source_file = None
             if not is_cython_generated_file(c_file, if_not_found=False):
@@ -269,8 +262,7 @@ class Plugin(CoveragePlugin):
             self._c_files_map = {}
 
         for filename, code in code_lines.items():
-            abs_path = _find_dep_file_path(c_file, filename,
-                                           relative_path_search=True)
+            abs_path = _find_dep_file_path(c_file, filename, relative_path_search=True)
             self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
@@ -282,15 +274,10 @@ class Plugin(CoveragePlugin):
         Parse a C file and extract all source file lines that generated executable code.
         """
         match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
-        match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
-        match_comment_end = re.compile(r' *[*]/$').match
-        match_trace_line = re.compile(r' *__Pyx_TraceLine\(([0-9]+),').match
-        not_executable = re.compile(
-            r'\s*c(?:type)?def\s+'
-            r'(?:(?:public|external)\s+)?'
-            r'(?:struct|union|enum|class)'
-            r'(\s+[^:]+|)\s*:'
-        ).match
+        match_current_code_line = re.compile(r" *[*] (.*) # <<<<<<+$").match
+        match_comment_end = re.compile(r" *[*]/$").match
+        match_trace_line = re.compile(r" *__Pyx_TraceLine\(([0-9]+),").match
+        not_executable = re.compile(r"\s*c(?:type)?def\s+" r"(?:(?:public|external)\s+)?" r"(?:struct|union|enum|class)" r"(\s+[^:]+|)\s*:").match
         if self._excluded_line_patterns:
             line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
         else:
@@ -307,7 +294,7 @@ class Plugin(CoveragePlugin):
             for line in lines:
                 match = match_source_path_line(line)
                 if not match:
-                    if '__Pyx_TraceLine(' in line and current_filename is not None:
+                    if "__Pyx_TraceLine(" in line and current_filename is not None:
                         trace_line = match_trace_line(line)
                         if trace_line:
                             executable_lines[current_filename].add(int(trace_line.group(1)))
@@ -342,6 +329,7 @@ class CythonModuleTracer(FileTracer):
     """
     Find the Python/Cython source file for a Cython module.
     """
+
     def __init__(self, module_file, py_file, c_file, c_files_map, file_path_map):
         super(CythonModuleTracer, self).__init__()
         self.module_file = module_file
@@ -364,7 +352,7 @@ class CythonModuleTracer(FileTracer):
             pass
         abs_path = _find_dep_file_path(filename, source_file)
 
-        if self.py_file and source_file[-3:].lower() == '.py':
+        if self.py_file and source_file[-3:].lower() == ".py":
             # always let coverage.py handle this case itself
             self._file_path_map[source_file] = self.py_file
             return self.py_file
@@ -380,6 +368,7 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
+
     def __init__(self, c_file, source_file, rel_file_path, code, excluded_lines):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
@@ -405,7 +394,7 @@ class CythonModuleReporter(FileReporter):
             while line_no > current_line:
                 yield []
                 current_line += 1
-            yield [('txt', code_line)]
+            yield [("txt", code_line)]
             current_line += 1
 
     def source(self):
@@ -416,9 +405,7 @@ class CythonModuleReporter(FileReporter):
             with open_source_file(self.filename) as f:
                 return f.read()
         else:
-            return '\n'.join(
-                (tokens[0][1] if tokens else '')
-                for tokens in self._iter_source_tokens())
+            return "\n".join((tokens[0][1] if tokens else "") for tokens in self._iter_source_tokens())
 
     def source_token_lines(self):
         """
@@ -427,10 +414,10 @@ class CythonModuleReporter(FileReporter):
         if os.path.exists(self.filename):
             with open_source_file(self.filename) as f:
                 for line in f:
-                    yield [('txt', line.rstrip('\n'))]
+                    yield [("txt", line.rstrip("\n"))]
         else:
             for line in self._iter_source_tokens():
-                yield [('txt', line)]
+                yield [("txt", line)]
 
 
 def coverage_init(reg, options):

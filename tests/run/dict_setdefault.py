@@ -1,29 +1,35 @@
-
 import cython
+
 
 class Unhashable(object):
     def __hash__(self):
-        raise TypeError('I am not hashable')
+        raise TypeError("I am not hashable")
+
 
 class Hashable(object):
     def __hash__(self):
         return 1
+
     def __eq__(self, other):
         return isinstance(other, Hashable)
+
 
 class CountedHashable(object):
     def __init__(self):
         self.hash_count = 0
         self.eq_count = 0
+
     def __hash__(self):
         self.hash_count += 1
         return 42
+
     def __eq__(self, other):
         self.eq_count += 1
         return id(self) == id(other)
 
-@cython.test_fail_if_path_exists('//AttributeNode')
-@cython.test_assert_path_exists('//PythonCapiCallNode')
+
+@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.locals(d=dict)
 def setdefault1(d, key):
     """
@@ -67,8 +73,9 @@ def setdefault1(d, key):
     """
     return d.setdefault(key)
 
-@cython.test_fail_if_path_exists('//AttributeNode')
-@cython.test_assert_path_exists('//PythonCapiCallNode')
+
+@cython.test_fail_if_path_exists("//AttributeNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.locals(d=dict)
 def setdefault2(d, key, value):
     """

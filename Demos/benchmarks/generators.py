@@ -5,10 +5,12 @@ COUNT = 10000
 
 import cython
 
+
 @cython.locals(N=cython.Py_ssize_t)
 def count_to(N):
     for i in range(N):
         yield i
+
 
 @cython.locals(i=cython.Py_ssize_t)
 def round_robin(*_iterators):
@@ -27,6 +29,7 @@ def round_robin(*_iterators):
                 del iterators[i]
             del to_drop[:]
 
+
 def yield_from(*iterators):
     for it in iterators:
         yield from it
@@ -35,30 +38,29 @@ def yield_from(*iterators):
 def bm_plain(N):
     return count_to(COUNT * N)
 
+
 def bm_round_robin(N):
-    return round_robin(*[ count_to(COUNT // i) for i in range(1,N+1) ])
+    return round_robin(*[count_to(COUNT // i) for i in range(1, N + 1)])
+
 
 def bm_yield_from(N):
-    return yield_from(count_to(N),
-                      round_robin(*[ yield_from(count_to(COUNT // i))
-                                     for i in range(1,N+1) ]),
-                      count_to(N))
+    return yield_from(count_to(N), round_robin(*[yield_from(count_to(COUNT // i)) for i in range(1, N + 1)]), count_to(N))
+
 
 def bm_yield_from_nested(N):
-    return yield_from(count_to(N),
-                      yield_from(count_to(N),
-                                 round_robin(*[ yield_from(count_to(COUNT // i))
-                                                for i in range(1,N+1) ]),
-                                 count_to(N)),
-                      count_to(N))
+    return yield_from(
+        count_to(N), yield_from(count_to(N), round_robin(*[yield_from(count_to(COUNT // i)) for i in range(1, N + 1)]), count_to(N)), count_to(N)
+    )
 
 
 def time(fn, *args):
     from time import time
+
     begin = time()
     result = list(fn(*args))
     end = time()
-    return result, end-begin
+    return result, end - begin
+
 
 def benchmark(N):
     times = []
@@ -67,15 +69,16 @@ def benchmark(N):
         times.append(t)
     return times
 
+
 main = benchmark
 
 if __name__ == "__main__":
     import optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description=("Micro benchmarks for generators."))
+
+    parser = optparse.OptionParser(usage="%prog [options]", description=("Micro benchmarks for generators."))
 
     import util
+
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 

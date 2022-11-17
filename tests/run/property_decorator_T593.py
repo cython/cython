@@ -4,6 +4,7 @@
 
 my_property = property
 
+
 class Prop(object):
     """
     >>> p = Prop()
@@ -29,6 +30,7 @@ class Prop(object):
     >>> list(p.generator_prop)
     [42]
     """
+
     _value = None
 
     @property

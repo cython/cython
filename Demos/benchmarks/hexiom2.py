@@ -18,12 +18,8 @@ class Dir(object):
         self.x = x
         self.y = y
 
-DIRS = [ Dir(1, 0),
-         Dir(-1, 0),
-         Dir(0, 1),
-         Dir(0, -1),
-         Dir(1, 1),
-         Dir(-1, -1) ]
+
+DIRS = [Dir(1, 0), Dir(-1, 0), Dir(0, 1), Dir(0, -1), Dir(1, 1), Dir(-1, -1)]
 
 EMPTY = 7
 
@@ -103,7 +99,7 @@ class Done(object):
         maxval = -1
         maxi = -1
         for i in range(self.count):
-            if (not self.already_done(i)):
+            if not self.already_done(i):
                 maxvali = max([k for k in self.cells[i] if k != EMPTY])
                 if maxval < maxvali:
                     maxval = maxvali
@@ -113,7 +109,7 @@ class Done(object):
     @cython.locals(i=cython.int)
     def next_cell_first(self):
         for i in range(self.count):
-            if (not self.already_done(i)):
+            if not self.already_done(i):
                 return i
         return -1
 
@@ -124,8 +120,7 @@ class Done(object):
         for i in range(self.count):
             if not self.already_done(i):
                 cells_around = pos.hex.get_by_id(i).links
-                n = sum([1 if (self.already_done(nid) and (self[nid][0] != EMPTY)) else 0
-                         for nid in cells_around])
+                n = sum([1 if (self.already_done(nid) and (self[nid][0] != EMPTY)) else 0 for nid in cells_around])
                 if n > maxn:
                     maxn = n
                     maxi = i
@@ -138,13 +133,11 @@ class Done(object):
         for i in range(self.count):
             if not self.already_done(i):
                 cells_around = pos.hex.get_by_id(i).links
-                n = sum([1 if (self.already_done(nid) and (self[nid][0] != EMPTY)) else 0
-                         for nid in cells_around])
+                n = sum([1 if (self.already_done(nid) and (self[nid][0] != EMPTY)) else 0 for nid in cells_around])
                 if n < minn:
                     minn = n
                     mini = i
         return mini
-
 
     def next_cell(self, pos, strategy=HIGHEST_VALUE_STRATEGY):
         if strategy == Done.HIGHEST_VALUE_STRATEGY:
@@ -162,12 +155,14 @@ class Done(object):
         else:
             raise Exception("Wrong strategy: %d" % strategy)
 
+
 ##################################
 class Node(object):
     def __init__(self, pos, id, links):
         self.pos = pos
         self.id = id
         self.links = links
+
 
 ##################################
 class Hex(object):
@@ -216,7 +211,7 @@ class Hex(object):
 
 ##################################
 class Pos(object):
-    def __init__(self, hex, tiles, done = None):
+    def __init__(self, hex, tiles, done=None):
         self.hex = hex
         self.tiles = tiles
         self.done = Done(hex.count) if done is None else done
@@ -224,20 +219,30 @@ class Pos(object):
     def clone(self):
         return Pos(self.hex, self.tiles, self.done.clone())
 
+
 ##################################
 
-@cython.locals(pos=Pos, i=cython.long, v=cython.int,
-               nid=cython.int, num=cython.int,
-               empties=cython.int, filled=cython.int,
-               vmax=cython.int, vmin=cython.int, cell=list, left=cython.int[8])
+
+@cython.locals(
+    pos=Pos,
+    i=cython.long,
+    v=cython.int,
+    nid=cython.int,
+    num=cython.int,
+    empties=cython.int,
+    filled=cython.int,
+    vmax=cython.int,
+    vmin=cython.int,
+    cell=list,
+    left=cython.int[8],
+)
 def constraint_pass(pos, last_move=None):
     changed = False
     left = pos.tiles[:]
     done = pos.done
 
     # Remove impossible values from free cells
-    free_cells = (range(done.count) if last_move is None
-                  else pos.hex.get_by_id(last_move).links)
+    free_cells = range(done.count) if last_move is None else pos.hex.get_by_id(last_move).links
     for i in free_cells:
         if not done.already_done(i):
             vmax = 0
@@ -278,8 +283,7 @@ def constraint_pass(pos, last_move=None):
                         changed = True
 
     # Force empty or non-empty around filled cells
-    filled_cells = (range(done.count) if last_move is None
-                    else [last_move])
+    filled_cells = range(done.count) if last_move is None else [last_move]
     for i in filled_cells:
         if done.already_done(i):
             num = done[i][0]
@@ -301,7 +305,7 @@ def constraint_pass(pos, last_move=None):
                         if EMPTY in done[u]:
                             done.set_done(u, EMPTY)
                             changed = True
-                        #else:
+                        # else:
                         #    raise Exception("Houston, we've got a problem")
                 elif num == filled + len(unknown):
                     for u in unknown:
@@ -310,8 +314,10 @@ def constraint_pass(pos, last_move=None):
 
     return changed
 
+
 ASCENDING = 1
 DESCENDING = -1
+
 
 def find_moves(pos, strategy, order):
     done = pos.done
@@ -328,9 +334,11 @@ def find_moves(pos, strategy, order):
             moves.append((cell_id, EMPTY))
         return moves
 
+
 def play_move(pos, move):
     (cell_id, i) = move
     pos.done.set_done(cell_id, i)
+
 
 @cython.locals(x=cython.int, y=cython.int, ry=cython.int, id=cython.int)
 def print_pos(pos, output):
@@ -338,35 +346,36 @@ def print_pos(pos, output):
     done = pos.done
     size = hex.size
     for y in range(size):
-        print(u" " * (size - y - 1), end=u"", file=output)
+        print(" " * (size - y - 1), end="", file=output)
         for x in range(size + y):
             pos2 = (x, y)
             id = hex.get_by_pos(pos2).id
             if done.already_done(id):
-                c = str(done[id][0]) if done[id][0] != EMPTY else u"."
+                c = str(done[id][0]) if done[id][0] != EMPTY else "."
             else:
-                c = u"?"
-            print(u"%s " % c, end=u"", file=output)
-        print(end=u"\n", file=output)
+                c = "?"
+            print("%s " % c, end="", file=output)
+        print(end="\n", file=output)
     for y in range(1, size):
-        print(u" " * y, end=u"", file=output)
+        print(" " * y, end="", file=output)
         for x in range(y, size * 2 - 1):
             ry = size + y - 1
             pos2 = (x, ry)
             id = hex.get_by_pos(pos2).id
             if done.already_done(id):
-                c = str(done[id][0]) if done[id][0] != EMPTY else (u".")
+                c = str(done[id][0]) if done[id][0] != EMPTY else (".")
             else:
-                c = u"?"
-            print(u"%s " % c, end=u"", file=output)
-        print(end=u"\n", file=output)
+                c = "?"
+            print("%s " % c, end="", file=output)
+        print(end="\n", file=output)
+
 
 OPEN = 0
 SOLVED = 1
 IMPOSSIBLE = -1
 
-@cython.locals(i=cython.int, num=cython.int, nid=cython.int,
-               vmin=cython.int, vmax=cython.int, tiles=cython.int[8])
+
+@cython.locals(i=cython.int, num=cython.int, nid=cython.int, vmin=cython.int, vmax=cython.int, tiles=cython.int[8])
 def solved(pos, output, verbose=False):
     hex = pos.hex
     tiles = pos.tiles[:]
@@ -379,7 +388,7 @@ def solved(pos, output, verbose=False):
         elif done.already_done(i):
             num = done[i][0]
             tiles[num] -= 1
-            if (tiles[num] < 0):
+            if tiles[num] < 0:
                 return IMPOSSIBLE
             vmax = 0
             vmin = 0
@@ -406,6 +415,7 @@ def solved(pos, output, verbose=False):
     print_pos(pos, output)
     return SOLVED
 
+
 @cython.locals(move=tuple)
 def solve_step(prev, strategy, order, output, first=False):
     if first:
@@ -420,11 +430,11 @@ def solve_step(prev, strategy, order, output, first=False):
         return solved(pos, output)
     else:
         for move in moves:
-            #print("Trying (%d, %d)" % (move[0], move[1]))
+            # print("Trying (%d, %d)" % (move[0], move[1]))
             ret = OPEN
             new_pos = pos.clone()
             play_move(new_pos, move)
-            #print_pos(new_pos)
+            # print_pos(new_pos)
             while constraint_pass(new_pos, move[0]):
                 pass
             cur_status = solved(new_pos, output)
@@ -461,8 +471,8 @@ def solve(pos, strategy, order, output):
 
 # TODO Write an 'iterator' to go over all x,y positions
 
-@cython.locals(x=cython.int, y=cython.int, p=cython.int, tiles=cython.int[8],
-               size=cython.int, inctile=cython.int, linei=cython.int)
+
+@cython.locals(x=cython.int, y=cython.int, p=cython.int, tiles=cython.int[8], size=cython.int, inctile=cython.int, linei=cython.int)
 def read_file(file):
     lines = [line.strip("\r\n") for line in file.splitlines()]
     size = int(lines[0])
@@ -471,10 +481,10 @@ def read_file(file):
     tiles = 8 * [0]
     done = Done(hex.count)
     for y in range(size):
-        line = lines[linei][size - y - 1:]
+        line = lines[linei][size - y - 1 :]
         p = 0
         for x in range(size + y):
-            tile = line[p:p + 2]
+            tile = line[p : p + 2]
             p += 2
             if tile[1] == ".":
                 inctile = EMPTY
@@ -483,8 +493,7 @@ def read_file(file):
             tiles[inctile] += 1
             # Look for locked tiles
             if tile[0] == "+":
-                print("Adding locked tile: %d at pos %d, %d, id=%d" %
-                      (inctile, x, y, hex.get_by_pos((x, y)).id))
+                print("Adding locked tile: %d at pos %d, %d, id=%d" % (inctile, x, y, hex.get_by_pos((x, y)).id))
                 done.set_done(hex.get_by_pos((x, y)).id, inctile)
 
         linei += 1
@@ -493,7 +502,7 @@ def read_file(file):
         line = lines[linei][y:]
         p = 0
         for x in range(y, size * 2 - 1):
-            tile = line[p:p + 2]
+            tile = line[p : p + 2]
             p += 2
             if tile[1] == ".":
                 inctile = EMPTY
@@ -502,17 +511,18 @@ def read_file(file):
             tiles[inctile] += 1
             # Look for locked tiles
             if tile[0] == "+":
-                print("Adding locked tile: %d at pos %d, %d, id=%d" %
-                      (inctile, x, ry, hex.get_by_pos((x, ry)).id))
+                print("Adding locked tile: %d at pos %d, %d, id=%d" % (inctile, x, ry, hex.get_by_pos((x, ry)).id))
                 done.set_done(hex.get_by_pos((x, ry)).id, inctile)
         linei += 1
     hex.link_nodes()
     done.filter_tiles(tiles)
     return Pos(hex, tiles, done)
 
+
 def solve_file(file, strategy, order, output):
     pos = read_file(file)
     solve(pos, strategy, order, output)
+
 
 def run_level36():
     f = """\
@@ -541,6 +551,7 @@ def run_level36():
     if output.getvalue() != expected:
         raise AssertionError("got a wrong answer:\n%s" % output.getvalue())
 
+
 def main(n):
     # only run 1/25th of the requested number of iterations.
     # with the default n=50 from runner.py, this means twice.
@@ -552,11 +563,11 @@ def main(n):
         l.append(time_elapsed)
     return l
 
+
 if __name__ == "__main__":
     import util, optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Test the performance of the hexiom2 benchmark")
+
+    parser = optparse.OptionParser(usage="%prog [options]", description="Test the performance of the hexiom2 benchmark")
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 

@@ -2,8 +2,9 @@ from cython.cimports.libc.stdio import FILE, fopen
 from cython.cimports.libc.stdlib import malloc, free
 from cython.cimports.cpython.exc import PyErr_SetFromErrnoWithFilenameObject
 
+
 def open_file():
-    p = fopen("spam.txt", "r")   # The type of "p" is "FILE*", as returned by fopen().
+    p = fopen("spam.txt", "r")  # The type of "p" is "FILE*", as returned by fopen().
 
     if p is cython.NULL:
         PyErr_SetFromErrnoWithFilenameObject(OSError, "spam.txt")

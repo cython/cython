@@ -5,7 +5,7 @@ Plex - Transition Maps
 This version represents state sets directly as dicts for speed.
 """
 
-maxint = 2**31-1  # sentinel value
+maxint = 2**31 - 1  # sentinel value
 
 
 class TransitionMap(object):
@@ -41,7 +41,7 @@ class TransitionMap(object):
             map = [-maxint, {}, maxint]
         if not special:
             special = {}
-        self.map = map          # The list of codes and states
+        self.map = map  # The list of codes and states
         self.special = special  # Mapping for special events
 
     def add(self, event, new_state):
@@ -78,7 +78,7 @@ class TransitionMap(object):
         """
         Return the mapping for epsilon, or None.
         """
-        return self.special.get('')
+        return self.special.get("")
 
     def iteritems(self):
         """
@@ -171,10 +171,7 @@ class TransitionMap(object):
         special_strs = {}
         for event, set in self.special.items():
             special_strs[event] = state_set_str(set)
-        return "[%s]+%s" % (
-            ','.join(map_strs),
-            special_strs
-        )
+        return "[%s]+%s" % (",".join(map_strs), special_strs)
 
     # --------------------- Debugging methods -----------------------
 
@@ -194,7 +191,7 @@ class TransitionMap(object):
         for event, set in self.special.items():
             if set:
                 if not event:
-                    event = 'empty'
+                    event = "empty"
                 self.dump_trans(event, set, file)
 
     def dump_range(self, code0, code1, set, file):
@@ -209,8 +206,7 @@ class TransitionMap(object):
             elif code0 == code1 - 1:
                 k = self.dump_char(code0)
             else:
-                k = "%s..%s" % (self.dump_char(code0),
-                                self.dump_char(code1 - 1))
+                k = "%s..%s" % (self.dump_char(code0), self.dump_char(code1 - 1))
             self.dump_trans(k, set, file)
 
     def dump_char(self, code):
@@ -230,5 +226,6 @@ class TransitionMap(object):
 #   State set manipulation functions
 #
 
+
 def state_set_str(set):
-    return "[%s]" % ','.join(["S%d" % state.number for state in set])
+    return "[%s]" % ",".join(["S%d" % state.number for state in set])

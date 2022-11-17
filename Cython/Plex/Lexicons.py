@@ -107,31 +107,27 @@ class Lexicon(object):
     """
 
     machine = None  # Machine
-    tables = None   # StateTableMachine
+    tables = None  # StateTableMachine
 
     def __init__(self, specifications, debug=None, debug_flags=7):
         if not isinstance(specifications, list):
             raise Errors.InvalidScanner("Scanner definition is not a list")
 
         nfa = Machines.Machine()
-        default_initial_state = nfa.new_initial_state('')
+        default_initial_state = nfa.new_initial_state("")
         token_number = 1
 
         for spec in specifications:
             if isinstance(spec, State):
                 user_initial_state = nfa.new_initial_state(spec.name)
                 for token in spec.tokens:
-                    self.add_token_to_machine(
-                        nfa, user_initial_state, token, token_number)
+                    self.add_token_to_machine(nfa, user_initial_state, token, token_number)
                     token_number += 1
             elif isinstance(spec, tuple):
-                self.add_token_to_machine(
-                    nfa, default_initial_state, spec, token_number)
+                self.add_token_to_machine(nfa, default_initial_state, spec, token_number)
                 token_number += 1
             else:
-                raise Errors.InvalidToken(
-                    token_number,
-                    "Expected a token definition (tuple) or State instance")
+                raise Errors.InvalidToken(token_number, "Expected a token definition (tuple) or State instance")
 
         if debug and (debug_flags & 1):
             debug.write("\n============= NFA ===========\n")
@@ -158,8 +154,7 @@ class Lexicon(object):
                 else:
                     action = Actions.Call(action_spec)
             final_state = machine.new_state()
-            re.build_machine(machine, initial_state, final_state,
-                             match_bol=1, nocase=0)
+            re.build_machine(machine, initial_state, final_state, match_bol=1, nocase=0)
             final_state.set_action(action, priority=-token_number)
         except Errors.PlexError as e:
             raise e.__class__("Token number %d: %s" % (token_number, e))

@@ -17,14 +17,16 @@ def with_outer_raising(*args):
     ...     print("NOT RAISED!")
     OK!
     """
+
     def generator():
         for i in args:
             yield i
         raise StopIteration
+
     return generator
 
 
-def anno_gen(x: 'int') -> 'float':
+def anno_gen(x: "int") -> "float":
     """
     >>> gen = anno_gen(2)
     >>> next(gen)

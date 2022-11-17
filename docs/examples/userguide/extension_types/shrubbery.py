@@ -8,5 +8,4 @@ class Shrubbery:
         self.height = h
 
     def describe(self):
-        print("This shrubbery is", self.width,
-              "by", self.height, "cubits.")
+        print("This shrubbery is", self.width, "by", self.height, "cubits.")

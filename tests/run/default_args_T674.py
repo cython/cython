@@ -1,6 +1,7 @@
 # mode: run
 # ticket: t674
 
+
 def test_inner(a):
     """
     >>> a = test_inner(1)
@@ -10,9 +11,12 @@ def test_inner(a):
     >>> b()
     2
     """
+
     def inner(b=a):
         return b
+
     return inner
+
 
 def test_lambda(n):
     """

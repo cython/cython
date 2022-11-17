@@ -6,6 +6,7 @@ Python Lexical Analyser
 Actions for use in token specifications
 """
 
+
 class Action(object):
     def perform(self, token_stream, text):
         pass  # abstract
@@ -64,10 +65,8 @@ class Method(Action):
         return method(text, **self.kwargs) if self.kwargs is not None else method(text)
 
     def __repr__(self):
-        kwargs = (
-            ', '.join(sorted(['%s=%r' % item for item in self.kwargs.items()]))
-            if self.kwargs is not None else '')
-        return "Method(%s%s%s)" % (self.name, ', ' if kwargs else '', kwargs)
+        kwargs = ", ".join(sorted(["%s=%r" % item for item in self.kwargs.items()])) if self.kwargs is not None else ""
+        return "Method(%s%s%s)" % (self.name, ", " if kwargs else "", kwargs)
 
 
 class Begin(Action):

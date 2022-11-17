@@ -7,5 +7,5 @@ if sys.version_info < (3, 5):
 else:
     from pyximport._pyximport3 import install, uninstall, show_docs
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     show_docs()

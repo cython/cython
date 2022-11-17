@@ -27,21 +27,22 @@ def permutations(iterable):
     pool = tuple(iterable)
     n = len(pool)
     indices = list(range(n))
-    cycles = list(range(1, n+1))[::-1]
-    yield [ pool[i] for i in indices ]
+    cycles = list(range(1, n + 1))[::-1]
+    yield [pool[i] for i in indices]
     while n:
         for i in reversed(range(n)):
             j = cycles[i] - 1
             if j == 0:
-                indices[i:] = indices[i+1:] + indices[i:i+1]
+                indices[i:] = indices[i + 1 :] + indices[i : i + 1]
                 cycles[i] = n - i
             else:
                 cycles[i] = j
                 indices[i], indices[-j] = indices[-j], indices[i]
-                yield [ pool[i] for i in indices ]
+                yield [pool[i] for i in indices]
                 break
         else:
             return
+
 
 # From https://code.activestate.com/recipes/576647/
 @cython.locals(queen_count=int, i=int, vec=list)
@@ -59,8 +60,7 @@ def n_queens(queen_count):
     """
     cols = list(range(queen_count))
     for vec in permutations(cols):
-        if (queen_count == len({ vec[i]+i for i in cols })
-                        == len({ vec[i]-i for i in cols })):
+        if queen_count == len({vec[i] + i for i in cols}) == len({vec[i] - i for i in cols}):
             yield vec
 
 
@@ -77,12 +77,11 @@ def test_n_queens(iterations):
         times.append(t1 - t0)
     return times
 
+
 main = test_n_queens
 
 if __name__ == "__main__":
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description=("Test the performance of an N-Queens solvers."))
+    parser = optparse.OptionParser(usage="%prog [options]", description=("Test the performance of an N-Queens solvers."))
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 

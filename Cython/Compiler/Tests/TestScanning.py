@@ -58,9 +58,7 @@ class TestScanning(unittest.TestCase):
             line_pos.append(scanner.position())
             scanner.next()
 
-        for sy, systring, pos in zip(
-            line_sy[::-1], line_systring[::-1], line_pos[::-1]
-        ):
+        for sy, systring, pos in zip(line_sy[::-1], line_systring[::-1], line_pos[::-1]):
             scanner.put_back(sy, systring, pos)
 
         n = 0
@@ -128,8 +126,6 @@ class TestScanning(unittest.TestCase):
             scanner.next()
             scanner.error("Oooops")
         self.assertEqual((scanner.sy, scanner.systring), (sy1, systring1))
-
-
 
 
 if __name__ == "__main__":

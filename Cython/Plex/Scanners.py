@@ -74,7 +74,7 @@ class Scanner(object):
     #  queue = None          # list of tokens and positions to be returned
     #  trace = 0
 
-    def __init__(self, lexicon, stream, name='', initial_pos=None):
+    def __init__(self, lexicon, stream, name="", initial_pos=None):
         """
         Scanner(lexicon, stream, name = '')
 
@@ -89,7 +89,7 @@ class Scanner(object):
         """
         self.trace = 0
 
-        self.buffer = u''
+        self.buffer = ""
         self.buf_start_pos = 0
         self.next_pos = 0
         self.cur_pos = 0
@@ -105,7 +105,7 @@ class Scanner(object):
         self.name = name
         self.queue = []
         self.initial_state = None
-        self.begin('')
+        self.begin("")
         self.next_pos = 0
         self.cur_pos = 0
         self.cur_line_start = 0
@@ -149,24 +149,19 @@ class Scanner(object):
         file.
         """
         self.start_pos = self.cur_pos
-        self.current_scanner_position_tuple = (
-            self.name, self.cur_line, self.cur_pos - self.cur_line_start
-        )
+        self.current_scanner_position_tuple = (self.name, self.cur_line, self.cur_pos - self.cur_line_start)
         action = self.run_machine_inlined()
         if action is not None:
             if self.trace:
-                print("Scanner: read: Performing %s %d:%d" % (
-                    action, self.start_pos, self.cur_pos))
-            text = self.buffer[
-                self.start_pos - self.buf_start_pos:
-                self.cur_pos - self.buf_start_pos]
+                print("Scanner: read: Performing %s %d:%d" % (action, self.start_pos, self.cur_pos))
+            text = self.buffer[self.start_pos - self.buf_start_pos : self.cur_pos - self.buf_start_pos]
             return (text, action)
         else:
             if self.cur_pos == self.start_pos:
                 if self.cur_char is EOL:
                     self.next_char()
                 if self.cur_char is None or self.cur_char is EOF:
-                    return (u'', None)
+                    return ("", None)
             raise Errors.UnrecognizedInput(self, self.state_name)
 
     def run_machine_inlined(self):
@@ -183,30 +178,35 @@ class Scanner(object):
         buffer = self.buffer
         buf_start_pos = self.buf_start_pos
         buf_len = len(buffer)
-        b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
-            None, 0, 0, 0, u'', 0, 0
+        b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = None, 0, 0, 0, "", 0, 0
 
         trace = self.trace
         while 1:
             if trace:
-                print("State %d, %d/%d:%s -->" % (
-                    state['number'], input_state, cur_pos, repr(cur_char)))
+                print("State %d, %d/%d:%s -->" % (state["number"], input_state, cur_pos, repr(cur_char)))
 
             # Begin inlined self.save_for_backup()
-            action = state['action']
+            action = state["action"]
             if action is not None:
-                b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
-                    action, cur_pos, cur_line, cur_line_start, cur_char, input_state, next_pos
+                b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = (
+                    action,
+                    cur_pos,
+                    cur_line,
+                    cur_line_start,
+                    cur_char,
+                    input_state,
+                    next_pos,
+                )
             # End inlined self.save_for_backup()
 
             c = cur_char
             new_state = state.get(c, NOT_FOUND)
             if new_state is NOT_FOUND:
-                new_state = c and state.get('else')
+                new_state = c and state.get("else")
 
             if new_state:
                 if trace:
-                    print("State %d" % new_state['number'])
+                    print("State %d" % new_state["number"])
                 state = new_state
                 # Begin inlined: self.next_char()
                 if input_state == 1:
@@ -229,9 +229,9 @@ class Scanner(object):
                             c = buffer[buf_index]
                             next_pos += 1
                         else:
-                            c = u''
+                            c = ""
                     # End inlined: c = self.read_char()
-                    if c == u'\n':
+                    if c == "\n":
                         cur_char = EOL
                         input_state = 2
                     elif not c:
@@ -240,7 +240,7 @@ class Scanner(object):
                     else:
                         cur_char = c
                 elif input_state == 2:
-                    cur_char = u'\n'
+                    cur_char = "\n"
                     input_state = 3
                 elif input_state == 3:
                     cur_line += 1
@@ -251,17 +251,22 @@ class Scanner(object):
                     cur_char = EOF
                     input_state = 5
                 else:  # input_state = 5
-                    cur_char = u''
+                    cur_char = ""
                     # End inlined self.next_char()
             else:  # not new_state
                 if trace:
                     print("blocked")
                 # Begin inlined: action = self.back_up()
                 if b_action is not None:
-                    (action, cur_pos, cur_line, cur_line_start,
-                     cur_char, input_state, next_pos) = \
-                        (b_action, b_cur_pos, b_cur_line, b_cur_line_start,
-                         b_cur_char, b_input_state, b_next_pos)
+                    (action, cur_pos, cur_line, cur_line_start, cur_char, input_state, next_pos) = (
+                        b_action,
+                        b_cur_pos,
+                        b_cur_line,
+                        b_cur_line_start,
+                        b_cur_char,
+                        b_input_state,
+                        b_next_pos,
+                    )
                 else:
                     action = None
                 break  # while 1
@@ -285,7 +290,7 @@ class Scanner(object):
         if input_state == 1:
             self.cur_pos = self.next_pos
             c = self.read_char()
-            if c == u'\n':
+            if c == "\n":
                 self.cur_char = EOL
                 self.input_state = 2
             elif not c:
@@ -294,7 +299,7 @@ class Scanner(object):
             else:
                 self.cur_char = c
         elif input_state == 2:
-            self.cur_char = u'\n'
+            self.cur_char = "\n"
             self.input_state = 3
         elif input_state == 3:
             self.cur_line += 1
@@ -305,7 +310,7 @@ class Scanner(object):
             self.cur_char = EOF
             self.input_state = 5
         else:  # input_state = 5
-            self.cur_char = u''
+            self.cur_char = ""
         if self.trace:
             print("--> [%d] %d %r" % (input_state, self.cur_pos, self.cur_char))
 
@@ -328,8 +333,7 @@ class Scanner(object):
 
     def begin(self, state_name):
         """Set the current state of the scanner to the named state."""
-        self.initial_state = (
-            self.lexicon.get_initial_state(state_name))
+        self.initial_state = self.lexicon.get_initial_state(state_name)
         self.state_name = state_name
 
     def produce(self, value, text=None):

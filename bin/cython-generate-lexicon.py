@@ -17,7 +17,7 @@ import os
 import sys
 
 # Make sure we import the right Cython
-cythonpath, _ = os.path.split(os.path.realpath(__file__)) # bin directory
+cythonpath, _ = os.path.split(os.path.realpath(__file__))  # bin directory
 cythonpath, _ = os.path.split(cythonpath)
 if os.path.exists(os.path.join(cythonpath, "Cython")):
     sys.path.insert(0, cythonpath)
@@ -28,28 +28,27 @@ from Cython.Compiler import Lexicon
 
 
 def main():
-    arg = '--overwrite'
+    arg = "--overwrite"
     if len(sys.argv) == 2:
         arg = sys.argv[1]
-    if len(sys.argv) > 2 or arg not in ['--overwrite','--here']:
-        print("""Call the script with either:
+    if len(sys.argv) > 2 or arg not in ["--overwrite", "--here"]:
+        print(
+            """Call the script with either:
   --overwrite    to update the existing Lexicon.py file (default)
   --here         to create an version of Lexicon.py in the current directory
-""")
+"""
+        )
         return
 
     generated_code = (
-        f"# generated with:\n"
-        f"# {sys.implementation.name} {sys.version.splitlines()[0].strip()}\n"
-        "\n"
-        f"{generate_character_sets()}\n"
+        f"# generated with:\n" f"# {sys.implementation.name} {sys.version.splitlines()[0].strip()}\n" "\n" f"{generate_character_sets()}\n"
     )
 
     print("Reading file", Lexicon.__file__)
-    with open(Lexicon.__file__, 'r') as f:
+    with open(Lexicon.__file__, "r") as f:
         parts = re.split(r"(# (?:BEGIN|END) GENERATED CODE\n?)", f.read())
 
-    if len(parts) not in (4,5) or ' GENERATED CODE' not in parts[1] or ' GENERATED CODE' not in parts[3]:
+    if len(parts) not in (4, 5) or " GENERATED CODE" not in parts[1] or " GENERATED CODE" not in parts[3]:
         print("Warning: generated code section not found - code not inserted")
         return
 
@@ -63,7 +62,7 @@ def main():
         outfile = Lexicon.__file__
 
     print("Writing to file", outfile)
-    with open(outfile, 'w') as f:
+    with open(outfile, "w") as f:
         f.write(output)
 
 
@@ -71,18 +70,17 @@ def main():
 # An alternative approach for getting character sets is at https://stackoverflow.com/a/49332214/4657412
 @functools.lru_cache()
 def get_start_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier(chr(i)) ]
+    return [i for i in range(sys.maxunicode) if str.isidentifier(chr(i))]
 
 
 def get_continue_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier('a'+chr(i)) ]
+    return [i for i in range(sys.maxunicode) if str.isidentifier("a" + chr(i))]
 
 
 def get_continue_not_start_as_number():
     start = get_start_characters_as_number()
     cont = get_continue_characters_as_number()
-    assert set(start) <= set(cont), \
-        "We assume that all identifier start characters are also continuation characters."
+    assert set(start) <= set(cont), "We assume that all identifier start characters are also continuation characters."
     return sorted(set(cont).difference(start))
 
 
@@ -96,15 +94,15 @@ def to_ranges(char_num_list):
     single_chars = []
     ranges = []
     for n in range(1, len(char_num_list)):
-        if char_num_list[n]-1 != char_num_list[n-1]:
+        if char_num_list[n] - 1 != char_num_list[n - 1]:
             # discontinuous
-            if first_good_val == char_num_list[n-1]:
-                single_chars.append(chr(char_num_list[n-1]))
+            if first_good_val == char_num_list[n - 1]:
+                single_chars.append(chr(char_num_list[n - 1]))
             else:
-                ranges.append(chr(first_good_val) + chr(char_num_list[n-1]))
+                ranges.append(chr(first_good_val) + chr(char_num_list[n - 1]))
             first_good_val = char_num_list[n]
 
-    return ''.join(single_chars), ''.join(ranges)
+    return "".join(single_chars), "".join(ranges)
 
 
 def make_split_strings(chars, splitby=60, indent="    "):
@@ -119,11 +117,7 @@ def generate_character_sets():
         ("unicode_continuation_ch", get_continue_not_start_as_number),
     ]:
         for set_type, chars in zip(("any", "range"), to_ranges(char_generator())):
-            declarations.append(
-                f"{char_type}_{set_type} = (\n"
-                f"{make_split_strings(chars)}\n"
-                f")\n"
-            )
+            declarations.append(f"{char_type}_{set_type} = (\n" f"{make_split_strings(chars)}\n" f")\n")
 
     return "".join(declarations)
 

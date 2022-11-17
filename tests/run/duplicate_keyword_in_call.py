@@ -2,8 +2,10 @@
 # tag: kwargs, call
 # ticket: t717
 
+
 def f(**kwargs):
     return sorted(kwargs.items())
+
 
 def test_call(kwargs):
     """

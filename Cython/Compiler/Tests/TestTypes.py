@@ -6,7 +6,6 @@ import Cython.Compiler.PyrexTypes as PT
 
 
 class TestMethodDispatcherTransform(unittest.TestCase):
-
     def test_widest_numeric_type(self):
         def assert_widest(type1, type2, widest):
             self.assertEqual(widest, PT.widest_numeric_type(type1, type2))
@@ -60,10 +59,11 @@ class TestTypeIdentifiers(unittest.TestCase):
             ("const &&std::vector", "const__fwrefstd__in_vector"),
             ("const &&&std::vector", "const__fwref__refstd__in_vector"),
             ("const &&std::vector", "const__fwrefstd__in_vector"),
-            ("void (*func)(int x, float y)",
-             "975d51__void__lParen__ptrfunc__rParen__lParenint__space_x__comma_float__space_y__rParen__etc"),
-            ("float ** (*func)(int x, int[:] y)",
-             "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lParenint__space_x__comma_int__lArr__D__rArry__rParen__etc"),
+            ("void (*func)(int x, float y)", "975d51__void__lParen__ptrfunc__rParen__lParenint__space_x__comma_float__space_y__rParen__etc"),
+            (
+                "float ** (*func)(int x, int[:] y)",
+                "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lParenint__space_x__comma_int__lArr__D__rArry__rParen__etc",
+            ),
         ]
         self._test_escape(function_name, test_data)
 
@@ -71,5 +71,4 @@ class TestTypeIdentifiers(unittest.TestCase):
         escape = getattr(PT, func_name)
         for declaration, expected in test_data:
             escaped_value = escape(declaration)
-            self.assertEqual(escaped_value, expected, "%s('%s') == '%s' != '%s'" % (
-                func_name, declaration, escaped_value, expected))
+            self.assertEqual(escaped_value, expected, "%s('%s') == '%s' != '%s'" % (func_name, declaration, escaped_value, expected))

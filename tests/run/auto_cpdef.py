@@ -4,6 +4,7 @@
 
 import cython
 
+
 def str(arg):
     """
     This is a bit evil - str gets mapped to a C-API function and is
@@ -12,10 +13,11 @@ def str(arg):
     >>> print(str('TEST'))
     STR
     """
-    return 'STR'
+    return "STR"
 
-@cython.test_assert_path_exists('//SimpleCallNode[@function.type.is_cfunction = True]')
-@cython.test_fail_if_path_exists('//SimpleCallNode[@function.type.is_builtin_type = True]')
+
+@cython.test_assert_path_exists("//SimpleCallNode[@function.type.is_cfunction = True]")
+@cython.test_fail_if_path_exists("//SimpleCallNode[@function.type.is_builtin_type = True]")
 def call_str(arg):
     """
     >>> print(call_str('TEST'))
@@ -31,14 +33,17 @@ def stararg_func(*args):
     """
     return args
 
+
 def starstararg_func(**kwargs):
     """
     >>> starstararg_func(a=1)
     1
     """
-    return kwargs['a']
+    return kwargs["a"]
+
 
 l = lambda x: 1
+
 
 def test_lambda():
     """
@@ -51,15 +56,18 @@ def test_lambda():
 try:
     from math import fabs
 except ImportError:
+
     def fabs(x):
         if x < 0:
             return -x
         else:
             return x
 
+
 try:
     from math import no_such_function
 except ImportError:
+
     def no_such_function(x):
         return x + 1.0
 

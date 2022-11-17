@@ -6,6 +6,7 @@ from Cython.Compiler import Code, UtilityCode
 def strip_2tup(tup):
     return tup[0] and tup[0].strip(), tup[1] and tup[1].strip()
 
+
 class TestUtilityLoader(unittest.TestCase):
     """
     Test loading UtilityCodes
@@ -15,7 +16,7 @@ class TestUtilityLoader(unittest.TestCase):
 
     required = "req {{loader}} proto", "req {{loader}} impl"
 
-    context = dict(loader='Loader')
+    context = dict(loader="Loader")
 
     name = "TestUtilityLoader"
     filename = "TestUtilityLoader.c"
@@ -30,7 +31,7 @@ class TestUtilityLoader(unittest.TestCase):
         got = strip_2tup((utility.proto, utility.impl))
         self.assertEqual(got, self.expected)
 
-        required, = utility.requires
+        (required,) = utility.requires
         got = strip_2tup((required.proto, required.impl))
         self.assertEqual(got, self.required)
 
@@ -43,11 +44,10 @@ class TestTempitaUtilityLoader(TestUtilityLoader):
     """
     Test loading UtilityCodes with Tempita substitution
     """
-    expected_tempita = (TestUtilityLoader.expected[0].replace('{{loader}}', 'Loader'),
-                        TestUtilityLoader.expected[1].replace('{{loader}}', 'Loader'))
 
-    required_tempita = (TestUtilityLoader.required[0].replace('{{loader}}', 'Loader'),
-                        TestUtilityLoader.required[1].replace('{{loader}}', 'Loader'))
+    expected_tempita = (TestUtilityLoader.expected[0].replace("{{loader}}", "Loader"), TestUtilityLoader.expected[1].replace("{{loader}}", "Loader"))
+
+    required_tempita = (TestUtilityLoader.required[0].replace("{{loader}}", "Loader"), TestUtilityLoader.required[1].replace("{{loader}}", "Loader"))
 
     cls = Code.TempitaUtilityCode
 
@@ -60,7 +60,7 @@ class TestTempitaUtilityLoader(TestUtilityLoader):
         got = strip_2tup((utility.proto, utility.impl))
         self.assertEqual(got, self.expected_tempita)
 
-        required, = utility.requires
+        (required,) = utility.requires
         got = strip_2tup((required.proto, required.impl))
         self.assertEqual(got, self.required_tempita)
 
@@ -81,7 +81,7 @@ class TestCythonUtilityLoader(TestTempitaUtilityLoader):
     required = None, "req {{cy_loader}} impl"
     required_tempita = None, "req CyLoader impl"
 
-    context = dict(cy_loader='CyLoader')
+    context = dict(cy_loader="CyLoader")
 
     name = "TestCyUtilityLoader"
     filename = "TestCyUtilityLoader.pyx"

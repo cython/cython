@@ -25,16 +25,15 @@ class NodeTypeWriter(TreeVisitor):
 
     def visit_Node(self, node):
         if not self.access_path:
-            name = u"(root)"
+            name = "(root)"
         else:
             tip = self.access_path[-1]
             if tip[2] is not None:
-                name = u"%s[%d]" % tip[1:3]
+                name = "%s[%d]" % tip[1:3]
             else:
                 name = tip[1]
 
-        self.result.append(u"  " * self._indents +
-                           u"%s: %s" % (name, node.__class__.__name__))
+        self.result.append("  " * self._indents + "%s: %s" % (name, node.__class__.__name__))
         self._indents += 1
         self.visitchildren(node)
         self._indents -= 1
@@ -47,11 +46,10 @@ def treetypes(root):
     cases look ok."""
     w = NodeTypeWriter()
     w.visit(root)
-    return u"\n".join([u""] + w.result + [u""])
+    return "\n".join([""] + w.result + [""])
 
 
 class CythonTest(unittest.TestCase):
-
     def setUp(self):
         Errors.init_thread()
 
@@ -61,14 +59,12 @@ class CythonTest(unittest.TestCase):
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
         if not isinstance(expected, list):
-            expected = expected.split(u"\n")
+            expected = expected.split("\n")
         if not isinstance(result, list):
-            result = result.split(u"\n")
+            result = result.split("\n")
         for idx, (expected_line, result_line) in enumerate(zip(expected, result)):
-            self.assertEqual(expected_line, result_line,
-                             "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
-        self.assertEqual(len(expected), len(result),
-                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
+            self.assertEqual(expected_line, result_line, "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
+        self.assertEqual(len(expected), len(result), "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), "\n".join(result)))
 
     def codeToLines(self, tree):
         writer = CodeWriter()
@@ -84,14 +80,11 @@ class CythonTest(unittest.TestCase):
         expected_lines = strip_common_indent(expected.split("\n"))
 
         for idx, (line, expected_line) in enumerate(zip(result_lines, expected_lines)):
-            self.assertEqual(expected_line, line,
-                             "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
-        self.assertEqual(len(result_lines), len(expected_lines),
-                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
+            self.assertEqual(expected_line, line, "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
+        self.assertEqual(len(result_lines), len(expected_lines), "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
 
     def assertNodeExists(self, path, result_tree):
-        self.assertNotEqual(TreePath.find_first(result_tree, path), None,
-                            "Path '%s' not found in result tree" % path)
+        self.assertNotEqual(TreePath.find_first(result_tree, path), None, "Path '%s' not found in result tree" % path)
 
     def fragment(self, code, pxds=None, pipeline=None):
         "Simply create a tree fragment using the name of the test-case in parse errors."
@@ -101,7 +94,7 @@ class CythonTest(unittest.TestCase):
             pipeline = []
         name = self.id()
         if name.startswith("__main__."):
-            name = name[len("__main__."):]
+            name = name[len("__main__.") :]
         name = name.replace(".", "_")
         return TreeFragment(code, name, pxds, pipeline=pipeline)
 
@@ -167,23 +160,37 @@ class TransformTest(CythonTest):
 # the match strings) do not just appear in (multiline) C code comments containing the original
 # Cython source code.  Thus, we discard the comments before matching.
 # This seems a prime case for re.VERBOSE, but it seems to match some of the whitespace.
-_strip_c_comments = partial(re.compile(
-    re.sub(r'\s+', '', r'''
+_strip_c_comments = partial(
+    re.compile(
+        re.sub(
+            r"\s+",
+            "",
+            r"""
         /[*] (
             (?: [^*\n] | [*][^/] )*
             [\n]
             (?: [^*] | [*][^/] )*
         ) [*]/
-    ''')
-).sub, '')
+    """,
+        )
+    ).sub,
+    "",
+)
 
-_strip_cython_code_from_html = partial(re.compile(
-    re.sub(r'\s\s+', '', r'''
+_strip_cython_code_from_html = partial(
+    re.compile(
+        re.sub(
+            r"\s\s+",
+            "",
+            r"""
         <pre class=["'][^"']*cython\s+line[^"']*["']\s*>
         (?:[^<]|<(?!/pre))+
         </pre>
-    ''')
-).sub, '')
+    """,
+        )
+    ).sub,
+    "",
+)
 
 
 class TreeAssertVisitor(VisitorTransform):
@@ -200,37 +207,33 @@ class TreeAssertVisitor(VisitorTransform):
         patterns, antipatterns = self._c_patterns, self._c_antipatterns
 
         def fail(pos, pattern, found, file_path):
-            Errors.error(pos, "Pattern '%s' %s found in %s" %(
-                pattern,
-                'was' if found else 'was not',
-                file_path,
-            ))
+            Errors.error(pos, "Pattern '%s' %s found in %s" % (pattern, "was" if found else "was not", file_path))
 
         def validate_file_content(file_path, content):
             for pattern in patterns:
-                #print("Searching pattern '%s'" % pattern)
+                # print("Searching pattern '%s'" % pattern)
                 if not re.search(pattern, content):
                     fail(self._module_pos, pattern, found=False, file_path=file_path)
 
             for antipattern in antipatterns:
-                #print("Searching antipattern '%s'" % antipattern)
+                # print("Searching antipattern '%s'" % antipattern)
                 if re.search(antipattern, content):
                     fail(self._module_pos, antipattern, found=True, file_path=file_path)
 
         def validate_c_file(result):
             c_file = result.c_file
             if not (patterns or antipatterns):
-                #print("No patterns defined for %s" % c_file)
+                # print("No patterns defined for %s" % c_file)
                 return result
 
-            with open(c_file, encoding='utf8') as f:
+            with open(c_file, encoding="utf8") as f:
                 content = f.read()
             content = _strip_c_comments(content)
             validate_file_content(c_file, content)
 
             html_file = os.path.splitext(c_file)[0] + ".html"
             if os.path.exists(html_file) and os.path.getmtime(c_file) <= os.path.getmtime(html_file):
-                with open(html_file, encoding='utf8') as f:
+                with open(html_file, encoding="utf8") as f:
                     content = f.read()
                 content = _strip_cython_code_from_html(content)
                 validate_file_content(html_file, content)
@@ -239,22 +242,18 @@ class TreeAssertVisitor(VisitorTransform):
 
     def _check_directives(self, node):
         directives = node.directives
-        if 'test_assert_path_exists' in directives:
-            for path in directives['test_assert_path_exists']:
+        if "test_assert_path_exists" in directives:
+            for path in directives["test_assert_path_exists"]:
                 if TreePath.find_first(node, path) is None:
-                    Errors.error(
-                        node.pos,
-                        "Expected path '%s' not found in result tree" % path)
-        if 'test_fail_if_path_exists' in directives:
-            for path in directives['test_fail_if_path_exists']:
+                    Errors.error(node.pos, "Expected path '%s' not found in result tree" % path)
+        if "test_fail_if_path_exists" in directives:
+            for path in directives["test_fail_if_path_exists"]:
                 if TreePath.find_first(node, path) is not None:
-                    Errors.error(
-                        node.pos,
-                        "Unexpected path '%s' found in result tree" % path)
-        if 'test_assert_c_code_has' in directives:
-            self._c_patterns.extend(directives['test_assert_c_code_has'])
-        if 'test_fail_if_c_code_has' in directives:
-            self._c_antipatterns.extend(directives['test_fail_if_c_code_has'])
+                    Errors.error(node.pos, "Unexpected path '%s' found in result tree" % path)
+        if "test_assert_c_code_has" in directives:
+            self._c_patterns.extend(directives["test_assert_c_code_has"])
+        if "test_fail_if_c_code_has" in directives:
+            self._c_antipatterns.extend(directives["test_fail_if_c_code_has"])
 
     def visit_ModuleNode(self, node):
         self._module_pos = node.pos
@@ -272,36 +271,37 @@ class TreeAssertVisitor(VisitorTransform):
 
 def unpack_source_tree(tree_file, workdir, cython_root):
     programs = {
-        'PYTHON': [sys.executable],
-        'CYTHON': [sys.executable, os.path.join(cython_root, 'cython.py')],
-        'CYTHONIZE': [sys.executable, os.path.join(cython_root, 'cythonize.py')]
+        "PYTHON": [sys.executable],
+        "CYTHON": [sys.executable, os.path.join(cython_root, "cython.py")],
+        "CYTHONIZE": [sys.executable, os.path.join(cython_root, "cythonize.py")],
     }
 
     if workdir is None:
         workdir = tempfile.mkdtemp()
     header, cur_file = [], None
-    with open(tree_file, 'rb') as f:
+    with open(tree_file, "rb") as f:
         try:
             for line in f:
-                if line[:5] == b'#####':
-                    filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
+                if line[:5] == b"#####":
+                    filename = line.strip().strip(b"#").strip().decode("utf8").replace("/", os.path.sep)
                     path = os.path.join(workdir, filename)
                     if not os.path.exists(os.path.dirname(path)):
                         os.makedirs(os.path.dirname(path))
                     if cur_file is not None:
                         to_close, cur_file = cur_file, None
                         to_close.close()
-                    cur_file = open(path, 'wb')
+                    cur_file = open(path, "wb")
                 elif cur_file is not None:
                     cur_file.write(line)
-                elif line.strip() and not line.lstrip().startswith(b'#'):
+                elif line.strip() and not line.lstrip().startswith(b"#"):
                     if line.strip() not in (b'"""', b"'''"):
-                        command = shlex.split(line.decode('utf8'))
-                        if not command: continue
+                        command = shlex.split(line.decode("utf8"))
+                        if not command:
+                            continue
                         # In Python 3: prog, *args = command
                         prog, args = command[0], command[1:]
                         try:
-                            header.append(programs[prog]+args)
+                            header.append(programs[prog] + args)
                         except KeyError:
                             header.append(command)
         finally:

@@ -3,6 +3,7 @@
 from cython.cimports.cpython import Py_buffer
 from cython.cimports.libcpp.vector import vector
 
+
 @cython.cclass
 class Matrix:
 

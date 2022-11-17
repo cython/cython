@@ -3,11 +3,11 @@ import sys
 
 def typename(t):
     name = type(t).__name__
-    if sys.version_info < (2,5):
-        if name == 'classobj' and issubclass(t, MyException):
-            name = 'type'
-        elif name == 'instance' and isinstance(t, MyException):
-            name = 'MyException'
+    if sys.version_info < (2, 5):
+        if name == "classobj" and issubclass(t, MyException):
+            name = "type"
+        elif name == "instance" and isinstance(t, MyException):
+            name = "MyException"
     return "<type '%s'>" % name
 
 
@@ -16,7 +16,7 @@ class MyException(Exception):
 
 
 class ContextManager(object):
-    def __init__(self, value, exit_ret = None):
+    def __init__(self, value, exit_ret=None):
         self.value = value
         self.exit_ret = exit_ret
 
@@ -132,6 +132,7 @@ def with_real_lock():
     lock no longer held
     """
     from threading import Lock
+
     lock = Lock()
 
     print("about to acquire lock")
@@ -155,8 +156,11 @@ def functions_in_with():
     """
     try:
         with ContextManager("value") as value:
-            def f(x): return x, value
-            make = lambda x:x()
+
+            def f(x):
+                return x, value
+
+            make = lambda x: x()
             raise make(MyException)
     except:
         print("outer except")
@@ -171,7 +175,7 @@ def multitarget():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
     with ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
-        print('%s %s %s %s %s' % (a, b, c, d, e))
+        print("%s %s %s %s %s" % (a, b, c, d, e))
 
 
 def tupletarget():

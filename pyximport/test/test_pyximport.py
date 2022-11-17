@@ -1,6 +1,7 @@
 from __future__ import absolute_import, print_function
 
 from pyximport import pyximport
+
 pyximport.install(reload_support=True)
 
 import os
@@ -44,6 +45,7 @@ def test_with_reload():
     with open(filename, "w") as fid:
         fid.write("print 'Hello world from the Pyrex install hook'")
     import dummy
+
     reload(dummy)
 
     depend_filename = os.path.join(tempdir, "dummy.pyxdep")
@@ -52,11 +54,13 @@ def test_with_reload():
 
     build_filename = os.path.join(tempdir, "dummy.pyxbld")
     with open(build_filename, "w") as build_file:
-        build_file.write("""
+        build_file.write(
+            """
 from distutils.extension import Extension
 def make_ext(name, filename):
     return Extension(name=name, sources=[filename])
-""")
+"""
+        )
 
     with open(os.path.join(tempdir, "foo.bar"), "w") as fid:
         fid.write(" ")
@@ -65,7 +69,7 @@ def make_ext(name, filename):
     with open(os.path.join(tempdir, "abc.txt"), "w") as fid:
         fid.write(" ")
     reload(dummy)
-    assert len(pyximport._test_files)==1, pyximport._test_files
+    assert len(pyximport._test_files) == 1, pyximport._test_files
     reload(dummy)
 
     time.sleep(1)  # sleep a second to get safer mtimes
@@ -96,6 +100,7 @@ def test_zip():
 
         sys.path.insert(0, zip_path)
         import test_zip_module
+
         assert test_zip_module.x == 42
     finally:
         if zip_path in sys.path:
@@ -113,7 +118,7 @@ def test_zip_nonexisting():
         sys.path.remove("nonexisting_zip_module.zip")
 
 
-if __name__== "__main__":
+if __name__ == "__main__":
     test_with_reload()
     test_zip()
     test_zip_nonexisting()

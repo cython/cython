@@ -16,7 +16,7 @@ def test_return_type(n: cython.int) -> cython.double:
     >>> test_return_type(389)
     389.0
     """
-    assert cython.typeof(n) == 'int', cython.typeof(n)
+    assert cython.typeof(n) == "int", cython.typeof(n)
     return n if is_compiled else float(n)
 
 
@@ -28,15 +28,15 @@ def test_struct(n: cython.int, x: cython.double) -> MyStruct2:
     >>> sorted(d)
     ['n', 'return', 'x']
     """
-    assert cython.typeof(n) == 'int', cython.typeof(n)
+    assert cython.typeof(n) == "int", cython.typeof(n)
     if is_compiled:
-        assert cython.typeof(x) == 'double', cython.typeof(x)  # C double
+        assert cython.typeof(x) == "double", cython.typeof(x)  # C double
     else:
-        assert cython.typeof(x) == 'float', cython.typeof(x)   # Python float
+        assert cython.typeof(x) == "float", cython.typeof(x)  # Python float
 
     a = cython.declare(MyStruct2)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
-    a[1] = MyStruct(is_integral=False, data={'x': x})
+    a[1] = MyStruct(is_integral=False, data={"x": x})
     return a[0].data.n, a[1].data.x
 
 
@@ -85,6 +85,7 @@ def call_cdef_inline(x):
     """
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
+
 
 @cython.cfunc
 def test_cdef_return_object(x: object) -> object:

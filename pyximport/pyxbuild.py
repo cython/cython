@@ -9,21 +9,22 @@ import sys
 from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
+
 try:
     from Cython.Distutils.build_ext import build_ext
+
     HAS_CYTHON = True
 except ImportError:
     HAS_CYTHON = False
 
 DEBUG = 0
 
-_reloads={}
+_reloads = {}
 
 
-def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuild_dir=None,
-               setup_args=None, reload_support=False, inplace=False):
+def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuild_dir=None, setup_args=None, reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so
-       or .dll ."""
+    or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
 
     path, name = os.path.split(os.path.abspath(filename))
@@ -32,7 +33,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         modname, extension = os.path.splitext(name)
         assert extension in (".pyx", ".py"), extension
         if not HAS_CYTHON:
-            filename = filename[:-len(extension)] + '.c'
+            filename = filename[: -len(extension)] + ".c"
         ext = Extension(name=modname, sources=[filename])
 
     if setup_args is None:
@@ -41,47 +42,45 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         pyxbuild_dir = os.path.join(path, "_pyxbld")
 
     package_base_dir = path
-    for package_name in ext.name.split('.')[-2::-1]:
+    for package_name in ext.name.split(".")[-2::-1]:
         package_base_dir, pname = os.path.split(package_base_dir)
         if pname != package_name:
             # something is wrong - package path doesn't match file path
             package_base_dir = None
             break
 
-    script_args=setup_args.get("script_args",[])
+    script_args = setup_args.get("script_args", [])
     if DEBUG or "--verbose" in script_args:
         quiet = "--verbose"
     else:
         quiet = "--quiet"
     if build_in_temp:
-        args = [quiet, "build_ext", '--cython-c-in-temp']
+        args = [quiet, "build_ext", "--cython-c-in-temp"]
     else:
         args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
     if inplace and package_base_dir:
-        args.extend(['--build-lib', package_base_dir])
-        if ext.name == '__init__' or ext.name.endswith('.__init__'):
+        args.extend(["--build-lib", package_base_dir])
+        if ext.name == "__init__" or ext.name.endswith(".__init__"):
             # package => provide __path__ early
-            if not hasattr(ext, 'cython_directives'):
-                ext.cython_directives = {'set_initial_path' : 'SOURCEFILE'}
-            elif 'set_initial_path' not in ext.cython_directives:
-                ext.cython_directives['set_initial_path'] = 'SOURCEFILE'
+            if not hasattr(ext, "cython_directives"):
+                ext.cython_directives = {"set_initial_path": "SOURCEFILE"}
+            elif "set_initial_path" not in ext.cython_directives:
+                ext.cython_directives["set_initial_path"] = "SOURCEFILE"
 
     sargs = setup_args.copy()
-    sargs.update({
-        "script_name": None,
-        "script_args": args + script_args,
-    })
+    sargs.update({"script_name": None, "script_args": args + script_args})
     # late import, in case setuptools replaced it
     from distutils.dist import Distribution
+
     dist = Distribution(sargs)
     if not dist.ext_modules:
         dist.ext_modules = []
     dist.ext_modules.append(ext)
     if HAS_CYTHON:
-        dist.cmdclass = {'build_ext': build_ext}
-    build = dist.get_command_obj('build')
+        dist.cmdclass = {"build_ext": build_ext}
+    build = dist.get_command_obj("build")
     build.build_base = pyxbuild_dir
 
     cfgfiles = dist.find_config_files()
@@ -97,7 +96,6 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         dist.dump_option_dicts()
     assert ok
 
-
     try:
         obj_build_ext = dist.get_command_obj("build_ext")
         dist.run_commands()
@@ -106,23 +104,22 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
             # Python distutils get_outputs()[ returns a wrong so_path
             # when --inplace ; see https://bugs.python.org/issue5977
             # workaround:
-            so_path = os.path.join(os.path.dirname(filename),
-                                   os.path.basename(so_path))
+            so_path = os.path.join(os.path.dirname(filename), os.path.basename(so_path))
         if reload_support:
             org_path = so_path
             timestamp = os.path.getmtime(org_path)
             global _reloads
-            last_timestamp, last_path, count = _reloads.get(org_path, (None,None,0) )
+            last_timestamp, last_path, count = _reloads.get(org_path, (None, None, 0))
             if last_timestamp == timestamp:
                 so_path = last_path
             else:
                 basename = os.path.basename(org_path)
                 while count < 100:
                     count += 1
-                    r_path = os.path.join(obj_build_ext.build_lib,
-                                          basename + '.reload%s' % count)
+                    r_path = os.path.join(obj_build_ext.build_lib, basename + ".reload%s" % count)
                     try:
                         import shutil  # late import / reload_support is: debugging
+
                         try:
                             # Try to unlink first --- if the .so file
                             # is mmapped by another process,
@@ -142,7 +139,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                 else:
                     # used up all 100 slots
                     raise ImportError("reload count for %s reached maximum" % org_path)
-                _reloads[org_path]=(timestamp, so_path, count)
+                _reloads[org_path] = (timestamp, so_path, count)
         return so_path
     except KeyboardInterrupt:
         sys.exit(1)
@@ -155,6 +152,6 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         raise
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     pyx_to_dll("dummy.pyx")
     from . import test

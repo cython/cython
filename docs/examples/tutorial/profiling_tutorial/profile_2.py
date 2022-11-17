@@ -1,6 +1,7 @@
 import pstats, cProfile
 
 import pyximport
+
 pyximport.install()
 
 import calc_pi

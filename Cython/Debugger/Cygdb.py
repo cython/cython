@@ -23,23 +23,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def make_command_file(path_to_debug_info, prefix_code='',
-                      no_import=False, skip_interpreter=False):
+def make_command_file(path_to_debug_info, prefix_code="", no_import=False, skip_interpreter=False):
     if not no_import:
-        pattern = os.path.join(path_to_debug_info,
-                               'cython_debug',
-                               'cython_debug_info_*')
+        pattern = os.path.join(path_to_debug_info, "cython_debug", "cython_debug_info_*")
         debug_files = glob.glob(pattern)
 
         if not debug_files:
-            sys.exit('%s.\nNo debug files were found in %s. Aborting.' % (
-                                   usage, os.path.abspath(path_to_debug_info)))
+            sys.exit("%s.\nNo debug files were found in %s. Aborting." % (usage, os.path.abspath(path_to_debug_info)))
 
     fd, tempfilename = tempfile.mkstemp()
-    f = os.fdopen(fd, 'w')
+    f = os.fdopen(fd, "w")
     try:
         f.write(prefix_code)
-        f.write(textwrap.dedent('''\
+        f.write(
+            textwrap.dedent(
+                """\
             # This is a gdb command file
             # See https://sourceware.org/gdb/onlinedocs/gdb/Command-Files.html
 
@@ -60,12 +58,16 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
-                print("There was an error in Python code originating from the file ''' + str(__file__) + '''")
+                print("There was an error in Python code originating from the file """
+                + str(__file__)
+                + """")
                 print("It used the Python interpreter " + str(sys.executable))
                 print_exc()
                 exit(1)
             end
-            '''))
+            """
+            )
+        )
 
         if no_import:
             # don't do this, this overrides file command in .gdbinit
@@ -83,20 +85,26 @@ def make_command_file(path_to_debug_info, prefix_code='',
                     interpreter_file.close()
                 f.write("file %s\n" % interpreter)
 
-            f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
+            f.write("\n".join("cy import %s\n" % fn for fn in debug_files))
 
             if not skip_interpreter:
-                f.write(textwrap.dedent('''\
+                f.write(
+                    textwrap.dedent(
+                        '''\
                     python
                     import sys
                     try:
                         gdb.lookup_type('PyModuleObject')
                     except RuntimeError:
                         sys.stderr.write(
-                            "''' + interpreter + ''' was not compiled with debug symbols (or it was "
+                            "'''
+                        + interpreter
+                        + """ was not compiled with debug symbols (or it was "
                             "stripped). Some functionality may not work (properly).\\n")
                     end
-                '''))
+                """
+                    )
+                )
 
             f.write("source .cygdbinit")
     finally:
@@ -104,7 +112,9 @@ def make_command_file(path_to_debug_info, prefix_code='',
 
     return tempfilename
 
+
 usage = "Usage: cygdb [options] [PATH [-- GDB_ARGUMENTS]]"
+
 
 def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     """
@@ -117,16 +127,15 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     no_import tells cygdb whether it should import debug information
     """
     parser = optparse.OptionParser(usage=usage)
-    parser.add_option("--gdb-executable",
-        dest="gdb", default='gdb',
-        help="gdb executable to use [default: gdb]")
-    parser.add_option("--verbose", "-v",
-        dest="verbosity", action="count", default=0,
-        help="Verbose mode. Multiple -v options increase the verbosity")
-    parser.add_option("--skip-interpreter",
-                      dest="skip_interpreter", default=False, action="store_true",
-                      help="Do not automatically point GDB to the same interpreter "
-                           "used to generate debugging information")
+    parser.add_option("--gdb-executable", dest="gdb", default="gdb", help="gdb executable to use [default: gdb]")
+    parser.add_option("--verbose", "-v", dest="verbosity", action="count", default=0, help="Verbose mode. Multiple -v options increase the verbosity")
+    parser.add_option(
+        "--skip-interpreter",
+        dest="skip_interpreter",
+        default=False,
+        action="store_true",
+        help="Do not automatically point GDB to the same interpreter " "used to generate debugging information",
+    )
 
     (options, args) = parser.parse_args()
     if path_to_debug_info is None:
@@ -138,7 +147,7 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     if gdb_argv is None:
         gdb_argv = args[1:]
 
-    if path_to_debug_info == '--':
+    if path_to_debug_info == "--":
         no_import = True
 
     logging_level = logging.WARN
@@ -152,18 +161,14 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
 
     logger.info("verbosity = %r", options.verbosity)
     logger.debug("options = %r; args = %r", options, args)
-    logger.debug("Done parsing command-line options. path_to_debug_info = %r, gdb_argv = %r",
-        path_to_debug_info, gdb_argv)
+    logger.debug("Done parsing command-line options. path_to_debug_info = %r, gdb_argv = %r", path_to_debug_info, gdb_argv)
 
-    tempfilename = make_command_file(path_to_debug_info,
-                                     no_import=no_import,
-                                     skip_interpreter=skip_interpreter)
-    logger.info("Launching %s with command file: %s and gdb_argv: %s",
-        options.gdb, tempfilename, gdb_argv)
+    tempfilename = make_command_file(path_to_debug_info, no_import=no_import, skip_interpreter=skip_interpreter)
+    logger.info("Launching %s with command file: %s and gdb_argv: %s", options.gdb, tempfilename, gdb_argv)
     with open(tempfilename) as tempfile:
         logger.debug('Command file (%s) contains: """\n%s"""', tempfilename, tempfile.read())
         logger.info("Spawning %s...", options.gdb)
-        p = subprocess.Popen([options.gdb, '-command', tempfilename] + gdb_argv)
+        p = subprocess.Popen([options.gdb, "-command", tempfilename] + gdb_argv)
         logger.info("Spawned %s (pid %d)", options.gdb, p.pid)
         while True:
             try:

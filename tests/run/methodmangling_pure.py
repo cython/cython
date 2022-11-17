@@ -11,7 +11,7 @@ if cython.compiled:
     # are only for Cython features
 
     def declare(**kwargs):
-        return kwargs['__x']
+        return kwargs["__x"]
 
     class RegularClass:
         @cython.locals(__x=cython.int)
@@ -69,6 +69,7 @@ if cython.compiled:
             1
             """
             return declare(__x=x)
+
 else:
     __doc__ = """
     >>> True

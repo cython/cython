@@ -2,8 +2,8 @@ from Cython.Build.Dependencies import strip_string_literals
 
 from Cython.TestUtils import CythonTest
 
-class TestStripLiterals(CythonTest):
 
+class TestStripLiterals(CythonTest):
     def t(self, before, expected):
         actual, literals = strip_string_literals(before, prefix="_L")
         self.assertEqual(expected, actual)
@@ -48,9 +48,7 @@ class TestStripLiterals(CythonTest):
         self.t("'abc#'", "'_L1_'")
 
     def test_include(self):
-        self.t("include 'a.pxi' # something here",
-               "include '_L1_' #_L2_")
+        self.t("include 'a.pxi' # something here", "include '_L1_' #_L2_")
 
     def test_extern(self):
-        self.t("cdef extern from 'a.h': # comment",
-               "cdef extern from '_L1_': #_L2_")
+        self.t("cdef extern from 'a.h': # comment", "cdef extern from '_L1_': #_L2_")

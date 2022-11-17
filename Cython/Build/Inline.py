@@ -11,8 +11,7 @@ from distutils.command.build_ext import build_ext
 
 import Cython
 from ..Compiler.Main import Context
-from ..Compiler.Options import (default_options, CompilationOptions,
-    get_directive_defaults)
+from ..Compiler.Options import default_options, CompilationOptions, get_directive_defaults
 
 from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
@@ -28,19 +27,23 @@ IS_PY3 = sys.version_info >= (3,)
 
 # A utility function to convert user-supplied ASCII strings to unicode.
 if not IS_PY3:
+
     def to_unicode(s):
         if isinstance(s, bytes):
-            return s.decode('ascii')
+            return s.decode("ascii")
         else:
             return s
+
 else:
     to_unicode = lambda x: x
 
 
 if sys.version_info < (3, 5):
     import imp
+
     def load_dynamic(name, module_path):
         return imp.load_dynamic(name, module_path)
+
 else:
     import importlib.util
     from importlib.machinery import ExtensionFileLoader
@@ -56,10 +59,12 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
         super(EnvTransform, self).__init__(context=None)
         self.unbound = set()
+
     def visit_NameNode(self, node):
         if not self.current_env().lookup(node.name):
             self.unbound.add(node.name)
         return node
+
     def __call__(self, node):
         super(UnboundSymbols, self).__call__(node)
         return self.unbound
@@ -69,11 +74,11 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
 def unbound_symbols(code, context=None):
     code = to_unicode(code)
     if context is None:
-        context = Context([], get_directive_defaults(),
-                          options=CompilationOptions(default_options))
+        context = Context([], get_directive_defaults(), options=CompilationOptions(default_options))
     from ..Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
-    tree = parse_from_strings('(tree fragment)', code)
-    for phase in Pipeline.create_pipeline(context, 'pyx'):
+
+    tree = parse_from_strings("(tree fragment)", code)
+    for phase in Pipeline.create_pipeline(context, "pyx"):
         if phase is None:
             continue
         tree = phase(tree)
@@ -89,7 +94,7 @@ def unbound_symbols(code, context=None):
 def unsafe_type(arg, context=None):
     py_type = type(arg)
     if py_type is int:
-        return 'long'
+        return "long"
     else:
         return safe_type(arg, context)
 
@@ -99,23 +104,23 @@ def safe_type(arg, context=None):
     if py_type in (list, tuple, dict, str):
         return py_type.__name__
     elif py_type is complex:
-        return 'double complex'
+        return "double complex"
     elif py_type is float:
-        return 'double'
+        return "double"
     elif py_type is bool:
-        return 'bint'
-    elif 'numpy' in sys.modules and isinstance(arg, sys.modules['numpy'].ndarray):
-        return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
+        return "bint"
+    elif "numpy" in sys.modules and isinstance(arg, sys.modules["numpy"].ndarray):
+        return "numpy.ndarray[numpy.%s_t, ndim=%s]" % (arg.dtype.name, arg.ndim)
     else:
         for base_type in py_type.__mro__:
-            if base_type.__module__ in ('__builtin__', 'builtins'):
-                return 'object'
+            if base_type.__module__ in ("__builtin__", "builtins"):
+                return "object"
             module = context.find_module(base_type.__module__, need_pxd=False)
             if module:
                 entry = module.lookup(base_type.__name__)
                 if entry.is_type:
-                    return '%s.%s' % (base_type.__module__, base_type.__name__)
-        return 'object'
+                    return "%s.%s" % (base_type.__module__, base_type.__name__)
+        return "object"
 
 
 def _get_build_extension():
@@ -131,15 +136,11 @@ def _get_build_extension():
 
 @cached_function
 def _create_context(cython_include_dirs):
-    return Context(
-        list(cython_include_dirs),
-        get_directive_defaults(),
-        options=CompilationOptions(default_options)
-    )
+    return Context(list(cython_include_dirs), get_directive_defaults(), options=CompilationOptions(default_options))
 
 
 _cython_inline_cache = {}
-_cython_inline_default_context = _create_context(('.',))
+_cython_inline_default_context = _create_context((".",))
 
 
 def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
@@ -161,23 +162,32 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 
 def _inline_key(orig_code, arg_sigs, language_level):
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    return hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+    return hashlib.sha1(_unicode(key).encode("utf-8")).hexdigest()
 
 
-def cython_inline(code, get_type=unsafe_type,
-                  lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
-                  cython_include_dirs=None, cython_compiler_directives=None,
-                  force=False, quiet=False, locals=None, globals=None, language_level=None, **kwds):
+def cython_inline(
+    code,
+    get_type=unsafe_type,
+    lib_dir=os.path.join(get_cython_cache_dir(), "inline"),
+    cython_include_dirs=None,
+    cython_compiler_directives=None,
+    force=False,
+    quiet=False,
+    locals=None,
+    globals=None,
+    language_level=None,
+    **kwds
+):
 
     if get_type is None:
-        get_type = lambda x: 'object'
+        get_type = lambda x: "object"
     ctx = _create_context(tuple(cython_include_dirs)) if cython_include_dirs else _cython_inline_default_context
 
     cython_compiler_directives = dict(cython_compiler_directives) if cython_compiler_directives else {}
-    if language_level is None and 'language_level' not in cython_compiler_directives:
-        language_level = '3str'
+    if language_level is None and "language_level" not in cython_compiler_directives:
+        language_level = "3str"
     if language_level is not None:
-        cython_compiler_directives['language_level'] = language_level
+        cython_compiler_directives["language_level"] = language_level
 
     key_hash = None
 
@@ -212,7 +222,7 @@ def cython_inline(code, get_type=unsafe_type,
     cimports = []
     for name, arg in list(kwds.items()):
         if arg is cython_module:
-            cimports.append('\ncimport cython as %s' % name)
+            cimports.append("\ncimport cython as %s" % name)
             del kwds[name]
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
@@ -228,7 +238,7 @@ def cython_inline(code, get_type=unsafe_type,
         if cython_inline.so_ext is None:
             # Figure out and cache current extension suffix
             build_extension = _get_build_extension()
-            cython_inline.so_ext = build_extension.get_ext_filename('')
+            cython_inline.so_ext = build_extension.get_ext_filename("")
 
         module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
@@ -238,33 +248,36 @@ def cython_inline(code, get_type=unsafe_type,
             cflags = []
             define_macros = []
             c_include_dirs = []
-            qualified = re.compile(r'([.\w]+)[.]')
+            qualified = re.compile(r"([.\w]+)[.]")
             for type, _ in arg_sigs:
                 m = qualified.match(type)
                 if m:
-                    cimports.append('\ncimport %s' % m.groups()[0])
+                    cimports.append("\ncimport %s" % m.groups()[0])
                     # one special case
-                    if m.groups()[0] == 'numpy':
+                    if m.groups()[0] == "numpy":
                         import numpy
+
                         c_include_dirs.append(numpy.get_include())
                         define_macros.append(("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"))
                         # cflags.append('-Wno-unused')
             module_body, func_body = extract_func_code(code)
-            params = ', '.join(['%s %s' % a for a in arg_sigs])
+            params = ", ".join(["%s %s" % a for a in arg_sigs])
             module_code = """
 %(module_body)s
 %(cimports)s
 def __invoke(%(params)s):
 %(func_body)s
     return locals()
-            """ % {'cimports': '\n'.join(cimports),
-                   'module_body': module_body,
-                   'params': params,
-                   'func_body': func_body }
+            """ % {
+                "cimports": "\n".join(cimports),
+                "module_body": module_body,
+                "params": params,
+                "func_body": func_body,
+            }
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
-            pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-            fh = open(pyx_file, 'w')
+            pyx_file = os.path.join(lib_dir, module_name + ".pyx")
+            fh = open(pyx_file, "w")
             try:
                 fh.write(module_code)
             finally:
@@ -279,12 +292,10 @@ def __invoke(%(params)s):
             if build_extension is None:
                 build_extension = _get_build_extension()
             build_extension.extensions = cythonize(
-                [extension],
-                include_path=cython_include_dirs or ['.'],
-                compiler_directives=cython_compiler_directives,
-                quiet=quiet)
+                [extension], include_path=cython_include_dirs or ["."], compiler_directives=cython_compiler_directives, quiet=quiet
+            )
             build_extension.build_temp = os.path.dirname(pyx_file)
-            build_extension.build_lib  = lib_dir
+            build_extension.build_lib = lib_dir
             build_extension.run()
 
         module = load_dynamic(module_name, module_path)
@@ -298,7 +309,7 @@ def __invoke(%(params)s):
 # overridden with actual value upon the first cython_inline invocation
 cython_inline.so_ext = None
 
-_find_non_space = re.compile('[^ ]').search
+_find_non_space = re.compile("[^ ]").search
 
 
 def strip_common_indent(code):
@@ -309,47 +320,48 @@ def strip_common_indent(code):
         if not match:
             continue  # blank
         indent = match.start()
-        if line[indent] == '#':
+        if line[indent] == "#":
             continue  # comment
         if min_indent is None or min_indent > indent:
             min_indent = indent
     for ix, line in enumerate(lines):
         match = _find_non_space(line)
-        if not match or not line or line[indent:indent+1] == '#':
+        if not match or not line or line[indent : indent + 1] == "#":
             continue
         lines[ix] = line[min_indent:]
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
-module_statement = re.compile(r'^((cdef +(extern|class))|cimport|(from .+ cimport)|(from .+ import +[*]))')
+module_statement = re.compile(r"^((cdef +(extern|class))|cimport|(from .+ cimport)|(from .+ import +[*]))")
+
+
 def extract_func_code(code):
     module = []
     function = []
     current = function
-    code = code.replace('\t', ' ')
-    lines = code.split('\n')
+    code = code.replace("\t", " ")
+    lines = code.split("\n")
     for line in lines:
-        if not line.startswith(' '):
+        if not line.startswith(" "):
             if module_statement.match(line):
                 current = module
             else:
                 current = function
         current.append(line)
-    return '\n'.join(module), '    ' + '\n    '.join(function)
+    return "\n".join(module), "    " + "\n    ".join(function)
 
 
 def get_body(source):
-    ix = source.index(':')
-    if source[:5] == 'lambda':
-        return "return %s" % source[ix+1:]
+    ix = source.index(":")
+    if source[:5] == "lambda":
+        return "return %s" % source[ix + 1 :]
     else:
-        return source[ix+1:]
+        return source[ix + 1 :]
 
 
 # Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
 class RuntimeCompiledFunction(object):
-
     def __init__(self, f):
         self._f = f
         self._body = get_body(inspect.getsource(f))

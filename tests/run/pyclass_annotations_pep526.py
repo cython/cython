@@ -11,8 +11,10 @@ try:
 except ImportError:  # Py<=3.5
     ClassVar = {int: int}
 
+
 class NotAStr:
     pass
+
 
 class PyAnnotatedClass:
     """
@@ -35,6 +37,7 @@ class PyAnnotatedClass:
       ...
     AttributeError: type object 'PyAnnotatedClass' has no attribute 'obj'
     """
+
     CLASS_VAR: ClassVar[int] = 1
     obj: str
     literal: "int"

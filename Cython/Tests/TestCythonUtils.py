@@ -1,12 +1,19 @@
 import unittest
 
 from Cython.Utils import (
-    _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
-    build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager)
+    _CACHE_NAME_PATTERN,
+    _build_cache_name,
+    _find_cache_attributes,
+    build_hex_version,
+    cached_method,
+    clear_method_caches,
+    try_finally_contextmanager,
+)
 
 METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
 NAMES = CACHE_NAME, METHOD_NAME
+
 
 class Cached(object):
     @cached_method
@@ -16,10 +23,10 @@ class Cached(object):
 
 class TestCythonUtils(unittest.TestCase):
     def test_build_hex_version(self):
-        self.assertEqual('0x001D00A1', build_hex_version('0.29a1'))
-        self.assertEqual('0x001D03C4', build_hex_version('0.29.3rc4'))
-        self.assertEqual('0x001D00F0', build_hex_version('0.29'))
-        self.assertEqual('0x040000F0', build_hex_version('4.0'))
+        self.assertEqual("0x001D00A1", build_hex_version("0.29a1"))
+        self.assertEqual("0x001D03C4", build_hex_version("0.29.3rc4"))
+        self.assertEqual("0x001D00F0", build_hex_version("0.29"))
+        self.assertEqual("0x040000F0", build_hex_version("4.0"))
 
     ############################## Cached Methods ##############################
 
@@ -97,6 +104,7 @@ class TestCythonUtils(unittest.TestCase):
 
     def test_try_finally_contextmanager(self):
         states = []
+
         @try_finally_contextmanager
         def gen(*args, **kwargs):
             states.append("enter")
@@ -105,7 +113,7 @@ class TestCythonUtils(unittest.TestCase):
 
         with gen(1, 2, 3, x=4) as call_args:
             assert states == ["enter"]
-            self.assertEqual(call_args, ((1, 2, 3), {'x': 4}))
+            self.assertEqual(call_args, ((1, 2, 3), {"x": 4}))
         assert states == ["enter", "exit"]
 
         class MyException(RuntimeError):
@@ -115,7 +123,7 @@ class TestCythonUtils(unittest.TestCase):
         with self.assertRaises(MyException):
             with gen(1, 2, y=4) as call_args:
                 assert states == ["enter"]
-                self.assertEqual(call_args, ((1, 2), {'y': 4}))
+                self.assertEqual(call_args, ((1, 2), {"y": 4}))
                 raise MyException("FAIL INSIDE")
             assert states == ["enter", "exit"]
 
@@ -123,6 +131,6 @@ class TestCythonUtils(unittest.TestCase):
         with self.assertRaises(StopIteration):
             with gen(1, 2, y=4) as call_args:
                 assert states == ["enter"]
-                self.assertEqual(call_args, ((1, 2), {'y': 4}))
+                self.assertEqual(call_args, ((1, 2), {"y": 4}))
                 raise StopIteration("STOP")
             assert states == ["enter", "exit"]

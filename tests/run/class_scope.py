@@ -1,6 +1,7 @@
 # mode:run
 # tag: class, scope
 
+
 class MethodRedef(object):
     """
     >>> MethodRedef().a(5)
@@ -8,7 +9,7 @@ class MethodRedef(object):
     """
 
     def a(self, i):
-        return i+1
+        return i + 1
 
     def a(self, i):
-        return i+2
+        return i + 2

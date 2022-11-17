@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-def f(a: 1+2==3, b: list, c: this_cant_evaluate, d: "Hello from inside a string") -> "Return me!":
+
+def f(a: 1 + 2 == 3, b: list, c: this_cant_evaluate, d: "Hello from inside a string") -> "Return me!":
     """
     The absolute exact strings aren't reproducible according to the PEP,
     so be careful to avoid being too specific
@@ -36,5 +37,6 @@ class DecoratedStarship(object):
     >>> sorted(DecoratedStarship.__annotations__.items())
     [('captain', 'str'), ('damage', 'cython.int')]
     """
-    captain: str = 'Picard'               # instance variable with default
-    damage: cython.int                    # instance variable without default
+
+    captain: str = "Picard"  # instance variable with default
+    damage: cython.int  # instance variable without default

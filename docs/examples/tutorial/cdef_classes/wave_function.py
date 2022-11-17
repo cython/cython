@@ -1,5 +1,6 @@
 from cython.cimports.sin_of_square import Function
 
+
 @cython.cclass
 class WaveFunction(Function):
 
@@ -7,10 +8,10 @@ class WaveFunction(Function):
     offset: float
 
     # Available in Python-space:
-    freq = cython.declare(cython.double, visibility='public')
+    freq = cython.declare(cython.double, visibility="public")
 
     # Available in Python-space, but only for reading:
-    scale = cython.declare(cython.double, visibility='readonly')
+    scale = cython.declare(cython.double, visibility="readonly")
 
     # Available in Python-space:
     @property

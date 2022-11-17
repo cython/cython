@@ -32,26 +32,24 @@ from .. import Utils
 from . import Options
 from .Options import CompilationOptions, default_options
 from .CmdLine import parse_command_line
-from .Lexicon import (unicode_start_ch_any, unicode_continuation_ch_any,
-                      unicode_start_ch_range, unicode_continuation_ch_range)
+from .Lexicon import unicode_start_ch_any, unicode_continuation_ch_any, unicode_start_ch_range, unicode_continuation_ch_range
 
 
 def _make_range_re(chrs):
     out = []
     for i in range(0, len(chrs), 2):
-        out.append(u"{0}-{1}".format(chrs[i], chrs[i+1]))
-    return u"".join(out)
+        out.append("{0}-{1}".format(chrs[i], chrs[i + 1]))
+    return "".join(out)
+
 
 # py2 version looked like r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$"
-module_name_pattern = u"[{0}{1}][{0}{2}{1}{3}]*".format(
-    unicode_start_ch_any, _make_range_re(unicode_start_ch_range),
-    unicode_continuation_ch_any,
-    _make_range_re(unicode_continuation_ch_range))
-module_name_pattern = re.compile(u"{0}(\\.{0})*$".format(module_name_pattern))
+module_name_pattern = "[{0}{1}][{0}{2}{1}{3}]*".format(
+    unicode_start_ch_any, _make_range_re(unicode_start_ch_range), unicode_continuation_ch_any, _make_range_re(unicode_continuation_ch_range)
+)
+module_name_pattern = re.compile("{0}(\\.{0})*$".format(module_name_pattern))
 
 
-standard_include_path = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Includes'))
+standard_include_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "Includes"))
 
 
 class Context(object):
@@ -69,14 +67,14 @@ class Context(object):
     cython_scope = None
     language_level = None  # warn when not set but default to Py2
 
-    def __init__(self, include_directories, compiler_directives, cpp=False,
-                 language_level=None, options=None):
+    def __init__(self, include_directories, compiler_directives, cpp=False, language_level=None, options=None):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
 
         from . import Builtin, CythonScope
-        self.modules = {"__builtin__" : Builtin.builtin_scope}
+
+        self.modules = {"__builtin__": Builtin.builtin_scope}
         self.cython_scope = CythonScope.create_cython_scope(self)
         self.modules["cython"] = self.cython_scope
         self.include_directories = include_directories
@@ -95,13 +93,13 @@ class Context(object):
 
     @classmethod
     def from_options(cls, options):
-        return cls(options.include_path, options.compiler_directives,
-                   options.cplus, options.language_level, options=options)
+        return cls(options.include_path, options.compiler_directives, options.cplus, options.language_level, options=options)
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
+
         future_directives = set()
-        if level == '3str':
+        if level == "3str":
             level = 3
         else:
             level = int(level)
@@ -112,7 +110,7 @@ class Context(object):
         self.language_level = level
         self.future_directives = future_directives
         if level >= 3:
-            self.modules['builtins'] = self.modules['__builtin__']
+            self.modules["builtins"] = self.modules["__builtin__"]
 
     def intern_ustring(self, value, encoding=None):
         key = (EncodedString, value, encoding)
@@ -130,7 +128,8 @@ class Context(object):
 
     def process_pxd(self, source_desc, scope, module_name):
         from . import Pipeline
-        if isinstance(source_desc, FileSourceDescriptor) and source_desc._file_type == 'pyx':
+
+        if isinstance(source_desc, FileSourceDescriptor) and source_desc._file_type == "pyx":
             source = CompilationSource(source_desc, module_name, os.getcwd())
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
@@ -145,16 +144,15 @@ class Context(object):
 
     def _split_qualified_name(self, qualified_name):
         # Splits qualified_name into parts in form of 2-tuples: (PART_NAME, IS_PACKAGE).
-        qualified_name_parts = qualified_name.split('.')
+        qualified_name_parts = qualified_name.split(".")
         last_part = qualified_name_parts.pop()
         qualified_name_parts = [(p, True) for p in qualified_name_parts]
-        if last_part != '__init__':
+        if last_part != "__init__":
             # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
             # __init__.pyx/__init__.py file to determine if last part is package or not.
             is_package = False
-            for suffix in ('.py', '.pyx'):
-                path = self.search_include_directories(
-                    qualified_name, suffix=suffix, source_pos=None, source_file_path=None)
+            for suffix in (".py", ".pyx"):
+                path = self.search_include_directories(qualified_name, suffix=suffix, source_pos=None, source_file_path=None)
                 if path:
                     is_package = self._is_init_file(path)
                     break
@@ -164,10 +162,9 @@ class Context(object):
 
     @staticmethod
     def _is_init_file(path):
-        return os.path.basename(path) in ('__init__.pyx', '__init__.py', '__init__.pxd') if path else False
+        return os.path.basename(path) in ("__init__.pyx", "__init__.py", "__init__.pxd") if path else False
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
-                    absolute_fallback=True):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, absolute_fallback=True):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
@@ -177,8 +174,7 @@ class Context(object):
         # that module, provided its name is not a dotted name.
         debug_find_module = 0
         if debug_find_module:
-            print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
-                module_name, relative_to, pos, need_pxd))
+            print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (module_name, relative_to, pos, need_pxd))
 
         scope = None
         pxd_pathname = None
@@ -195,8 +191,7 @@ class Context(object):
             qualified_name = module_name
 
         if not module_name_pattern.match(qualified_name):
-            raise CompileError(pos or (module_name, 0, 0),
-                               u"'%s' is not a valid module name" % module_name)
+            raise CompileError(pos or (module_name, 0, 0), "'%s' is not a valid module name" % module_name)
 
         if relative_to:
             if debug_find_module:
@@ -232,18 +227,17 @@ class Context(object):
                     # Set pxd_file_loaded such that we don't need to
                     # look for the non-existing pxd file next time.
                     scope.pxd_file_loaded = True
-                    package_pathname = self.search_include_directories(
-                        qualified_name, suffix=".py", source_pos=pos)
+                    package_pathname = self.search_include_directories(qualified_name, suffix=".py", source_pos=pos)
                     if package_pathname and package_pathname.endswith(Utils.PACKAGE_FILES):
                         pass
                     else:
-                        error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))
+                        error(pos, "'%s.pxd' not found" % qualified_name.replace(".", os.sep))
             if pxd_pathname:
                 scope.pxd_file_loaded = True
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
-                    rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+                    rel_path = module_name.replace(".", os.sep) + os.path.splitext(pxd_pathname)[1]
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
                     source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
@@ -265,8 +259,7 @@ class Context(object):
         # the directory containing the source file is searched first
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
-        pxd = self.search_include_directories(
-            qualified_name, suffix=".pxd", source_pos=pos, sys_path=sys_path, source_file_path=source_file_path)
+        pxd = self.search_include_directories(qualified_name, suffix=".pxd", source_pos=pos, sys_path=sys_path, source_file_path=source_file_path)
         if pxd is None and Options.cimport_from_pyx:
             return self.find_pyx_file(qualified_name, pos)
         return pxd
@@ -274,27 +267,23 @@ class Context(object):
     def find_pyx_file(self, qualified_name, pos=None, source_file_path=None):
         # Search include path for the .pyx file corresponding to the
         # given fully-qualified module name, as for find_pxd_file().
-        return self.search_include_directories(
-            qualified_name, suffix=".pyx", source_pos=pos, source_file_path=source_file_path)
+        return self.search_include_directories(qualified_name, suffix=".pyx", source_pos=pos, source_file_path=source_file_path)
 
     def find_include_file(self, filename, pos=None, source_file_path=None):
         # Search list of include directories for filename.
         # Reports an error and returns None if not found.
-        path = self.search_include_directories(
-            filename, source_pos=pos, include=True, source_file_path=source_file_path)
+        path = self.search_include_directories(filename, source_pos=pos, include=True, source_file_path=source_file_path)
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
 
-    def search_include_directories(self, qualified_name,
-                                   suffix=None, source_pos=None, include=False, sys_path=False, source_file_path=None):
+    def search_include_directories(self, qualified_name, suffix=None, source_pos=None, include=False, sys_path=False, source_file_path=None):
         include_dirs = self.include_directories
         if sys_path:
             include_dirs = include_dirs + sys.path
         # include_dirs must be hashable for caching in @cached_function
         include_dirs = tuple(include_dirs + [standard_include_path])
-        return search_include_directories(
-            include_dirs, qualified_name, suffix or "", source_pos, include, source_file_path)
+        return search_include_directories(include_dirs, qualified_name, suffix or "", source_pos, include, source_file_path)
 
     def find_root_package_dir(self, file_path):
         return Utils.find_root_package_dir(file_path)
@@ -323,8 +312,7 @@ class Context(object):
         return 0
 
     def find_cimported_module_names(self, source_path):
-        return [ name for kind, name in self.read_dependency_file(source_path)
-                 if kind == "cimport" ]
+        return [name for kind, name in self.read_dependency_file(source_path) if kind == "cimport"]
 
     def is_package_dir(self, dir_path):
         return Utils.is_package_dir(dir_path)
@@ -333,9 +321,7 @@ class Context(object):
         dep_path = Utils.replace_suffix(source_path, ".dep")
         if os.path.exists(dep_path):
             with open(dep_path, "rU") as f:
-                chunks = [ line.split(" ", 1)
-                           for line in (l.strip() for l in f)
-                           if " " in line ]
+                chunks = [line.split(" ", 1) for line in (l.strip() for l in f) if " " in line]
             return chunks
         else:
             return ()
@@ -348,8 +334,7 @@ class Context(object):
         # Find a top-level module, creating a new one if needed.
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name,
-                parent_module = None, context = self, is_package=as_package)
+            scope = ModuleScope(name, parent_module=None, context=self, is_package=as_package)
             self.modules[name] = scope
         return scope
 
@@ -363,19 +348,18 @@ class Context(object):
         try:
             with Utils.open_source_file(source_filename) as f:
                 from . import Parsing
-                s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
-                                 scope = scope, context = self)
+
+                s = PyrexScanner(f, source_desc, source_encoding=f.encoding, scope=scope, context=self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
                 if self.options.formal_grammar:
                     try:
                         from ..Parser import ConcreteSyntaxTree
                     except ImportError:
-                        raise RuntimeError(
-                            "Formal grammar can only be used with compiled Cython with an available pgen.")
+                        raise RuntimeError("Formal grammar can only be used with compiled Cython with an available pgen.")
                     ConcreteSyntaxTree.p_module(source_filename)
         except UnicodeDecodeError as e:
-            #import traceback
-            #traceback.print_exc()
+            # import traceback
+            # traceback.print_exc()
             raise self._report_decode_error(source_desc, e)
 
         if Errors.get_errors_count() > num_errors:
@@ -389,16 +373,17 @@ class Context(object):
 
         line = 1
         column = idx = 0
-        with io.open(source_desc.filename, "r", encoding='iso8859-1', newline='') as f:
+        with io.open(source_desc.filename, "r", encoding="iso8859-1", newline="") as f:
             for line, data in enumerate(f, 1):
                 idx += len(data)
                 if idx >= position:
                     column = position - (idx - len(data)) + 1
                     break
 
-        return error((source_desc, line, column),
-                     "Decoding error, missing or incorrect coding=<encoding-name> "
-                     "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
+        return error(
+            (source_desc, line, column),
+            "Decoding error, missing or incorrect coding=<encoding-name> " "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg),
+        )
 
     def extract_module_name(self, path, options):
         # Find fully_qualified module name from the full pathname
@@ -462,8 +447,7 @@ def create_default_resultobj(compilation_source, options):
     result.main_source_file = compilation_source.source_desc.filename
     result.compilation_source = compilation_source
     source_desc = compilation_source.source_desc
-    result.c_file = get_output_filename(source_desc.filename,
-                        compilation_source.cwd, options)
+    result.c_file = get_output_filename(source_desc.filename, compilation_source.cwd, options)
     result.embedded_metadata = options.embedded_metadata
     return result
 
@@ -491,7 +475,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     Utils.raise_error_if_module_name_forbidden(full_module_name)
 
     if options.relative_path_in_code_position_comments:
-        rel_path = full_module_name.replace('.', os.sep) + source_ext
+        rel_path = full_module_name.replace(".", os.sep) + source_ext
         if not abs_path.endswith(rel_path):
             rel_path = source  # safety measure to prevent printing incorrect paths
     else:
@@ -507,26 +491,29 @@ def run_pipeline(source, options, full_module_name=None, context=None):
         html_filename = os.path.splitext(result.c_file)[0] + ".html"
         if os.path.exists(html_filename):
             with io.open(html_filename, "r", encoding="UTF-8") as html_file:
-                if u'<!-- Generated by Cython' in html_file.read(100):
+                if "<!-- Generated by Cython" in html_file.read(100):
                     options.annotate = True
 
     # Get pipeline
-    if source_ext.lower() == '.py' or not source_ext:
+    if source_ext.lower() == ".py" or not source_ext:
         pipeline = Pipeline.create_py_pipeline(context, options, result)
     else:
         pipeline = Pipeline.create_pyx_pipeline(context, options, result)
 
     context.setup_errors(options, result)
 
-    if '.' in full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
-        warning((source_desc, 1, 0),
-                "Dotted filenames ('%s') are deprecated."
-                " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
+    if "." in full_module_name and "." in os.path.splitext(os.path.basename(abs_path))[0]:
+        warning(
+            (source_desc, 1, 0),
+            "Dotted filenames ('%s') are deprecated." " Please use the normal Python package directory layout." % os.path.basename(abs_path),
+            level=1,
+        )
 
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     if options.depfile:
         from ..Build.Dependencies import create_dependency_tree
+
         dependencies = create_dependency_tree(context).all_dependencies(result.main_source_file)
         Utils.write_depfile(result.c_file, result.main_source_file, dependencies)
     return result
@@ -538,11 +525,13 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 #
 # ------------------------------------------------------------------------
 
+
 class CompilationSource(object):
     """
     Contains the data necessary to start up a compilation pipeline for
     a single compilation unit.
     """
+
     def __init__(self, source_desc, full_module_name, cwd):
         self.source_desc = source_desc
         self.full_module_name = full_module_name
@@ -591,7 +580,7 @@ class CompilationResultSet(dict):
         self.num_errors += result.num_errors
 
 
-def compile_single(source, options, full_module_name = None):
+def compile_single(source, options, full_module_name=None):
     """
     compile_single(source, options, full_module_name)
 
@@ -611,8 +600,7 @@ def compile_multiple(sources, options):
     if these are specified in the options.
     """
     if len(sources) > 1 and options.module_name:
-        raise RuntimeError('Full module name can only be set '
-                           'for single source compilation')
+        raise RuntimeError("Full module name can only be set " "for single source compilation")
     # run_pipeline creates the context
     # context = Context.from_options(options)
     sources = [os.path.abspath(source) for source in sources]
@@ -631,9 +619,7 @@ def compile_multiple(sources, options):
             if (not timestamps) or out_of_date:
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
-                result = run_pipeline(source, options,
-                                      full_module_name=options.module_name,
-                                      context=context)
+                result = run_pipeline(source, options, full_module_name=options.module_name, context=context)
                 results.add(source, result)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
@@ -642,7 +628,7 @@ def compile_multiple(sources, options):
     return results
 
 
-def compile(source, options = None, full_module_name = None, **kwds):
+def compile(source, options=None, full_module_name=None, **kwds):
     """
     compile(source [, options], [, <option> = <value>]...)
 
@@ -652,7 +638,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.
     """
-    options = CompilationOptions(defaults = options, **kwds)
+    options = CompilationOptions(defaults=options, **kwds)
     if isinstance(source, basestring) and not options.timestamps:
         return compile_single(source, options, full_module_name)
     else:
@@ -688,15 +674,18 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
-            if not include and '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
-                warning(pos, "Dotted filenames ('%s') are deprecated."
-                             " Please use the normal Python package directory layout." % dotted_filename, level=1)
+            if not include and "." in qualified_name and "." in os.path.splitext(dotted_filename)[0]:
+                warning(
+                    pos,
+                    "Dotted filenames ('%s') are deprecated." " Please use the normal Python package directory layout." % dotted_filename,
+                    level=1,
+                )
             return path
 
     # search for filename in package structure e.g. <dir>/foo/bar.pxd or <dir>/foo/bar/__init__.pxd
     if not include:
 
-        names = qualified_name.split('.')
+        names = qualified_name.split(".")
         package_names = tuple(names[:-1])
         module_name = names[-1]
 
@@ -739,11 +728,12 @@ def search_module_in_dir(package_dir, module_name, suffix):
 #
 # ------------------------------------------------------------------------
 
+
 def setuptools_main():
-    return main(command_line = 1)
+    return main(command_line=1)
 
 
-def main(command_line = 0):
+def main(command_line=0):
     args = sys.argv[1:]
     any_failures = 0
     if command_line:
@@ -752,6 +742,7 @@ def main(command_line = 0):
         except IOError as e:
             # TODO: IOError can be replaced with FileNotFoundError in Cython 3.1
             import errno
+
             if errno.ENOENT != e.errno:
                 # Raised IOError is not caused by missing file.
                 raise
@@ -763,15 +754,16 @@ def main(command_line = 0):
 
     if options.show_version:
         from .. import __version__
+
         sys.stderr.write("Cython version %s\n" % __version__)
-    if options.working_path!="":
+    if options.working_path != "":
         os.chdir(options.working_path)
     try:
         result = compile(sources, options)
         if result.num_errors > 0:
             any_failures = 1
     except (EnvironmentError, PyrexError) as e:
-        sys.stderr.write(str(e) + '\n')
+        sys.stderr.write(str(e) + "\n")
         any_failures = 1
     if any_failures:
         sys.exit(1)

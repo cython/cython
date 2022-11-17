@@ -14,8 +14,13 @@ NameError: ...name 'z' is not defined
 
 x = False
 
-if x: y = 42; z = 88
-def f(): return 17
+if x:
+    y = 42
+    z = 88
+
+
+def f():
+    return 17
 
 
 def suite_in_func(x):
@@ -26,5 +31,7 @@ def suite_in_func(x):
     (0, 0)
     """
     y = z = 0
-    if x: y = 42; z = 88
+    if x:
+        y = 42
+        z = 88
     return y, z

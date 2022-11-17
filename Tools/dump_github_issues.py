@@ -32,14 +32,14 @@ def read_rate_limit():
 
 
 def parse_rate_limit(limits):
-    limits = limits['resources']['core']
-    return limits['limit'], limits['remaining'], datetime.fromtimestamp(limits['reset'])
+    limits = limits["resources"]["core"]
+    return limits["limit"], limits["remaining"], datetime.fromtimestamp(limits["reset"])
 
 
 def load_url(url):
     with urlopen(url) as p:
         data = json.load(p)
-    if isinstance(data, dict) and 'rate limit' in data.get('message', ''):
+    if isinstance(data, dict) and "rate limit" in data.get("message", ""):
         raise RateLimitReached()
 
     assert isinstance(data, list), type(data)
@@ -61,7 +61,7 @@ def output_filename(repo):
 
 
 def write_gzjson(file_name, data, indent=2):
-    with gzip.open(file_name, "wt", encoding='utf-8') as gz:
+    with gzip.open(file_name, "wt", encoding="utf-8") as gz:
         json.dump(data, gz, indent=indent)
 
 
@@ -69,13 +69,13 @@ def find_origin_url(git_config=GIT_CONFIG_FILE):
     assert os.path.exists(git_config)
     parser = configparser.ConfigParser()
     parser.read(git_config)
-    return parser.get('remote "origin"', 'url')
+    return parser.get('remote "origin"', "url")
 
 
 def parse_repo_name(git_url):
-    if git_url.endswith('.git'):
+    if git_url.endswith(".git"):
         git_url = git_url[:-4]
-    return '/'.join(git_url.split('/')[-2:])
+    return "/".join(git_url.split("/")[-2:])
 
 
 def dump_issues(repo):
@@ -97,17 +97,19 @@ def dump_issues(repo):
 
 ### TESTS
 
+
 def test_join_list_data():
     assert join_list_data([]) == []
-    assert join_list_data([[1,2]]) == [1,2]
-    assert join_list_data([[1,2], [3]]) == [1,2,3]
-    assert join_list_data([[0], [1,2], [3]]) == [0,1,2,3]
-    assert join_list_data([[0], [1,2], [[[]],[]]]) == [0,1,2,[[]],[]]
+    assert join_list_data([[1, 2]]) == [1, 2]
+    assert join_list_data([[1, 2], [3]]) == [1, 2, 3]
+    assert join_list_data([[0], [1, 2], [3]]) == [0, 1, 2, 3]
+    assert join_list_data([[0], [1, 2], [[[]], []]]) == [0, 1, 2, [[]], []]
 
 
 def test_output_filename():
     filename = output_filename("re/po")
     import re
+
     assert re.match(r"github_issues_re_po_[0-9]{8}_[0-9]{6}\.json", filename)
 
 
@@ -123,6 +125,7 @@ def test_parse_repo_name():
 
 def test_write_gzjson():
     import tempfile
+
     with tempfile.NamedTemporaryFile() as tmp:
         write_gzjson(tmp.name, [{}])
 
@@ -132,11 +135,11 @@ def test_write_gzjson():
 
         # test indentation
         with gzip.open(tmp.name) as f:
-            assert f.read() == b'[\n  {}\n]'
+            assert f.read() == b"[\n  {}\n]"
 
 
 ### MAIN
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     repo_name = parse_repo_name(find_origin_url())
     dump_issues(repo_name)

@@ -27,22 +27,22 @@ class TestTestUtils(unittest.TestCase):
         write_file(file_path, content, **kwargs)
         assert os.path.isfile(file_path)
 
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             found = f.read()
         assert found == expected, (repr(expected), repr(found))
 
     def test_write_file_text(self):
-        text = u"abcüöä"
-        self._test_write_file(text, text.encode('utf8'))
+        text = "abcüöä"
+        self._test_write_file(text, text.encode("utf8"))
 
     def test_write_file_dedent(self):
-        text = u"""
+        text = """
         A horse is a horse,
         of course, of course,
         And no one can talk to a horse
         of course
         """
-        self._test_write_file(text, textwrap.dedent(text).encode('utf8'), dedent=True)
+        self._test_write_file(text, textwrap.dedent(text).encode("utf8"), dedent=True)
 
     def test_write_file_bytes(self):
         self._test_write_file(b"ab\0c", b"ab\0c")

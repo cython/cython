@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import cython
 
+
 @cython.dataclasses.dataclass(order=True, unsafe_hash=True)
 @cython.cclass
 class MyDataclass:
@@ -65,10 +66,11 @@ class NoInitFields:
     Traceback (most recent call last):
     TypeError: ...neither...
     """
-    has_default : object = cython.dataclasses.field(default=DummyObj(), init=False)
-    has_factory : object = cython.dataclasses.field(default_factory=lambda: "From a lambda", init=False)
+
+    has_default: object = cython.dataclasses.field(default=DummyObj(), init=False)
+    has_factory: object = cython.dataclasses.field(default_factory=lambda: "From a lambda", init=False)
     # Cython will default-initialize to None
-    neither : object = cython.dataclasses.field(init=False)
+    neither: object = cython.dataclasses.field(init=False)
 
     def __post_init__(self):
         if not cython.compiled:

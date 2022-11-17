@@ -1,4 +1,5 @@
 import sys
+
 IS_PY2 = sys.version_info[0] < 3
 
 import cython
@@ -143,6 +144,7 @@ MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])
 MyStruct3 = cython.typedef(MyStruct[3])
 
+
 def test_struct(n, x):
     """
     >>> test_struct(389, 1.64493)
@@ -150,7 +152,7 @@ def test_struct(n, x):
     """
     a = cython.declare(MyStruct3)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
-    a[1] = MyStruct(is_integral=False, data={'x': x})
+    a[1] = MyStruct(is_integral=False, data={"x": x})
     if sys.version_info >= (3, 6):
         # dict is ordered => struct creation via keyword arguments above was deterministic!
         a[2] = MyStruct(False, MyUnion(x=x))
@@ -158,9 +160,11 @@ def test_struct(n, x):
         a[2] = MyStruct(is_integral=False, data=MyUnion(x=x))
     return a[0].data.n, a[1].data.x, a[2].is_integral
 
+
 import cython as cy
 from cython import declare, cast, locals, address, typedef, p_void, compiled
 from cython import declare as my_declare, locals as my_locals, p_void as my_void_star, typedef as my_typedef, compiled as my_compiled
+
 
 @my_locals(a=cython.p_void)
 def test_imports():
@@ -175,11 +179,13 @@ def test_imports():
 
     return a == d, compiled == my_compiled
 
+
 ## CURRENTLY BROKEN - FIXME!!
 
 # MyStruct3 = typedef(MyStruct[3])
 # MyStruct4 = my_typedef(MyStruct[4])
 # MyStruct5 = cy.typedef(MyStruct[5])
+
 
 def test_declare_c_types(n):
     """
@@ -215,10 +221,10 @@ def test_declare_c_types(n):
     f01 = cython.declare(cython.double, n)
     f02 = cython.declare(cython.longdouble, n)
     #
-    #z00 = cython.declare(cython.complex, n+1j)
-    #z01 = cython.declare(cython.floatcomplex, n+1j)
-    #z02 = cython.declare(cython.doublecomplex, n+1j)
-    #z03 = cython.declare(cython.longdoublecomplex, n+1j)
+    # z00 = cython.declare(cython.complex, n+1j)
+    # z01 = cython.declare(cython.floatcomplex, n+1j)
+    # z02 = cython.declare(cython.doublecomplex, n+1j)
+    # z03 = cython.declare(cython.longdoublecomplex, n+1j)
 
 
 @cython.ccall
@@ -328,6 +334,7 @@ def has_inner_func(x):
     @cython.test_fail_if_path_exists("//CFuncDefNode")
     def inner():
         return x
+
     return inner
 
 
@@ -369,7 +376,7 @@ def ccall_except(x):
     """
     if x == 0:
         raise ValueError
-    return x+1
+    return x + 1
 
 
 @cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
@@ -379,7 +386,7 @@ def ccall_except(x):
 def cdef_except(x):
     if x == 0:
         raise ValueError
-    return x+1
+    return x + 1
 
 
 def call_cdef_except(x):
@@ -409,7 +416,7 @@ def ccall_except_check(x):
     """
     if x == 0:
         raise ValueError
-    return x+1
+    return x + 1
 
 
 @cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
@@ -427,7 +434,7 @@ def ccall_except_check_always(x):
     """
     if x == 0:
         raise ValueError
-    return x+1
+    return x + 1
 
 
 @cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
@@ -444,7 +451,7 @@ def ccall_except_no_check(x):
     """
     if x == 0:
         raise ValueError
-    return x+1
+    return x + 1
 
 
 @cython.final
@@ -456,6 +463,7 @@ class CClass(object):
     int
     2
     """
+
     cython.declare(attr=cython.int)
 
     def __init__(self, attr):
@@ -472,7 +480,10 @@ class TestUnboundMethod:
     >>> IS_PY2 or (C.meth is C.__dict__["meth"])
     True
     """
-    def meth(self): pass
+
+    def meth(self):
+        pass
+
 
 @cython.cclass
 class Foo:
@@ -486,10 +497,12 @@ class Foo:
         self.b = b
         self.c = c
 
+
 @cython.cclass
 class EmptyClass(object):
     def __init__(self, *args):
         pass
+
 
 def same_type_cast():
     """
@@ -500,6 +513,7 @@ def same_type_cast():
     f = EmptyClass()
     return f is cython.cast(EmptyClass, f)
 
+
 def multi_args_init_cast():
     """
     >>> multi_args_init_cast()
@@ -507,6 +521,7 @@ def multi_args_init_cast():
     """
     f = Foo(10, 20, 30)
     return cython.cast(Foo, f) is f
+
 
 def multi_args_init_declare():
     """
@@ -520,7 +535,9 @@ def multi_args_init_declare():
 
     return f
 
+
 EmptyClassSyn = cython.typedef(EmptyClass)
+
 
 def empty_declare():
     """
@@ -539,14 +556,7 @@ def empty_declare():
         r0 = None
         r1 = None
 
-    res = [
-        r0 is None,
-        r1 is None,
-        r2 is not None,
-        r3 is not None,
-        r4 is not None,
-        r5 is not None
-    ]
+    res = [r0 is None, r1 is None, r2 is not None, r3 is not None, r4 is not None, r5 is not None]
 
     r2.is_integral = True
     assert r2.is_integral == True
@@ -554,7 +564,7 @@ def empty_declare():
     r3.x = 12.3
     assert r3.x == 12.3
 
-    #It generates a correct C code, but raises an exception when interpreted
+    # It generates a correct C code, but raises an exception when interpreted
     if cython.compiled:
         r4[0].is_integral = True
         assert r4[0].is_integral == True
@@ -563,6 +573,7 @@ def empty_declare():
     assert r5[0] == 42
 
     return [i for i, x in enumerate(res) if not x]
+
 
 def same_declare():
     """
@@ -574,6 +585,7 @@ def same_declare():
     f2 = cython.declare(EmptyClass, f)
     return f2 is f
 
+
 def none_cast():
     """
     >>> none_cast() is None
@@ -582,6 +594,7 @@ def none_cast():
 
     f = None
     return cython.cast(EmptyClass, f)
+
 
 def none_declare():
     """
@@ -592,6 +605,7 @@ def none_declare():
     f = None
     f2 = cython.declare(Foo, f)
     return f2
+
 
 def array_init_with_list():
     """

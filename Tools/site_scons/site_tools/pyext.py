@@ -40,6 +40,7 @@ from SCons.Tool import SourceFileScanner, ProgramScanner
 
 #  Create common python builders
 
+
 def createPythonObjectBuilder(env):
     """This is a utility function that creates the PythonObject Builder in an
     Environment if it is not there already.
@@ -48,18 +49,21 @@ def createPythonObjectBuilder(env):
     """
 
     try:
-        pyobj = env['BUILDERS']['PythonObject']
+        pyobj = env["BUILDERS"]["PythonObject"]
     except KeyError:
-        pyobj = SCons.Builder.Builder(action = {},
-                                      emitter = {},
-                                      prefix = '$PYEXTOBJPREFIX',
-                                      suffix = '$PYEXTOBJSUFFIX',
-                                      src_builder = ['CFile', 'CXXFile'],
-                                      source_scanner = SourceFileScanner,
-                                      single_source = 1)
-        env['BUILDERS']['PythonObject'] = pyobj
+        pyobj = SCons.Builder.Builder(
+            action={},
+            emitter={},
+            prefix="$PYEXTOBJPREFIX",
+            suffix="$PYEXTOBJSUFFIX",
+            src_builder=["CFile", "CXXFile"],
+            source_scanner=SourceFileScanner,
+            single_source=1,
+        )
+        env["BUILDERS"]["PythonObject"] = pyobj
 
     return pyobj
+
 
 def createPythonExtensionBuilder(env):
     """This is a utility function that creates the PythonExtension Builder in
@@ -69,103 +73,100 @@ def createPythonExtensionBuilder(env):
     """
 
     try:
-        pyext = env['BUILDERS']['PythonExtension']
+        pyext = env["BUILDERS"]["PythonExtension"]
     except KeyError:
         import SCons.Action
         import SCons.Defaults
+
         action = SCons.Action.Action("$PYEXTLINKCOM", "$PYEXTLINKCOMSTR")
-        action_list = [ SCons.Defaults.SharedCheck,
-                        action]
-        pyext = SCons.Builder.Builder(action = action_list,
-                                      emitter = "$SHLIBEMITTER",
-                                      prefix = '$PYEXTPREFIX',
-                                      suffix = '$PYEXTSUFFIX',
-                                      target_scanner = ProgramScanner,
-                                      src_suffix = '$PYEXTOBJSUFFIX',
-                                      src_builder = 'PythonObject')
-        env['BUILDERS']['PythonExtension'] = pyext
+        action_list = [SCons.Defaults.SharedCheck, action]
+        pyext = SCons.Builder.Builder(
+            action=action_list,
+            emitter="$SHLIBEMITTER",
+            prefix="$PYEXTPREFIX",
+            suffix="$PYEXTSUFFIX",
+            target_scanner=ProgramScanner,
+            src_suffix="$PYEXTOBJSUFFIX",
+            src_builder="PythonObject",
+        )
+        env["BUILDERS"]["PythonExtension"] = pyext
 
     return pyext
+
 
 def pyext_coms(platform):
     """Return PYEXTCCCOM, PYEXTCXXCOM and PYEXTLINKCOM for the given
     platform."""
-    if platform == 'win32':
-        pyext_cccom = "$PYEXTCC /Fo$TARGET /c $PYEXTCCSHARED "\
-                      "$PYEXTCFLAGS $PYEXTCCFLAGS $_CCCOMCOM "\
-                      "$_PYEXTCPPINCFLAGS $SOURCES"
-        pyext_cxxcom = "$PYEXTCXX /Fo$TARGET /c $PYEXTCSHARED "\
-                       "$PYEXTCXXFLAGS $PYEXTCCFLAGS $_CCCOMCOM "\
-                       "$_PYEXTCPPINCFLAGS $SOURCES"
-        pyext_linkcom = '${TEMPFILE("$PYEXTLINK $PYEXTLINKFLAGS '\
-                        '/OUT:$TARGET.windows $( $_LIBDIRFLAGS $) '\
-                        '$_LIBFLAGS $_PYEXTRUNTIME $SOURCES.windows")}'
+    if platform == "win32":
+        pyext_cccom = "$PYEXTCC /Fo$TARGET /c $PYEXTCCSHARED " "$PYEXTCFLAGS $PYEXTCCFLAGS $_CCCOMCOM " "$_PYEXTCPPINCFLAGS $SOURCES"
+        pyext_cxxcom = "$PYEXTCXX /Fo$TARGET /c $PYEXTCSHARED " "$PYEXTCXXFLAGS $PYEXTCCFLAGS $_CCCOMCOM " "$_PYEXTCPPINCFLAGS $SOURCES"
+        pyext_linkcom = (
+            '${TEMPFILE("$PYEXTLINK $PYEXTLINKFLAGS ' "/OUT:$TARGET.windows $( $_LIBDIRFLAGS $) " '$_LIBFLAGS $_PYEXTRUNTIME $SOURCES.windows")}'
+        )
     else:
-        pyext_cccom = "$PYEXTCC -o $TARGET -c $PYEXTCCSHARED "\
-                      "$PYEXTCFLAGS $PYEXTCCFLAGS $_CCCOMCOM "\
-                      "$_PYEXTCPPINCFLAGS $SOURCES"
-        pyext_cxxcom = "$PYEXTCXX -o $TARGET -c $PYEXTCSHARED "\
-                       "$PYEXTCXXFLAGS $PYEXTCCFLAGS $_CCCOMCOM "\
-                       "$_PYEXTCPPINCFLAGS $SOURCES"
-        pyext_linkcom = "$PYEXTLINK -o $TARGET $PYEXTLINKFLAGS "\
-                        "$SOURCES $_LIBDIRFLAGS $_LIBFLAGS $_PYEXTRUNTIME"
+        pyext_cccom = "$PYEXTCC -o $TARGET -c $PYEXTCCSHARED " "$PYEXTCFLAGS $PYEXTCCFLAGS $_CCCOMCOM " "$_PYEXTCPPINCFLAGS $SOURCES"
+        pyext_cxxcom = "$PYEXTCXX -o $TARGET -c $PYEXTCSHARED " "$PYEXTCXXFLAGS $PYEXTCCFLAGS $_CCCOMCOM " "$_PYEXTCPPINCFLAGS $SOURCES"
+        pyext_linkcom = "$PYEXTLINK -o $TARGET $PYEXTLINKFLAGS " "$SOURCES $_LIBDIRFLAGS $_LIBFLAGS $_PYEXTRUNTIME"
 
-    if platform == 'darwin':
-        pyext_linkcom += ' $_FRAMEWORKPATH $_FRAMEWORKS $FRAMEWORKSFLAGS'
+    if platform == "darwin":
+        pyext_linkcom += " $_FRAMEWORKPATH $_FRAMEWORKS $FRAMEWORKSFLAGS"
 
     return pyext_cccom, pyext_cxxcom, pyext_linkcom
+
 
 def set_basic_vars(env):
     # Set construction variables which are independent on whether we are using
     # distutils or not.
-    env['PYEXTCPPPATH'] = SCons.Util.CLVar('$PYEXTINCPATH')
+    env["PYEXTCPPPATH"] = SCons.Util.CLVar("$PYEXTINCPATH")
 
-    env['_PYEXTCPPINCFLAGS'] = '$( ${_concat(INCPREFIX, PYEXTCPPPATH, '\
-                               'INCSUFFIX, __env__, RDirs, TARGET, SOURCE)} $)'
-    env['PYEXTOBJSUFFIX'] = '$SHOBJSUFFIX'
-    env['PYEXTOBJPREFIX'] = '$SHOBJPREFIX'
+    env["_PYEXTCPPINCFLAGS"] = "$( ${_concat(INCPREFIX, PYEXTCPPPATH, " "INCSUFFIX, __env__, RDirs, TARGET, SOURCE)} $)"
+    env["PYEXTOBJSUFFIX"] = "$SHOBJSUFFIX"
+    env["PYEXTOBJPREFIX"] = "$SHOBJPREFIX"
 
-    env['PYEXTRUNTIME']   = SCons.Util.CLVar("")
+    env["PYEXTRUNTIME"] = SCons.Util.CLVar("")
     # XXX: this should be handled with different flags
-    env['_PYEXTRUNTIME']  = '$( ${_concat(LIBLINKPREFIX, PYEXTRUNTIME, '\
-                          'LIBLINKSUFFIX, __env__)} $)'
+    env["_PYEXTRUNTIME"] = "$( ${_concat(LIBLINKPREFIX, PYEXTRUNTIME, " "LIBLINKSUFFIX, __env__)} $)"
     # XXX: This won't work in all cases (using mingw, for example). To make
     # this work, we need to know whether PYEXTCC accepts /c and /Fo or -c -o.
     # This is difficult with the current way tools work in scons.
     pycc, pycxx, pylink = pyext_coms(sys.platform)
 
-    env['PYEXTLINKFLAGSEND'] = SCons.Util.CLVar('$LINKFLAGSEND')
+    env["PYEXTLINKFLAGSEND"] = SCons.Util.CLVar("$LINKFLAGSEND")
 
-    env['PYEXTCCCOM'] = pycc
-    env['PYEXTCXXCOM'] = pycxx
-    env['PYEXTLINKCOM'] = pylink
+    env["PYEXTCCCOM"] = pycc
+    env["PYEXTCXXCOM"] = pycxx
+    env["PYEXTLINKCOM"] = pylink
+
 
 def _set_configuration_nodistutils(env):
     # Set env variables to sensible values when not using distutils
-    def_cfg = {'PYEXTCC' : '$SHCC',
-               'PYEXTCFLAGS' : '$SHCFLAGS',
-               'PYEXTCCFLAGS' : '$SHCCFLAGS',
-               'PYEXTCXX' : '$SHCXX',
-               'PYEXTCXXFLAGS' : '$SHCXXFLAGS',
-               'PYEXTLINK' : '$LDMODULE',
-               'PYEXTSUFFIX' : '$LDMODULESUFFIX',
-               'PYEXTPREFIX' : ''}
+    def_cfg = {
+        "PYEXTCC": "$SHCC",
+        "PYEXTCFLAGS": "$SHCFLAGS",
+        "PYEXTCCFLAGS": "$SHCCFLAGS",
+        "PYEXTCXX": "$SHCXX",
+        "PYEXTCXXFLAGS": "$SHCXXFLAGS",
+        "PYEXTLINK": "$LDMODULE",
+        "PYEXTSUFFIX": "$LDMODULESUFFIX",
+        "PYEXTPREFIX": "",
+    }
 
-    if sys.platform == 'darwin':
-        def_cfg['PYEXTSUFFIX'] = '.so'
+    if sys.platform == "darwin":
+        def_cfg["PYEXTSUFFIX"] = ".so"
 
     for k, v in def_cfg.items():
         ifnotset(env, k, v)
 
-    ifnotset(env, 'PYEXT_ALLOW_UNDEFINED',
-             SCons.Util.CLVar('$ALLOW_UNDEFINED'))
-    ifnotset(env, 'PYEXTLINKFLAGS', SCons.Util.CLVar('$LDMODULEFLAGS'))
+    ifnotset(env, "PYEXT_ALLOW_UNDEFINED", SCons.Util.CLVar("$ALLOW_UNDEFINED"))
+    ifnotset(env, "PYEXTLINKFLAGS", SCons.Util.CLVar("$LDMODULEFLAGS"))
 
-    env.AppendUnique(PYEXTLINKFLAGS = env['PYEXT_ALLOW_UNDEFINED'])
+    env.AppendUnique(PYEXTLINKFLAGS=env["PYEXT_ALLOW_UNDEFINED"])
+
 
 def ifnotset(env, name, value):
     if name not in env:
         env[name] = value
+
 
 def set_configuration(env, use_distutils):
     """Set construction variables which are platform dependants.
@@ -178,19 +179,21 @@ def set_configuration(env, use_distutils):
     # We define commands as strings so that we can either execute them using
     # eval (same python for scons and distutils) or by executing them through
     # the shell.
-    dist_cfg = {'PYEXTCC': ("sysconfig.get_config_var('CC')", False),
-                'PYEXTCFLAGS': ("sysconfig.get_config_var('CFLAGS')", True),
-                'PYEXTCCSHARED': ("sysconfig.get_config_var('CCSHARED')", False),
-                'PYEXTLINKFLAGS': ("sysconfig.get_config_var('LDFLAGS')", True),
-                'PYEXTLINK': ("sysconfig.get_config_var('LDSHARED')", False),
-                'PYEXTINCPATH': ("sysconfig.get_python_inc()", False),
-                'PYEXTSUFFIX': ("sysconfig.get_config_var('SO')", False)}
+    dist_cfg = {
+        "PYEXTCC": ("sysconfig.get_config_var('CC')", False),
+        "PYEXTCFLAGS": ("sysconfig.get_config_var('CFLAGS')", True),
+        "PYEXTCCSHARED": ("sysconfig.get_config_var('CCSHARED')", False),
+        "PYEXTLINKFLAGS": ("sysconfig.get_config_var('LDFLAGS')", True),
+        "PYEXTLINK": ("sysconfig.get_config_var('LDSHARED')", False),
+        "PYEXTINCPATH": ("sysconfig.get_python_inc()", False),
+        "PYEXTSUFFIX": ("sysconfig.get_config_var('SO')", False),
+    }
 
     from distutils import sysconfig
 
     # We set the python path even when not using distutils, because we rarely
     # want to change this, even if not using distutils
-    ifnotset(env, 'PYEXTINCPATH', sysconfig.get_python_inc())
+    ifnotset(env, "PYEXTINCPATH", sysconfig.get_python_inc())
 
     if use_distutils:
         for k, (v, should_split) in dist_cfg.items():
@@ -201,36 +204,39 @@ def set_configuration(env, use_distutils):
     else:
         _set_configuration_nodistutils(env)
 
+
 def generate(env):
     """Add Builders and construction variables for python extensions to an
     Environment."""
 
-    if 'PYEXT_USE_DISTUTILS' not in env:
-        env['PYEXT_USE_DISTUTILS'] = False
+    if "PYEXT_USE_DISTUTILS" not in env:
+        env["PYEXT_USE_DISTUTILS"] = False
 
     # This sets all constructions variables used for pyext builders.
     set_basic_vars(env)
 
-    set_configuration(env, env['PYEXT_USE_DISTUTILS'])
+    set_configuration(env, env["PYEXT_USE_DISTUTILS"])
 
     # Create the PythonObject builder
     pyobj = createPythonObjectBuilder(env)
     action = SCons.Action.Action("$PYEXTCCCOM", "$PYEXTCCCOMSTR")
-    pyobj.add_emitter('.c', SCons.Defaults.SharedObjectEmitter)
-    pyobj.add_action('.c', action)
+    pyobj.add_emitter(".c", SCons.Defaults.SharedObjectEmitter)
+    pyobj.add_action(".c", action)
 
     action = SCons.Action.Action("$PYEXTCXXCOM", "$PYEXTCXXCOMSTR")
-    pyobj.add_emitter('$CXXFILESUFFIX', SCons.Defaults.SharedObjectEmitter)
-    pyobj.add_action('$CXXFILESUFFIX', action)
+    pyobj.add_emitter("$CXXFILESUFFIX", SCons.Defaults.SharedObjectEmitter)
+    pyobj.add_action("$CXXFILESUFFIX", action)
 
     # Create the PythonExtension builder
     createPythonExtensionBuilder(env)
+
 
 def exists(env):
     try:
         # This is not quite right: if someone defines all variables by himself,
         # it would work without distutils
         from distutils import sysconfig
+
         return True
     except ImportError:
         return False

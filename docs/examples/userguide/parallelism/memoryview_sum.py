@@ -1,5 +1,6 @@
 from cython.parallel import prange
 
+
 def func(x: cython.double[:], alpha: cython.double):
     i: cython.Py_ssize_t
 

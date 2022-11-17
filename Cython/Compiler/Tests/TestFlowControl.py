@@ -1,11 +1,9 @@
-
 from __future__ import absolute_import
 
 from copy import deepcopy
 from unittest import TestCase
 
-from Cython.Compiler.FlowControl import (
-    NameAssignment, StaticAssignment, Argument, NameDeletion)
+from Cython.Compiler.FlowControl import NameAssignment, StaticAssignment, Argument, NameDeletion
 
 
 class FakeType(object):
@@ -13,7 +11,7 @@ class FakeType(object):
 
 
 class FakeNode(object):
-    pos = ('filename.pyx', 1, 2)
+    pos = ("filename.pyx", 1, 2)
     cf_state = None
     type = FakeType()
 

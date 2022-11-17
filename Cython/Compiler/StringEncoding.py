@@ -21,8 +21,8 @@ join_bytes = empty_bytes.join
 
 
 class UnicodeLiteralBuilder(object):
-    """Assemble a unicode string.
-    """
+    """Assemble a unicode string."""
+
     def __init__(self):
         self.chars = []
 
@@ -34,32 +34,35 @@ class UnicodeLiteralBuilder(object):
         self.chars.append(characters)
 
     if sys.maxunicode == 65535:
+
         def append_charval(self, char_number):
             if char_number > 65535:
                 # wide Unicode character on narrow platform => replace
                 # by surrogate pair
                 char_number -= 0x10000
-                self.chars.append( _unichr((char_number // 1024) + 0xD800) )
-                self.chars.append( _unichr((char_number  % 1024) + 0xDC00) )
+                self.chars.append(_unichr((char_number // 1024) + 0xD800))
+                self.chars.append(_unichr((char_number % 1024) + 0xDC00))
             else:
-                self.chars.append( _unichr(char_number) )
+                self.chars.append(_unichr(char_number))
+
     else:
+
         def append_charval(self, char_number):
-            self.chars.append( _unichr(char_number) )
+            self.chars.append(_unichr(char_number))
 
     def append_uescape(self, char_number, escape_string):
         self.append_charval(char_number)
 
     def getstring(self):
-        return EncodedString(u''.join(self.chars))
+        return EncodedString("".join(self.chars))
 
     def getstrings(self):
         return (None, self.getstring())
 
 
 class BytesLiteralBuilder(object):
-    """Assemble a byte string or char value.
-    """
+    """Assemble a byte string or char value."""
+
     def __init__(self, target_encoding):
         self.chars = []
         self.target_encoding = target_encoding
@@ -71,7 +74,7 @@ class BytesLiteralBuilder(object):
         self.chars.append(characters)
 
     def append_charval(self, char_number):
-        self.chars.append( _unichr(char_number).encode('ISO-8859-1') )
+        self.chars.append(_unichr(char_number).encode("ISO-8859-1"))
 
     def append_uescape(self, char_number, escape_string):
         self.append(escape_string)
@@ -89,10 +92,10 @@ class BytesLiteralBuilder(object):
 
 
 class StrLiteralBuilder(object):
-    """Assemble both a bytes and a unicode representation of a string.
-    """
+    """Assemble both a bytes and a unicode representation of a string."""
+
     def __init__(self, target_encoding):
-        self._bytes   = BytesLiteralBuilder(target_encoding)
+        self._bytes = BytesLiteralBuilder(target_encoding)
         self._unicode = UnicodeLiteralBuilder()
 
     def append(self, characters):
@@ -136,7 +139,7 @@ class EncodedString(_unicode):
         return string_contains_surrogates(self)
 
     def as_utf8_string(self):
-        return bytes_literal(self.utf8encode(), 'utf8')
+        return bytes_literal(self.utf8encode(), "utf8")
 
     def as_c_string_literal(self):
         # first encodes the string then produces a c string literal
@@ -147,6 +150,7 @@ class EncodedString(_unicode):
         return s.as_c_string_literal()
 
     if not hasattr(_unicode, "isascii"):
+
         def isascii(self):
             # not defined for Python3.7+ since the class already has it
             try:
@@ -212,7 +216,7 @@ class BytesLiteral(_bytes):
             return _bytes(self)
         else:
             # fake-recode the string to make it a plain bytes object
-            return self.decode('ISO-8859-1').encode('ISO-8859-1')
+            return self.decode("ISO-8859-1").encode("ISO-8859-1")
 
     def utf8encode(self):
         assert False, "this is not a unicode string: %r" % self
@@ -221,7 +225,7 @@ class BytesLiteral(_bytes):
         """Fake-decode the byte string to unicode to support %
         formatting of unicode strings.
         """
-        return self.decode('ISO-8859-1')
+        return self.decode("ISO-8859-1")
 
     is_unicode = False
 
@@ -230,6 +234,7 @@ class BytesLiteral(_bytes):
         return '"%s"' % value
 
     if not hasattr(_bytes, "isascii"):
+
         def isascii(self):
             # already defined for Python3.7+
             return True
@@ -249,6 +254,7 @@ def encoded_string(s, encoding):
         s.encoding = encoding
     return s
 
+
 def encoded_string_or_bytes_literal(s, encoding):
     if isinstance(s, bytes):
         return bytes_literal(s, encoding)
@@ -256,52 +262,48 @@ def encoded_string_or_bytes_literal(s, encoding):
         return encoded_string(s, encoding)
 
 
-char_from_escape_sequence = {
-    r'\a' : u'\a',
-    r'\b' : u'\b',
-    r'\f' : u'\f',
-    r'\n' : u'\n',
-    r'\r' : u'\r',
-    r'\t' : u'\t',
-    r'\v' : u'\v',
-    }.get
+char_from_escape_sequence = {r"\a": "\a", r"\b": "\b", r"\f": "\f", r"\n": "\n", r"\r": "\r", r"\t": "\t", r"\v": "\v"}.get
 
-_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
+_c_special = ("\\", "??", '"') + tuple(map(chr, range(32)))
 
 
 def _to_escape_sequence(s):
-    if s in '\n\r\t':
+    if s in "\n\r\t":
         return repr(s)[1:-1]
     elif s == '"':
-        return r'\"'
-    elif s == '\\':
-        return r'\\'
+        return r"\""
+    elif s == "\\":
+        return r"\\"
     else:
         # within a character sequence, oct passes much better than hex
-        return ''.join(['\\%03o' % ord(c) for c in s])
+        return "".join(["\\%03o" % ord(c) for c in s])
 
 
 def _build_specials_replacer():
     subexps = []
     replacements = {}
     for special in _c_special:
-        regexp = ''.join(['[%s]' % c.replace('\\', '\\\\') for c in special])
+        regexp = "".join(["[%s]" % c.replace("\\", "\\\\") for c in special])
         subexps.append(regexp)
-        replacements[special.encode('ASCII')] = _to_escape_sequence(special).encode('ASCII')
-    sub = re.compile(('(%s)' % '|'.join(subexps)).encode('ASCII')).sub
+        replacements[special.encode("ASCII")] = _to_escape_sequence(special).encode("ASCII")
+    sub = re.compile(("(%s)" % "|".join(subexps)).encode("ASCII")).sub
+
     def replace_specials(m):
         return replacements[m.group(1)]
+
     def replace(s):
         return sub(replace_specials, s)
+
     return replace
+
 
 _replace_specials = _build_specials_replacer()
 
 
 def escape_char(c):
     if IS_PYTHON3:
-        c = c.decode('ISO-8859-1')
-    if c in '\n\r\t\\':
+        c = c.decode("ISO-8859-1")
+    if c in "\n\r\t\\":
         return repr(c)[1:-1]
     elif c == "'":
         return "\\'"
@@ -311,6 +313,7 @@ def escape_char(c):
         return "\\x%02X" % n
     else:
         return c
+
 
 def escape_byte_string(s):
     """Escape a byte string so that it can be written into C code.
@@ -328,20 +331,21 @@ def escape_byte_string(s):
         append, extend = s_new.append, s_new.extend
         for b in s:
             if b >= 128:
-                extend(('\\%3o' % b).encode('ASCII'))
+                extend(("\\%3o" % b).encode("ASCII"))
             else:
                 append(b)
-        return s_new.decode('ISO-8859-1')
+        return s_new.decode("ISO-8859-1")
     else:
         l = []
         append = l.append
         for c in s:
             o = ord(c)
             if o >= 128:
-                append('\\%3o' % o)
+                append("\\%3o" % o)
             else:
                 append(c)
-        return join_bytes(l).decode('ISO-8859-1')
+        return join_bytes(l).decode("ISO-8859-1")
+
 
 def split_string_literal(s, limit=2000):
     # MSVC can't handle long string literals.
@@ -352,9 +356,9 @@ def split_string_literal(s, limit=2000):
         chunks = []
         while start < len(s):
             end = start + limit
-            if len(s) > end-4 and '\\' in s[end-4:end]:
-                end -= 4 - s[end-4:end].find('\\')  # just before the backslash
-                while s[end-1] == '\\':
+            if len(s) > end - 4 and "\\" in s[end - 4 : end]:
+                end -= 4 - s[end - 4 : end].find("\\")  # just before the backslash
+                while s[end - 1] == "\\":
                     end -= 1
                     if end == start:
                         # must have been a long line of backslashes
@@ -364,9 +368,9 @@ def split_string_literal(s, limit=2000):
             start = end
         return '""'.join(chunks)
 
+
 def encode_pyunicode_string(s):
-    """Create Py_UNICODE[] representation of a given unicode string.
-    """
+    """Create Py_UNICODE[] representation of a given unicode string."""
     s = list(map(ord, s)) + [0]
 
     if sys.maxunicode >= 0x10000:  # Wide build or Py3.3

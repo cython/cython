@@ -1,6 +1,7 @@
 import cython
 from cython.cimports.my_module import Shrubbery
 
+
 @cython.cfunc
 def another_shrubbery(sh1: Shrubbery) -> Shrubbery:
     sh2: Shrubbery

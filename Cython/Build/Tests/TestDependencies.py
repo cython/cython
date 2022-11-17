@@ -27,25 +27,26 @@ class TestGlobbing(unittest.TestCase):
         os.chdir(temp_path)
 
         for dir1 in "abcd":
-            for dir1x in [dir1, dir1 + 'x']:
+            for dir1x in [dir1, dir1 + "x"]:
                 for dir2 in "xyz":
                     dir_path = pjoin(dir1x, dir2)
                     os.makedirs(dir_path)
                     with writable_file(dir_path, "file2_pyx.pyx") as f:
-                        f.write(u'""" PYX """')
+                        f.write('""" PYX """')
                     with writable_file(dir_path, "file2_py.py") as f:
-                        f.write(u'""" PY """')
+                        f.write('""" PY """')
 
                 with writable_file(dir1x, "file1_pyx.pyx") as f:
-                    f.write(u'""" PYX """')
+                    f.write('""" PYX """')
                 with writable_file(dir1x, "file1_py.py") as f:
-                    f.write(u'""" PY """')
+                    f.write('""" PY """')
 
     @classmethod
     def tearDownClass(cls):
         os.chdir(cls._orig_dir)
         if sys.version_info[0] < 3:
             import shutil
+
             shutil.rmtree(cls._tmpdir)
         else:
             cls._tmpdir.cleanup()
@@ -53,12 +54,12 @@ class TestGlobbing(unittest.TestCase):
     def files_equal(self, pattern, expected_files):
         expected_files = sorted(expected_files)
         # It's the users's choice whether '/' will appear on Windows.
-        matched_files = sorted(path.replace('/', os.sep) for path in extended_iglob(pattern))
+        matched_files = sorted(path.replace("/", os.sep) for path in extended_iglob(pattern))
         self.assertListEqual(matched_files, expected_files)  # /
 
         # Special case for Windows: also support '\' in patterns.
-        if os.sep == '\\' and '/' in pattern:
-            matched_files = sorted(extended_iglob(pattern.replace('/', '\\')))
+        if os.sep == "\\" and "/" in pattern:
+            matched_files = sorted(extended_iglob(pattern.replace("/", "\\")))
             self.assertListEqual(matched_files, expected_files)  # \
 
     def test_extended_iglob_simple(self):
@@ -74,11 +75,7 @@ class TestGlobbing(unittest.TestCase):
 
     def test_extended_iglob_simple_star(self):
         for basedir in "ad":
-            files = [
-                pjoin(basedir, dirname, filename)
-                for dirname in "xyz"
-                for filename in ["file2_pyx.pyx", "file2_py.py"]
-            ]
+            files = [pjoin(basedir, dirname, filename) for dirname in "xyz" for filename in ["file2_pyx.pyx", "file2_py.py"]]
             self.files_equal(basedir + "/*/*", files)
             self.files_equal(basedir + "/*/*.c12", [])
             self.files_equal(basedir + "/*/*.{py,pyx,c12}", files)
@@ -92,10 +89,10 @@ class TestGlobbing(unittest.TestCase):
                 files = [
                     pjoin(basedir, dirname, filename)
                     for dirname in "xyz"
-                    if subdir in ('*', dirname)
+                    if subdir in ("*", dirname)
                     for filename in ["file2_pyx.pyx", "file2_py.py"]
                 ]
-                path = basedir + '/' + subdir + '/'
+                path = basedir + "/" + subdir + "/"
                 self.files_equal(path + "*", files)
                 self.files_equal(path + "*.{py,pyx}", files)
                 self.files_equal(path + "*.{pyx}", files[::2])
@@ -105,17 +102,8 @@ class TestGlobbing(unittest.TestCase):
 
     def test_extended_iglob_double_star(self):
         basedirs = os.listdir(".")
-        files = [
-            pjoin(basedir, dirname, filename)
-            for basedir in basedirs
-            for dirname in "xyz"
-            for filename in ["file2_pyx.pyx", "file2_py.py"]
-        ]
-        all_files = [
-            pjoin(basedir, filename)
-            for basedir in basedirs
-            for filename in ["file1_pyx.pyx", "file1_py.py"]
-        ] + files
+        files = [pjoin(basedir, dirname, filename) for basedir in basedirs for dirname in "xyz" for filename in ["file2_pyx.pyx", "file2_py.py"]]
+        all_files = [pjoin(basedir, filename) for basedir in basedirs for filename in ["file1_pyx.pyx", "file1_py.py"]] + files
         self.files_equal("*/*/*", files)
         self.files_equal("*/*/**/*", files)
         self.files_equal("*/**/*.*", all_files)

@@ -30,10 +30,11 @@ else:
 # log10 isn't defined in the pxd file
 from math import log10
 
+
 @cython.test_fail_if_path_exists("//FromImportStatNode//ImportNode")
 @cython.test_assert_path_exists("//AddNode")
 def import_log(x, y):
     if compiled:
-        return x+y
+        return x + y
     else:
         from math import log

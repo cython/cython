@@ -1,5 +1,6 @@
 import cython
 
+
 @cython.cclass
 class CheeseShop:
 
@@ -19,6 +20,7 @@ class CheeseShop:
     @cheese.deleter
     def cheese(self):
         del self.cheeses[:]
+
 
 # Test input
 from cheesy import CheeseShop

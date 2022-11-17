@@ -6,16 +6,17 @@ from __future__ import generator_stop
 
 import os
 import sys
-#import inspect
-#import types
+
+# import inspect
+# import types
 import unittest
 import contextlib
 
-#from unittest import mock
+# from unittest import mock
 
-#from test.support import import_module
+# from test.support import import_module
 
-#asyncio = import_module("asyncio")
+# asyncio = import_module("asyncio")
 
 ZERO = 0
 
@@ -28,12 +29,15 @@ except ImportError:
     try:
         from unittest import skip
     except ImportError:
+
         def requires_asyncio(c):
             return None
+
     else:
         requires_asyncio = skip("tests require asyncio")
     asyncio = None
 else:
+
     def requires_asyncio(c):
         return c
 
@@ -44,14 +48,17 @@ def needs_py36_asyncio(f):
         return f
 
     from unittest import skip
+
     return skip("needs Python 3.6 or later")(f)
 
 
 try:
     from types import coroutine as types_coroutine
 except ImportError:
+
     def types_coroutine(func):
         from functools import wraps
+
         wrapped = wraps(func)
 
         # copied from types.py in Py3.6
@@ -59,9 +66,9 @@ except ImportError:
             # TODO: Implement this in C.
             def __init__(self, gen):
                 self.__wrapped = gen
-                self.__isgen = hasattr(gen, 'gi_running')
-                self.__name__ = getattr(gen, '__name__', None)
-                self.__qualname__ = getattr(gen, '__qualname__', None)
+                self.__isgen = hasattr(gen, "gi_running")
+                self.__name__ = getattr(gen, "__name__", None)
+                self.__qualname__ = getattr(gen, "__qualname__", None)
 
             def send(self, val):
                 return self.__wrapped.send(val)
@@ -95,6 +102,7 @@ except ImportError:
 
             def __next__(self):
                 return next(self.__wrapped)
+
             next = __next__
 
             def __iter__(self):
@@ -110,17 +118,20 @@ except ImportError:
 
         return call
 
+
 try:
     from inspect import isawaitable as inspect_isawaitable
 except ImportError:
+
     def inspect_isawaitable(o):
-        return hasattr(o, '__await__')
+        return hasattr(o, "__await__")
 
 
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Compiler.Errors import CompileError
     from Cython.Shadow import inline
+
     try:
         from StringIO import StringIO
     except ImportError:
@@ -144,9 +155,9 @@ class AwaitException(Exception):
 @types_coroutine
 def awaitable(*, throw=False):
     if throw:
-        yield ('throw',)
+        yield ("throw",)
     else:
-        yield ('result',)
+        yield ("result",)
 
 
 def run_until_complete(coro):
@@ -161,7 +172,7 @@ def run_until_complete(coro):
         except StopIteration as ex:
             return ex.args[0]
 
-        if fut == ('throw',):
+        if fut == ("throw",):
             exc = True
 
 
@@ -176,7 +187,6 @@ def to_list(gen):
 
 
 class AsyncGenSyntaxTest(unittest.TestCase):
-
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
         # the error messages usually don't match, so we just ignore them
@@ -188,55 +198,56 @@ class AsyncGenSyntaxTest(unittest.TestCase):
             self.assertTrue(False)
 
     def test_async_gen_syntax_01(self):
-        code = '''async def foo():
+        code = """async def foo():
             await abc
             yield from 123
-        '''
+        """
 
-        with self.assertRaisesRegex(SyntaxError, 'yield from.*inside async'):
+        with self.assertRaisesRegex(SyntaxError, "yield from.*inside async"):
             exec(code, {}, {})
 
     def test_async_gen_syntax_02(self):
-        code = '''async def foo():
+        code = """async def foo():
             yield from 123
-        '''
+        """
 
-        with self.assertRaisesRegex(SyntaxError, 'yield from.*inside async'):
+        with self.assertRaisesRegex(SyntaxError, "yield from.*inside async"):
             exec(code, {}, {})
 
     def test_async_gen_syntax_03(self):
-        code = '''async def foo():
+        code = """async def foo():
             await abc
             yield
             return 123
-        '''
+        """
 
-        with self.assertRaisesRegex(SyntaxError, 'return.*value.*async gen'):
+        with self.assertRaisesRegex(SyntaxError, "return.*value.*async gen"):
             exec(code, {}, {})
 
     def test_async_gen_syntax_04(self):
-        code = '''async def foo():
+        code = """async def foo():
             yield
             return 123
-        '''
+        """
 
-        with self.assertRaisesRegex(SyntaxError, 'return.*value.*async gen'):
+        with self.assertRaisesRegex(SyntaxError, "return.*value.*async gen"):
             exec(code, {}, {})
 
     def test_async_gen_syntax_05(self):
-        code = '''async def foo():
+        code = """async def foo():
             if 0:
                 yield
             return 12
-        '''
+        """
 
-        with self.assertRaisesRegex(SyntaxError, 'return.*value.*async gen'):
+        with self.assertRaisesRegex(SyntaxError, "return.*value.*async gen"):
             exec(code, {}, {})
 
 
 class AsyncGenTest(unittest.TestCase):
 
     if sys.version_info < (3, 3):
+
         @contextlib.contextmanager
         def assertRaisesRegex(self, exc_type, regex=None):
             # the error messages usually don't match, so we just ignore them
@@ -254,7 +265,7 @@ class AsyncGenTest(unittest.TestCase):
                 try:
                     res.append(next(g))
                 except StopIteration:
-                    res.append('STOP')
+                    res.append("STOP")
                     break
                 except Exception as ex:
                     res.append(str(type(ex)))
@@ -273,7 +284,7 @@ class AsyncGenTest(unittest.TestCase):
                                 res.append(ex.args[0])
                                 break
                             else:
-                                res.append('EMPTY StopIteration')
+                                res.append("EMPTY StopIteration")
                                 break
                         except StopAsyncIteration:
                             raise
@@ -281,7 +292,7 @@ class AsyncGenTest(unittest.TestCase):
                             res.append(str(type(ex)))
                             break
                 except StopAsyncIteration:
-                    res.append('STOP')
+                    res.append("STOP")
                     break
             return res
 
@@ -312,24 +323,24 @@ class AsyncGenTest(unittest.TestCase):
         ai = g.__aiter__()
 
         an = ai.__anext__()
-        self.assertEqual(next(an), ('result',))
+        self.assertEqual(next(an), ("result",))
 
         try:
             next(an)
         except StopIteration as ex:
             self.assertEqual(ex.args[0], 123)
         else:
-            self.fail('StopIteration was not raised')
+            self.fail("StopIteration was not raised")
 
         an = ai.__anext__()
-        self.assertEqual(next(an), ('result',))
+        self.assertEqual(next(an), ("result",))
 
         try:
             next(an)
         except StopAsyncIteration as ex:
             self.assertFalse(ex.args)
         else:
-            self.fail('StopAsyncIteration was not raised')
+            self.fail("StopAsyncIteration was not raised")
 
     def test_async_gen_exception_03(self):
         async def gen():
@@ -351,14 +362,14 @@ class AsyncGenTest(unittest.TestCase):
         ai = g.__aiter__()
 
         an = ai.__anext__()
-        self.assertEqual(next(an), ('result',))
+        self.assertEqual(next(an), ("result",))
 
         try:
             next(an)
         except StopIteration as ex:
             self.assertEqual(ex.args[0], 123)
         else:
-            self.fail('StopIteration was not raised')
+            self.fail("StopIteration was not raised")
 
         with self.assertRaises(ZeroDivisionError):
             next(ai.__anext__())
@@ -368,8 +379,7 @@ class AsyncGenTest(unittest.TestCase):
             yield 123
             raise StopAsyncIteration
 
-        with self.assertRaisesRegex(RuntimeError,
-                                    'async generator.*StopAsyncIteration'):
+        with self.assertRaisesRegex(RuntimeError, "async generator.*StopAsyncIteration"):
             to_list(gen())
 
     def test_async_gen_exception_06(self):
@@ -377,8 +387,7 @@ class AsyncGenTest(unittest.TestCase):
             yield 123
             raise StopIteration
 
-        with self.assertRaisesRegex(RuntimeError,
-                                    'async generator.*StopIteration'):
+        with self.assertRaisesRegex(RuntimeError, "async generator.*StopIteration"):
             to_list(gen())
 
     def test_async_gen_exception_07(self):
@@ -457,8 +466,8 @@ class AsyncGenTest(unittest.TestCase):
     def test_async_gen_exception_10(self):
         async def gen():
             yield 123
-        with self.assertRaisesRegex(TypeError,
-                                    "non-None value .* async generator"):
+
+        with self.assertRaisesRegex(TypeError, "non-None value .* async generator"):
             gen().__anext__().send(100)
 
     def test_async_gen_exception_11(self):
@@ -498,25 +507,24 @@ class AsyncGenTest(unittest.TestCase):
 
         g = gen()
 
-        self.assertEqual(g.__name__, 'gen')
-        g.__name__ = '123' if sys.version_info[0] >= 3 else b'123'
-        self.assertEqual(g.__name__, '123')
+        self.assertEqual(g.__name__, "gen")
+        g.__name__ = "123" if sys.version_info[0] >= 3 else b"123"
+        self.assertEqual(g.__name__, "123")
 
-        self.assertIn('.gen', g.__qualname__)
-        g.__qualname__ = '123' if sys.version_info[0] >= 3 else b'123'
-        self.assertEqual(g.__qualname__, '123')
+        self.assertIn(".gen", g.__qualname__)
+        g.__qualname__ = "123" if sys.version_info[0] >= 3 else b"123"
+        self.assertEqual(g.__qualname__, "123")
 
-        #self.assertIsNone(g.ag_await)
-        #self.assertIsInstance(g.ag_frame, types.FrameType)
+        # self.assertIsNone(g.ag_await)
+        # self.assertIsInstance(g.ag_frame, types.FrameType)
         self.assertFalse(g.ag_running)
-        #self.assertIsInstance(g.ag_code, types.CodeType)
+        # self.assertIsInstance(g.ag_code, types.CodeType)
 
         self.assertTrue(inspect_isawaitable(g.aclose()))
 
 
 @requires_asyncio
 class AsyncGenAsyncioTest(unittest.TestCase):
-
     def setUp(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(None)
@@ -600,7 +608,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             except StopIteration as ex:
                 self.assertEqual(ex.args[0], 1000)
             else:
-                self.fail('StopIteration was not raised')
+                self.fail("StopIteration was not raised")
             self.assertEqual(await it.__anext__(), 4)
             with self.assertRaises(StopAsyncIteration):
                 await it.__anext__()
@@ -622,21 +630,21 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             except StopIteration as ex:
                 self.assertEqual(ex.args[0], 1)
             else:
-                self.fail('StopIteration was not raised')
+                self.fail("StopIteration was not raised")
 
             try:
                 it.__anext__().send(10)
             except StopIteration as ex:
                 self.assertEqual(ex.args[0], 10)
             else:
-                self.fail('StopIteration was not raised')
+                self.fail("StopIteration was not raised")
 
             try:
                 it.__anext__().send(12)
             except StopIteration as ex:
                 self.assertEqual(ex.args[0], 1200)
             else:
-                self.fail('StopIteration was not raised')
+                self.fail("StopIteration was not raised")
 
             with self.assertRaises(StopAsyncIteration):
                 await it.__anext__()
@@ -652,6 +660,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 yield
             except:
                 pass
+
         g = foo()
         g.send(None)
         with self.assertRaises(StopIteration):
@@ -735,9 +744,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             await it.__anext__()
             await gen.aclose()
 
-        with self.assertRaisesRegex(
-                RuntimeError,
-                "async generator ignored GeneratorExit"):
+        with self.assertRaisesRegex(RuntimeError, "async generator ignored GeneratorExit"):
             self.loop.run_until_complete(run())
 
     def test_async_gen_asyncio_aclose_07(self):
@@ -828,6 +835,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 yield
             except:
                 pass
+
         g = foo()
         g.send(None)
         g.close()
@@ -862,9 +870,10 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             except:
                 pass
             yield
+
         g = foo()
         g.send(None)
-        with self.assertRaisesRegex(RuntimeError, 'ignored GeneratorExit'):
+        with self.assertRaisesRegex(RuntimeError, "ignored GeneratorExit"):
             g.close()
 
         # now with asynchronous generators
@@ -882,7 +891,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             nonlocal DONE
             g = gen()
             await g.asend(None)
-            with self.assertRaisesRegex(RuntimeError, 'ignored GeneratorExit'):
+            with self.assertRaisesRegex(RuntimeError, "ignored GeneratorExit"):
                 await g.aclose()
             DONE += 10
 
@@ -923,6 +932,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         def sgen():
             v = yield 1
             yield v * 2
+
         sg = sgen()
         v = sg.send(None)
         self.assertEqual(v, 1)
@@ -995,8 +1005,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         DONE = 0
 
         async def sleep_n_crash(delay):
-            fut = asyncio.ensure_future(asyncio.sleep(delay),
-                                        loop=self.loop)
+            fut = asyncio.ensure_future(asyncio.sleep(delay), loop=self.loop)
             self.loop.call_later(delay / 2, lambda: fut.cancel())
             return await fut
 
@@ -1038,6 +1047,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             except FooEr:
                 v = 1000
             yield v * 2
+
         sg = sgen()
         v = sg.send(None)
         self.assertEqual(v, 1)
@@ -1085,8 +1095,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             pass
 
         async def sleep_n_crash(delay):
-            fut = asyncio.ensure_future(asyncio.sleep(delay),
-                                        loop=self.loop)
+            fut = asyncio.ensure_future(asyncio.sleep(delay), loop=self.loop)
             self.loop.call_later(delay / 2, lambda: fut.cancel())
             return await fut
 
@@ -1118,7 +1127,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 self.assertEqual(DONE, 1)
                 raise
             else:
-                self.fail('CancelledError was not raised')
+                self.fail("CancelledError was not raised")
 
         with self.assertRaises(asyncio.CancelledError):
             self.loop.run_until_complete(run())
@@ -1133,6 +1142,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 yield
             except:
                 pass
+
         g = foo()
         g.send(None)
         with self.assertRaises(StopIteration):
@@ -1218,7 +1228,6 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         self.loop.run_until_complete(asyncio.sleep(0.1))
 
-
         # Silence warnings
         t1.cancel()
         t2.cancel()
@@ -1298,10 +1307,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             it = async_iterate()
             nxt = it.__anext__()
             await nxt
-            with self.assertRaisesRegex(
-                    RuntimeError,
-                    r"cannot reuse already awaited __anext__\(\)/asend\(\)"
-            ):
+            with self.assertRaisesRegex(RuntimeError, r"cannot reuse already awaited __anext__\(\)/asend\(\)"):
                 await nxt
 
             await it.aclose()  # prevent unfinished iterator warning
@@ -1317,10 +1323,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             it = async_iterate()
             nxt = it.aclose()
             await nxt
-            with self.assertRaisesRegex(
-                    RuntimeError,
-                    r"cannot reuse already awaited aclose\(\)/athrow\(\)"
-            ):
+            with self.assertRaisesRegex(RuntimeError, r"cannot reuse already awaited aclose\(\)/athrow\(\)"):
                 await nxt
 
         self.loop.run_until_complete(run())

@@ -10,15 +10,15 @@ beyond those which CyFunctions did.
 
 import cython
 
-MyFusedClass = cython.fused_type(
-    float,
-    'Cdef',
-    object)
+MyFusedClass = cython.fused_type(float, "Cdef", object)
+
 
 def fused_func(x: MyFusedClass):
     return (type(x).__name__, cython.typeof(x))
 
+
 IntOrFloat = cython.fused_type(int, float)
+
 
 def fused_func_0(x: IntOrFloat = 0):
     """
@@ -30,15 +30,19 @@ def fused_func_0(x: IntOrFloat = 0):
     """
     return (type(x).__name__, cython.typeof(x))
 
+
 def regular_func(x):
     return (type(x).__name__, cython.typeof(x))
+
 
 def regular_func_0():
     return
 
+
 @classmethod
 def fused_classmethod_free(cls, x: IntOrFloat):
     return (cls.__name__, type(x).__name__)
+
 
 @cython.cclass
 class Cdef:
@@ -80,7 +84,9 @@ class Cdef:
     ('Cdef', 'int')
     >>> Cdef.fused_classmethod_free(1)
     ('Cdef', 'int')
-    """.format(typeofCdef = 'Python object' if cython.compiled else 'Cdef')
+    """.format(
+        typeofCdef="Python object" if cython.compiled else "Cdef"
+    )
 
     if cython.compiled:
         __doc__ += """
@@ -119,6 +125,7 @@ class Cdef:
     def fused_classmethod(cls, x: IntOrFloat):
         return (cls.__name__, type(x).__name__)
 
+
 class Regular(object):
     __doc__ = """
     >>> c = Regular()
@@ -154,7 +161,9 @@ class Regular(object):
     ('Regular', 'int')
     >>> Regular.fused_classmethod_free(1)
     ('Regular', 'int')
-    """.format(typeofRegular = "Python object" if cython.compiled else 'Regular')
+    """.format(
+        typeofRegular="Python object" if cython.compiled else "Regular"
+    )
     if cython.compiled:
         __doc__ += """
     # fused_func_0 does not accept a "Regular" instance
@@ -186,7 +195,9 @@ class Regular(object):
     def fused_classmethod(cls, x: IntOrFloat):
         return (cls.__name__, type(x).__name__)
 
+
 import sys
+
 if sys.version_info[0] > 2:
     # extra Py3 only tests - shows that functions added to a class can be called
     # with an type as the first argument
@@ -197,7 +208,9 @@ if sys.version_info[0] > 2:
     ('float', '{typeoffloat}')
     >>> Cdef.regular_func_0()
     >>> Regular.regular_func_0()
-    """.format(typeoffloat='Python object' if cython.compiled else 'float')
+    """.format(
+        typeoffloat="Python object" if cython.compiled else "float"
+    )
 if cython.compiled:
     __doc__ += """
     >>> fused_func_0['float']()

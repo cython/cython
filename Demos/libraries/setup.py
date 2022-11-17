@@ -19,15 +19,16 @@ except:
         sys.exit(1)
 
 # Here is how to use the library built above.
-ext_modules = cythonize([
-    Extension("call_mymath",
-              sources=["call_mymath.pyx"],
-              include_dirs=[os.getcwd()],  # path to .h file(s)
-              library_dirs=[os.getcwd()],  # path to .a or .so file(s)
-              libraries=['mymath'])
-])
-
-setup(
-    name='Demos',
-    ext_modules=ext_modules,
+ext_modules = cythonize(
+    [
+        Extension(
+            "call_mymath",
+            sources=["call_mymath.pyx"],
+            include_dirs=[os.getcwd()],  # path to .h file(s)
+            library_dirs=[os.getcwd()],  # path to .a or .so file(s)
+            libraries=["mymath"],
+        )
+    ]
 )
+
+setup(name="Demos", ext_modules=ext_modules)

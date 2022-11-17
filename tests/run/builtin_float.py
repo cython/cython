@@ -4,14 +4,15 @@
 import cython
 import sys
 
+
 def fix_underscores(s):
-    if sys.version_info < (3, 6) or getattr(sys, 'pypy_version_info', (9, 9)) < (3, 7, 4):
+    if sys.version_info < (3, 6) or getattr(sys, "pypy_version_info", (9, 9)) < (3, 7, 4):
         # Py2 float() does not support PEP-515 underscore literals
         if isinstance(s, bytes):
-            if not cython.compiled and b'_' in s:
-                return s.replace(b'_', b'')
-        elif '_' in s:
-            return s.replace('_', '')
+            if not cython.compiled and b"_" in s:
+                return s.replace(b"_", b"")
+        elif "_" in s:
+            return s.replace("_", "")
     return s
 
 
@@ -31,7 +32,7 @@ def float_conjugate():
     >>> float_call_conjugate()
     1.5
     """
-    x = 1.5 .conjugate()
+    x = (1.5).conjugate()
     return x
 
 
@@ -67,10 +68,7 @@ def from_int(i):
     return float(i)
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
 def from_bytes(s: bytes):
     """
     >>> from_bytes(b"123")
@@ -102,10 +100,7 @@ def from_bytes(s: bytes):
     return float(s)
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
 def from_bytes_literals():
     """
     >>> from_bytes_literals()
@@ -114,10 +109,7 @@ def from_bytes_literals():
     return float(b"123"), float(b"123.23"), float(fix_underscores(b"12_3.7_6")), float(b"1e100")
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
 def from_bytearray(s: bytearray):
     """
     >>> from_bytearray(bytearray(b"123"))
@@ -149,11 +141,8 @@ def from_bytearray(s: bytearray):
     return float(s)
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
-def from_str(s: 'str'):
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
+def from_str(s: "str"):
     """
     >>> from_str("123")
     123.0
@@ -184,10 +173,7 @@ def from_str(s: 'str'):
     return float(s)
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
 def from_str_literals():
     """
     >>> from_str_literals()
@@ -196,11 +182,8 @@ def from_str_literals():
     return float("123"), float("123.23"), float(fix_underscores("1_2_4.2_3")), float("1e100")
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
-def from_unicode(s: 'unicode'):
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
+def from_unicode(s: "unicode"):
     """
     >>> from_unicode(u"123")
     123.0
@@ -247,16 +230,13 @@ def from_unicode(s: 'unicode'):
     return float(s)
 
 
-@cython.test_assert_path_exists(
-    "//CoerceToPyTypeNode",
-    "//CoerceToPyTypeNode//PythonCapiCallNode",
-)
+@cython.test_assert_path_exists("//CoerceToPyTypeNode", "//CoerceToPyTypeNode//PythonCapiCallNode")
 def from_unicode_literals():
     """
     >>> from_unicode_literals()
     (123.0, 123.23, 123.45, 1e+100, 123.23)
     """
-    return float(u"123"), float(u"123.23"), float(fix_underscores(u"12_3.4_5")), float(u"1e100"), float(u"123.23\N{PUNCTUATION SPACE}")
+    return float("123"), float("123.23"), float(fix_underscores("12_3.4_5")), float("1e100"), float("123.23\N{PUNCTUATION SPACE}")
 
 
 def catch_valueerror(val):

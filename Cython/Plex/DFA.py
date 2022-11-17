@@ -145,5 +145,4 @@ class StateMap(object):
 
         for new_state in self.new_machine.states:
             old_state_set = self.new_to_old_dict[id(new_state)]
-            file.write("   State %s <-- %s\n" % (
-                new_state['number'], state_set_str(old_state_set)))
+            file.write("   State %s <-- %s\n" % (new_state["number"], state_set_str(old_state_set)))

@@ -8,56 +8,88 @@ import contextlib
 import unittest
 import sys
 
+
 class TestMROEntry(unittest.TestCase):
     def test_mro_entry_signature(self):
         tested = []
-        class B: ...
+
+        class B:
+            ...
+
         class C:
             def __mro_entries__(self, *args, **kwargs):
                 tested.extend([args, kwargs])
                 return (C,)
+
         c = C()
         self.assertEqual(tested, [])
-        class D(B, c): ...
+
+        class D(B, c):
+            ...
+
         self.assertEqual(tested[0], ((B, c),))
         self.assertEqual(tested[1], {})
 
     def test_mro_entry(self):
         tested = []
-        class A: ...
-        class B: ...
+
+        class A:
+            ...
+
+        class B:
+            ...
+
         class C:
             def __mro_entries__(self, bases):
                 tested.append(bases)
                 return (self.__class__,)
+
         c = C()
         self.assertEqual(tested, [])
-        class D(A, c, B): ...
+
+        class D(A, c, B):
+            ...
+
         self.assertEqual(tested[-1], (A, c, B))
         self.assertEqual(D.__bases__, (A, C, B))
         self.assertEqual(D.__orig_bases__, (A, c, B))
         self.assertEqual(D.__mro__, (D, A, C, B, object))
         d = D()
-        class E(d): ...
+
+        class E(d):
+            ...
+
         self.assertEqual(tested[-1], (d,))
         self.assertEqual(E.__bases__, (D,))
 
     def test_mro_entry_none(self):
         tested = []
-        class A: ...
-        class B: ...
+
+        class A:
+            ...
+
+        class B:
+            ...
+
         class C:
             def __mro_entries__(self, bases):
                 tested.append(bases)
                 return ()
+
         c = C()
         self.assertEqual(tested, [])
-        class D(A, c, B): ...
+
+        class D(A, c, B):
+            ...
+
         self.assertEqual(tested[-1], (A, c, B))
         self.assertEqual(D.__bases__, (A, B))
         self.assertEqual(D.__orig_bases__, (A, c, B))
         self.assertEqual(D.__mro__, (D, A, B, object))
-        class E(c): ...
+
+        class E(c):
+            ...
+
         self.assertEqual(tested[-1], (c,))
         if sys.version_info[0] > 2:
             # not all of it works on Python 2
@@ -69,14 +101,21 @@ class TestMROEntry(unittest.TestCase):
 
     def test_mro_entry_with_builtins(self):
         tested = []
-        class A: ...
+
+        class A:
+            ...
+
         class C:
             def __mro_entries__(self, bases):
                 tested.append(bases)
                 return (dict,)
+
         c = C()
         self.assertEqual(tested, [])
-        class D(A, c): ...
+
+        class D(A, c):
+            ...
+
         self.assertEqual(tested[-1], (A, c))
         self.assertEqual(D.__bases__, (A, dict))
         self.assertEqual(D.__orig_bases__, (A, c))
@@ -84,13 +123,18 @@ class TestMROEntry(unittest.TestCase):
 
     def test_mro_entry_with_builtins_2(self):
         tested = []
+
         class C:
             def __mro_entries__(self, bases):
                 tested.append(bases)
                 return (C,)
+
         c = C()
         self.assertEqual(tested, [])
-        class D(c, dict): ...
+
+        class D(c, dict):
+            ...
+
         self.assertEqual(tested[-1], (c, dict))
         self.assertEqual(D.__bases__, (C, dict))
         self.assertEqual(D.__orig_bases__, (c, dict))
@@ -100,46 +144,67 @@ class TestMROEntry(unittest.TestCase):
         class C_too_many:
             def __mro_entries__(self, bases, something, other):
                 return ()
+
         c = C_too_many()
         with self.assertRaises(TypeError):
-            class D(c): ...
+
+            class D(c):
+                ...
+
         class C_too_few:
             def __mro_entries__(self):
                 return ()
+
         d = C_too_few()
         with self.assertRaises(TypeError):
-            class D(d): ...
+
+            class D(d):
+                ...
 
     def test_mro_entry_errors_2(self):
         class C_not_callable:
             __mro_entries__ = "Surprise!"
+
         c = C_not_callable()
         with self.assertRaises(TypeError):
-            class D(c): ...
+
+            class D(c):
+                ...
+
         class C_not_tuple:
             def __mro_entries__(self):
                 return object
+
         c = C_not_tuple()
         with self.assertRaises(TypeError):
-            class D(c): ...
+
+            class D(c):
+                ...
 
     def test_mro_entry_metaclass(self):
         meta_args = []
+
         class Meta(type):
             def __new__(mcls, name, bases, ns):
                 meta_args.extend([mcls, name, bases, ns])
                 return super().__new__(mcls, name, bases, ns)
-        class A: ...
+
+        class A:
+            ...
+
         class C:
             def __mro_entries__(self, bases):
                 return (A,)
+
         c = C()
+
         class D(c, metaclass=Meta):
             x = 1
+
         self.assertEqual(meta_args[0], Meta)
-        self.assertEqual(meta_args[1], 'D')
+        self.assertEqual(meta_args[1], "D")
         self.assertEqual(meta_args[2], (A,))
-        self.assertEqual(meta_args[3]['x'], 1)
+        self.assertEqual(meta_args[3]["x"], 1)
         self.assertEqual(D.__bases__, (A,))
         self.assertEqual(D.__orig_bases__, (c,))
         self.assertEqual(D.__mro__, (D, A, object))
@@ -151,19 +216,20 @@ class TestMROEntry(unittest.TestCase):
         class C:
             def __mro_entries__(self, bases):
                 return ()
+
         c = C()
-        with self.assertRaisesRegex(TypeError,
-                                    "MRO entry resolution; "
-                                    "use types.new_class()"):
-            type('Bad', (c,), {})
+        with self.assertRaisesRegex(TypeError, "MRO entry resolution; " "use types.new_class()"):
+            type("Bad", (c,), {})
 
 
 class TestClassGetitem(unittest.TestCase):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
-        class C: ...
+        class C:
+            ...
+
         # PyPy<7.3.8 raises AttributeError on __class_getitem__
-        if hasattr(sys, "pypy_version_info")  and sys.pypy_version_info < (7, 3, 8):
+        if hasattr(sys, "pypy_version_info") and sys.pypy_version_info < (7, 3, 8):
             err = AttributeError
         else:
             err = TypeError
@@ -174,10 +240,12 @@ class TestClassGetitem(unittest.TestCase):
 
     def test_class_getitem(self):
         getitem_args = []
+
         class C:
             def __class_getitem__(*args, **kwargs):
                 getitem_args.extend([args, kwargs])
                 return None
+
         C[int, str]
         self.assertEqual(getitem_args[0], (C, (int, str)))
         self.assertEqual(getitem_args[1], {})
@@ -185,47 +253,60 @@ class TestClassGetitem(unittest.TestCase):
     def test_class_getitem_format(self):
         class C:
             def __class_getitem__(cls, item):
-                return f'C[{item.__name__}]'
-        self.assertEqual(C[int], 'C[int]')
-        self.assertEqual(C[C], 'C[C]')
+                return f"C[{item.__name__}]"
+
+        self.assertEqual(C[int], "C[int]")
+        self.assertEqual(C[C], "C[C]")
 
     def test_class_getitem_inheritance(self):
         class C:
             def __class_getitem__(cls, item):
-                return f'{cls.__name__}[{item.__name__}]'
-        class D(C): ...
-        self.assertEqual(D[int], 'D[int]')
-        self.assertEqual(D[D], 'D[D]')
+                return f"{cls.__name__}[{item.__name__}]"
+
+        class D(C):
+            ...
+
+        self.assertEqual(D[int], "D[int]")
+        self.assertEqual(D[D], "D[D]")
 
     def test_class_getitem_inheritance_2(self):
         class C:
             def __class_getitem__(cls, item):
-                return 'Should not see this'
+                return "Should not see this"
+
         class D(C):
             def __class_getitem__(cls, item):
-                return f'{cls.__name__}[{item.__name__}]'
-        self.assertEqual(D[int], 'D[int]')
-        self.assertEqual(D[D], 'D[D]')
+                return f"{cls.__name__}[{item.__name__}]"
+
+        self.assertEqual(D[int], "D[int]")
+        self.assertEqual(D[D], "D[D]")
 
     def test_class_getitem_classmethod(self):
         class C:
             @classmethod
             def __class_getitem__(cls, item):
-                return f'{cls.__name__}[{item.__name__}]'
-        class D(C): ...
-        self.assertEqual(D[int], 'D[int]')
-        self.assertEqual(D[D], 'D[D]')
+                return f"{cls.__name__}[{item.__name__}]"
+
+        class D(C):
+            ...
+
+        self.assertEqual(D[int], "D[int]")
+        self.assertEqual(D[D], "D[D]")
 
     @unittest.skipIf(sys.version_info < (3, 6), "__init_subclass__() requires Py3.6+ (PEP 487)")
     def test_class_getitem_patched(self):
         class C:
             def __init_subclass__(cls):
                 def __class_getitem__(cls, item):
-                    return f'{cls.__name__}[{item.__name__}]'
+                    return f"{cls.__name__}[{item.__name__}]"
+
                 cls.__class_getitem__ = classmethod(__class_getitem__)
-        class D(C): ...
-        self.assertEqual(D[int], 'D[int]')
-        self.assertEqual(D[D], 'D[D]')
+
+        class D(C):
+            ...
+
+        self.assertEqual(D[int], "D[int]")
+        self.assertEqual(D[D], "D[D]")
 
     def test_class_getitem_with_builtins(self):
         class A(dict):
@@ -233,8 +314,10 @@ class TestClassGetitem(unittest.TestCase):
 
             def __class_getitem__(cls, item):
                 cls.called_with = item
+
         class B(A):
             pass
+
         self.assertIs(B.called_with, None)
         B[int]
         self.assertIs(B.called_with, int)
@@ -243,11 +326,14 @@ class TestClassGetitem(unittest.TestCase):
         class C_too_few:
             def __class_getitem__(cls):
                 return None
+
         with self.assertRaises(TypeError):
             C_too_few[int]
+
         class C_too_many:
             def __class_getitem__(cls, one, two):
                 return None
+
         with self.assertRaises(TypeError):
             C_too_many[int]
 
@@ -255,40 +341,52 @@ class TestClassGetitem(unittest.TestCase):
         class C:
             def __class_getitem__(cls, item):
                 return None
+
         with self.assertRaises(TypeError):
             C()[int]
-        class E: ...
+
+        class E:
+            ...
+
         e = E()
-        e.__class_getitem__ = lambda cls, item: 'This will not work'
+        e.__class_getitem__ = lambda cls, item: "This will not work"
         with self.assertRaises(TypeError):
             e[int]
+
         class C_not_callable:
             __class_getitem__ = "Surprise!"
+
         with self.assertRaises(TypeError):
             C_not_callable[int]
 
     def test_class_getitem_metaclass(self):
         class Meta(type):
             def __class_getitem__(cls, item):
-                return f'{cls.__name__}[{item.__name__}]'
-        self.assertEqual(Meta[int], 'Meta[int]')
+                return f"{cls.__name__}[{item.__name__}]"
+
+        self.assertEqual(Meta[int], "Meta[int]")
 
     def test_class_getitem_with_metaclass(self):
-        class Meta(type): pass
+        class Meta(type):
+            pass
+
         class C(metaclass=Meta):
             def __class_getitem__(cls, item):
-                return f'{cls.__name__}[{item.__name__}]'
-        self.assertEqual(C[int], 'C[int]')
+                return f"{cls.__name__}[{item.__name__}]"
+
+        self.assertEqual(C[int], "C[int]")
 
     def test_class_getitem_metaclass_first(self):
         class Meta(type):
             def __getitem__(cls, item):
-                return 'from metaclass'
+                return "from metaclass"
+
         class C(metaclass=Meta):
             def __class_getitem__(cls, item):
-                return 'from __class_getitem__'
-        self.assertEqual(C[int], 'from metaclass')
+                return "from __class_getitem__"
+
+        self.assertEqual(C[int], "from metaclass")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

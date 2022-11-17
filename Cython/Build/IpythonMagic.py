@@ -36,13 +36,13 @@ Code moved from IPython and adapted by:
 
 Parts of this code were taken from Cython.inline.
 """
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (C) 2010-2011, IPython Development Team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file ipython-COPYING.rst, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 from __future__ import absolute_import, print_function
 
@@ -65,6 +65,7 @@ from distutils.command.build_ext import build_ext
 from IPython.core import display
 from IPython.core import magic_arguments
 from IPython.core.magic import Magics, magics_class, cell_magic
+
 try:
     from IPython.paths import get_ipython_cache_dir
 except ImportError:
@@ -80,30 +81,26 @@ from ..Utils import captured_fd, print_captured
 
 
 PGO_CONFIG = {
-    'gcc': {
-        'gen': ['-fprofile-generate', '-fprofile-dir={TEMPDIR}'],
-        'use': ['-fprofile-use', '-fprofile-correction', '-fprofile-dir={TEMPDIR}'],
-    },
+    "gcc": {"gen": ["-fprofile-generate", "-fprofile-dir={TEMPDIR}"], "use": ["-fprofile-use", "-fprofile-correction", "-fprofile-dir={TEMPDIR}"]},
     # blind copy from 'configure' script in CPython 3.7
-    'icc': {
-        'gen': ['-prof-gen'],
-        'use': ['-prof-use'],
-    }
+    "icc": {"gen": ["-prof-gen"], "use": ["-prof-use"]},
 }
-PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
+PGO_CONFIG["mingw32"] = PGO_CONFIG["gcc"]
 
 
 if IS_PY2:
+
     def encode_fs(name):
         return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
+
 else:
+
     def encode_fs(name):
         return name
 
 
 @magics_class
 class CythonMagics(Magics):
-
     def __init__(self, shell):
         super(CythonMagics, self).__init__(shell)
         self._reloads = {}
@@ -112,10 +109,10 @@ class CythonMagics(Magics):
 
     def _import_all(self, module):
         mdict = module.__dict__
-        if '__all__' in mdict:
-            keys = mdict['__all__']
+        if "__all__" in mdict:
+            keys = mdict["__all__"]
         else:
-            keys = [k for k in mdict if not k.startswith('_')]
+            keys = [k for k in mdict if not k.startswith("_")]
 
         for k in keys:
             try:
@@ -160,12 +157,13 @@ class CythonMagics(Magics):
         """
         module_name = line.strip()
         if not module_name:
-            raise ValueError('module name must be given')
-        fname = module_name + '.pyx'
-        with io.open(fname, 'w', encoding='utf-8') as f:
+            raise ValueError("module name must be given")
+        fname = module_name + ".pyx"
+        with io.open(fname, "w", encoding="utf-8") as f:
             f.write(cell)
-        if 'pyximport' not in sys.modules or not self._pyximport_installed:
+        if "pyximport" not in sys.modules or not self._pyximport_installed:
             import pyximport
+
             pyximport.install()
             self._pyximport_installed = True
         if module_name in self._reloads:
@@ -174,7 +172,7 @@ class CythonMagics(Magics):
             # (requires PEP-489 reinitialisation support).
             # Don't know why this should ever have worked as it reads here.
             # All we really need to do is to update the globals below.
-            #reload(module)
+            # reload(module)
         else:
             __import__(module_name)
             module = sys.modules[module_name]
@@ -183,74 +181,72 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
-        '-a', '--annotate', action='store_const', const='default', dest='annotate',
-        help="Produce a colorized HTML version of the source."
+        "-a", "--annotate", action="store_const", const="default", dest="annotate", help="Produce a colorized HTML version of the source."
     )
     @magic_arguments.argument(
-        '--annotate-fullc', action='store_const', const='fullc', dest='annotate',
-        help="Produce a colorized HTML version of the source "
-             "which includes entire generated C/C++-code."
+        "--annotate-fullc",
+        action="store_const",
+        const="fullc",
+        dest="annotate",
+        help="Produce a colorized HTML version of the source " "which includes entire generated C/C++-code.",
+    )
+    @magic_arguments.argument("-+", "--cplus", action="store_true", default=False, help="Output a C++ rather than C file.")
+    @magic_arguments.argument("-3", dest="language_level", action="store_const", const=3, default=None, help="Select Python 3 syntax.")
+    @magic_arguments.argument("-2", dest="language_level", action="store_const", const=2, default=None, help="Select Python 2 syntax.")
+    @magic_arguments.argument(
+        "-f",
+        "--force",
+        action="store_true",
+        default=False,
+        help="Force the compilation of a new module, even if the source has been " "previously compiled.",
     )
     @magic_arguments.argument(
-        '-+', '--cplus', action='store_true', default=False,
-        help="Output a C++ rather than C file."
+        "-c",
+        "--compile-args",
+        action="append",
+        default=[],
+        help="Extra flags to pass to compiler via the `extra_compile_args` " "Extension flag (can be specified  multiple times).",
     )
     @magic_arguments.argument(
-        '-3', dest='language_level', action='store_const', const=3, default=None,
-        help="Select Python 3 syntax."
+        "--link-args",
+        action="append",
+        default=[],
+        help="Extra flags to pass to linker via the `extra_link_args` " "Extension flag (can be specified  multiple times).",
     )
     @magic_arguments.argument(
-        '-2', dest='language_level', action='store_const', const=2, default=None,
-        help="Select Python 2 syntax."
+        "-l", "--lib", action="append", default=[], help="Add a library to link the extension against (can be specified " "multiple times)."
+    )
+    @magic_arguments.argument("-n", "--name", help="Specify a name for the Cython module.")
+    @magic_arguments.argument(
+        "-L",
+        dest="library_dirs",
+        metavar="dir",
+        action="append",
+        default=[],
+        help="Add a path to the list of library directories (can be specified " "multiple times).",
     )
     @magic_arguments.argument(
-        '-f', '--force', action='store_true', default=False,
-        help="Force the compilation of a new module, even if the source has been "
-             "previously compiled."
+        "-I", "--include", action="append", default=[], help="Add a path to the list of include directories (can be specified " "multiple times)."
     )
     @magic_arguments.argument(
-        '-c', '--compile-args', action='append', default=[],
-        help="Extra flags to pass to compiler via the `extra_compile_args` "
-             "Extension flag (can be specified  multiple times)."
+        "-S", "--src", action="append", default=[], help="Add a path to the list of src files (can be specified " "multiple times)."
     )
     @magic_arguments.argument(
-        '--link-args', action='append', default=[],
-        help="Extra flags to pass to linker via the `extra_link_args` "
-             "Extension flag (can be specified  multiple times)."
+        "--pgo",
+        dest="pgo",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable profile guided optimisation in the C compiler. "
+            "Compiles the cell twice and executes it in between to generate a runtime profile."
+        ),
     )
     @magic_arguments.argument(
-        '-l', '--lib', action='append', default=[],
-        help="Add a library to link the extension against (can be specified "
-             "multiple times)."
-    )
-    @magic_arguments.argument(
-        '-n', '--name',
-        help="Specify a name for the Cython module."
-    )
-    @magic_arguments.argument(
-        '-L', dest='library_dirs', metavar='dir', action='append', default=[],
-        help="Add a path to the list of library directories (can be specified "
-             "multiple times)."
-    )
-    @magic_arguments.argument(
-        '-I', '--include', action='append', default=[],
-        help="Add a path to the list of include directories (can be specified "
-             "multiple times)."
-    )
-    @magic_arguments.argument(
-        '-S', '--src', action='append', default=[],
-        help="Add a path to the list of src files (can be specified "
-             "multiple times)."
-    )
-    @magic_arguments.argument(
-        '--pgo', dest='pgo', action='store_true', default=False,
-        help=("Enable profile guided optimisation in the C compiler. "
-              "Compiles the cell twice and executes it in between to generate a runtime profile.")
-    )
-    @magic_arguments.argument(
-        '--verbose', dest='quiet', action='store_false', default=True,
-        help=("Print debug information like generated .c/.cpp file location "
-              "and exact gcc/g++ command invoked.")
+        "--verbose",
+        dest="quiet",
+        action="store_false",
+        default=True,
+        help=("Print debug information like generated .c/.cpp file location " "and exact gcc/g++ command invoked."),
     )
     @cell_magic
     def cython(self, line, cell):
@@ -296,15 +292,15 @@ class CythonMagics(Magics):
                 ...  # execute critical code here
         """
         args = magic_arguments.parse_argstring(self.cython, line)
-        code = cell if cell.endswith('\n') else cell + '\n'
-        lib_dir = os.path.join(get_ipython_cache_dir(), 'cython')
+        code = cell if cell.endswith("\n") else cell + "\n"
+        lib_dir = os.path.join(get_ipython_cache_dir(), "cython")
         key = (code, line, sys.version_info, sys.executable, cython_version)
 
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
 
         if args.pgo:
-            key += ('pgo',)
+            key += ("pgo",)
         if args.force:
             # Force a new module name by adding the current time to the
             # key which is hashed to determine the module name.
@@ -313,8 +309,8 @@ class CythonMagics(Magics):
         if args.name:
             module_name = str(args.name)  # no-op in Py3
         else:
-            module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
-        html_file = os.path.join(lib_dir, module_name + '.html')
+            module_name = "_cython_magic_" + hashlib.sha1(str(key).encode("utf-8")).hexdigest()
+        html_file = os.path.join(lib_dir, module_name + ".html")
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 
         have_module = os.path.isfile(module_path)
@@ -339,15 +335,14 @@ class CythonMagics(Magics):
 
         def print_compiler_output(stdout, stderr, where):
             # On windows, errors are printed to stdout, we redirect both to sys.stderr.
-            print_captured(stdout, where, u"Content of stdout:\n")
-            print_captured(stderr, where, u"Content of stderr:\n")
+            print_captured(stdout, where, "Content of stdout:\n")
+            print_captured(stderr, where, "Content of stderr:\n")
 
         get_stderr = get_stdout = None
         try:
             with captured_fd(1) as get_stdout:
                 with captured_fd(2) as get_stderr:
-                    self._build_extension(
-                        extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
+                    self._build_extension(extension, lib_dir, pgo_step_name="use" if args.pgo else None, quiet=args.quiet)
         except (distutils.errors.CompileError, distutils.errors.LinkError):
             # Build failed, print error message from compiler/linker
             print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
@@ -361,15 +356,14 @@ class CythonMagics(Magics):
 
         if args.annotate:
             try:
-                with io.open(html_file, encoding='utf-8') as f:
+                with io.open(html_file, encoding="utf-8") as f:
                     annotated_html = f.read()
             except IOError as e:
                 # File could not be opened. Most likely the user has a version
                 # of Cython before 0.15.1 (when `cythonize` learned the
                 # `force` keyword argument) and has already compiled this
                 # exact source without annotation.
-                print('Cython completed successfully but the annotated '
-                      'source could not be read.', file=sys.stderr)
+                print("Cython completed successfully but the annotated " "source could not be read.", file=sys.stderr)
                 print(e, file=sys.stderr)
             else:
                 return display.HTML(self.clean_annotated_html(annotated_html))
@@ -385,10 +379,12 @@ class CythonMagics(Magics):
         """
         extension = copy.copy(extension)  # shallow copy, do not modify sources in place!
         module_name = extension.name
-        pgo_module_name = '_pgo_' + module_name
-        pgo_wrapper_c_file = os.path.join(lib_dir, pgo_module_name + '.c')
-        with io.open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
-            f.write(textwrap.dedent(u"""
+        pgo_module_name = "_pgo_" + module_name
+        pgo_wrapper_c_file = os.path.join(lib_dir, pgo_module_name + ".c")
+        with io.open(pgo_wrapper_c_file, "w", encoding="utf-8") as f:
+            f.write(
+                textwrap.dedent(
+                    """
             #include "Python.h"
             #if PY_MAJOR_VERSION < 3
             extern PyMODINIT_FUNC init%(module_name)s(void);
@@ -410,27 +406,31 @@ class CythonMagics(Magics):
                 return PyInit_%(module_name)s();
             }
             #endif
-            """ % {'module_name': module_name, 'pgo_module_name': pgo_module_name}))
+            """
+                    % {"module_name": module_name, "pgo_module_name": pgo_module_name}
+                )
+            )
 
         extension.sources = extension.sources + [pgo_wrapper_c_file]  # do not modify in place!
         extension.name = pgo_module_name
 
-        self._build_extension(extension, lib_dir, pgo_step_name='gen')
+        self._build_extension(extension, lib_dir, pgo_step_name="gen")
 
         # import and execute module code to generate profile
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
         load_dynamic(pgo_module_name, so_module_path)
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
-        pyx_file = os.path.join(lib_dir, module_name + '.pyx')
+        pyx_file = os.path.join(lib_dir, module_name + ".pyx")
         pyx_file = encode_fs(pyx_file)
 
         c_include_dirs = args.include
         c_src_files = list(map(str, args.src))
-        if 'numpy' in code:
+        if "numpy" in code:
             import numpy
+
             c_include_dirs.append(numpy.get_include())
-        with io.open(pyx_file, 'w', encoding='utf-8') as f:
+        with io.open(pyx_file, "w", encoding="utf-8") as f:
             f.write(code)
         extension = Extension(
             name=module_name,
@@ -440,25 +440,19 @@ class CythonMagics(Magics):
             extra_compile_args=args.compile_args,
             extra_link_args=args.link_args,
             libraries=args.lib,
-            language='c++' if args.cplus else 'c',
+            language="c++" if args.cplus else "c",
         )
         try:
-            opts = dict(
-                quiet=quiet,
-                annotate=args.annotate,
-                force=True,
-                language_level=min(3, sys.version_info[0]),
-            )
+            opts = dict(quiet=quiet, annotate=args.annotate, force=True, language_level=min(3, sys.version_info[0]))
             if args.language_level is not None:
                 assert args.language_level in (2, 3)
-                opts['language_level'] = args.language_level
+                opts["language_level"] = args.language_level
             return cythonize([extension], **opts)
         except CompileError:
             return None
 
     def _build_extension(self, extension, lib_dir, temp_dir=None, pgo_step_name=None, quiet=True):
-        build_extension = self._get_build_extension(
-            extension, lib_dir=lib_dir, temp_dir=temp_dir, pgo_step_name=pgo_step_name)
+        build_extension = self._get_build_extension(extension, lib_dir=lib_dir, temp_dir=temp_dir, pgo_step_name=pgo_step_name)
         old_threshold = None
         try:
             if not quiet:
@@ -470,19 +464,19 @@ class CythonMagics(Magics):
 
     def _add_pgo_flags(self, build_extension, step_name, temp_dir):
         compiler_type = build_extension.compiler.compiler_type
-        if compiler_type == 'unix':
+        if compiler_type == "unix":
             compiler_cmd = build_extension.compiler.compiler_so
             # TODO: we could try to call "[cmd] --version" for better insights
             if not compiler_cmd:
                 pass
-            elif 'clang' in compiler_cmd or 'clang' in compiler_cmd[0]:
-                compiler_type = 'clang'
-            elif 'icc' in compiler_cmd or 'icc' in compiler_cmd[0]:
-                compiler_type = 'icc'
-            elif 'gcc' in compiler_cmd or 'gcc' in compiler_cmd[0]:
-                compiler_type = 'gcc'
-            elif 'g++' in compiler_cmd or 'g++' in compiler_cmd[0]:
-                compiler_type = 'gcc'
+            elif "clang" in compiler_cmd or "clang" in compiler_cmd[0]:
+                compiler_type = "clang"
+            elif "icc" in compiler_cmd or "icc" in compiler_cmd[0]:
+                compiler_type = "icc"
+            elif "gcc" in compiler_cmd or "gcc" in compiler_cmd[0]:
+                compiler_type = "gcc"
+            elif "g++" in compiler_cmd or "g++" in compiler_cmd[0]:
+                compiler_type = "gcc"
         config = PGO_CONFIG.get(compiler_type)
         orig_flags = []
         if config and step_name in config:
@@ -492,8 +486,7 @@ class CythonMagics(Magics):
                 extension.extra_compile_args = extension.extra_compile_args + flags
                 extension.extra_link_args = extension.extra_link_args + flags
         else:
-            print("No PGO %s configuration known for C compiler type '%s'" % (step_name, compiler_type),
-                  file=sys.stderr)
+            print("No PGO %s configuration known for C compiler type '%s'" % (step_name, compiler_type), file=sys.stderr)
         return orig_flags
 
     @property
@@ -502,7 +495,7 @@ class CythonMagics(Magics):
         try:
             return self._so_ext
         except AttributeError:
-            self._so_ext = self._get_build_extension().get_ext_filename('')
+            self._so_ext = self._get_build_extension().get_ext_filename("")
             return self._so_ext
 
     def _clear_distutils_mkpath_cache(self):
@@ -517,13 +510,12 @@ class CythonMagics(Magics):
         else:
             _path_created.clear()
 
-    def _get_build_extension(self, extension=None, lib_dir=None, temp_dir=None,
-                             pgo_step_name=None, _build_ext=build_ext):
+    def _get_build_extension(self, extension=None, lib_dir=None, temp_dir=None, pgo_step_name=None, _build_ext=build_ext):
         self._clear_distutils_mkpath_cache()
         dist = Distribution()
         config_files = dist.find_config_files()
         try:
-            config_files.remove('setup.cfg')
+            config_files.remove("setup.cfg")
         except ValueError:
             pass
         dist.parse_config_files(config_files)
@@ -534,6 +526,7 @@ class CythonMagics(Magics):
 
         if pgo_step_name:
             base_build_ext = _build_ext
+
             class _build_ext(_build_ext):
                 def build_extensions(self):
                     add_pgo_flags(self, pgo_step_name, temp_dir)
@@ -559,14 +552,14 @@ class CythonMagics(Magics):
         present to the user.
         """
         r = re.compile('<p>Raw output: <a href="(.*)">(.*)</a>')
-        html = '\n'.join(l for l in html.splitlines() if not r.match(l))
+        html = "\n".join(l for l in html.splitlines() if not r.match(l))
         return html
+
 
 __doc__ = __doc__.format(
     # rST doesn't see the -+ flag as part of an option list, so we
     # hide it from the module-level docstring.
-    CYTHON_DOC=dedent(CythonMagics.cython.__doc__\
-                                  .replace('-+, --cplus', '--cplus    ')),
+    CYTHON_DOC=dedent(CythonMagics.cython.__doc__.replace("-+, --cplus", "--cplus    ")),
     CYTHON_INLINE_DOC=dedent(CythonMagics.cython_inline.__doc__),
     CYTHON_PYXIMPORT_DOC=dedent(CythonMagics.cython_pyximport.__doc__),
 )

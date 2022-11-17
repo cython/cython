@@ -1,5 +1,6 @@
 from Cython.TestUtils import CythonTest
 
+
 class TestCodeWriter(CythonTest):
     # CythonTest uses the CodeWriter heavily, so do some checking by
     # roundtripping Cython code through the test framework.
@@ -18,17 +19,20 @@ class TestCodeWriter(CythonTest):
         self.assertCode(codestr, self.fragment(codestr).root)
 
     def test_print(self):
-        self.t(u"""
+        self.t(
+            """
                     print(x + y ** 2)
                     print(x, y, z)
                     print(x + y, x + y * z, x * (y + z))
-               """)
+               """
+        )
 
     def test_if(self):
-        self.t(u"if x:\n    pass")
+        self.t("if x:\n    pass")
 
     def test_ifelifelse(self):
-        self.t(u"""
+        self.t(
+            """
                     if x:
                         pass
                     elif y:
@@ -37,18 +41,22 @@ class TestCodeWriter(CythonTest):
                         pass
                     else:
                         pass
-                """)
+                """
+        )
 
     def test_def(self):
-        self.t(u"""
+        self.t(
+            """
                     def f(x, y, z):
                         pass
                     def f(x = 34, y = 54, z):
                         pass
-               """)
+               """
+        )
 
     def test_cdef(self):
-        self.t(u"""
+        self.t(
+            """
                     cdef f(x, y, z):
                         pass
                     cdef public void (x = 34, y = 54, z):
@@ -59,56 +67,66 @@ class TestCodeWriter(CythonTest):
                         pass
                     cdef inline f(int &x, Value &z):
                         pass
-               """)
+               """
+        )
 
     def test_longness_and_signedness(self):
-        self.t(u"def f(unsigned long long long long long int y):\n    pass")
+        self.t("def f(unsigned long long long long long int y):\n    pass")
 
     def test_signed_short(self):
-        self.t(u"def f(signed short int y):\n    pass")
+        self.t("def f(signed short int y):\n    pass")
 
     def test_typed_args(self):
-        self.t(u"def f(int x, unsigned long int y):\n    pass")
+        self.t("def f(int x, unsigned long int y):\n    pass")
 
     def test_cdef_var(self):
-        self.t(u"""
+        self.t(
+            """
                     cdef int hello
                     cdef int hello = 4, x = 3, y, z
-                """)
+                """
+        )
 
     def test_for_loop(self):
-        self.t(u"""
+        self.t(
+            """
                     for x, y, z in f(g(h(34) * 2) + 23):
                         print(x, y, z)
                     else:
                         print(43)
-                """)
-        self.t(u"""
+                """
+        )
+        self.t(
+            """
                     for abc in (1, 2, 3):
                         print(x, y, z)
                     else:
                         print(43)
-                """)
+                """
+        )
 
     def test_while_loop(self):
-        self.t(u"""
+        self.t(
+            """
                     while True:
                         while True:
                             while True:
                                 continue
-                """)
+                """
+        )
 
     def test_inplace_assignment(self):
-        self.t(u"x += 43")
+        self.t("x += 43")
 
     def test_cascaded_assignment(self):
-        self.t(u"x = y = z = abc = 43")
+        self.t("x = y = z = abc = 43")
 
     def test_attribute(self):
-        self.t(u"a.x")
+        self.t("a.x")
 
     def test_return_none(self):
-        self.t(u"""
+        self.t(
+            """
                     def f(x, y, z):
                         return
                     cdef f(x, y, z):
@@ -121,8 +139,11 @@ class TestCodeWriter(CythonTest):
                         return 1234
                     cdef f(x, y, z):
                         return 1234
-               """)
+               """
+        )
+
 
 if __name__ == "__main__":
     import unittest
+
     unittest.main()

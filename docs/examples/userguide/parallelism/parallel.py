@@ -1,11 +1,13 @@
 from cython.parallel import parallel, prange
 from cython.cimports.libc.stdlib import abort, malloc, free
 
+
 @cython.nogil
 @cython.cfunc
 def func(buf: cython.p_int) -> cython.void:
     pass
     # ...
+
 
 idx = cython.declare(cython.Py_ssize_t)
 i = cython.declare(cython.Py_ssize_t)
@@ -24,7 +26,7 @@ with cython.nogil, parallel():
         local_buf[i] = i * 2
 
     # share the work using the thread-local buffer(s)
-    for j in prange(n, schedule='guided'):
+    for j in prange(n, schedule="guided"):
         func(local_buf)
 
     free(local_buf)

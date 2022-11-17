@@ -28,13 +28,7 @@ async def await_all(*coroutines):
 
 @cython.locals(N=cython.Py_ssize_t)
 def bm_await_nested(N):
-    return await_all(
-        count_to(N),
-        await_all(
-            count_to(N),
-            await_all(*[count_to(COUNT // i) for i in range(1, N+1)]),
-            count_to(N)),
-        count_to(N))
+    return await_all(count_to(N), await_all(count_to(N), await_all(*[count_to(COUNT // i) for i in range(1, N + 1)]), count_to(N)), count_to(N))
 
 
 def await_one(coro):
@@ -51,10 +45,11 @@ def await_one(coro):
 
 def time(fn, *args):
     from time import time
+
     begin = time()
     result = await_one(fn(*args))
     end = time()
-    return result, end-begin
+    return result, end - begin
 
 
 def benchmark(N):
@@ -70,11 +65,11 @@ main = benchmark
 
 if __name__ == "__main__":
     import optparse
-    parser = optparse.OptionParser(
-        usage="%prog [options]",
-        description="Micro benchmarks for generators.")
+
+    parser = optparse.OptionParser(usage="%prog [options]", description="Micro benchmarks for generators.")
 
     import util
+
     util.add_standard_options_to(parser)
     options, args = parser.parse_args()
 

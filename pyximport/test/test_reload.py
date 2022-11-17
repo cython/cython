@@ -6,11 +6,13 @@ from . import test_pyximport
 
 if 1:
     from distutils import sysconfig
+
     try:
         sysconfig.set_python_build()
     except AttributeError:
         pass
     import pyxbuild
+
     print(pyxbuild.distutils.sysconfig == sysconfig)
 
 
@@ -21,10 +23,11 @@ def test():
     with open(hello_file, "w") as fid:
         fid.write("x = 1; print x; before = 'before'\n")
     import hello
+
     assert hello.x == 1
 
     time.sleep(1)  # sleep to make sure that new "hello.pyx" has later
-                   # timestamp than object file.
+    # timestamp than object file.
 
     with open(hello_file, "w") as fid:
         fid.write("x = 2; print x; after = 'after'\n")
@@ -33,5 +36,5 @@ def test():
     test_pyximport.remove_tempdir(tempdir)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     test()

@@ -26,14 +26,14 @@ def one_dim_ccontig(a: cython.double[::1]):
     return a[0], a.ndim
 
 
-def two_dim(a: cython.double[:,:]):
+def two_dim(a: cython.double[:, :]):
     """
     >>> a = numpy.ones((10, 10), numpy.double)
     >>> two_dim(a)
     (3.0, 1.0, 2)
     """
-    a[0,0] *= 3
-    return a[0,0], a[0,1], a.ndim
+    a[0, 0] *= 3
+    return a[0, 0], a[0, 1], a.ndim
 
 
 @cython.nogil

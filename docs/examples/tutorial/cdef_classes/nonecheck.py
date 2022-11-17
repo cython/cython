@@ -3,9 +3,11 @@
 
 import cython
 
+
 @cython.cclass
 class MyClass:
     pass
+
 
 # Turn off nonecheck locally for the function
 @cython.nonecheck(False)

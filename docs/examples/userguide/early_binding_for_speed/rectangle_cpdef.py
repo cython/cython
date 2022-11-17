@@ -12,11 +12,12 @@ class Rectangle:
         self.y1 = y1
 
     @cython.ccall
-    def area(self)-> cython.int:
+    def area(self) -> cython.int:
         area: cython.int = (self.x1 - self.x0) * (self.y1 - self.y0)
         if area < 0:
             area = -area
         return area
+
 
 def rectArea(x0, y0, x1, y1):
     rect: Rectangle = Rectangle(x0, y0, x1, y1)

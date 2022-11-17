@@ -1,14 +1,17 @@
 import cython
 
+
 def foo(egg):
     if not cython.compiled:
         egg = float(egg)
     return egg
 
+
 def foo_defval(egg=1):
     if not cython.compiled:
         egg = float(egg)
     return egg**2
+
 
 def cpfoo(egg=False):
     if not cython.compiled:
@@ -17,6 +20,7 @@ def cpfoo(egg=False):
     else:
         v = not egg
     return egg, v
+
 
 def test_pxd_locals():
     """

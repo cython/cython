@@ -3,6 +3,7 @@
 import cython
 from cython.cimports.libcpp.vector import vector
 
+
 def primes(nb_primes: cython.uint):
     i: cython.int
     p: vector[cython.int]

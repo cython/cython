@@ -1,26 +1,28 @@
 # mode: run
 # tag: fused, pure3.6
 
-#cython: annotation_typing=True
+# cython: annotation_typing=True
 
 import cython
 
 InPy = cython.fused_type(cython.int, cython.float)
 
+
 class TestCls:
     # although annotations as strings isn't recommended and generates a warning
     # it does allow the test to run on more (pure) Python versions
-    def func1(self, arg: 'NotInPy'):
+    def func1(self, arg: "NotInPy"):
         """
         >>> TestCls().func1(1.0)
         'float'
         >>> TestCls().func1(2)
         'int'
         """
-        loc: 'NotInPy' = arg
+        loc: "NotInPy" = arg
         return cython.typeof(arg)
 
     if cython.compiled:
+
         @cython.locals(arg=NotInPy, loc=NotInPy)  # NameError for 'NotInPy' in pure Python
         def func2(self, arg):
             """
@@ -52,7 +54,7 @@ class TestCls:
         loc: InPy = arg
         return cython.typeof(arg)
 
-    @cython.locals(arg = InPy, loc = InPy)
+    @cython.locals(arg=InPy, loc=InPy)
     def func2_inpy(self, arg):
         """
         >>> TestCls().func2_inpy(1.0)

@@ -1,6 +1,6 @@
-
 def reraise():
     raise
+
 
 def test_reraise():
     """
@@ -13,6 +13,7 @@ def test_reraise():
     except ValueError:
         raise
 
+
 def test_reraise_indirect():
     """
     >>> test_reraise_indirect()
@@ -24,6 +25,7 @@ def test_reraise_indirect():
     except ValueError:
         reraise()
 
+
 def test_reraise_error():
     """
     >>> try: test_reraise_error()
@@ -31,6 +33,7 @@ def test_reraise_error():
     ... else: print("FAILED")
     """
     import sys
-    if hasattr(sys, 'exc_clear'):  # Py2
+
+    if hasattr(sys, "exc_clear"):  # Py2
         sys.exc_clear()
     raise

@@ -1,6 +1,7 @@
 import cython
 from cython.cimports.libc.stdlib import free
 
+
 @cython.cclass
 class OwnedPointer:
     ptr: cython.pointer(cython.void)

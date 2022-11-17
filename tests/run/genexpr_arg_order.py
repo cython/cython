@@ -11,11 +11,13 @@ from __future__ import print_function
 
 import cython
 
+
 @cython.cfunc
 @cython.returns(cython.int)
 def zero():
     print("In zero")
     return 0
+
 
 @cython.cfunc
 @cython.returns(cython.int)
@@ -23,15 +25,17 @@ def five():
     print("In five")
     return 5
 
+
 @cython.cfunc
 @cython.returns(cython.int)
 def one():
     print("In one")
     return 1
 
+
 # FIXME - I don't think this is easy to enforce unfortunately, but it is slightly wrong
-#@cython.test_assert_path_exists("//ForFromStatNode")
-#def genexp_range_argument_order():
+# @cython.test_assert_path_exists("//ForFromStatNode")
+# def genexp_range_argument_order():
 #    """
 #    >>> list(genexp_range_argument_order())
 #    In zero
@@ -40,11 +44,11 @@ def one():
 #    """
 #    return (a for a in range(zero(), five()))
 #
-#@cython.test_assert_path_exists("//ForFromStatNode")
-#@cython.test_assert_path_exists(
+# @cython.test_assert_path_exists("//ForFromStatNode")
+# @cython.test_assert_path_exists(
 #    "//InlinedGeneratorExpressionNode",
 #    "//ComprehensionAppendNode")
-#def list_range_argument_order():
+# def list_range_argument_order():
 #    """
 #    >>> list_range_argument_order()
 #    In zero
@@ -52,6 +56,7 @@ def one():
 #    [0, 1, 2, 3, 4]
 #    """
 #    return list(a for a in range(zero(), five()))
+
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 def genexp_array_slice_order():
@@ -64,12 +69,11 @@ def genexp_array_slice_order():
     # TODO ideally find a way to add the evaluation of x to this test too
     x = cython.declare(cython.int[20])
     x = list(range(20))
-    return (a for a in x[zero():five()])
+    return (a for a in x[zero() : five()])
+
 
 @cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_assert_path_exists(
-    "//InlinedGeneratorExpressionNode",
-    "//ComprehensionAppendNode")
+@cython.test_assert_path_exists("//InlinedGeneratorExpressionNode", "//ComprehensionAppendNode")
 def list_array_slice_order():
     """
     >>> list(list_array_slice_order())
@@ -80,12 +84,14 @@ def list_array_slice_order():
     # TODO ideally find a way to add the evaluation of x to this test too
     x = cython.declare(cython.int[20])
     x = list(range(20))
-    return list(a for a in x[zero():five()])
+    return list(a for a in x[zero() : five()])
+
 
 class IndexableClass:
     def __getitem__(self, idx):
         print("In indexer")
-        return [ idx.start, idx.stop, idx.step ]
+        return [idx.start, idx.stop, idx.step]
+
 
 class NoisyAttributeLookup:
     @property
@@ -96,10 +102,13 @@ class NoisyAttributeLookup:
     @property
     def function(self):
         print("Getting function")
+
         def func(a, b, c):
             print("In func")
             return [a, b, c]
+
         return func
+
 
 def genexp_index_order():
     """
@@ -113,9 +122,10 @@ def genexp_index_order():
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    ret = (a for a in obj.indexer[zero():five():one()])
+    ret = (a for a in obj.indexer[zero() : five() : one()])
     print("Made generator expression")
     return ret
+
 
 @cython.test_assert_path_exists("//InlinedGeneratorExpressionNode")
 def list_index_order():
@@ -129,7 +139,7 @@ def list_index_order():
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    return list(a for a in obj.indexer[zero():five():one()])
+    return list(a for a in obj.indexer[zero() : five() : one()])
 
 
 def genexpr_fcall_order():
@@ -148,6 +158,7 @@ def genexpr_fcall_order():
     print("Made generator expression")
     return ret
 
+
 @cython.test_assert_path_exists("//InlinedGeneratorExpressionNode")
 def list_fcall_order():
     """
@@ -162,12 +173,16 @@ def list_fcall_order():
     obj = NoisyAttributeLookup()
     return list(a for a in obj.function(zero(), five(), one()))
 
+
 def call1():
     print("In call1")
     return ["a"]
+
+
 def call2():
     print("In call2")
     return ["b"]
+
 
 def multiple_genexps_to_call_order():
     """
@@ -175,6 +190,7 @@ def multiple_genexps_to_call_order():
     In call1
     In call2
     """
+
     def takes_two_genexps(a, b):
         pass
 

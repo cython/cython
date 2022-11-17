@@ -2,8 +2,7 @@ from __future__ import absolute_import
 
 import copy
 
-from . import (ExprNodes, PyrexTypes, MemoryView,
-               ParseTreeTransforms, StringEncoding, Errors)
+from . import ExprNodes, PyrexTypes, MemoryView, ParseTreeTransforms, StringEncoding, Errors
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
@@ -45,8 +44,7 @@ class FusedCFuncDefNode(StatListNode):
     defaults_tuple = None
     decorators = None
 
-    child_attrs = StatListNode.child_attrs + [
-        '__signatures__', 'resulting_fused_function', 'fused_func_assignment']
+    child_attrs = StatListNode.child_attrs + ["__signatures__", "resulting_fused_function", "fused_func_assignment"]
 
     def __init__(self, node, env):
         super(FusedCFuncDefNode, self).__init__(node.pos)
@@ -82,8 +80,7 @@ class FusedCFuncDefNode(StatListNode):
         Create a copy of the original def or lambda function for specialized
         versions.
         """
-        fused_compound_types = PyrexTypes.unique(
-            [arg.type for arg in self.node.args if arg.type.is_fused])
+        fused_compound_types = PyrexTypes.unique([arg.type for arg in self.node.args if arg.type.is_fused])
         fused_types = self._get_fused_base_types(fused_compound_types)
         permutations = PyrexTypes.get_all_specialized_permutations(fused_types)
 
@@ -98,15 +95,13 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.entry.signature = self.node.entry.signature
 
             self._specialize_function_args(copied_node.args, fused_to_specific)
-            copied_node.return_type = self.node.return_type.specialize(
-                                                    fused_to_specific)
+            copied_node.return_type = self.node.return_type.specialize(fused_to_specific)
 
             copied_node.analyse_declarations(env)
             # copied_node.is_staticmethod = self.node.is_staticmethod
             # copied_node.is_classmethod = self.node.is_classmethod
             self.create_new_local_scope(copied_node, env, fused_to_specific)
-            self.specialize_copied_def(copied_node, cname, self.node.entry,
-                                       fused_to_specific, fused_compound_types)
+            self.specialize_copied_def(copied_node, cname, self.node.entry, fused_to_specific, fused_compound_types)
 
             PyrexTypes.specialize_entry(copied_node.entry, cname)
             copied_node.entry.used = True
@@ -146,8 +141,7 @@ class FusedCFuncDefNode(StatListNode):
                 type = copied_node.type.specialize(fused_to_specific)
             except CannotSpecialize:
                 # unlike for the argument types, specializing the return type can fail
-                error(copied_node.pos, "Return type is a fused type that cannot "
-                      "be determined from the function arguments")
+                error(copied_node.pos, "Return type is a fused type that cannot " "be determined from the function arguments")
                 self.py_func = None  # this is just to let the compiler exit gracefully
                 return
             entry = copied_node.entry
@@ -168,21 +162,16 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.type = type
             entry.type, type.entry = type, entry
 
-            entry.used = (entry.used or
-                          self.node.entry.defined_in_pxd or
-                          env.is_c_class_scope or
-                          entry.is_cmethod)
+            entry.used = entry.used or self.node.entry.defined_in_pxd or env.is_c_class_scope or entry.is_cmethod
 
             if self.node.cfunc_declarator.optional_arg_count:
-                self.node.cfunc_declarator.declare_optional_arg_struct(
-                                           type, env, fused_cname=cname)
+                self.node.cfunc_declarator.declare_optional_arg_struct(type, env, fused_cname=cname)
 
             copied_node.return_type = type.return_type
             self.create_new_local_scope(copied_node, env, fused_to_specific)
 
             # Make the argument types in the CFuncDeclarator specific
-            self._specialize_function_args(copied_node.cfunc_declarator.args,
-                                           fused_to_specific)
+            self._specialize_function_args(copied_node.cfunc_declarator.args, fused_to_specific)
 
             # If a cpdef, declare all specialized cpdefs (this
             # also calls analyse_declarations)
@@ -190,9 +179,7 @@ class FusedCFuncDefNode(StatListNode):
             if copied_node.py_func:
                 env.pyfunc_entries.remove(copied_node.py_func.entry)
 
-                self.specialize_copied_def(
-                        copied_node.py_func, cname, self.node.entry.as_variable,
-                        fused_to_specific, fused_types)
+                self.specialize_copied_def(copied_node.py_func, cname, self.node.entry.as_variable, fused_to_specific, fused_types)
 
             if not self.replace_fused_typechecks(copied_node):
                 break
@@ -203,11 +190,10 @@ class FusedCFuncDefNode(StatListNode):
         except ValueError:
             env.cfunc_entries.extend(new_cfunc_entries)
         else:
-            env.cfunc_entries[cindex:cindex+1] = new_cfunc_entries
+            env.cfunc_entries[cindex : cindex + 1] = new_cfunc_entries
 
         if orig_py_func:
-            self.py_func = self.make_fused_cpdef(orig_py_func, env,
-                                                 is_def=False)
+            self.py_func = self.make_fused_cpdef(orig_py_func, env, is_def=False)
         else:
             self.py_func = orig_py_func
 
@@ -254,15 +240,11 @@ class FusedCFuncDefNode(StatListNode):
         """Specialize the copy of a DefNode given the copied node,
         the specialization cname and the original DefNode entry"""
         fused_types = self._get_fused_base_types(fused_compound_types)
-        type_strings = [
-            PyrexTypes.specialization_signature_string(fused_type, f2s)
-                for fused_type in fused_types
-        ]
+        type_strings = [PyrexTypes.specialization_signature_string(fused_type, f2s) for fused_type in fused_types]
 
-        node.specialized_signature_string = '|'.join(type_strings)
+        node.specialized_signature_string = "|".join(type_strings)
 
-        node.entry.pymethdef_cname = PyrexTypes.get_fused_cname(
-                                        cname, node.entry.pymethdef_cname)
+        node.entry.pymethdef_cname = PyrexTypes.get_fused_cname(cname, node.entry.pymethdef_cname)
         node.entry.doc = py_entry.doc
         node.entry.doc_cname = py_entry.doc_cname
 
@@ -277,8 +259,7 @@ class FusedCFuncDefNode(StatListNode):
         in order to prevent a flood of errors.
         """
         num_errors = Errors.get_errors_count()
-        transform = ParseTreeTransforms.ReplaceFusedTypeChecks(
-                                       copied_node.local_scope)
+        transform = ParseTreeTransforms.ReplaceFusedTypeChecks(copied_node.local_scope)
         transform(copied_node)
 
         if Errors.get_errors_count() > num_errors:
@@ -293,20 +274,18 @@ class FusedCFuncDefNode(StatListNode):
         """
         for specialized_type in normal_types:
             # all_numeric = all_numeric and specialized_type.is_numeric
-            pyx_code.context.update(
-                py_type_name=specialized_type.py_type_name(),
-                specialized_type_name=specialized_type.specialization_string,
-            )
+            pyx_code.context.update(py_type_name=specialized_type.py_type_name(), specialized_type_name=specialized_type.specialization_string)
             pyx_code.put_chunk(
-                u"""
+                """
                     if isinstance(arg, {{py_type_name}}):
                         dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'; break
-                """)
+                """
+            )
 
     def _dtype_name(self, dtype):
         if dtype.is_typedef:
-            return '___pyx_%s' % dtype
-        return str(dtype).replace(' ', '_')
+            return "___pyx_%s" % dtype
+        return str(dtype).replace(" ", "_")
 
     def _dtype_type(self, dtype):
         if dtype.is_typedef:
@@ -315,7 +294,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _sizeof_dtype(self, dtype):
         if dtype.is_pyobject:
-            return 'sizeof(void *)'
+            return "sizeof(void *)"
         else:
             return "sizeof(%s)" % self._dtype_type(dtype)
 
@@ -339,13 +318,14 @@ class FusedCFuncDefNode(StatListNode):
 
     match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
     no_match = "dest_sig[{{dest_sig_idx}}] = None"
+
     def _buffer_check_numpy_dtype(self, pyx_code, specialized_buffer_types, pythran_types):
         """
         Match a numpy dtype object to the individual specializations.
         """
         self._buffer_check_numpy_dtype_setup_cases(pyx_code)
 
-        for specialized_type in pythran_types+specialized_buffer_types:
+        for specialized_type in pythran_types + specialized_buffer_types:
             final_type = specialized_type
             if specialized_type.is_pythran_expr:
                 specialized_type = specialized_type.org_buffer
@@ -354,31 +334,26 @@ class FusedCFuncDefNode(StatListNode):
                 itemsize_match=self._sizeof_dtype(dtype) + " == itemsize",
                 signed_match="not (%s_is_signed ^ dtype_signed)" % self._dtype_name(dtype),
                 dtype=dtype,
-                specialized_type_name=final_type.specialization_string)
+                specialized_type_name=final_type.specialization_string,
+            )
 
-            dtypes = [
-                (dtype.is_int, pyx_code.dtype_int),
-                (dtype.is_float, pyx_code.dtype_float),
-                (dtype.is_complex, pyx_code.dtype_complex)
-            ]
+            dtypes = [(dtype.is_int, pyx_code.dtype_int), (dtype.is_float, pyx_code.dtype_float), (dtype.is_complex, pyx_code.dtype_complex)]
 
             for dtype_category, codewriter in dtypes:
                 if dtype_category:
-                    cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
-                                                    specialized_type.ndim,)
+                    cond = "{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d" % (specialized_type.ndim,)
                     if dtype.is_int:
-                        cond += ' and {{signed_match}}'
+                        cond += " and {{signed_match}}"
 
                     if final_type.is_pythran_expr:
-                        cond += ' and arg_is_pythran_compatible'
+                        cond += " and arg_is_pythran_compatible"
 
                     with codewriter.indenter("if %s:" % cond):
-                        #codewriter.putln("print 'buffer match found based on numpy dtype'")
+                        # codewriter.putln("print 'buffer match found based on numpy dtype'")
                         codewriter.putln(self.match)
                         codewriter.putln("break")
 
-    def _buffer_parse_format_string_check(self, pyx_code, decl_code,
-                                          specialized_type, env):
+    def _buffer_parse_format_string_check(self, pyx_code, decl_code, specialized_type, env):
         """
         For each specialized type, try to coerce the object to a memoryview
         slice of that type. This means obtaining a buffer and parsing the
@@ -387,24 +362,19 @@ class FusedCFuncDefNode(StatListNode):
         """
         dtype = specialized_type.dtype
         if specialized_type.is_buffer:
-            axes = [('direct', 'strided')] * specialized_type.ndim
+            axes = [("direct", "strided")] * specialized_type.ndim
         else:
             axes = specialized_type.axes
 
         memslice_type = PyrexTypes.MemoryViewSliceType(dtype, axes)
         memslice_type.create_from_py_utility_code(env)
-        pyx_code.context.update(
-            coerce_from_py_func=memslice_type.from_py_function,
-            dtype=dtype)
-        decl_code.putln(
-            "{{memviewslice_cname}} {{coerce_from_py_func}}(object, int)")
+        pyx_code.context.update(coerce_from_py_func=memslice_type.from_py_function, dtype=dtype)
+        decl_code.putln("{{memviewslice_cname}} {{coerce_from_py_func}}(object, int)")
 
-        pyx_code.context.update(
-            specialized_type_name=specialized_type.specialization_string,
-            sizeof_dtype=self._sizeof_dtype(dtype))
+        pyx_code.context.update(specialized_type_name=specialized_type.specialization_string, sizeof_dtype=self._sizeof_dtype(dtype))
 
         pyx_code.put_chunk(
-            u"""
+            """
                 # try {{dtype}}
                 if itemsize == -1 or itemsize == {{sizeof_dtype}}:
                     memslice = {{coerce_from_py_func}}(arg, 0)
@@ -415,7 +385,9 @@ class FusedCFuncDefNode(StatListNode):
                         break
                     else:
                         __pyx_PyErr_Clear()
-            """ % self.match)
+            """
+            % self.match
+        )
 
     def _buffer_checks(self, buffer_types, pythran_types, pyx_code, decl_code, env):
         """
@@ -427,12 +399,16 @@ class FusedCFuncDefNode(StatListNode):
         """
         # The first thing to find a match in this loop breaks out of the loop
         pyx_code.put_chunk(
-            u"""
-                """ + (u"arg_is_pythran_compatible = False" if pythran_types else u"") + u"""
+            """
+                """
+            + ("arg_is_pythran_compatible = False" if pythran_types else "")
+            + """
                 if ndarray is not None:
                     if isinstance(arg, ndarray):
                         dtype = arg.dtype
-                        """ + (u"arg_is_pythran_compatible = True" if pythran_types else u"") + u"""
+                        """
+            + ("arg_is_pythran_compatible = True" if pythran_types else "")
+            + """
                     elif __pyx_memoryview_check(arg):
                         arg_base = arg.base
                         if isinstance(arg_base, ndarray):
@@ -447,11 +423,12 @@ class FusedCFuncDefNode(StatListNode):
                         itemsize = dtype.itemsize
                         kind = ord(dtype.kind)
                         dtype_signed = kind == 'i'
-            """)
+            """
+        )
         pyx_code.indent(2)
         if pythran_types:
             pyx_code.put_chunk(
-                u"""
+                """
                         # Pythran only supports the endianness of the current compiler
                         byteorder = dtype.byteorder
                         if byteorder == "<" and not __Pyx_Is_Little_Endian():
@@ -469,14 +446,14 @@ class FusedCFuncDefNode(StatListNode):
                                 cur_stride *= <Py_ssize_t> shape[i]
                             else:
                                 arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<Py_ssize_t>arg.ndim) > 1)
-                """)
+                """
+            )
         pyx_code.named_insertion_point("numpy_dtype_checks")
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
 
         for specialized_type in buffer_types:
-            self._buffer_parse_format_string_check(
-                    pyx_code, decl_code, specialized_type, env)
+            self._buffer_parse_format_string_check(pyx_code, decl_code, specialized_type, env)
 
     def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types, pythran_types):
         """
@@ -484,35 +461,40 @@ class FusedCFuncDefNode(StatListNode):
         declarations and imports.
         """
         decl_code.put_chunk(
-            u"""
+            """
                 ctypedef struct {{memviewslice_cname}}:
                     void *memview
 
                 void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
-            """)
+            """
+        )
 
         pyx_code.local_variable_declarations.put_chunk(
-            u"""
+            """
                 cdef {{memviewslice_cname}} memslice
                 cdef Py_ssize_t itemsize
                 cdef bint dtype_signed
                 cdef char kind
 
                 itemsize = -1
-            """)
+            """
+        )
 
         if pythran_types:
-            pyx_code.local_variable_declarations.put_chunk(u"""
+            pyx_code.local_variable_declarations.put_chunk(
+                """
                 cdef bint arg_is_pythran_compatible
                 cdef Py_ssize_t cur_stride
-            """)
+            """
+            )
 
         pyx_code.imports.put_chunk(
-            u"""
+            """
                 cdef type ndarray
                 ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
-            """)
+            """
+        )
 
         seen_typedefs = set()
         seen_int_dtypes = set()
@@ -522,20 +504,18 @@ class FusedCFuncDefNode(StatListNode):
             if dtype.is_typedef:
                 if dtype_name not in seen_typedefs:
                     seen_typedefs.add(dtype_name)
-                    decl_code.putln(
-                        'ctypedef %s %s "%s"' % (dtype.resolve(), dtype_name,
-                                                 dtype.empty_declaration_code()))
+                    decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(), dtype_name, dtype.empty_declaration_code()))
 
             if buffer_type.dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
-                    pyx_code.context.update(dtype_name=dtype_name,
-                                            dtype_type=self._dtype_type(dtype))
+                    pyx_code.context.update(dtype_name=dtype_name, dtype_type=self._dtype_type(dtype))
                     pyx_code.local_variable_declarations.put_chunk(
-                        u"""
+                        """
                             cdef bint {{dtype_name}}_is_signed
                             {{dtype_name}}_is_signed = not (<{{dtype_type}}> -1 > 0)
-                        """)
+                        """
+                    )
 
     def _split_fused_types(self, arg):
         """
@@ -555,7 +535,7 @@ class FusedCFuncDefNode(StatListNode):
                 if py_type_name in seen_py_type_names:
                     continue
                 seen_py_type_names.add(py_type_name)
-                if py_type_name == 'object':
+                if py_type_name == "object":
                     has_object_fallback = True
                 else:
                     normal_types.append(specialized_type)
@@ -568,7 +548,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _unpack_argument(self, pyx_code):
         pyx_code.put_chunk(
-            u"""
+            """
                 # PROCESSING ARGUMENT {{arg_tuple_idx}}
                 if {{arg_tuple_idx}} < len(<tuple>args):
                     arg = (<tuple>args)[{{arg_tuple_idx}}]
@@ -585,7 +565,8 @@ class FusedCFuncDefNode(StatListNode):
                         raise TypeError("Missing keyword-only argument: '%s'" % "{{arg.default}}")
                     {{endif}}
                 {{endif}}
-            """)
+            """
+        )
 
     def _fused_signature_index(self, pyx_code):
         """
@@ -593,7 +574,7 @@ class FusedCFuncDefNode(StatListNode):
         fused type specialization signatures.
         """
         pyx_code.put_chunk(
-            u"""
+            """
                 if not _fused_sigindex:
                     for sig in <dict>signatures:
                         sigindex_node = _fused_sigindex
@@ -616,33 +597,32 @@ class FusedCFuncDefNode(StatListNode):
         """
         from . import TreeFragment, Code, UtilityCode
 
-        fused_types = self._get_fused_base_types([
-            arg.type for arg in self.node.args if arg.type.is_fused])
+        fused_types = self._get_fused_base_types([arg.type for arg in self.node.args if arg.type.is_fused])
 
         context = {
-            'memviewslice_cname': MemoryView.memviewslice_cname,
-            'func_args': self.node.args,
-            'n_fused': len(fused_types),
-            'min_positional_args':
-                self.node.num_required_args - self.node.num_required_kw_args
-                if is_def else
-                sum(1 for arg in self.node.args if arg.default is None),
-            'name': orig_py_func.entry.name,
+            "memviewslice_cname": MemoryView.memviewslice_cname,
+            "func_args": self.node.args,
+            "n_fused": len(fused_types),
+            "min_positional_args": self.node.num_required_args - self.node.num_required_kw_args
+            if is_def
+            else sum(1 for arg in self.node.args if arg.default is None),
+            "name": orig_py_func.entry.name,
         }
 
         pyx_code = Code.PyxCodeWriter(context=context)
         decl_code = Code.PyxCodeWriter(context=context)
         decl_code.put_chunk(
-            u"""
+            """
                 cdef extern from *:
                     void __pyx_PyErr_Clear "PyErr_Clear" ()
                     type __Pyx_ImportNumPyArrayTypeIfAvailable()
                     int __Pyx_Is_Little_Endian()
-            """)
+            """
+        )
         decl_code.indent()
 
         pyx_code.put_chunk(
-            u"""
+            """
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
@@ -659,7 +639,8 @@ class FusedCFuncDefNode(StatListNode):
                     cdef Py_ssize_t i
 
                     # instance check body
-            """)
+            """
+        )
 
         pyx_code.indent()  # indent following code to function body
         pyx_code.named_insertion_point("imports")
@@ -674,19 +655,13 @@ class FusedCFuncDefNode(StatListNode):
             if arg.type.is_fused:
                 arg_fused_types = arg.type.get_fused_types()
                 if len(arg_fused_types) > 1:
-                    raise NotImplementedError("Determination of more than one fused base "
-                                              "type per argument is not implemented.")
+                    raise NotImplementedError("Determination of more than one fused base " "type per argument is not implemented.")
                 fused_type = arg_fused_types[0]
 
             if arg.type.is_fused and fused_type not in seen_fused_types:
                 seen_fused_types.add(fused_type)
 
-                context.update(
-                    arg_tuple_idx=i,
-                    arg=arg,
-                    dest_sig_idx=fused_index,
-                    default_idx=default_idx,
-                )
+                context.update(arg_tuple_idx=i, arg=arg, dest_sig_idx=fused_index, default_idx=default_idx)
 
                 normal_types, buffer_types, pythran_types, has_object_fallback = self._split_fused_types(arg)
                 self._unpack_argument(pyx_code)
@@ -699,7 +674,7 @@ class FusedCFuncDefNode(StatListNode):
                         env.use_utility_code(Code.UtilityCode.load_cached("IsLittleEndian", "ModuleSetupCode.c"))
                         self._buffer_checks(buffer_types, pythran_types, pyx_code, decl_code, env)
                     if has_object_fallback:
-                        pyx_code.context.update(specialized_type_name='object')
+                        pyx_code.context.update(specialized_type_name="object")
                         pyx_code.putln(self.match)
                     else:
                         pyx_code.putln(self.no_match)
@@ -720,7 +695,7 @@ class FusedCFuncDefNode(StatListNode):
         self._fused_signature_index(pyx_code)
 
         pyx_code.put_chunk(
-            u"""
+            """
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
 
@@ -754,17 +729,17 @@ class FusedCFuncDefNode(StatListNode):
                     raise TypeError("Function call with ambiguous argument types")
                 else:
                     return (<dict>signatures)[candidates[0]]
-            """)
+            """
+        )
 
         fragment_code = pyx_code.getvalue()
         # print decl_code.getvalue()
         # print fragment_code
         from .Optimize import ConstantFolding
-        fragment = TreeFragment.TreeFragment(
-            fragment_code, level='module', pipeline=[ConstantFolding()])
+
+        fragment = TreeFragment.TreeFragment(fragment_code, level="module", pipeline=[ConstantFolding()])
         ast = TreeFragment.SetPosTransform(self.node.pos)(fragment.root)
-        UtilityCode.declare_declarations_in_scope(
-            decl_code.getvalue(), env.global_scope())
+        UtilityCode.declare_declarations_in_scope(decl_code.getvalue(), env.global_scope())
         ast.scope = env
         # FIXME: for static methods of cdef classes, we build the wrong signature here: first arg becomes 'self'
         ast.analyse_declarations(env)
@@ -779,22 +754,17 @@ class FusedCFuncDefNode(StatListNode):
         return py_func
 
     def update_fused_defnode_entry(self, env):
-        copy_attributes = (
-            'name', 'pos', 'cname', 'func_cname', 'pyfunc_cname',
-            'pymethdef_cname', 'doc', 'doc_cname', 'is_member',
-            'scope'
-        )
+        copy_attributes = ("name", "pos", "cname", "func_cname", "pyfunc_cname", "pymethdef_cname", "doc", "doc_cname", "is_member", "scope")
 
         entry = self.py_func.entry
 
         for attr in copy_attributes:
-            setattr(entry, attr,
-                    getattr(self.orig_py_func.entry, attr))
+            setattr(entry, attr, getattr(self.orig_py_func.entry, attr))
 
         self.py_func.name = self.orig_py_func.name
         self.py_func.doc = self.orig_py_func.doc
 
-        env.entries.pop('__pyx_fused_cpdef', None)
+        env.entries.pop("__pyx_fused_cpdef", None)
         if isinstance(self.node, DefNode):
             env.entries[entry.name] = entry
         else:
@@ -878,12 +848,9 @@ class FusedCFuncDefNode(StatListNode):
         for node in nodes:
             node.entry.signature.use_fastcall = False
 
-        signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
-                      for node in nodes]
-        keys = [ExprNodes.StringNode(node.pos, value=sig)
-                for node, sig in zip(nodes, signatures)]
-        values = [ExprNodes.PyCFunctionNode.from_defnode(node, binding=True)
-                  for node in nodes]
+        signatures = [StringEncoding.EncodedString(node.specialized_signature_string) for node in nodes]
+        keys = [ExprNodes.StringNode(node.pos, value=sig) for node, sig in zip(nodes, signatures)]
+        values = [ExprNodes.PyCFunctionNode.from_defnode(node, binding=True) for node in nodes]
 
         self.__signatures__ = ExprNodes.DictNode.from_pairs(self.pos, zip(keys, values))
 
@@ -923,9 +890,8 @@ class FusedCFuncDefNode(StatListNode):
             self.resulting_fused_function.generate_evaluation_code(code)
 
             code.putln(
-                "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" %
-                                    (self.resulting_fused_function.result(),
-                                     self.__signatures__.result()))
+                "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" % (self.resulting_fused_function.result(), self.__signatures__.result())
+            )
             self.__signatures__.generate_giveref(code)
             self.__signatures__.generate_post_assignment_code(code)
             self.__signatures__.free_temps(code)

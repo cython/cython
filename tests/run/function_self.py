@@ -6,6 +6,7 @@
 import cython
 import sys
 
+
 def regular(x):
     """
     >>> hasattr(regular, "__self__")
@@ -14,9 +15,12 @@ def regular(x):
     >>> hasattr(nested, "__self__")
     False
     """
+
     def nested(y):
-        return x+y
+        return x + y
+
     return nested
+
 
 @cython.locals(x=cython.floating)
 def fused(x):
@@ -28,16 +32,20 @@ def fused(x):
     >>> hasattr(fused, "__self__")
     False
     """
+
     def nested_in_fused(y):
-        return x+y
+        return x + y
+
     return nested_in_fused
 
+
 # FIXME - doesn't currently work at all
-#def get_nested_fused(x):
+# def get_nested_fused(x):
 #    @cython.locals(x=cython.floating)
 #    def nested_fused(y):
 #        return x+y
 #    return nested_fused
+
 
 class C:
     """
@@ -47,12 +55,14 @@ class C:
     >>> c.fused.__self__ is c
     True
     """
+
     def regular(self):
         pass
 
     @cython.locals(x=cython.floating)
     def fused(self, x):
         return x
+
 
 __doc__ = ""
 if sys.version_info[0] > 2 or cython.compiled:

@@ -12,6 +12,7 @@ from Cython.Build.Inline import cython_inline
 import sys
 
 if cython.compiled:
+
     class StdErrHider:
         def __enter__(self):
             try:
@@ -35,8 +36,7 @@ if cython.compiled:
     def exec(code, globals_=None, locals_=None):
         if locals_ and globals_ and (locals_ is not globals_):
             # a hacky attempt to treat as a class definition
-            code = "class Cls:\n" + "\n".join(
-                "    " + line for line in code.split("\n"))
+            code = "class Cls:\n" + "\n".join("    " + line for line in code.split("\n"))
         code += "\nreturn globals(), locals()"  # so we can inspect it for changes, overriding the default cython_inline behaviour
         try:
             with StdErrHider() as stderr_handler:
@@ -56,7 +56,7 @@ if cython.compiled:
                 # unhelpfully Cython sometimes raises a compile error and sometimes just raises the filename
                 raised_message = []
                 for line in err_messages.split("\n"):
-                    line = line.split(":",3)
+                    line = line.split(":", 3)
                     # a usable error message with be filename:line:char: message
                     if len(line) == 4 and line[0].endswith(".pyx"):
                         raised_message.append(line[-1])
@@ -65,6 +65,7 @@ if cython.compiled:
                 raised_message = "; ".join(raised_message)
             raise SyntaxError(raised_message) from None
 
+
 if sys.version_info[0] < 3:
     # some monkey patching
     unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
@@ -72,14 +73,17 @@ if sys.version_info[0] < 3:
     class FakeSubTest(object):
         def __init__(self, *args, **kwds):
             pass
+
         def __enter__(self):
             pass
+
         def __exit__(self, *args):
             pass
+
     unittest.TestCase.subTest = FakeSubTest
 
-class NamedExpressionInvalidTest(unittest.TestCase):
 
+class NamedExpressionInvalidTest(unittest.TestCase):
     def test_named_expression_invalid_01(self):
         code = """x := 0"""
 
@@ -138,22 +142,19 @@ class NamedExpressionInvalidTest(unittest.TestCase):
     def test_named_expression_invalid_11(self):
         code = """spam(a=1, b := 2)"""
 
-        with self.assertRaisesRegex(SyntaxError,
-            "follow.* keyword arg"):
+        with self.assertRaisesRegex(SyntaxError, "follow.* keyword arg"):
             exec(code, {}, {})
 
     def test_named_expression_invalid_12(self):
         code = """spam(a=1, (b := 2))"""
 
-        with self.assertRaisesRegex(SyntaxError,
-            "follow.* keyword arg"):
+        with self.assertRaisesRegex(SyntaxError, "follow.* keyword arg"):
             exec(code, {}, {})
 
     def test_named_expression_invalid_13(self):
         code = """spam(a=1, (b := 2))"""
 
-        with self.assertRaisesRegex(SyntaxError,
-            "follow.* keyword arg"):
+        with self.assertRaisesRegex(SyntaxError, "follow.* keyword arg"):
             exec(code, {}, {})
 
     def test_named_expression_invalid_14(self):
@@ -166,8 +167,7 @@ class NamedExpressionInvalidTest(unittest.TestCase):
         code = """(lambda: x := 1)"""
 
         # TODO at the moment the error message is valid, but not the same as Python
-        with self.assertRaisesRegex(SyntaxError,
-            ""):
+        with self.assertRaisesRegex(SyntaxError, ""):
             exec(code, {}, {})
 
     def test_named_expression_invalid_16(self):
@@ -189,20 +189,18 @@ class NamedExpressionInvalidTest(unittest.TestCase):
             [(42, 1 + ((( j := i )))) for i in range(5)]
         """
 
-        with self.assertRaisesRegex(SyntaxError,
-            "assignment expression within a comprehension cannot be used in a class body"):
+        with self.assertRaisesRegex(SyntaxError, "assignment expression within a comprehension cannot be used in a class body"):
             exec(code, {}, {})
 
     def test_named_expression_invalid_rebinding_comprehension_iteration_variable(self):
         cases = [
-            ("Local reuse", 'i', "[i := 0 for i in range(5)]"),
-            ("Nested reuse", 'j', "[[(j := 0) for i in range(5)] for j in range(5)]"),
-            ("Reuse inner loop target", 'j', "[(j := 0) for i in range(5) for j in range(5)]"),
-            ("Unpacking reuse", 'i', "[i := 0 for i, j in [(0, 1)]]"),
-            ("Reuse in loop condition", 'i', "[i+1 for i in range(5) if (i := 0)]"),
-            ("Unreachable reuse", 'i', "[False or (i:=0) for i in range(5)]"),
-            ("Unreachable nested reuse", 'i',
-                "[(i, j) for i in range(5) for j in range(5) if True or (i:=10)]"),
+            ("Local reuse", "i", "[i := 0 for i in range(5)]"),
+            ("Nested reuse", "j", "[[(j := 0) for i in range(5)] for j in range(5)]"),
+            ("Reuse inner loop target", "j", "[(j := 0) for i in range(5) for j in range(5)]"),
+            ("Unpacking reuse", "i", "[i := 0 for i, j in [(0, 1)]]"),
+            ("Reuse in loop condition", "i", "[i+1 for i in range(5) if (i := 0)]"),
+            ("Unreachable reuse", "i", "[False or (i:=0) for i in range(5)]"),
+            ("Unreachable nested reuse", "i", "[(i, j) for i in range(5) for j in range(5) if True or (i:=10)]"),
         ]
         for case, target, code in cases:
             msg = f"assignment expression cannot rebind comprehension iteration variable '{target}'"
@@ -212,18 +210,18 @@ class NamedExpressionInvalidTest(unittest.TestCase):
 
     def test_named_expression_invalid_rebinding_comprehension_inner_loop(self):
         cases = [
-            ("Inner reuse", 'j', "[i for i in range(5) if (j := 0) for j in range(5)]"),
-            ("Inner unpacking reuse", 'j', "[i for i in range(5) if (j := 0) for j, k in [(0, 1)]]"),
+            ("Inner reuse", "j", "[i for i in range(5) if (j := 0) for j in range(5)]"),
+            ("Inner unpacking reuse", "j", "[i for i in range(5) if (j := 0) for j, k in [(0, 1)]]"),
         ]
         for case, target, code in cases:
             msg = f"comprehension inner loop cannot rebind assignment expression target '{target}'"
             with self.subTest(case=case):
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}) # Module scope
+                    exec(code, {})  # Module scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}, {}) # Class scope
+                    exec(code, {}, {})  # Class scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(f"lambda: {code}", {}) # Function scope
+                    exec(f"lambda: {code}", {})  # Function scope
 
     def test_named_expression_invalid_comprehension_iterable_expression(self):
         cases = [
@@ -241,15 +239,14 @@ class NamedExpressionInvalidTest(unittest.TestCase):
         for case, code in cases:
             with self.subTest(case=case):
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}) # Module scope - FIXME this test puts it in __invoke in cython_inline
+                    exec(code, {})  # Module scope - FIXME this test puts it in __invoke in cython_inline
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}, {}) # Class scope
+                    exec(code, {}, {})  # Class scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(f"lambda: {code}", {}) # Function scope
+                    exec(f"lambda: {code}", {})  # Function scope
 
 
 class NamedExpressionAssignmentTest(unittest.TestCase):
-
     def test_named_expression_assignment_01(self):
         (a := 10)
 
@@ -291,30 +288,35 @@ class NamedExpressionAssignmentTest(unittest.TestCase):
     def test_named_expression_assignment_08(self):
         if spam := "eggs":
             self.assertEqual(spam, "eggs")
-        else: self.fail("variable was not assigned using named expression")
+        else:
+            self.fail("variable was not assigned using named expression")
 
     def test_named_expression_assignment_09(self):
         if True and (spam := True):
             self.assertTrue(spam)
-        else: self.fail("variable was not assigned using named expression")
+        else:
+            self.fail("variable was not assigned using named expression")
 
     def test_named_expression_assignment_10(self):
         if (match := 10) == 10:
             pass
-        else: self.fail("variable was not assigned using named expression")
+        else:
+            self.fail("variable was not assigned using named expression")
 
     def test_named_expression_assignment_11(self):
         def spam(a):
             return a
+
         input_data = [1, 2, 3]
-        res = [(x, y, x/y) for x in input_data if (y := spam(x)) > 0]
+        res = [(x, y, x / y) for x in input_data if (y := spam(x)) > 0]
 
         self.assertEqual(res, [(1, 1, 1.0), (2, 2, 1.0), (3, 3, 1.0)])
 
     def test_named_expression_assignment_12(self):
         def spam(a):
             return a
-        res = [[y := spam(x), x/y] for x in range(1, 5)]
+
+        res = [[y := spam(x), x / y] for x in range(1, 5)]
 
         self.assertEqual(res, [[1, 1.0], [2, 1.0], [3, 1.0], [4, 1.0]])
 
@@ -322,7 +324,7 @@ class NamedExpressionAssignmentTest(unittest.TestCase):
         length = len(lines := [1, 2])
 
         self.assertEqual(length, 2)
-        self.assertEqual(lines, [1,2])
+        self.assertEqual(lines, [1, 2])
 
     def test_named_expression_assignment_14(self):
         """
@@ -335,8 +337,8 @@ class NamedExpressionAssignmentTest(unittest.TestCase):
         n = 2
         x = 3
 
-        while a > (d := x // a**(n-1)):
-            a = ((n-1)*a + d) // n
+        while a > (d := x // a ** (n - 1)):
+            a = ((n - 1) * a + d) // n
 
         self.assertEqual(a, 1)
 
@@ -353,7 +355,6 @@ class NamedExpressionAssignmentTest(unittest.TestCase):
 
 
 class NamedExpressionScopeTest(unittest.TestCase):
-
     def test_named_expression_scope_01(self):
         code = """def spam():
     (a := 5)
@@ -380,15 +381,17 @@ print(a)"""
     def test_named_expression_scope_04(self):
         def spam(a):
             return a
-        res = [[y := spam(x), x/y] for x in range(1, 5)]
+
+        res = [[y := spam(x), x / y] for x in range(1, 5)]
 
         self.assertEqual(y, 4)
 
     def test_named_expression_scope_05(self):
         def spam(a):
             return a
+
         input_data = [1, 2, 3]
-        res = [(x, y, x/y) for x in input_data if (y := spam(x)) > 0]
+        res = [(x, y, x / y) for x in input_data if (y := spam(x)) > 0]
 
         self.assertEqual(res, [(1, 1, 1.0), (2, 2, 1.0), (3, 3, 1.0)])
         self.assertEqual(y, 3)
@@ -505,9 +508,11 @@ print(a)"""
 
     def test_named_expression_scope_24(self):
         a = 10
+
         def spam():
             nonlocal a
             (a := 20)
+
         spam()
 
         self.assertEqual(a, 20)
@@ -551,6 +556,7 @@ spam()"""
                 exec(code, ns)
                 self.assertEqual(ns["x"], 2)
                 self.assertEqual(ns["result"], [0, 1, 2])
+
 
 if __name__ == "__main__":
     unittest.main()

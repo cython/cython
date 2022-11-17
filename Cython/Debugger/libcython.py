@@ -26,6 +26,7 @@ except NameError:  # python 3
 
 try:
     from lxml import etree
+
     have_lxml = True
 except ImportError:
     have_lxml = False
@@ -51,7 +52,7 @@ except ImportError:
     pygments = None
     sys.stderr.write("Install pygments for colorized source code.\n")
 
-if hasattr(gdb, 'string_to_argv'):
+if hasattr(gdb, "string_to_argv"):
     from gdb import string_to_argv
 else:
     from shlex import split as string_to_argv
@@ -59,14 +60,15 @@ else:
 from Cython.Debugger import libpython
 
 # C or Python type
-CObject = 'CObject'
-PythonObject = 'PythonObject'
+CObject = "CObject"
+PythonObject = "PythonObject"
 
 _data_types = dict(CObject=CObject, PythonObject=PythonObject)
-_filesystemencoding = sys.getfilesystemencoding() or 'UTF-8'
+_filesystemencoding = sys.getfilesystemencoding() or "UTF-8"
 
 
 # decorators
+
 
 def default_selected_gdb_frame(err=True):
     def decorator(function):
@@ -81,7 +83,9 @@ def default_selected_gdb_frame(err=True):
                 raise NoFunctionNameInFrameError()
 
             return function(self, frame, *args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -89,11 +93,11 @@ def require_cython_frame(function):
     @functools.wraps(function)
     @require_running_program
     def wrapper(self, *args, **kwargs):
-        frame = kwargs.get('frame') or gdb.selected_frame()
+        frame = kwargs.get("frame") or gdb.selected_frame()
         if not self.is_cython_function(frame):
-            raise gdb.GdbError('Selected frame does not correspond with a '
-                               'Cython function we know about.')
+            raise gdb.GdbError("Selected frame does not correspond with a " "Cython function we know about.")
         return function(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -111,10 +115,10 @@ def dispatch_on_frame(c_command, python_command=None):
             elif self.is_relevant_function():
                 gdb.execute(c_command)
             else:
-                raise gdb.GdbError("Not a function cygdb knows about. "
-                                   "Use the normal GDB commands instead.")
+                raise gdb.GdbError("Not a function cygdb knows about. " "Use the normal GDB commands instead.")
 
         return wrapper
+
     return decorator
 
 
@@ -127,6 +131,7 @@ def require_running_program(function):
             raise gdb.GdbError("No frame is currently selected.")
 
         return function(*args, **kwargs)
+
     return wrapper
 
 
@@ -137,11 +142,13 @@ def gdb_function_value_to_unicode(function):
             string = string.string()
 
         return function(self, string, *args, **kwargs)
+
     return wrapper
 
 
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
+
 
 class CythonModule(object):
     def __init__(self, module_name, filename, c_filename):
@@ -157,7 +164,6 @@ class CythonModule(object):
 
 
 class CythonVariable(object):
-
     def __init__(self, name, cname, qualified_name, type, lineno):
         self.name = name
         self.cname = cname
@@ -167,20 +173,8 @@ class CythonVariable(object):
 
 
 class CythonFunction(CythonVariable):
-    def __init__(self,
-                 module,
-                 name,
-                 cname,
-                 pf_cname,
-                 qualified_name,
-                 lineno,
-                 type=CObject,
-                 is_initmodule_function="False"):
-        super(CythonFunction, self).__init__(name,
-                                             cname,
-                                             qualified_name,
-                                             type,
-                                             lineno)
+    def __init__(self, module, name, cname, pf_cname, qualified_name, lineno, type=CObject, is_initmodule_function="False"):
+        super(CythonFunction, self).__init__(name, cname, qualified_name, type, lineno)
         self.module = module
         self.pf_cname = pf_cname
         self.is_initmodule_function = is_initmodule_function == "True"
@@ -191,8 +185,8 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-class CythonBase(object):
 
+class CythonBase(object):
     @default_selected_gdb_frame(err=False)
     def is_cython_function(self, frame):
         return frame.name() in self.cy.functions_by_cname
@@ -203,7 +197,7 @@ class CythonBase(object):
         Tells if a frame is associated with a Python function.
         If we can't read the Python frame information, don't regard it as such.
         """
-        if frame.name() == 'PyEval_EvalFrameEx':
+        if frame.name() == "PyEval_EvalFrameEx":
             pyframe = libpython.Frame(frame).get_pyop()
             return pyframe and not pyframe.is_optimized_out()
         return False
@@ -247,8 +241,7 @@ class CythonBase(object):
             pyframeobject = libpython.Frame(frame).get_pyop()
 
             if not pyframeobject:
-                raise gdb.GdbError(
-                            'Unable to read information on python frame')
+                raise gdb.GdbError("Unable to read information on python frame")
 
             filename = pyframeobject.filename()
             lineno = pyframeobject.current_line_num()
@@ -304,7 +297,7 @@ class CythonBase(object):
         try:
             source_desc, lineno = self.get_source_desc(frame)
         except NoFunctionNameInFrameError:
-            print('#%-2d Unknown Frame (compile with -g)' % index)
+            print("#%-2d Unknown Frame (compile with -g)" % index)
             return
 
         if not is_c and self.is_python_function(frame):
@@ -314,7 +307,7 @@ class CythonBase(object):
                 return self.print_stackframe(frame, index, is_c=True)
 
             func_name = pyframe.co_name
-            func_cname = 'PyEval_EvalFrameEx'
+            func_cname = "PyEval_EvalFrameEx"
             func_args = []
         elif self.is_cython_function(frame):
             cyfunc = self.get_cython_function(frame)
@@ -341,34 +334,37 @@ class CythonBase(object):
                     func_address = str(func_address)
                 func_address = int(func_address.split()[0], 0)
 
-        a = ', '.join('%s=%s' % (name, val) for name, val in func_args)
-        sys.stdout.write('#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a))
+        a = ", ".join("%s=%s" % (name, val) for name, val in func_args)
+        sys.stdout.write("#%-2d 0x%016x in %s(%s)" % (index, func_address, func_name, a))
 
         if source_desc.filename is not None:
-            sys.stdout.write(' at %s:%s' % (source_desc.filename, lineno))
+            sys.stdout.write(" at %s:%s" % (source_desc.filename, lineno))
 
-        sys.stdout.write('\n')
+        sys.stdout.write("\n")
 
         try:
-            sys.stdout.write('    ' + source_desc.get_source(lineno))
+            sys.stdout.write("    " + source_desc.get_source(lineno))
         except gdb.GdbError:
             pass
 
         selected_frame.select()
 
     def get_remote_cython_globals_dict(self):
-        m = gdb.parse_and_eval('__pyx_m')
+        m = gdb.parse_and_eval("__pyx_m")
 
         try:
-            PyModuleObject = gdb.lookup_type('PyModuleObject')
+            PyModuleObject = gdb.lookup_type("PyModuleObject")
         except RuntimeError:
-            raise gdb.GdbError(textwrap.dedent("""\
+            raise gdb.GdbError(
+                textwrap.dedent(
+                    """\
                 Unable to lookup type PyModuleObject, did you compile python
-                with debugging support (-g)?"""))
+                with debugging support (-g)?"""
+                )
+            )
 
         m = m.cast(PyModuleObject.pointer())
-        return m['md_dict']
-
+        return m["md_dict"]
 
     def get_cython_globals_dict(self):
         """
@@ -385,22 +381,22 @@ class CythonBase(object):
 
         return result
 
-    def print_gdb_value(self, name, value, max_name_length=None, prefix=''):
+    def print_gdb_value(self, name, value, max_name_length=None, prefix=""):
         if libpython.pretty_printer_lookup(value):
-            typename = ''
+            typename = ""
         else:
-            typename = '(%s) ' % (value.type,)
+            typename = "(%s) " % (value.type,)
 
         if max_name_length is None:
-            print('%s%s = %s%s' % (prefix, name, typename, value))
+            print("%s%s = %s%s" % (prefix, name, typename, value))
         else:
-            print('%s%-*s = %s%s' % (prefix, max_name_length, name, typename, value))
+            print("%s%-*s = %s%s" % (prefix, max_name_length, name, typename, value))
 
     def is_initialized(self, cython_func, local_name):
         cyvar = cython_func.locals[local_name]
         cur_lineno = self.get_cython_lineno()[1]
 
-        if '->' in cyvar.cname:
+        if "->" in cyvar.cname:
             # Closed over free variable
             if cur_lineno > cython_func.lineno:
                 if cyvar.type == PythonObject:
@@ -445,18 +441,17 @@ class SourceFileDescriptor(object):
 
             for idx, line in enumerate(slice):
                 if start + idx == mark_line:
-                    prefix = '>'
+                    prefix = ">"
                 else:
-                    prefix = ' '
+                    prefix = " "
 
                 if lex_source and not lex_entire:
                     line = self.lex(line)
 
-                yield '%s %4d    %s' % (prefix, start + idx, line.rstrip())
+                yield "%s %4d    %s" % (prefix, start + idx, line.rstrip())
 
-    def get_source(self, start, stop=None, lex_source=True, mark_line=0,
-                   lex_entire=False):
-        exc = gdb.GdbError('Unable to retrieve source code')
+    def get_source(self, start, stop=None, lex_source=True, mark_line=0, lex_entire=False):
+        exc = gdb.GdbError("Unable to retrieve source code")
 
         if not self.filename:
             raise exc
@@ -466,13 +461,13 @@ class SourceFileDescriptor(object):
             stop = start + 1
 
         try:
-            return '\n'.join(
-                self._get_source(start, stop, lex_source, mark_line, lex_entire))
+            return "\n".join(self._get_source(start, stop, lex_source, mark_line, lex_entire))
         except IOError:
             raise exc
 
 
 # Errors
+
 
 class CyGDBError(gdb.GdbError):
     """
@@ -489,6 +484,7 @@ class NoCythonFunctionInFrameError(CyGDBError):
     raised when the user requests the current cython function, which is
     unavailable
     """
+
     msg = "Current function is a function cygdb doesn't know about"
 
 
@@ -497,11 +493,12 @@ class NoFunctionNameInFrameError(NoCythonFunctionInFrameError):
     raised when the name of the C function could not be determined
     in the current C stack frame
     """
-    msg = ('C function name could not be determined in the current C stack '
-           'frame')
+
+    msg = "C function name could not be determined in the current C stack " "frame"
 
 
 # Parameters
+
 
 class CythonParameter(gdb.Parameter):
     """
@@ -510,8 +507,7 @@ class CythonParameter(gdb.Parameter):
 
     def __init__(self, name, command_class, parameter_class, default=None):
         self.show_doc = self.set_doc = self.__class__.__doc__
-        super(CythonParameter, self).__init__(name, command_class,
-                                              parameter_class)
+        super(CythonParameter, self).__init__(name, command_class, parameter_class)
         if default is not None:
             self.value = default
 
@@ -519,7 +515,6 @@ class CythonParameter(gdb.Parameter):
         return bool(self.value)
 
     __nonzero__ = __bool__  # Python 2
-
 
 
 class CompleteUnqualifiedFunctionNames(CythonParameter):
@@ -547,26 +542,16 @@ class CythonParameters(object):
     """
 
     def __init__(self):
-        self.complete_unqualified = CompleteUnqualifiedFunctionNames(
-            'cy_complete_unqualified',
-            gdb.COMMAND_BREAKPOINTS,
-            gdb.PARAM_BOOLEAN,
-            True)
-        self.colorize_code = ColorizeSourceCode(
-            'cy_colorize_code',
-            gdb.COMMAND_FILES,
-            gdb.PARAM_BOOLEAN,
-            True)
-        self.terminal_background = TerminalBackground(
-            'cy_terminal_background_color',
-            gdb.COMMAND_FILES,
-            gdb.PARAM_STRING,
-            "dark")
+        self.complete_unqualified = CompleteUnqualifiedFunctionNames("cy_complete_unqualified", gdb.COMMAND_BREAKPOINTS, gdb.PARAM_BOOLEAN, True)
+        self.colorize_code = ColorizeSourceCode("cy_colorize_code", gdb.COMMAND_FILES, gdb.PARAM_BOOLEAN, True)
+        self.terminal_background = TerminalBackground("cy_terminal_background_color", gdb.COMMAND_FILES, gdb.PARAM_STRING, "dark")
+
 
 parameters = CythonParameters()
 
 
 # Commands
+
 
 class CythonCommand(gdb.Command, CythonBase):
     """
@@ -577,15 +562,14 @@ class CythonCommand(gdb.Command, CythonBase):
 
     @classmethod
     def _register(cls, clsname, args, kwargs):
-        if not hasattr(cls, 'completer_class'):
+        if not hasattr(cls, "completer_class"):
             return cls(clsname, cls.command_class, *args, **kwargs)
         else:
-            return cls(clsname, cls.command_class, cls.completer_class,
-                       *args, **kwargs)
+            return cls(clsname, cls.command_class, cls.completer_class, *args, **kwargs)
 
     @classmethod
     def register(cls, *args, **kwargs):
-        alias = getattr(cls, 'alias', None)
+        alias = getattr(cls, "alias", None)
         if alias:
             cls._register(cls.alias, args, kwargs)
 
@@ -615,41 +599,39 @@ class CyCy(CythonCommand):
         cy exec
     """
 
-    name = 'cy'
+    name = "cy"
     command_class = gdb.COMMAND_NONE
     completer_class = gdb.COMPLETE_COMMAND
 
     def __init__(self, name, command_class, completer_class):
         # keep the signature 2.5 compatible (i.e. do not use f(*a, k=v)
-        super(CythonCommand, self).__init__(name, command_class,
-                                            completer_class, prefix=True)
+        super(CythonCommand, self).__init__(name, command_class, completer_class, prefix=True)
 
         commands = dict(
             # GDB commands
-            import_ = CyImport.register(),
-            break_ = CyBreak.register(),
-            step = CyStep.register(),
-            next = CyNext.register(),
-            run = CyRun.register(),
-            cont = CyCont.register(),
-            finish = CyFinish.register(),
-            up = CyUp.register(),
-            down = CyDown.register(),
-            select = CySelect.register(),
-            bt = CyBacktrace.register(),
-            list = CyList.register(),
-            print_ = CyPrint.register(),
-            locals = CyLocals.register(),
-            globals = CyGlobals.register(),
-            exec_ = libpython.FixGdbCommand('cy exec', '-cy-exec'),
-            _exec = CyExec.register(),
-            set = CySet.register(),
-
+            import_=CyImport.register(),
+            break_=CyBreak.register(),
+            step=CyStep.register(),
+            next=CyNext.register(),
+            run=CyRun.register(),
+            cont=CyCont.register(),
+            finish=CyFinish.register(),
+            up=CyUp.register(),
+            down=CyDown.register(),
+            select=CySelect.register(),
+            bt=CyBacktrace.register(),
+            list=CyList.register(),
+            print_=CyPrint.register(),
+            locals=CyLocals.register(),
+            globals=CyGlobals.register(),
+            exec_=libpython.FixGdbCommand("cy exec", "-cy-exec"),
+            _exec=CyExec.register(),
+            set=CySet.register(),
             # GDB functions
-            cy_cname = CyCName('cy_cname'),
-            cy_cvalue = CyCValue('cy_cvalue'),
-            cy_lineno = CyLine('cy_lineno'),
-            cy_eval = CyEval('cy_eval'),
+            cy_cname=CyCName("cy_cname"),
+            cy_cvalue=CyCValue("cy_cvalue"),
+            cy_lineno=CyLine("cy_lineno"),
+            cy_eval=CyEval("cy_eval"),
         )
 
         for command_name, command in commands.items():
@@ -679,7 +661,7 @@ class CyImport(CythonCommand):
     Example: cy import FILE...
     """
 
-    name = 'cy import'
+    name = "cy import"
     command_class = gdb.COMMAND_STATUS
     completer_class = gdb.COMPLETE_FILENAME
 
@@ -691,7 +673,7 @@ class CyImport(CythonCommand):
             try:
                 f = open(arg)
             except OSError as e:
-                raise gdb.GdbError('Unable to open file %r: %s' % (args, e.args[1]))
+                raise gdb.GdbError("Unable to open file %r: %s" % (args, e.args[1]))
 
             t = etree.parse(f)
 
@@ -699,41 +681,37 @@ class CyImport(CythonCommand):
                 cython_module = CythonModule(**module.attrib)
                 self.cy.cython_namespace[cython_module.name] = cython_module
 
-                for variable in module.find('Globals'):
+                for variable in module.find("Globals"):
                     d = variable.attrib
-                    cython_module.globals[d['name']] = CythonVariable(**d)
+                    cython_module.globals[d["name"]] = CythonVariable(**d)
 
-                for function in module.find('Functions'):
-                    cython_function = CythonFunction(module=cython_module,
-                                                     **function.attrib)
+                for function in module.find("Functions"):
+                    cython_function = CythonFunction(module=cython_module, **function.attrib)
 
                     # update the global function mappings
                     name = cython_function.name
                     qname = cython_function.qualified_name
 
                     self.cy.functions_by_name[name].append(cython_function)
-                    self.cy.functions_by_qualified_name[
-                        cython_function.qualified_name] = cython_function
-                    self.cy.functions_by_cname[
-                        cython_function.cname] = cython_function
+                    self.cy.functions_by_qualified_name[cython_function.qualified_name] = cython_function
+                    self.cy.functions_by_cname[cython_function.cname] = cython_function
 
                     d = cython_module.functions[qname] = cython_function
 
-                    for local in function.find('Locals'):
+                    for local in function.find("Locals"):
                         d = local.attrib
-                        cython_function.locals[d['name']] = CythonVariable(**d)
+                        cython_function.locals[d["name"]] = CythonVariable(**d)
 
-                    for step_into_func in function.find('StepIntoFunctions'):
+                    for step_into_func in function.find("StepIntoFunctions"):
                         d = step_into_func.attrib
-                        cython_function.step_into_functions.add(d['name'])
+                        cython_function.step_into_functions.add(d["name"])
 
-                    cython_function.arguments.extend(
-                        funcarg.tag for funcarg in function.find('Arguments'))
+                    cython_function.arguments.extend(funcarg.tag for funcarg in function.find("Arguments"))
 
-                for marker in module.find('LineNumberMapping'):
-                    src_lineno = int(marker.attrib['src_lineno'])
-                    src_path = marker.attrib['src_path']
-                    c_linenos = list(map(int, marker.attrib['c_linenos'].split()))
+                for marker in module.find("LineNumberMapping"):
+                    src_lineno = int(marker.attrib["src_lineno"])
+                    src_path = marker.attrib["src_path"]
+                    c_linenos = list(map(int, marker.attrib["c_linenos"].split()))
                     cython_module.lineno_cy2c[src_path, src_lineno] = min(c_linenos)
                     for c_lineno in c_linenos:
                         cython_module.lineno_c2cy[c_lineno] = (src_path, src_lineno)
@@ -763,11 +741,11 @@ class CyBreak(CythonCommand):
             cy break -p func...
     """
 
-    name = 'cy break'
+    name = "cy break"
     command_class = gdb.COMMAND_BREAKPOINTS
 
     def _break_pyx(self, name):
-        modulename, _, lineno = name.partition(':')
+        modulename, _, lineno = name.partition(":")
         lineno = int(lineno)
         if modulename:
             cython_module = self.cy.cython_namespace[modulename]
@@ -776,11 +754,10 @@ class CyBreak(CythonCommand):
 
         if (cython_module.filename, lineno) in cython_module.lineno_cy2c:
             c_lineno = cython_module.lineno_cy2c[cython_module.filename, lineno]
-            breakpoint = '%s:%s' % (cython_module.c_filename, c_lineno)
-            gdb.execute('break ' + breakpoint)
+            breakpoint = "%s:%s" % (cython_module.c_filename, c_lineno)
+            gdb.execute("break " + breakpoint)
         else:
-            raise gdb.GdbError("Not a valid line number. "
-                               "Does it contain actual code?")
+            raise gdb.GdbError("Not a valid line number. " "Does it contain actual code?")
 
     def _break_funcname(self, funcname):
         func = self.cy.functions_by_qualified_name.get(funcname)
@@ -795,48 +772,45 @@ class CyBreak(CythonCommand):
             funcs = [f for f in funcs if not f.is_initmodule_function]
 
             if not funcs:
-                gdb.execute('break ' + funcname)
+                gdb.execute("break " + funcname)
                 return
 
             if len(funcs) > 1:
                 # multiple functions, let the user pick one
-                print('There are multiple such functions:')
+                print("There are multiple such functions:")
                 for idx, func in enumerate(funcs):
-                    print('%3d) %s' % (idx, func.qualified_name))
+                    print("%3d) %s" % (idx, func.qualified_name))
 
                 while True:
                     try:
-                        result = input(
-                            "Select a function, press 'a' for all "
-                            "functions or press 'q' or '^D' to quit: ")
+                        result = input("Select a function, press 'a' for all " "functions or press 'q' or '^D' to quit: ")
                     except EOFError:
                         return
                     else:
-                        if result.lower() == 'q':
+                        if result.lower() == "q":
                             return
-                        elif result.lower() == 'a':
+                        elif result.lower() == "a":
                             break_funcs = funcs
                             break
-                        elif (result.isdigit() and
-                                0 <= int(result) < len(funcs)):
+                        elif result.isdigit() and 0 <= int(result) < len(funcs):
                             break_funcs = [funcs[int(result)]]
                             break
                         else:
-                            print('Not understood...')
+                            print("Not understood...")
             else:
                 break_funcs = [funcs[0]]
 
         for func in break_funcs:
-            gdb.execute('break %s' % func.cname)
+            gdb.execute("break %s" % func.cname)
             if func.pf_cname:
-                gdb.execute('break %s' % func.pf_cname)
+                gdb.execute("break %s" % func.pf_cname)
 
     @libpython.dont_suppress_errors
     def invoke(self, function_names, from_tty):
         if isinstance(function_names, BYTES):
             function_names = function_names.decode(_filesystemencoding)
         argv = string_to_argv(function_names)
-        if function_names.startswith('-p'):
+        if function_names.startswith("-p"):
             argv = argv[1:]
             python_breakpoints = True
         else:
@@ -844,8 +818,8 @@ class CyBreak(CythonCommand):
 
         for funcname in argv:
             if python_breakpoints:
-                gdb.execute('py-break %s' % funcname)
-            elif ':' in funcname:
+                gdb.execute("py-break %s" % funcname)
+            elif ":" in funcname:
                 self._break_pyx(funcname)
             else:
                 self._break_funcname(funcname)
@@ -854,10 +828,8 @@ class CyBreak(CythonCommand):
     def complete(self, text, word):
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
-        names =  [n for n, L in self.cy.functions_by_name.items()
-                  if any(not f.is_initmodule_function for f in L)]
-        qnames = [n for n, f in self.cy.functions_by_qualified_name.items()
-                  if not f.is_initmodule_function]
+        names = [n for n, L in self.cy.functions_by_name.items() if any(not f.is_initmodule_function for f in L)]
+        qnames = [n for n, f in self.cy.functions_by_qualified_name.items() if not f.is_initmodule_function]
 
         if parameters.complete_unqualified:
             all_names = itertools.chain(qnames, names)
@@ -865,11 +837,10 @@ class CyBreak(CythonCommand):
             all_names = qnames
 
         words = text.strip().split()
-        if not words or '.' not in words[-1]:
+        if not words or "." not in words[-1]:
             # complete unqualified
-            seen = set(text[:-len(word)].split())
-            return [n for n in all_names
-                          if n.startswith(word) and n not in seen]
+            seen = set(text[: -len(word)].split())
+            return [n for n in all_names if n.startswith(word) and n not in seen]
 
         # complete qualified name
         lastword = words[-1]
@@ -916,14 +887,12 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
         return ()
 
     def static_break_functions(self):
-        result = ['PyEval_EvalFrameEx']
+        result = ["PyEval_EvalFrameEx"]
         result.extend(self.cy.functions_by_cname)
         return result
 
 
-class CythonExecutionControlCommand(CythonCommand,
-                                    libpython.ExecutionControlCommandBase):
-
+class CythonExecutionControlCommand(CythonCommand, libpython.ExecutionControlCommandBase):
     @classmethod
     def register(cls):
         return cls(cls.name, cython_info)
@@ -932,7 +901,7 @@ class CythonExecutionControlCommand(CythonCommand,
 class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
     "Step through Cython, Python or C code."
 
-    name = 'cy -step'
+    name = "cy -step"
     stepinto = True
 
     @libpython.dont_suppress_errors
@@ -941,9 +910,9 @@ class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
             self.python_step(self.stepinto)
         elif not self.is_cython_function():
             if self.stepinto:
-                command = 'step'
+                command = "step"
             else:
-                command = 'next'
+                command = "next"
 
             self.finish_executing(gdb.execute(command, to_string=True))
         else:
@@ -953,7 +922,7 @@ class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
 class CyNext(CyStep):
     "Step-over Cython, Python or C code."
 
-    name = 'cy -next'
+    name = "cy -next"
     stepinto = False
 
 
@@ -963,7 +932,7 @@ class CyRun(CythonExecutionControlCommand):
     displays Cython or Python source lines as well
     """
 
-    name = 'cy run'
+    name = "cy run"
 
     invoke = libpython.dont_suppress_errors(CythonExecutionControlCommand.run)
 
@@ -974,7 +943,7 @@ class CyCont(CythonExecutionControlCommand):
     displays Cython or Python source lines as well.
     """
 
-    name = 'cy cont'
+    name = "cy cont"
     invoke = libpython.dont_suppress_errors(CythonExecutionControlCommand.cont)
 
 
@@ -982,7 +951,8 @@ class CyFinish(CythonExecutionControlCommand):
     """
     Execute until the function returns.
     """
-    name = 'cy finish'
+
+    name = "cy finish"
 
     invoke = libpython.dont_suppress_errors(CythonExecutionControlCommand.finish)
 
@@ -991,8 +961,9 @@ class CyUp(CythonCommand):
     """
     Go up a Cython, Python or relevant C frame.
     """
-    name = 'cy up'
-    _command = 'up'
+
+    name = "cy up"
+    _command = "up"
 
     @libpython.dont_suppress_errors
     def invoke(self, *args):
@@ -1017,8 +988,8 @@ class CyDown(CyUp):
     Go down a Cython, Python or relevant C frame.
     """
 
-    name = 'cy down'
-    _command = 'down'
+    name = "cy down"
+    _command = "down"
 
 
 class CySelect(CythonCommand):
@@ -1027,7 +998,7 @@ class CySelect(CythonCommand):
     This command is useful because `cy backtrace` prints a reversed backtrace.
     """
 
-    name = 'cy select'
+    name = "cy select"
 
     @libpython.dont_suppress_errors
     def invoke(self, stackno, from_tty):
@@ -1043,16 +1014,16 @@ class CySelect(CythonCommand):
         stackdepth = libpython.stackdepth(frame)
 
         try:
-            gdb.execute('select %d' % (stackdepth - stackno - 1,))
+            gdb.execute("select %d" % (stackdepth - stackno - 1,))
         except RuntimeError as e:
             raise gdb.GdbError(*e.args)
 
 
 class CyBacktrace(CythonCommand):
-    'Print the Cython stack'
+    "Print the Cython stack"
 
-    name = 'cy bt'
-    alias = 'cy backtrace'
+    name = "cy bt"
+    alias = "cy backtrace"
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
@@ -1064,7 +1035,7 @@ class CyBacktrace(CythonCommand):
         while frame.older():
             frame = frame.older()
 
-        print_all = args == '-a'
+        print_all = args == "-a"
 
         index = 0
         while frame:
@@ -1086,7 +1057,7 @@ class CyList(CythonCommand):
     parameters.
     """
 
-    name = 'cy list'
+    name = "cy list"
     command_class = gdb.COMMAND_FILES
     completer_class = gdb.COMPLETE_NONE
 
@@ -1094,8 +1065,7 @@ class CyList(CythonCommand):
     # @dispatch_on_frame(c_command='list')
     def invoke(self, _, from_tty):
         sd, lineno = self.get_source_desc()
-        source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno,
-                               lex_entire=True)
+        source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno, lex_entire=True)
         print(source)
 
 
@@ -1104,7 +1074,7 @@ class CyPrint(CythonCommand):
     Print a Cython variable using 'cy-print x' or 'cy-print module.function.x'
     """
 
-    name = 'cy print'
+    name = "cy print"
     command_class = gdb.COMMAND_DATA
 
     @libpython.dont_suppress_errors
@@ -1114,9 +1084,9 @@ class CyPrint(CythonCommand):
 
         if name in global_python_dict:
             value = global_python_dict[name].get_truncated_repr(libpython.MAX_OUTPUT_LEN)
-            print('%s = %s' % (name, value))
-            #This also would work, but beacause the output of cy exec is not captured in gdb.execute, TestPrint would fail
-            #self.cy.exec_.invoke("print('"+name+"','=', type(" + name + "), "+name+", flush=True )", from_tty)
+            print("%s = %s" % (name, value))
+            # This also would work, but beacause the output of cy exec is not captured in gdb.execute, TestPrint would fail
+            # self.cy.exec_.invoke("print('"+name+"','=', type(" + name + "), "+name+", flush=True )", from_tty)
         elif name in module_globals:
             cname = module_globals[name].cname
             try:
@@ -1129,18 +1099,18 @@ class CyPrint(CythonCommand):
                 else:
                     print("%s is optimized out" % name)
         elif self.is_python_function():
-            return gdb.execute('py-print ' + name)
+            return gdb.execute("py-print " + name)
         elif self.is_cython_function():
-            value = self.cy.cy_cvalue.invoke(name.lstrip('*'))
+            value = self.cy.cy_cvalue.invoke(name.lstrip("*"))
             for c in name:
-                if c == '*':
+                if c == "*":
                     value = value.dereference()
                 else:
                     break
 
             self.print_gdb_value(name, value)
         else:
-            gdb.execute('print ' + name)
+            gdb.execute("print " + name)
 
     def complete(self):
         if self.is_cython_function():
@@ -1158,12 +1128,12 @@ class CyLocals(CythonCommand):
     List the locals from the current Cython frame.
     """
 
-    name = 'cy locals'
+    name = "cy locals"
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
     @libpython.dont_suppress_errors
-    @dispatch_on_frame(c_command='info locals', python_command='py-locals')
+    @dispatch_on_frame(c_command="info locals", python_command="py-locals")
     def invoke(self, args, from_tty):
         cython_function = self.get_cython_function()
 
@@ -1177,8 +1147,7 @@ class CyLocals(CythonCommand):
             if self.is_initialized(self.get_cython_function(), cyvar.name):
                 value = gdb.parse_and_eval(cyvar.cname)
                 if not value.is_optimized_out:
-                    self.print_gdb_value(cyvar.name, value,
-                                         max_name_length, '')
+                    self.print_gdb_value(cyvar.name, value, max_name_length, "")
 
 
 class CyGlobals(CyLocals):
@@ -1186,12 +1155,12 @@ class CyGlobals(CyLocals):
     List the globals from the current Cython module.
     """
 
-    name = 'cy globals'
+    name = "cy globals"
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
     @libpython.dont_suppress_errors
-    @dispatch_on_frame(c_command='info variables', python_command='py-globals')
+    @dispatch_on_frame(c_command="info variables", python_command="py-globals")
     def invoke(self, args, from_tty):
         global_python_dict = self.get_cython_globals_dict()
         module_globals = self.get_cython_function().module.globals
@@ -1206,14 +1175,14 @@ class CyGlobals(CyLocals):
         max_name_length = max(max_globals_len, max_globals_dict_len)
 
         seen = set()
-        print('Python globals:')
+        print("Python globals:")
 
         for k, v in sorted(global_python_dict.items(), key=sortkey):
             v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             seen.add(k)
-            print('    %-*s = %s' % (max_name_length, k, v))
+            print("    %-*s = %s" % (max_name_length, k, v))
 
-        print('C globals:')
+        print("C globals:")
         for name, cyvar in sorted(module_globals.items(), key=sortkey):
             if name not in seen:
                 try:
@@ -1222,8 +1191,7 @@ class CyGlobals(CyLocals):
                     pass
                 else:
                     if not value.is_optimized_out:
-                        self.print_gdb_value(cyvar.name, value,
-                                             max_name_length, '    ')
+                        self.print_gdb_value(cyvar.name, value, max_name_length, "    ")
 
 
 class EvaluateOrExecuteCodeMixin(object):
@@ -1238,8 +1206,7 @@ class EvaluateOrExecuteCodeMixin(object):
         cython_func = self.get_cython_function()
 
         for name, cyvar in cython_func.locals.items():
-            if (cyvar.type == PythonObject
-                    and self.is_initialized(cython_func, name)):
+            if cyvar.type == PythonObject and self.is_initialized(cython_func, name):
 
                 try:
                     val = gdb.parse_and_eval(cyvar.cname)
@@ -1250,16 +1217,20 @@ class EvaluateOrExecuteCodeMixin(object):
                         continue
 
                 pystringp = executor.alloc_pystring(name)
-                code = '''
+                code = """
                     (PyObject *) PyDict_SetItem(
                         (PyObject *) %d,
                         (PyObject *) %d,
                         (PyObject *) %s)
-                ''' % (local_dict_pointer, pystringp, cyvar.cname)
+                """ % (
+                    local_dict_pointer,
+                    pystringp,
+                    cyvar.cname,
+                )
 
                 try:
                     if gdb.parse_and_eval(code) < 0:
-                        gdb.parse_and_eval('PyErr_Print()')
+                        gdb.parse_and_eval("PyErr_Print()")
                         raise gdb.GdbError("Unable to execute Python code.")
                 finally:
                     # PyDict_SetItem doesn't steal our reference
@@ -1268,8 +1239,7 @@ class EvaluateOrExecuteCodeMixin(object):
     def _find_first_cython_or_python_frame(self):
         frame = gdb.selected_frame()
         while frame:
-            if (self.is_cython_function(frame)
-                    or self.is_python_function(frame)):
+            if self.is_cython_function(frame) or self.is_python_function(frame):
                 frame.select()
                 return frame
 
@@ -1281,15 +1251,12 @@ class EvaluateOrExecuteCodeMixin(object):
         with libpython.FetchAndRestoreError():
             # get the dict of Cython globals and construct a dict in the
             # inferior with Cython locals
-            global_dict = gdb.parse_and_eval(
-                '(PyObject *) PyModule_GetDict(__pyx_m)')
-            local_dict = gdb.parse_and_eval('(PyObject *) PyDict_New()')
+            global_dict = gdb.parse_and_eval("(PyObject *) PyModule_GetDict(__pyx_m)")
+            local_dict = gdb.parse_and_eval("(PyObject *) PyDict_New()")
 
             try:
-                self._fill_locals_dict(executor,
-                                       libpython.pointervalue(local_dict))
-                result = executor.evalcode(code, input_type, global_dict,
-                                           local_dict)
+                self._fill_locals_dict(executor, libpython.pointervalue(local_dict))
+                result = executor.evalcode(code, input_type, global_dict, local_dict)
             finally:
                 executor.xdecref(libpython.pointervalue(local_dict))
 
@@ -1312,7 +1279,7 @@ class CyExec(CythonCommand, libpython.PyExec, EvaluateOrExecuteCodeMixin):
     Execute Python code in the nearest Python or Cython frame.
     """
 
-    name = '-cy-exec'
+    name = "-cy-exec"
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
@@ -1335,14 +1302,14 @@ class CySet(CythonCommand):
         set $cy_value("my_cython_variable") = 10
     """
 
-    name = 'cy set'
+    name = "cy set"
     command_class = gdb.COMMAND_DATA
     completer_class = gdb.COMPLETE_NONE
 
     @libpython.dont_suppress_errors
     @require_cython_frame
     def invoke(self, expr, from_tty):
-        name_and_expr = expr.split('=', 1)
+        name_and_expr = expr.split("=", 1)
         if len(name_and_expr) != 2:
             raise gdb.GdbError("Invalid expression. Use 'cy set var = expr'.")
 
@@ -1352,6 +1319,7 @@ class CySet(CythonCommand):
 
 
 # Functions
+
 
 class CyCName(gdb.Function, CythonBase):
     """
@@ -1377,7 +1345,7 @@ class CyCName(gdb.Function, CythonBase):
             elif cyname in cython_function.module.globals:
                 cname = cython_function.module.globals[cyname].cname
             else:
-                qname = '%s.%s' % (cython_function.module.name, cyname)
+                qname = "%s.%s" % (cython_function.module.name, cyname)
                 if qname in cython_function.module.functions:
                     cname = cython_function.module.functions[qname].cname
 
@@ -1385,7 +1353,7 @@ class CyCName(gdb.Function, CythonBase):
             cname = self.cy.functions_by_qualified_name.get(cyname)
 
         if not cname:
-            raise gdb.GdbError('No such Cython variable: %s' % cyname)
+            raise gdb.GdbError("No such Cython variable: %s" % cyname)
 
         return cname
 
@@ -1440,7 +1408,9 @@ cython_info.cy = cy
 
 
 def register_defines():
-    libpython.source_gdb_script(textwrap.dedent("""\
+    libpython.source_gdb_script(
+        textwrap.dedent(
+            """\
         define cy step
         cy -step
         end
@@ -1456,6 +1426,10 @@ def register_defines():
         document cy next
         %s
         end
-    """) % (CyStep.__doc__, CyNext.__doc__))
+    """
+        )
+        % (CyStep.__doc__, CyNext.__doc__)
+    )
+
 
 register_defines()

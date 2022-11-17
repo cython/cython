@@ -17,6 +17,7 @@ class Rectangle:
             area = -area
         return area
 
+
 def rectArea(x0, y0, x1, y1):
     rect = Rectangle(x0, y0, x1, y1)
     return rect.area()

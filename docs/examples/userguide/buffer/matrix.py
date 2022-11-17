@@ -2,6 +2,7 @@
 
 from cython.cimports.libcpp.vector import vector
 
+
 @cython.cclass
 class Matrix:
     ncols: cython.unsigned

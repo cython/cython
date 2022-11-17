@@ -32,6 +32,7 @@ async def test_coroutine_frame(awaitable):
 
 # gh1462: Using decorators on coroutines.
 
+
 def pass_through(func):
     return func
 

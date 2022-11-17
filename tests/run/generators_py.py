@@ -34,6 +34,7 @@ def simple():
     yield 2
     yield 3
 
+
 def simple_seq(seq):
     """
     >>> x = simple_seq("abc")
@@ -42,6 +43,7 @@ def simple_seq(seq):
     """
     for i in seq:
         yield i
+
 
 def simple_send():
     """
@@ -58,6 +60,7 @@ def simple_send():
     while True:
         i = yield i
 
+
 def raising():
     """
     >>> x = raising()
@@ -68,7 +71,8 @@ def raising():
     Traceback (most recent call last):
     StopIteration
     """
-    yield {}['foo']
+    yield {}["foo"]
+
 
 def with_outer(*args):
     """
@@ -76,9 +80,11 @@ def with_outer(*args):
     >>> list(x())
     [1, 2, 3]
     """
+
     def generator():
         for i in args:
             yield i
+
     return generator
 
 
@@ -96,6 +102,7 @@ def test_close():
     while True:
         yield
 
+
 def test_ignore_close():
     """
     >>> x = test_ignore_close()
@@ -110,6 +117,7 @@ def test_ignore_close():
         yield
     except GeneratorExit:
         yield
+
 
 def check_throw():
     """
@@ -214,10 +222,10 @@ def test_swap_assignment():
     >>> next(gen)
     (10, 5)
     """
-    x,y = 5,10
-    yield (x,y)
-    x,y = y,x   # no ref-counting here
-    yield (x,y)
+    x, y = 5, 10
+    yield (x, y)
+    x, y = y, x  # no ref-counting here
+    yield (x, y)
 
 
 class Foo(object):
@@ -226,9 +234,11 @@ class Foo(object):
     >>> list(obj.simple(1, 2, 3))
     [1, 2, 3]
     """
+
     def simple(self, *args):
         for i in args:
             yield i
+
 
 def test_nested(a, b, c):
     """
@@ -236,16 +246,22 @@ def test_nested(a, b, c):
     >>> [i() for i in obj]
     [1, 2, 3, 4]
     """
+
     def one():
         return a
+
     def two():
         return b
+
     def three():
         return c
+
     def new_closure(a, b):
         def sum():
             return a + b
+
         return sum
+
     yield one
     yield two
     yield three
@@ -255,7 +271,9 @@ def test_nested(a, b, c):
 def tolist(func):
     def wrapper(*args, **kwargs):
         return list(func(*args, **kwargs))
+
     return wrapper
+
 
 @tolist
 def test_decorated(*args):
@@ -265,6 +283,7 @@ def test_decorated(*args):
     """
     for i in args:
         yield i
+
 
 def test_return(a):
     """
@@ -279,8 +298,9 @@ def test_return(a):
     True
     """
     yield 1
-    a['i_was_here'] = True
+    a["i_was_here"] = True
     return
+
 
 def test_copied_yield(foo):
     """
@@ -294,6 +314,7 @@ def test_copied_yield(foo):
     """
     with foo:
         yield 1
+
 
 def test_nested_yield():
     """
@@ -310,6 +331,7 @@ def test_nested_yield():
     """
     yield (yield (yield 1))
 
+
 def test_sum_of_yields(n):
     """
     >>> g = test_sum_of_yields(3)
@@ -325,6 +347,7 @@ def test_sum_of_yields(n):
     x += yield (0, x)
     yield (1, x)
 
+
 def test_nested_gen(n):
     """
     >>> [list(a) for a in test_nested_gen(5)]
@@ -333,13 +356,15 @@ def test_nested_gen(n):
     for a in range(n):
         yield (b for b in range(a))
 
+
 def test_lambda(n):
     """
     >>> [i() for i in test_lambda(3)]
     [0, 1, 2]
     """
     for i in range(n):
-        yield lambda : i
+        yield lambda: i
+
 
 def test_generator_cleanup():
     """
@@ -354,19 +379,21 @@ def test_generator_cleanup():
     try:
         yield 1
     finally:
-        print('cleanup')
+        print("cleanup")
+
 
 def test_del_in_generator():
     """
     >>> [ s for s in test_del_in_generator() ]
     ['abcabcabc', 'abcabcabc']
     """
-    x = len('abc') * 'abc'
+    x = len("abc") * "abc"
     a = x
     yield x
     del x
     yield a
     del a
+
 
 @cython.test_fail_if_path_exists("//IfStatNode", "//PrintStatNode")
 def test_yield_in_const_conditional_false():
@@ -376,6 +403,7 @@ def test_yield_in_const_conditional_false():
     """
     if False:
         print((yield 1))
+
 
 @cython.test_fail_if_path_exists("//IfStatNode")
 @cython.test_assert_path_exists("//PrintStatNode")
@@ -398,9 +426,11 @@ def test_generator_scope():
     generator created
     [0, 10]
     """
+
     def inner(val):
         print("inner running")
         return [0, val]
+
     gen = (a for a in inner(10))
     print("generator created")
     return gen

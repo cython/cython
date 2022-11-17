@@ -1,5 +1,5 @@
 def f(x):
-    return x ** 2 - x
+    return x**2 - x
 
 
 def integrate_f(a, b, N):

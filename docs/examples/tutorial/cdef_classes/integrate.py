@@ -1,5 +1,6 @@
 from cython.cimports.sin_of_square import Function, SinOfSquareFunction
 
+
 def integrate(f: Function, a: float, b: float, N: cython.int):
     i: cython.int
 
@@ -13,5 +14,6 @@ def integrate(f: Function, a: float, b: float, N: cython.int):
         s += f.evaluate(a + i * dx)
 
     return s * dx
+
 
 print(integrate(SinOfSquareFunction(), 0, 1, 10000))

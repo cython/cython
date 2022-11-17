@@ -1,5 +1,5 @@
 def f(x: cython.double):
-    return x ** 2 - x
+    return x**2 - x
 
 
 def integrate_f(a: cython.double, b: cython.double, N: cython.int):

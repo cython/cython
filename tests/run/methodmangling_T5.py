@@ -6,6 +6,7 @@
 # 2) this works correctly with cdef classes - methodmangling_cdef.pyx
 # 3) with "error_on_unknown_names" - methodmangling_unknown_names.py
 
+
 class CyTest(object):
     """
     >>> cy = CyTest()
@@ -30,6 +31,7 @@ class CyTest(object):
     >>> '___more_than_two_special___' in dir(cy)
     True
     """
+
     __x = 1
     ___more_than_two = 3
     ___more_than_two_special___ = 4
@@ -37,7 +39,8 @@ class CyTest(object):
     def __init__(self):
         self.__y = 2
 
-    def __private(self): return 8
+    def __private(self):
+        return 8
 
     def get(self):
         """
@@ -51,9 +54,12 @@ class CyTest(object):
         >>> CyTest().get_inner()
         (1, 1, 8)
         """
+
         def get(o):
             return o._CyTest__x, o.__x, o.__private()
+
         return get(self)
+
 
 class CyTestSub(CyTest):
     """
@@ -78,8 +84,11 @@ class CyTestSub(CyTest):
     >>> '__x' in dir(cy)
     False
     """
+
     __y = 2
-    def __private(self): return 9
+
+    def __private(self):
+        return 9
 
     def get(self):
         """
@@ -93,9 +102,12 @@ class CyTestSub(CyTest):
         >>> CyTestSub().get_inner()
         (1, 2, 2, 9)
         """
+
         def get(o):
             return o._CyTest__x, o._CyTestSub__y, o.__y, o.__private()
+
         return get(self)
+
 
 class _UnderscoreTest(object):
     """
@@ -115,6 +127,7 @@ class _UnderscoreTest(object):
     >>> ut._UnderscoreTest__prop
     1
     """
+
     __x = 1
 
     def get(self):
@@ -127,6 +140,7 @@ class _UnderscoreTest(object):
     @property
     def __prop(self):
         return self.__x
+
 
 class C:
     error = """Traceback (most recent call last):
@@ -200,7 +214,9 @@ Functions assigned to an instance don't have their arguments mangled
 Locals are reported as mangled
 >>> list(sorted(k for k in instance.get_locals(1).keys()))
 ['_C__arg', 'self']
-""".format(error=error)
+""".format(
+        error=error
+    )
 
     def method1(self, __arg):
         print(__arg)
@@ -210,7 +226,7 @@ Locals are reported as mangled
         print(__arg)
 
     def method3(self, **kwargs):
-        print(kwargs['__arg'])
+        print(kwargs["__arg"])
 
     method_lambda = lambda self, __arg: __arg
 
@@ -226,12 +242,15 @@ Locals are reported as mangled
         # dummy_arg is to mask https://github.com/cython/cython/issues/3090
         print(__arg)
 
+
 def free_function1(x, __arg):
     print(__arg)
+
 
 def free_function2(__arg, dummy_arg=None):
     # dummy_arg is to mask https://github.com/cython/cython/issues/3090
     print(__arg)
+
 
 C.class_assigned_function = free_function1
 
@@ -239,7 +258,7 @@ __global_arg = True
 
 _D__arg1 = None
 _D__global_arg = False  # define these because otherwise Cython gives a compile-time error
-       # while Python gives a runtime error (which is difficult to test)
+# while Python gives a runtime error (which is difficult to test)
 def can_find_global_arg():
     """
     >>> can_find_global_arg()
@@ -247,16 +266,20 @@ def can_find_global_arg():
     """
     return __global_arg
 
+
 def cant_find_global_arg():
     """
     Gets _D_global_arg instead
     >>> cant_find_global_arg()
     False
     """
+
     class D:
         def f(self):
             return __global_arg
+
     return D().f()
+
 
 class CMultiplyNested:
     def f1(self, __arg, name=None, return_closure=False):
@@ -285,13 +308,15 @@ class CMultiplyNested:
         2
         2
         """
+
         class D:
             def g(self, __arg):
                 return __arg
+
         if return_closure:
             return D().g
         if name is not None:
-            return D().g(**{ name: 2 })
+            return D().g(**{name: 2})
         else:
             return D().g(2)
 
@@ -303,9 +328,11 @@ class CMultiplyNested:
         >>> print(CMultiplyNested().f2(1))
         None
         """
+
         class D:
             def g(self):
                 return __arg1
+
         return D().g()
 
     def f3(self, arg, name):
@@ -320,10 +347,12 @@ class CMultiplyNested:
         >>> inst.f3(1, '_CMultiplyNested__arg')
         2
         """
+
         def g(__arg, dummy=1):
             return __arg
+
         if name is not None:
-            return g(**{ name: 2})
+            return g(**{name: 2})
         else:
             return g(2)
 
@@ -332,8 +361,10 @@ class CMultiplyNested:
         >>> CMultiplyNested().f4(1)
         1
         """
+
         def g():
             return __arg
+
         return g()
 
     def f5(self, __arg):
@@ -342,8 +373,10 @@ class CMultiplyNested:
         >>> CMultiplyNested().f5(1)
         1
         """
+
         def g(x=__arg):
             return x
+
         return g()
 
     def f6(self, __arg1):
@@ -352,9 +385,11 @@ class CMultiplyNested:
         >>> print(CMultiplyNested().f6(1))
         None
         """
+
         class D:
             def g(self, x=__arg1):
                 return x
+
         return D().g()
 
     def f7(self, __arg):
@@ -365,23 +400,29 @@ class CMultiplyNested:
         """
         return (__arg for x in range(1))
 
+
 class __NameWithDunder:
     """
     >>> __NameWithDunder.__name__
     '__NameWithDunder'
     """
+
     pass
+
 
 class Inherits(__NameWithDunder):
     """
     Compile check that it can find the base class
     >>> x = Inherits()
     """
+
     pass
+
 
 def regular_function(__x, dummy=None):
     # as before, dummy stops Cython creating a 1 arg, non-keyword call
     return __x
+
 
 class CallsRegularFunction:
     def call(self):

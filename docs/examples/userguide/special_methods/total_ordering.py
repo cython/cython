@@ -1,4 +1,6 @@
 import cython
+
+
 @cython.total_ordering
 @cython.cclass
 class ExtGe:

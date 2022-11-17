@@ -3,20 +3,25 @@
 
 A = 1234
 
+
 class SimpleAssignment(object):
     """
     >>> SimpleAssignment.A
     1234
     """
+
     A = A
+
 
 class SimpleRewrite(object):
     """
     >>> SimpleRewrite.A
     4321
     """
+
     A = 4321
     A = A
+
 
 def simple_inner(a):
     """
@@ -24,9 +29,12 @@ def simple_inner(a):
     1234
     """
     A = a
+
     class X(object):
         A = A
+
     return X
+
 
 def conditional(a, cond):
     """
@@ -35,11 +43,14 @@ def conditional(a, cond):
     >>> conditional(4321, True).A
     4321
     """
+
     class X(object):
         if cond:
             A = a
         A = A
+
     return X
+
 
 def name_error():
     """
@@ -48,8 +59,10 @@ def name_error():
     ...
     NameError: ...B...
     """
+
     class X(object):
         B = B
+
 
 def conditional_name_error(cond):
     """
@@ -60,14 +73,18 @@ def conditional_name_error(cond):
     ...
     NameError: ...B...
     """
+
     class X(object):
         if cond:
             B = 4321
         B = B
+
     return X
+
 
 C = 1111
 del C
+
 
 def name_error_deleted():
     """
@@ -76,10 +93,13 @@ def name_error_deleted():
     ...
     NameError: ...C...
     """
+
     class X(object):
         C = C
 
+
 _set = set
+
 
 def name_lookup_order():
     """
@@ -92,6 +112,7 @@ def name_lookup_order():
     True
 
     """
+
     class Scope(object):
         test1 = set()
         test2 = set()

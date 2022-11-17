@@ -6,6 +6,7 @@
 # no-kwargs branches take different paths, so we always test with and
 # without a keyword dict (even if it's empty).
 
+
 def test_single_arg(a):
     """
     >>> test_single_arg(1)
@@ -36,7 +37,8 @@ def test_single_arg(a):
     """
     return a
 
-def test_two_args(a,b):
+
+def test_two_args(a, b):
     """
     >>> test_two_args(1,2)
     (1, 2)
@@ -74,4 +76,4 @@ def test_two_args(a,b):
     Traceback (most recent call last):
     TypeError: ...
     """
-    return a,b
+    return a, b

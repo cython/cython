@@ -1,5 +1,6 @@
 from cython.parallel import prange
 
+
 @cython.exceptval(-1)
 @cython.cfunc
 def func(n: cython.Py_ssize_t) -> cython.int:
