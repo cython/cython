@@ -611,33 +611,39 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_list.append(env)
 
     def sort_types_by_inheritance(self, type_dict, type_order, getkey):
-        # copy the types into a list moving each parent type before
-        # its first child
-        type_list = []
-        for i, key in enumerate(type_order):
+        subclasses = {} # maps type key to list of subclass keys
+        for key in type_order:
             new_entry = type_dict[key]
-
             # collect all base classes to check for children
-            hierarchy = set()
-            base = new_entry
+            base = new_entry.type.base_type
             while base:
-                base_type = base.type.base_type
-                if not base_type:
+                base_key = getkey(base)
+                subclasses.setdefault(base_key, []).append(key)
+                base_entry = type_dict.get(base_key)
+                if base_entry is not None:
+                    base = base_entry.type.base_type
+                else:
                     break
-                base_key = getkey(base_type)
-                hierarchy.add(base_key)
-                base = type_dict.get(base_key)
-            new_entry.base_keys = hierarchy
 
-            # find the first (sub-)subclass and insert before that
-            for j in range(i):
-                entry = type_list[j]
-                if key in entry.base_keys:
-                    type_list.insert(j, new_entry)
-                    break
-            else:
-                type_list.append(new_entry)
-        return type_list
+        # Simple topological sort using recursive DFS, based on
+        # https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
+        seen = set()
+        result = [None] * len(type_order)
+        next_idx = len(type_order) - 1
+        def dfs(u):
+            nonlocal next_idx
+            if u in seen:
+                return
+            seen.add(u)
+            for v in subclasses.get(getkey(u.type), tuple()):
+                dfs(type_dict[v])
+
+            result[next_idx] = u
+            next_idx -= 1
+
+        for key in type_order:
+            dfs(type_dict[key])
+        return result
 
     def sort_type_hierarchy(self, module_list, env):
         # poor developer's OrderedDict
