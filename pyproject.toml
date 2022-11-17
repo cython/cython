@@ -1,0 +1,17 @@
+[tool.black]
+skip-magic-trailing-comma = true
+line-length = 150
+target-version = ['py34', 'py35', 'py36', 'py37', 'py38', 'py39', 'py310', 'py311']
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.tox
+    | \.venv
+    | build
+    | dist
+  )/
+)
+'''
