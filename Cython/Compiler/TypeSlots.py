@@ -556,8 +556,7 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
-        entry = scope.lookup("__del__")
-        if entry and entry.is_special:
+        if scope.may_have_finalize():
             value += "|Py_TPFLAGS_HAVE_FINALIZE"
         return value
 
@@ -966,8 +965,8 @@ class SlotTable(object):
 
             # Added in release 2.2
             # The following require the Py_TPFLAGS_HAVE_CLASS flag
-            BinopSlot(binaryfunc, "nb_floor_divide", "__floordiv__", method_name_to_slot),
-            BinopSlot(binaryfunc, "nb_true_divide", "__truediv__", method_name_to_slot),
+            BinopSlot(bf, "nb_floor_divide", "__floordiv__", method_name_to_slot),
+            BinopSlot(bf, "nb_true_divide", "__truediv__", method_name_to_slot),
             MethodSlot(ibinaryfunc, "nb_inplace_floor_divide", "__ifloordiv__", method_name_to_slot),
             MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__", method_name_to_slot),
 
@@ -975,7 +974,7 @@ class SlotTable(object):
             MethodSlot(unaryfunc, "nb_index", "__index__", method_name_to_slot),
 
             # Added in release 3.5
-            BinopSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", method_name_to_slot,
+            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot,
                       ifdef="PY_VERSION_HEX >= 0x03050000"),
             MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot,
                        ifdef="PY_VERSION_HEX >= 0x03050000"),

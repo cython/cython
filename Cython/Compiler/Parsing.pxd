@@ -21,11 +21,9 @@ cdef p_ident_list(PyrexScanner s)
 
 cdef tuple p_binop_operator(PyrexScanner s)
 cdef p_binop_expr(PyrexScanner s, ops, p_sub_expr_func p_sub_expr)
-cdef p_lambdef(PyrexScanner s, bint allow_conditional=*)
-cdef p_lambdef_nocond(PyrexScanner s)
+cdef p_lambdef(PyrexScanner s)
 cdef p_test(PyrexScanner s)
 cdef p_test_allow_walrus_after(PyrexScanner s)
-cdef p_test_nocond(PyrexScanner s)
 cdef p_namedexpr_test(PyrexScanner s)
 cdef p_or_test(PyrexScanner s)
 cdef p_rassoc_binop_expr(PyrexScanner s, unicode op, p_sub_expr_func p_subexpr)
@@ -114,7 +112,7 @@ cdef p_return_statement(PyrexScanner s)
 cdef p_raise_statement(PyrexScanner s)
 cdef p_import_statement(PyrexScanner s)
 cdef p_from_import_statement(PyrexScanner s, bint first_statement = *)
-cdef p_imported_name(PyrexScanner s, bint is_cimport)
+cdef p_imported_name(PyrexScanner s)
 cdef p_dotted_name(PyrexScanner s, bint as_allowed)
 cdef p_as_name(PyrexScanner s)
 cdef p_assert_statement(PyrexScanner s)
@@ -134,6 +132,8 @@ cdef p_except_clause(PyrexScanner s)
 cdef p_include_statement(PyrexScanner s, ctx)
 cdef p_with_statement(PyrexScanner s)
 cdef p_with_items(PyrexScanner s, bint is_async=*)
+cdef p_with_items_list(PyrexScanner s, bint is_async)
+cdef tuple p_with_item(PyrexScanner s, bint is_async)
 cdef p_with_template(PyrexScanner s)
 cdef p_simple_statement(PyrexScanner s, bint first_statement = *)
 cdef p_simple_statement_list(PyrexScanner s, ctx, bint first_statement = *)
@@ -159,7 +159,6 @@ cdef bint looking_at_name(PyrexScanner s) except -2
 cdef object looking_at_expr(PyrexScanner s)# except -2
 cdef bint looking_at_base_type(PyrexScanner s) except -2
 cdef bint looking_at_dotted_name(PyrexScanner s) except -2
-cdef bint looking_at_call(PyrexScanner s) except -2
 cdef p_sign_and_longness(PyrexScanner s)
 cdef p_opt_cname(PyrexScanner s)
 cpdef p_c_declarator(PyrexScanner s, ctx = *, bint empty = *, bint is_type = *, bint cmethod_flag = *,
@@ -171,7 +170,7 @@ cdef p_c_simple_declarator(PyrexScanner s, ctx, bint empty, bint is_type, bint c
                           bint assignable, bint nonempty)
 cdef p_nogil(PyrexScanner s)
 cdef p_with_gil(PyrexScanner s)
-cdef p_exception_value_clause(PyrexScanner s)
+cdef p_exception_value_clause(PyrexScanner s, ctx)
 cpdef p_c_arg_list(PyrexScanner s, ctx = *, bint in_pyfunc = *, bint cmethod_flag = *,
                    bint nonempty_declarators = *, bint kw_only = *, bint annotated = *)
 cdef p_optional_ellipsis(PyrexScanner s)

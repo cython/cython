@@ -130,7 +130,7 @@ cdef int *getp(int dim1=10, int dim2=10, dim3=1) except NULL:
 
     return p
 
-cdef void callback_free_data(void *p):
+cdef void callback_free_data(void *p) noexcept:
     print 'callback free data called'
     free(p)
 

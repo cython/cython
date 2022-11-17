@@ -25,7 +25,54 @@ class MyDataclass:
     True
     >>> hash(inst1) != id(inst1)
     True
+    >>> inst1.func_with_annotations(2.0)
+    4.0
     """
 
     a: int = 1
     self: list = cython.dataclasses.field(default_factory=list, hash=False)  # test that arguments of init don't conflict
+
+    def func_with_annotations(self, b: float):
+        c: float = b
+        return self.a * c
+
+
+class DummyObj:
+    def __repr__(self):
+        return "DummyObj()"
+
+
+@cython.dataclasses.dataclass
+@cython.cclass
+class NoInitFields:
+    """
+    >>> NoInitFields()
+    NoInitFields(has_default=DummyObj(), has_factory='From a lambda', neither=None)
+    >>> NoInitFields().has_default is NoInitFields().has_default
+    True
+
+    >>> NoInitFields(1)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: NoInitFields.__init__() takes 1 positional argument but 2 were given
+
+    >>> NoInitFields(has_default=1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...has_default...
+    >>> NoInitFields(has_factory=1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...has_factory...
+    >>> NoInitFields(neither=1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...neither...
+    """
+    has_default : object = cython.dataclasses.field(default=DummyObj(), init=False)
+    has_factory : object = cython.dataclasses.field(default_factory=lambda: "From a lambda", init=False)
+    # Cython will default-initialize to None
+    neither : object = cython.dataclasses.field(init=False)
+
+    def __post_init__(self):
+        if not cython.compiled:
+            # Cython will default-initialize this to None, while Python won't
+            # and not initializing it will mess up repr
+            assert not hasattr(self, "neither")
+            self.neither = None
