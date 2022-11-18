@@ -30,11 +30,11 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
-elif [[ $OSTYPE == "msys" ]]; then
-  echo "Setting up windows compiler"
-  # cl.exe for default (x86) architecture
-  export CC=$(find "$MICROSOFT_VS_PATH" -type f -wholename "*/Hostx86/x64/cl.exe")
-  export CXX=$CC
+# elif [[ $OSTYPE == "msys" ]]; then
+#   echo "Setting up windows compiler"
+#   # cl.exe for default (x86) architecture
+#   export CC=$(find "$MICROSOFT_VS_PATH" -type f -wholename "*/Hostx86/x64/cl.exe")
+#   export CXX=$CC
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
