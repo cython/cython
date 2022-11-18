@@ -140,7 +140,7 @@ fi
 
 # Run tests
 echo "==== Running tests ===="
-ccache -s 2>/dev/null
+ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
 # Most modern compilers allow the last conflicting option
@@ -224,6 +224,6 @@ python runtests.py \
 
 EXIT_CODE=$?
 
-ccache -s -v -v 2>/dev/null
+ccache -s -v -v 2>/dev/null || true
 
 exit $EXIT_CODE
