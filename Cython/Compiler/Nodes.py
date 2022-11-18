@@ -1999,6 +1999,11 @@ class FuncDefNode(StatNode, BlockNode):
         # Initialize the return variable __pyx_r
         init = ""
         return_type = self.return_type
+        if return_type.is_cv_qualified and return_type.is_const:
+            # Within this function body, we want to be able to set this
+            # variable, even though the function itself needs to return
+            # a const version
+            return_type = return_type.cv_base_type
         if not return_type.is_void:
             if return_type.is_pyobject:
                 init = " = NULL"
