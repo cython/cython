@@ -73,7 +73,7 @@ echo $CCACHE_PATH
 echo "===================="
 
 # Prepend ccache after logging versions
-if [[ $COVERAGE != "1" && $OSTYPE != "msys"]]; then
+if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
   if [[ $CC ]]; then
     CC="ccache $CC"
   fi
