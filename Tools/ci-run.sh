@@ -73,7 +73,7 @@ echo $CCACHE_PATH
 echo "===================="
 
 # Prepend ccache after logging versions
-if [[ $COVERAGE != "1" ]]; then
+if [[ $COVERAGE != "1" && $OSTYPE != "msys"]]; then
   if [[ $CC ]]; then
     CC="ccache $CC"
   fi
@@ -82,7 +82,7 @@ if [[ $COVERAGE != "1" ]]; then
     CXX="ccache $CXX"
   fi
 fi
-# else and don't add ccache, it breaks the coverage runs
+# else and don't add ccache, it breaks the coverage and windows runs
 
 # For msvc we mask the original cl.exe if possible
 if [[ $OSTYPE == "msys" ]]; then
