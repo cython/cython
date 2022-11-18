@@ -12,16 +12,20 @@ file named :file:`primes.pyx`.
 
 Cython code, unlike Python, must be compiled.  This happens in two stages:
 
-  * A ``.pyx`` file is compiled by Cython to a ``.c`` file.
+  * A ``.pyx`` (or ``.py``) file is compiled by Cython to a ``.c`` file.
 
   * The ``.c`` file is compiled by a C compiler to a ``.so`` file (or a
     ``.pyd`` file on Windows)
 
-Once you have written your ``.pyx`` file, there are a couple of ways of turning it
-into an extension module.
+Once you have written your ``.pyx``/``.py`` file, there are a couple of ways
+how to turn it into an extension module.
 
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
+
+There are also a number of tools that process ``.pyx`` files apart from Cython, e.g.
+
+- Linting: https://pypi.org/project/cython-lint/
 
 
 .. _compiling_command_line:

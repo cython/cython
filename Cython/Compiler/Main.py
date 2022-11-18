@@ -2,7 +2,7 @@
 #   Cython Top Level
 #
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import os
 import re
@@ -749,7 +749,16 @@ def main(command_line = 0):
     args = sys.argv[1:]
     any_failures = 0
     if command_line:
-        options, sources = parse_command_line(args)
+        try:
+            options, sources = parse_command_line(args)
+        except IOError as e:
+            # TODO: IOError can be replaced with FileNotFoundError in Cython 3.1
+            import errno
+            if errno.ENOENT != e.errno:
+                # Raised IOError is not caused by missing file.
+                raise
+            print("{}: No such file or directory: '{}'".format(sys.argv[0], e.filename), file=sys.stderr)
+            sys.exit(1)
     else:
         options = CompilationOptions(default_options)
         sources = args

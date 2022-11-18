@@ -1635,6 +1635,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 elif isinstance(attr, CompilerDirectivesNode):
                     for sub_attr in func_attributes(attr.body.stats):
                         yield sub_attr
+                elif isinstance(attr, CppClassNode) and attr.attributes is not None:
+                    for sub_attr in func_attributes(attr.attributes):
+                        yield sub_attr
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1996,6 +1999,11 @@ class FuncDefNode(StatNode, BlockNode):
         # Initialize the return variable __pyx_r
         init = ""
         return_type = self.return_type
+        if return_type.is_cv_qualified and return_type.is_const:
+            # Within this function body, we want to be able to set this
+            # variable, even though the function itself needs to return
+            # a const version
+            return_type = return_type.cv_base_type
         if not return_type.is_void:
             if return_type.is_pyobject:
                 init = " = NULL"

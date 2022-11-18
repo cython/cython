@@ -84,15 +84,50 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 ////////////// OptionalLocals.proto ////////////////
 //@proto_block: utility_code_proto_before_types
 
+#include <utility>
 #if defined(CYTHON_USE_BOOST_OPTIONAL)
     // fallback mode - std::optional is preferred but this gives
     // people with a less up-to-date compiler a chance
     #include <boost/optional.hpp>
-    #define __Pyx_Optional_Type boost::optional
+    #define __Pyx_Optional_BaseType boost::optional
 #else
     #include <optional>
     // since std::optional is a C++17 features, a templated using declaration should be safe
     // (although it could be replaced with a define)
     template <typename T>
-    using __Pyx_Optional_Type = std::optional<T>;
+    using __Pyx_Optional_BaseType = std::optional<T>;
 #endif
+
+// This class reuses as much of the implementation of std::optional as possible.
+// The only place it differs significantly is the assignment operators, which use
+// "emplace" (thus requiring move/copy constructors, but not move/copy
+// assignment operators). This is preferred because it lets us work with assignable
+// types (for example those with const members)
+template <typename T>
+class __Pyx_Optional_Type : private __Pyx_Optional_BaseType<T> {
+public:
+    using __Pyx_Optional_BaseType<T>::__Pyx_Optional_BaseType;
+    using __Pyx_Optional_BaseType<T>::has_value;
+    using __Pyx_Optional_BaseType<T>::operator*;
+    using __Pyx_Optional_BaseType<T>::operator->;
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
+    __Pyx_Optional_Type& operator=(const __Pyx_Optional_Type& rhs) {
+        this->emplace(*rhs);
+        return *this;
+    }
+    __Pyx_Optional_Type& operator=(__Pyx_Optional_Type&& rhs) {
+        this->emplace(std::move(*rhs));
+        return *this;
+    }
+    template <typename U=T>
+    __Pyx_Optional_Type& operator=(U&& rhs) {
+        this->emplace(std::forward<U>(rhs));
+        return *this;
+    }
+#else
+    // Note - the "cpp_locals" feature is designed to require C++14.
+    // This pre-c++11 fallback is largely untested, and definitely won't work
+    // in all the cases that the more modern version does
+    using __Pyx_Optional_BaseType<T>::operator=; // the chances are emplace can't work...
+#endif
+};
