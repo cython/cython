@@ -2618,6 +2618,7 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.is_inherited = True
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
@@ -2768,7 +2769,7 @@ class CppClassScope(Scope):
             if base_entry.name not in base_templates:
                 entry = self.declare_type(base_entry.name, base_entry.type,
                                           base_entry.pos, base_entry.cname,
-                                          base_entry.visibility)
+                                          base_entry.visibility, defining=False)
                 entry.is_inherited = 1
 
     def specialize(self, values, type_entry):
