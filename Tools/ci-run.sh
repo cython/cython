@@ -85,13 +85,13 @@ fi
 # else and don't add ccache, it breaks the coverage and windows runs
 
 # For msvc we mask the original cl.exe if possible
-if [[ $OSTYPE == "msys" ]]; then
-  CCACHE_CL_PATH=$(dirname $CCACHE_PATH)"/cl.exe"
-  if [[ ! -e CCACHE_CL_PATH ]]; then
-    echo "Masking the cl.exe"
-    ln -s $CCACHE_PATH $CCACHE_CL_PATH
-  fi
-fi
+# if [[ $OSTYPE == "msys" ]]; then
+#   CCACHE_CL_PATH=$(dirname $CCACHE_PATH)"/cl.exe"
+#   if [[ ! -e CCACHE_CL_PATH ]]; then
+#     echo "Masking the cl.exe"
+#     ln -s $CCACHE_PATH $CCACHE_CL_PATH
+#   fi
+# fi
 
 # Install python requirements
 echo "Installing requirements [python]"
