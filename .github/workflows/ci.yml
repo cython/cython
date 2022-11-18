@@ -236,6 +236,7 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
+      # CCACHE_COMPRESSLEVEL: 10
       CCACHE_MAXSIZE: "200M"
       # https://github.com/actions/runner-images/blob/main/images/win/Windows2019-Readme.md#visual-studio-enterprise-2019
       MICROSOFT_VS_PATH: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise"

@@ -2,6 +2,9 @@
 
 GCC_VERSION=${GCC_VERSION:=8}
 
+# # SEE: https://github.com/actions/toolkit/issues/766
+# shopt -s expand_aliases
+
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup: Code style run"
