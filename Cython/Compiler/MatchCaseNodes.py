@@ -2,7 +2,7 @@
 #
 # In a separate file because they're unlikely to be useful for much else.
 
-from .Nodes import Node, StatNode
+from .Nodes import Node, StatNode, ErrorNode
 from .Errors import error
 
 
@@ -17,6 +17,10 @@ class MatchNode(StatNode):
     def validate_irrefutable(self):
         found_irrefutable_case = None
         for case in self.cases:
+            if isinstance(case, ErrorNode):
+                # This validation happens before error nodes have been
+                # transformed into actual errors, so we need to ignore them
+                continue
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
@@ -45,12 +49,18 @@ class MatchCaseNode(Node):
     child_attrs = ["pattern", "body", "guard"]
 
     def is_irrefutable(self):
+        if isinstance(self.pattern, ErrorNode):
+            return True  # value doesn't really matter
         return self.pattern.is_irrefutable() and not self.guard
 
     def validate_targets(self):
+        if isinstance(self.pattern, ErrorNode):
+            return
         self.pattern.get_targets()
 
     def validate_irrefutable(self):
+        if isinstance(self.pattern, ErrorNode):
+            return
         self.pattern.validate_irrefutable()
 
 
