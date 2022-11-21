@@ -104,3 +104,16 @@ def test_unraisable():
     finally:
         sys.stderr = old_stderr
     return stderr.getvalue().strip()
+
+
+cdef int initialize_array() nogil:
+    cdef int[4] a = [1, 2, 3, 4]
+    return a[0] + a[1] + a[2] + a[3]
+
+
+def test_array():
+    """
+    >>> test_array()
+    10
+    """
+    return initialize_array()

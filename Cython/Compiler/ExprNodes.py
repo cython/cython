@@ -5417,7 +5417,7 @@ class SliceIndexNode(ExprNode):
                     base_type, MemoryView.get_axes_specs(env, [slice_node]))
         return None
 
-    nogil_check = Node.gil_error
+    # nogil_check is inherited from parent class
     gil_message = "Slicing Python object"
 
     get_slice_utility_code = TempitaUtilityCode.load(

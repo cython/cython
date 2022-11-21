@@ -97,6 +97,11 @@ cdef int fstrings(int x, object obj) except -1 nogil:
     f"{x}"
     f"{obj}"
 
+cdef void slice_array() nogil:
+    with gil:
+        b = [1, 2, 3, 4]
+    cdef int[4] a = b[:]
+
 
 _ERRORS = u"""
 4:5: Function with Python return type cannot be declared nogil
@@ -169,4 +174,7 @@ _ERRORS = u"""
 97:6: String formatting not allowed without gil
 98:4: Discarding owned Python object not allowed without gil
 98:6: String formatting not allowed without gil
+
+103:21: Coercion from Python not allowed without the GIL
+103:21: Slicing Python object not allowed without gil
 """
