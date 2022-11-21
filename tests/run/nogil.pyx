@@ -110,10 +110,33 @@ cdef int initialize_array() nogil:
     cdef int[4] a = [1, 2, 3, 4]
     return a[0] + a[1] + a[2] + a[3]
 
+cdef int copy_array() nogil:
+    cdef int[4] a
+    a[:] = [0, 1, 2, 3]
+    return a[0] + a[1] + a[2] + a[3]
 
-def test_array():
+cdef void copy_array2() nogil:
+    cdef double[16] x
+    cdef double[16] y
+    y[:] = x[:]
+    y = x
+
+def test_initalize_array():
     """
-    >>> test_array()
+    >>> test_initalize_array()
     10
     """
     return initialize_array()
+
+def test_copy_array():
+    """
+    >>> test_copy_array()
+    6
+    """
+    return copy_array()
+
+def test_copy_array2():
+    """
+    >>> test_copy_array2()
+    """
+    return copy_array2()
