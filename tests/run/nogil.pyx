@@ -115,11 +115,17 @@ cdef int copy_array() nogil:
     a[:] = [0, 1, 2, 3]
     return a[0] + a[1] + a[2] + a[3]
 
-cdef void copy_array2() nogil:
-    cdef double[16] x
-    cdef double[16] y
+cdef double copy_array2() nogil:
+    cdef double[4] x = [1.0, 3.0, 5.0, 7.0]
+    cdef double[4] y
     y[:] = x[:]
+    return y[0] + y[1] + y[2] + y[3]
+
+cdef double copy_array3() nogil:
+    cdef double[4] x = [2.0, 4.0, 6.0, 8.0]
+    cdef double[4] y
     y = x
+    return y[0] + y[1] + y[2] + y[3]
 
 def test_initalize_array():
     """
@@ -138,5 +144,13 @@ def test_copy_array():
 def test_copy_array2():
     """
     >>> test_copy_array2()
+    16.0
     """
     return copy_array2()
+
+def test_copy_array3():
+    """
+    >>> test_copy_array3()
+    20.0
+    """
+    return copy_array3()

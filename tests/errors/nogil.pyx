@@ -102,6 +102,10 @@ cdef void slice_array() nogil:
         b = [1, 2, 3, 4]
     cdef int[4] a = b[:]
 
+cdef int[:] main() nogil:
+    cdef int[4] a = [1,2,3,4]
+    return a
+
 
 _ERRORS = u"""
 4:5: Function with Python return type cannot be declared nogil
@@ -177,4 +181,5 @@ _ERRORS = u"""
 
 103:21: Coercion from Python not allowed without the GIL
 103:21: Slicing Python object not allowed without gil
+107:11: Operation not allowed without gil
 """
