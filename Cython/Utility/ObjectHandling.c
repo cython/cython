@@ -2322,7 +2322,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
         return __Pyx_PyFunction_FastCall(func, NULL, 0);
     }
 #endif
-#ifdef __Pyx_CyFunction_USED && defined(NDEBUG)
+#if defined(__Pyx_CyFunction_USED) && defined(NDEBUG)
     // TODO PyCFunction_GET_FLAGS has a type-check assert that breaks with a CyFunction
     // in debug mode. There is likely to be a better way of avoiding tripping this
     // check that doesn't involve disabling the optimized path.
