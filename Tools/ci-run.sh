@@ -116,7 +116,7 @@ CFLAGS="-O0 -ggdb -Wall -Wextra"
 ODD_VERSION=$(python3 -c "import sys; print(sys.version_info[1]%2)")
 if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
-else if [[ $ODD_VERSION == "0" ]]; then
+elif [[ $ODD_VERSION == "0" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 fi
 
