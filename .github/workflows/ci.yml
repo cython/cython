@@ -160,7 +160,7 @@ jobs:
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           - os: ubuntu-18.04
-            python-version: pypy-3.7
+            python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           # Coverage
