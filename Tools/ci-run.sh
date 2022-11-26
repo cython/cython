@@ -109,6 +109,16 @@ export PATH="/usr/lib/ccache:$PATH"
 # to override the previous ones, so '-O0 -O3' == '-O3'
 # This is true for the latest msvc, gcc and clang
 CFLAGS="-O0 -ggdb -Wall -Wextra"
+# Trying to cover debug assertions in the CI without adding
+# extra jobs. Therefore, odd-numbered minor versions of Python
+# running C++ jobs get NDEBUG undefined, and even-numbered
+# versions running C jobs get NDEBUG undefined.
+ODD_VERSION=$(python3 -c "import sys; print(sys.version_info[1]%2)")
+if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
+    CFLAGS="$CFLAGS -UNDEBUG"
+elif [[ $ODD_VERSION == "0" ]]; then
+    CFLAGS="$CFLAGS -UNDEBUG"
+fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
