@@ -611,7 +611,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_list.append(env)
 
     def sort_types_by_inheritance(self, type_dict, type_order, getkey):
-        subclasses = {} # maps type key to list of subclass keys
+        subclasses = {}  # maps type key to list of subclass keys
         for key in type_order:
             new_entry = type_dict[key]
             # collect all base classes to check for children
