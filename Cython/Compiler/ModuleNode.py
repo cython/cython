@@ -629,17 +629,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
         seen = set()
         result = [None] * len(type_order)
-        next_idx = len(type_order) - 1
+        next_idx = [len(type_order) - 1]  # TODO: Py2.7 limitation, use nonlocal
         def dfs(u):
-            nonlocal next_idx
             if u in seen:
                 return
             seen.add(u)
-            for v in subclasses.get(getkey(u.type), tuple()):
+            for v in subclasses.get(getkey(u.type), ()):
                 dfs(type_dict[v])
 
-            result[next_idx] = u
-            next_idx -= 1
+            result[next_idx[0]] = u
+            next_idx[0] -= 1
 
         for key in type_order:
             dfs(type_dict[key])
