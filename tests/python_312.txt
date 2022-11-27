@@ -1,0 +1,2 @@
+# relies on deprecated unicode APIs that have been removed
+run.py_unicode_strings

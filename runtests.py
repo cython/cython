@@ -2722,7 +2722,8 @@ def runtests(options, cmd_args, coverage=None):
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
-            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9))
+            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
+            ('python_312.txt', sys.version_info >= (3, 12)),
         ]
 
         exclude_selectors += [
