@@ -320,8 +320,10 @@ Indexed functions can be called directly from Python:
     >>> indexing.func[cython.float, cython.float](1, 2)
     func called: float 1.0 float 2.0
 
-If a fused type is used as a base type, this will mean that the base type is the
-fused type, so the base type is what needs to be specialized:
+If a fused type is used as a component of a more complex type
+(for example a pointer to a fused type, or a memoryview of a fused type),
+then you should index the function with the individual component and
+not the more full argument type:
 
 .. tabs::
 
