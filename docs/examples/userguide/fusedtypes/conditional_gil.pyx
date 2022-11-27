@@ -5,7 +5,7 @@ ctypedef fused double_or_object:
     object
 
 def increment(double_or_object x):
-    with nogil(double_or_object is double):
+    with nogil(double_or_object is not object):
         # Same code handles both cython.double (GIL is released)
         # and python object (GIL is not released).
         x = x + 1
