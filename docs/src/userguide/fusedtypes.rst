@@ -299,6 +299,9 @@ You can select a specialization (an instance of the function with specific or
 specialized (i.e., non-fused) argument types) in two ways: either by indexing or
 by calling.
 
+
+.. _fusedtypes_indexing:
+
 Indexing
 --------
 
@@ -357,6 +360,36 @@ not the more full argument type:
 
             # Specialize using int, not int *
             myfunc[int](myint)
+
+For memoryview indexing from python space we can do the following:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_fused_type = cython.fused_type(cython.int[:, ::1], cython.float[:, ::1])
+
+            def func(array: my_fused_type):
+                print("func called:", cython.typeof(array))
+
+            my_fused_type[cython.int[:, ::1]](myarray)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ctypedef fused my_fused_type:
+                int[:, ::1]
+                float[:, ::1]
+
+            def func(my_fused_type array):
+                print("func called:", cython.typeof(array))
+
+            my_fused_type[cython.int[:, ::1]](myarray)
+
+The same goes for when using e.g. ``cython.numeric[:, :]``.
 
 Calling
 -------
@@ -457,29 +490,36 @@ __signatures__
 
 Finally, function objects from ``def`` or ``cpdef`` functions have an attribute
 ``__signatures__``, which maps the signature strings to the actual specialized
-functions. This may be useful for inspection.  Listed signature strings may also
+functions. This may be useful for inspection:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.py
+            :lines: 1-9,14-16
+            :caption: indexing.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.pyx
+            :lines: 1-9,14-16
+            :caption: indexing.pyx
+
+.. code-block:: pycon
+
+   >>> from indexing import cpfunc
+   >>> cpfunc.__signatures__,
+   ({'double|double': <cyfunction __pyx_fuse_0_0cpfunc at 0x107292f20>, 'double|float': <cyfunction __pyx_fuse_0_1cpfunc at 0x1072a6040>, 'float|double': <cyfunction __pyx_fuse_1_0cpfunc at 0x1072a6120>, 'float|float': <cyfunction __pyx_fuse_1_1cpfunc at 0x1072a6200>},)
+
+Listed signature strings may also
 be used as indices to the fused function, but the index format may change between
-Cython versions::
+Cython versions
 
-    specialized_function = fused_function["MyExtensionClass|int|float"]
+.. code-block:: pycon
 
-It would usually be preferred to index like this, however::
+    >>> specialized_function = cpfunc["double|float"]
+    >>> specialized_function(5.0, 1.0)
+    cpfunc called: double 5.0 float 1.0
 
-    specialized_function = fused_function[MyExtensionClass, int, float]
-
-Although the latter will select the biggest types for ``int`` and ``float`` from
-Python space, as they are not type identifiers but builtin types there. Passing
-``cython.int`` and ``cython.float`` would resolve that, however.
-
-For memoryview indexing from python space we can do the following::
-
-    ctypedef fused my_fused_type:
-        int[:, ::1]
-        float[:, ::1]
-
-    def func(my_fused_type array):
-        ...
-
-    my_fused_type[cython.int[:, ::1]](myarray)
-
-The same goes for when using e.g. ``cython.numeric[:, :]``.
+However, the better way how to index is by providing list of types as mentioned in :ref:`fusedtypes_indexing` section.
