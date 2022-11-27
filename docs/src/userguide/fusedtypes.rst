@@ -336,7 +336,7 @@ Indexed functions can be called directly from Python:
 If a fused type is used as a component of a more complex type
 (for example a pointer to a fused type, or a memoryview of a fused type),
 then you should index the function with the individual component and
-not the more full argument type:
+not the full argument type:
 
 .. tabs::
 
