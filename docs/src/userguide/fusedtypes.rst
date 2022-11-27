@@ -49,16 +49,26 @@ whereas ``plus_one(b)`` specializes ``char_or_float`` as a ``float``.
 Declaring Fused Types
 =====================
 
-Fused types may be declared as follows::
+Fused types may be declared as follows:
 
-    ctypedef fused my_fused_type:
-        int
-        double
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_fused_type = cython.fused_type(cython.int, cython.float)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ctypedef fused my_fused_type:
+                int
+                double
 
 This declares a new type called ``my_fused_type`` which can be *either* an
-``int`` *or* a ``double``.  Alternatively, the declaration may be written as::
-
-    my_fused_type = cython.fused_type(cython.int, cython.float)
+``int`` *or* a ``double``.
 
 Only names may be used for the constituent types, but they may be any
 (non-fused) type, including a typedef. I.e. one may write:
