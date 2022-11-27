@@ -395,10 +395,29 @@ Calling
 -------
 
 A fused function can also be called with arguments, where the dispatch is
-figured out automatically::
+figured out automatically:
 
-    cfunc(p1, p2)
-    func(myfloat, mydouble)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def main():
+                p1: cython.double = 1.0
+                p2: cython.float = 2.0
+                cfunc(p1, p1)          # prints "cfunc called: double 1.0 double 1.0"
+                cpfunc(p1, p2)         # prints "cpfunc called: double 1.0 float 2.0"
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def main():
+                cdef double p1 = 1.0
+                cdef float p2 = 2.0
+                cfunc(p1, p1)          # prints "cfunc called: double 1.0 double 1.0"
+                cpfunc(p1, p2)         # prints "cpfunc called: double 1.0 float 2.0"
 
 For a ``cdef`` or ``cpdef`` function called from Cython this means that the
 specialization is figured out at compile time. For ``def`` functions the
