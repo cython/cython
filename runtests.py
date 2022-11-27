@@ -499,6 +499,9 @@ VER_DEP_MODULES = {
                                          'run.pep557_dataclasses',  # dataclasses module
                                          'run.test_dataclasses',
                                          ]),
+    (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
+                                         ]),
+    
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -2723,7 +2726,6 @@ def runtests(options, cmd_args, coverage=None):
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
-            ('python_312.txt', sys.version_info >= (3, 12)),
         ]
 
         exclude_selectors += [
