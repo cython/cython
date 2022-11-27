@@ -306,7 +306,7 @@ You can index functions with types to get certain specializations, i.e.:
         .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.pyx
             :caption: indexing.pyx
 
-Index functions can be called directly from python:
+Indexed functions can be called directly from Python:
 
 .. code-block:: pycon
 

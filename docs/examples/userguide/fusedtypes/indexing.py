@@ -21,5 +21,5 @@ def func(a: fused_type1, b: fused_type2):
 # called from Cython space
 cfunc[cython.double](5.0, 1.0)
 cpfunc[cython.float, cython.double](1.0, 2.0)
-# Indexing def function in Cython code requires string names
+# Indexing def functions in Cython code requires string names
 func["float", "double"](1.0, 2.0)
