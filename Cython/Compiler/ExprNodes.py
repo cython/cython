@@ -5230,7 +5230,7 @@ class SliceIndexNode(ExprNode):
     #  start     ExprNode or None
     #  stop      ExprNode or None
     #  slice     ExprNode or None   constant slice object
-    #  nogil          bool                 used internally
+    #  nogil     bool               used internally
 
     subexprs = ['base', 'start', 'stop', 'slice']
     nogil = False
