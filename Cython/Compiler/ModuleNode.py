@@ -611,37 +611,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_list.append(env)
 
     def sort_types_by_inheritance(self, type_dict, type_order, getkey):
-        subclasses = {}  # maps type key to list of subclass keys
+        subclasses = defaultdict(list)  # maps type key to list of subclass keys
         for key in type_order:
             new_entry = type_dict[key]
             # collect all base classes to check for children
             base = new_entry.type.base_type
             while base:
                 base_key = getkey(base)
-                subclasses.setdefault(base_key, []).append(key)
+                subclasses[base_key].append(key)
                 base_entry = type_dict.get(base_key)
-                if base_entry is not None:
-                    base = base_entry.type.base_type
-                else:
+                if base_entry is None:
                     break
+                base = base_entry.type.base_type
 
         # Simple topological sort using recursive DFS, based on
         # https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
         seen = set()
-        result = [None] * len(type_order)
-        next_idx = [len(type_order) - 1]  # TODO: Py2.7 limitation, use nonlocal
+        result = []
         def dfs(u):
             if u in seen:
                 return
             seen.add(u)
-            for v in subclasses.get(getkey(u.type), ()):
+            for v in subclasses[getkey(u.type)]:
                 dfs(type_dict[v])
-
-            result[next_idx[0]] = u
-            next_idx[0] -= 1
+            result.append(u)
 
         for key in type_order:
             dfs(type_dict[key])
+
+        result.reverse()
         return result
 
     def sort_type_hierarchy(self, module_list, env):
