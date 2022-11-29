@@ -127,6 +127,11 @@ cdef double copy_array3() nogil:
     y = x
     return y[0] + y[1] + y[2] + y[3]
 
+cdef void copy_array_exception(int n) nogil:
+    cdef double[5] a = [1,2,3,4,5]
+    cdef double[6] b
+    b[:n] = a
+
 def test_initalize_array():
     """
     >>> test_initalize_array()
@@ -154,3 +159,12 @@ def test_copy_array3():
     20.0
     """
     return copy_array3()
+
+def test_copy_array_exception(n):
+    """
+    >>> test_copy_array_exception(20)
+    Traceback (most recent call last):
+        ...
+    ValueError: Assignment to slice of wrong length, expected 5, got 20
+    """
+    return copy_array_exception(n)
