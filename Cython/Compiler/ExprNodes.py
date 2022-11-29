@@ -5230,8 +5230,10 @@ class SliceIndexNode(ExprNode):
     #  start     ExprNode or None
     #  stop      ExprNode or None
     #  slice     ExprNode or None   constant slice object
+    #  nogil          bool                 used internally
 
     subexprs = ['base', 'start', 'stop', 'slice']
+    nogil = False
 
     slice = None
 
@@ -5417,7 +5419,10 @@ class SliceIndexNode(ExprNode):
                     base_type, MemoryView.get_axes_specs(env, [slice_node]))
         return None
 
-    # nogil_check is inherited from parent class
+    def nogil_check(self, env):
+        self.nogil = env.nogil
+        return super().nogil_check(env)
+
     gil_message = "Slicing Python object"
 
     get_slice_utility_code = TempitaUtilityCode.load(
@@ -5685,11 +5690,15 @@ class SliceIndexNode(ExprNode):
 
         if runtime_check:
             code.putln("if (unlikely((%s) != (%s))) {" % (runtime_check, target_size))
+            if self.nogil:
+                code.put_ensure_gil()
             code.putln(
                 'PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length,'
                 ' expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d",'
                 ' (Py_ssize_t)(%s), (Py_ssize_t)(%s));' % (
                     target_size, runtime_check))
+            if self.nogil:
+                code.put_release_ensured_gil()
             code.putln(code.error_goto(self.pos))
             code.putln("}")
 
