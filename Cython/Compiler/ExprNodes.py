@@ -5421,7 +5421,7 @@ class SliceIndexNode(ExprNode):
 
     def nogil_check(self, env):
         self.nogil = env.nogil
-        return super().nogil_check(env)
+        return super(SliceIndexNode, self).nogil_check(env)
 
     gil_message = "Slicing Python object"
 
