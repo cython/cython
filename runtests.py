@@ -429,6 +429,9 @@ VER_DEP_MODULES = {
                                          'run.pep526_variable_annotations',  # typing module
                                          'run.test_exceptions',  # copied from Py3.7+
                                          ]),
+    (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
+                                         ]),
+    
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
