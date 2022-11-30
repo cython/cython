@@ -614,7 +614,15 @@ class __Pyx_FakeReference {
 /////////////// PythonCompatibility ///////////////
 
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define Py_OptimizeFlag 0
+  #define __pyx_get_Py_OptimizeFlag() (0)
+#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY  ||  defined(Py_LIMITED_API)
+  #define __pyx_get_Py_OptimizeFlag() (Py_OptimizeFlag)
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
+  // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
+  // Py_OptimizeFlag is deprecated in Py3.12+
+  #define __pyx_get_Py_OptimizeFlag() (_PyInterpreterState_GetConfig(__Pyx_PyThreadState_Current->interp)->optimization_level)
+#else
+  #define __pyx_get_Py_OptimizeFlag() (Py_OptimizeFlag)
 #endif
 
 #define __PYX_BUILD_PY_SSIZE_T "n"

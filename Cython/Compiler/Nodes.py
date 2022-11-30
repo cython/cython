@@ -6979,7 +6979,7 @@ class AssertStatNode(StatNode):
 
     def generate_execution_code(self, code):
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
-        code.putln("if (unlikely(!Py_OptimizeFlag)) {")
+        code.putln("if (unlikely(!__pyx_get_Py_OptimizeFlag())) {")
         code.mark_pos(self.pos)
         self.condition.generate_evaluation_code(code)
         code.putln(
