@@ -38,7 +38,8 @@ Features added
   Patch by Matus Valo.  (Github issue :issue:`1711`)
 
 * Declarations were added for the bit operations and some other parts of C++20.
-  Patch by Jonathan Helgert.  (Github issues :issue:`4962`, :issue:`5101`)
+  Patches by Jonathan Helgert and Dobatymo.
+  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`)
 
 Bugs fixed
 ----------
@@ -88,6 +89,9 @@ Bugs fixed
 
 * Some issues with Cython ``@dataclass`` arguments, hashing, inheritance and ``repr()``
   were resolved.  (Github issues :issue:`4956`, :issue:`5046`)
+
+* Larger numbers of extension types with multiple subclasses could take very long to compile.
+  Patch by Scott Wolchok.  (Github issue :issue:`5139`)
 
 * Relative imports failed in compiled ``__init__.py`` package modules.
   Patch by Matus Valo.  (Github issue :issue:`3442`)
