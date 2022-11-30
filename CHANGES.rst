@@ -20,7 +20,7 @@ Features added
   (Github issue :issue:`4570`)
 
 * Bound C methods can now coerce to Python objects.
-  (Github issue :issue:`4890`)
+  (Github issues :issue:`4890`, :issue:`5062`)
 
 * ``reversed()`` can now be used together with C++ iteration.
   Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5002`)
@@ -28,11 +28,17 @@ Features added
 * Standard C/C++ atomic operations are now used for memory views, if available.
   (Github issue :issue:`4925`)
 
+* Nested ``cppclass`` definitions are supported.
+  Patch by samaingw.  (Github issue :issue:`1218`)
+
+* ``cpp_locals`` no longer have to be "assignable".
+  (Github issue :issue:`4558`)
+
 * ``cythonize --help`` now also prints information about the supported environment variables.
   Patch by Matus Valo.  (Github issue :issue:`1711`)
 
-* Declarations were added for the bit operations in C++20.
-  Patch by Jonathan Helgert.  (Github issue :issue:`4962`)
+* Declarations were added for the bit operations and some other parts of C++20.
+  Patch by Jonathan Helgert.  (Github issues :issue:`4962`, :issue:`5101`)
 
 Bugs fixed
 ----------
@@ -47,8 +53,14 @@ Bugs fixed
 * ``__del__`` finaliser methods were not always called if they were only inherited.
   (Github issue :issue:`4995`)
 
+* ``const`` types could not be returned from functions.
+  Patch by Mike Graham.  (Github issue :issue:`5135`)
+
 * ``cdef public`` functions declared in .pxd files could use an incorrectly mangled C name.
   Patch by EpigeneMax.  (Github issue :issue:`2940`)
+
+* ``cdef public`` functions used an incorrect linkage declaration in C++.
+  Patch by Maximilien Colange.  (Github issue :issue:`1839`)
 
 * C++ post-increment/-decrement operators were not correctly looked up on declared C++
   classes, thus allowing Cython declarations to be missing for them and incorrect C++
@@ -74,14 +86,17 @@ Bugs fixed
 * The ``@dataclass`` directive was accidentally inherited by methods and subclasses.
   (Github issue :issue:`4953`)
 
-* Some issues with Cython ``@dataclass`` arguments, hashing and ``repr()`` were resolved.
-  (Github issue :issue:`4956`)
+* Some issues with Cython ``@dataclass`` arguments, hashing, inheritance and ``repr()``
+  were resolved.  (Github issues :issue:`4956`, :issue:`5046`)
 
 * Relative imports failed in compiled ``__init__.py`` package modules.
   Patch by Matus Valo.  (Github issue :issue:`3442`)
 
 * Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
   Patch by Matus Valo.  (Github issue :issue:`4640`)
+
+* The ``cython`` and ``cythonize`` commands ignored non-existing input files without error.
+  Patch by Matus Valo.  (Github issue :issue:`4629`)
 
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
@@ -95,8 +110,8 @@ Bugs fixed
   (Github issue :issue:`4992`)
 
 * Some C/C++ warnings were resolved.
-  Patches by Max Bachmann at al.
-  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`)
+  Patches by Max Bachmann, Alexander Shadchin, at al.
+  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
 
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
@@ -117,6 +132,13 @@ Other changes
 
 * Wheels now include a compiled parser again, which increases their size a little
   but gives about a 10% speed-up when running Cython.
+
+* The ``Tempita`` module no longer contains HTML processing capabilities, which
+  were found to be broken in Python 3.8 and later.
+  Patch by Marcel Stimberg.  (Github issue :issue:`3309`)
+
+* The Emacs Cython mode file ``cython-mode.el`` is now maintained in a separate repo:
+  https://github.com/cython/emacs-cython-mode
 
 
 3.0.0 alpha 11 (2022-07-31)
