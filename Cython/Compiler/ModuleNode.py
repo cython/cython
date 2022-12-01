@@ -262,7 +262,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code_start.putln("#ifndef %s" % api_guard)
             h_code_start.putln("")
-            self.generate_extern_c_macro_definition(h_code_start)
+            self.generate_extern_c_macro_definition(h_code_start, env.is_cpp())
             h_code_start.putln("")
             self.generate_dl_import_macro(h_code_start)
             if h_extension_types:
@@ -611,33 +611,36 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_list.append(env)
 
     def sort_types_by_inheritance(self, type_dict, type_order, getkey):
-        # copy the types into a list moving each parent type before
-        # its first child
-        type_list = []
-        for i, key in enumerate(type_order):
+        subclasses = defaultdict(list)  # maps type key to list of subclass keys
+        for key in type_order:
             new_entry = type_dict[key]
-
             # collect all base classes to check for children
-            hierarchy = set()
-            base = new_entry
+            base = new_entry.type.base_type
             while base:
-                base_type = base.type.base_type
-                if not base_type:
+                base_key = getkey(base)
+                subclasses[base_key].append(key)
+                base_entry = type_dict.get(base_key)
+                if base_entry is None:
                     break
-                base_key = getkey(base_type)
-                hierarchy.add(base_key)
-                base = type_dict.get(base_key)
-            new_entry.base_keys = hierarchy
+                base = base_entry.type.base_type
 
-            # find the first (sub-)subclass and insert before that
-            for j in range(i):
-                entry = type_list[j]
-                if key in entry.base_keys:
-                    type_list.insert(j, new_entry)
-                    break
-            else:
-                type_list.append(new_entry)
-        return type_list
+        # Simple topological sort using recursive DFS, based on
+        # https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
+        seen = set()
+        result = []
+        def dfs(u):
+            if u in seen:
+                return
+            seen.add(u)
+            for v in subclasses[getkey(u.type)]:
+                dfs(type_dict[v])
+            result.append(u)
+
+        for key in type_order:
+            dfs(type_dict[key])
+
+        result.reverse()
+        return result
 
     def sort_type_hierarchy(self, module_list, env):
         # poor developer's OrderedDict
@@ -804,7 +807,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
         code.putln("")
-        self.generate_extern_c_macro_definition(code)
+        self.generate_extern_c_macro_definition(code, env.is_cpp())
         code.putln("")
 
         code.putln("#define %s" % self.api_name(Naming.h_guard_prefix, env))
@@ -870,14 +873,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
-    def generate_extern_c_macro_definition(self, code):
+    def generate_extern_c_macro_definition(self, code, is_cpp):
         name = Naming.extern_c_macro
         code.putln("#ifndef %s" % name)
-        code.putln("  #ifdef __cplusplus")
-        code.putln('    #define %s extern "C"' % name)
-        code.putln("  #else")
-        code.putln("    #define %s extern" % name)
-        code.putln("  #endif")
+        if is_cpp:
+            code.putln('    #define %s extern "C++"' % name)
+        else:
+            code.putln("  #ifdef __cplusplus")
+            code.putln('    #define %s extern "C"' % name)
+            code.putln("  #else")
+            code.putln("    #define %s extern" % name)
+            code.putln("  #endif")
         code.putln("#endif")
 
     def generate_dl_import_macro(self, code):
@@ -966,7 +972,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_typedef(self, entry, code):
         base_type = entry.type.typedef_base_type
-        if base_type.is_numeric:
+        enclosing_scope = entry.scope
+        if base_type.is_numeric and not enclosing_scope.is_cpp_class_scope:
             try:
                 writer = code.globalstate['numeric_typedefs']
             except KeyError:
@@ -1042,6 +1049,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [base_class.empty_declaration_code() for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
+            self.generate_type_header_code(scope.type_entries, code)
             py_attrs = [e for e in scope.entries.values()
                         if e.type.is_pyobject and not e.is_inherited]
             has_virtual_methods = False
@@ -1531,10 +1539,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if is_final_type:
                     type_safety_check = ''
                 else:
-                    type_safety_check = ' & (!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
+                    type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
                 obj_struct = type.declaration_code("", deref=True)
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name, obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1761,11 +1769,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     type_safety_check = ''
                 else:
                     type_safety_check = (
-                        ' & (!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
+                        ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
 
                 type = scope.parent_type
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (CYTHON_COMPILING_IN_CPYTHON && ((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name,
                         freelist_size,
                         type.declaration_code("", deref=True),
@@ -3110,7 +3118,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
-            code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+            code.putln("if (__Pyx_RegisterCleanup()) %s" % code.error_goto(self.pos))
 
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
@@ -3524,7 +3532,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
         code.putln(
-            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
+            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s' % (
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))

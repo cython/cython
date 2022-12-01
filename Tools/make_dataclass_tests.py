@@ -130,24 +130,16 @@ skip_tests = frozenset(
         ('TestOrdering', 'test_no_order'),
         # not possible to add attributes on extension types
         ("TestCase", "test_post_init_classmethod"),
+        # Cannot redefine the same field in a base dataclass (tested in dataclass_e6)
+        ("TestCase", "test_field_order"),
+        (
+            "TestCase",
+            "test_overwrite_fields_in_derived_class",
+        ),
         # Bugs
         #======
         # not specifically a dataclass issue - a C int crashes classvar
         ("TestCase", "test_class_var"),
-        ("TestCase", "test_field_order"),  # invalid C code (__pyx_base?)
-        (
-            "TestCase",
-            "test_overwrite_fields_in_derived_class",
-        ),  # invalid C code (__pyx_base?)
-        ("TestReplace", "test_recursive_repr"),  # recursion error
-        ("TestReplace", "test_recursive_repr_two_attrs"),  # recursion error
-        ("TestReplace", "test_recursive_repr_misc_attrs"),  # recursion error
-        ("TestReplace", "test_recursive_repr_indirection"),  # recursion error
-        ("TestReplace", "test_recursive_repr_indirection_two"),  # recursion error
-        (
-            "TestCase",
-            "test_intermediate_non_dataclass",
-        ),  # issue with propagating through intermediate class
         (
             "TestFrozen",
         ),  # raises AttributeError, not FrozenInstanceError (may be hard to fix)
@@ -233,12 +225,11 @@ class SubstituteNameString(ast.NodeTransformer):
             if node.value.find("<locals>") != -1:
                 import re
 
-                new_value = re.sub("[\w.]*<locals>", "", node.value)
+                new_value = new_value2 = re.sub("[\w.]*<locals>", "", node.value)
                 for key, value in self.substitutions.items():
-                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value)
-                    if new_value != new_value2:
-                        node.value = new_value2
-                        break
+                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value2)
+                if new_value != new_value2:
+                    node.value = new_value2
         return node
 
 
@@ -323,6 +314,7 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
             self.used_names.add(new_name)
             # hmmmm... possibly there's a few cases where there's more than one name?
             self.collected_substitutions[old_name] = node.name
+
             return ast.Assign(
                 targets=[ast.Name(id=old_name, ctx=ast.Store())],
                 value=ast.Name(id=new_name, ctx=ast.Load()),
@@ -407,6 +399,17 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
     def visit_Module(self, node):
         self.generic_visit(node)
         node.body[0:0] = self.global_classes
+        return node
+
+    def visit_AnnAssign(self, node):
+        # string annotations are forward declarations but the string will be wrong
+        # (because we're renaming the class)
+        if (isinstance(node.annotation, ast.Constant) and
+                isinstance(node.annotation.value, str)):
+            # although it'd be good to resolve these declarations, for the
+            # sake of the tests they only need to be "object"
+            node.annotation = ast.Name(id="object", ctx=ast.Load)
+
         return node
 
 

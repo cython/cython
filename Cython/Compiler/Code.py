@@ -21,7 +21,7 @@ import shutil
 import textwrap
 from string import Template
 from functools import partial
-from contextlib import closing
+from contextlib import closing, contextmanager
 from collections import defaultdict
 
 from . import Naming
@@ -1625,6 +1625,7 @@ class GlobalState(object):
             init_constants.putln(
                 "if (__Pyx_CreateStringTabAndInitStrings() < 0) %s;" %
                     init_constants.error_goto(self.module_pos))
+            init_constants.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -2586,9 +2587,7 @@ class PyrexCodeWriter(object):
 
 class PyxCodeWriter(object):
     """
-    Can be used for writing out some Cython code. To use the indenter
-    functionality, the Cython.Compiler.Importer module will have to be used
-    to load the code to support python 2.4
+    Can be used for writing out some Cython code.
     """
 
     def __init__(self, buffer=None, indent_level=0, context=None, encoding='ascii'):
@@ -2604,22 +2603,16 @@ class PyxCodeWriter(object):
     def dedent(self, levels=1):
         self.level -= levels
 
+    @contextmanager
     def indenter(self, line):
         """
-        Instead of
-
-            with pyx_code.indenter("for i in range(10):"):
-                pyx_code.putln("print i")
-
-        write
-
-            if pyx_code.indenter("for i in range(10);"):
-                pyx_code.putln("print i")
-                pyx_code.dedent()
+        with pyx_code.indenter("for i in range(10):"):
+            pyx_code.putln("print i")
         """
         self.putln(line)
         self.indent()
-        return True
+        yield
+        self.dedent()
 
     def getvalue(self):
         result = self.buffer.getvalue()
