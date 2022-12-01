@@ -2753,10 +2753,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
-        for used_name, type_cnames in Naming.used_macros_and_types:
+        for type_cname, used_name in Naming.used_types_and_macros:
             code.putln('#ifdef %s' % used_name)
-            for type_cname in type_cnames:
-                code.putln('PyTypeObject *%s;' % type_cname)
+            code.putln('PyTypeObject *%s;' % type_cname)
             code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
@@ -2835,13 +2834,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.preimport_cname,
                 Naming.modulestateglobal_cname,
                 Naming.preimport_cname))
-        for used_name, cnames in Naming.used_macros_and_types:
+        for cname, used_name in Naming.used_types_and_macros:
             code.putln('#ifdef %s' % used_name)
-            for cname in cnames:
-                code.putln('#define %s %s->%s' % (
-                    cname,
-                    Naming.modulestateglobal_cname,
-                    cname))
+            code.putln('#define %s %s->%s' % (
+                cname,
+                Naming.modulestateglobal_cname,
+                cname))
             code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
