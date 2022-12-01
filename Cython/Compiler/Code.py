@@ -1625,7 +1625,6 @@ class GlobalState(object):
             init_constants.putln(
                 "if (__Pyx_CreateStringTabAndInitStrings() < 0) %s;" %
                     init_constants.error_goto(self.module_pos))
-            init_constants.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
