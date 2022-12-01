@@ -443,8 +443,6 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
-static PyTypeObject *__pyx_CoroutineType = 0;
-static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_CoroutineType)
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
@@ -468,7 +466,6 @@ static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, Py
 //////////////////// Generator.proto ////////////////////
 
 #define __Pyx_Generator_USED
-static PyTypeObject *__pyx_GeneratorType = 0;
 #define __Pyx_Generator_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_GeneratorType)
 
 #define __Pyx_Generator_New(body, code, closure, name, qualname, module_name)  \
@@ -1897,8 +1894,6 @@ static int __pyx_Coroutine_init(PyObject *module) {
 //////////////////// IterableCoroutine.proto ////////////////////
 
 #define __Pyx_IterableCoroutine_USED
-
-static PyTypeObject *__pyx_IterableCoroutineType = 0;
 
 #undef __Pyx_Coroutine_Check
 #define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || __Pyx_IS_TYPE(obj, __pyx_IterableCoroutineType))
