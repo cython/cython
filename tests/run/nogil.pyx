@@ -168,7 +168,7 @@ def test_copy_array_exception(n):
     ValueError: Assignment to slice of wrong length, expected 5, got 20
     """
     copy_array_exception(n)
-    
+
 def test_copy_array_exception_nogil(n): 
     """
     >>> test_copy_array_exception_nogil(20)
@@ -176,5 +176,6 @@ def test_copy_array_exception_nogil(n):
         ...
     ValueError: Assignment to slice of wrong length, expected 5, got 20
     """
+    cdef int cn = n
     with nogil:
-        copy_array_exception(n)
+        copy_array_exception(cn)
