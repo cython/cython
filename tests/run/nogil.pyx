@@ -170,6 +170,7 @@ def test_copy_array_exception(n):
     copy_array_exception(n)
     
 def test_copy_array_exception_nogil(n): 
+    """
     >>> test_copy_array_exception_nogil(20)
     Traceback (most recent call last):
         ...
