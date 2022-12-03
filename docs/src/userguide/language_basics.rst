@@ -186,6 +186,14 @@ the same effect as the C directive ``#pragma pack(1)``::
 
     Pure python mode does not support packed structs.
 
+Cython allows creating recursive structures::
+
+    cdef struct Node:
+        int data
+        Node *next
+
+.. note:: Pure python mode does not support recursive struct definitions (GitHub issue :issue:`5155`).
+
 The following example shows a declaration of unions:
 
 .. tabs::
