@@ -945,7 +945,7 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
-  
+
 ``annotation_typing`` (True / False)
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
@@ -957,11 +957,18 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
-    
+
 ``cpp_locals`` (True / False)
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
+
+``legacy_implicit_noexcept`` (True / False)
+    When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
+    the function will behave in the same way as if declared with `noexcept` keyword. See
+    :ref:`error_return_values` for details. Setting this directive to ``True`` will
+    cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
+    to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
 
 .. _configurable_optimisations:

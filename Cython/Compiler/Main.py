@@ -91,6 +91,8 @@ class Context(object):
         if language_level is not None:
             self.set_language_level(language_level)
 
+        self.legacy_implicit_noexcept = self.compiler_directives.get('legacy_implicit_noexcept', False)
+
         self.gdb_debug_outputwriter = None
 
     @classmethod
