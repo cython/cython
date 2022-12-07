@@ -210,6 +210,12 @@ The behaviour for any ``cdef`` function that is declared with an
 explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
 also unchanged.
 
+.. note::
+  The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
+  setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
+  to ``True``.
+  
+
 Annotation typing
 =================
 
@@ -217,10 +223,6 @@ Cython 3 has made substantial improvements in recognising types in
 annotations and it is well worth reading
 :ref:`the pure Python tutorial<pep484_type_annotations>` to understand
 some of the improvements.
-
-A notable backwards-compatible change is that ``x: int`` is now typed
-such that ``x`` is an exact Python ``int`` (Cython 0.29 would accept
-any Python object for ``x``).
 
 To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the

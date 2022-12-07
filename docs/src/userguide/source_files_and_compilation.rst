@@ -12,16 +12,20 @@ file named :file:`primes.pyx`.
 
 Cython code, unlike Python, must be compiled.  This happens in two stages:
 
-  * A ``.pyx`` file is compiled by Cython to a ``.c`` file.
+  * A ``.pyx`` (or ``.py``) file is compiled by Cython to a ``.c`` file.
 
   * The ``.c`` file is compiled by a C compiler to a ``.so`` file (or a
     ``.pyd`` file on Windows)
 
-Once you have written your ``.pyx`` file, there are a couple of ways of turning it
-into an extension module.
+Once you have written your ``.pyx``/``.py`` file, there are a couple of ways
+how to turn it into an extension module.
 
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
+
+There are also a number of tools that process ``.pyx`` files apart from Cython, e.g.
+
+- Linting: https://pypi.org/project/cython-lint/
 
 
 .. _compiling_command_line:
@@ -959,7 +963,7 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
-  
+
 ``annotation_typing`` (True / False)
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
@@ -971,11 +975,18 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
-    
+
 ``cpp_locals`` (True / False)
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
+
+``legacy_implicit_noexcept`` (True / False)
+    When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
+    the function will behave in the same way as if declared with `noexcept` keyword. See
+    :ref:`error_return_values` for details. Setting this directive to ``True`` will
+    cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
+    to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
 
 .. _configurable_optimisations:

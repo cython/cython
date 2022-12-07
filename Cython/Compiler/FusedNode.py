@@ -321,25 +321,21 @@ class FusedCFuncDefNode(StatListNode):
 
     def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
         "Setup some common cases to match dtypes against specializations"
-        if pyx_code.indenter("if kind in b'iu':"):
+        with pyx_code.indenter("if kind in b'iu':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_int")
-            pyx_code.dedent()
 
-        if pyx_code.indenter("elif kind == b'f':"):
+        with pyx_code.indenter("elif kind == b'f':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_float")
-            pyx_code.dedent()
 
-        if pyx_code.indenter("elif kind == b'c':"):
+        with pyx_code.indenter("elif kind == b'c':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
-            pyx_code.dedent()
 
-        if pyx_code.indenter("elif kind == b'O':"):
+        with pyx_code.indenter("elif kind == b'O':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_object")
-            pyx_code.dedent()
 
     match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
     no_match = "dest_sig[{{dest_sig_idx}}] = None"
@@ -376,11 +372,10 @@ class FusedCFuncDefNode(StatListNode):
                     if final_type.is_pythran_expr:
                         cond += ' and arg_is_pythran_compatible'
 
-                    if codewriter.indenter("if %s:" % cond):
+                    with codewriter.indenter("if %s:" % cond):
                         #codewriter.putln("print 'buffer match found based on numpy dtype'")
                         codewriter.putln(self.match)
                         codewriter.putln("break")
-                        codewriter.dedent()
 
     def _buffer_parse_format_string_check(self, pyx_code, decl_code,
                                           specialized_type, env):
@@ -697,7 +692,7 @@ class FusedCFuncDefNode(StatListNode):
                 self._unpack_argument(pyx_code)
 
                 # 'unrolled' loop, first match breaks out of it
-                if pyx_code.indenter("while 1:"):
+                with pyx_code.indenter("while 1:"):
                     if normal_types:
                         self._fused_instance_checks(normal_types, pyx_code, env)
                     if buffer_types or pythran_types:
@@ -709,7 +704,6 @@ class FusedCFuncDefNode(StatListNode):
                     else:
                         pyx_code.putln(self.no_match)
                     pyx_code.putln("break")
-                    pyx_code.dedent()
 
                 fused_index += 1
                 all_buffer_types.update(buffer_types)
