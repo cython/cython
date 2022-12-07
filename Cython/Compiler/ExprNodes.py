@@ -12444,6 +12444,9 @@ class PowNode(NumBinopNode):
                         # int, int doesn't seem to involve coercion nodes
                         return False, None
                 msg_detail = "an integer C numeric type"
+            else:
+                def check_types(operand):
+                    return False, None
             check_op1, op1 = check_types(self.operand1)
             check_op2, op2 = check_types(self.operand2)
             if check_op1 and check_op2:
