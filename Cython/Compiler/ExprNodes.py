@@ -12291,7 +12291,7 @@ class PowNode(NumBinopNode):
                 if needs_widening:
                     c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
         elif op1_is_definitely_positive or type2_is_int:  # cpow==False
-            # if type2 is an integer than we can't end up going from real to complex
+            # if type2 is an integer then we can't end up going from real to complex
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
             if not self.operand2.has_constant_result():
                 needs_widening = type2.is_int and type2.signed
@@ -13993,7 +13993,7 @@ class CoerceToComplexNode(CoercionNode):
 
 
 def coerce_from_soft_complex(arg, dst_type, env):
-    c_api_type = PyrexTypes.CFuncType(
+    cfunc_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type,
         [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None) ],
         exception_value = "-1",
@@ -14002,7 +14002,7 @@ def coerce_from_soft_complex(arg, dst_type, env):
     call = PythonCapiCallNode(
         arg.pos,
         "__Pyx_SoftComplexToDouble",
-        c_api_type,
+        cfunc_type,
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
         args = [arg]
     )

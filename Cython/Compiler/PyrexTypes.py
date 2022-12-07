@@ -2518,13 +2518,12 @@ class SoftCComplexType(CComplexType):
     def __init__(self):
         super(SoftCComplexType, self).__init__(c_double_type)
 
-    def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
         base_result =  super(SoftCComplexType, self).declaration_code(
             entity_code,
             for_display=for_display,
             dll_linkage=dll_linkage,
-            pyrex=pyrex
+            pyrex=pyrex,
         )
         if for_display:
             return "soft %s" % base_result
