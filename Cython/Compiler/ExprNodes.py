@@ -12270,6 +12270,7 @@ class PowNode(NumBinopNode):
                             (self.operand1.type, self.operand2.type))
 
     def compute_c_result_type(self, type1, type2):
+        from numbers import Real
         c_result_type = None
         op1_is_definitely_positive = (
             self.operand1.has_constant_result()
@@ -12279,17 +12280,16 @@ class PowNode(NumBinopNode):
         )
         type2_is_int = type2.is_int or (
             self.operand2.has_constant_result() and
+            isinstance(self.opernad2.constant_result, Real) and
             int(self.operand2.constant_result) == self.operand2.constant_result
         )
+        needs_widening = False
         if self.is_cpow:
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
-            needs_widening = False
             if not self.operand2.has_constant_result():
                 needs_widening = (
                     isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
                 )
-                if needs_widening:
-                    c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
         elif op1_is_definitely_positive or type2_is_int:  # cpow==False
             # if type2 is an integer then we can't end up going from real to complex
             c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
@@ -12301,14 +12301,14 @@ class PowNode(NumBinopNode):
                 needs_widening = (
                     isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
                 )
-            if needs_widening:
-                c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
         elif self.c_types_okay(type1, type2):
             # Allowable result types are double or complex double.
             # Return the special "soft complex" type to store it as a
             # complex number but with specialized coercions to Python
             c_result_type = PyrexTypes.soft_complex_type
             self.type_was_inferred = True
+        if needs_widening:
+            c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
         return c_result_type
 
     def calculate_result_code(self):
