@@ -12364,7 +12364,7 @@ class PowNode(NumBinopNode):
         )
         type2_is_int = type2.is_int or (
             self.operand2.has_constant_result() and
-            isinstance(self.opernad2.constant_result, Real) and
+            isinstance(self.operand2.constant_result, Real) and
             int(self.operand2.constant_result) == self.operand2.constant_result
         )
         needs_widening = False
