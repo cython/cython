@@ -171,7 +171,7 @@ def copy_inherited_directives(outer_directives, **new_directives):
     # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
     #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
-    for name in ('test_assert_path_exists', 'test_fail_if_path_exists'):
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
         new_directives_out.pop(name, None)
     new_directives_out.update(new_directives)
     return new_directives_out
@@ -187,6 +187,8 @@ _directive_defaults = {
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
+    'cpow': None,  # was True before 3.0
+    # None (not set by user) is treated as slightly different from False
     'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,
     'overflowcheck.fold': True,
@@ -218,6 +220,7 @@ _directive_defaults = {
     'np_pythran': False,
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
+    'legacy_implicit_noexcept': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -247,6 +250,8 @@ _directive_defaults = {
 # test support
     'test_assert_path_exists' : [],
     'test_fail_if_path_exists' : [],
+    'test_assert_c_code_has' : [],
+    'test_fail_if_c_code_has' : [],
 
 # experimental, subject to change
     'formal_grammar': False,
@@ -321,6 +326,7 @@ directive_types = {
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
     'cclass' : None,
@@ -364,6 +370,8 @@ directive_scopes = {  # defaults to available everywhere
     'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    'test_assert_c_code_has' : ('module',),
+    'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
     'emit_code_comments': ('module',),
     # Avoid scope-specific to/from_py_functions for c_string.
@@ -381,13 +389,14 @@ directive_scopes = {  # defaults to available everywhere
     'total_ordering': ('cclass', ),
     'dataclasses.dataclass' : ('class', 'cclass',),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'legacy_implicit_noexcept': ('module', ),
 }
 
 
 # a list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
-    'cfunc', 'ccall', 'cclass',
+    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass',
     # function signature directives
     'inline', 'exceptval', 'returns',
     # class directives
@@ -509,6 +518,11 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
                         result[directive] = parsed_value
             if not found and not ignore_unknown:
                 raise ValueError('Unknown option: "%s"' % name)
+        elif directive_types.get(name) is list:
+            if name in result:
+                result[name].append(value)
+            else:
+                result[name] = [value]
         else:
             parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
             result[name] = parsed_value
@@ -661,6 +675,9 @@ class CompilationOptions(object):
             elif key in ['output_file', 'output_dir']:
                 # ignore the exact name of the output file
                 continue
+            elif key in ['depfile']:
+                # external build system dependency tracking file does not influence outputs
+                continue
             elif key in ['timestamps']:
                 # the cache cares about the content of files, not about the timestamps of sources
                 continue
@@ -739,6 +756,7 @@ default_options = dict(
     errors_to_stderr=1,
     cplus=0,
     output_file=None,
+    depfile=None,
     annotate=None,
     annotate_coverage_xml=None,
     generate_pxi=0,
@@ -757,10 +775,12 @@ default_options = dict(
     formal_grammar=False,
     gdb_debug=False,
     compile_time_env=None,
+    module_name=None,
     common_utility_include_dir=None,
     output_dir=None,
     build_dir=None,
     cache=None,
     create_extension=None,
-    np_pythran=False
+    np_pythran=False,
+    legacy_implicit_noexcept=None,
 )

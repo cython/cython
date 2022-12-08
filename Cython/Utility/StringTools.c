@@ -43,11 +43,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 
 //////////////////// InitStrings.proto ////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
-#else
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
-#endif
 
 //////////////////// InitStrings ////////////////////
 
@@ -73,7 +69,6 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
 }
 #endif
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
@@ -96,7 +91,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     }
     return 0;
 }
-#endif
 
 //////////////////// BytesContains.proto ////////////////////
 

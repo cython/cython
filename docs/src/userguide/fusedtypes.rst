@@ -6,6 +6,9 @@
 Fused Types (Templates)
 ***********************
 
+.. include::
+    ../two-syntax-variants-used
+
 Fused types allow you to have one type definition that can refer to multiple
 types.  This allows you to write a single static-typed cython algorithm that can
 operate on values of multiple types. Thus fused types allow `generic
@@ -22,9 +25,19 @@ Java / C#.
 Quickstart
 ==========
 
-.. literalinclude:: ../../examples/userguide/fusedtypes/char_or_float.pyx
+.. tabs::
 
-This gives::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/char_or_float.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/char_or_float.pyx
+
+This gives:
+
+.. code-block:: pycon
 
     >>> show_me()
     char -128
@@ -36,66 +49,158 @@ whereas ``plus_one(b)`` specializes ``char_or_float`` as a ``float``.
 Declaring Fused Types
 =====================
 
-Fused types may be declared as follows::
+Fused types may be declared as follows:
 
-    cimport cython
+.. tabs::
 
-    ctypedef fused my_fused_type:
-        cython.int
-        cython.double
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_fused_type = cython.fused_type(cython.int, cython.float)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ctypedef fused my_fused_type:
+                int
+                double
 
 This declares a new type called ``my_fused_type`` which can be *either* an
-``int`` *or* a ``double``.  Alternatively, the declaration may be written as::
-
-    my_fused_type = cython.fused_type(cython.int, cython.float)
+``int`` *or* a ``double``.
 
 Only names may be used for the constituent types, but they may be any
-(non-fused) type, including a typedef.  i.e. one may write::
+(non-fused) type, including a typedef. I.e. one may write:
 
-    ctypedef double my_double
-    my_fused_type = cython.fused_type(cython.int, my_double)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_double = cython.typedef(cython.double)
+            my_fused_type = cython.fused_type(cython.int, my_double)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ctypedef double my_double
+            ctypedef fused fused_type:
+                int
+                my_double
 
 Using Fused Types
 =================
 
-Fused types can be used to declare parameters of functions or methods::
+Fused types can be used to declare parameters of functions or methods:
 
-    cdef cfunc(my_fused_type arg):
-        return arg + 1
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def cfunc(arg: my_fused_type):
+                return arg + 1
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef cfunc(my_fused_type arg):
+                return arg + 1
 
 If the same fused type appears more than once in the function arguments,
-then they will all have the same specialised type::
+then they will all have the same specialised type:
 
-    cdef cfunc(my_fused_type arg1, my_fused_type arg2):
-        # arg1 and arg2 always have the same type here
-        return arg1 + arg2
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def cfunc(arg1: my_fused_type, arg2: my_fused_type):
+                # arg1 and arg2 always have the same type here
+                return arg1 + arg2
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef cfunc(my_fused_type arg1, my_fused_type arg2):
+                # arg1 and arg2 always have the same type here
+                return arg1 + arg2
 
 Here, the type of both parameters is either an int, or a double
 (according to the previous examples), because they use the same fused type
 name ``my_fused_type``.  Mixing different fused types (or differently named
-fused types) in the arguments will specialise them independently::
+fused types) in the arguments will specialise them independently:
 
-    def func(A x, B y):
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def func(x: A, y: B):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+
+            def func(A x, B y):
+                ...
 
 This will result in specialized code paths for all combinations of types
-contained in ``A`` and ``B``, e.g.::
+contained in ``A`` and ``B``, e.g.:
 
-    ctypedef fused my_fused_type:
-        cython.int
-        cython.double
+.. tabs::
 
-    ctypedef fused my_fused_type2:
-        cython.int
-        cython.double
+    .. group-tab:: Pure Python
 
-    cdef func(my_fused_type a, my_fused_type2 b):
-        # a and b may have the same or different types here
-        print("SAME!" if my_fused_type is my_fused_type2 else "NOT SAME!)
-        return a + b
+        .. code-block:: python
 
-Note that a simple typedef to rename the fused type does not currently work here.
-See Github issue :issue:`4302`.
+            my_fused_type = cython.fused_type(cython.int, cython.double)
+
+
+
+            my_fused_type2 = cython.fused_type(cython.int, cython.double)
+
+
+            @cython.cfunc
+            def func(a: my_fused_type, b: my_fused_type2):
+                # a and b may have the same or different types here
+                print("SAME!" if my_fused_type is my_fused_type2 else "NOT SAME!")
+                return a + b
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ctypedef fused my_fused_type:
+                int
+                double
+
+            ctypedef fused my_fused_type2:
+                int
+                double
+
+            cdef func(my_fused_type a, my_fused_type2 b):
+                # a and b may have the same or different types here
+                print("SAME!" if my_fused_type is my_fused_type2 else "NOT SAME!")
+                return a + b
+
+
+
+
+.. Note::  A simple typedef to rename the fused type does not currently work here.
+    See Github issue :issue:`4302`.
 
 
 Fused types and arrays
@@ -103,53 +208,88 @@ Fused types and arrays
 
 Note that specializations of only numeric types may not be very useful, as one
 can usually rely on promotion of types.  This is not true for arrays, pointers
-and typed views of memory however.  Indeed, one may write::
+and typed views of memory however.  Indeed, one may write:
 
-    def myfunc(A[:, :] x):
-        ...
+.. tabs::
 
-    # and
+    .. group-tab:: Pure Python
 
-    cdef otherfunc(A *x):
-        ...
+        .. code-block:: python
 
-Note that in Cython 0.20.x and earlier, the compiler generated the full cross
-product of all type combinations when a fused type was used by more than one
-memory view in a type signature, e.g.
+            @cython.cfunc
+            def myfunc(x: A[:, :]):
+                ...
 
-::
+            # and
 
-    def myfunc(A[:] a, A[:] b):
-        # a and b had independent item types in Cython 0.20.x and earlier.
-        ...
+            @cython.cfunc
+            cdef otherfunc(x: cython.pointer(A)):
+                ...
 
-This was unexpected for most users, unlikely to be desired, and also inconsistent
-with other structured type declarations like C arrays of fused types, which were
-considered the same type.  It was thus changed in Cython 0.21 to use the same
-type for all memory views of a fused type.  In order to get the original
-behaviour, it suffices to declare the same fused type under different names, and
-then use these in the declarations::
 
-    ctypedef fused A:
-        int
-        long
+    .. group-tab:: Cython
 
-    ctypedef fused B:
-        int
-        long
+        .. code-block:: cython
 
-    def myfunc(A[:] a, B[:] b):
-        # a and b are independent types here and may have different item types
-        ...
+            cdef myfunc(A[:, :] x):
+                ...
 
-To get only identical types also in older Cython versions (pre-0.21), a ``ctypedef``
-can be used::
+            # and
 
-    ctypedef A[:] A_1d
+            cdef otherfunc(A *x):
+                ...
 
-    def myfunc(A_1d a, A_1d b):
-        # a and b have identical item types here, also in older Cython versions
-        ...
+Following code snippet shows an example with pointer to the fused type:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/pointer.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/pointer.pyx
+
+.. Note::
+
+    In Cython 0.20.x and earlier, the compiler generated the full cross
+    product of all type combinations when a fused type was used by more than one
+    memory view in a type signature, e.g.
+
+    ::
+
+        def myfunc(A[:] a, A[:] b):
+            # a and b had independent item types in Cython 0.20.x and earlier.
+            ...
+
+    This was unexpected for most users, unlikely to be desired, and also inconsistent
+    with other structured type declarations like C arrays of fused types, which were
+    considered the same type.  It was thus changed in Cython 0.21 to use the same
+    type for all memory views of a fused type.  In order to get the original
+    behaviour, it suffices to declare the same fused type under different names, and
+    then use these in the declarations::
+
+        ctypedef fused A:
+            int
+            long
+
+        ctypedef fused B:
+            int
+            long
+
+        def myfunc(A[:] a, B[:] b):
+            # a and b are independent types here and may have different item types
+            ...
+
+    To get only identical types also in older Cython versions (pre-0.21), a ``ctypedef``
+    can be used::
+
+        ctypedef A[:] A_1d
+
+        def myfunc(A_1d a, A_1d b):
+            # a and b have identical item types here, also in older Cython versions
+            ...
 
 
 Selecting Specializations
@@ -159,36 +299,125 @@ You can select a specialization (an instance of the function with specific or
 specialized (i.e., non-fused) argument types) in two ways: either by indexing or
 by calling.
 
+
+.. _fusedtypes_indexing:
+
 Indexing
 --------
 
-You can index functions with types to get certain specializations, i.e.::
+You can index functions with types to get certain specializations, i.e.:
 
-    cfunc[cython.p_double](p1, p2)
+.. tabs::
 
-    # From Cython space
-    func[float, double](myfloat, mydouble)
+    .. group-tab:: Pure Python
 
-    # From Python space
-    func[cython.float, cython.double](myfloat, mydouble)
+        .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.py
+            :caption: indexing.py
 
-If a fused type is used as a base type, this will mean that the base type is the
-fused type, so the base type is what needs to be specialized::
+    .. group-tab:: Cython
 
-    cdef myfunc(A *x):
-        ...
+        .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.pyx
+            :caption: indexing.pyx
 
-    # Specialize using int, not int *
-    myfunc[int](myint)
+Indexed functions can be called directly from Python:
+
+.. code-block:: pycon
+
+    >>> import cython
+    >>> import indexing
+    cfunc called: double 5.0 double 1.0
+    cpfunc called: float 1.0 double 2.0
+    func called: float 1.0 double 2.0
+    >>> indexing.cpfunc[cython.float, cython.float](1, 2)
+    cpfunc called: float 1.0 float 2.0
+    >>> indexing.func[cython.float, cython.float](1, 2)
+    func called: float 1.0 float 2.0
+
+If a fused type is used as a component of a more complex type
+(for example a pointer to a fused type, or a memoryview of a fused type),
+then you should index the function with the individual component and
+not the full argument type:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def myfunc(x: cython.pointer(A)):
+                ...
+
+            # Specialize using int, not int *
+            myfunc[cython.int](myint)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef myfunc(A *x):
+                ...
+
+            # Specialize using int, not int *
+            myfunc[int](myint)
+
+For memoryview indexing from python space we can do the following:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_fused_type = cython.fused_type(cython.int[:, ::1], cython.float[:, ::1])
+
+            def func(array: my_fused_type):
+                print("func called:", cython.typeof(array))
+
+            my_fused_type[cython.int[:, ::1]](myarray)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ctypedef fused my_fused_type:
+                int[:, ::1]
+                float[:, ::1]
+
+            def func(my_fused_type array):
+                print("func called:", cython.typeof(array))
+
+            my_fused_type[cython.int[:, ::1]](myarray)
+
+The same goes for when using e.g. ``cython.numeric[:, :]``.
 
 Calling
 -------
 
 A fused function can also be called with arguments, where the dispatch is
-figured out automatically::
+figured out automatically:
 
-    cfunc(p1, p2)
-    func(myfloat, mydouble)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def main():
+                p1: cython.double = 1.0
+                p2: cython.float = 2.0
+                cfunc(p1, p1)          # prints "cfunc called: double 1.0 double 1.0"
+                cpfunc(p1, p2)         # prints "cpfunc called: double 1.0 float 2.0"
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def main():
+                cdef double p1 = 1.0
+                cdef float p2 = 2.0
+                cfunc(p1, p1)          # prints "cfunc called: double 1.0 double 1.0"
+                cpfunc(p1, p2)         # prints "cpfunc called: double 1.0 float 2.0"
 
 For a ``cdef`` or ``cpdef`` function called from Cython this means that the
 specialization is figured out at compile time. For ``def`` functions the
@@ -217,6 +446,8 @@ There are some built-in fused types available for convenience, these are::
 Casting Fused Functions
 =======================
 
+.. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
 Fused ``cdef`` and ``cpdef`` functions may be cast or assigned to C function pointers as follows::
 
     cdef myfunc(cython.floating, cython.integral):
@@ -242,28 +473,17 @@ False conditions are pruned to avoid invalid code. One may check with ``is``,
 ``is not`` and ``==`` and ``!=`` to see if a fused type is equal to a certain
 other non-fused type (to check the specialization), or use ``in`` and ``not in``
 to figure out whether a specialization is part of another set of types
-(specified as a fused type). In example::
+(specified as a fused type). In example:
 
-    ctypedef fused bunch_of_types:
-        ...
+.. tabs::
 
-    ctypedef fused string_t:
-        cython.p_char
-        bytes
-        unicode
+    .. group-tab:: Pure Python
 
-    cdef cython.integral myfunc(cython.integral i, bunch_of_types s):
-        cdef int *int_pointer
-        cdef long *long_pointer
+        .. literalinclude:: ../../examples/userguide/fusedtypes/type_checking.py
 
-        # Only one of these branches will be compiled for each specialization!
-        if cython.integral is int:
-            int_pointer = &i
-        else:
-            long_pointer = &i
+    .. group-tab:: Cython
 
-        if bunch_of_types in string_t:
-            print("s is a string!")
+        .. literalinclude:: ../../examples/userguide/fusedtypes/type_checking.pyx
 
 .. _fused_gil_conditional:
 
@@ -273,54 +493,52 @@ Conditional GIL Acquiring / Releasing
 Acquiring and releasing the GIL can be controlled by a condition
 which is known at compile time (see :ref:`gil_conditional`).
 
+.. Note:: Pure python mode currently does not support Conditional GIL Acquiring / Releasing. See Github issue :issue:`5113`.
+
 This is most useful when combined with fused types.
 A fused type function may have to handle both cython native types
 (e.g. cython.int or cython.double) and python types (e.g. object or bytes).
 Conditional Acquiring / Releasing the GIL provides a method for running
 the same piece of code either with the GIL released (for cython native types)
-and with the GIL held (for python types).::
+and with the GIL held (for python types):
 
-    cimport cython
-
-    ctypedef fused double_or_object:
-        cython.double
-        object
-
-    def increment(double_or_object x):
-        with nogil(double_or_object is cython.double):
-            # Same code handles both cython.double (GIL is released)
-            # and python object (GIL is not released).
-            x = x + 1
-        return x
+.. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.pyx
 
 __signatures__
 ==============
 
 Finally, function objects from ``def`` or ``cpdef`` functions have an attribute
-__signatures__, which maps the signature strings to the actual specialized
-functions. This may be useful for inspection.  Listed signature strings may also
+``__signatures__``, which maps the signature strings to the actual specialized
+functions. This may be useful for inspection:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.py
+            :lines: 1-9,14-16
+            :caption: indexing.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/indexing.pyx
+            :lines: 1-9,14-16
+            :caption: indexing.pyx
+
+.. code-block:: pycon
+
+   >>> from indexing import cpfunc
+   >>> cpfunc.__signatures__,
+   ({'double|double': <cyfunction __pyx_fuse_0_0cpfunc at 0x107292f20>, 'double|float': <cyfunction __pyx_fuse_0_1cpfunc at 0x1072a6040>, 'float|double': <cyfunction __pyx_fuse_1_0cpfunc at 0x1072a6120>, 'float|float': <cyfunction __pyx_fuse_1_1cpfunc at 0x1072a6200>},)
+
+Listed signature strings may also
 be used as indices to the fused function, but the index format may change between
-Cython versions::
+Cython versions
 
-    specialized_function = fused_function["MyExtensionClass|int|float"]
+.. code-block:: pycon
 
-It would usually be preferred to index like this, however::
+    >>> specialized_function = cpfunc["double|float"]
+    >>> specialized_function(5.0, 1.0)
+    cpfunc called: double 5.0 float 1.0
 
-    specialized_function = fused_function[MyExtensionClass, int, float]
-
-Although the latter will select the biggest types for ``int`` and ``float`` from
-Python space, as they are not type identifiers but builtin types there. Passing
-``cython.int`` and ``cython.float`` would resolve that, however.
-
-For memoryview indexing from python space we can do the following::
-
-    ctypedef fused my_fused_type:
-        int[:, ::1]
-        float[:, ::1]
-
-    def func(my_fused_type array):
-        ...
-
-    my_fused_type[cython.int[:, ::1]](myarray)
-
-The same goes for when using e.g. ``cython.numeric[:, :]``.
+However, the better way how to index is by providing list of types as mentioned in :ref:`fusedtypes_indexing` section.

@@ -1,5 +1,5 @@
 # cython: infer_types=True
-# cython: language_level=3
+# cython: language_level=3str
 # cython: auto_pickle=False
 
 #
@@ -80,7 +80,7 @@ class TreeVisitor(object):
 
     def dump_node(self, node):
         ignored = list(node.child_attrs or []) + [
-            u'child_attrs', u'pos', u'gil_message', u'cpp_message', u'subexprs']
+            'child_attrs', 'pos', 'gil_message', 'cpp_message', 'subexprs']
         values = []
         pos = getattr(node, 'pos', None)
         if pos:
@@ -116,7 +116,7 @@ class TreeVisitor(object):
         nodes = []
         while hasattr(stacktrace, 'tb_frame'):
             frame = stacktrace.tb_frame
-            node = frame.f_locals.get(u'self')
+            node = frame.f_locals.get('self')
             if isinstance(node, Nodes.Node):
                 code = frame.f_code
                 method_name = code.co_name
@@ -153,12 +153,12 @@ class TreeVisitor(object):
     def find_handler(self, obj):
         # to resolve, try entire hierarchy
         cls = type(obj)
-        pattern = "visit_%s"
         mro = inspect.getmro(cls)
         for mro_cls in mro:
-            handler_method = getattr(self, pattern % mro_cls.__name__, None)
+            handler_method = getattr(self, "visit_" + mro_cls.__name__, None)
             if handler_method is not None:
                 return handler_method
+
         print(type(self), cls)
         if self.access_path:
             print(self.access_path)
@@ -306,8 +306,8 @@ class CythonTransform(VisitorTransform):
         self.context = context
 
     def __call__(self, node):
-        from . import ModuleNode
-        if isinstance(node, ModuleNode.ModuleNode):
+        from .ModuleNode import ModuleNode
+        if isinstance(node, ModuleNode):
             self.current_directives = node.directives
         return super(CythonTransform, self).__call__(node)
 
@@ -597,7 +597,7 @@ class MethodDispatcherTransform(EnvTransform):
             # Python 2 and 3
             return None
 
-        call_type = has_kwargs and 'general' or 'simple'
+        call_type = 'general' if has_kwargs else 'simple'
         handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
             handler = getattr(self, '_handle_any_%s' % match_name, None)

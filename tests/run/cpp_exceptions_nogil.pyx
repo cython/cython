@@ -9,7 +9,7 @@ cdef extern from "cpp_exceptions_nogil_helper.h" nogil:
     cdef void bar "foo"(int i) except +ValueError
     cdef void spam"foo"(int i) except +raise_TypeError
 
-cdef int foo_nogil(int i) nogil except *:
+cdef int foo_nogil(int i) except * nogil:
     foo(i)
 
 def test_foo_nogil():
