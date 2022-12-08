@@ -2531,6 +2531,42 @@ complex_ops = {
 }
 
 
+class SoftCComplexType(CComplexType):
+    """
+    a**b in Python can return either a complex or a float
+    depending on the sign of a. This "soft complex" type is
+    stored as a C complex (and so is a little slower than a
+    direct C double) but it prints/coerces to a float if
+    the imaginary part is 0. Therefore it provides a C
+    representation of the Python behaviour.
+    """
+
+    to_py_function = "__pyx_Py_FromSoftComplex"
+
+    def __init__(self):
+        super(SoftCComplexType, self).__init__(c_double_type)
+
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+        base_result =  super(SoftCComplexType, self).declaration_code(
+            entity_code,
+            for_display=for_display,
+            dll_linkage=dll_linkage,
+            pyrex=pyrex,
+        )
+        if for_display:
+            return "soft %s" % base_result
+        else:
+            return base_result
+
+    def create_to_py_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('SoftComplexToPy', 'Complex.c'))
+        return True
+
+    def __repr__(self):
+        result = super(SoftCComplexType, self).__repr__()
+        assert result[-1] == ">"
+        return "%s (soft)%s" % (result[:-1], result[-1])
+
 class CPyTSSTType(CType):
     #
     #   PEP-539 "Py_tss_t" type
@@ -4599,6 +4635,8 @@ c_float_complex_type =      CComplexType(c_float_type)
 c_double_complex_type =     CComplexType(c_double_type)
 c_longdouble_complex_type = CComplexType(c_longdouble_type)
 
+soft_complex_type = SoftCComplexType()
+
 c_anon_enum_type =   CAnonEnumType(-1)
 c_returncode_type =  CReturnCodeType(RANK_INT)
 c_bint_type =        CBIntType(RANK_INT)
@@ -4944,6 +4982,14 @@ def widest_numeric_type(type1, type2):
             widest_numeric_type(
                 real_type(type1),
                 real_type(type2)))
+        if type1 is soft_complex_type or type2 is soft_complex_type:
+            type1_is_other_complex = type1 is not soft_complex_type and type1.is_complex
+            type2_is_other_complex = type2 is not soft_complex_type and type2.is_complex
+            if (not type1_is_other_complex and not type2_is_other_complex and
+                    widest_type.real_type == soft_complex_type.real_type):
+                # ensure we can do an actual "is" comparison
+                # (this possibly goes slightly wrong when mixing long double and soft complex)
+                widest_type = soft_complex_type
     elif type1.is_enum and type2.is_enum:
         widest_type = c_int_type
     elif type1.rank < type2.rank:

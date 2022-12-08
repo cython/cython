@@ -247,3 +247,16 @@ When running into an error it is required to add the corresponding operator::
         Example operator++(int)
         Example operator--(int)
 
+
+``**`` power operator
+=====================
+
+Cython 3 has changed the behaviour of the power operator to be
+more like Python. The consequences are that
+
+#. ``a**b`` of two ints may return a floating point type,
+#. ``a**b`` of one or more non-complex floating point numbers may
+   return a complex number.
+
+The old behaviour can be restored by setting the ``cpow``
+:ref:`compiler directive <compiler-directives>` to ``True``.
