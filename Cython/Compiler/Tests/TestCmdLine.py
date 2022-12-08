@@ -1,6 +1,11 @@
 import os
 import sys
+import re
 from unittest import TestCase
+try:
+    from unittest.mock import patch, Mock
+except ImportError:  # Py2
+    from mock import patch, Mock
 try:
     from StringIO import StringIO
 except ImportError:
@@ -11,7 +16,15 @@ from ..CmdLine import parse_command_line
 
 from .Utils import backup_Options, restore_Options, check_global_options
 
+unpatched_exists = os.path.exists
 
+def patched_exists(path):
+    # avoid the Cython command raising a file not found error
+    if path in ('source.pyx', 'file.pyx', 'file1.pyx', 'file2.pyx', 'file3.pyx', 'foo.pyx', 'bar.pyx'):
+        return True
+    return unpatched_exists(path)
+
+@patch('os.path.exists', new=Mock(side_effect=patched_exists))
 class CmdLineParserTest(TestCase):
     def setUp(self):
         self._options_backup = backup_Options()
@@ -495,22 +508,62 @@ class CmdLineParserTest(TestCase):
         self.check_default_global_options()
         self.check_default_options(options, ['compiler_directives'])
 
+    def test_module_name(self):
+        options, sources = parse_command_line([
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, None)
+        self.check_default_global_options()
+        self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--module-name', 'foo.bar',
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, 'foo.bar')
+        self.check_default_global_options()
+        self.check_default_options(options, ['module_name'])
+
     def test_errors(self):
-        def error(*args):
+        def error(args, regex=None):
             old_stderr = sys.stderr
             stderr = sys.stderr = StringIO()
             try:
                 self.assertRaises(SystemExit, parse_command_line, list(args))
             finally:
                 sys.stderr = old_stderr
-            self.assertTrue(stderr.getvalue())
+            msg = stderr.getvalue()
+            err_msg = 'Message "{}"'.format(msg.strip())
+            self.assertTrue(msg.startswith('usage: '),
+                            '%s does not start with "usage :"' % err_msg)
+            self.assertTrue(': error: ' in msg,
+                            '%s does not contain ": error :"' % err_msg)
+            if regex:
+                self.assertTrue(re.search(regex, msg),
+                                '%s does not match search "%s"' %
+                                (err_msg, regex))
 
-        error('-1')
-        error('-I')
-        error('--version=-a')
-        error('--version=--annotate=true')
-        error('--working')
-        error('--verbose=1')
-        error('--verbose=1')
-        error('--cleanup')
-        error('--debug-disposal-code-wrong-name', 'file3.pyx')
+        error(['-1'],
+              'unknown option -1')
+        error(['-I'],
+              'argument -I/--include-dir: expected one argument')
+        error(['--version=-a'],
+              "argument -V/--version: ignored explicit argument '-a'")
+        error(['--version=--annotate=true'],
+              "argument -V/--version: ignored explicit argument "
+              "'--annotate=true'")
+        error(['--working'],
+              "argument -w/--working: expected one argument")
+        error(['--verbose=1'],
+              "argument -v/--verbose: ignored explicit argument '1'")
+        error(['--cleanup'],
+              "argument --cleanup: expected one argument")
+        error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
+              "unknown option --debug-disposal-code-wrong-name")
+        error(['--module-name', 'foo.pyx'],
+              "Need at least one source file")
+        error(['--module-name', 'foo.bar'],
+              "Need at least one source file")
+        error(['--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx'],
+              "Only one source file allowed when using --module-name")
+        error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
+              "Cannot use --module-name with --timestamps")
