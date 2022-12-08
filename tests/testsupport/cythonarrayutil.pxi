@@ -2,7 +2,7 @@ from libc.stdlib cimport malloc, free
 cimport cython
 from cython.view cimport array
 
-cdef void callback(void *data):
+cdef void callback(void *data) noexcept:
     print "callback called"
     free(data)
 
