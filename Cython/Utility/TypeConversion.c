@@ -519,7 +519,7 @@ no_error:
 
 // GCC diagnostic pragmas were introduced in GCC 4.6
 // Used to silence conversion warnings that are ok but cannot be avoided.
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
 #define __Pyx_HAS_GCC_DIAGNOSTIC
 #endif
 

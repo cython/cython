@@ -5,7 +5,7 @@
 from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
@@ -427,6 +427,7 @@ def init_builtins():
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
     global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
+    global int_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -443,6 +444,18 @@ def init_builtins():
     long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+    # Be careful with int type while Py2 is still supported
+    int_type = builtin_scope.lookup('int').type
+
+    # Set up type inference links between equivalent Python/C types
+    bool_type.equivalent_type = PyrexTypes.c_bint_type
+    PyrexTypes.c_bint_type.equivalent_type = bool_type
+
+    float_type.equivalent_type = PyrexTypes.c_double_type
+    PyrexTypes.c_double_type.equivalent_type = float_type
+
+    complex_type.equivalent_type = PyrexTypes.c_double_complex_type
+    PyrexTypes.c_double_complex_type.equivalent_type = complex_type
 
 
 init_builtins()
@@ -466,21 +479,37 @@ def get_known_standard_library_module_scope(module_name):
                 ('Set', set_type),
                 ('FrozenSet', frozenset_type),
                 ]:
-            name = EncodedString(name)
             if name == "Tuple":
                 indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
             else:
                 indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
+            name = EncodedString(name)
             entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.is_variable = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
 
         for name in ['ClassVar', 'Optional']:
+            name = EncodedString(name)
             indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
             entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.is_variable = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)
         indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
-        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        initvar_string = EncodedString("InitVar")
+        entry = mod.declare_type(initvar_string, indexed_type, pos = None)
+        var_entry = Entry(initvar_string, None, PyrexTypes.py_object_type)
+        var_entry.is_pyglobal = True
+        var_entry.scope = mod
+        entry.as_variable = var_entry
         _known_module_scopes[module_name] = mod
     return mod
 

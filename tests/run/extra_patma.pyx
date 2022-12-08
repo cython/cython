@@ -9,6 +9,26 @@ import sys
 
 __doc__ = ""
 
+
+cdef bint is_null(int* x):
+    return False # disabled - currently just a parser test
+    match x:
+        case NULL:
+            return True
+        case _:
+            return False
+
+
+def test_is_null():
+    """
+    >>> test_is_null()
+    """
+    cdef int some_int = 1
+    return  # disabled - currently just a parser test
+    assert is_null(&some_int) == False
+    assert is_null(NULL) == True
+
+
 if sys.version_info[0] > 2:
     __doc__ += """
     array.array doesn't have the buffer protocol in Py2 and
@@ -53,6 +73,7 @@ def test_list_to_sequence(list x):
             return True
         case _:
             return False
+
 
 @cython.test_fail_if_path_exists("//PythonCapiCallNode//PythonCapiFunctionNode[@cname = '__Pyx_MatchCase_IsSequence']")
 @cython.test_fail_if_path_exists("//CmpNode")  # There's nothing to compare - it always succeeds!

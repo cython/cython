@@ -4,7 +4,6 @@
 #
 
 from __future__ import absolute_import
-from ast import Expression
 
 # This should be done automatically
 import cython
@@ -20,7 +19,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
 from io import StringIO
 import re
 import sys
-from unicodedata import lookup as lookup_unicodechar, category as unicode_category, name
+from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
@@ -110,7 +109,7 @@ def p_binop_expr(s, ops, p_sub_expr):
 
 #lambdef: 'lambda' [varargslist] ':' test
 
-def p_lambdef(s, allow_conditional=True):
+def p_lambdef(s):
     # s.sy == 'lambda'
     pos = s.position()
     s.next()
@@ -121,60 +120,58 @@ def p_lambdef(s, allow_conditional=True):
         args, star_arg, starstar_arg = p_varargslist(
             s, terminator=':', annotated=False)
     s.expect(':')
-    if allow_conditional:
-        expr = p_test(s, allow_assignment_expression=False)
-    else:
-        expr = p_test_nocond(s, allow_assignment_expression=False)
+    expr = p_test(s)
     return ExprNodes.LambdaNode(
         pos, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
         result_expr = expr)
 
-#lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
-
-def p_lambdef_nocond(s):
-    return p_lambdef(s, allow_conditional=False)
-
 #test: or_test ['if' or_test 'else' test] | lambdef
 
-def p_test(s, allow_assignment_expression=True):
+def p_test(s):
+    # The check for a following ':=' is only for error reporting purposes.
+    # It simply changes a
+    #   expected ')', found ':='
+    # message into something a bit more descriptive.
+    # It is close to what the PEG parser does in CPython, where an expression has
+    # a lookahead assertion that it isn't followed by ':='
+    expr = p_test_allow_walrus_after(s)
+    if s.sy == ':=':
+        s.error("invalid syntax: assignment expression not allowed in this context")
+    return expr
+
+def p_test_allow_walrus_after(s):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
-    expr = p_walrus_test(s, allow_assignment_expression)
+    expr = p_or_test(s)
     if s.sy == 'if':
         s.next()
-        # Assignment expressions are always allowed here
-        # even if they wouldn't be allowed in the expression as a whole.
-        test = p_walrus_test(s)
+        test = p_or_test(s)
         s.expect('else')
         other = p_test(s)
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
     else:
         return expr
 
-#test_nocond: or_test | lambdef_nocond
-
-def p_test_nocond(s, allow_assignment_expression=True):
-    if s.sy == 'lambda':
-        return p_lambdef_nocond(s)
-    else:
-        return p_walrus_test(s, allow_assignment_expression)
-
-# walrurus_test: IDENT := test | or_test
-
-def p_walrus_test(s, allow_assignment_expression=True):
-    lhs = p_or_test(s)
+def p_namedexpr_test(s):
+    # defined in the LL parser as
+    #  namedexpr_test: test [':=' test]
+    # The requirement that the LHS is a name is not enforced in the grammar.
+    # For comparison the PEG parser does:
+    #  1. look for "name :=", if found it's definitely a named expression
+    #     so look for expression
+    #  2. Otherwise, look for expression
+    lhs = p_test_allow_walrus_after(s)
     if s.sy == ':=':
         position = s.position()
-        if not allow_assignment_expression:
-            s.error("invalid syntax: assignment expression not allowed in this context")
-        elif not lhs.is_name:
-            s.error("Left-hand side of assignment expression must be an identifier")
+        if not lhs.is_name:
+            s.error("Left-hand side of assignment expression must be an identifier", fatal=False)
         s.next()
         rhs = p_test(s)
         return ExprNodes.AssignmentExpressionNode(position, lhs=lhs, rhs=rhs)
     return lhs
+
 
 #or_test: and_test ('or' and_test)*
 
@@ -229,11 +226,17 @@ def p_comparison(s):
             n1.cascade = p_cascaded_cmp(s)
     return n1
 
-def p_test_or_starred_expr(s, is_expression=False):
+def p_test_or_starred_expr(s):
     if s.sy == '*':
         return p_starred_expr(s)
     else:
-        return p_test(s, allow_assignment_expression=is_expression)
+        return p_test(s)
+
+def p_namedexpr_test_or_starred_expr(s):
+    if s.sy == '*':
+        return p_starred_expr(s)
+    else:
+        return p_namedexpr_test(s)
 
 def p_starred_expr(s):
     pos = s.position()
@@ -507,7 +510,7 @@ def p_call_parse_args(s, allow_genexp=True):
             keyword_args.append(p_test(s))
             starstar_seen = True
         else:
-            arg = p_test(s)
+            arg = p_namedexpr_test(s)
             if s.sy == '=':
                 s.next()
                 if not arg.is_name:
@@ -516,7 +519,7 @@ def p_call_parse_args(s, allow_genexp=True):
                 encoded_name = s.context.intern_ustring(arg.name)
                 keyword = ExprNodes.IdentifierStringNode(
                     arg.pos, value=encoded_name)
-                arg = p_test(s, allow_assignment_expression=False)
+                arg = p_test(s)
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
@@ -655,9 +658,7 @@ def p_slice_element(s, follow_set):
         return None
 
 def expect_ellipsis(s):
-    s.expect('.')
-    s.expect('.')
-    s.expect('.')
+    s.expect('...')
 
 def make_slice_nodes(pos, subscripts):
     # Convert a list of subscripts as returned
@@ -694,7 +695,7 @@ def p_atom(s):
         elif s.sy == 'yield':
             result = p_yield_expression(s)
         else:
-            result = p_testlist_comp(s, is_expression=True)
+            result = p_testlist_comp(s)
         s.expect(')')
         return result
     elif sy == '[':
@@ -703,7 +704,7 @@ def p_atom(s):
         return p_dict_or_set_maker(s)
     elif sy == '`':
         return p_backquote_expr(s)
-    elif sy == '.':
+    elif sy == '...':
         expect_ellipsis(s)
         return ExprNodes.EllipsisNode(pos)
     elif sy == 'INT':
@@ -717,35 +718,58 @@ def p_atom(s):
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
     elif sy == 'BEGIN_STRING':
-        kind, bytes_value, unicode_value = p_cat_string_literal(s)
-        if kind == 'c':
-            return ExprNodes.CharNode(pos, value = bytes_value)
-        elif kind == 'u':
-            return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
-        elif kind == 'b':
-            return ExprNodes.BytesNode(pos, value = bytes_value)
-        elif kind == 'f':
-            return ExprNodes.JoinedStrNode(pos, values = unicode_value)
-        elif kind == '':
-            return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
-        else:
-            s.error("invalid string kind '%s'" % kind)
+        return p_atom_string(s)
     elif sy == 'IDENT':
-        name = s.systring
-        if name == "None":
-            result = ExprNodes.NoneNode(pos)
-        elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True)
-        elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False)
-        elif name == "NULL" and not s.in_python_file:
-            result = ExprNodes.NullNode(pos)
-        else:
-            result = p_name(s, name)
-        s.next()
+        result = p_atom_ident_constants(s)
+        if result is None:
+            result = p_name(s, s.systring)
+            s.next()
         return result
     else:
         s.error("Expected an identifier or literal")
+
+
+def p_atom_string(s):
+    pos = s.position()
+    kind, bytes_value, unicode_value = p_cat_string_literal(s)
+    if kind == 'c':
+        return ExprNodes.CharNode(pos, value=bytes_value)
+    elif kind == 'u':
+        return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
+    elif kind == 'b':
+        return ExprNodes.BytesNode(pos, value=bytes_value)
+    elif kind == 'f':
+        return ExprNodes.JoinedStrNode(pos, values=unicode_value)
+    elif kind == '':
+        return ExprNodes.StringNode(pos, value=bytes_value, unicode_value=unicode_value)
+    else:
+        s.error("invalid string kind '%s'" % kind)
+
+
+def p_atom_ident_constants(s, bools_are_pybool=False):
+    """
+    Returns None if it isn't one special-cased named constants.
+    Only calls s.next() if it successfully matches a matches.
+    """
+    pos = s.position()
+    name = s.systring
+    result = None
+    if bools_are_pybool:
+        extra_kwds = {'type': Builtin.bool_type}
+    else:
+        extra_kwds = {}
+    if name == "None":
+        result = ExprNodes.NoneNode(pos)
+    elif name == "True":
+        result = ExprNodes.BoolNode(pos, value=True, **extra_kwds)
+    elif name == "False":
+        result = ExprNodes.BoolNode(pos, value=False, **extra_kwds)
+    elif name == "NULL" and not s.in_python_file:
+        result = ExprNodes.NullNode(pos)
+    if result:
+        s.next()
+    return result
+
 
 def p_int_literal(s):
     pos = s.position()
@@ -1265,7 +1289,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
 # since PEP 448:
 # list_display  ::=     "[" [listmaker] "]"
-# listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
+# listmaker     ::=     (named_test|star_expr) ( comp_for | (',' (named_test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
 # comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
@@ -1278,7 +1302,7 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args=[])
 
-    expr = p_test_or_starred_expr(s, is_expression=True)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
@@ -1293,7 +1317,7 @@ def p_list_maker(s):
     # (merged) list literal
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
     else:
         exprs = [expr]
     s.expect(']')
@@ -1327,7 +1351,12 @@ def p_comp_if(s, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
-    test = p_test_nocond(s)
+    # Note that Python 3.9+ is actually more restrictive here and Cython now follows
+    # the Python 3.9+ behaviour: https://github.com/python/cpython/issues/86014
+    # On Python <3.9 `[i for i in range(10) if lambda: i if True else 1]` was disallowed
+    # but `[i for i in range(10) if lambda: i]` was allowed.
+    # On Python >=3.9 they're both disallowed.
+    test = p_or_test(s)
     return Nodes.IfStatNode(pos,
         if_clauses = [Nodes.IfClauseNode(pos, condition = test,
                                          body = p_comp_iter(s, body))],
@@ -1478,7 +1507,16 @@ def p_simple_expr_list(s, expr=None):
 def p_test_or_starred_expr_list(s, expr=None):
     exprs = expr is not None and [expr] or []
     while s.sy not in expr_terminators:
-        exprs.append(p_test_or_starred_expr(s, is_expression=(expr is not None)))
+        exprs.append(p_test_or_starred_expr(s))
+        if s.sy != ',':
+            break
+        s.next()
+    return exprs
+
+def p_namedexpr_test_or_starred_expr_list(s, expr=None):
+    exprs = expr is not None and [expr] or []
+    while s.sy not in expr_terminators:
+        exprs.append(p_namedexpr_test_or_starred_expr(s))
         if s.sy != ',':
             break
         s.next()
@@ -1511,12 +1549,12 @@ def p_testlist_star_expr(s):
 
 # testlist_comp: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 
-def p_testlist_comp(s, is_expression=False):
+def p_testlist_comp(s):
     pos = s.position()
-    expr = p_test_or_starred_expr(s, is_expression)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
         return ExprNodes.TupleNode(pos, args = exprs)
     elif s.sy in ('for', 'async'):
         return p_genexp(s, expr)
@@ -1762,11 +1800,11 @@ def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
-    if s.sy == '.':
+    if s.sy in ('.', '...'):
         # count relative import level
         level = 0
-        while s.sy == '.':
-            level += 1
+        while s.sy in ('.', '...'):
+            level += len(s.sy)
             s.next()
     else:
         level = None
@@ -1785,18 +1823,18 @@ def p_from_import_statement(s, first_statement = 0):
     is_cimport = kind == 'cimport'
     is_parenthesized = False
     if s.sy == '*':
-        imported_names = [(s.position(), s.context.intern_ustring("*"), None, None)]
+        imported_names = [(s.position(), s.context.intern_ustring("*"), None)]
         s.next()
     else:
         if s.sy == '(':
             is_parenthesized = True
             s.next()
-        imported_names = [p_imported_name(s, is_cimport)]
+        imported_names = [p_imported_name(s)]
     while s.sy == ',':
         s.next()
         if is_parenthesized and s.sy == ')':
             break
-        imported_names.append(p_imported_name(s, is_cimport))
+        imported_names.append(p_imported_name(s))
     if is_parenthesized:
         s.expect(')')
     if dotted_name == '__future__':
@@ -1805,7 +1843,7 @@ def p_from_import_statement(s, first_statement = 0):
         elif level:
             s.error("invalid syntax")
         else:
-            for (name_pos, name, as_name, kind) in imported_names:
+            for (name_pos, name, as_name) in imported_names:
                 if name == "braces":
                     s.error("not a chance", name_pos)
                     break
@@ -1816,7 +1854,7 @@ def p_from_import_statement(s, first_statement = 0):
                     break
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
-    elif kind == 'cimport':
+    elif is_cimport:
         return Nodes.FromCImportStatNode(
             pos, module_name=dotted_name,
             relative_level=level,
@@ -1824,7 +1862,7 @@ def p_from_import_statement(s, first_statement = 0):
     else:
         imported_name_strings = []
         items = []
-        for (name_pos, name, as_name, kind) in imported_names:
+        for (name_pos, name, as_name) in imported_names:
             imported_name_strings.append(
                 ExprNodes.IdentifierStringNode(name_pos, value=name))
             items.append(
@@ -1839,18 +1877,11 @@ def p_from_import_statement(s, first_statement = 0):
             items = items)
 
 
-imported_name_kinds = cython.declare(frozenset, frozenset((
-    'class', 'struct', 'union')))
-
-def p_imported_name(s, is_cimport):
+def p_imported_name(s):
     pos = s.position()
-    kind = None
-    if is_cimport and s.systring in imported_name_kinds:
-        kind = s.systring
-        s.next()
     name = p_ident(s)
     as_name = p_as_name(s)
-    return (pos, name, as_name, kind)
+    return (pos, name, as_name)
 
 
 def p_dotted_name(s, as_allowed):
@@ -1904,7 +1935,7 @@ def p_if_statement(s):
 
 def p_if_clause(s):
     pos = s.position()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     return Nodes.IfClauseNode(pos,
         condition = test, body = body)
@@ -1920,7 +1951,7 @@ def p_while_statement(s):
     # s.sy == 'while'
     pos = s.position()
     s.next()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     else_clause = p_else_clause(s)
     return Nodes.WhileStatNode(pos,
@@ -2118,6 +2149,51 @@ def p_with_statement(s):
 
 
 def p_with_items(s, is_async=False):
+    """
+    Copied from CPython:
+    | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+        _PyAST_With(a, b, NULL, EXTRA) }
+    | 'with' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+        _PyAST_With(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    Therefore the first thing to try is the bracket-enclosed
+    version and if that fails try the regular version
+    """
+    brackets_succeeded = False
+    items = ()  # unused, but static analysis fails to track that below
+    if s.sy == '(':
+        with tentatively_scan(s) as errors:
+            s.next()
+            items = p_with_items_list(s, is_async)
+            s.expect(")")
+        brackets_succeeded = not errors
+    if not brackets_succeeded:
+        # try the non-bracket version
+        items = p_with_items_list(s, is_async)
+    body = p_suite(s)
+    for cls, pos, kwds in reversed(items):
+        # construct the actual nodes now that we know what the body is
+        body = cls(pos, body=body, **kwds)
+    return body
+
+
+def p_with_items_list(s, is_async):
+    items = []
+    while True:
+        items.append(p_with_item(s, is_async))
+        if s.sy != ",":
+            break
+        s.next()
+        if s.sy == ")":
+            # trailing commas allowed
+            break
+    return items
+
+
+def p_with_item(s, is_async):
+    # In contrast to most parsing functions, this returns a tuple of
+    #  class, pos, kwd_dict
+    # This is because GILStatNode does a reasonable amount of initialization in its
+    # constructor, and requires "body" to be set, which we don't currently have
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         if is_async:
@@ -2132,24 +2208,14 @@ def p_with_items(s, is_async=False):
             condition = p_test(s)
             s.expect(')')
 
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s)
-        else:
-            body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
+        return Nodes.GILStatNode, pos, {"state": state, "condition": condition}
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s, is_async=is_async)
-        else:
-            body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+        return Nodes.WithStatNode, pos, {"manager": manager, "target": target, "is_async": is_async}
 
 
 def p_with_template(s):
@@ -2797,16 +2863,6 @@ def looking_at_dotted_name(s):
     else:
         return 0
 
-def looking_at_call(s):
-    "See if we're looking at a.b.c("
-    # Don't mess up the original position, so save and restore it.
-    # Unfortunately there's no good way to handle this, as a subsequent call
-    # to next() will not advance the position until it reads a new token.
-    position = s.start_line, s.start_col
-    result = looking_at_expr(s) == u'('
-    if not result:
-        s.start_line, s.start_col = position
-    return result
 
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
@@ -2911,7 +2967,17 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s)
+    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx)
+    if nogil and exc_clause:
+        warning(
+            s.position(),
+            "The keyword 'nogil' should appear at the end of the "
+            "function signature line. Placing it before 'except' "
+            "or 'noexcept' will be disallowed in a future version "
+            "of Cython.",
+            level=2
+        )
+    nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
@@ -3021,18 +3087,54 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s):
+def p_exception_value_clause(s, ctx):
+    """
+    Parse exception value clause.
+
+    Maps clauses to exc_check / exc_value / exc_clause as follows:
+     ______________________________________________________________________
+    |                             |             |             |            |
+    | Clause                      | exc_check   | exc_value   | exc_clause |
+    | ___________________________ | ___________ | ___________ | __________ |
+    |                             |             |             |            |
+    | <nothing> (default func.)   | True        | None        | False      |
+    | <nothing> (cdef extern)     | False       | None        | False      |
+    | noexcept                    | False       | None        | True       |
+    | except <val>                | False       | <val>       | True       |
+    | except? <val>               | True        | <val>       | True       |
+    | except *                    | True        | None        | True       |
+    | except +                    | '+'         | None        | True       |
+    | except +*                   | '+'         | '*'         | True       |
+    | except +<PyErr>             | '+'         | <PyErr>     | True       |
+    | ___________________________ | ___________ | ___________ | __________ |
+
+    Note that the only reason we need `exc_clause` is to raise a
+    warning when `'except'` or `'noexcept'` is placed after the
+    `'nogil'` keyword.
+    """
+    exc_clause = False
     exc_val = None
-    exc_check = 0
-    if s.sy == 'except':
+    if ctx.visibility  == 'extern':
+        exc_check = False
+    else:
+        exc_check = True
+
+    if s.sy == 'IDENT' and s.systring == 'noexcept':
+        exc_clause = True
+        s.next()
+        exc_check = False
+    elif s.sy == 'except':
+        exc_clause = True
         s.next()
         if s.sy == '*':
-            exc_check = 1
+            exc_check = True
             s.next()
         elif s.sy == '+':
             exc_check = '+'
             s.next()
-            if s.sy == 'IDENT':
+            if p_nogil(s):
+                ctx.nogil = True
+            elif s.sy == 'IDENT':
                 name = s.systring
                 s.next()
                 exc_val = p_name(s, name)
@@ -3041,13 +3143,16 @@ def p_exception_value_clause(s):
                 s.next()
         else:
             if s.sy == '?':
-                exc_check = 1
+                exc_check = True
                 s.next()
+            else:
+                exc_check = False
+            # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    return exc_val, exc_check
+    return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
-    '*', '**', '.', ')', ':', '/')))
+    '*', '**', '...', ')', ':', '/')))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -3066,7 +3171,7 @@ def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
     return args
 
 def p_optional_ellipsis(s):
-    if s.sy == '.':
+    if s.sy == '...':
         expect_ellipsis(s)
         return 1
     else:
@@ -3110,11 +3215,11 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
                 default = ExprNodes.NoneNode(pos)
                 s.next()
             elif 'inline' in ctx.modifiers:
-                default = p_test(s, allow_assignment_expression=False)
+                default = p_test(s)
             else:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
         else:
-            default = p_test(s, allow_assignment_expression=False)
+            default = p_test(s)
     return Nodes.CArgDeclNode(pos,
         base_type = base_type,
         declarator = declarator,
@@ -3483,14 +3588,7 @@ def p_decorators(s):
     while s.sy == '@':
         pos = s.position()
         s.next()
-        decstring = p_dotted_name(s, as_allowed=0)[2]
-        names = decstring.split('.')
-        decorator = ExprNodes.NameNode(pos, name=s.context.intern_ustring(names[0]))
-        for name in names[1:]:
-            decorator = ExprNodes.AttributeNode(
-                pos, attribute=s.context.intern_ustring(name), obj=decorator)
-        if s.sy == '(':
-            decorator = p_call(s, decorator)
+        decorator = p_namedexpr_test(s)
         decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
         s.expect_newline("Expected a newline after decorator")
     return decorators
@@ -3807,6 +3905,9 @@ def p_compiler_directive_comments(s):
             for name in new_directives:
                 if name not in result:
                     pass
+                elif Options.directive_types.get(name) is list:
+                    result[name] += new_directives[name]
+                    new_directives[name] = result[name]
                 elif new_directives[name] == result[name]:
                     warning(pos, "Duplicate directive found: %s" % (name,))
                 else:
@@ -3946,12 +4047,13 @@ def p_cpp_class_attribute(s, ctx):
             node.decorators = decorators
         return node
 
+
 def p_match_statement(s, ctx):
     assert s.sy == "IDENT" and s.systring == "match"
     pos = s.position()
     with tentatively_scan(s) as errors:
         s.next()
-        subject = p_test(s)
+        subject = p_namedexpr_test(s)
         subjects = None
         if s.sy == ",":
             subjects = [subject]
@@ -3965,6 +4067,7 @@ def p_match_statement(s, ctx):
         s.expect(":")
     if errors:
         return None
+
     # at this stage were commited to it being a match block so continue
     # outside "with tentatively_scan"
     # (I think this deviates from the PEG parser slightly, and it'd
@@ -3975,10 +4078,11 @@ def p_match_statement(s, ctx):
     while s.sy != "DEDENT":
         cases.append(p_case_block(s, ctx))
     s.expect_dedent()
-    return MatchCaseNodes.MatchNode(pos, subject = subject, cases = cases)
+    return MatchCaseNodes.MatchNode(pos, subject=subject, cases=cases)
+
 
 def p_case_block(s, ctx):
-    if not (s.sy=="IDENT" and s.systring == "case"):
+    if not (s.sy == "IDENT" and s.systring == "case"):
         s.error("Expected 'case'")
     s.next()
     pos = s.position()
@@ -3991,8 +4095,10 @@ def p_case_block(s, ctx):
 
     return MatchCaseNodes.MatchCaseNode(pos, pattern=pattern, body=body, guard=guard)
 
+
 def p_patterns(s):
-    # note - in slight contrast to the name, returns a single pattern
+    # note - in slight contrast to the name (which comes from the Python grammar),
+    # returns a single pattern
     patterns = []
     seq = False
     pos = s.position()
@@ -4004,9 +4110,9 @@ def p_patterns(s):
                 break  # all is good provided we have at least 1 pattern
             else:
                 e = errors[0]
-                s.error(e.args[1], pos = e.args[0])
+                s.error(e.args[1], pos=e.args[0])
         patterns.append(pattern)
-        
+
         if s.sy == ",":
             seq = True
             s.next()
@@ -4014,10 +4120,12 @@ def p_patterns(s):
                 break  # common reasons to break
         else:
             break
+
     if seq:
-        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns = patterns)
+        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
         return patterns[0]
+
 
 def p_maybe_star_pattern(s):
     # For match case. Either star_pattern or pattern
@@ -4030,12 +4138,13 @@ def p_maybe_star_pattern(s):
         else:
             s.next()
         pattern = MatchCaseNodes.MatchAndAssignPatternNode(
-            s.position(), target = target, is_star = True
+            s.position(), target=target, is_star=True
         )
         return pattern
     else:
-        p = p_pattern(s)
-        return p
+        pattern = p_pattern(s)
+        return pattern
+
 
 def p_pattern(s):
     # try "as_pattern" then "or_pattern"
@@ -4048,13 +4157,15 @@ def p_pattern(s):
             s.next()
         else:
             break
+
     if len(patterns) > 1:
         pattern = MatchCaseNodes.OrPatternNode(
             pos,
-            alternatives = patterns
+            alternatives=patterns
         )
     else:
         pattern = patterns[0]
+
     if s.sy == 'IDENT' and s.systring == 'as':
         s.next()
         with tentatively_scan(s) as errors:
@@ -4062,17 +4173,18 @@ def p_pattern(s):
         if errors and s.sy == "_":
             s.next()
             # make this a specific error
-            return Nodes.ErrorNode(errors[0].args[0], what = errors[0].args[1])
+            return Nodes.ErrorNode(errors[0].args[0], what=errors[0].args[1])
         elif errors:
             with tentatively_scan(s):
                 expr = p_test(s)
-                return Nodes.ErrorNode(expr.pos, what = "Invalid pattern target")
+                return Nodes.ErrorNode(expr.pos, what="Invalid pattern target")
             s.error(errors[0])
     return pattern
 
 
 def p_closed_pattern(s):
     """
+    The PEG parser specifies it as
     | literal_pattern
     | capture_pattern
     | wildcard_pattern
@@ -4081,42 +4193,49 @@ def p_closed_pattern(s):
     | sequence_pattern
     | mapping_pattern
     | class_pattern
+
+    For the sake avoiding too much backtracking, we know:
+    * starts with "{" is a sequence_pattern
+    * starts with "[" is a mapping_pattern
+    * starts with "(" is a group_pattern or sequence_pattern
+    * wildcard pattern is just identifier=='_'
+    The rest are then tried in order with backtracking
     """
+    if s.sy == 'IDENT' and s.systring == '_':
+        pos = s.position()
+        s.next()
+        return MatchCaseNodes.MatchAndAssignPatternNode(pos)
+    elif s.sy == '{':
+        return p_mapping_pattern(s)
+    elif s.sy == '[':
+        return p_sequence_pattern(s)
+    elif s.sy == '(':
+        with tentatively_scan(s) as errors:
+            result = p_group_pattern(s)
+            if not errors:
+                return result
+        return p_sequence_pattern(s)
+
     with tentatively_scan(s) as errors:
         result = p_literal_pattern(s)
-    if not errors:
-        return result
+        if not errors:
+            return result
     with tentatively_scan(s) as errors:
         result = p_capture_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_wildcard_pattern(s)
-    if not errors:
-        return result
+        if not errors:
+            return result
     with tentatively_scan(s) as errors:
         result = p_value_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_group_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_sequence_pattern(s)
-    if not errors:
-        return result
-    with tentatively_scan(s) as errors:
-        result = p_mapping_pattern(s)
-    if not errors:
-        return result
+        if not errors:
+            return result
     return p_class_pattern(s)
+
 
 def p_literal_pattern(s):
     # a lot of duplication in this function with "p_atom"
     next_must_be_a_number = False
     sign = ''
-    if s.sy in ['+', '-']:
+    if s.sy == '-':
         sign = s.sy
         sign_pos = s.position()
         s.next()
@@ -4131,9 +4250,11 @@ def p_literal_pattern(s):
     elif sy == 'FLOAT':
         value = s.systring
         s.next()
-        res = ExprNodes.FloatNode(pos, value = value)
+        res = ExprNodes.FloatNode(pos, value=value)
+
     if res and sign == "-":
         res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
+
     if res and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
@@ -4146,60 +4267,42 @@ def p_literal_pattern(s):
             res = ExprNodes.binop_node(
                 add_pos,
                 sign,
-                operand1 = res,
-                operand2 = ExprNodes.ImagNode(s.position(), value = value)
+                operand1=res,
+                operand2=ExprNodes.ImagNode(s.position(), value=value)
             )
 
     if not res and sy == 'IMAG':
         value = s.systring[:-1]
         s.next()
-        res = ExprNodes.ImagNode(pos, value = sign+value)
+        res = ExprNodes.ImagNode(pos, value=sign+value)
         if sign == "-":
             res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
     if res:
-        return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
+        return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
+    if next_must_be_a_number:
+        s.error("Expected a number")
     if sy == 'BEGIN_STRING':
-        if next_must_be_a_number:
-            s.error("Expected a number")
-        kind, bytes_value, unicode_value = p_cat_string_literal(s)
-        if kind == 'c':
-            res = ExprNodes.CharNode(pos, value = bytes_value)
-        elif kind == 'u':
-            res = ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
-        elif kind == 'b':
-            res = ExprNodes.BytesNode(pos, value = bytes_value)
-        elif kind == 'f':
-            res = Nodes.ErrorNode(pos, what = "f-strings are not accepted for pattern matching")
-        elif kind == '':
-            res = ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
-        else:
-            s.error("invalid string kind '%s'" % kind)
-        return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
+        res = p_atom_string(s)
+        # f-strings not being accepted is validated in PostParse
+        return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
     elif sy == 'IDENT':
-        name = s.systring
-        result = None
-        if name == "None":
-            result = ExprNodes.NoneNode(pos)
-        elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True, type=Builtin.bool_type)
-        elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False, type=Builtin.bool_type)
-        elif name == "NULL" and not s.in_python_file:
-            # Included Null as an exactly matched constant here
-            result = ExprNodes.NullNode(pos)
+        # Note that p_atom_ident_constants includes NULL.
+        # This is a deliberate Cython addition to the pattern matching specification
+        result = p_atom_ident_constants(s, bools_are_pybool=True)
         if result:
-            s.next()
-            return MatchCaseNodes.MatchValuePatternNode(pos, value = result, is_is_check = True)   
+            return MatchCaseNodes.MatchValuePatternNode(pos, value=result, is_is_check=True)
 
     s.error("Failed to match literal")
+
 
 def p_capture_pattern(s):
     return MatchCaseNodes.MatchAndAssignPatternNode(
         s.position(),
-        target = p_pattern_capture_target(s)
+        target=p_pattern_capture_target(s)
     )
+
 
 def p_value_pattern(s):
     if s.sy != "IDENT":
@@ -4213,10 +4316,11 @@ def p_value_pattern(s):
         attr_pos = s.position()
         s.next()
         attr = p_ident(s)
-        res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute=attr)
+        res = ExprNodes.AttributeNode(attr_pos, obj=res, attribute=attr)
     if s.sy in ['(', '=']:
         s.error("Unexpected symbol '%s'" % s.sy)
-    return MatchCaseNodes.MatchValuePatternNode(pos, value = res)
+    return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
+
 
 def p_group_pattern(s):
     s.expect("(")
@@ -4224,12 +4328,6 @@ def p_group_pattern(s):
     s.expect(")")
     return pattern
 
-def p_wildcard_pattern(s):
-    if s.sy != "IDENT" or s.systring != "_":
-        s.error("Expected '_'")
-    pos = s.position()
-    s.next()
-    return MatchCaseNodes.MatchAndAssignPatternNode(pos)
 
 def p_sequence_pattern(s):
     opener = s.sy
@@ -4249,28 +4347,32 @@ def p_sequence_pattern(s):
                     if s.sy == closer:
                         break
                 else:
-                    if opener == ')' and len(patterns)==1:
+                    if opener == ')' and len(patterns) == 1:
                         s.error("tuple-like pattern of length 1 must finish with ','")
                     break
             s.expect(closer)
         return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
-        s.error("Expected '[' or '('") 
+        s.error("Expected '[' or '('")
+
 
 def p_mapping_pattern(s):
     pos = s.position()
     s.expect('{')
     if s.sy == '}':
+        # trivial empty mapping
         s.next()
         return MatchCaseNodes.MatchMappingPatternNode(pos)
+
     double_star_capture_target = None
     items_patterns = []
     double_star_set_twice = None
     pattern_after_double_star = None
+    star_star_arg_pos = None
     while True:
+        if double_star_capture_target and not star_star_arg_pos:
+            star_star_arg_pos = s.position()
         if s.sy == '**':
-            if double_star_capture_target:
-                double_star_set_twice = s.position()
             s.next()
             double_star_capture_target = p_pattern_capture_target(s)
         else:
@@ -4299,6 +4401,11 @@ def p_mapping_pattern(s):
         return Nodes.ErrorNode(double_star_set_twice, what = "Double star capture set twice")
     if pattern_after_double_star:
         return Nodes.ErrorNode(pattern_after_double_star, what = "pattern follows ** capture")
+    if star_star_arg_pos is not None:
+        return Nodes.ErrorNode(
+            star_star_arg_pos,
+            what = "** pattern must be the final part of a mapping pattern."
+        )
     return MatchCaseNodes.MatchMappingPatternNode(
         pos,
         keys = [kv[0] for kv in items_patterns],
@@ -4306,8 +4413,9 @@ def p_mapping_pattern(s):
         double_star_capture_target = double_star_capture_target
     )
 
+
 def p_class_pattern(s):
-    # name_or_attr
+    # start by parsing the class as name_or_attr
     pos = s.position()
     res = p_name(s, s.systring)
     s.next()
@@ -4315,12 +4423,16 @@ def p_class_pattern(s):
         attr_pos = s.position()
         s.next()
         attr = p_ident(s)
-        res = ExprNodes.AttributeNode(attr_pos, obj = res, attribute=attr)
+        res = ExprNodes.AttributeNode(attr_pos, obj=res, attribute=attr)
     class_ = res
+
     s.expect("(")
     if s.sy == ")":
+        # trivial case with no arguments matched
         s.next()
         return MatchCaseNodes.ClassPatternNode(pos, class_=class_)
+
+    # parse the arguments
     positional_patterns = []
     keyword_patterns = []
     keyword_patterns_error = None
@@ -4333,17 +4445,17 @@ def p_class_pattern(s):
         else:
             with tentatively_scan(s) as errors:
                 keyword_patterns.append(p_keyword_pattern(s))
-        if s.sy == ",":
-            s.next()
-            if s.sy == ")":
-                break
-        else:
+        if s.sy != ",":
             break
+        s.next()
+        if s.sy == ")":
+            break  # Allow trailing comma.
     s.expect(")")
+
     if keyword_patterns_error is not None:
         return Nodes.ErrorNode(
             keyword_patterns_error,
-            what = "Positional patterns follow keyword patterns"
+            what="Positional patterns follow keyword patterns"
         )
     return MatchCaseNodes.ClassPatternNode(
         pos, class_ = class_,
@@ -4351,6 +4463,7 @@ def p_class_pattern(s):
         keyword_pattern_names = [kv[0] for kv in keyword_patterns],
         keyword_pattern_patterns = [kv[1] for kv in keyword_patterns],
     )
+
 
 def p_keyword_pattern(s):
     if s.sy != "IDENT":
@@ -4360,6 +4473,7 @@ def p_keyword_pattern(s):
     s.expect("=")
     value = p_pattern(s)
     return arg, value
+
 
 def p_pattern_capture_target(s):
     # any name but '_', and with some constraints on what follows
@@ -4420,5 +4534,5 @@ def p_annotation(s):
     then it is not a bug.
     """
     pos = s.position()
-    expr = p_test(s, allow_assignment_expression=False)
+    expr = p_test(s)
     return ExprNodes.AnnotationNode(pos, expr=expr)

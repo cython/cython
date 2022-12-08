@@ -443,7 +443,9 @@ def type_infer(double[:, :] arg):
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 def memview_iter(double[:, :] arg):
     """
-    memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    >>> memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    acquired C
+    released C
     True
     """
     cdef double total = 0
@@ -1205,3 +1207,36 @@ def test_conversion_failures():
                 assert get_refcount(dmb) == dmb_before, "before %s after %s" % (dmb_before, get_refcount(dmb))
             else:
                 assert False, "Conversion should fail!"
+
+def test_is_Sequence(double[:] a):
+    """
+    >>> test_is_Sequence(DoubleMockBuffer(None, range(6), shape=(6,)))
+    1
+    1
+    True
+    """
+    if sys.version_info < (3, 3):
+        from collections import Sequence
+    else:
+        from collections.abc import Sequence
+
+    for i in range(a.shape[0]):
+        a[i] = i
+    print(a.count(1.0))  # test for presence of added collection method
+    print(a.index(1.0))  # test for presence of added collection method
+
+    if sys.version_info >= (3, 10):
+        # test structural pattern match in Python
+        # (because Cython hasn't implemented it yet, and because the details
+        # of what Python considers a sequence are important)
+        globs = {'arr': a}
+        exec("""
+match arr:
+    case [*_]:
+        res = True
+    case _:
+        res = False
+""", globs)
+        assert globs['res']
+
+    return isinstance(<object>a, Sequence)

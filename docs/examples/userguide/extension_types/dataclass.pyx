@@ -5,6 +5,7 @@ try:
 except ImportError:
     pass  # The modules don't actually have to exists for Cython to use them as annotations
 
+
 @cython.dataclasses.dataclass
 cdef class MyDataclass:
     # fields can be declared using annotations
@@ -16,5 +17,5 @@ cdef class MyDataclass:
     c = "hello"  # assignment of default value on a separate line
 
     # typing.InitVar and typing.ClassVar also work
-    d: dataclasses.InitVar[double] = 5
+    d: dataclasses.InitVar[cython.double] = 5
     e: typing.ClassVar[list] = []
