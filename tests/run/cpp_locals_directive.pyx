@@ -19,13 +19,9 @@ cdef extern from *:
             C(C&& rhs) : x(rhs.x), print_destructor(rhs.print_destructor) {
                 rhs.print_destructor = false; // moved-from instances are deleted silently
             }
-            C& operator=(C&& rhs) {
-                x=rhs.x;
-                print_destructor=rhs.print_destructor;
-                rhs.print_destructor = false; // moved-from instances are deleted silently
-                return *this;
-            }
-            C(const C& rhs) = default;
+            // also test that we don't require the assignment operator
+            C& operator=(C&& rhs) = delete;
+            C(const C& rhs) = delete;
             C& operator=(const C& rhs) = default;
             ~C() {
                 if (print_destructor) print_C_destructor();

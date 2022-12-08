@@ -5,7 +5,7 @@ cdef extern from "Python.h":
 
     ctypedef struct PyObject  # forward declaration
 
-    ctypedef object (*newfunc)(cpython.type.type, object, object)  # (type, args, kwargs)
+    ctypedef object (*newfunc)(cpython.type.type, PyObject*, PyObject*)  # (type, args|NULL, kwargs|NULL)
 
     ctypedef object (*unaryfunc)(object)
     ctypedef object (*binaryfunc)(object, object)

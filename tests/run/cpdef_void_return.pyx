@@ -1,4 +1,4 @@
-cpdef void unraisable():
+cpdef void unraisable() noexcept:
     """
     >>> unraisable()
     here

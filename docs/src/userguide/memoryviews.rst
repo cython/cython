@@ -42,6 +42,7 @@ This code should give the following output::
     Memoryview sum of Cython array is 1351
     Memoryview sum of C memoryview is 451
 
+.. _using_memoryviews:
 
 Using memoryviews
 =================
