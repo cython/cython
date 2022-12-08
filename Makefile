@@ -8,13 +8,15 @@ PARALLEL?=$(shell ${PYTHON} -c 'import sys; print("-j5" if sys.version_info >= (
 MANYLINUX_CFLAGS=-O3 -g0 -mtune=generic -pipe -fPIC
 MANYLINUX_LDFLAGS=
 MANYLINUX_IMAGES= \
-	manylinux1_x86_64 \
-	manylinux1_i686 \
+	manylinux2014_x86_64 \
+	manylinux2014_i686 \
 	musllinux_1_1_x86_64 \
 	musllinux_1_1_aarch64 \
 	manylinux_2_24_x86_64 \
 	manylinux_2_24_i686 \
 	manylinux_2_24_aarch64 \
+	manylinux_2_28_x86_64 \
+	manylinux_2_28_aarch64 \
 #	manylinux_2_24_ppc64le \
 #	manylinux_2_24_s390x
 

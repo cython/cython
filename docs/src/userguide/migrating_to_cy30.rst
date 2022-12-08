@@ -172,3 +172,66 @@ rather than relying on the user to test and cast the type of each operand.
 The old behaviour can be restored with the 
 :ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
 More details are given in :ref:`arithmetic_methods`.
+
+Exception values and ``noexcept``
+=================================
+
+``cdef`` functions that are not ``extern`` now propagate Python
+exceptions by default, where previously they needed to explicitly be
+declated with an :ref:`exception value <error_return_values>` in order
+for them to do so. A new ``noexcept`` modifier can be used to declare
+``cdef`` functions that will not raise exceptions.
+
+In existing code, you should mainly look out for ``cdef`` functions
+that are declared without an exception value::
+
+  cdef int spam(int x):
+      pass
+
+If you left out the exception value by mistake, i.e., the function
+should propagate Python exceptions, then the new behaviour will take
+care of this for you, and correctly propagate any exceptions.
+This was a common mistake in Cython code and the main reason to change the behaviour.
+
+On the other hand, if you didn't declare an exception value because
+you want to avoid exceptions propagating out of this function, the new behaviour
+will result in slightly less efficient code being generated, now involving an exception check.
+To prevent that, you must declare the function explicitly as being
+``noexcept``::
+
+  cdef int spam(int x) noexcept:
+      pass
+
+The behaviour for ``cdef`` functions that are also ``extern`` is
+unchanged as ``extern`` functions are less likely to raise Python
+exceptions
+
+The behaviour for any ``cdef`` function that is declared with an
+explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
+also unchanged.
+
+Annotation typing
+=================
+
+Cython 3 has made substantial improvements in recognising types in
+annotations and it is well worth reading
+:ref:`the pure Python tutorial<pep484_type_annotations>` to understand
+some of the improvements.
+
+To make it easier to handle cases where your interpretation of type
+annotations differs from Cython's, Cython 3 now supports setting the
+``annotation_typing`` :ref:`directive <compiler-directives>` on a
+per-class or per-function level.
+
+C++ postincrement/postdecrement operator
+========================================
+
+Cython 3 differentiates between pre/post-increment and pre/post-decrement
+operators (Cython 0.29 implemented both as pre(in/de)crement operator).
+This only has an effect when using ``cython.operator.postdecrement`` / ``cython.operator.postincrement``.
+When running into an error it is required to add the corresponding operator::
+
+    cdef cppclass Example:
+        Example operator++(int)
+        Example operator--(int)
+

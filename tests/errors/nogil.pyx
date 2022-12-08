@@ -90,7 +90,7 @@ def bare_pyvar_name(object x):
     with nogil:
         x
 
-cdef int fstrings(int x, object obj) nogil except -1:
+cdef int fstrings(int x, object obj) except -1 nogil:
     f""         # allowed
     f"a"        # allowed
     f"a"f"b"    # allowed

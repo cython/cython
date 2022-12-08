@@ -104,10 +104,11 @@ class MarkParallelAssignments(EnvTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
+        iterator_scope = node.iterator.expr_scope or self.current_env()
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
@@ -115,7 +116,7 @@ class MarkParallelAssignments(EnvTransform):
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
-                                iterator_type = iterator.infer_type(self.current_env())
+                                iterator_type = iterator.infer_type(iterator_scope)
                                 if iterator_type.is_builtin_type:
                                     # assume that builtin types have a length within Py_ssize_t
                                     self.mark_assignment(
@@ -127,7 +128,7 @@ class MarkParallelAssignments(EnvTransform):
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name in ('range', 'xrange'):
                         is_special = True
