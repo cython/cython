@@ -193,6 +193,7 @@ class PostParse(ScopeTrackingTransform):
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -396,6 +397,18 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_MatchNode(self, node):
         node.validate_irrefutable()
+        self.visitchildren(node)
+        return node
+
+    def visit_PatternNode(self, node):
+        in_pattern_node, self.in_pattern_node = self.in_pattern_node, True
+        self.visitchildren(node)
+        self.in_pattern_node = in_pattern_node
+        return node
+
+    def visit_JoinedStrNode(self, node):
+        if self.in_pattern_node:
+            error(node.pos, "f-strings are not accepted for pattern matching")
         self.visitchildren(node)
         return node
 
