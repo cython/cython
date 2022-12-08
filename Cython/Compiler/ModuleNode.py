@@ -262,7 +262,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code_start.putln("#ifndef %s" % api_guard)
             h_code_start.putln("")
-            self.generate_extern_c_macro_definition(h_code_start)
+            self.generate_extern_c_macro_definition(h_code_start, env.is_cpp())
             h_code_start.putln("")
             self.generate_dl_import_macro(h_code_start)
             if h_extension_types:
@@ -804,7 +804,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
         code.putln("")
-        self.generate_extern_c_macro_definition(code)
+        self.generate_extern_c_macro_definition(code, env.is_cpp())
         code.putln("")
 
         code.putln("#define %s" % self.api_name(Naming.h_guard_prefix, env))
@@ -876,14 +876,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
-    def generate_extern_c_macro_definition(self, code):
+    def generate_extern_c_macro_definition(self, code, is_cpp):
         name = Naming.extern_c_macro
         code.putln("#ifndef %s" % name)
-        code.putln("  #ifdef __cplusplus")
-        code.putln('    #define %s extern "C"' % name)
-        code.putln("  #else")
-        code.putln("    #define %s extern" % name)
-        code.putln("  #endif")
+        if is_cpp:
+            code.putln('    #define %s extern "C++"' % name)
+        else:
+            code.putln("  #ifdef __cplusplus")
+            code.putln('    #define %s extern "C"' % name)
+            code.putln("  #else")
+            code.putln("    #define %s extern" % name)
+            code.putln("  #endif")
         code.putln("#endif")
 
     def generate_dl_import_macro(self, code):
@@ -972,7 +975,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_typedef(self, entry, code):
         base_type = entry.type.typedef_base_type
-        if base_type.is_numeric:
+        enclosing_scope = entry.scope
+        if base_type.is_numeric and not enclosing_scope.is_cpp_class_scope:
             try:
                 writer = code.globalstate['numeric_typedefs']
             except KeyError:
@@ -1048,6 +1052,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [base_class.empty_declaration_code() for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
+            self.generate_type_header_code(scope.type_entries, code)
             py_attrs = [e for e in scope.entries.values()
                         if e.type.is_pyobject and not e.is_inherited]
             has_virtual_methods = False
@@ -1632,7 +1637,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entry = scope.lookup_here("__del__")
         if entry is None or not entry.is_special:
             return  # nothing to wrap
-        slot_func_cname = scope.mangle_internal("tp_finalize")
         code.putln("")
 
         if tp_slot.used_ifdef:
@@ -1677,7 +1681,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
-        if not is_final_type:
+        if not is_final_type or scope.may_have_finalize():
             # in Py3.4+, call tp_finalize() as early as possible
             code.putln("#if CYTHON_USE_TP_FINALIZE")
             if needs_gc:
@@ -3112,7 +3116,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
-            code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+            code.putln("if (__Pyx_RegisterCleanup()) %s" % code.error_goto(self.pos))
 
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
@@ -3526,7 +3530,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
         code.putln(
-            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
+            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s' % (
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
@@ -3772,14 +3776,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not condition:
                 code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln('sizeof(%s),' % objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln('sizeof(%s),' % objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
             code.putln("#else")
-            code.putln('sizeof(%s),' % sizeof_objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (sizeof_objstruct, sizeof_objstruct))
             code.putln("#endif")
         else:
-            code.put('sizeof(%s), ' % objstruct)
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):

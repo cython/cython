@@ -61,3 +61,6 @@ run.exttype_dealloc
 # bugs in cpyext
 run.special_methods_T561
 run.special_methods_T561_py2
+
+# unicode is a PyVarObject on PyPy3
+run.builtin_type_inheritance_T608

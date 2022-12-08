@@ -122,3 +122,10 @@ cdef extern from "<numeric>" namespace "std" nogil:
     ForwardIt2 transform_exclusive_scan[ExecutionPolicy, ForwardIt1, ForwardIt2, T, BinaryOperation, UnaryOperation](
         ExecutionPolicy&& policy, ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first, 
         T init, BinaryOperation binary_op, UnaryOperation unary_op)
+
+    # C++17
+    T gcd[T](T a, T b)
+    T lcm[T](T a, T b)
+
+    # C++20
+    T midpoint[T](T a, T b) except +

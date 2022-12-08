@@ -6,8 +6,8 @@ from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 
-cdef class SkipDeclarations: # (object):
-    pass
+# Don't include mixins, only the main classes.
+#cdef class SkipDeclarations:
 
 cdef class NormalizeTree(CythonTransform):
     cdef bint is_in_statlist
@@ -18,6 +18,7 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef dict specialattribute_handlers
     cdef size_t lambda_counter
     cdef size_t genexpr_counter
+    cdef bint in_pattern_node
     cdef _visit_assignment_node(self, node, list expr_list)
 
 

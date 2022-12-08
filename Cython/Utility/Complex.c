@@ -265,7 +265,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
             if (a.imag == 0) {
                 if (a.real == 0) {
                     return a;
-                } else if (b.imag == 0) {
+                } else if ((b.imag == 0) && (a.real >= 0)) {
                     z.real = pow{{m}}(a.real, b.real);
                     z.imag = 0;
                     return z;
