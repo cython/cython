@@ -1535,13 +1535,16 @@ def _analyse_name_as_type(name, pos, env):
     if ctype is not None and env.in_c_type_context:
         return ctype
 
-    global_entry = env.global_scope().lookup(name)
+    global_scope = env.global_scope()
+    global_entry = global_scope.lookup(name)
     if global_entry and global_entry.is_type:
         type = global_entry.type
-        if (not env.in_c_type_context and
-                name == 'int' and type is Builtin.int_type):
+        if (not env.in_c_type_context
+                and type is Builtin.int_type
+                and global_scope.context.language_level == 2):
             # While we still support Python2 this needs to be downgraded
-            # to a generic Python object to include both int and long
+            # to a generic Python object to include both int and long.
+            # With language_level > 3, we keep the type but also accept 'long' in Py2.
             type = py_object_type
         if type and (type.is_pyobject or env.in_c_type_context):
             return type
@@ -2124,9 +2127,10 @@ class NameNode(AtomicExprNode):
                 type = py_object_type
             elif type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type
-            elif type is Builtin.int_type:
-                # while we still support Python 2 this must be an object
-                # so that it can be either int or long
+            elif type is Builtin.int_type and env.global_scope().context.language_level == 2:
+                # While we still support Python 2 this must be a plain object
+                # so that it can be either int or long.  With language_level=3(str),
+                # we pick up the type but accept both int and long in Py2.
                 type = py_object_type
             return type
         if self.name == 'object':
