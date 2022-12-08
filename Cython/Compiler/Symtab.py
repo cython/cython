@@ -414,7 +414,7 @@ class Scope(object):
         self.lambda_defs = []
         self.id_counters = {}
         for var_name in self.scope_predefined_names:
-            self.declare_var(EncodedString(var_name), py_object_type, None)
+            self.declare_var(EncodedString(var_name), py_object_type, pos=None)
 
     def __deepcopy__(self, memo):
         return self
@@ -1300,8 +1300,10 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
-    scope_predefined_names = ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
-                         '__spec__', '__loader__', '__package__', '__cached__']
+    scope_predefined_names = [
+        '__builtins__', '__name__', '__file__', '__doc__', '__path__',
+        '__spec__', '__loader__', '__package__', '__cached__',
+    ]
 
     def __init__(self, name, parent_module, context):
         from . import Builtin
@@ -1716,7 +1718,7 @@ class ModuleScope(Scope):
         if not type.scope:
             if defining or implementing:
                 scope = CClassScope(name = name, outer_scope = self,
-                    visibility = visibility,
+                    visibility=visibility,
                     parent_type=type)
                 scope.directives = self.directives.copy()
                 if base_type and base_type.scope:
@@ -2284,9 +2286,9 @@ class CClassScope(ClassScope):
         self.property_entries = []
         self.inherited_var_entries = []
         self.parent_type = parent_type  # needs to be initialized
-        if hasattr(self.parent_type, "typeptr_cname"):
+        if hasattr(parent_type, "typeptr_cname"):
             # otherwise, namespace_cname will remain unset
-            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+            self.namespace_cname = "(PyObject *)%s" % parent_type.typeptr_cname
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
