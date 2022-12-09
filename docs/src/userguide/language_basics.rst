@@ -325,7 +325,7 @@ Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipe
 
     cdef volatile int i = 5
 
-    cdef int sum(const int a, const int b):
+    cdef const int sum(const int a, const int b):
         return a + b
 
     cdef void print_const_pointer(const int *value):
