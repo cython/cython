@@ -56,6 +56,11 @@ Bugs fixed
   on creation, as Python does, and not later on start, as they did previously.
   (Github issue :issue:`1159`)
 
+* Type annotations for Python ``int`` rejected ``long`` under Py2 in the alpha-11 release.
+  They are now ignored again (as always before) when ``language_level=2``, and accept
+  both ``int`` and ``long`` in Py2 (and only ``int`` in Py3) otherwise.
+  (Github issue :issue:`4944`)
+
 * Iterating over memoryviews in generator expressions could leak a buffer reference.
   (Github issue :issue:`4968`)
 

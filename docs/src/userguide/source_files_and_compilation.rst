@@ -868,6 +868,24 @@ Cython code.  Here is the list of currently supported directives:
     division is performed with negative operands.  See `CEP 516
     <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
     False.
+    
+``cpow`` (True / False)
+    ``cpow`` modifies the return type of ``a**b``, as shown in the
+    table below:
+    
+        .. csv-table:: cpow behaviour
+            :file: cpow_table.csv
+            :header-rows: 1
+            :class: longtable
+            :widths: 1 1 3 3
+    
+    The ``cpow==True`` behaviour largely keeps the result type the
+    same as the operand types, while the ``cpow==False`` behaviour
+    follows Python and returns a flexible type depending on the
+    inputs.
+
+    Introduced in Cython 3.0 with a default of False;
+    before that, the behaviour matched the ``cpow=True`` version.
 
 ``always_allow_keywords`` (True / False)
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
@@ -905,13 +923,15 @@ Cython code.  Here is the list of currently supported directives:
     explicitly requested.
 
 ``language_level`` (2/3/3str)
-    Globally set the Python language level to be used for module
-    compilation.  Default is compatibility with Python 2.  To enable
-    Python 3 source code semantics, set this to 3 (or 3str) at the start
+    Globally set the Python language level to be used for module compilation.
+    Default is compatibility with Python 3 in Cython 3.x and with Python 2 in Cython 0.x.
+    To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
     of a module or pass the "-3" or "--3str" command line options to the
-    compiler.  The ``3str`` option enables Python 3 semantics but does
+    compiler.  For Python 2 semantics, use 2 and "-2" accordingly.  The ``3str``
+    option enables Python 3 semantics but does
     not change the ``str`` type and unprefixed string literals to
     ``unicode`` when the compiled code runs in Python 2.x.
+    Language level 2 ignores ``x: int`` type annotations due to the int/long ambiguity.
     Note that cimported files inherit this setting from the module
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.

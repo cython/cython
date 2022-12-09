@@ -187,6 +187,8 @@ _directive_defaults = {
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
+    'cpow': None,  # was True before 3.0
+    # None (not set by user) is treated as slightly different from False
     'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,
     'overflowcheck.fold': True,
@@ -324,6 +326,7 @@ directive_types = {
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
     'cclass' : None,
