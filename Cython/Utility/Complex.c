@@ -119,6 +119,16 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 
 /////////////// ToPy.proto ///////////////
+//@substitute: tempita
+
+// SoftComplexToPy uses this utility code directly so define default substitutions
+{{py:
+try:
+    is_extern_float_typedef
+except NameError:
+    is_extern_float_typedef = False
+    is_float = True
+}}
 
 {{py: func_suffix = "_CyTypedef" if is_extern_float_typedef else ("" if is_float else "_Cy")}}
 #define __pyx_PyComplex_FromComplex{{func_suffix}}(z) \
