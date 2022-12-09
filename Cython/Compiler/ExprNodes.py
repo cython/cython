@@ -14271,13 +14271,12 @@ class AnnotationNode(ExprNode):
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)
 
-
         if arg_type is None:
-            if isinstance(annotation, NameNode):
+            if annotation.is_name:
                 # Validate annotation in form `var: type`
                 if not env.lookup(annotation.name):
                     warning(annotation.pos, "Unknown type declaration '%s' in annotation, ignoring" % annotation.name, level=1)
-            elif isinstance(annotation, AttributeNode):
+            elif annotation.is_attribute:
                 # Validate annotation in form `var: module.type`
                 if not env.lookup(annotation.obj.name):
                     # `module` is undeclared
