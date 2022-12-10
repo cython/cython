@@ -14,6 +14,12 @@ def main():
     foo4: cython.int = 1
     foo5: stdint.bar = 5  # warning
     foo6: object = 1
+    # FIXME: This is raising additional warnings not related to this test.
+    # foo7: cython.bar = 1
+    with cython.annotation_typing(False):
+        foo8: Bar = 1
+        foo9: stdint.bar = 5
+        foo10: cython.bar = 1
 
 
 _WARNINGS = """
