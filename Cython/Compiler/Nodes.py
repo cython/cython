@@ -3283,10 +3283,10 @@ class DefNode(FuncDefNode):
             # 'self' parameter as in method(*args)
             sig = self.entry.signature = TypeSlots.pyfunction_signature  # self is not 'really' used
             self.self_in_stararg = 1
-            nfixed = 0
+            nfixed = min_nfixed = 0
 
         if self.is_staticmethod and env.is_c_class_scope:
-            nfixed = 0
+            nfixed = min_nfixed = 0
             self.self_in_stararg = True  # FIXME: why for staticmethods?
 
             self.entry.signature = sig = copy.copy(sig)
