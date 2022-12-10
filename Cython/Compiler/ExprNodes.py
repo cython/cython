@@ -14292,7 +14292,7 @@ class AnnotationNode(ExprNode):
                                 level=1)
                 else:
                     module_scope = annotation.obj.analyse_as_module(env)
-                    if module_scope and module_scope.pxd_file_loaded and not annotation.analyse_as_type(env):
+                    if module_scope and module_scope.pxd_file_loaded:
                         warning(annotation.pos,
                                 "Unknown type declaration '%s.%s' in annotation, ignoring" % (annotation.obj.name, annotation.attribute),
                                 level=1)
