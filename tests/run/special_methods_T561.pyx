@@ -18,8 +18,12 @@
 # Regarding ticket 3, we should additionally test that unbound method
 # calls to these special methods (e.g. ExtType.__init__()) do not use
 # a runtime lookup indirection.
+#
+# Additional tests added for 2 and 3 argument pow and ipow
 
 import sys
+
+from cpython.number cimport PyNumber_InPlacePower
 
 __doc__ = u"""
     >>> # If you define either setitem or delitem, you get wrapper objects
@@ -961,7 +965,7 @@ cdef class ReverseMethodsExist:
 cdef class ArgumentTypeConversions:
     """
     The user can set the signature of special method arguments so that
-    it doesn't match the C signature. This just tests that a few 
+    it doesn't match the C signature. This just tests that a few
     variations work
 
     >>> obj = ArgumentTypeConversions()
@@ -997,3 +1001,146 @@ cdef class ArgumentTypeConversions:
     # force conversion of flags (int) to double
     def __getbuffer__(self, Py_buffer *buffer, double flags):
         raise RuntimeError("From __getbuffer__ with flags {}".format(flags))
+
+
+cdef class TwoArgPow:
+    """
+    >>> TwoArgPow('a')**2
+    'a**2'
+    >>> pow(TwoArgPow('a'), 3)
+    'a**3'
+    >>> pow(TwoArgPow('a'), 'x', 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgPow.__pow__() takes 3 arguments but 2 were given
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __pow__(self, other):
+        return f"{self.name}**{other}"
+
+
+cdef class TwoArgRPow:
+    """
+    >>> 2**TwoArgRPow('a')
+    'a**2'
+    >>> pow(3, TwoArgRPow('a'))
+    'a**3'
+    >>> pow('x', TwoArgRPow('a'), 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgRPow.__rpow__() takes 3 arguments but 2 were given
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __rpow__(self, other):
+        return f"{self.name}**{other}"
+
+
+def ipow(a, b, c):
+    # As far as DW can tell, calling through this C API call is the
+    # only way to actually use ternary __ipow__
+    return PyNumber_InPlacePower(a, b, c)
+
+
+cdef class TwoArgIPow:
+    """
+    >>> a = TwoArgIPow('a')
+    >>> a**=2
+    >>> a
+    'a**2'
+    >>> ipow(TwoArgIPow('a'), 'x', 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __ipow__(self, other):
+        return f"{self.name}**{other}"
+
+
+cdef class TwoOrThreeArgPow:
+    """
+    >>> TwoOrThreeArgPow('a')**2
+    'a**2[None]'
+    >>> pow(TwoOrThreeArgPow('a'), 3)
+    'a**3[None]'
+    >>> pow(TwoOrThreeArgPow('a'), 'x', 'y')
+    'a**x[y]'
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __pow__(self, other, base=None):
+        return f"{self.name}**{other}[{base}]"
+
+
+cdef class TwoOrThreeArgRPow:
+    """
+    >>> 2**TwoOrThreeArgRPow('a')
+    'a**2[None]'
+    >>> pow(3, TwoOrThreeArgRPow('a'))
+    'a**3[None]'
+    >>> pow('x', TwoOrThreeArgRPow('a'), 'y')
+    'a**x[y]'
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __rpow__(self, other, base=None):
+        return f"{self.name}**{other}[{base}]"
+
+
+cdef class TwoOrThreeArgIPow:
+    """
+    >>> a = TwoOrThreeArgIPow('a')
+    >>> a**=2
+    >>> a
+    'a**2[None]'
+    >>> ipow(TwoOrThreeArgIPow('a'), 'x', 'y')
+    'a**x[y]'
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __ipow__(self, other, base=None):
+        return f"{self.name}**{other}[{base}]"
+
+
+# Three arg pow and rpow are adequately tested elsewhere
+
+
+cdef class ThreeArgIPow:
+    """
+    Note that it's not possible to detect if this is called in a 2-arg context
+    since the Python interpreter just passes None
+    >>> a = ThreeArgIPow('a')
+    >>> a**=2
+    >>> a
+    'a**2[None]'
+    >>> ipow(ThreeArgIPow('a'), 'x', 'y')
+    'a**x[y]'
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __ipow__(self, other, base):
+        return f"{self.name}**{other}[{base}]"

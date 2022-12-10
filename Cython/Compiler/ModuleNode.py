@@ -2252,7 +2252,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if slot.left_slot.signature in (TypeSlots.binaryfunc, TypeSlots.ibinaryfunc):
             slot_type = 'binaryfunc'
             extra_arg = extra_arg_decl = ''
-        elif slot.left_slot.signature in (TypeSlots.ternaryfunc, TypeSlots.iternaryfunc):
+        elif slot.left_slot.signature in (TypeSlots.powternaryfunc, TypeSlots.ipowternaryfunc):
             slot_type = 'ternaryfunc'
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'

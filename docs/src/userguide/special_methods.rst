@@ -378,6 +378,8 @@ used the bidirectional C slot signature for the regular methods, thus making the
 first argument ambiguous (not 'self' typed).
 Since Cython 3.0, the operator calls are passed to the respective special methods.
 See the section on :ref:`Arithmetic methods <arithmetic_methods>` above.
+Cython 0.x also did not support the 2 argument version of ``__pow__`` and 
+``__rpow__``, or the 3 argument version of ``__ipow__``.
 
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
@@ -422,7 +424,7 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __imod__ 	        | self, x 	                        | object      | `%=` operator                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __ipow__ 	        | self, y, z                            | object      | `**=` operator                                      |
+| __ipow__ 	        | self, y, [z]                          | object      | `**=` operator                                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __ilshift__ 	        | self, x 	                        | object      | `<<=` operator                                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

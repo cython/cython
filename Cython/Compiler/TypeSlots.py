@@ -52,6 +52,7 @@ class Signature(object):
     #    '*'  rest of args passed as generic Python
     #           arg tuple and kw dict (must be last
     #           char in format string)
+    #    '?'  optional object arg (currently for pow only)
 
     format_map = {
         'O': PyrexTypes.py_object_type,
@@ -71,6 +72,7 @@ class Signature(object):
         'S': PyrexTypes.c_char_ptr_ptr_type,
         'r': PyrexTypes.c_returncode_type,
         'B': PyrexTypes.c_py_buffer_ptr_type,
+        '?': PyrexTypes.py_object_type
         # 'T', '-' and '*' are handled otherwise
         # and are not looked up in here
     }
@@ -95,12 +97,15 @@ class Signature(object):
     def __init__(self, arg_format, ret_format, nogil=False):
         self.has_dummy_arg = False
         self.has_generic_args = False
+        self.optional_object_arg_count = 0
         if arg_format[:1] == '-':
             self.has_dummy_arg = True
             arg_format = arg_format[1:]
         if arg_format[-1:] == '*':
             self.has_generic_args = True
             arg_format = arg_format[:-1]
+        if arg_format[-1:] == '?':
+            self.optional_object_arg_count += 1
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
@@ -114,7 +119,10 @@ class Signature(object):
             ', '.join(self.fixed_arg_format),
             '*' if self.has_generic_args else '')
 
-    def num_fixed_args(self):
+    def min_num_fixed_args(self):
+        return self.max_num_fixed_args() - self.optional_object_arg_count
+
+    def max_num_fixed_args(self):
         return len(self.fixed_arg_format)
 
     def is_self_arg(self, i):
@@ -142,7 +150,7 @@ class Signature(object):
     def function_type(self, self_arg_override=None):
         #  Construct a C function type descriptor for this signature
         args = []
-        for i in range(self.num_fixed_args()):
+        for i in range(self.max_num_fixed_args()):
             if self_arg_override is not None and self.is_self_arg(i):
                 assert isinstance(self_arg_override, PyrexTypes.CFuncTypeArg)
                 args.append(self_arg_override)
@@ -827,8 +835,8 @@ pyfunction_onearg = Signature("-O", "O")
 unaryfunc = Signature("T", "O")            # typedef PyObject * (*unaryfunc)(PyObject *);
 binaryfunc = Signature("OO", "O")          # typedef PyObject * (*binaryfunc)(PyObject *, PyObject *);
 ibinaryfunc = Signature("TO", "O")         # typedef PyObject * (*binaryfunc)(PyObject *, PyObject *);
-ternaryfunc = Signature("OOO", "O")        # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
-iternaryfunc = Signature("TOO", "O")       # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
+powternaryfunc = Signature("OO?", "O")        # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
+ipowternaryfunc = Signature("TO?", "O")       # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 callfunc = Signature("T*", "O")            # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 inquiry = Signature("T", "i")              # typedef int (*inquiry)(PyObject *);
 lenfunc = Signature("T", "z")              # typedef Py_ssize_t (*lenfunc)(PyObject *);
@@ -914,7 +922,7 @@ class SlotTable(object):
         self.substructures = []   # List of all SuiteSlot instances
 
         bf = binaryfunc if old_binops else ibinaryfunc
-        tf = ternaryfunc if old_binops else iternaryfunc
+        ptf = powternaryfunc if old_binops else ipowternaryfunc
 
         #  Descriptor tables for the slots of the various type object
         #  substructures, in the order they appear in the structure.
@@ -926,7 +934,7 @@ class SlotTable(object):
                       ifdef = PyNumberMethods_Py2only_GUARD),
             BinopSlot(bf, "nb_remainder", "__mod__", method_name_to_slot),
             BinopSlot(bf, "nb_divmod", "__divmod__", method_name_to_slot),
-            BinopSlot(tf, "nb_power", "__pow__", method_name_to_slot),
+            BinopSlot(ptf, "nb_power", "__pow__", method_name_to_slot),
             MethodSlot(unaryfunc, "nb_negative", "__neg__", method_name_to_slot),
             MethodSlot(unaryfunc, "nb_positive", "__pos__", method_name_to_slot),
             MethodSlot(unaryfunc, "nb_absolute", "__abs__", method_name_to_slot),
@@ -955,8 +963,7 @@ class SlotTable(object):
             MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", method_name_to_slot,
                        ifdef = PyNumberMethods_Py2only_GUARD),
             MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__", method_name_to_slot),
-            MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__",
-                       method_name_to_slot),  # actually ternaryfunc!!!
+            MethodSlot(ptf, "nb_inplace_power", "__ipow__", method_name_to_slot),
             MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__", method_name_to_slot),
             MethodSlot(ibinaryfunc, "nb_inplace_rshift", "__irshift__", method_name_to_slot),
             MethodSlot(ibinaryfunc, "nb_inplace_and", "__iand__", method_name_to_slot),

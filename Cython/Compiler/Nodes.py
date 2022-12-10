@@ -888,6 +888,7 @@ class CArgDeclNode(Node):
     is_self_arg = 0
     is_type_arg = 0
     is_generic = 1
+    is_special_method_optional = False
     kw_only = 0
     pos_only = 0
     not_none = 0
@@ -1853,6 +1854,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if arg.is_generic:
                     arg.default = arg.default.analyse_types(env)
                     arg.default = arg.default.coerce_to(arg.type, env)
+                elif arg.is_special_method_optional:
+                    if not arg.default.is_none:
+                        error(arg.pos, "This argument cannot have a non-None default value")
+                        arg.default = None
                 else:
                     error(arg.pos, "This argument cannot have a default value")
                     arg.default = None
@@ -3269,7 +3274,8 @@ class DefNode(FuncDefNode):
                         self.entry.signature = TypeSlots.ibinaryfunc
 
         sig = self.entry.signature
-        nfixed = sig.num_fixed_args()
+        nfixed = sig.max_num_fixed_args()
+        min_nfixed = sig.min_num_fixed_args()
         if (sig is TypeSlots.pymethod_signature and nfixed == 1
                and len(self.args) == 0 and self.star_arg):
             # this is the only case where a diverging number of
@@ -3295,6 +3301,8 @@ class DefNode(FuncDefNode):
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
+            if i >= min_nfixed:
+                arg.is_special_method_optional = True
             if sig.is_self_arg(i) and not self.is_staticmethod:
                 if self.is_classmethod:
                     arg.is_type_arg = 1
@@ -3311,7 +3319,7 @@ class DefNode(FuncDefNode):
                     else:
                         arg.needs_conversion = 1
 
-        if nfixed > len(self.args):
+        if min_nfixed > len(self.args):
             self.bad_signature()
             return
         elif nfixed < len(self.args):
@@ -3348,9 +3356,11 @@ class DefNode(FuncDefNode):
 
     def bad_signature(self):
         sig = self.entry.signature
-        expected_str = "%d" % sig.num_fixed_args()
+        expected_str = "%d" % sig.min_num_fixed_args()
         if sig.has_generic_args:
             expected_str += " or more"
+        elif sig.optional_object_arg_count:
+            expected_str += " to %d" % sig.max_num_fixed_args()
         name = self.name
         if name.startswith("__") and name.endswith("__"):
             desc = "Special method"
@@ -3737,8 +3747,6 @@ class DefNodeWrapper(FuncDefNode):
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             varargs_args = "PyObject *%s, PyObject *%s" % (
                     Naming.args_cname, Naming.kwds_cname)
@@ -3750,6 +3758,9 @@ class DefNodeWrapper(FuncDefNode):
                         fastcall_args, varargs_args))
             else:
                 arg_code_list.append(varargs_args)
+        if entry.is_special:
+            for n in range(len(self.args), sig.max_num_fixed_args()):
+                arg_code_list.append("CYTHON_UNUSED PyObject *unused_arg_%s" % n)
         arg_code = ", ".join(arg_code_list)
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
@@ -4521,6 +4532,18 @@ class DefNodeWrapper(FuncDefNode):
                                           arg.type.is_buffer or
                                           arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
+        if self.target.entry.is_special:
+            for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
+                # for special functions with optional args (e.g. power which can
+                # take 2 or 3 args), unused args are None since this is what the
+                # compilers sets
+                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, '
+                    '"%s() takes %s arguments but %s were given");' % (
+                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln("}")
 
     def error_value(self):
         return self.signature.error_value
