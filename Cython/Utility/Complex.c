@@ -119,16 +119,6 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 
 /////////////// ToPy.proto ///////////////
-//@substitute: tempita
-
-// SoftComplexToPy uses this utility code directly so define default substitutions
-{{py:
-try:
-    is_extern_float_typedef
-except NameError:
-    is_extern_float_typedef = False
-    is_float = True
-}}
 
 {{py: func_suffix = "_CyTypedef" if is_extern_float_typedef else ("" if is_float else "_Cy")}}
 #define __pyx_PyComplex_FromComplex{{func_suffix}}(z) \
@@ -359,12 +349,11 @@ static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
 static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value); /* proto */
 
 //////// SoftComplexToPy ////////////////
-//@requires: ToPy
 //@requires: RealImag
 
 static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value) {
     if (__Pyx_CIMAG(value)) {
-        return __pyx_PyComplex_FromComplex(value);
+        return PyComplex_FromDoubles(__Pyx_CREAL(value), __Pyx_CIMAG(value));
     } else {
         return PyFloat_FromDouble(__Pyx_CREAL(value));
     }
