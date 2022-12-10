@@ -1005,10 +1005,10 @@ cdef class ArgumentTypeConversions:
 
 cdef class TwoArgPow:
     """
-    >>> TwoArgPow('a')**2
-    'a**2'
-    >>> pow(TwoArgPow('a'), 3)
-    'a**3'
+    >>> print(TwoArgPow('a')**2)
+    a**2
+    >>> print(pow(TwoArgPow('a'), 3))
+    a**3
     >>> pow(TwoArgPow('a'), 'x', 'y')
     Traceback (most recent call last):
         ...
@@ -1025,10 +1025,10 @@ cdef class TwoArgPow:
 
 cdef class TwoArgRPow:
     """
-    >>> 2**TwoArgRPow('a')
-    'a**2'
-    >>> pow(3, TwoArgRPow('a'))
-    'a**3'
+    >>> print(2**TwoArgRPow('a'))
+    a**2
+    >>> print(pow(3, TwoArgRPow('a')))
+    a**3
     >>> pow('x', TwoArgRPow('a'), 'y')
     Traceback (most recent call last):
         ...
@@ -1053,8 +1053,8 @@ cdef class TwoArgIPow:
     """
     >>> a = TwoArgIPow('a')
     >>> a**=2
-    >>> a
-    'a**2'
+    >>> print(a)
+    a**2
     >>> ipow(TwoArgIPow('a'), 'x', 'y')
     Traceback (most recent call last):
         ...
@@ -1071,12 +1071,12 @@ cdef class TwoArgIPow:
 
 cdef class TwoOrThreeArgPow:
     """
-    >>> TwoOrThreeArgPow('a')**2
-    'a**2[None]'
-    >>> pow(TwoOrThreeArgPow('a'), 3)
-    'a**3[None]'
-    >>> pow(TwoOrThreeArgPow('a'), 'x', 'y')
-    'a**x[y]'
+    >>> print(TwoOrThreeArgPow('a')**2)
+    a**2[None]
+    >>> print(pow(TwoOrThreeArgPow('a'), 3))
+    a**3[None]
+    >>> print(pow(TwoOrThreeArgPow('a'), 'x', 'y'))
+    a**x[y]
     """
     cdef str name
 
@@ -1089,12 +1089,12 @@ cdef class TwoOrThreeArgPow:
 
 cdef class TwoOrThreeArgRPow:
     """
-    >>> 2**TwoOrThreeArgRPow('a')
-    'a**2[None]'
-    >>> pow(3, TwoOrThreeArgRPow('a'))
-    'a**3[None]'
-    >>> pow('x', TwoOrThreeArgRPow('a'), 'y')
-    'a**x[y]'
+    >>> print(2**TwoOrThreeArgRPow('a'))
+    a**2[None]
+    >>> print(pow(3, TwoOrThreeArgRPow('a')))
+    a**3[None]
+    >>> print(pow('x', TwoOrThreeArgRPow('a'), 'y'))
+    a**x[y]
     """
     cdef str name
 
@@ -1109,10 +1109,10 @@ cdef class TwoOrThreeArgIPow:
     """
     >>> a = TwoOrThreeArgIPow('a')
     >>> a**=2
-    >>> a
-    'a**2[None]'
-    >>> ipow(TwoOrThreeArgIPow('a'), 'x', 'y')
-    'a**x[y]'
+    >>> print(a)
+    a**2[None]
+    >>> print(ipow(TwoOrThreeArgIPow('a'), 'x', 'y'))
+    a**x[y]
     """
     cdef str name
 
@@ -1132,10 +1132,10 @@ cdef class ThreeArgIPow:
     since the Python interpreter just passes None
     >>> a = ThreeArgIPow('a')
     >>> a**=2
-    >>> a
-    'a**2[None]'
-    >>> ipow(ThreeArgIPow('a'), 'x', 'y')
-    'a**x[y]'
+    >>> print(a)
+    a**2[None]
+    >>> print(ipow(ThreeArgIPow('a'), 'x', 'y'))
+    a**x[y]
     """
     cdef str name
 
