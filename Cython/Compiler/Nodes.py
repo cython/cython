@@ -17,7 +17,7 @@ import sys, copy
 from itertools import chain
 
 from . import Builtin
-from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
+from .Errors import error, warning, InternalError, CompileError, CannotSpecialize, format_position
 from . import Naming
 from . import PyrexTypes
 from . import TypeSlots
@@ -4537,6 +4537,10 @@ class DefNodeWrapper(FuncDefNode):
                 # for special functions with optional args (e.g. power which can
                 # take 2 or 3 args), unused args are None since this is what the
                 # compilers sets
+                if self.target.entry.name == "__ipow__":
+                    # Bug in Python < 3.8 - __ipow__ is used as a binary function
+                    # and attempts to access the third argument will always fail
+                    code.putln("#if PY_VERSION_HEX >= 0x03080000")
                 code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
                 code.putln(
                     'PyErr_SetString(PyExc_TypeError, '
@@ -4544,6 +4548,16 @@ class DefNodeWrapper(FuncDefNode):
                         self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
                 code.putln("%s;" % code.error_goto(self.pos))
                 code.putln("}")
+                if self.target.entry.name == "__ipow__":
+                    code.putln("#endif /*PY_VERSION_HEX >= 0x03080000*/")
+            if self.target.entry.name == "__ipow__" and len(self.args) != 2:
+                # It's basically impossible to safely support it:
+                # Class().__ipow__(1) is guarranteed to crash.
+                # therefore, just emit a C error as the safest thing to do.
+                code.putln("#if PY_VERSION_HEX < 0x03080000")
+                code.putln('#error "%s: 3-argument %s cannot be used in Python<3.8"' % (
+                            format_position(self.pos), self.target.entry.qualified_name))
+                code.putln('#endif')
 
     def error_value(self):
         return self.signature.error_value

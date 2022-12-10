@@ -1055,10 +1055,6 @@ cdef class TwoArgIPow:
     >>> a**=2
     >>> print(a)
     a**2
-    >>> ipow(TwoArgIPow('a'), 'x', 'y')
-    Traceback (most recent call last):
-        ...
-    TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
     """
     cdef str name
 
@@ -1067,6 +1063,15 @@ cdef class TwoArgIPow:
 
     def __ipow__(self, other):
         return f"{self.name}**{other}"
+
+if sys.version_info >= (3, 8):
+    # Due to a bug this check can't usefully work in Python <3.8
+    __doc__ += """
+>>> ipow(TwoArgIPow('a'), 'x', 'y')
+Traceback (most recent call last):
+    ...
+TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
+    """
 
 
 cdef class TwoOrThreeArgPow:
@@ -1104,43 +1109,4 @@ cdef class TwoOrThreeArgRPow:
     def __rpow__(self, other, base=None):
         return f"{self.name}**{other}[{base}]"
 
-
-cdef class TwoOrThreeArgIPow:
-    """
-    >>> a = TwoOrThreeArgIPow('a')
-    >>> a**=2
-    >>> print(a)
-    a**2[None]
-    >>> print(ipow(TwoOrThreeArgIPow('a'), 'x', 'y'))
-    a**x[y]
-    """
-    cdef str name
-
-    def __init__(self, name):
-        self.name = name
-
-    def __ipow__(self, other, base=None):
-        return f"{self.name}**{other}[{base}]"
-
-
-# Three arg pow and rpow are adequately tested elsewhere
-
-
-cdef class ThreeArgIPow:
-    """
-    Note that it's not possible to detect if this is called in a 2-arg context
-    since the Python interpreter just passes None
-    >>> a = ThreeArgIPow('a')
-    >>> a**=2
-    >>> print(a)
-    a**2[None]
-    >>> print(ipow(ThreeArgIPow('a'), 'x', 'y'))
-    a**x[y]
-    """
-    cdef str name
-
-    def __init__(self, name):
-        self.name = name
-
-    def __ipow__(self, other, base):
-        return f"{self.name}**{other}[{base}]"
+# See special_methods_T561_py38 for some extra tests for ipow
