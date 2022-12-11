@@ -341,7 +341,7 @@ Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipe
 
     Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
     in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
-    we suggest using it mainly for function argument and pointer types where to ``const`` is necessary to
+    we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
     work with an existing C/C++ interface.
 
 
