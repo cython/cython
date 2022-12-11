@@ -14277,7 +14277,7 @@ class AnnotationNode(ExprNode):
                 if not env.lookup(annotation.name):
                     warning(annotation.pos,
                             "Unknown type declaration '%s' in annotation, ignoring" % self.string.value, level=1)
-            elif annotation.is_attribute:
+            elif annotation.is_attribute and annotation.obj.is_name:
                 # Validate annotation in form `var: module.type`
                 if not env.lookup(annotation.obj.name):
                     # `module` is undeclared

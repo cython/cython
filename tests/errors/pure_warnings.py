@@ -15,6 +15,9 @@ def main():
     foo5: stdint.bar = 5  # warning
     foo6: object = 1
     foo7: cython.bar = 1  # warning
+    foo8: (1 + x).b
+    foo9: mod.a.b
+    foo10: func().b
     with cython.annotation_typing(False):
         foo8: Bar = 1
         foo9: stdint.bar = 5
@@ -25,6 +28,9 @@ _WARNINGS = """
 12:10: Unknown type declaration 'Bar' in annotation, ignoring
 15:16: Unknown type declaration 'stdint.bar' in annotation, ignoring
 17:16: Unknown type declaration 'cython.bar' in annotation, ignoring
+18:17: Unknown type declaration in annotation, ignoring
+19:15: Unknown type declaration in annotation, ignoring
+20:17: Unknown type declaration in annotation, ignoring
 
 # Spurious warnings from utility code - not part of the core test
 25:10: 'cpdef_method' redeclared
