@@ -2135,7 +2135,7 @@ class NameNode(AtomicExprNode):
 
         # Try to give a helpful warning when users write plain C type names.
         if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
-            warning(self.pos, "Found C type '%s' in a Python annotation. Did you mean to use a Python type?" % self.name)
+            warning(self.pos, "Found C type '%s' in a Python annotation. Did you mean to use a 'cython.%s'?" % (self.name, self.name))
 
         return None
 
