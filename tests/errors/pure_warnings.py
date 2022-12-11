@@ -14,8 +14,7 @@ def main():
     foo4: cython.int = 1
     foo5: stdint.bar = 5  # warning
     foo6: object = 1
-    # FIXME: This is raising additional warnings not related to this test.
-    # foo7: cython.bar = 1
+    foo7: cython.bar = 1  # warning
     with cython.annotation_typing(False):
         foo8: Bar = 1
         foo9: stdint.bar = 5
@@ -25,4 +24,12 @@ def main():
 _WARNINGS = """
 12:10: Unknown type declaration 'Bar' in annotation, ignoring
 15:16: Unknown type declaration 'stdint.bar' in annotation, ignoring
+17:16: Unknown type declaration 'cython.bar' in annotation, ignoring
+
+# Spurious warnings from utility code - not part of the core test
+25:10: 'cpdef_method' redeclared
+36:10: 'cpdef_cname_method' redeclared
+977:29: Ambiguous exception value, same as default return value: 0
+1018:46: Ambiguous exception value, same as default return value: 0
+1108:29: Ambiguous exception value, same as default return value: 0
 """
