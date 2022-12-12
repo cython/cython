@@ -317,6 +317,34 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+
+Type qualifiers
+---------------
+
+Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_::
+
+    cdef volatile int i = 5
+
+    cdef const int sum(const int a, const int b):
+        return a + b
+
+    cdef void print_const_pointer(const int *value):
+        print(value[0])
+
+    cdef void print_pointer_to_const_value(int * const value):
+        print(value[0])
+
+    cdef void print_const_pointer_to_const_value(const int * const value):
+        print(value[0])
+
+.. Note::
+
+    Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
+    in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
+    we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
+    work with an existing C/C++ interface.
+
+
 Extension Types
 ---------------
 

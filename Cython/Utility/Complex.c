@@ -349,12 +349,11 @@ static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
 static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value); /* proto */
 
 //////// SoftComplexToPy ////////////////
-//@requires: ToPy
 //@requires: RealImag
 
 static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value) {
     if (__Pyx_CIMAG(value)) {
-        return __pyx_PyComplex_FromComplex(value);
+        return PyComplex_FromDoubles(__Pyx_CREAL(value), __Pyx_CIMAG(value));
     } else {
         return PyFloat_FromDouble(__Pyx_CREAL(value));
     }
