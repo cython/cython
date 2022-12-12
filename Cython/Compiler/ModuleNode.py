@@ -2787,7 +2787,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.module_cname,
             Naming.pymoduledef_cname))
         module_state.putln("#else")
-        module_state.putln('static %s %s_static = {};' % (
+        module_state.putln('static %s %s_static = {0};' % (
             Naming.modulestate_cname,
             Naming.modulestateglobal_cname
         ))
