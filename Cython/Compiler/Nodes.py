@@ -4552,15 +4552,16 @@ class DefNodeWrapper(FuncDefNode):
                     code.putln("#endif /*PY_VERSION_HEX >= 0x03080000*/")
             if self.target.entry.name == "__ipow__" and len(self.args) != 2:
                 # It's basically impossible to safely support it:
-                # Class().__ipow__(1) is guarranteed to crash.
-                # therefore, just emit a C error as the safest thing to do.
-                code.putln("#if PY_VERSION_HEX < 0x03080000")
+                # Class().__ipow__(1) is guaranteed to crash.
+                # Therefore, raise an error.
+                # Use "if" instead of "#if" to avoid warnings about unused variables
+                code.putln("if ((PY_VERSION_HEX < 0x03080000)) {")
                 code.putln(
                     'PyErr_SetString(PyExc_NotImplementedError, '
                     '"3-argument %s cannot be used in Python<3.8");' % (
                         self.target.entry.qualified_name))
                 code.putln("%s;" % code.error_goto(self.pos))
-                code.putln('#endif')
+                code.putln('}')
 
     def error_value(self):
         return self.signature.error_value
