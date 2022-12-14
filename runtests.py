@@ -1314,6 +1314,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 except CompileError as exc:
                     error = str(exc)
             stderr = get_stderr()
+            if stderr and b"Command line warning D9025" in stderr:
+                # Manually suppress annoying MSVC warnings about overridden CLI arguments.
+                stderr = b''.join([
+                    line for line in stderr.splitlines(keepends=True)
+                    if b"Command line warning D9025" not in line
+                ])
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
