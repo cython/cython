@@ -499,9 +499,11 @@ VER_DEP_MODULES = {
                                          'run.pep557_dataclasses',  # dataclasses module
                                          'run.test_dataclasses',
                                          ]),
+    (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
+                                         ]),
     (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
                                          ]),
-    
+
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
