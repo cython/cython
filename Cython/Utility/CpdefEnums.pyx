@@ -50,11 +50,11 @@ if PY_VERSION_HEX >= 0x03040000:
 cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
-    {{name}} = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+    {{name}} = __Pyx_EnumBase('{{name}}', [
         {{for item in items}}
         ('{{item}}', {{item}}),
         {{endfor}}
-    ]))
+    ])
     {{if enum_doc is not None}}
     {{name}}.__doc__ = {{ repr(enum_doc) }}
     {{endif}}
@@ -75,11 +75,11 @@ cdef dict __Pyx_globals = globals()
 
 if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
-    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
         {{for item in items}}
         ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
         {{endfor}}
-    ]))
+    ])
 
 else:
     __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
