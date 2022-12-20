@@ -7,7 +7,7 @@ cdef extern from *:
 
 cdef object __Pyx_OrderedDict
 
-if PY_VERSION_HEX >= 0x03070000:
+if PY_VERSION_HEX >= 0x03060000:
     __Pyx_OrderedDict = dict
 else:
     from collections import OrderedDict as __Pyx_OrderedDict
