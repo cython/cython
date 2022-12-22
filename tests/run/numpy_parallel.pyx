@@ -32,7 +32,7 @@ def test_parallel_numpy_arrays():
             print i
         return
 
-    x = numpy.zeros(10, dtype=numpy.int)
+    x = numpy.zeros(10, dtype=numpy.int_)
 
     for i in prange(x.shape[0], nogil=True):
         x[i] = i - 5
