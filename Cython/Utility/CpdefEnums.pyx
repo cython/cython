@@ -77,7 +77,7 @@ cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03060000:
     # create new IntFlag() - the assumption is that C enums are sufficiently commonly
     # used as flags that this is the most appropriate base class
-    {{name}} = __Pyx_FlagBase('{{name}}', 
+    {{name}} = __Pyx_FlagBase('{{name}}', [
         {{for item in items}}
         ('{{item}}', {{enum_to_pyint_func}}({{item}})),
         {{endfor}}
