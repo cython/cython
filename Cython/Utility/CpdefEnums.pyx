@@ -6,7 +6,11 @@ cdef extern from *:
     int PY_VERSION_HEX
 
 cdef object __Pyx_OrderedDict
-from collections import OrderedDict as __Pyx_OrderedDict
+
+if PY_VERSION_HEX >= 0x03060000:
+    __Pyx_OrderedDict = dict
+else:
+    from collections import OrderedDict as __Pyx_OrderedDict
 
 @cython.internal
 cdef class __Pyx_EnumMeta(type):
@@ -46,11 +50,11 @@ if PY_VERSION_HEX >= 0x03040000:
 cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
-    {{name}} = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+    {{name}} = __Pyx_EnumBase('{{name}}', [
         {{for item in items}}
         ('{{item}}', {{item}}),
         {{endfor}}
-    ]))
+    ])
     {{if enum_doc is not None}}
     {{name}}.__doc__ = {{ repr(enum_doc) }}
     {{endif}}
@@ -71,11 +75,11 @@ cdef dict __Pyx_globals = globals()
 
 if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
-    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
         {{for item in items}}
         ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
         {{endfor}}
-    ]))
+    ])
 
 else:
     __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
