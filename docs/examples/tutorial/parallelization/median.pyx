@@ -1,6 +1,3 @@
-# On MSVC use "/openmp" instead
-# distutils: extra_compile_args = -fopenmp
-# distutils: extra_link_args = -fopenmp
 # distutils: language = c++
 
 from cython.parallel cimport parallel, prange

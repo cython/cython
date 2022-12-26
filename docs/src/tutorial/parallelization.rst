@@ -66,10 +66,10 @@ below we calculate the ``sin`` of every element in an array:
 
 .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.pyx
 
-For simplicity I've specified the OpenMP compile and link arguments in
-the source file so that it can compiled directly with
-``cythonize -if filename.pyx``, for larger projects you will want to
-use setup.py.
+To compile these examples you need to make sure that OpenMP is enabled with the
+compile and link flags. On GCC this is ``-fopenmp`` while on MSVC it is
+``/openmp``. The :ref:`main parallelism documentation<parallel>` gives
+an example ``setup.py`` file.
 
 We parallelize the outermost loop.  This is usually a good idea
 since there is some overhead to entering and leaving a parallel block.
