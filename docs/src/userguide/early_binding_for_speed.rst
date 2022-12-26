@@ -6,6 +6,9 @@
 Early Binding for Speed
 **************************
 
+.. include::
+    ../two-syntax-variants-used
+
 As a dynamic language, Python encourages a programming style of considering
 classes and objects in terms of their methods and attributes, more than where
 they fit into the class hierarchy.
@@ -22,7 +25,15 @@ use of 'early binding' programming techniques.
 
 For example, consider the following (silly) code example:
 
-.. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle.pyx
 
 In the :func:`rectArea` method, the call to :meth:`rect.area` and the
 :meth:`.area` method contain a lot of Python overhead.
@@ -30,7 +41,15 @@ In the :func:`rectArea` method, the call to :meth:`rect.area` and the
 However, in Cython, it is possible to eliminate a lot of this overhead in cases
 where calls occur within Cython code. For example:
 
-.. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cdef.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cdef.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cdef.pyx
 
 Here, in the Rectangle extension class, we have defined two different area
 calculation methods, the efficient :meth:`_area` C method, and the
@@ -46,10 +65,18 @@ dual-access methods - methods that can be efficiently called at C level, but
 can also be accessed from pure Python code at the cost of the Python access
 overheads. Consider this code:
 
-.. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cpdef.pyx
+.. tabs::
 
-Here, we just have a single area method, declared as :keyword:`cpdef` to make it
-efficiently callable as a C function, but still accessible from pure Python
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cpdef.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cpdef.pyx
+
+Here, we just have a single area method, declared as :keyword:`cpdef` or with ``@ccall`` decorator
+to make it efficiently callable as a C function, but still accessible from pure Python
 (or late-binding Cython) code.
 
 If within Cython code, we have a variable already 'early-bound' (ie, declared

@@ -6,7 +6,11 @@ cdef extern from *:
     int PY_VERSION_HEX
 
 cdef object __Pyx_OrderedDict
-from collections import OrderedDict as __Pyx_OrderedDict
+
+if PY_VERSION_HEX >= 0x03060000:
+    __Pyx_OrderedDict = dict
+else:
+    from collections import OrderedDict as __Pyx_OrderedDict
 
 @cython.internal
 cdef class __Pyx_EnumMeta(type):
@@ -73,11 +77,11 @@ cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03060000:
     # create new IntFlag() - the assumption is that C enums are sufficiently commonly
     # used as flags that this is the most appropriate base class
-    {{name}} = __Pyx_FlagBase('{{name}}', __Pyx_OrderedDict([
+    {{name}} = __Pyx_FlagBase('{{name}}', 
         {{for item in items}}
         ('{{item}}', {{enum_to_pyint_func}}({{item}})),
         {{endfor}}
-    ]))
+    ])
     if PY_VERSION_HEX >= 0x030B0000:
         # Python 3.11 starts making the behaviour of flags stricter
         # (only including powers of 2 when iterating). Since we're using
@@ -103,13 +107,11 @@ else:
 cdef dict __Pyx_globals = globals()
 
 if PY_VERSION_HEX >= 0x03040000:
-    # create new IntEnum() - cpp scoped enums shouldn't really be used as flags and
-    # therefore enforcing fixed values seems appropriate
-    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', [
         {{for item in items}}
         ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
         {{endfor}}
-    ]))
+    ])
 
 else:
     __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
