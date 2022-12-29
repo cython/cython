@@ -14,4 +14,3 @@ def normalize(x: cython.double[:]):
         norm = sqrt(total)
         for i in prange(x.shape[0]):
             x[i] /= norm
-

@@ -36,4 +36,3 @@ def median_along_axis0(x: cython.double[:,:]):
         finally:
             free(scratch)
     return np.asarray(out)
-

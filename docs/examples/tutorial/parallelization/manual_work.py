@@ -22,4 +22,3 @@ def do_two_tasks():
             long_running_task1()
         elif thread_num == 1:
             long_running_task2()
-
