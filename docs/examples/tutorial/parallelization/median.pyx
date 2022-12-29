@@ -1,5 +1,8 @@
 # distutils: language = c++
 
+# Note that the pure and classic syntax examples are not quite identical
+# since pure Python syntax does not support C++ "new", so we allocate the
+# scratch space slightly differently
 from cython.parallel cimport parallel, prange
 from libcpp.vector cimport vector
 from libcpp.algorithm cimport nth_element
@@ -13,6 +16,7 @@ import numpy as np
 def median_along_axis0(const double[:,:] x):
     cdef double[::1] out = np.empty(x.shape[1])
     cdef Py_ssize_t i, j
+
     cdef vector[double] *scratch
     cdef vector[double].iterator median_it
     with nogil, parallel():

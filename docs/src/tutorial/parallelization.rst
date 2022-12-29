@@ -4,6 +4,9 @@
 Writing parallel code with Cython
 =================================
 
+.. include::
+    ../two-syntax-variants-used
+
 One method of speeding up your Cython code is parallelization:
 you write code that can be run on multiple cores of your CPU simultaneously.
 For code that lends itself to parallelization this can produce quite
@@ -55,7 +58,22 @@ You should also be aware that a lot of the choices Cython makes
 about how your code is parallelized are fairly fixed and if you want
 specific OpenMP behaviour that Cython doesn't provide by default you
 may be better writing it in C yourself.
-  
+
+Compilation
+===========
+
+OpenMP requires support from your C/C++ compiler. This support is
+usually enabled through a special command-line argument:
+on GCC this is ``-fopenmp`` while on MSVC it is
+``/openmp``. If your compiler doesn't support OpenMP (or if you
+forget to pass the argument) then the code will usually still
+compile but will not run in parallel.
+
+The following ``setup.py`` file can be used to compile the
+examples in this tutorial:
+
+.. literalinclude:: ../../examples/tutorial/parallelization/setup.py
+
 Element-wise parallel operations
 ================================
 
@@ -65,11 +83,6 @@ operation on each array element.  In the simple example
 below we calculate the ``sin`` of every element in an array:
 
 .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.pyx
-
-To compile these examples you need to make sure that OpenMP is enabled with the
-compile and link flags. On GCC this is ``-fopenmp`` while on MSVC it is
-``/openmp``. The :ref:`main parallelism documentation<parallel>` gives
-an example ``setup.py`` file.
 
 We parallelize the outermost loop.  This is usually a good idea
 since there is some overhead to entering and leaving a parallel block.
@@ -143,7 +156,15 @@ The second most common parallel operation in Cython is the "reduction"
 operation.  A common example is to accumulate a sum over the whole
 array, such as in the calculation of a vector norm below:
 
-.. literalinclude:: ../../examples/tutorial/parallelization/norm.pyx
+.. tabs::
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/norm.pyx
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/norm.py
 
 Cython is able to infer reductions for ``+=``, ``*=``, ``-=``,
 ``&=``, ``|=``, and ``^=``.  These only apply to C scalar variables
@@ -190,7 +211,15 @@ The first parallel loop calculates the norm, the second parallel
 loop applies the norm to the vector, and we avoid jumping in and out of serial
 code in between.
 
-.. literalinclude:: ../../examples/tutorial/parallelization/normalize.pyx
+.. tabs::
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/normalize.pyx
+        
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/normalize.py
 
 The C code is approximately:
 
@@ -226,7 +255,15 @@ to modify the input array.  Therefore, we allocate a C++ vector per
 thread to use as scratch space, and work in that.  For efficiency
 the vector is allocated outside the ``prange`` loop.
 
-.. literalinclude:: ../../examples/tutorial/parallelization/median.pyx
+.. tabs::
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/median.pyx
+        
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/median.py
 
 In the generated code the ``scratch`` variable is marked as
 ``private`` in the outer parallel block.  A rough outline is:
@@ -255,7 +292,15 @@ a fairly rare use-case in Cython, and probably suggests
 that the ``threading`` module is more suitable for what
 you're trying to do.  However it is an option.
 
-.. literalinclude:: ../../examples/tutorial/parallelization/manual_work.pyx
+.. tabs::
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.pyx
+        
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.py
 
 The utility of this kind of block is limited by the fact that
 variables assigned to in the block are ``private`` to each thread,
