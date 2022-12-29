@@ -1,8 +1,5 @@
 # distutils: language = c++
 
-# Note that the pure and classic syntax examples are not quite identical
-# since pure Python syntax does not support C++ "new", so we allocate the
-# scratch space slightly differently
 from cython.parallel import parallel, prange
 from cython.cimports.libc.stdlib import malloc, free
 from cython.cimports.libcpp.algorithm import nth_element
