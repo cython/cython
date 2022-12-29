@@ -273,6 +273,12 @@ the vector is allocated outside the ``prange`` loop.
 
         .. literalinclude:: ../../examples/tutorial/parallelization/median.py
 
+.. note::
+
+    Pure and classic syntax examples are not quite identical
+    since pure Python syntax does not support C++ "new", so we allocate the
+    scratch space slightly differently
+
 In the generated code the ``scratch`` variable is marked as
 ``private`` in the outer parallel block.  A rough outline is:
 
@@ -305,10 +311,12 @@ you're trying to do.  However it is an option.
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.pyx
+           :lines: 2-
         
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.py
+           :lines: 2-
 
 The utility of this kind of block is limited by the fact that
 variables assigned to in the block are ``private`` to each thread,
