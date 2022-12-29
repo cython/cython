@@ -3434,51 +3434,58 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         Optimise math operators for (likely) float or small integer operations.
         """
+        if node.type is not node.fallback_return_type:
+            def fallback_return(node):
+                old_return_type, node.type = node.type, node.fallback_return_type
+                return node.coerce_to(old_return_type, self.current_env())
+        else:
+            fallback_return = lambda node: node
+
         if len(args) != 2:
-            return node
+            return fallback_return(node)
 
         if node.type.is_pyobject:
             ret_type = PyrexTypes.py_object_type
         elif node.type is PyrexTypes.c_bint_type and operator in ('Eq', 'Ne'):
             ret_type = PyrexTypes.c_bint_type
         else:
-            return node
+            return fallback_return(node)
 
         # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
         # Prefer constants on RHS as they allows better size control for some operators.
         num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
         if isinstance(args[1], num_nodes):
             if args[0].type is not PyrexTypes.py_object_type:
-                return node
+                return fallback_return(node)
             numval = args[1]
             arg_order = 'ObjC'
         elif isinstance(args[0], num_nodes):
             if args[1].type is not PyrexTypes.py_object_type:
-                return node
+                return fallback_return(node)
             numval = args[0]
             arg_order = 'CObj'
         else:
-            return node
+            return fallback_return(node)
 
         if not numval.has_constant_result():
-            return node
+            return fallback_return(node)
 
         is_float = isinstance(numval, ExprNodes.FloatNode)
         num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
         if is_float:
             if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
-                return node
+                return fallback_return(node)
         elif operator == 'Divide':
             # mixed old-/new-style division is not currently optimised for integers
-            return node
+            return fallback_return(node)
         elif abs(numval.constant_result) > 2**30:
             # Cut off at an integer border that is still safe for all operations.
-            return node
+            return fallback_return(node)
 
         if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
             if args[1].constant_result == 0:
                 # Don't optimise division by 0. :)
-                return node
+                return fallback_return(node)
 
         args = list(args)
         args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
