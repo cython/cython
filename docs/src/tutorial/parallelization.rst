@@ -101,7 +101,7 @@ users of OpenMP. It is simplified a little for readability here:
         #pragma omp for firstprivate(i) lastprivate(i) lastprivate(j)
         for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_9; __pyx_t_8++){
             i = __pyx_t_8;
-            / * body goes here */
+            /* body goes here */
         }
     }
     
@@ -122,7 +122,7 @@ The basic rules that Cython applies are:
   ``firstprivate`` and ``lastprivate``,
 
 - C scalar variables assigned within a  
-  :ref:```parallel`` block<parallel-block>`
+  :ref:`parallel block<parallel-block>`
   are ``private`` (which means they can't be used to pass data in
   and out of the block),
 
@@ -159,7 +159,7 @@ The C code generated is approximately:
         #pragma omp for firstprivate(i) lastprivate(i)
         for (__pyx_t_2 = 0; __pyx_t_2 < __pyx_t_3; __pyx_t_2++){
             i = __pyx_t_2;
-            total = total + / * some indexing code */;
+            total = total + /* some indexing code */;
             
         }
     }
