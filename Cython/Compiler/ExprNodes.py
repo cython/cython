@@ -12846,10 +12846,6 @@ class CmpNode(object):
 
     special_bool_cmp_function = None
     special_bool_cmp_utility_code = None
-    # fallback_return_type is used for when we think we can optimize
-    # (so we change the return type). But if the optimization fails
-    # it gives us something to revert to
-    fallback_return_type = None
 
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
@@ -13071,7 +13067,6 @@ class CmpNode(object):
                     # of the comparison is probably a Python object with the same type. In this case the
                     # actual optimization takes place in OptimizeBuiltinCalls, but it is safe to convert
                     # the type to bint
-                    self.fallback_return_type = self.type
                     return True
         elif self.operator in ('in', 'not_in'):
             if self.operand2.type is Builtin.dict_type:
