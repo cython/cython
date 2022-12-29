@@ -1,3 +1,5 @@
+# tag: openmp
+
 from cython.parallel import parallel
 from cython.cimports.openmp import omp_get_thread_num
 import cython
