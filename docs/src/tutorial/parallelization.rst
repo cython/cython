@@ -82,7 +82,15 @@ iterate across an array element-wise, performing the same
 operation on each array element.  In the simple example
 below we calculate the ``sin`` of every element in an array:
 
-.. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.pyx
+.. tabs::
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.pyx
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.py
 
 We parallelize the outermost loop.  This is usually a good idea
 since there is some overhead to entering and leaving a parallel block.
