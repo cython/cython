@@ -730,13 +730,15 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
-                        # Ideally the function-pointer test would be better after self.base is analysed
-                        # however that is hard to do with the current implementation so it lives here
-                        # for now
-                        and not isinstance(self.base, CPtrDeclaratorNode)):
-                    # Extension types are more difficult because the signature must match the base type signature.
-                    if not env.is_c_class_scope:
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)):
+                    # - We skip this optimization for extension types; they are more difficult because
+                    #   the signature must match the base type signature.
+                    # - Same for function pointers, as we want them to be able to match functions
+                    #   with any exception value.
+                    # - Ideally the function-pointer test would be better after self.base is analysed
+                    #   however that is hard to do with the current implementation so it lives here
+                    #   for now.
+                    if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode(
                             self.pos, value=return_type.exception_value, type=return_type)
@@ -1633,6 +1635,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 elif isinstance(attr, CompilerDirectivesNode):
                     for sub_attr in func_attributes(attr.body.stats):
                         yield sub_attr
+                elif isinstance(attr, CppClassNode) and attr.attributes is not None:
+                    for sub_attr in func_attributes(attr.attributes):
+                        yield sub_attr
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1994,6 +1999,11 @@ class FuncDefNode(StatNode, BlockNode):
         # Initialize the return variable __pyx_r
         init = ""
         return_type = self.return_type
+        if return_type.is_cv_qualified and return_type.is_const:
+            # Within this function body, we want to be able to set this
+            # variable, even though the function itself needs to return
+            # a const version
+            return_type = return_type.cv_base_type
         if not return_type.is_void:
             if return_type.is_pyobject:
                 init = " = NULL"
@@ -3750,7 +3760,7 @@ class DefNodeWrapper(FuncDefNode):
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        header = "%sstatic %s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
@@ -4010,15 +4020,9 @@ class DefNodeWrapper(FuncDefNode):
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
         non_pos_args_id = ','.join(
             ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
             non_pos_args_id))
-        code.putln("#else")
-        code.putln("static PyObject **%s[] = {%s};" % (
-            Naming.pykwdlist_cname,
-            non_pos_args_id))
-        code.putln("#endif")
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -5218,6 +5222,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
@@ -5307,6 +5313,8 @@ class CClassDefNode(ClassDefNode):
             api=self.api,
             buffer_defaults=self.buffer_defaults(env),
             shadow=self.shadow)
+        if self.bases and len(self.bases.args) > 1:
+            self.entry.type.multiple_bases = True
 
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry
@@ -8731,7 +8739,7 @@ class FromCImportStatNode(StatNode):
     #
     #  module_name     string                        Qualified name of module
     #  relative_level  int or None                   Relative import: number of dots before module_name
-    #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
+    #  imported_names  [(pos, name, as_name)]  Names to be imported
 
     child_attrs = []
     module_name = None
@@ -8742,35 +8750,34 @@ class FromCImportStatNode(StatNode):
         if not env.is_module_scope:
             error(self.pos, "cimport only allowed at module level")
             return
-        if self.relative_level and self.relative_level > env.qualified_name.count('.'):
-            error(self.pos, "relative cimport beyond main package is not allowed")
-            return
+        qualified_name_components = env.qualified_name.count('.') + 1
+        if self.relative_level:
+            if self.relative_level > qualified_name_components:
+                # 1. case: importing beyond package: from .. import pkg
+                error(self.pos, "relative cimport beyond main package is not allowed")
+                return
+            elif self.relative_level == qualified_name_components and not env.is_package:
+                # 2. case: importing from same level but current dir is not package: from . import module
+                error(self.pos, "relative cimport from non-package directory is not allowed")
+                return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
-        for pos, name, as_name, kind in self.imported_names:
+        for pos, name, as_name in self.imported_names:
             if name == "*":
                 for local_name, entry in list(module_scope.entries.items()):
                     env.add_imported_entry(local_name, entry, pos)
             else:
                 entry = module_scope.lookup(name)
                 if entry:
-                    if kind and not self.declaration_matches(entry, kind):
-                        entry.redeclared(pos)
                     entry.used = 1
                 else:
-                    if kind == 'struct' or kind == 'union':
-                        entry = module_scope.declare_struct_or_union(
-                            name, kind=kind, scope=None, typedef_flag=0, pos=pos)
-                    elif kind == 'class':
-                        entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
+                    submodule_scope = env.context.find_module(
+                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                    if submodule_scope.parent_module is module_scope:
+                        env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:
-                        submodule_scope = env.context.find_module(
-                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
-                        if submodule_scope.parent_module is module_scope:
-                            env.declare_module(as_name or name, submodule_scope, self.pos)
-                        else:
-                            error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
+                        error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
 
                 if entry:
                     local_name = as_name or name
@@ -8779,7 +8786,7 @@ class FromCImportStatNode(StatNode):
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
                 env.use_utility_code(utility_code_for_cimports[module_name]())
-            for _, name, _, _ in self.imported_names:
+            for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
                     env.use_utility_code(utility_code_for_cimports[fqname]())

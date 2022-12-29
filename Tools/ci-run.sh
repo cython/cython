@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+set -x
+
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
@@ -68,12 +70,17 @@ if [[ $PYTHON_VERSION == "2.7"* ]]; then
 elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
+elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
+  pip install wheel || exit 1
+  pip install -r test-requirements-pypy27.txt || exit 1
+elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+  python -m pip install wheel || exit 1
+  python -m pip install -r test-requirements-312.txt || exit 1
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
-
     if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
@@ -114,9 +121,19 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
-  CFLAGS="-Od /Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820"
+  CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
 else
   CFLAGS="-O0 -ggdb -Wall -Wextra"
+fi
+# Trying to cover debug assertions in the CI without adding
+# extra jobs. Therefore, odd-numbered minor versions of Python
+# running C++ jobs get NDEBUG undefined, and even-numbered
+# versions running C jobs get NDEBUG undefined.
+ODD_VERSION=$(python3 -c "import sys; print(sys.version_info[1]%2)")
+if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
+    CFLAGS="$CFLAGS -UNDEBUG"
+elif [[ $ODD_VERSION == "0" ]]; then
+    CFLAGS="$CFLAGS -UNDEBUG"
 fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then

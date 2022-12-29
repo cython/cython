@@ -581,7 +581,6 @@ and check if the queue really is empty or not:
         .. code-block:: python
 
             @cython.cfunc
-            @cython.exceptval(-1, check=True)
             def peek(self) -> cython.int:
                 value: cython.int = cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
                 if value == 0:
@@ -595,7 +594,7 @@ and check if the queue really is empty or not:
 
         .. code-block:: cython
 
-            cdef int peek(self) except? -1:
+            cdef int peek(self):
                 cdef int value = <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
                 if value == 0:
                     # this may mean that the queue is empty, or
@@ -608,39 +607,27 @@ Note how we have effectively created a fast path through the method in
 the hopefully common cases that the return value is not ``0``.  Only
 that specific case needs an additional check if the queue is empty.
 
-The ``except? -1`` or ``@cython.exceptval(-1, check=True)`` declaration
-in the method signature falls into the
-same category.  If the function was a Python function returning a
+If the ``peek`` function was a Python function returning a
 Python object value, CPython would simply return ``NULL`` internally
 instead of a Python object to indicate an exception, which would
 immediately be propagated by the surrounding code.  The problem is
 that the return type is ``int`` and any ``int`` value is a valid queue
 item value, so there is no way to explicitly signal an error to the
-calling code.  In fact, without such a declaration, there is no
-obvious way for Cython to know what to return on exceptions and for
-calling code to even know that this method *may* exit with an
-exception.
+calling code.
 
 The only way calling code can deal with this situation is to call
 ``PyErr_Occurred()`` when returning from a function to check if an
 exception was raised, and if so, propagate the exception.  This
-obviously has a performance penalty.  Cython therefore allows you to
-declare which value it should implicitly return in the case of an
+obviously has a performance penalty.  Cython therefore uses a dedicated value
+that it implicitly returns in the case of an
 exception, so that the surrounding code only needs to check for an
 exception when receiving this exact value.
 
-We chose to use ``-1`` as the exception return value as we expect it
-to be an unlikely value to be put into the queue.  The question mark
-in the ``except? -1`` declaration and ``check=True`` in ``@cython.exceptval``
-indicates that the return value is
-ambiguous (there *may* be a ``-1`` value in the queue, after all) and
-that an additional exception check using ``PyErr_Occurred()`` is
-needed in calling code.  Without it, Cython code that calls this
-method and receives the exception return value would silently (and
-sometimes incorrectly) assume that an exception has been raised.  In
-any case, all other return values will be passed through almost
+By default, the value ``-1`` is used as the exception return value.
+All other return values will be passed through almost
 without a penalty, thus again creating a fast path for 'normal'
-values.
+values. See :ref:`error_return_values` for more details.
+
 
 Now that the ``peek()`` method is implemented, the ``pop()`` method
 also needs adaptation.  Since it removes a value from the queue,
@@ -654,7 +641,6 @@ removal.  Instead, we must test it on entry:
         .. code-block:: python
 
             @cython.cfunc
-            @cython.exceptval(-1, check=True)
             def pop(self) -> cython.int:
                 if cqueue.queue_is_empty(self._c_queue):
                     raise IndexError("Queue is empty")
@@ -664,7 +650,7 @@ removal.  Instead, we must test it on entry:
 
         .. code-block:: cython
 
-            cdef int pop(self) except? -1:
+            cdef int pop(self):
                 if cqueue.queue_is_empty(self._c_queue):
                     raise IndexError("Queue is empty")
                 return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)

@@ -112,6 +112,8 @@ cdef extern from "<set>" namespace "std" nogil:
         iterator upper_bound(const T&)
         const_iterator const_upper_bound "upper_bound"(const T&)
         #value_compare value_comp()
+        # C++20
+        bint contains(const T&)
 
     cdef cppclass multiset[T]:
         ctypedef T value_type
@@ -222,3 +224,5 @@ cdef extern from "<set>" namespace "std" nogil:
         void swap(multiset&)
         iterator upper_bound(const T&)
         const_iterator const_upper_bound "upper_bound"(const T&)
+        # C++20
+        bint contains(const T&)
