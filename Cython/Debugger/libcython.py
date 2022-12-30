@@ -776,8 +776,8 @@ class CyBreak(CythonCommand):
 
         if (cython_module.filename, lineno) in cython_module.lineno_cy2c:
             c_lineno = cython_module.lineno_cy2c[cython_module.filename, lineno]
-            breakpoint = '%s:%s' % (cython_module.c_filename, c_lineno)
-            gdb.execute('break ' + breakpoint)
+            breakpnt = '%s:%s' % (cython_module.c_filename, c_lineno)
+            gdb.execute('break ' + breakpnt)
         else:
             raise gdb.GdbError("Not a valid line number. "
                                "Does it contain actual code?")
@@ -1172,7 +1172,10 @@ class CyLocals(CythonCommand):
             return
 
         local_cython_vars = cython_function.locals
-        max_name_length = len(max(local_cython_vars, key=len))
+        if local_cython_vars:
+            max_name_length = len(max(local_cython_vars, key=len))
+        else:
+            max_name_length = 0
         for name, cyvar in sorted(local_cython_vars.items(), key=sortkey):
             if self.is_initialized(self.get_cython_function(), cyvar.name):
                 value = gdb.parse_and_eval(cyvar.cname)

@@ -628,7 +628,7 @@ class PyCFunctionObjectPtr(PyObjectPtr):
     _typename = 'PyCFunctionObject'
 
     def proxyval(self, visited):
-        m_ml = self.field('m_ml')  # m_ml is a (PyMethodDef*)
+        m_ml = self.field('m_ml') # m_ml is a (PyMethodDef*)
         try:
             ml_name = m_ml['ml_name'].string()
         except UnicodeDecodeError:
@@ -1306,8 +1306,8 @@ class PyUnicodeObjectPtr(PyObjectPtr):
                     # If sizeof(Py_UNICODE) is 2 here (in gdb), join
                     # surrogate pairs before calling _unichr_is_printable.
                     if (i < len(proxy)
-                            and 0xD800 <= ord(ch) < 0xDC00
-                            and 0xDC00 <= ord(proxy[i]) <= 0xDFFF):
+                    and 0xD800 <= ord(ch) < 0xDC00 \
+                    and 0xDC00 <= ord(proxy[i]) <= 0xDFFF):
                         ch2 = proxy[i]
                         ucs = ch + ch2
                         i += 1
@@ -1401,7 +1401,7 @@ class wrapperobject(PyObjectPtr):
 
 
 def int_from_int(gdbval):
-    return int(gdbval)
+    return int(str(gdbval))
 
 
 def stringify(val):
@@ -1572,8 +1572,8 @@ class Frame(object):
         if not caller:
             return False
 
-        if (caller.startswith('cfunction_vectorcall_') or
-            caller == 'cfunction_call'):
+        if caller in ('_PyCFunction_FastCallDict',
+                      '_PyCFunction_FastCallKeywords'):
             arg_name = 'func'
             # Within that frame:
             #   "func" is the local containing the PyObject* of the
@@ -1951,10 +1951,9 @@ class PyLocals(gdb.Command):
             return
 
         for pyop_name, pyop_value in pyop_frame.iter_locals():
-            print('%s = %s' % (
-                pyop_name.proxyval(set()),
-                pyop_value.get_truncated_repr(MAX_OUTPUT_LEN),
-            ))
+            print('%s = %s'
+                   % (pyop_name.proxyval(set()),
+                      pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
 PyLocals()
 
