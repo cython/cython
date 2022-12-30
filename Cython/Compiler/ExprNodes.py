@@ -12846,6 +12846,7 @@ class CmpNode(object):
 
     special_bool_cmp_function = None
     special_bool_cmp_utility_code = None
+    special_bool_extra_args = []
 
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
@@ -13062,12 +13063,20 @@ class CmpNode(object):
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("StrEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyString_Equals"
                     return True
-                elif isinstance(operand1, (IntNode, FloatNode)) or isinstance(self.operand2, (IntNode, FloatNode)):
-                    # Where one side of the comparison is a known constant we can assume that the other side
-                    # of the comparison is probably a Python object with the same type. In this case the
-                    # actual optimization takes place in OptimizeBuiltinCalls, but it is safe to convert
-                    # the type to bint
-                    return True
+                elif result_is_bool:
+                    from .Optimize import optimise_numeric_binop
+                    result = optimise_numeric_binop(
+                        "Eq" if self.operator == "==" else "Ne",
+                        self,
+                        PyrexTypes.c_bint_type,
+                        self.operand1,
+                        self.operand2
+                    )
+                    if result:
+                        self.special_bool_cmp_function = result[0]
+                        self.special_bool_cmp_utility_code = result[1]
+                        self.special_bool_extra_args = result[2]
+                        return True
         elif self.operator in ('in', 'not_in'):
             if self.operand2.type is Builtin.dict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
@@ -13093,7 +13102,7 @@ class CmpNode(object):
         return False
 
     def generate_operation_code(self, code, result_code,
-            operand1, op , operand2):
+            operand1, op, operand2):
         if self.type.is_pyobject:
             error_clause = code.error_goto_if_null
             got_ref = "__Pyx_XGOTREF(%s); " % result_code
@@ -13117,6 +13126,10 @@ class CmpNode(object):
                 result2 = operand2.py_result()
             else:
                 result2 = operand2.result()
+            special_bool_extra_args_result = [
+                extra_arg.result() for extra_arg in self.special_bool_extra_args
+            ]
+            special_bool_extra_args_result = ", ".join(special_bool_extra_args_result)
             if self.special_bool_cmp_utility_code:
                 code.globalstate.use_utility_code(self.special_bool_cmp_utility_code)
             code.putln(
@@ -13124,7 +13137,8 @@ class CmpNode(object):
                     result_code,
                     coerce_result,
                     self.special_bool_cmp_function,
-                    result1, result2, richcmp_constants[op],
+                    result1, result2,
+                    special_bool_extra_args_result if self.special_bool_extra_args else richcmp_constants[op],
                     got_ref,
                     error_clause(result_code, self.pos)))
 
@@ -13198,7 +13212,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     #  Instead, we override all the framework methods
     #  which use it.
 
-    child_attrs = ['operand1', 'operand2', 'coerced_operand2', 'cascade']
+    child_attrs = ['operand1', 'operand2', 'coerced_operand2', 'cascade',
+                   'special_bool_extra_args']
 
     cascade = None
     coerced_operand2 = None
@@ -13426,6 +13441,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
         self.operand2.generate_evaluation_code(code)
+        for extra_arg in self.special_bool_extra_args:
+            extra_arg.generate_evaluation_code(code)
         if self.is_temp:
             self.allocate_temp_result(code)
             self.generate_operation_code(code, self.result(),
@@ -13468,7 +13485,8 @@ class CascadedCmpNode(Node, CmpNode):
     #  operand2      ExprNode
     #  cascade       CascadedCmpNode
 
-    child_attrs = ['operand2', 'coerced_operand2', 'cascade']
+    child_attrs = ['operand2', 'coerced_operand2', 'cascade',
+                   'special_bool_extra_args']
 
     cascade = None
     coerced_operand2 = None
@@ -13532,6 +13550,8 @@ class CascadedCmpNode(Node, CmpNode):
         if needs_evaluation:
             operand1.generate_evaluation_code(code)
         self.operand2.generate_evaluation_code(code)
+        for extra_arg in self.special_bool_extra_args:
+            extra_arg.generate_evaluation_code(code)
         self.generate_operation_code(code, result,
             operand1, self.operator, self.operand2)
         if self.cascade:
