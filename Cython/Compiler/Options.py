@@ -320,6 +320,7 @@ directive_types = {
     'auto_pickle': bool,
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
+    'collection_type': one_of('sequence'),
     'nogil' : bool,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
@@ -352,6 +353,7 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
@@ -401,7 +403,7 @@ immediate_decorator_directives = {
     'inline', 'exceptval', 'returns',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
-    'auto_pickle', 'internal',
+    'auto_pickle', 'internal', 'collection_type',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
 }
