@@ -25,15 +25,19 @@ bar = Extension(
     ["bar.pyx", "bar1.c", "bar2.cpp"],
 )
 
+macros = []
+compile_args = []
 if sys.platform == "win32":
-    # escape the quotes on the command line
-    extern_c_definition = r'extern\ \"C\"'
+    # Distutils doesn't escape properly for Windows so do it ourselves
+    compile_args = ['/D"__PYX_EXTERN_C=extern \"C\""']
 else:
-    extern_c_definition = 'extern "C"'
+    macros = [("__PYX_EXTERN_C", 'extern "C"')]
+
 baz = Extension(
     "baz",
     ["baz.pyx", "baz1.c", "baz2.cpp"],
-    define_macros = [("__PYX_EXTERN_C", extern_c_definition)],
+    define_macros = macros,
+    extra_compile_args = compile_args
 )
 
 setup(
