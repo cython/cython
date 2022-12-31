@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+set -x
+
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
@@ -68,12 +70,17 @@ if [[ $PYTHON_VERSION == "2.7"* ]]; then
 elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
+elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
+  pip install wheel || exit 1
+  pip install -r test-requirements-pypy27.txt || exit 1
+elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+  python -m pip install wheel || exit 1
+  python -m pip install -r test-requirements-312.txt || exit 1
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
-
     if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
@@ -118,6 +125,16 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
 else
   CFLAGS="-O0 -ggdb -Wall -Wextra"
 fi
+# Trying to cover debug assertions in the CI without adding
+# extra jobs. Therefore, odd-numbered minor versions of Python
+# running C++ jobs get NDEBUG undefined, and even-numbered
+# versions running C jobs get NDEBUG undefined.
+ODD_VERSION=$(python3 -c "import sys; print(sys.version_info[1]%2)")
+if [[ $BACKEND == *"cpp"* && $ODD_VERSION == "1" ]]; then
+    CFLAGS="$CFLAGS -UNDEBUG"
+elif [[ $ODD_VERSION == "0" ]]; then
+    CFLAGS="$CFLAGS -UNDEBUG"
+fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
@@ -136,8 +153,11 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
+  # It looks like parallel build may be causing occasional link failures on Windows
+  # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
+  # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
+    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) and not sys.platform.startswith("win") else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1

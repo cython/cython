@@ -499,6 +499,11 @@ VER_DEP_MODULES = {
                                          'run.pep557_dataclasses',  # dataclasses module
                                          'run.test_dataclasses',
                                          ]),
+    (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
+                                         ]),
+    (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
+                                         ]),
+
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1311,6 +1316,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 except CompileError as exc:
                     error = str(exc)
             stderr = get_stderr()
+            if stderr and b"Command line warning D9025" in stderr:
+                # Manually suppress annoying MSVC warnings about overridden CLI arguments.
+                stderr = b''.join([
+                    line for line in stderr.splitlines(keepends=True)
+                    if b"Command line warning D9025" not in line
+                ])
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
@@ -2546,12 +2557,17 @@ def configure_cython(options):
         CompilationOptions, \
         default_options as pyrex_default_options
     from Cython.Compiler.Options import _directive_defaults as directive_defaults
+
     from Cython.Compiler import Errors
     Errors.LEVEL = 0  # show all warnings
+
     from Cython.Compiler import Options
     Options.generate_cleanup_code = 3  # complete cleanup code
+
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
+    DebugFlags.debug_no_exception_intercept = 1  # provide better crash output in CI runs
+
     pyrex_default_options['formal_grammar'] = options.use_formal_grammar
     if options.profile:
         directive_defaults['profile'] = True

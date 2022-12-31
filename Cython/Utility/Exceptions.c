@@ -676,7 +676,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
     if (nogil)
         state = PyGILState_Ensure();
     /* arbitrary, to suppress warning */
-    else state = (PyGILState_STATE)-1;
+    else state = (PyGILState_STATE)0;
 #endif
     CYTHON_UNUSED_VAR(clineno);
     CYTHON_UNUSED_VAR(lineno);

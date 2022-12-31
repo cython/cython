@@ -1,0 +1,158 @@
+# mode: run
+# tag: cpp
+# ticket: 1839
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from foo import test; test()"
+PYTHON -c "from bar import test; test()"
+PYTHON -c "from baz import test; test()"
+"""
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+from distutils.core import setup
+import sys
+
+foo = Extension(
+    "foo",
+    ["foo.pyx", "foo1.cpp", "foo2.cpp"],
+)
+bar = Extension(
+    "bar",
+    ["bar.pyx", "bar1.c", "bar2.cpp"],
+)
+
+if sys.platform == "win32":
+    # escape the quotes on the command line
+    extern_c_definition = r'extern \"C\"'
+else:
+    extern_c_definition = 'extern "C"'
+baz = Extension(
+    "baz",
+    ["baz.pyx", "baz1.c", "baz2.cpp"],
+    define_macros = [("__PYX_EXTERN_C", extern_c_definition)],
+)
+
+setup(
+    ext_modules=cythonize([foo, bar, baz]),
+)
+
+######## foo.pyx ########
+
+# distutils: language = c++
+
+from libcpp cimport vector
+
+cdef public vector.vector[int] get_vector():
+    return [1,2,3]
+
+cdef extern from "foo_header.h":
+    cdef size_t size_vector1()
+    cdef size_t size_vector2()
+
+def test():
+    assert size_vector1() == 3
+    assert size_vector2() == 3
+
+######## foo_header.h ########
+
+size_t size_vector1();
+size_t size_vector2();
+
+######## foo1.cpp ########
+
+#include <vector>
+#include "foo.h"
+
+size_t size_vector1() {
+    return get_vector().size();
+}
+
+######## foo2.cpp ########
+
+#include <vector>
+extern "C" {
+// #include within `extern "C"` is legal.
+// We want to make sure here that Cython C++ functions are flagged as `extern "C++"`.
+// Otherwise they would be interpreted with C-linkage if the header is include within a `extern "C"` block.
+#include "foo.h"
+}
+
+size_t size_vector2() {
+    return get_vector().size();
+}
+
+######## bar.pyx ########
+
+cdef public char get_char():
+    return 42
+
+cdef extern from "bar_header.h":
+    cdef int get_int1()
+    cdef int get_int2()
+
+def test():
+    assert get_int1() == 42
+    assert get_int2() == 42
+
+######## bar_header.h ########
+
+int get_int1();
+int get_int2();
+
+######## bar1.c ########
+
+#include "bar.h"
+
+int get_int1() { return (int)get_char(); }
+
+######## bar2.cpp ########
+
+extern "C" {
+#include "bar.h"
+}
+
+extern "C" int get_int2() { return (int)get_char(); }
+
+######## baz.pyx ########
+
+# distutils: language = c++
+
+cdef public char get_char():
+    return 42
+
+cdef extern from "baz_header.h":
+    cdef int get_int1()
+    cdef int get_int2()
+
+def test():
+    assert get_int1() == 42
+    assert get_int2() == 42
+
+######## baz_header.h ########
+
+#ifdef __cplusplus
+  #define BAZ_EXTERN_C extern "C"
+#else
+  #define BAZ_EXTERN_C
+#endif
+
+BAZ_EXTERN_C int get_int1();
+int get_int2();
+
+######## baz1.c ########
+
+#undef __PYX_EXTERN_C
+#define __PYX_EXTERN_C
+#include "baz.h"
+
+int get_int1() { return (int)get_char(); }
+
+######## baz2.cpp ########
+
+#include "baz.h"
+
+int get_int2() { return (int)get_char(); }
