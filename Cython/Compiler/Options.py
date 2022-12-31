@@ -320,7 +320,7 @@ directive_types = {
     'auto_pickle': bool,
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
-    'collection_type': one_of('sequence', 'mapping'),
+    'collection_type': one_of('sequence'),
     'nogil' : bool,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False

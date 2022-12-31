@@ -560,9 +560,6 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_HAVE_FINALIZE"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
-        if scope.parent_type.has_mapping_flag:
-            assert not scope.parent_type.has_sequence_flag
-            value += "|Py_TPFLAGS_MAPPING"
         return value
 
     def generate_spec(self, scope, code):

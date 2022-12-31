@@ -1758,8 +1758,6 @@ class ModuleScope(Scope):
                 error(pos, "'collection_type' is not a public cython directive")
         if collection_type == 'sequence':
             entry.type.has_sequence_flag = True
-        elif collection_type == 'mapping':
-            entry.type.has_mapping_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
