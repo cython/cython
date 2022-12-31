@@ -36,6 +36,41 @@ class C_TestCase_test_field_named_object_frozen:
 
 @dataclass
 @cclass
+class C0_TestCase_test_0_field_compare:
+    pass
+
+@dataclass(order=False)
+@cclass
+class C1_TestCase_test_0_field_compare:
+    pass
+
+@dataclass(order=True)
+@cclass
+class C_TestCase_test_0_field_compare:
+    pass
+
+@dataclass
+@cclass
+class C0_TestCase_test_1_field_compare:
+    x: int
+
+@dataclass(order=False)
+@cclass
+class C1_TestCase_test_1_field_compare:
+    x: int
+
+@dataclass(order=True)
+@cclass
+class C_TestCase_test_1_field_compare:
+    x: int
+
+@dataclass
+@cclass
+class C_TestCase_test_field_no_default:
+    x: int = field()
+
+@dataclass
+@cclass
 class C_TestCase_test_not_in_compare:
     x: int = 0
     y: int = field(compare=False, default=4)
@@ -49,6 +84,11 @@ class Mutable_TestCase_test_deliberately_mutable_defaults:
 @cclass
 class C_TestCase_test_deliberately_mutable_defaults:
     x: Mutable_TestCase_test_deliberately_mutable_defaults
+
+@dataclass()
+@cclass
+class C_TestCase_test_no_options:
+    x: int
 
 @dataclass
 @cclass
@@ -112,6 +152,23 @@ class Bar_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factor
 @cclass
 class Baz_TestCase_test_default_factory_derived(Foo_TestCase_test_default_factory_derived):
     pass
+
+@dataclass
+@cclass
+class A_TestCase_test_intermediate_non_dataclass:
+    x: int
+
+@cclass
+class B_TestCase_test_intermediate_non_dataclass(A_TestCase_test_intermediate_non_dataclass):
+    y: int
+
+@dataclass
+@cclass
+class C_TestCase_test_intermediate_non_dataclass(B_TestCase_test_intermediate_non_dataclass):
+    z: int
+
+class D_TestCase_test_intermediate_non_dataclass(C_TestCase_test_intermediate_non_dataclass):
+    t: int
 
 class NotDataClass_TestCase_test_is_dataclass:
     pass
@@ -344,19 +401,6 @@ class R_TestCase_test_dataclasses_pickleable:
     x: int
     y: List[int] = field(default_factory=list)
 
-@dataclass(init=False)
-@cclass
-class C_TestInit_test_no_init:
-    i: int = 0
-
-@dataclass(init=False)
-@cclass
-class C_TestInit_test_no_init_:
-    i: int = 2
-
-    def __init__(self):
-        self.i = 3
-
 @dataclass
 @cclass
 class C_TestInit_test_overwriting_init:
@@ -405,6 +449,19 @@ class C_TestRepr_test_overwriting_repr__:
     def __repr__(self):
         return 'x'
 
+@dataclass(eq=False)
+@cclass
+class C_TestEq_test_no_eq:
+    x: int
+
+@dataclass(eq=False)
+@cclass
+class C_TestEq_test_no_eq_:
+    x: int
+
+    def __eq__(self, other):
+        return other == 10
+
 @dataclass
 @cclass
 class C_TestEq_test_overwriting_eq:
@@ -428,6 +485,32 @@ class C_TestEq_test_overwriting_eq__:
 
     def __eq__(self, other):
         return other == 5
+
+@dataclass(unsafe_hash=True)
+@cclass
+class C_TestHash_test_unsafe_hash:
+    x: int
+    y: str
+
+@dataclass(frozen=True)
+@cclass
+class C_TestHash_test_0_field_hash:
+    pass
+
+@dataclass(unsafe_hash=True)
+@cclass
+class C_TestHash_test_0_field_hash_:
+    pass
+
+@dataclass(frozen=True)
+@cclass
+class C_TestHash_test_1_field_hash:
+    x: int
+
+@dataclass(unsafe_hash=True)
+@cclass
+class C_TestHash_test_1_field_hash_:
+    x: int
 
 class Base1_TestMakeDataclass_test_base:
     pass
@@ -482,6 +565,48 @@ class C_TestReplace_test_initvar_is_specified:
     def __post_init__(self, y):
         self.x *= y
 
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr:
+    f: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_two_attrs:
+    f: object
+    g: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_indirection:
+    f: object
+
+@dataclass
+@cclass
+class D_TestReplace_test_recursive_repr_indirection:
+    f: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_indirection_two:
+    f: object
+
+@dataclass
+@cclass
+class D_TestReplace_test_recursive_repr_indirection_two:
+    f: object
+
+@dataclass
+@cclass
+class E_TestReplace_test_recursive_repr_indirection_two:
+    f: object
+
+@dataclass
+@cclass
+class C_TestReplace_test_recursive_repr_misc_attrs:
+    f: object
+    g: int
+
 class CustomError(Exception):
     pass
 
@@ -517,6 +642,45 @@ class TestCase(unittest.TestCase):
         c = C('foo')
         self.assertEqual(c.object, 'foo')
 
+    def test_0_field_compare(self):
+        C0 = C0_TestCase_test_0_field_compare
+        C1 = C1_TestCase_test_0_field_compare
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(), cls())
+                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaises(TypeError):
+                            fn(cls(), cls())
+        C = C_TestCase_test_0_field_compare
+        self.assertLessEqual(C(), C())
+        self.assertGreaterEqual(C(), C())
+
+    def test_1_field_compare(self):
+        C0 = C0_TestCase_test_1_field_compare
+        C1 = C1_TestCase_test_1_field_compare
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(1), cls(1))
+                self.assertNotEqual(cls(0), cls(1))
+                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaises(TypeError):
+                            fn(cls(0), cls(0))
+        C = C_TestCase_test_1_field_compare
+        self.assertLess(C(0), C(1))
+        self.assertLessEqual(C(0), C(1))
+        self.assertLessEqual(C(1), C(1))
+        self.assertGreater(C(1), C(0))
+        self.assertGreaterEqual(C(1), C(0))
+        self.assertGreaterEqual(C(1), C(1))
+
+    def test_field_no_default(self):
+        C = C_TestCase_test_field_no_default
+        self.assertEqual(C(5).x, 5)
+        with self.assertRaises(TypeError):
+            C()
+
     def test_not_in_compare(self):
         C = C_TestCase_test_not_in_compare
         self.assertEqual(C(), C(0, 20))
@@ -535,6 +699,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(o1, o2)
         self.assertEqual(o1.x.l, [1, 2])
         self.assertIs(o1.x, o2.x)
+
+    def test_no_options(self):
+        C = C_TestCase_test_no_options
+        self.assertEqual(C(42).x, 42)
 
     def test_not_tuple(self):
         Point = Point_TestCase_test_not_tuple
@@ -577,6 +745,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(Bar().y, 1)
         Baz = Baz_TestCase_test_default_factory_derived
         self.assertEqual(Baz().x, {})
+
+    def test_intermediate_non_dataclass(self):
+        A = A_TestCase_test_intermediate_non_dataclass
+        B = B_TestCase_test_intermediate_non_dataclass
+        C = C_TestCase_test_intermediate_non_dataclass
+        c = C(1, 3)
+        self.assertEqual((c.x, c.z), (1, 3))
+        with self.assertRaises(AttributeError):
+            c.y
+        D = D_TestCase_test_intermediate_non_dataclass
+        d = D(4, 5)
+        self.assertEqual((d.x, d.z), (4, 5))
 
     def test_is_dataclass(self):
         NotDataClass = NotDataClass_TestCase_test_is_dataclass
@@ -840,12 +1020,6 @@ class TestFieldNoAnnotation(unittest.TestCase):
 
 class TestInit(unittest.TestCase):
 
-    def test_no_init(self):
-        C = C_TestInit_test_no_init
-        self.assertEqual(C().i, 0)
-        C = C_TestInit_test_no_init_
-        self.assertEqual(C().i, 3)
-
     def test_overwriting_init(self):
         C = C_TestInit_test_overwriting_init
         self.assertEqual(C(3).x, 6)
@@ -866,6 +1040,14 @@ class TestRepr(unittest.TestCase):
 
 class TestEq(unittest.TestCase):
 
+    def test_no_eq(self):
+        C = C_TestEq_test_no_eq
+        self.assertNotEqual(C(0), C(0))
+        c = C(3)
+        self.assertEqual(c, c)
+        C = C_TestEq_test_no_eq_
+        self.assertEqual(C(3), 10)
+
     def test_overwriting_eq(self):
         C = C_TestEq_test_overwriting_eq
         self.assertEqual(C(1), 3)
@@ -881,7 +1063,24 @@ class TestOrdering(unittest.TestCase):
     pass
 
 class TestHash(unittest.TestCase):
-    pass
+
+    def test_unsafe_hash(self):
+        C = C_TestHash_test_unsafe_hash
+        self.assertEqual(hash(C(1, 'foo')), hash((1, 'foo')))
+
+    def test_0_field_hash(self):
+        C = C_TestHash_test_0_field_hash
+        self.assertEqual(hash(C()), hash(()))
+        C = C_TestHash_test_0_field_hash_
+        self.assertEqual(hash(C()), hash(()))
+
+    def test_1_field_hash(self):
+        C = C_TestHash_test_1_field_hash
+        self.assertEqual(hash(C(4)), hash((4,)))
+        self.assertEqual(hash(C(42)), hash((42,)))
+        C = C_TestHash_test_1_field_hash_
+        self.assertEqual(hash(C(4)), hash((4,)))
+        self.assertEqual(hash(C(42)), hash((42,)))
 
 class TestMakeDataclass(unittest.TestCase):
     pass
@@ -937,6 +1136,46 @@ class TestReplace(unittest.TestCase):
             replace(c, x=3)
         c = replace(c, x=3, y=5)
         self.assertEqual(c.x, 15)
+
+    def test_recursive_repr(self):
+        C = C_TestReplace_test_recursive_repr
+        c = C(None)
+        c.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr(f=...)')
+
+    def test_recursive_repr_two_attrs(self):
+        C = C_TestReplace_test_recursive_repr_two_attrs
+        c = C(None, None)
+        c.f = c
+        c.g = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_two_attrs(f=..., g=...)')
+
+    def test_recursive_repr_indirection(self):
+        C = C_TestReplace_test_recursive_repr_indirection
+        D = D_TestReplace_test_recursive_repr_indirection
+        c = C(None)
+        d = D(None)
+        c.f = d
+        d.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_indirection(f=D_TestReplace_test_recursive_repr_indirection(f=...))')
+
+    def test_recursive_repr_indirection_two(self):
+        C = C_TestReplace_test_recursive_repr_indirection_two
+        D = D_TestReplace_test_recursive_repr_indirection_two
+        E = E_TestReplace_test_recursive_repr_indirection_two
+        c = C(None)
+        d = D(None)
+        e = E(None)
+        c.f = d
+        d.f = e
+        e.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_indirection_two(f=D_TestReplace_test_recursive_repr_indirection_two(f=E_TestReplace_test_recursive_repr_indirection_two(f=...)))')
+
+    def test_recursive_repr_misc_attrs(self):
+        C = C_TestReplace_test_recursive_repr_misc_attrs
+        c = C(None, 1)
+        c.f = c
+        self.assertEqual(repr(c), 'C_TestReplace_test_recursive_repr_misc_attrs(f=..., g=1)')
 
 class TestAbstract(unittest.TestCase):
     pass

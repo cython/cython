@@ -56,6 +56,7 @@ skip_tests = frozenset(
         ("TestDescriptors", "test_lookup_on_instance"),
         ("TestCase", "test_default_factory_not_called_if_value_given"),
         ("TestCase", "test_class_attrs"),
+        ("TestCase", "test_hash_field_rules"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
         # Currently unsupported
         # =====================
@@ -111,6 +112,7 @@ skip_tests = frozenset(
         ("TestInit", "test_base_has_init"),  # needs __dict__ for vars
         # Requires arbitrary attributes to be writeable
         ("TestCase", "test_post_init_super"),
+        ('TestCase', 'test_init_in_order'),
         # Cython being strict about argument types - expected difference
         ("TestDescriptors", "test_getting_field_calls_get"),
         ("TestDescriptors", "test_init_calls_set"),
@@ -120,37 +122,28 @@ skip_tests = frozenset(
         # These tests are probably fine, but the string substitution in this file doesn't get it right
         ("TestRepr", "test_repr"),
         ("TestCase", "test_not_in_repr"),
+        ('TestRepr', 'test_no_repr'),
+        # class variable doesn't exist in Cython so uninitialized variable appears differently - for now this is deliberate
+        ('TestInit', 'test_no_init'),
+        # I believe the test works but the ordering functions do appear in the class dict (and default slot wrappers which
+        # just raise NotImplementedError
+        ('TestOrdering', 'test_no_order'),
         # not possible to add attributes on extension types
         ("TestCase", "test_post_init_classmethod"),
-        # Bugs
-        # ====
-        ("TestCase", "test_no_options"),  # @dataclass()
-        ("TestCase", "test_field_no_default"),  # field()
-        ("TestCase", "test_init_in_order"),  # field()
-        ("TestCase", "test_hash_field_rules"),  # compiler crash
-        ("TestCase", "test_class_var"),  # not sure but compiler crash
-        ("TestCase", "test_field_order"),  # invalid C code (__pyx_base?)
+        # Cannot redefine the same field in a base dataclass (tested in dataclass_e6)
+        ("TestCase", "test_field_order"),
         (
             "TestCase",
             "test_overwrite_fields_in_derived_class",
-        ),  # invalid C code (__pyx_base?)
-        ("TestReplace", "test_recursive_repr"),  # recursion error
-        ("TestReplace", "test_recursive_repr_two_attrs"),  # recursion error
-        ("TestReplace", "test_recursive_repr_misc_attrs"),  # recursion error
-        ("TestReplace", "test_recursive_repr_indirection"),  # recursion error
-        ("TestReplace", "test_recursive_repr_indirection_two"),  # recursion error
-        ("TestCase", "test_0_field_compare"),  # should return False
-        ("TestCase", "test_1_field_compare"),  # order=False is apparently ignored
-        ("TestOrdering", "test_no_order"),  # probably order=False being ignored
-        ("TestRepr", "test_no_repr"),  # turning off repr doesn't work
-        (
-            "TestCase",
-            "test_intermediate_non_dataclass",
-        ),  # issue with propagating through intermediate class
-        ("TestCase", "test_post_init"),  # init=False being ignored
+        ),
+        # Bugs
+        #======
+        # not specifically a dataclass issue - a C int crashes classvar
+        ("TestCase", "test_class_var"),
         (
             "TestFrozen",
         ),  # raises AttributeError, not FrozenInstanceError (may be hard to fix)
+        ('TestCase', 'test_post_init'),  # Works except for AttributeError instead of FrozenInstanceError
         ("TestReplace", "test_frozen"),  # AttributeError not FrozenInstanceError
         (
             "TestCase",
@@ -158,7 +151,6 @@ skip_tests = frozenset(
         ),  # doesn't define __setattr__ and just relies on Cython to enforce readonly properties
         ("TestCase", "test_compare_subclasses"),  # wrong comparison
         ("TestCase", "test_simple_compare"),  # wrong comparison
-        ("TestEq", "test_no_eq"),  # wrong comparison (probably eq=False being ignored)
         (
             "TestCase",
             "test_field_named_self",
@@ -185,18 +177,6 @@ skip_tests = frozenset(
             "test_class_var_with_default",
         ),  # possibly to do with ClassVar being assigned a field
         (
-            "TestHash",
-            "test_unsafe_hash",
-        ),  # not sure if it's a bug or just a difference in how the hash is calculated
-        (
-            "TestHash",
-            "test_1_field_hash",
-        ),  # not sure if it's a bug or just a difference in how the hash is calculated
-        (
-            "TestHash",
-            "test_0_field_hash",
-        ),  # not sure if it's a bug or just a difference in how the hash is calculated
-        (
             "TestDescriptors",
         ),  # mostly don't work - I think this may be a limitation of cdef classes but needs investigating
     }
@@ -209,7 +189,6 @@ version_specific_skips = {
         10,
     ),  # needs language support for | operator on types
 }
-
 
 class DataclassInDecorators(ast.NodeVisitor):
     found = False
@@ -246,12 +225,11 @@ class SubstituteNameString(ast.NodeTransformer):
             if node.value.find("<locals>") != -1:
                 import re
 
-                new_value = re.sub("[\w.]*<locals>", "", node.value)
+                new_value = new_value2 = re.sub("[\w.]*<locals>", "", node.value)
                 for key, value in self.substitutions.items():
-                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value)
-                    if new_value != new_value2:
-                        node.value = new_value2
-                        break
+                    new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value2)
+                if new_value != new_value2:
+                    node.value = new_value2
         return node
 
 
@@ -336,6 +314,7 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
             self.used_names.add(new_name)
             # hmmmm... possibly there's a few cases where there's more than one name?
             self.collected_substitutions[old_name] = node.name
+
             return ast.Assign(
                 targets=[ast.Name(id=old_name, ctx=ast.Store())],
                 value=ast.Name(id=new_name, ctx=ast.Load()),
@@ -420,6 +399,17 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
     def visit_Module(self, node):
         self.generic_visit(node)
         node.body[0:0] = self.global_classes
+        return node
+
+    def visit_AnnAssign(self, node):
+        # string annotations are forward declarations but the string will be wrong
+        # (because we're renaming the class)
+        if (isinstance(node.annotation, ast.Constant) and
+                isinstance(node.annotation.value, str)):
+            # although it'd be good to resolve these declarations, for the
+            # sake of the tests they only need to be "object"
+            node.annotation = ast.Name(id="object", ctx=ast.Load)
+
         return node
 
 

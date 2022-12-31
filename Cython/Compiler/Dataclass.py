@@ -200,10 +200,16 @@ def process_class_get_fields(node):
     transform(node)
     default_value_assignments = transform.removed_assignments
 
-    if node.base_type and node.base_type.dataclass_fields:
-        fields = node.base_type.dataclass_fields.copy()
-    else:
-        fields = OrderedDict()
+    base_type = node.base_type
+    fields = OrderedDict()
+    while base_type:
+        if base_type.is_external or not base_type.scope.implemented:
+            warning(node.pos, "Cannot reliably handle Cython dataclasses with base types "
+                "in external modules since it is not possible to tell what fields they have", 2)
+        if base_type.dataclass_fields:
+            fields = base_type.dataclass_fields.copy()
+            break
+        base_type = base_type.base_type
 
     for entry in var_entries:
         name = entry.name
@@ -217,14 +223,16 @@ def process_class_get_fields(node):
                     and assignment.function.as_cython_attribute() == "dataclasses.field"):
                 # I believe most of this is well-enforced when it's treated as a directive
                 # but it doesn't hurt to make sure
-                if (not isinstance(assignment, ExprNodes.GeneralCallNode)
-                        or not isinstance(assignment.positional_args, ExprNodes.TupleNode)
-                        or assignment.positional_args.args
-                        or not isinstance(assignment.keyword_args, ExprNodes.DictNode)):
+                valid_general_call = (isinstance(assignment, ExprNodes.GeneralCallNode)
+                        and isinstance(assignment.positional_args, ExprNodes.TupleNode)
+                        and not assignment.positional_args.args
+                        and (assignment.keyword_args is None or isinstance(assignment.keyword_args, ExprNodes.DictNode)))
+                valid_simple_call = (isinstance(assignment, ExprNodes.SimpleCallNode) and not assignment.args)
+                if not (valid_general_call or valid_simple_call):
                     error(assignment.pos, "Call to 'cython.dataclasses.field' must only consist "
                           "of compile-time keyword arguments")
                     continue
-                keyword_args = assignment.keyword_args.as_python_dict()
+                keyword_args = assignment.keyword_args.as_python_dict() if valid_general_call and assignment.keyword_args else {}
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
                     error(assignment.pos, "cannot specify both default and default_factory")
                     continue
@@ -269,7 +277,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
-            kwargs[k] = v
+            kwargs[k] = v.value
 
     # remove everything that does not belong into _DataclassParams()
     kw_only = kwargs.pop("kw_only")
@@ -329,12 +337,6 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
 def generate_init_code(code, init, node, fields, kw_only):
     """
-    All of these "generate_*_code" functions return a tuple of:
-    - code string
-    - placeholder dict (often empty)
-    - stat list (often empty)
-    which can then be combined later and processed once.
-
     Notes on CPython generated "__init__":
     * Implemented in `_init_fn`.
     * The use of the `dataclasses._HAS_DEFAULT_FACTORY` sentinel value as
@@ -346,6 +348,11 @@ def generate_init_code(code, init, node, fields, kw_only):
     * seen_default and the associated error message are copied directly from Python
     * Call to user-defined __post_init__ function (if it exists) is copied from
       CPython.
+
+    Cython behaviour deviates a little here (to be decided if this is right...)
+    Because the class variable from the assignment does not exist Cython fields will
+    return None (or whatever their type default is) if not initialized while Python
+    dataclasses will fall back to looking up the class variable.
     """
     if not init or node.scope.lookup_here("__init__"):
         return
@@ -428,7 +435,7 @@ def generate_init_code(code, init, node, fields, kw_only):
 
 def generate_repr_code(code, repr, node, fields):
     """
-    The CPython implementation is just:
+    The core of the CPython implementation is just:
     ['return self.__class__.__qualname__ + f"(' +
                      ', '.join([f"{f.name}={{self.{f.name}!r}}"
                                 for f in fields]) +
@@ -436,18 +443,49 @@ def generate_repr_code(code, repr, node, fields):
 
     The only notable difference here is self.__class__.__qualname__ -> type(self).__name__
     which is because Cython currently supports Python 2.
+
+    However, it also has some guards for recursive repr invokations. In the standard
+    library implementation they're done with a wrapper decorator that captures a set
+    (with the set keyed by id and thread). Here we create a set as a thread local
+    variable and key only by id.
     """
     if not repr or node.scope.lookup("__repr__"):
         return
 
+    # The recursive guard is likely a little costly, so skip it if possible.
+    # is_gc_simple defines where it can contain recursive objects
+    needs_recursive_guard = False
+    for name in fields.keys():
+        entry = node.scope.lookup(name)
+        type_ = entry.type
+        if type_.is_memoryviewslice:
+            type_ = type_.dtype
+        if not type_.is_pyobject:
+            continue  # no GC
+        if not type_.is_gc_simple:
+            needs_recursive_guard = True
+            break
+
+    if needs_recursive_guard:
+        code.add_code_line("__pyx_recursive_repr_guard = __import__('threading').local()")
+        code.add_code_line("__pyx_recursive_repr_guard.running = set()")
     code.add_code_line("def __repr__(self):")
+    if needs_recursive_guard:
+        code.add_code_line("    key = id(self)")
+        code.add_code_line("    guard_set = self.__pyx_recursive_repr_guard.running")
+        code.add_code_line("    if key in guard_set: return '...'")
+        code.add_code_line("    guard_set.add(key)")
+        code.add_code_line("    try:")
     strs = [u"%s={self.%s!r}" % (name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)
 
-    code.add_code_line(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
-    code.add_code_line(u"    return f'{name}(%s)'" % format_string)
+    code.add_code_line(u'        name = getattr(type(self), "__qualname__", type(self).__name__)')
+    code.add_code_line(u"        return f'{name}(%s)'" % format_string)
+    if needs_recursive_guard:
+        code.add_code_line("    finally:")
+        code.add_code_line("        guard_set.remove(key)")
 
 
 def generate_cmp_code(code, op, funcname, node, fields):
@@ -455,9 +493,6 @@ def generate_cmp_code(code, op, funcname, node, fields):
         return
 
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
-
-    if not names:
-        return  # no comparable types
 
     code.add_code_lines([
         "def %s(self, other):" % funcname,
@@ -574,11 +609,11 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
         if not field.is_initvar and (
             field.compare.value if field.hash.value is None else field.hash.value)
     ]
-    if not names:
-        return  # nothing to hash
 
     # make a tuple of the hashes
-    hash_tuple_items = u", ".join(u"hash(self.%s)" % name for name in names)
+    hash_tuple_items = u", ".join(u"self.%s" % name for name in names)
+    if hash_tuple_items:
+        hash_tuple_items += u","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
     code.add_code_lines([
