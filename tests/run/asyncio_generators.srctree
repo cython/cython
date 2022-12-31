@@ -24,11 +24,12 @@ setup(
 
 import from_asyncio_import
 import asyncio
+from contextlib import closing
 
 def runloop(task):
-    loop = asyncio.get_event_loop()
-    result = loop.run_until_complete(task())
-    assert 3 == result, result
+    with closing(asyncio.new_event_loop()) as loop:
+        result = loop.run_until_complete(task())
+        assert 3 == result, result
 
 import sys
 if sys.version_info < (3, 7):
@@ -39,11 +40,12 @@ if sys.version_info < (3, 7):
 
 import import_asyncio
 import asyncio
+from contextlib import closing
 
 def runloop(task):
-    loop = asyncio.get_event_loop()
-    result = loop.run_until_complete(task())
-    assert 3 == result, result
+    with closing(asyncio.new_event_loop()) as loop:
+        result = loop.run_until_complete(task())
+        assert 3 == result, result
 
 import sys
 if sys.version_info < (3, 7):
@@ -59,11 +61,12 @@ ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
 if ASYNCIO_SUPPORTS_COROUTINE:
     import async_def
     import asyncio
+    from contextlib import closing
 
     def runloop(task):
-        loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(task())
-        assert 3 == result, result
+        with closing(asyncio.new_event_loop()) as loop:
+            result = loop.run_until_complete(task())
+            assert 3 == result, result
 
     runloop(async_def.wait3)
 
@@ -77,12 +80,13 @@ ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
 if ASYNCIO_SUPPORTS_COROUTINE:
     from async_def_future import await_future
     import asyncio
+    from contextlib import closing
 
     def runloop():
-        loop = asyncio.get_event_loop()
-        task, events, expected = await_future(loop)
-        result = loop.run_until_complete(task())
-        assert events == expected, 'expected %s, got %s' % (expected, events)
+        with closing(asyncio.new_event_loop()) as loop:
+            task, events, expected = await_future(loop)
+            result = loop.run_until_complete(task())
+            assert events == expected, 'expected %s, got %s' % (expected, events)
 
     runloop()
 
@@ -91,14 +95,15 @@ if ASYNCIO_SUPPORTS_COROUTINE:
 
 import sys
 import asyncio
+from contextlib import closing
 
 ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
 ASYNCIO_SUPPORTS_YIELD_FROM = sys.version_info[:2] < (3, 7)
 
 def runloop(task):
-    loop = asyncio.get_event_loop()
-    result = loop.run_until_complete(task())
-    assert 3 == result, result
+    with closing(asyncio.new_event_loop()) as loop:
+        result = loop.run_until_complete(task())
+        assert 3 == result, result
 
 import import_asyncio
 if ASYNCIO_SUPPORTS_YIELD_FROM:
