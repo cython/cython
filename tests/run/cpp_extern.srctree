@@ -29,7 +29,7 @@ macros = []
 compile_args = []
 if sys.platform == "win32":
     # Distutils doesn't escape properly for Windows so do it ourselves
-    compile_args = ['/D"__PYX_EXTERN_C=extern \"C\""']
+    compile_args = [r'/D"__PYX_EXTERN_C=extern \"C\""']
 else:
     macros = [("__PYX_EXTERN_C", 'extern "C"')]
 
