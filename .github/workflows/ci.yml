@@ -171,6 +171,20 @@ jobs:
             extra_hash: '-coverage'
 
           - os: windows-2019
+            # missing dependencies
+            python-version: 3.6
+            allowed_failure: true
+          - os: windows-2019
+            # TestInline
+            python-version: 3.8
+            allowed_failure: true
+          - os: windows-2019
+            # TestInline
+            python-version: 3.10
+            allowed_failure: true
+          - os: windows-2019
+            # TestInline
+            python-version: 3.11
             allowed_failure: true
 
           # MacOS sub-jobs
