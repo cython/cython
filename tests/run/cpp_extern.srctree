@@ -27,7 +27,7 @@ bar = Extension(
 
 if sys.platform == "win32":
     # escape the quotes on the command line
-    extern_c_definition = r'extern \"C\"'
+    extern_c_definition = r'extern\ \"C\"'
 else:
     extern_c_definition = 'extern "C"'
 baz = Extension(
