@@ -1,6 +1,6 @@
 cdef extern from *:
     """
-    #ifdef CYTHON_USE_TYPESPECS
+    #ifdef CYTHON_USE_TYPE_SPECS
     #define TYPESPECS 1
     #else
     #define TYPESPECS 0
