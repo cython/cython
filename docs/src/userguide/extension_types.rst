@@ -1001,57 +1001,6 @@ disable this auto-generation and can be used to support pickling of more
 complicated types.
 
 
-Pattern matching and extension types (Python 3.10+)
-===================================================
-
-Python 3.10 introduced the structural pattern matching feature
-(documented in `the Python documentation
-<https://docs.python.org/3/reference/compound_stmts.html#the-match-statement>`_,
-and `PEP 634 <https://peps.python.org/pep-0634>`_).
-where Python objects can be decomposed if they meet a particular 
-set of rules. For a type to be treated as a sequence in pattern 
-matching it must have the flag ``Py_TPFLAGS_SEQUENCE`` in its 
-internal "type flags", and similarly for a type to be treated 
-as a mapping it must have ``Py_TPFLAGS_MAPPING`` set.
-
-There's a number of ways for these flags to be set: they're 
-set for a number of builtin types.  They will be set on a
-type where one of the base classes has the flag (including
-the builtin types, and also the relevant abstract base
-class in ``collections.abc``).
-
-A third way to mark a Python class as a
-sequence or mapping would be to register the class with 
-either ``collections.abc.Sequence`` or ``collections.abc.Mapping``
-using their ``.register`` function.
-Unfortunately for Cython extension types this does not work because
-Cython extension types are immutable (usually, with certain C defines
-set this may not always be true).
-
-Therefore a Cython extension type can be decorated with
-``cython.collection_type("sequence")`` or 
-``cython.collection_type("mapping")`` to enable pattern matching to
-use the type as intended.  These decorators are only needed
-to make the ``collections.abc`` type registration work
-(we recommend you use them *in addition* to type registration
-although pattern matching will work with the decorator alone).
-If your Cython class would become a sequence or mapping
-through inheritance then it does not need the decorators
-although you may choose to provide them for clarity.
-
-As an example:
-
-.. literalinclude:: ../../examples/userguide/extension_types/sequence.py
-            
-Then in Python (since Cython doesn't currently implement pattern matching)::
-
-    r5 = Range5()
-    match r5:
-        case [*_]:
-            print("success")
-        case _:
-            assert False
-
 Public and external extension types
 ====================================
 
