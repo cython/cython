@@ -19,7 +19,6 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
-  sudo /usr/sbin/update-ccache-symlinks
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -66,7 +65,7 @@ echo "===================="
 
 # Symlink ccache and check that change is successful
 if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
-  echo "/usr/lib/ccache:"$GITHUB_PATH > $GITHUB_PATH  # export ccache to path
+  # sudo /usr/sbin/update-ccache-symlinks ?
 
   cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
@@ -75,6 +74,8 @@ if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
   ln -s ccache /usr/local/bin/c++
   ln -s ccache /usr/local/bin/clang
   ln -s ccache /usr/local/bin/clang++
+
+  echo "/usr/lib/ccache:"$GITHUB_PATH > $GITHUB_PATH  # export ccache to path
 fi
 # else and don't add ccache, it breaks the coverage and windows runs
 
