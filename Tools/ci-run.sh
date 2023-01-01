@@ -79,6 +79,7 @@ echo "===================="
 
 # Symlink ccache and check that change is successful
 if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
+  cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
   ln -s ccache /usr/local/bin/g++
   ln -s ccache /usr/local/bin/cc
