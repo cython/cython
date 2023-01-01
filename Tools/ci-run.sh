@@ -4,9 +4,6 @@ set -x
 
 GCC_VERSION=${GCC_VERSION:=8}
 
-# # SEE: https://github.com/actions/toolkit/issues/766
-# shopt -s expand_aliases
-
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup: Code style run"
@@ -35,17 +32,9 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
-# elif [[ $OSTYPE == "msys" ]]; then
-#   echo "Setting up windows compiler"
-#   # cl.exe for default (x86) architecture
-#   export CC=$(find "$MICROSOFT_VS_PATH" -type f -wholename "*/Hostx86/x64/cl.exe")
-#   export CXX=$CC
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
-
-# echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
-echo "/usr/lib/ccache"$GITHUB_PATH > $GITHUB_PATH  # export ccache to path
 
 # Set up miniconda
 if [[ $STACKLESS == "true" ]]; then
@@ -56,7 +45,6 @@ if [[ $STACKLESS == "true" ]]; then
 fi
 
 PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
-CCACHE_PATH=$(which ccache)
 
 # Log versions in use
 echo "===================="
@@ -74,11 +62,12 @@ if [[ $CXX ]]; then
   ${CXX%% *} --version
 fi
 
-echo $CCACHE_PATH
 echo "===================="
 
 # Symlink ccache and check that change is successful
 if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
+  echo "/usr/lib/ccache:"$GITHUB_PATH > $GITHUB_PATH  # export ccache to path
+
   cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
   ln -s ccache /usr/local/bin/g++
@@ -88,15 +77,6 @@ if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
   ln -s ccache /usr/local/bin/clang++
 fi
 # else and don't add ccache, it breaks the coverage and windows runs
-
-# For msvc we mask the original cl.exe if possible
-# if [[ $OSTYPE == "msys" ]]; then
-#   CCACHE_CL_PATH=$(dirname $CCACHE_PATH)"/cl.exe"
-#   if [[ ! -e CCACHE_CL_PATH ]]; then
-#     echo "Masking the cl.exe"
-#     ln -s $CCACHE_PATH $CCACHE_CL_PATH
-#   fi
-# fi
 
 # Install python requirements
 echo "Installing requirements [python]"
