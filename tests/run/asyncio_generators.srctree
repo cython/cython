@@ -24,14 +24,15 @@ setup(
 
 import from_asyncio_import
 import asyncio
+import sys
 from contextlib import closing
+new_event_loop = asyncio.new_event_loop if sys.version_info >= (3, 5) else asyncio.get_event_loop
 
 def runloop(task):
-    with closing(asyncio.new_event_loop()) as loop:
+    with closing(new_event_loop()) as loop:
         result = loop.run_until_complete(task())
         assert 3 == result, result
 
-import sys
 if sys.version_info < (3, 7):
     runloop(from_asyncio_import.wait3)
 
@@ -40,14 +41,15 @@ if sys.version_info < (3, 7):
 
 import import_asyncio
 import asyncio
+import sys
 from contextlib import closing
+new_event_loop = asyncio.new_event_loop if sys.version_info >= (3, 5) else asyncio.get_event_loop
 
 def runloop(task):
-    with closing(asyncio.new_event_loop()) as loop:
+    with closing(new_event_loop()) as loop:
         result = loop.run_until_complete(task())
         assert 3 == result, result
 
-import sys
 if sys.version_info < (3, 7):
     runloop(import_asyncio.wait3)
 
@@ -95,13 +97,20 @@ if ASYNCIO_SUPPORTS_COROUTINE:
 
 import sys
 import asyncio
-from contextlib import closing
+from contextlib import closing, contextmanager
+new_event_loop = asyncio.new_event_loop if sys.version_info >= (3, 5) else asyncio.get_event_loop
+if sys.version_info < (3, 5):
+    # don't close loop on Py 3.4
+    @contextmanager
+    def closing(o):
+        yield o
+
 
 ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
 ASYNCIO_SUPPORTS_YIELD_FROM = sys.version_info[:2] < (3, 7)
 
 def runloop(task):
-    with closing(asyncio.new_event_loop()) as loop:
+    with closing(new_event_loop()) as loop:
         result = loop.run_until_complete(task())
         assert 3 == result, result
 
@@ -135,7 +144,7 @@ except ImportError:
     try:
         from collections import Generator
     except ImportError:
-        assert sys.version_info < (3,5), "Python 3.5+ should have collections.abc.Generator"
+        assert sys.version_info < (3, 5), "Python 3.5+ should have collections.abc.Generator"
         Generator = object  # easy win :)
 
 assert isinstance(from_asyncio_import.wait3(), Generator)
@@ -148,7 +157,7 @@ except ImportError:
     try:
         from collections import Awaitable
     except ImportError:
-        assert sys.version_info < (3,5), "Python 3.5+ should have collections.abc.Awaitable"
+        assert sys.version_info < (3, 5), "Python 3.5+ should have collections.abc.Awaitable"
         Awaitable = object  # easy win :)
 
 assert isinstance(async_def.wait3(), Awaitable)
@@ -159,7 +168,7 @@ except ImportError:
     try:
         from collections import Coroutine
     except ImportError:
-        assert sys.version_info < (3,5), "Python 3.5+ should have collections.abc.Coroutine"
+        assert sys.version_info < (3, 5), "Python 3.5+ should have collections.abc.Coroutine"
         Coroutine = object  # easy win :)
 
 assert isinstance(async_def.wait3(), Coroutine)
