@@ -323,6 +323,12 @@ Further Cython functions and declarations
     t1 = cython.cast(T, t)
     t2 = cython.cast(T, t, typecheck=True)
 
+* ``fused_type`` creates a new type definition that refers to the multiple types.
+  The following example declares a new type called ``my_fused_type`` which can
+  be either an ``int`` or a ``double``.::
+
+    my_fused_type = cython.fused_type(cython.int, cython.float)
+
 .. _magic_attributes_pxd:
 
 Magic Attributes within the .pxd

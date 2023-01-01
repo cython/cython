@@ -15,12 +15,20 @@ Features added
   exception propagation is really undesired.
   (Github issue :issue:`4280`)
 
+* To opt out of the new, safer exception handling behaviour, legacy code can set the new
+  directive ``legacy_implicit_noexcept=True`` for a transition period to keep the
+  previous, unsafe behaviour.  This directive will eventually be removed in a later release.
+  Patch by Matúš Valo.  (Github issue :issue:`5094`)
+
 * `PEP-614 <https://peps.python.org/pep-0614/>`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 
 * Bound C methods can now coerce to Python objects.
-  (Github issue :issue:`4890`)
+  (Github issues :issue:`4890`, :issue:`5062`)
+
+* C arrays can be initialised inside of nogil functions.
+  Patch by Matúš Valo.  (Github issue :issue:`1662`)
 
 * ``reversed()`` can now be used together with C++ iteration.
   Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5002`)
@@ -28,11 +36,18 @@ Features added
 * Standard C/C++ atomic operations are now used for memory views, if available.
   (Github issue :issue:`4925`)
 
-* ``cythonize --help`` now also prints information about the supported environment variables.
-  Patch by Matus Valo.  (Github issue :issue:`1711`)
+* Nested ``cppclass`` definitions are supported.
+  Patch by samaingw.  (Github issue :issue:`1218`)
 
-* Declarations were added for the bit operations in C++20.
-  Patch by Jonathan Helgert.  (Github issue :issue:`4962`)
+* ``cpp_locals`` no longer have to be "assignable".
+  (Github issue :issue:`4558`)
+
+* ``cythonize --help`` now also prints information about the supported environment variables.
+  Patch by Matúš Valo.  (Github issue :issue:`1711`)
+
+* Declarations were added for the C++ bit operations, some other parts of C++20 and CPython APIs.
+  Patches by Jonathan Helgert, Dobatymo and William Ayd.
+  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`)
 
 Bugs fixed
 ----------
@@ -41,14 +56,25 @@ Bugs fixed
   on creation, as Python does, and not later on start, as they did previously.
   (Github issue :issue:`1159`)
 
+* Type annotations for Python ``int`` rejected ``long`` under Py2 in the alpha-11 release.
+  They are now ignored again (as always before) when ``language_level=2``, and accept
+  both ``int`` and ``long`` in Py2 (and only ``int`` in Py3) otherwise.
+  (Github issue :issue:`4944`)
+
 * Iterating over memoryviews in generator expressions could leak a buffer reference.
   (Github issue :issue:`4968`)
 
 * ``__del__`` finaliser methods were not always called if they were only inherited.
   (Github issue :issue:`4995`)
 
+* ``const`` types could not be returned from functions.
+  Patch by Mike Graham.  (Github issue :issue:`5135`)
+
 * ``cdef public`` functions declared in .pxd files could use an incorrectly mangled C name.
   Patch by EpigeneMax.  (Github issue :issue:`2940`)
+
+* ``cdef public`` functions used an incorrect linkage declaration in C++.
+  Patch by Maximilien Colange.  (Github issue :issue:`1839`)
 
 * C++ post-increment/-decrement operators were not correctly looked up on declared C++
   classes, thus allowing Cython declarations to be missing for them and incorrect C++
@@ -74,14 +100,20 @@ Bugs fixed
 * The ``@dataclass`` directive was accidentally inherited by methods and subclasses.
   (Github issue :issue:`4953`)
 
-* Some issues with Cython ``@dataclass`` arguments, hashing and ``repr()`` were resolved.
-  (Github issue :issue:`4956`)
+* Some issues with Cython ``@dataclass`` arguments, hashing, inheritance and ``repr()``
+  were resolved.  (Github issues :issue:`4956`, :issue:`5046`)
+
+* Larger numbers of extension types with multiple subclasses could take very long to compile.
+  Patch by Scott Wolchok.  (Github issue :issue:`5139`)
 
 * Relative imports failed in compiled ``__init__.py`` package modules.
-  Patch by Matus Valo.  (Github issue :issue:`3442`)
+  Patch by Matúš Valo.  (Github issue :issue:`3442`)
 
 * Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
-  Patch by Matus Valo.  (Github issue :issue:`4640`)
+  Patch by Matúš Valo.  (Github issue :issue:`4640`)
+
+* The ``cython`` and ``cythonize`` commands ignored non-existing input files without error.
+  Patch by Matúš Valo.  (Github issue :issue:`4629`)
 
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
@@ -95,8 +127,8 @@ Bugs fixed
   (Github issue :issue:`4992`)
 
 * Some C/C++ warnings were resolved.
-  Patches by Max Bachmann at al.
-  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`)
+  Patches by Max Bachmann, Alexander Shadchin, at al.
+  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
 
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
@@ -117,6 +149,13 @@ Other changes
 
 * Wheels now include a compiled parser again, which increases their size a little
   but gives about a 10% speed-up when running Cython.
+
+* The ``Tempita`` module no longer contains HTML processing capabilities, which
+  were found to be broken in Python 3.8 and later.
+  Patch by Marcel Stimberg.  (Github issue :issue:`3309`)
+
+* The Emacs Cython mode file ``cython-mode.el`` is now maintained in a separate repo:
+  https://github.com/cython/emacs-cython-mode
 
 
 3.0.0 alpha 11 (2022-07-31)
@@ -206,7 +245,7 @@ Bugs fixed
   (Github issue :issue:`4808`)
 
 * ``pyximport`` no longer uses the deprecated ``imp`` module.
-  Patch by Matus Valo.  (Github issue :issue:`4560`)
+  Patch by Matúš Valo.  (Github issue :issue:`4560`)
 
 * ``pyximport`` failed for long filenames on Windows.
   Patch by Matti Picus.  (Github issue :issue:`4630`)
@@ -286,10 +325,10 @@ Features added
 * ``Cython.Distutils.build_ext`` now uses ``cythonize()`` internally (previously
   known as ``new_build_ext``), while still supporting the options that were
   available in the old implementation (``old_build_ext``).
-  Patch by Matus Valo.  (Github issue :issue:`3541`)
+  Patch by Matúš Valo.  (Github issue :issue:`3541`)
 
 * ``pyximport`` now uses ``cythonize()`` internally.
-  Patch by Matus Valo.  (Github issue :issue:`2304`)
+  Patch by Matúš Valo.  (Github issue :issue:`2304`)
 
 * ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
   Original patch by ax487.  (Github issue :issue:`3612`)
@@ -359,7 +398,7 @@ Bugs fixed
   Original patch by Max Bachmann. (Github issue :issue:`4550`)
 
 * Python object types were not allowed as ``->`` return type annotations.
-  Patch by Matus Valo.  (Github issue :issue:`4433`)
+  Patch by Matúš Valo.  (Github issue :issue:`4433`)
 
 * Default values for memory views arguments were not properly supported.
   Patch by Corentin Cadiou.  (Github issue :issue:`4313`)
@@ -440,7 +479,7 @@ Other changes
 
 * Parts of the documentation were (and are being) rewritten to show the
   Cython language syntax next to the equivalent Python syntax.
-  Patches by 0dminnimda and Matus Valo.  (Github issue :issue:`4187`)
+  Patches by 0dminnimda and Matúš Valo.  (Github issue :issue:`4187`)
 
 
 3.0.0 alpha 8 (2021-07-02)
@@ -637,7 +676,7 @@ Bugs fixed
 
 * Generator expressions in pxd-overridden ``cdef`` functions could
   fail to compile.
-  Patch by Matus Valo.  (Github issue :issue:`3477`)
+  Patch by Matúš Valo.  (Github issue :issue:`3477`)
 
 * A reference leak on import failures was resolved.
   Patch by Max Bachmann.  (Github issue :issue:`4056`)

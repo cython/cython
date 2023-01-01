@@ -2233,7 +2233,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
-#ifdef __Pyx_CyFunction_USED
+#if defined(__Pyx_CyFunction_USED) && defined(NDEBUG)
+        // TODO PyCFunction_GET_FLAGS has a type-check assert that breaks with a CyFunction
+        // in debug mode. There is likely to be a better way of avoiding tripping this
+        // check that doesn't involve disabling the optimized path.
         if (__Pyx_IsCyOrPyCFunction(func))
 #else
         if (PyCFunction_Check(func))
