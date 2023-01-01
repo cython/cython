@@ -273,9 +273,10 @@ jobs:
       - name: Cache [ccache]
         # Chocobo1/setup-ccache-action is also an interesting option
         uses: hendrikmuhs/ccache-action@v1.2
-        if: ${{ !startsWith(runner.os, 'windows') }}
         with:
+          variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
