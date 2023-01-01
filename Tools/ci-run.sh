@@ -75,16 +75,24 @@ if [[ $CXX ]]; then
 fi
 
 echo $CCACHE_PATH
-echo "===================="
 
-# Prepend ccache after logging versions
+# Symlink ccache and check that change is successful
 if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
+  ln -s ccache /usr/local/bin/gcc
+  ln -s ccache /usr/local/bin/g++
+  ln -s ccache /usr/local/bin/cc
+  ln -s ccache /usr/local/bin/c++
+  ln -s ccache /usr/local/bin/clang
+  ln -s ccache /usr/local/bin/clang++
+
   if [[ $CC ]]; then
-    CC="ccache $CC"
+    which ${CC%% *}
+    ${CC%% *} --version
   fi
 
   if [[ $CXX ]]; then
-    CXX="ccache $CXX"
+    which ${CXX%% *}
+    ${CXX%% *} --version
   fi
 fi
 # else and don't add ccache, it breaks the coverage and windows runs
@@ -97,6 +105,8 @@ fi
 #     ln -s $CCACHE_PATH $CCACHE_CL_PATH
 #   fi
 # fi
+
+echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
