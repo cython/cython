@@ -36,11 +36,13 @@ else
 fi
 
 if [[ $COVERAGE == "1" ]]; then
-  # Don't set up any caches
+  echo "Skip setting up compilation caches"
 elif [[ $OSTYPE == "msys" ]]; then
-  # TODO: Make a soft symlink to sccache
+  echo "Set up sccache"
+  echo "TODO: Make a soft symlink to sccache"
 else
-  # Make a soft symlink to ccache
+  echo "Set up ccache"
+  echo "Make a soft symlinks to ccache"
 
   # sudo /usr/sbin/update-ccache-symlinks ?
   cp ccache /usr/local/bin/
