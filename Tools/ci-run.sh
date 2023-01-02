@@ -35,6 +35,25 @@ else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
 
+if [[ $COVERAGE == "1" ]]; then
+  # Don't set up any caches
+elif [[ $OSTYPE == "msys" ]]; then
+  # TODO: Make a soft symlink to sccache
+else
+  # Make a soft symlink to ccache
+
+  # sudo /usr/sbin/update-ccache-symlinks ?
+  cp ccache /usr/local/bin/
+  ln -s ccache /usr/local/bin/gcc
+  ln -s ccache /usr/local/bin/g++
+  ln -s ccache /usr/local/bin/cc
+  ln -s ccache /usr/local/bin/c++
+  ln -s ccache /usr/local/bin/clang
+  ln -s ccache /usr/local/bin/clang++
+
+  echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
+fi
+
 # Set up miniconda
 if [[ $STACKLESS == "true" ]]; then
   echo "Installing stackless python"
@@ -62,22 +81,6 @@ if [[ $CXX ]]; then
 fi
 
 echo "===================="
-
-# Symlink ccache and check that change is successful
-if [[ $COVERAGE != "1" && $OSTYPE != "msys" ]]; then
-  # sudo /usr/sbin/update-ccache-symlinks ?
-
-  cp ccache /usr/local/bin/
-  ln -s ccache /usr/local/bin/gcc
-  ln -s ccache /usr/local/bin/g++
-  ln -s ccache /usr/local/bin/cc
-  ln -s ccache /usr/local/bin/c++
-  ln -s ccache /usr/local/bin/clang
-  ln -s ccache /usr/local/bin/clang++
-
-  echo "/usr/lib/ccache:"$GITHUB_PATH > $GITHUB_PATH  # export ccache to path
-fi
-# else and don't add ccache, it breaks the coverage and windows runs
 
 # Install python requirements
 echo "Installing requirements [python]"
