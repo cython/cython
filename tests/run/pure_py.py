@@ -90,15 +90,6 @@ def test_boundscheck(x):
         return x[2]
 
 
-@cython.annotation_typing(False)
-def test_annotation_typing(x: "UndefinedTypeA") -> "UndefinedTypeB":
-    """
-    >>> test_annotation_typing("Petits pains")
-    'Petits pains'
-    """
-    return x
-
-
 ## CURRENTLY BROKEN - FIXME!!
 ## Is this test make sense? Implicit conversion in pure Python??
 
