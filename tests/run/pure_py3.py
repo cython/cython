@@ -11,7 +11,7 @@ MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
 
 
 @cython.annotation_typing(False)
-def test_annotation_typing(x: "UndefinedTypeA") -> "UndefinedTypeB":
+def test_annotation_typing(x: cython.int) -> cython.int:
     """
     >>> test_annotation_typing("Petits pains")
     'Petits pains'
