@@ -44,7 +44,8 @@ else
   echo "Set up ccache"
   echo "Make a soft symlinks to ccache"
 
-  # sudo /usr/sbin/update-ccache-symlinks ?
+  echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
+
   cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
   ln -s ccache /usr/local/bin/g++
@@ -52,8 +53,6 @@ else
   ln -s ccache /usr/local/bin/c++
   ln -s ccache /usr/local/bin/clang
   ln -s ccache /usr/local/bin/clang++
-
-  echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 fi
 
 # Set up miniconda
