@@ -1,10 +1,14 @@
 # mode: run
 # tag: readonly, const, numpy
+# ticket: 1772
 
 import numpy as np
+cimport cython
 
-def new_array():
-    return np.arange(10).astype('float')
+def new_array(dtype='float', writeable=True):
+    array = np.arange(10, dtype=dtype)
+    array.setflags(write=writeable)
+    return array
 
 ARRAY = new_array()
 
@@ -124,3 +128,45 @@ def test_copy():
     rw[1] = 2
     rw2[2] = 2
     return rw[0], rw[1], rw[2], rw2[0], rw2[1], rw2[2]
+
+
+cdef getmax_floating(const cython.floating[:] x):
+    """Function with fused type, should work with both ro and rw memoryviews"""
+    cdef cython.floating max_val = - float('inf')
+    for val in x:
+        if val > max_val:
+            max_val = val
+    return max_val
+
+
+def test_mmview_const_fused_cdef():
+    """Test cdef function with const fused type memory view as argument.
+
+    >>> test_mmview_const_fused_cdef()
+    """
+    cdef float[:] data_rw = new_array(dtype='float32')
+    assert getmax_floating(data_rw) == 9
+
+    cdef const float[:] data_ro = new_array(dtype='float32', writeable=False)
+    assert getmax_floating(data_ro) == 9
+
+
+def test_mmview_const_fused_def(const cython.floating[:] x):
+    """Test def function with const fused type memory view as argument.
+
+    With read-write numpy array:
+
+    >>> test_mmview_const_fused_def(new_array('float32', writeable=True))
+    0.0
+    >>> test_mmview_const_fused_def(new_array('float64', writeable=True))
+    0.0
+
+    With read-only numpy array:
+
+    >>> test_mmview_const_fused_def(new_array('float32', writeable=False))
+    0.0
+    >>> test_mmview_const_fused_def(new_array('float64', writeable=False))
+    0.0
+    """
+    cdef cython.floating result = x[0]
+    return result
