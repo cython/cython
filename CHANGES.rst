@@ -1205,9 +1205,10 @@ Other changes
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
+
 .. _0.29.33:
 
-0.29.33 (????-??-??)
+0.29.33 (2023-01-??)
 ====================
 
 Features added
@@ -1222,14 +1223,29 @@ Features added
 Bugs fixed
 ----------
 
-* Fixed various compiler warnings. One patch by Lisandro Dalcin.
-  (Github issues :issue:`4948`, :issue:`5086`)
+* ``const`` fused types could not be used with memory views.
+  Patch by Thomas Vincent.  (Github issue :issue:`1772`)
+
+* ``wstr`` usage was removed in Python 3.12 and later (PEP-623).
+  (Github issue :issue:`5145`)
+
+* A type check assertion for Cython functions failed in debug Python builds.
+  (Github issue :issue:`5031`)
+
+* Fixed various compiler warnings.
+  Patches by Lisandro Dalcin et al.  (Github issues :issue:`4948`, :issue:`5086`)
 
 * Fixed error when calculating complex powers of negative numbers.
   (Github issue :issue:`5014`)
   
 * Corrected a small mis-formatting of exception messages on Python 2.
   (Github issue :issue:`5018`)
+
+* The ``PyUnicode_AsUTF8AndSize()`` C-API function was missing from the CPython declarations.
+  (Github issue :issue:`5163`)
+
+* Test suite problems with recent NumPy and CPython versions were resolved.
+  (Github issues :issue:`5183`, :issue:`5190`)
 
 Other changes
 -------------
@@ -1240,11 +1256,12 @@ Other changes
   modifier is not needed here and a plain ``cimport`` of the name will do.
   (Github issue :issue:`4905`)
   
-* Properly disable generation of descriptor docstrings on PyPy since
-  they cause crashes. It was previously disabled, but only accidentally 
-  via a typo. Patch by Matti Picus.
-  (Github issue :issue:`5083`)
+* Properly disable generation of descriptor docstrings on PyPy since they cause crashes.
+  It was previously disabled, but only accidentally via a typo.
+  Patch by Matti Picus.  (Github issue :issue:`5083`)
 
+* The ``cpow`` directive of Cython 3.0 is available as a no-op.
+  (Github issue :issue:`5016`)
 
 
 .. _0.29.32:

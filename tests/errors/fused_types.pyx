@@ -1,5 +1,5 @@
 # mode: error
-# ticket: 1772
+# ticket: t1772
 
 cimport cython
 from cython import fused_type
