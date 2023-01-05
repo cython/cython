@@ -107,8 +107,8 @@ class _Optimization(object):
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    embedsignature = cdivision = cdivision_warnings = \
+annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
+    nonecheck = embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = \
         lambda _: _EmptyDecoratorAndManager()
