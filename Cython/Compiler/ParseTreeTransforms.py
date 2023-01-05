@@ -1365,7 +1365,8 @@ class InterpretCompilerDirectives(CythonTransform):
                     name, value = directive
                     if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body)
+                        condition = node.manager.args[0] if isinstance(node, ExprNodes.CallNode) else None
+                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
