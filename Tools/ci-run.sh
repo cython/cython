@@ -6,21 +6,19 @@ GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
-  echo "Skipping compiler setup"
+  echo "Skipping compiler setup: Code style run"
 elif [[ $OSTYPE == "linux-gnu"* ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
-  sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
+  sudo apt install -y -q gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
-  sudo /usr/sbin/update-ccache-symlinks
-  echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -34,7 +32,27 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
 else
-  echo "No setup specified for $OSTYPE"
+  echo "Skipping compiler setup: No setup specified for $OSTYPE"
+fi
+
+if [[ $COVERAGE == "1" ]]; then
+  echo "Skip setting up compilation caches"
+elif [[ $OSTYPE == "msys" ]]; then
+  echo "Set up sccache"
+  echo "TODO: Make a soft symlink to sccache"
+else
+  echo "Set up ccache"
+
+  echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
+
+  echo "Make a soft symlinks to ccache"
+  cp ccache /usr/local/bin/
+  ln -s ccache /usr/local/bin/gcc
+  ln -s ccache /usr/local/bin/g++
+  ln -s ccache /usr/local/bin/cc
+  ln -s ccache /usr/local/bin/c++
+  ln -s ccache /usr/local/bin/clang
+  ln -s ccache /usr/local/bin/clang++
 fi
 
 # Set up miniconda
@@ -52,14 +70,17 @@ echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
 echo "Python $PYTHON_SYS_VERSION"
+
 if [[ $CC ]]; then
   which ${CC%% *}
   ${CC%% *} --version
 fi
+
 if [[ $CXX ]]; then
   which ${CXX%% *}
   ${CXX%% *} --version
 fi
+
 echo "===================="
 
 # Install python requirements
@@ -206,6 +227,6 @@ python runtests.py \
 
 EXIT_CODE=$?
 
-ccache -s 2>/dev/null || true
+ccache -s -v -v 2>/dev/null || true
 
 exit $EXIT_CODE
