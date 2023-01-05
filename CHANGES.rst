@@ -1237,7 +1237,7 @@ Other changes
 
 .. _0.29.33:
 
-0.29.33 (2023-01-??)
+0.29.33 (2023-01-06)
 ====================
 
 Features added
@@ -1272,6 +1272,9 @@ Bugs fixed
 
 * The ``PyUnicode_AsUTF8AndSize()`` C-API function was missing from the CPython declarations.
   (Github issue :issue:`5163`)
+
+* A performance problem in the compiler was resolved when nesting conditional expressions.
+  (Github issue :issue:`5197`)
 
 * Test suite problems with recent NumPy and CPython versions were resolved.
   (Github issues :issue:`5183`, :issue:`5190`)
