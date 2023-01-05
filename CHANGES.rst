@@ -21,7 +21,7 @@ Features added
   Patch by Matúš Valo.  (Github issue :issue:`5094`)
 
 * The ``**`` power operator now behaves more like in Python by returning the correct complex
-  result if required by math.  A new ``cpow`` directive awas added to turn on the previous
+  result if required by math.  A new ``cpow`` directive was added to turn on the previous
   C-like behaviour.
   (Github issue :issue:`4936`)
 
