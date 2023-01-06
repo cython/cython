@@ -1,6 +1,6 @@
 import cython
 
-double_or_object = cython.fused_type(double, object)
+double_or_object = cython.fused_type(cython.double, object)
 
 def increment(x: double_or_object):
     with cython.nogil(double_or_object is not object):
