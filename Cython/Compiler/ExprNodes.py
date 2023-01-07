@@ -9266,7 +9266,7 @@ class DictNode(ExprNode):
                     code.putln('}')
             else:
                 if item.value.type.is_array:
-                    code.putln("memcpy(%s.%s, %s, sizeof %s);" % (
+                    code.putln("memcpy(%s.%s, %s, sizeof(%s));" % (
                             self.result(),
                             item.key.value,
                             item.value.result(),
