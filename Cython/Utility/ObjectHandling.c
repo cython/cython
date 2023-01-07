@@ -2233,7 +2233,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
-#ifdef __Pyx_CyFunction_USED
+#if defined(__Pyx_CyFunction_USED) && defined(NDEBUG)
+        // TODO PyCFunction_GET_FLAGS has a type-check assert that breaks with a CyFunction
+        // in debug mode. There is likely to be a better way of avoiding tripping this
+        // check that doesn't involve disabling the optimized path.
         if (__Pyx_IsCyOrPyCFunction(func))
 #else
         if (PyCFunction_Check(func))
@@ -2898,6 +2901,15 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 }
 #else
     #define __Pyx_PyMethod_New PyMethod_New
+#endif
+
+///////////// PyMethodNew2Arg.proto /////////////
+
+// Another wrapping of PyMethod_New that matches the Python3 signature
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyMethod_New2Arg PyMethod_New
+#else
+#define __Pyx_PyMethod_New2Arg(func, self) PyMethod_New(func, self, (PyObject*)Py_TYPE(self))
 #endif
 
 /////////////// UnicodeConcatInPlace.proto ////////////////

@@ -31,7 +31,7 @@ def test_parallel_numpy_arrays():
             print i
         return
 
-    x = numpy.zeros(10, dtype=numpy.int)
+    x = numpy.zeros(10, dtype=numpy.int_)
     length = x.shape[0]
 
     for i in prange(length, nogil=True):

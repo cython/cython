@@ -317,6 +317,34 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+
+Type qualifiers
+---------------
+
+Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_::
+
+    cdef volatile int i = 5
+
+    cdef const int sum(const int a, const int b):
+        return a + b
+
+    cdef void print_const_pointer(const int *value):
+        print(value[0])
+
+    cdef void print_pointer_to_const_value(int * const value):
+        print(value[0])
+
+    cdef void print_const_pointer_to_const_value(const int * const value):
+        print(value[0])
+
+.. Note::
+
+    Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
+    in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
+    we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
+    work with an existing C/C++ interface.
+
+
 Extension Types
 ---------------
 
@@ -672,8 +700,8 @@ error return value.
 While this is always the case for Python functions, functions
 defined as C functions or ``cpdef``/``@ccall`` functions can return arbitrary C types,
 which do not have such a well-defined error return value.
-Extra care must be taken to ensure Python exceptions are correctly
-propagated from such functions.
+By default Cython uses a dedicated return value to signal that an exception has been raised from non-external ``cpdef``/``@ccall``
+functions. However, how Cython handles exceptions from these functions can be changed if needed.
 
 A ``cdef`` function may be declared with an exception return value for it
 as a contract with the caller. Here is an example:
@@ -699,7 +727,12 @@ as a contract with the caller. Here is an example:
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
 a call to spam returns ``-1``, the caller will assume that an exception has
-occurred and can now process or propagate it.
+occurred and can now process or propagate it. Calling ``spam()`` is roughly translated to the following C code:
+
+.. code-block:: C
+
+    ret_val = spam();
+    if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
 or implicitly return that value.  This includes empty :keyword:`return`
@@ -738,7 +771,13 @@ form of exception value declaration
 
 In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
-result.
+result. Calling ``spam()`` is roughly translated to the following C code:
+
+
+.. code-block:: C
+
+    ret_val = spam();
+    if (ret_val == -1 && PyErr_Occurred()) goto error_handler;
 
 There is also a third form of exception value declaration
 
@@ -750,18 +789,25 @@ There is also a third form of exception value declaration
 
             @cython.cfunc
             @cython.exceptval(check=True)
-            def spam() -> cython.int:
+            def spam() -> cython.void:
                 ...
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int spam() except *:
+            cdef void spam() except *:
                 ...
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
-*every* call to spam, regardless of what value it returns. If you have a
+*every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly translated to the following C code:
+
+.. code-block:: C
+
+    spam()
+    if (PyErr_Occurred()) goto error_handler;
+
+If you have a
 function returning ``void`` that needs to propagate errors, you will have to
 use this form, since there isn't any error return value to test.
 Otherwise, an explicit error return value allows the C compiler to generate
@@ -798,6 +844,8 @@ is unaware of Python exceptions), you can declare it as such using ``noexcept`` 
                 ...
 
 If a ``noexcept`` function *does* finish with an exception then it will print a warning message but not allow the exception to propagate further.
+On the other hand, calling a ``noexcept`` function has zero overhead related to managing exceptions, unlike the previous declarations.
+
 Some things to note:
 
 * ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept`` or ``@cython.exceptval(check=False)``.
@@ -823,6 +871,10 @@ Some things to note:
       int (*grail)(int, char*) except -1
 
   .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
+* If the returning type of a ``cdef`` function with ``except *`` or ``@cython.exceptval(check=True)`` is C integer,
+  enum, float or pointer type, Cython calls :c:func:`PyErr_Occurred` only when
+  dedicated value is returned instead of checking after every call of the function.
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
