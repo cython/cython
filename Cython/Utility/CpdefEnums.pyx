@@ -54,7 +54,8 @@ if PY_VERSION_HEX >= 0x03040000:
         {{for item in items}}
         ('{{item}}', {{item}}),
         {{endfor}}
-    ])
+        # Try to look up the module name dynamically if possible
+    ], module=__Pyx_globals.get("__module__", '{{static_modname}}'))
     {{if enum_doc is not None}}
     {{name}}.__doc__ = {{ repr(enum_doc) }}
     {{endif}}
@@ -79,8 +80,7 @@ if PY_VERSION_HEX >= 0x03040000:
         {{for item in items}}
         ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
         {{endfor}}
-    ])
-
+    ], module=__Pyx_globals.get("__module__", '{{static_modname}}'))
 else:
     __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
     {{for item in items}}
