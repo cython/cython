@@ -1527,6 +1527,7 @@ class PyExtensionType(PyObjectType):
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
     #  multiple_bases    boolean          Does this class have multiple bases
+    #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
 
     is_extension_type = 1
     has_attributes = 1
@@ -1535,6 +1536,7 @@ class PyExtensionType(PyObjectType):
     objtypedef_cname = None
     dataclass_fields = None
     multiple_bases = False
+    has_sequence_flag = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -4300,6 +4302,7 @@ class CppScopedEnumType(CType):
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
                 "enum_doc": self.doc,
+                "static_modname": env.qualified_name,
             },
             outer_module_scope=env.global_scope())
 
@@ -4417,7 +4420,8 @@ class CEnumType(CIntLike, CType):
             context={"name": self.name,
                      "items": tuple(self.values),
                      "enum_doc": self.doc,
-                     "enum_to_pyint_func": enum_to_pyint_func
+                     "enum_to_pyint_func": enum_to_pyint_func,
+                     "static_modname": env.qualified_name,
                      },
             outer_module_scope=env.global_scope()))
 

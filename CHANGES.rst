@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 12 (2022-??-??)
+3.0.0 alpha 12 (2022-01-??)
 ===========================
 
 Features added
@@ -20,6 +20,14 @@ Features added
   previous, unsafe behaviour.  This directive will eventually be removed in a later release.
   Patch by Matúš Valo.  (Github issue :issue:`5094`)
 
+* The ``**`` power operator now behaves more like in Python by returning the correct complex
+  result if required by math.  A new ``cpow`` directive was added to turn on the previous
+  C-like behaviour.
+  (Github issue :issue:`4936`)
+
+* The special ``__*pow__`` methods now support the 2- and 3-argument variants.
+  (Github issue :issue:`5160`)
+
 * `PEP-614 <https://peps.python.org/pep-0614/>`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
@@ -35,6 +43,9 @@ Features added
 
 * Standard C/C++ atomic operations are now used for memory views, if available.
   (Github issue :issue:`4925`)
+
+* C11 ``complex.h`` is now properly detected.
+  (Github issue :issue:`2513`)
 
 * Nested ``cppclass`` definitions are supported.
   Patch by samaingw.  (Github issue :issue:`1218`)
@@ -64,8 +75,16 @@ Bugs fixed
 * Iterating over memoryviews in generator expressions could leak a buffer reference.
   (Github issue :issue:`4968`)
 
+* Memory views and the internal Cython array type now identify as ``collections.abc.Sequence``
+  by setting the ``Py_TPFLAGS_SEQUENCE`` type flag directly.
+  (Github issue :issue:`5187`)
+
 * ``__del__`` finaliser methods were not always called if they were only inherited.
   (Github issue :issue:`4995`)
+
+* Extension types are now explicitly marked as immutable types to prevent them from
+  being considered mutable.
+  Patch by Max Bachmann.  (Github issue :issue:`5023`)
 
 * ``const`` types could not be returned from functions.
   Patch by Mike Graham.  (Github issue :issue:`5135`)
@@ -87,6 +106,10 @@ Bugs fixed
 * C++ references did not work on fused types.
   (Github issue :issue:`4717`)
 
+* The module state struct was not initialised in correct C (before C23), leading to
+  compile errors on Windows.
+  Patch by yudonglin.  (Github issue :issue:`5169`)
+
 * Nesting fused types in other fused types could fail to specialise the inner type.
   (Github issue :issue:`4725`)
 
@@ -97,11 +120,17 @@ Bugs fixed
 * Coverage analysis failed in projects with a separate source subdirectory.
   Patch by Sviatoslav Sydorenko and Ruben Vorderman.  (Github issue :issue:`3636`)
 
+* The ``annotation_typing`` directive was missing in pure Python mode.
+  Patch by 0dminnimda.  (Github issue :issue:`5194`)
+
 * The ``@dataclass`` directive was accidentally inherited by methods and subclasses.
   (Github issue :issue:`4953`)
 
 * Some issues with Cython ``@dataclass`` arguments, hashing, inheritance and ``repr()``
   were resolved.  (Github issues :issue:`4956`, :issue:`5046`)
+
+* ``cpdef`` enums no longer use ``OrderedDict`` but ``dict`` in Python 3.6 and later.
+  Patch by GalaxySnail.  (Github issue :issue:`5180`)
 
 * Larger numbers of extension types with multiple subclasses could take very long to compile.
   Patch by Scott Wolchok.  (Github issue :issue:`5139`)
@@ -118,7 +147,7 @@ Bugs fixed
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
 
-* Extended glob paths with ``/**/`` and ``\**\`` failed on Windows.
+* Extended glob paths with ``/**/`` and ``\**\`` for finding source files failed on Windows.
 
 * Annotated HTML generation was missing newlines in 3.0.0a11.
   (Github issue :issue:`4945`)
@@ -1205,9 +1234,10 @@ Other changes
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
+
 .. _0.29.33:
 
-0.29.33 (????-??-??)
+0.29.33 (2023-01-06)
 ====================
 
 Features added
@@ -1222,14 +1252,32 @@ Features added
 Bugs fixed
 ----------
 
-* Fixed various compiler warnings. One patch by Lisandro Dalcin.
-  (Github issues :issue:`4948`, :issue:`5086`)
+* ``const`` fused types could not be used with memory views.
+  Patch by Thomas Vincent.  (Github issue :issue:`1772`)
+
+* ``wstr`` usage was removed in Python 3.12 and later (PEP-623).
+  (Github issue :issue:`5145`)
+
+* A type check assertion for Cython functions failed in debug Python builds.
+  (Github issue :issue:`5031`)
+
+* Fixed various compiler warnings.
+  Patches by Lisandro Dalcin et al.  (Github issues :issue:`4948`, :issue:`5086`)
 
 * Fixed error when calculating complex powers of negative numbers.
   (Github issue :issue:`5014`)
   
 * Corrected a small mis-formatting of exception messages on Python 2.
   (Github issue :issue:`5018`)
+
+* The ``PyUnicode_AsUTF8AndSize()`` C-API function was missing from the CPython declarations.
+  (Github issue :issue:`5163`)
+
+* A performance problem in the compiler was resolved when nesting conditional expressions.
+  (Github issue :issue:`5197`)
+
+* Test suite problems with recent NumPy and CPython versions were resolved.
+  (Github issues :issue:`5183`, :issue:`5190`)
 
 Other changes
 -------------
@@ -1240,11 +1288,12 @@ Other changes
   modifier is not needed here and a plain ``cimport`` of the name will do.
   (Github issue :issue:`4905`)
   
-* Properly disable generation of descriptor docstrings on PyPy since
-  they cause crashes. It was previously disabled, but only accidentally 
-  via a typo. Patch by Matti Picus.
-  (Github issue :issue:`5083`)
+* Properly disable generation of descriptor docstrings on PyPy since they cause crashes.
+  It was previously disabled, but only accidentally via a typo.
+  Patch by Matti Picus.  (Github issue :issue:`5083`)
 
+* The ``cpow`` directive of Cython 3.0 is available as a no-op.
+  (Github issue :issue:`5016`)
 
 
 .. _0.29.32:

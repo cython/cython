@@ -144,3 +144,19 @@ def to_from_py_conversion(PxdEnum val):
     True
     """
     return val
+
+
+def test_pickle():
+    """
+    >>> from pickle import loads, dumps
+    >>> import sys
+
+    Pickling enums won't work without the enum module, so disable the test
+    >>> if sys.version_info < (3, 4):
+    ...     loads = dumps = lambda x: x
+    >>> loads(dumps(PyxEnum.TWO)) == PyxEnum.TWO
+    True
+    >>> loads(dumps(PxdEnum.RANK_2)) == PxdEnum.RANK_2
+    True
+    """
+    pass

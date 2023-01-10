@@ -192,6 +192,22 @@ def pow_int_int_non_negative(int a, unsigned int b):
     print(cython.typeof(c1))
     print(cython.typeof(c2))
 
+
+ctypedef double f64
+
+def pythagoras_with_typedef(double a, double b):
+    # see https://github.com/cython/cython/issues/5203
+    """
+    >>> rc = pythagoras_with_typedef(2.0, 2.0)
+    >>> pyresult = 1.0 / (2 * 2.0 ** 2) ** 0.5
+    >>> pyresult - 0.001 < rc < pyresult + 0.001  or  (rc, pyresult)
+    True
+    """
+    cdef f64 result = a * a + b * b
+    result = 1.0 / result ** 0.5
+    return result
+
+
 _WARNINGS = """
 63:21: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.
 64:32: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.

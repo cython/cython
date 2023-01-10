@@ -109,6 +109,7 @@ except:
 ### cython.array class
 #
 
+@cython.collection_type("sequence")
 @cname("__pyx_array")
 cdef class array:
 
@@ -959,6 +960,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil:
 #
 ### Creating new memoryview objects from slices and memoryviews
 #
+@cython.collection_type("sequence")
 @cname('__pyx_memoryviewslice')
 cdef class _memoryviewslice(memoryview):
     "Internal class for passing memoryview slices to Python"

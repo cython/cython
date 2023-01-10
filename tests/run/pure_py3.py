@@ -10,6 +10,15 @@ MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
 
 
+@cython.annotation_typing(False)
+def test_annotation_typing(x: cython.int) -> cython.int:
+    """
+    >>> test_annotation_typing("Petits pains")
+    'Petits pains'
+    """
+    return x
+
+
 @cython.ccall  # cpdef => C return type
 def test_return_type(n: cython.int) -> cython.double:
     """
