@@ -246,8 +246,8 @@ jobs:
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
-    # so a limit of 50 minutes should be enough. This can always be changed in the future if needed.
-    timeout-minutes: 50
+    # so a limit of 60 minutes should be enough. This can always be changed in the future if needed.
+    timeout-minutes: 60
     runs-on: ${{ matrix.os }}
 
     env:
@@ -270,12 +270,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache [ccache]
-        uses: pat-s/always-upload-cache@v3.0.11
-        if: startsWith(runner.os, 'Linux')
+      - name: Compilation Cache
+        uses: hendrikmuhs/ccache-action@v1.2
         with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}

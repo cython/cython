@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "3.0.0a11"
+__version__ = "3.0.0a12.dev0"
 
 from Cython.Utils import build_hex_version
 __hex_version__ = build_hex_version(__version__.partition(".dev")[0])
@@ -111,8 +111,8 @@ class _Optimization(object):
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    embedsignature = cdivision = cdivision_warnings = \
+annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
+    nonecheck = embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = \
         lambda _: _EmptyDecoratorAndManager()

@@ -4277,6 +4277,7 @@ class CppScopedEnumType(CType):
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
                 "enum_doc": self.doc,
+                "static_modname": env.qualified_name,
             },
             outer_module_scope=env.global_scope())
 
@@ -4387,6 +4388,7 @@ class CEnumType(CIntLike, CType):
             context={"name": self.name,
                      "items": tuple(self.values),
                      "enum_doc": self.doc,
+                     "static_modname": env.qualified_name,
                      },
             outer_module_scope=env.global_scope()))
 
