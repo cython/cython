@@ -1061,6 +1061,10 @@ class ExprNode(Node):
               and src_type != dst_type
               and dst_type.assignable_from(src_type)):
             src = CoerceToComplexNode(src, dst_type, env)
+        elif (src_type is PyrexTypes.soft_complex_type
+              and src_type != dst_type
+              and not dst_type.assignable_from(src_type)):
+            src = coerce_from_soft_complex(src, dst_type, env)
         else:
             # neither src nor dst are py types
             # Added the string comparison, since for c types that
@@ -1535,9 +1539,17 @@ def _analyse_name_as_type(name, pos, env):
     if ctype is not None and env.in_c_type_context:
         return ctype
 
-    global_entry = env.global_scope().lookup(name)
+    global_scope = env.global_scope()
+    global_entry = global_scope.lookup(name)
     if global_entry and global_entry.is_type:
         type = global_entry.type
+        if (not env.in_c_type_context
+                and type is Builtin.int_type
+                and global_scope.context.language_level == 2):
+            # While we still support Python2 this needs to be downgraded
+            # to a generic Python object to include both int and long.
+            # With language_level > 3, we keep the type but also accept 'long' in Py2.
+            type = py_object_type
         if type and (type.is_pyobject or env.in_c_type_context):
             return type
         ctype = ctype or type
@@ -2119,6 +2131,11 @@ class NameNode(AtomicExprNode):
                 type = py_object_type
             elif type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type
+            elif type is Builtin.int_type and env.global_scope().context.language_level == 2:
+                # While we still support Python 2 this must be a plain object
+                # so that it can be either int or long.  With language_level=3(str),
+                # we pick up the type but accept both int and long in Py2.
+                type = py_object_type
             return type
         if self.name == 'object':
             # This is normally parsed as "simple C type", but not if we don't parse C types.
@@ -2162,6 +2179,9 @@ class NameNode(AtomicExprNode):
             # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
             # Hence, "as_target = not is_dataclass".
             self.declare_from_annotation(env, as_target=not is_dataclass)
+        elif (self.entry and self.entry.is_inherited and
+                self.annotation and env.is_c_dataclass_scope):
+            error(self.pos, "Cannot redeclare inherited fields in Cython dataclasses")
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
@@ -2905,6 +2925,9 @@ class IteratorNode(ScopedExprNode):
             self.type = self.sequence.type
         elif self.sequence.type.is_cpp_class:
             return CppIteratorNode(self.pos, sequence=self.sequence).analyse_types(env)
+        elif self.is_reversed_cpp_iteration():
+            sequence = self.sequence.arg_tuple.args[0].arg
+            return CppIteratorNode(self.pos, sequence=sequence, reversed=True).analyse_types(env)
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type in (list_type, tuple_type):
@@ -2918,6 +2941,25 @@ class IteratorNode(ScopedExprNode):
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
             ]))
+
+    def is_reversed_cpp_iteration(self):
+        """
+        Returns True if the 'reversed' function is applied to a C++ iterable.
+
+        This supports C++ classes with reverse_iterator implemented.
+        """
+        if not (isinstance(self.sequence, SimpleCallNode) and
+                self.sequence.arg_tuple and len(self.sequence.arg_tuple.args) == 1):
+            return False
+        func = self.sequence.function
+        if func.is_name and func.name == "reversed":
+            if not func.entry.is_builtin:
+                return False
+            arg = self.sequence.arg_tuple.args[0]
+            if isinstance(arg, CoercionNode) and arg.arg.is_name:
+                arg = arg.arg.entry
+                return arg.type.is_cpp_class
+        return False
 
     def type_dependencies(self, env):
         return self.sequence.type_dependencies(self.expr_scope or env)
@@ -3082,25 +3124,30 @@ class CppIteratorNode(ExprNode):
     cpp_attribute_op = "."
     extra_dereference = ""
     is_temp = True
+    reversed = False
 
     subexprs = ['sequence']
+
+    def get_iterator_func_names(self):
+        return ("begin", "end") if not self.reversed else ("rbegin", "rend")
 
     def analyse_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:
             sequence_type = sequence_type.base_type
-        begin = sequence_type.scope.lookup("begin")
-        end = sequence_type.scope.lookup("end")
+        begin_name, end_name = self.get_iterator_func_names()
+        begin = sequence_type.scope.lookup(begin_name)
+        end = sequence_type.scope.lookup(end_name)
         if (begin is None
                 or not begin.type.is_cfunction
                 or begin.type.args):
-            error(self.pos, "missing begin() on %s" % self.sequence.type)
+            error(self.pos, "missing %s() on %s" % (begin_name, self.sequence.type))
             self.type = error_type
             return self
         if (end is None
                 or not end.type.is_cfunction
                 or end.type.args):
-            error(self.pos, "missing end() on %s" % self.sequence.type)
+            error(self.pos, "missing %s() on %s" % (end_name, self.sequence.type))
             self.type = error_type
             return self
         iter_type = begin.type.return_type
@@ -3111,37 +3158,40 @@ class CppIteratorNode(ExprNode):
                     self.pos,
                     "!=",
                     [iter_type, end.type.return_type]) is None:
-                error(self.pos, "missing operator!= on result of begin() on %s" % self.sequence.type)
+                error(self.pos, "missing operator!= on result of %s() on %s" % (begin_name, self.sequence.type))
                 self.type = error_type
                 return self
             if env.lookup_operator_for_types(self.pos, '++', [iter_type]) is None:
-                error(self.pos, "missing operator++ on result of begin() on %s" % self.sequence.type)
+                error(self.pos, "missing operator++ on result of %s() on %s" % (begin_name, self.sequence.type))
                 self.type = error_type
                 return self
             if env.lookup_operator_for_types(self.pos, '*', [iter_type]) is None:
-                error(self.pos, "missing operator* on result of begin() on %s" % self.sequence.type)
+                error(self.pos, "missing operator* on result of %s() on %s" % (begin_name, self.sequence.type))
                 self.type = error_type
                 return self
             self.type = iter_type
         elif iter_type.is_ptr:
             if not (iter_type == end.type.return_type):
-                error(self.pos, "incompatible types for begin() and end()")
+                error(self.pos, "incompatible types for %s() and %s()" % (begin_name, end_name))
             self.type = iter_type
         else:
-            error(self.pos, "result type of begin() on %s must be a C++ class or pointer" % self.sequence.type)
+            error(self.pos, "result type of %s() on %s must be a C++ class or pointer" % (begin_name, self.sequence.type))
             self.type = error_type
         return self
 
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
+        begin_name, _ = self.get_iterator_func_names()
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
             #    of the user
-            code.putln("%s = %s%sbegin();" % (self.result(),
-                                                self.sequence.result(),
-                                                self.cpp_attribute_op))
+            code.putln("%s = %s%s%s();" % (
+                self.result(),
+                self.sequence.result(),
+                self.cpp_attribute_op,
+                begin_name))
         else:
                 # (while it'd be nice to limit the scope of the loop temp, it's essentially
                 # impossible to do while supporting generators)
@@ -3159,17 +3209,22 @@ class CppIteratorNode(ExprNode):
                 code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
                                            "&" if temp_type.is_ptr else "",
                                            self.sequence.move_result_rhs()))
-                code.putln("%s = %s%sbegin();" % (self.result(), self.cpp_sequence_cname,
-                                                  self.cpp_attribute_op))
+                code.putln("%s = %s%s%s();" % (
+                    self.result(),
+                    self.cpp_sequence_cname,
+                    self.cpp_attribute_op,
+                    begin_name))
 
     def generate_iter_next_result_code(self, result_name, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        code.putln("if (!(%s%s != %s%send())) break;" % (
+        _, end_name = self.get_iterator_func_names()
+        code.putln("if (!(%s%s != %s%s%s())) break;" % (
                         self.extra_dereference,
                         self.result(),
                         self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op))
+                        self.cpp_attribute_op,
+                        end_name))
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
@@ -3203,6 +3258,32 @@ class CppIteratorNode(ExprNode):
             code.funcstate.release_temp(self.cpp_sequence_cname)
         # skip over IteratorNode since we don't use any of the temps it does
         ExprNode.free_temps(self, code)
+
+
+def remove_const(item_type):
+    """
+    Removes the constness of a given type and its underlying templates
+    if any.
+
+    This is to solve the compilation error when the temporary variable used to
+    store the result of an iterator cannot be changed due to its constness.
+    For example, the value_type of std::map, which will also be the type of
+    the temporarry variable, is std::pair<const Key, T>. This means the first
+    component of the variable cannot be reused to store the result of each
+    iteration, which leads to a compilation error.
+    """
+    if item_type.is_const:
+        item_type = item_type.cv_base_type
+    if item_type.is_typedef:
+        item_type = remove_const(item_type.typedef_base_type)
+    if item_type.is_cpp_class and item_type.templates:
+        templates = [remove_const(t) if t.is_const else t for t in item_type.templates]
+        template_type = item_type.template_type
+        item_type = PyrexTypes.CppClassType(
+            template_type.name, template_type.scope,
+            template_type.cname, template_type.base_classes,
+            templates, template_type)
+    return item_type
 
 
 class NextNode(AtomicExprNode):
@@ -3247,6 +3328,7 @@ class NextNode(AtomicExprNode):
 
     def analyse_types(self, env):
         self.type = self.infer_type(env, self.iterator.type)
+        self.type = remove_const(self.type)
         self.is_temp = 1
         return self
 
@@ -5157,8 +5239,10 @@ class SliceIndexNode(ExprNode):
     #  start     ExprNode or None
     #  stop      ExprNode or None
     #  slice     ExprNode or None   constant slice object
+    #  nogil     bool               used internally
 
     subexprs = ['base', 'start', 'stop', 'slice']
+    nogil = False
 
     slice = None
 
@@ -5344,7 +5428,10 @@ class SliceIndexNode(ExprNode):
                     base_type, MemoryView.get_axes_specs(env, [slice_node]))
         return None
 
-    nogil_check = Node.gil_error
+    def nogil_check(self, env):
+        self.nogil = env.nogil
+        return super(SliceIndexNode, self).nogil_check(env)
+
     gil_message = "Slicing Python object"
 
     get_slice_utility_code = TempitaUtilityCode.load(
@@ -5612,11 +5699,15 @@ class SliceIndexNode(ExprNode):
 
         if runtime_check:
             code.putln("if (unlikely((%s) != (%s))) {" % (runtime_check, target_size))
+            if self.nogil:
+                code.put_ensure_gil()
             code.putln(
                 'PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length,'
                 ' expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d",'
                 ' (Py_ssize_t)(%s), (Py_ssize_t)(%s));' % (
                     target_size, runtime_check))
+            if self.nogil:
+                code.put_release_ensured_gil()
             code.putln(code.error_goto(self.pos))
             code.putln("}")
 
@@ -7169,22 +7260,23 @@ class AttributeNode(ExprNode):
                 obj_node.result_ctype = self.obj.result_ctype
                 self.obj = obj_node
                 unbound_node = ExprNode.coerce_to(self, dst_type, env)
-                functools = SimpleCallNode(
-                    self.pos,
-                    function=NameNode(self.pos, name=StringEncoding.EncodedString("__import__")),
-                    args=[StringNode(self.pos, value=StringEncoding.EncodedString("functools"))],
+                utility_code=UtilityCode.load_cached(
+                    "PyMethodNew2Arg", "ObjectHandling.c"
                 )
-                partial = AttributeNode(
-                    self.pos,
-                    obj=functools,
-                    attribute=StringEncoding.EncodedString("partial"),
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.py_object_type, [
+                        PyrexTypes.CFuncTypeArg("func", PyrexTypes.py_object_type, None),
+                        PyrexTypes.CFuncTypeArg("self", PyrexTypes.py_object_type, None)
+                    ],
                 )
-                partial_call = SimpleCallNode(
+                binding_call = PythonCapiCallNode(
                     self.pos,
-                    function=partial,
+                    function_name="__Pyx_PyMethod_New2Arg",
+                    func_type=func_type,
                     args=[unbound_node, obj_node],
+                    utility_code=utility_code,
                 )
-                complete_call = EvalWithTempExprNode(obj_node, partial_call)
+                complete_call = EvalWithTempExprNode(obj_node, binding_call)
                 return complete_call.analyse_types(env)
         return ExprNode.coerce_to(self, dst_type, env)
 
@@ -7676,8 +7768,9 @@ class AttributeNode(ExprNode):
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
         elif self.obj.type.is_complex:
-            code.putln("__Pyx_SET_C%s(%s, %s);" % (
+            code.putln("__Pyx_SET_C%s%s(%s, %s);" % (
                 self.member.upper(),
+                self.obj.type.implementation_suffix,
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
             rhs.generate_disposal_code(code)
@@ -10913,8 +11006,10 @@ class TypecastNode(ExprNode):
         if self.type.is_complex:
             operand_result = self.operand.result()
             if self.operand.type.is_complex:
-                real_part = self.type.real_type.cast_code("__Pyx_CREAL(%s)" % operand_result)
-                imag_part = self.type.real_type.cast_code("__Pyx_CIMAG(%s)" % operand_result)
+                real_part = self.type.real_type.cast_code(
+                    self.operand.type.real_code(operand_result))
+                imag_part = self.type.real_type.cast_code(
+                    self.operand.type.imag_code(operand_result))
             else:
                 real_part = self.type.real_type.cast_code(operand_result)
                 imag_part = "0"
@@ -12226,6 +12321,23 @@ class ModNode(DivNode):
 class PowNode(NumBinopNode):
     #  '**' operator.
 
+    is_cpow = None
+    type_was_inferred = False  # was the result type affected by cpow==False?
+            # Intended to allow it to be changed if the node is coerced.
+
+    def _check_cpow(self, env):
+        if self.is_cpow is not None:
+            return  # already set
+        self.is_cpow = env.directives['cpow']
+
+    def infer_type(self, env):
+        self._check_cpow(env)
+        return super(PowNode, self).infer_type(env)
+
+    def analyse_types(self, env):
+        self._check_cpow(env)
+        return super(PowNode, self).analyse_types(env)
+
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
         if self.type.is_complex:
@@ -12250,8 +12362,44 @@ class PowNode(NumBinopNode):
                             (self.operand1.type, self.operand2.type))
 
     def compute_c_result_type(self, type1, type2):
-        c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
-        if isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0:
+        from numbers import Real
+        c_result_type = None
+        op1_is_definitely_positive = (
+            self.operand1.has_constant_result()
+            and self.operand1.constant_result >= 0
+        ) or (
+            type1.is_int and type1.signed == 0  # definitely unsigned
+        )
+        type2_is_int = type2.is_int or (
+            self.operand2.has_constant_result() and
+            isinstance(self.operand2.constant_result, Real) and
+            int(self.operand2.constant_result) == self.operand2.constant_result
+        )
+        needs_widening = False
+        if self.is_cpow:
+            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
+            if not self.operand2.has_constant_result():
+                needs_widening = (
+                    isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
+                )
+        elif op1_is_definitely_positive or type2_is_int:  # cpow==False
+            # if type2 is an integer then we can't end up going from real to complex
+            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
+            if not self.operand2.has_constant_result():
+                needs_widening = type2.is_int and type2.signed
+                if needs_widening:
+                    self.type_was_inferred = True
+            else:
+                needs_widening = (
+                    isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
+                )
+        elif self.c_types_okay(type1, type2):
+            # Allowable result types are double or complex double.
+            # Return the special "soft complex" type to store it as a
+            # complex number but with specialized coercions to Python
+            c_result_type = PyrexTypes.soft_complex_type
+            self.type_was_inferred = True
+        if needs_widening:
             c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
         return c_result_type
 
@@ -12278,6 +12426,50 @@ class PowNode(NumBinopNode):
             else:
                 return '__Pyx_PyNumber_PowerOf2'
         return super(PowNode, self).py_operation_function(code)
+
+    def coerce_to(self, dst_type, env):
+        if dst_type == self.type:
+            return self
+        if (self.is_cpow is None and self.type_was_inferred and
+                (dst_type.is_float or dst_type.is_int)):
+            # if we're trying to coerce this directly to a C float or int
+            # then fall back to the cpow == True behaviour since this is
+            # almost certainly the user intent.
+            # However, ensure that the operand types are suitable C types
+            if self.type is PyrexTypes.soft_complex_type:
+                def check_types(operand, recurse=True):
+                    if operand.type.is_float or operand.type.is_int:
+                        return True, operand
+                    if recurse and isinstance(operand, CoerceToComplexNode):
+                        return check_types(operand.arg, recurse=False), operand.arg
+                    return False, None
+                msg_detail = "a non-complex C numeric type"
+            elif dst_type.is_int:
+                def check_types(operand):
+                    if operand.type.is_int:
+                        return True, operand
+                    else:
+                        # int, int doesn't seem to involve coercion nodes
+                        return False, None
+                msg_detail = "an integer C numeric type"
+            else:
+                def check_types(operand):
+                    return False, None
+            check_op1, op1 = check_types(self.operand1)
+            check_op2, op2 = check_types(self.operand2)
+            if check_op1 and check_op2:
+                warning(self.pos, "Treating '**' as if 'cython.cpow(True)' since it "
+                    "is directly assigned to a %s. "
+                    "This is likely to be fragile and we recommend setting "
+                    "'cython.cpow' explicitly." % msg_detail)
+                self.is_cpow = True
+                self.operand1 = op1
+                self.operand2 = op2
+                result = self.analyse_types(env)
+                if result.type != dst_type:
+                    result = result.coerce_to(dst_type, env)
+                return result
+        return super(PowNode, self).coerce_to(dst_type, env)
 
 
 class BoolBinopNode(ExprNode):
@@ -13878,8 +14070,8 @@ class CoerceToComplexNode(CoercionNode):
 
     def calculate_result_code(self):
         if self.arg.type.is_complex:
-            real_part = "__Pyx_CREAL(%s)" % self.arg.result()
-            imag_part = "__Pyx_CIMAG(%s)" % self.arg.result()
+            real_part = self.arg.type.real_code(self.arg.result())
+            imag_part = self.arg.type.imag_code(self.arg.result())
         else:
             real_part = self.arg.result()
             imag_part = "0"
@@ -13893,6 +14085,27 @@ class CoerceToComplexNode(CoercionNode):
 
     def analyse_types(self, env):
         return self
+
+
+def coerce_from_soft_complex(arg, dst_type, env):
+    cfunc_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type,
+        [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None) ],
+        exception_value = "-1",
+        exception_check = True
+    )
+    call = PythonCapiCallNode(
+        arg.pos,
+        "__Pyx_SoftComplexToDouble",
+        cfunc_type,
+        utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
+        args = [arg]
+    )
+    call = call.analyse_types(env)
+    if call.type != dst_type:
+        call = call.coerce_to(dst_type)
+    return call
+
 
 class CoerceToTempNode(CoercionNode):
     #  This node is used to force the result of another node

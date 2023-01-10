@@ -52,27 +52,27 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
-          - "3.11-dev"
-          # - "3.12-dev"
+          - "3.11"
+          - "3.12-dev"
         env: [{}]
 
         include:
           # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
-          #- python-version: 3.12-dev
-          #  allowed_failure: true
+          - python-version: 3.12-dev
+            allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
-          # GCC 11
+          # GCC 11 (with latest language standards)
           - os: ubuntu-18.04
             python-version: 3.9
             backend: c
-            env: { GCC_VERSION: 11 }
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-18.04
             python-version: 3.9
             backend: cpp
-            env: { GCC_VERSION: 11 }
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
           # compile all modules
           - os: ubuntu-18.04
@@ -160,7 +160,7 @@ jobs:
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           - os: ubuntu-18.04
-            python-version: pypy-3.7
+            python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           # Coverage
@@ -171,6 +171,20 @@ jobs:
             extra_hash: '-coverage'
 
           - os: windows-2019
+            # missing dependencies
+            python-version: 3.6
+            allowed_failure: true
+          - os: windows-2019
+            # TestInline
+            python-version: 3.8
+            allowed_failure: true
+          - os: windows-2019
+            # TestInline
+            python-version: 3.10
+            allowed_failure: true
+          - os: windows-2019
+            # TestInline
+            python-version: 3.11
             allowed_failure: true
 
           # MacOS sub-jobs
@@ -257,7 +271,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache [ccache]
-        uses: pat-s/always-upload-cache@v3.0.1
+        uses: pat-s/always-upload-cache@v3.0.11
         if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.ccache

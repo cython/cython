@@ -1299,19 +1299,13 @@ class ModuleScope(Scope):
     is_cython_builtin = 0
     old_style_globals = 0
 
-    def __init__(self, name, parent_module, context):
+    def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
         self.parent_module = parent_module
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
-        if name == "__init__":
-            # Treat Spam/__init__.pyx specially, so that when Python loads
-            # Spam/__init__.so, initSpam() is defined.
-            self.module_name = parent_module.module_name
-            self.is_package = True
-        else:
-            self.module_name = name
-            self.is_package = False
+        self.is_package = is_package
+        self.module_name = name
         self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
@@ -1424,9 +1418,16 @@ class ModuleScope(Scope):
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
-            while relative_level > 0 and relative_to:
+
+            top_level = 1 if self.is_package else 0
+            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            #   i.e. dot in `from . import ...` points to the current package
+            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            #   i.e. dot in `from . import ...` points to the package where module is placed
+            while relative_level > top_level and relative_to:
                 relative_to = relative_to.parent_module
                 relative_level -= 1
+
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
             relative_to = self.parent_module
@@ -1436,7 +1437,7 @@ class ModuleScope(Scope):
         return module_scope.context.find_module(
             module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
-    def find_submodule(self, name):
+    def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
         if '.' in name:
@@ -1445,10 +1446,10 @@ class ModuleScope(Scope):
             submodule = None
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name, parent_module=self, context=self.context)
+            scope = ModuleScope(name, parent_module=self, context=self.context, is_package=True if submodule else as_package)
             self.module_entries[name] = scope
         if submodule:
-            scope = scope.find_submodule(submodule)
+            scope = scope.find_submodule(submodule, as_package=as_package)
         return scope
 
     def lookup_submodule(self, name):
@@ -1749,6 +1750,15 @@ class ModuleScope(Scope):
 
         if self.directives.get('final'):
             entry.type.is_final_type = True
+        collection_type = self.directives.get('collection_type')
+        if collection_type:
+            from .UtilityCode import NonManglingModuleScope
+            if not isinstance(self, NonManglingModuleScope):
+                # TODO - DW would like to make it public, but I'm making it internal-only
+                # for now to avoid adding new features without consensus
+                error(pos, "'collection_type' is not a public cython directive")
+        if collection_type == 'sequence':
+            entry.type.has_sequence_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -2618,6 +2628,7 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.is_inherited = True
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
@@ -2768,7 +2779,7 @@ class CppClassScope(Scope):
             if base_entry.name not in base_templates:
                 entry = self.declare_type(base_entry.name, base_entry.type,
                                           base_entry.pos, base_entry.cname,
-                                          base_entry.visibility)
+                                          base_entry.visibility, defining=False)
                 entry.is_inherited = 1
 
     def specialize(self, values, type_entry):

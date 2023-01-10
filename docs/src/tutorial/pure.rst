@@ -323,6 +323,12 @@ Further Cython functions and declarations
     t1 = cython.cast(T, t)
     t2 = cython.cast(T, t, typecheck=True)
 
+* ``fused_type`` creates a new type definition that refers to the multiple types.
+  The following example declares a new type called ``my_fused_type`` which can
+  be either an ``int`` or a ``double``.::
+
+    my_fused_type = cython.fused_type(cython.int, cython.float)
+
 .. _magic_attributes_pxd:
 
 Magic Attributes within the .pxd
@@ -347,8 +353,7 @@ PEP-484 type annotations
 
 Python `type hints <https://www.python.org/dev/peps/pep-0484>`_
 can be used to declare argument types, as shown in the
-following example.  To avoid conflicts with other kinds of annotation
-usages, this can be disabled with the directive ``annotation_typing=False``.
+following example:
 
   .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
@@ -377,6 +382,18 @@ declare types of variables in a Python 3.6 compatible way as follows:
 .. literalinclude:: ../../examples/tutorial/pure/pep_526.py
 
 There is currently no way to express the visibility of object attributes.
+
+Disabling annotations
+^^^^^^^^^^^^^^^^^^^^^
+
+To avoid conflicts with other kinds of annotation
+usages, Cython's use of annotations to specify types can be disabled with the
+``annotation_typing`` :ref:`compiler directive<compiler-directives>`. From Cython 3
+you can use this as a decorator or a with statement, as shown in the following example:
+
+.. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
+
+
 
 ``typing`` Module
 ^^^^^^^^^^^^^^^^^
