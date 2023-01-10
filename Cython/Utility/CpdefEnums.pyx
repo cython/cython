@@ -89,7 +89,7 @@ if PY_VERSION_HEX >= 0x03060000:
         # (only including powers of 2 when iterating). Since we're using
         # "flag" because C enums *might* be used as flags, not because
         # we want strict flag behaviour, manually undo some of this.
-        {{name}}._member_names_ = list({{name}}.__members__.keys())
+        {{name}}._member_names_ = list({{name}}.__members__)
 
     {{if enum_doc is not None}}
     {{name}}.__doc__ = {{ repr(enum_doc) }}
