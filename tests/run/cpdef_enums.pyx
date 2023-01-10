@@ -152,7 +152,8 @@ def test_pickle():
     >>> import sys
 
     Pickling enums won't work without the enum module, so disable the test
-    >>> if sys.version_info < (3, 4):
+    (now requires  3.6 for IntFlag)
+    >>> if sys.version_info < (3, 6):
     ...     loads = dumps = lambda x: x
     >>> loads(dumps(PyxEnum.TWO)) == PyxEnum.TWO
     True
