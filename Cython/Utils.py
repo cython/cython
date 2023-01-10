@@ -616,12 +616,12 @@ def build_hex_version(version_string):
     # First, parse '4.12a1' into [4, 12, 0, 0xA01].
     digits = []
     release_status = 0xF0
-    for digit in re.split('([.abrcdev]+)', version_string):
+    for digit in re.split('(\D+)', version_string):
         if digit in ('a', 'b', 'rc'):
             release_status = {'a': 0xA0, 'b': 0xB0, 'rc': 0xC0}[digit]
             digits = (digits + [0, 0])[:3]  # 1.2a1 -> 1.2.0a1
-        elif digit == '.dev':
-            break  # ignore '.dev0' in hex version
+        elif digit in ('.dev', '.pre', '.post'):
+            break  # ignore '.dev0' / '.post0' in hex version
         elif digit != '.':
             digits.append(int(digit))
     digits = (digits + [0] * 3)[:4]
