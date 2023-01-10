@@ -616,7 +616,7 @@ def build_hex_version(version_string):
     # Remove the .dev and .post segments from the version
     # https://peps.python.org/pep-0440/#public-version-identifiers
     version_string = version_string.partition(".dev")[0].partition(".post")[0]
-    
+
     # Parse '4.12a1' into [4, 12, 0, 0xA01].
     digits = []
     release_status = 0xF0
