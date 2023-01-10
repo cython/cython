@@ -613,7 +613,11 @@ def build_hex_version(version_string):
     """
     Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_VERSION_HEX).
     """
-    # First, parse '4.12a1' into [4, 12, 0, 0xA01].
+    # Remove the .dev and .post segments from the version
+    # https://peps.python.org/pep-0440/#public-version-identifiers
+    version_string = version_string.partition(".dev")[0].partition(".post")[0]
+    
+    # Parse '4.12a1' into [4, 12, 0, 0xA01].
     digits = []
     release_status = 0xF0
     for digit in re.split('([.abrc]+)', version_string):
