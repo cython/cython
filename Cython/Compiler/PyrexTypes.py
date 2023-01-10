@@ -4445,7 +4445,7 @@ class CEnumType(CIntLike, CType):
                     "module_name": module_name,
                     "is_flag": True,
                     },
-        outer_module_scope=self.entry.scope  # ensure that "name" is findable
+            outer_module_scope=self.entry.scope  # ensure that "name" is findable
         ))
         return True
 
