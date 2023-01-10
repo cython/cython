@@ -14112,7 +14112,7 @@ def coerce_from_soft_complex(arg, dst_type, env):
     )
     call = call.analyse_types(env)
     if call.type != dst_type:
-        call = call.coerce_to(dst_type)
+        call = call.coerce_to(dst_type, env)
     return call
 
 
