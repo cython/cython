@@ -132,13 +132,28 @@ def check_docs():
     """
     pass
 
+
+def to_from_py_conversion(PxdEnum val):
+    """
+    >>> to_from_py_conversion(RANK_1) is PxdEnum.RANK_1
+    True
+
+    C enums are commonly enough used as flags that it seems reasonable
+    to allow it in Cython
+    >>> to_from_py_conversion(RANK_1 | RANK_2) == (RANK_1 | RANK_2)
+    True
+    """
+    return val
+
+
 def test_pickle():
     """
     >>> from pickle import loads, dumps
     >>> import sys
 
     Pickling enums won't work without the enum module, so disable the test
-    >>> if sys.version_info < (3, 4):
+    (now requires  3.6 for IntFlag)
+    >>> if sys.version_info < (3, 6):
     ...     loads = dumps = lambda x: x
     >>> loads(dumps(PyxEnum.TWO)) == PyxEnum.TWO
     True

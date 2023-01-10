@@ -2787,6 +2787,12 @@ class CArrayType(CPointerBaseType):
             source_code, result_code, self.size)
         return code.error_goto_if_neg(call_code, error_pos)
 
+    def error_condition(self, result_code):
+        # It isn't possible to use CArrays as return type so the error_condition
+        # is irrelevant. Returning a falsy value does avoid an error when getting
+        # from_py_call_code from a typedef.
+        return ""
+
 
 class CPtrType(CPointerBaseType):
     #  base_type     CType              Reference type
@@ -4257,6 +4263,25 @@ class CppScopedEnumType(CType):
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
+        if self.entry.create_wrapper:
+            from .UtilityCode import CythonUtilityCode
+            self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+            if self.entry.scope != env.global_scope():
+                module_name = self.entry.scope.qualified_name
+            else:
+                module_name = None
+            env.use_utility_code(CythonUtilityCode.load(
+                "EnumTypeToPy", "CpdefEnums.pyx",
+                context={"funcname": self.to_py_function,
+                        "name": self.name,
+                        "items": tuple(self.values),
+                        "underlying_type": self.underlying_type.empty_declaration_code(),
+                        "module_name": module_name,
+                        "is_flag": False,
+                        },
+                outer_module_scope=self.entry.scope  # ensure that "name" is findable
+            ))
+            return True
         if self.underlying_type.create_to_py_utility_code(env):
             # Using a C++11 lambda here, which is fine since
             # scoped enums are a C++11 feature
@@ -4383,14 +4408,46 @@ class CEnumType(CIntLike, CType):
 
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode
+        # Generate "int"-like conversion function
+        old_to_py_function = self.to_py_function
+        self.to_py_function = None
+        CIntLike.create_to_py_utility_code(self, env)
+        enum_to_pyint_func = self.to_py_function
+        self.to_py_function = old_to_py_function  # we don't actually want to overwrite this
+
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
                      "items": tuple(self.values),
                      "enum_doc": self.doc,
+                     "enum_to_pyint_func": enum_to_pyint_func,
                      "static_modname": env.qualified_name,
                      },
             outer_module_scope=env.global_scope()))
+
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return self.to_py_function
+        if not self.entry.create_wrapper:
+            return super(CEnumType, self).create_to_py_utility_code(env)
+        from .UtilityCode import CythonUtilityCode
+        self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+        if self.entry.scope != env.global_scope():
+            module_name = self.entry.scope.qualified_name
+        else:
+            module_name = None
+        env.use_utility_code(CythonUtilityCode.load(
+            "EnumTypeToPy", "CpdefEnums.pyx",
+            context={"funcname": self.to_py_function,
+                    "name": self.name,
+                    "items": tuple(self.values),
+                    "underlying_type": "int",
+                    "module_name": module_name,
+                    "is_flag": True,
+                    },
+            outer_module_scope=self.entry.scope  # ensure that "name" is findable
+        ))
+        return True
 
 
 class CTupleType(CType):
