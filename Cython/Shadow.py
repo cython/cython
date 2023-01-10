@@ -3,6 +3,10 @@ from __future__ import absolute_import
 
 __version__ = "3.0.0a11"
 
+from Cython.Utils import build_hex_version
+__hex_version__ = build_hex_version(__version__.partition(".dev")[0])
+del build_hex_version
+
 try:
     from __builtin__ import basestring
 except ImportError:

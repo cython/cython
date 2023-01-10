@@ -776,11 +776,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
-        from .. import __version__
+        from .. import __version__, __hex_version__
         code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
         code.putln('#define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI')
         code.putln('#define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."')
-        code.putln('#define CYTHON_HEX_VERSION %s' % build_hex_version(__version__))
+        code.putln('#define CYTHON_HEX_VERSION %s' % __hex_version__)
         code.putln("#define CYTHON_FUTURE_DIVISION %d" % (
             Future.division in env.context.future_directives))
 
