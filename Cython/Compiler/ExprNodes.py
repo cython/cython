@@ -11995,17 +11995,19 @@ class MulNode(NumBinopNode):
     #  '*' operator.
 
     def analyse_types(self, env):
-        # TODO: we could also optimise the case of "[...] * 2 * n", i.e. with an existing 'mult_factor'
-        if self.operand1.is_sequence_constructor and self.operand1.mult_factor is None:
-            operand2 = self.operand2.analyse_types(env)
-            if operand2.type.is_int or operand2.type is long_type:
-                return self.analyse_sequence_mul(env, self.operand1, operand2)
-        elif self.operand2.is_sequence_constructor and self.operand2.mult_factor is None:
-            operand1 = self.operand1.analyse_types(env)
-            if operand1.type.is_int or operand1.type is long_type:
-                return self.analyse_sequence_mul(env, self.operand2, operand1)
+        self.operand1 = operand1 = self.operand1.analyse_types(env)
+        self.operand2 = operand2 = self.operand2.analyse_types(env)
 
-        return NumBinopNode.analyse_types(self, env)
+        # TODO: we could also optimise the case of "[...] * 2 * n", i.e. with an existing 'mult_factor'
+        if operand1.is_sequence_constructor and operand1.mult_factor is None:
+            if operand2.type.is_int or operand2.type is long_type:
+                return self.analyse_sequence_mul(env, operand1, operand2)
+        elif operand2.is_sequence_constructor and operand2.mult_factor is None:
+            if operand1.type.is_int or operand1.type is long_type:
+                return self.analyse_sequence_mul(env, operand2, operand1)
+
+        self.analyse_operation(env)
+        return self
 
     def analyse_sequence_mul(self, env, seq, mult):
         assert seq.mult_factor is None
