@@ -1,5 +1,7 @@
 # mode: run
 
+# Tests Python's builtin memoryview.
+
 from __future__ import print_function
 
 cimport cython
