@@ -1,8 +1,5 @@
 # mode: run
 
-# Tests the builtin memoryview - there's an '_' in the file name
-# just so it isn't tied to Cython memoryview lests
-
 from __future__ import print_function
 
 cimport cython
