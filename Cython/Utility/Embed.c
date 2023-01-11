@@ -39,32 +39,34 @@ static int __Pyx_main(int argc, wchar_t **argv)
     if (argc && argv)
         PySys_SetArgv(argc, argv);
 #else
-    PyStatus status;
+    {
+        PyStatus status;
 
-    PyConfig config;
-    PyConfig_InitPythonConfig(&config);
+        PyConfig config;
+        PyConfig_InitPythonConfig(&config);
 
-    if (argc && argv) {
-        status = PyConfig_SetString(&config, &config.program_name, argv[0]);
+        if (argc && argv) {
+            status = PyConfig_SetString(&config, &config.program_name, argv[0]);
+            if (PyStatus_Exception(status)) {
+                PyConfig_Clear(&config);
+                return 1;
+            }
+
+            status = PyConfig_SetArgv(&config, argc, argv);
+            if (PyStatus_Exception(status)) {
+                PyConfig_Clear(&config);
+                return 1;
+            }
+        }
+
+        status = Py_InitializeFromConfig(&config);
         if (PyStatus_Exception(status)) {
             PyConfig_Clear(&config);
             return 1;
         }
 
-        status = PyConfig_SetArgv(&config, argc, argv);
-        if (PyStatus_Exception(status)) {
-            PyConfig_Clear(&config);
-            return 1;
-        }
-    }
-
-    status = Py_InitializeFromConfig(&config);
-    if (PyStatus_Exception(status)) {
         PyConfig_Clear(&config);
-        return 1;
     }
-
-    PyConfig_Clear(&config);
 #endif
 
     { /* init module '%(module_name)s' as '__main__' */
