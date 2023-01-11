@@ -46,7 +46,8 @@ from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
-from ..Compiler.Options import CompilationOptions, default_options
+from ..Compiler.Options import (CompilationOptions, default_options,
+    get_directive_defaults)
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
@@ -731,7 +732,8 @@ def create_dependency_tree(ctx=None, quiet=False):
     global _dep_tree
     if _dep_tree is None:
         if ctx is None:
-            ctx = Context(["."], CompilationOptions(default_options))
+            ctx = Context(["."], get_directive_defaults(),
+                          options=CompilationOptions(default_options))
         _dep_tree = DependencyTree(ctx, quiet=quiet)
     return _dep_tree
 

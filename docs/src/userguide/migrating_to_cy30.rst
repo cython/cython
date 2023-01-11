@@ -210,6 +210,12 @@ The behaviour for any ``cdef`` function that is declared with an
 explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
 also unchanged.
 
+.. note::
+  The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
+  setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
+  to ``True``.
+  
+
 Annotation typing
 =================
 
@@ -218,9 +224,11 @@ annotations and it is well worth reading
 :ref:`the pure Python tutorial<pep484_type_annotations>` to understand
 some of the improvements.
 
-A notable backwards-compatible change is that ``x: int`` is now typed
+A notable backwards-incompatible change is that ``x: int`` is now typed
 such that ``x`` is an exact Python ``int`` (Cython 0.29 would accept
-any Python object for ``x``).
+any Python object for ``x``), unless the language level is explicitly
+set to 2.  To mitigate the effect, Cython 3.0 still accepts both Python
+``int`` and ``long`` values under Python 2.x.
 
 To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the
@@ -239,3 +247,16 @@ When running into an error it is required to add the corresponding operator::
         Example operator++(int)
         Example operator--(int)
 
+
+``**`` power operator
+=====================
+
+Cython 3 has changed the behaviour of the power operator to be
+more like Python. The consequences are that
+
+#. ``a**b`` of two ints may return a floating point type,
+#. ``a**b`` of one or more non-complex floating point numbers may
+   return a complex number.
+
+The old behaviour can be restored by setting the ``cpow``
+:ref:`compiler directive <compiler-directives>` to ``True``.
