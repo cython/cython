@@ -4529,7 +4529,7 @@ class PythonTypeConstructorMixin(object):
     """
     modifier_name = None
 
-    def set_python_type_constructor_name(self, name)
+    def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
 
     def specialize_here(self, pos, env, template_values=None):
