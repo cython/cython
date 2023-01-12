@@ -4576,6 +4576,7 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
     def __init__(self, name):
         super(SpecialPythonTypeConstructor, self).__init__()
         self.set_python_type_constructor_name(name)
+        self.modifier_name = name
 
     def __repr__(self):
         return self.name
