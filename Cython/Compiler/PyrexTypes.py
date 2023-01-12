@@ -4553,7 +4553,7 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     """
     def __init__(self, name, cname, objstruct_cname=None):
         super(BuiltinTypeConstructorObjectType, self).__init__(
-            self, name, cname, objstruct_cname=objstruct_cname)
+            name, cname, objstruct_cname=objstruct_cname)
         self.set_python_type_constructor_name(name)
 
 
