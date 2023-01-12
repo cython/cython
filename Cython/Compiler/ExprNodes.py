@@ -14263,8 +14263,8 @@ class AnnotationNode(ExprNode):
                 # `module` is cython
                 module_scope = annotation.obj.analyse_as_module(env)
                 if module_scope and not module_scope.lookup_type(annotation.attribute):
-                    warning(annotation.pos,
-                            "Unknown type declaration '%s' in annotation, ignoring" % self.string.value, level=1)
+                    error(annotation.pos,
+                            "Unknown type declaration '%s' in annotation" % self.string.value)
             else:
                 module_scope = annotation.obj.analyse_as_module(env)
                 if module_scope and module_scope.pxd_file_loaded:
