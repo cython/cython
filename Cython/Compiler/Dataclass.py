@@ -90,7 +90,7 @@ class TemplateCode(object):
     """
     _placeholder_count = 0
 
-    def __init__(self, writer = None, placeholders = None, extra_stats=None):
+    def __init__(self, writer=None, placeholders=None, extra_stats=None):
         self.writer = PyxCodeWriter() if writer is None else writer
         self.placeholders = {} if placeholders is None else placeholders
         self.extra_stats = [] if extra_stats is None else extra_stats

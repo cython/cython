@@ -60,7 +60,7 @@ class StringIOTree(object):
     def empty(self):
         if self.stream.tell():
             return False
-        return all(child.empty() for child in self.prepended_children)
+        return all([child.empty() for child in self.prepended_children]) if self.prepended_children else True
 
     def getvalue(self):
         content = []
