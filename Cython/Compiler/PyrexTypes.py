@@ -4529,7 +4529,7 @@ class PythonTypeConstructorMixin(object):
     """
     modifier_name = None
 
-    def __init__(self, name):
+    def set_python_type_constructor_name(self, name)
         self.python_type_constructor_name = name
 
     def specialize_here(self, pos, env, template_values=None):
@@ -4552,8 +4552,9 @@ class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorM
     builtin types like list, dict etc which can be subscripted in annotations
     """
     def __init__(self, name, cname, objstruct_cname=None):
-        PythonTypeConstructorMixin.__init__(self, name)
-        BuiltinObjectType.__init__(self, name, cname, objstruct_cname=objstruct_cname)
+        super(BuiltinTypeConstructorObjectType, self).__init__(
+            self, name, cname, objstruct_cname=objstruct_cname)
+        self.set_python_type_constructor_name(name)
 
 
 class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
@@ -4573,9 +4574,8 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
     """
 
     def __init__(self, name):
-        PythonTypeConstructorMixin.__init__(self, name=name)
-        PyObjectType.__init__(self)
-        self.modifier_name = name
+        super(SpecialPythonTypeConstructor, self).__init__()
+        self.set_python_type_constructor_name(name)
 
     def __repr__(self):
         return self.name
