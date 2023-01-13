@@ -510,6 +510,7 @@ class Scope(object):
                             # Cython pre-declares the no-args constructor - allow later user definitions.
                             cpp_override_allowed = True
                         elif alt_entry.is_inherited:
+                            # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
                             cpp_override_allowed = True
                         if cpp_override_allowed:
                             # A compatible signature doesn't mean the exact same signature,
