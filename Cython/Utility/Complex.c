@@ -4,7 +4,8 @@
 #if !defined(CYTHON_CCOMPLEX)
   #if defined(__cplusplus)
     #define CYTHON_CCOMPLEX 1
-  #elif defined(_Complex_I)
+  #elif defined(_Complex_I) || (__STDC_VERSION__ >= 201112L && !defined(__STDC_NO_COMPLEX__))
+    // <complex.h> should exist since C99, but only C11 defines a test to detect it
     #define CYTHON_CCOMPLEX 1
   #else
     #define CYTHON_CCOMPLEX 0
@@ -23,7 +24,6 @@
   #undef _Complex_I
   #define _Complex_I 1.0fj
 #endif
-
 
 /////////////// RealImag.proto ///////////////
 
@@ -49,11 +49,42 @@
     #define __Pyx_SET_CIMAG(z,y) __Pyx_CIMAG(z) = (y)
 #endif
 
+/////////////// RealImag_Cy.proto ///////////////
+
+// alternative version of RealImag.proto for the case where
+// we definitely want to force it to use the Cython utility
+// code version of complex.
+// Because integer complex types simply aren't covered by
+// the C or C++ standards
+// (although practically will probably work in C++).
+
+#define __Pyx_CREAL_Cy(z) ((z).real)
+#define __Pyx_CIMAG_Cy(z) ((z).imag)
+#define __Pyx_SET_CREAL_Cy(z,x) __Pyx_CREAL_Cy(z) = (x)
+#define __Pyx_SET_CIMAG_Cy(z,y) __Pyx_CIMAG_cy(z) = (y)
+
+/////////////// RealImag_CyTypedef.proto //////////
+//@requires: RealImag
+//@requires: RealImag_Cy
+
+#if __cplusplus
+// C++ is fine with complexes based on typedefs because the template sees through them
+#define __Pyx_CREAL_CyTypedef(z) __Pyx_CREAL(z)
+#define __Pyx_CIMAG_CyTypedef(z) __Pyx_CIMAG(z)
+#define __Pyx_SET_CREAL_CyTypedef(z,x) __Pyx_SET_CREAL(z)
+#define __Pyx_SET_CIMAG_CyTypedef(z,x) __Pyx_SET_CIMAG(z)
+#else
+// C isn't
+#define __Pyx_CREAL_CyTypedef(z) __Pyx_CREAL_Cy(z)
+#define __Pyx_CIMAG_CyTypedef(z) __Pyx_CIMAG_Cy(z)
+#define __Pyx_SET_CREAL_CyTypedef(z,x) __Pyx_SET_CREAL_Cy(z)
+#define __Pyx_SET_CIMAG_CyTypedef(z,x) __Pyx_SET_CIMAG_Cy(z)
+#endif
 
 /////////////// Declarations.proto ///////////////
 //@proto_block: complex_type_declarations
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
   #ifdef __cplusplus
     typedef ::std::complex< {{real_type}} > {{type_name}};
   #else
@@ -67,7 +98,7 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// Declarations ///////////////
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
   #ifdef __cplusplus
     static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}} x, {{real_type}} y) {
       return ::std::complex< {{real_type}} >(x, y);
@@ -89,10 +120,10 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// ToPy.proto ///////////////
 
-#define __pyx_PyComplex_FromComplex(z) \
-        PyComplex_FromDoubles((double)__Pyx_CREAL(z), \
-                              (double)__Pyx_CIMAG(z))
-
+{{py: func_suffix = "_CyTypedef" if is_extern_float_typedef else ("" if is_float else "_Cy")}}
+#define __pyx_PyComplex_FromComplex{{func_suffix}}(z) \
+        PyComplex_FromDoubles((double)__Pyx_CREAL{{func_suffix}}(z), \
+                              (double)__Pyx_CIMAG{{func_suffix}}(z))
 
 /////////////// FromPy.proto ///////////////
 
@@ -116,7 +147,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic.proto ///////////////
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
     #define __Pyx_c_eq{{func_suffix}}(a, b)   ((a)==(b))
     #define __Pyx_c_sum{{func_suffix}}(a, b)  ((a)+(b))
     #define __Pyx_c_diff{{func_suffix}}(a, b) ((a)-(b))
@@ -155,7 +186,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic ///////////////
 
-#if CYTHON_CCOMPLEX
+#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
 #else
     static CYTHON_INLINE int __Pyx_c_eq{{func_suffix}}({{type}} a, {{type}} b) {
        return (a.real == b.real) && (a.imag == b.imag);
@@ -289,3 +320,41 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
         }
     #endif
 #endif
+
+/////////////// SoftComplexToDouble.proto //////////////////
+
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value); /* proto */
+
+/////////////// SoftComplexToDouble //////////////////
+//@requires: RealImag
+
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
+    // This isn't an absolutely perfect match for the Python behaviour:
+    // In Python the type would be determined right after the number is
+    // created (usually '**'), while here it's determined when coerced
+    // to a PyObject, which may be a few operations later.
+    if (unlikely(__Pyx_CIMAG(value))) {
+        PyErr_SetString(PyExc_TypeError,
+            "Cannot convert 'complex' with non-zero imaginary component to 'double' "
+            "(this most likely comes from the '**' operator; "
+            "use 'cython.cpow(True)' to return 'nan' instead of a "
+            "complex number).");
+        return -1.;
+    }
+    return __Pyx_CREAL(value);
+}
+
+///////// SoftComplexToPy.proto ///////////////////////
+
+static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value); /* proto */
+
+//////// SoftComplexToPy ////////////////
+//@requires: RealImag
+
+static PyObject *__pyx_Py_FromSoftComplex(__pyx_t_double_complex value) {
+    if (__Pyx_CIMAG(value)) {
+        return PyComplex_FromDoubles(__Pyx_CREAL(value), __Pyx_CIMAG(value));
+    } else {
+        return PyFloat_FromDouble(__Pyx_CREAL(value));
+    }
+}

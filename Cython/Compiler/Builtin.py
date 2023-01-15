@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode
+from .Code import UtilityCode, TempitaUtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -89,6 +89,28 @@ class BuiltinMethod(_BuiltinOverride):
             method_type = self.build_func_type(sig, self_arg)
         self_type.scope.declare_builtin_cfunction(
             self.py_name, method_type, self.cname, utility_code=self.utility_code)
+
+
+class BuiltinProperty(object):
+    # read only for now
+    def __init__(self, py_name, property_type, call_cname,
+                 exception_value=None, exception_check=None, utility_code=None):
+        self.py_name = py_name
+        self.property_type = property_type
+        self.call_cname = call_cname
+        self.utility_code = utility_code
+        self.exception_value = exception_value
+        self.exception_check = exception_check
+
+    def declare_in_type(self, self_type):
+        self_type.scope.declare_cproperty(
+            self.py_name,
+            self.property_type,
+            self.call_cname,
+            exception_value=self.exception_value,
+            exception_check=self.exception_check,
+            utility_code=self.utility_code
+        )
 
 
 builtin_function_table = [
@@ -338,6 +360,32 @@ builtin_types_table = [
     ("frozenset", "PyFrozenSet_Type", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
     ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)[0]", []),
+    ("memoryview", "PyMemoryView_Type", [
+        # TODO - format would be nice, but hard to get
+        # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
+        # error checking would ideally be limited api only
+        BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryview_Get_ndim',
+                        exception_value="-1", exception_check=True,
+                        utility_code=TempitaUtilityCode.load_cached(
+                            "memoryview_get_from_buffer", "Builtins.c",
+                            context=dict(name="ndim")
+                        )
+        ),
+        BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryview_Get_readonly',
+                        exception_value="-1", exception_check=True,
+                        utility_code=TempitaUtilityCode.load_cached(
+                            "memoryview_get_from_buffer", "Builtins.c",
+                            context=dict(name="readonly")
+                        )
+        ),
+        BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryview_Get_itemsize',
+                        exception_value="-1", exception_check=True,
+                        utility_code=TempitaUtilityCode.load_cached(
+                            "memoryview_get_from_buffer", "Builtins.c",
+                            context=dict(name="itemsize")
+                        )
+        )]
+    )
 ]
 
 
@@ -349,6 +397,7 @@ types_that_construct_their_instance = frozenset({
     'tuple', 'list', 'dict', 'set', 'frozenset',
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
+    'memoryview'
 })
 
 
@@ -424,10 +473,10 @@ def init_builtins():
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
 
-    global list_type, tuple_type, dict_type, set_type, frozenset_type
-    global bytes_type, str_type, unicode_type, basestring_type, slice_type
-    global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
-    global int_type
+    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type
+    global slice_type, bytes_type, str_type, unicode_type, basestring_type, bytearray_type
+    global float_type, int_type, long_type, bool_type, complex_type
+    global memoryview_type, py_buffer_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -441,11 +490,11 @@ def init_builtins():
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
     float_type = builtin_scope.lookup('float').type
+    int_type = builtin_scope.lookup('int').type
     long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
-    # Be careful with int type while Py2 is still supported
-    int_type = builtin_scope.lookup('int').type
+    memoryview_type = builtin_scope.lookup('memoryview').type
 
     # Set up type inference links between equivalent Python/C types
     bool_type.equivalent_type = PyrexTypes.c_bint_type
@@ -456,6 +505,8 @@ def init_builtins():
 
     complex_type.equivalent_type = PyrexTypes.c_double_complex_type
     PyrexTypes.c_double_complex_type.equivalent_type = complex_type
+
+    py_buffer_type = builtin_scope.lookup('Py_buffer').type
 
 
 init_builtins()

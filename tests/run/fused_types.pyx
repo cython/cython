@@ -1,5 +1,5 @@
 # mode: run
-# ticket: t1772
+# ticket: 1772
 
 cimport cython
 from cython.view cimport array

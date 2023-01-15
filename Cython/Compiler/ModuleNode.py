@@ -611,33 +611,36 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_list.append(env)
 
     def sort_types_by_inheritance(self, type_dict, type_order, getkey):
-        # copy the types into a list moving each parent type before
-        # its first child
-        type_list = []
-        for i, key in enumerate(type_order):
+        subclasses = defaultdict(list)  # maps type key to list of subclass keys
+        for key in type_order:
             new_entry = type_dict[key]
-
             # collect all base classes to check for children
-            hierarchy = set()
-            base = new_entry
+            base = new_entry.type.base_type
             while base:
-                base_type = base.type.base_type
-                if not base_type:
+                base_key = getkey(base)
+                subclasses[base_key].append(key)
+                base_entry = type_dict.get(base_key)
+                if base_entry is None:
                     break
-                base_key = getkey(base_type)
-                hierarchy.add(base_key)
-                base = type_dict.get(base_key)
-            new_entry.base_keys = hierarchy
+                base = base_entry.type.base_type
 
-            # find the first (sub-)subclass and insert before that
-            for j in range(i):
-                entry = type_list[j]
-                if key in entry.base_keys:
-                    type_list.insert(j, new_entry)
-                    break
-            else:
-                type_list.append(new_entry)
-        return type_list
+        # Simple topological sort using recursive DFS, based on
+        # https://en.wikipedia.org/wiki/Topological_sorting#Depth-first_search
+        seen = set()
+        result = []
+        def dfs(u):
+            if u in seen:
+                return
+            seen.add(u)
+            for v in subclasses[getkey(u.type)]:
+                dfs(type_dict[v])
+            result.append(u)
+
+        for key in type_order:
+            dfs(type_dict[key])
+
+        result.reverse()
+        return result
 
     def sort_type_hierarchy(self, module_list, env):
         # poor developer's OrderedDict
@@ -857,12 +860,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
-        code.putln('static PyObject *%s;' % env.module_dict_cname)
-        code.putln('static PyObject *%s;' % Naming.builtins_cname)
-        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
-        code.putln('static PyObject *%s;' % Naming.empty_tuple)
-        code.putln('static PyObject *%s;' % Naming.empty_bytes)
-        code.putln('static PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('#endif')
@@ -1299,11 +1296,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
-        code.putln("#if !CYTHON_USE_MODULE_STATE")
+        module_state_typeobj = module_state.insertion_point()
+        module_state_defines_typeobj = module_state_defines.insertion_point()
+        for writer in [module_state_typeobj, module_state_defines_typeobj]:
+            writer.putln("#if CYTHON_USE_MODULE_STATE")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
-                code.putln("static PyTypeObject *%s = 0;" % (
-                    entry.type.typeptr_cname))
                 module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
                 module_state_defines.putln("#define %s %s->%s" % (
                     entry.type.typeptr_cname,
@@ -1316,8 +1314,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "Py_VISIT(traverse_module_state->%s);" %
                     entry.type.typeptr_cname)
                 if entry.type.typeobj_cname is not None:
-                    module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.putln("#define %s %s->%s" % (
+                    module_state_typeobj.putln("PyObject *%s;" % entry.type.typeobj_cname)
+                    module_state_defines_typeobj.putln("#define %s %s->%s" % (
                         entry.type.typeobj_cname,
                         Naming.modulestateglobal_cname,
                         entry.type.typeobj_cname))
@@ -1327,7 +1325,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module_state_traverse.putln(
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
-        code.putln("#endif")
+        for writer in [module_state_typeobj, module_state_defines_typeobj]:
+            writer.putln("#endif")
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
@@ -1540,10 +1539,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if is_final_type:
                     type_safety_check = ''
                 else:
-                    type_safety_check = ' & (!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
+                    type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
                 obj_struct = type.declaration_code("", deref=True)
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name, obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1770,11 +1769,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     type_safety_check = ''
                 else:
                     type_safety_check = (
-                        ' & (!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
+                        ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
 
                 type = scope.parent_type
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (CYTHON_COMPILING_IN_CPYTHON && ((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name,
                         freelist_size,
                         type.declaration_code("", deref=True),
@@ -2253,7 +2252,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if slot.left_slot.signature in (TypeSlots.binaryfunc, TypeSlots.ibinaryfunc):
             slot_type = 'binaryfunc'
             extra_arg = extra_arg_decl = ''
-        elif slot.left_slot.signature in (TypeSlots.ternaryfunc, TypeSlots.iternaryfunc):
+        elif slot.left_slot.signature in (TypeSlots.powternaryfunc, TypeSlots.ipowternaryfunc):
             slot_type = 'ternaryfunc'
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'
@@ -2745,7 +2744,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2755,12 +2753,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
-        code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
-        code.putln('#endif')
+        for type_cname, used_name in Naming.used_types_and_macros:
+            code.putln('#ifdef %s' % used_name)
+            code.putln('PyTypeObject *%s;' % type_cname)
+            code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
@@ -2769,6 +2765,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse = globalstate['module_state_traverse']
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
+        module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
         module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
@@ -2789,8 +2786,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#define %s (PyState_FindModule(&%s))' % (
             env.module_cname,
             Naming.pymoduledef_cname))
+        module_state.putln("#else")
+        module_state.putln('static %s %s_static = {0};' % (
+            Naming.modulestate_cname,
+            Naming.modulestateglobal_cname
+        ))
+        module_state.putln('static %s *%s = &%s_static;' % (
+            Naming.modulestate_cname,
+            Naming.modulestateglobal_cname,
+            Naming.modulestateglobal_cname
+        ))
         module_state.putln("#endif")
-        module_state_defines.putln("#endif")
         module_state_clear.putln("return 0;")
         module_state_clear.putln("}")
         module_state_clear.putln("#endif")
@@ -2799,7 +2805,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('#define %s %s->%s' % (
             env.module_dict_cname,
             Naming.modulestateglobal_cname,
@@ -2829,18 +2834,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.preimport_cname,
                 Naming.modulestateglobal_cname,
                 Naming.preimport_cname))
-        code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('#define %s %s->%s' % (
-            Naming.cyfunction_type_cname,
-            Naming.modulestateglobal_cname,
-            Naming.cyfunction_type_cname))
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('#define %s %s->%s' %
-            (Naming.fusedfunction_type_cname,
-            Naming.modulestateglobal_cname,
-            Naming.fusedfunction_type_cname))
-        code.putln('#endif')
+        for cname, used_name in Naming.used_types_and_macros:
+            code.putln('#ifdef %s' % used_name)
+            code.putln('#define %s %s->%s' % (
+                cname,
+                Naming.modulestateglobal_cname,
+                cname))
+            code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")

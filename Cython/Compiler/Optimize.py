@@ -2709,6 +2709,40 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # coerce back to Python object as that's the result we are expecting
             return operand.coerce_to_pyobject(self.current_env())
 
+    PyMemoryView_FromObject_func_type = PyrexTypes.CFuncType(
+        Builtin.memoryview_type, [
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None)
+            ])
+
+    PyMemoryView_FromBuffer_func_type = PyrexTypes.CFuncType(
+        Builtin.memoryview_type, [
+            PyrexTypes.CFuncTypeArg("value", Builtin.py_buffer_type, None)
+            ])
+
+    def _handle_simple_function_memoryview(self, node, function, pos_args):
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('memoryview', node, pos_args, '1')
+            return node
+        else:
+            if pos_args[0].type.is_pyobject:
+                return ExprNodes.PythonCapiCallNode(
+                    node.pos, "PyMemoryView_FromObject",
+                    self.PyMemoryView_FromObject_func_type,
+                    args = [pos_args[0]],
+                    is_temp = node.is_temp,
+                    py_name = "memoryview")
+            elif pos_args[0].type.is_ptr and pos_args[0].base_type is Builtin.py_buffer_type:
+                # TODO - this currently doesn't work because the buffer fails a
+                # "can coerce to python object" test earlier. But it'd be nice to support
+                return ExprNodes.PythonCapiCallNode(
+                    node.pos, "PyMemoryView_FromBuffer",
+                    self.PyMemoryView_FromBuffer_func_type,
+                    args = [pos_args[0]],
+                    is_temp = node.is_temp,
+                    py_name = "memoryview")
+        return node
+
+
     ### builtin functions
 
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
@@ -2860,6 +2894,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     builtin_type = None
             if builtin_type is not None:
                 type_check_function = entry.type.type_check_function(exact=False)
+                if type_check_function == '__Pyx_Py3Int_Check' and builtin_type is Builtin.int_type:
+                    # isinstance(x, int) should really test for 'int' in Py2, not 'int | long'
+                    type_check_function = "PyInt_Check"
                 if type_check_function in tests:
                     continue
                 tests.append(type_check_function)
