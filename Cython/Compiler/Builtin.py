@@ -485,7 +485,7 @@ def get_known_standard_library_module_scope(module_name):
                 ('FrozenSet', frozenset_type),
                 ]:
             name = EncodedString(name)
-            entry = mod.declare_type(name, tp, pos = None)
+            entry = mod.declare_type(name, tp, pos = None, dont_set_entry = True)
             var_entry = Entry(name, None, PyrexTypes.py_object_type)
             var_entry.is_pyglobal = True
             var_entry.is_variable = True
