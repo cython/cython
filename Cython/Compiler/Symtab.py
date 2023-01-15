@@ -1161,9 +1161,9 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        for name, definition in sorted(self.builtin_entries.items()):
-            cname, type = definition
-            self.declare_var(name, type, None, cname)
+        # Most entries are initialized in init_builtins, except for "bool"
+        # which is apparently a special case because it conflicts with C++ bool
+        self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
 
     def lookup(self, name, language_level=None, str_is_str=None):
         # 'language_level' and 'str_is_str' are passed by ModuleScope
@@ -1238,35 +1238,6 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
-    # FIXME: remove redundancy with Builtin.builtin_types_table
-    builtin_entries = {
-
-        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
-
-        "bool":   ["((PyObject*)&PyBool_Type)", py_object_type],
-        "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
-        "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
-        "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
-        "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
-
-        "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
-        "bytearray":   ["((PyObject*)&PyByteArray_Type)", py_object_type],
-        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
-        "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
-
-        "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
-        "list":   ["((PyObject*)&PyList_Type)", py_object_type],
-        "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
-        "set":    ["((PyObject*)&PySet_Type)", py_object_type],
-        "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
-
-        "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
-#        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],  # not in Py3
-
-        "None":   ["Py_None", py_object_type],
-        "False":  ["Py_False", py_object_type],
-        "True":   ["Py_True", py_object_type],
-    }
 
 const_counter = 1  # As a temporary solution for compiling code in pxds
 
