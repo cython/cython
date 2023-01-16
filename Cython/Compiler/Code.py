@@ -2592,6 +2592,7 @@ class PyxCodeWriter(object):
     def __init__(self, buffer=None, indent_level=0, context=None, encoding='ascii'):
         self.buffer = buffer or StringIOTree()
         self.level = indent_level
+        self.original_level = indent_level
         self.context = context
         self.encoding = encoding
 
@@ -2612,6 +2613,9 @@ class PyxCodeWriter(object):
         self.indent()
         yield
         self.dedent()
+
+    def empty(self):
+        return self.buffer.empty()
 
     def getvalue(self):
         result = self.buffer.getvalue()
@@ -2638,8 +2642,14 @@ class PyxCodeWriter(object):
             self._putln(line)
 
     def insertion_point(self):
-        return PyxCodeWriter(self.buffer.insertion_point(), self.level,
+        return type(self)(self.buffer.insertion_point(), self.level,
                              self.context)
+
+    def reset(self):
+        # resets the buffer so that nothing gets written. Most useful
+        # for abandoning all work in a specific insertion point
+        self.buffer.reset()
+        self.level = self.original_level
 
     def named_insertion_point(self, name):
         setattr(self, name, self.insertion_point())
