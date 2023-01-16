@@ -1178,7 +1178,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(
                     pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
             return ('exceptval', (args[0] if args else None, check))
-        elif optname in ('nogil', 'gil') and isinstance(args[0], ExprNodes.PrimaryCmpNode):
+        elif optname in ('nogil', 'gil'):
             # Special Case: with cython.nogil and with cython.gil can contains expression as argument.
             return optname, args[0]
 
@@ -1368,8 +1368,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     name, value = directive
                     if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        condition = value if isinstance(value, ExprNodes.PrimaryCmpNode) else None
-                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
+                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=value)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
