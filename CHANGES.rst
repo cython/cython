@@ -32,6 +32,9 @@ Features added
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 
+* ``cpdef`` enums can now be pickled.
+  (Github issue :issue:`5120`)
+
 * Bound C methods can now coerce to Python objects.
   (Github issues :issue:`4890`, :issue:`5062`)
 
@@ -110,6 +113,10 @@ Bugs fixed
   compile errors on Windows.
   Patch by yudonglin.  (Github issue :issue:`5169`)
 
+* Structs that contained an array field resulted in incorrect C code.  Their initialisation
+  now uses ``memcpy()``.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5178`)
+
 * Nesting fused types in other fused types could fail to specialise the inner type.
   (Github issue :issue:`4725`)
 
@@ -155,13 +162,16 @@ Bugs fixed
 * Some parser issues were resolved.
   (Github issue :issue:`4992`)
 
+* ``setup.cfg`` was missing from the source distribution.
+  (Github issue :issue:`5199`)
+
 * Some C/C++ warnings were resolved.
   Patches by Max Bachmann, Alexander Shadchin, at al.
   (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
 
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
-  
+
 * Includes all bug-fixes and features from the 0.29 maintenance branch
   up to the :ref:`0.29.33` release.
 
@@ -185,6 +195,8 @@ Other changes
 
 * The Emacs Cython mode file ``cython-mode.el`` is now maintained in a separate repo:
   https://github.com/cython/emacs-cython-mode
+
+* Cython now uses a ``.dev0`` version suffix for unreleased source installations.
 
 
 3.0.0 alpha 11 (2022-07-31)

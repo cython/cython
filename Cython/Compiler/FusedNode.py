@@ -401,13 +401,28 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.context.update(
             specialized_type_name=specialized_type.specialization_string,
-            sizeof_dtype=self._sizeof_dtype(dtype))
+            sizeof_dtype=self._sizeof_dtype(dtype),
+            ndim_dtype=specialized_type.ndim,
+            dtype_is_struct_obj=int(dtype.is_struct or dtype.is_pyobject))
 
+        # use the memoryview object to check itemsize and ndim.
+        # In principle it could check more, but these are the easiest to do quickly
         pyx_code.put_chunk(
             u"""
                 # try {{dtype}}
-                if itemsize == -1 or itemsize == {{sizeof_dtype}}:
-                    memslice = {{coerce_from_py_func}}(arg, 0)
+                if (((itemsize == -1 and arg_as_memoryview.itemsize == {{sizeof_dtype}})
+                        or itemsize == {{sizeof_dtype}})
+                        and arg_as_memoryview.ndim == {{ndim_dtype}}):
+                    {{if dtype_is_struct_obj}}
+                    if __PYX_IS_PYPY2:
+                        # I wasn't able to diagnose why, but PyPy2 fails to convert a
+                        # memoryview to a Cython memoryview in this case
+                        memslice = {{coerce_from_py_func}}(arg, 0)
+                    else:
+                    {{else}}
+                    if True:
+                    {{endif}}
+                        memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
                     if memslice.memview:
                         __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
@@ -474,9 +489,20 @@ class FusedCFuncDefNode(StatListNode):
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
 
-        for specialized_type in buffer_types:
-            self._buffer_parse_format_string_check(
-                    pyx_code, decl_code, specialized_type, env)
+        # creating a Cython memoryview from a Python memoryview avoids the
+        # need to get the buffer multiple times, and we can
+        # also use it to check itemsizes etc
+        pyx_code.put_chunk(
+            """
+            try:
+                arg_as_memoryview = memoryview(arg)
+            except TypeError:
+                pass
+            """)
+        with pyx_code.indenter("else:"):
+            for specialized_type in buffer_types:
+                self._buffer_parse_format_string_check(
+                        pyx_code, decl_code, specialized_type, env)
 
     def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types, pythran_types):
         """
@@ -490,6 +516,7 @@ class FusedCFuncDefNode(StatListNode):
 
                 void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
+                bint __PYX_IS_PYPY2 "(CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION == 2)"
             """)
 
         pyx_code.local_variable_declarations.put_chunk(
@@ -513,6 +540,12 @@ class FusedCFuncDefNode(StatListNode):
                 cdef type ndarray
                 ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
+
+        pyx_code.imports.put_chunk(
+            u"""
+                cdef memoryview arg_as_memoryview
+            """
+        )
 
         seen_typedefs = set()
         seen_int_dtypes = set()

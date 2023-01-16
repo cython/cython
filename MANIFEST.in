@@ -4,6 +4,7 @@ include .gitrev
 include pylintrc
 include tox.ini
 include setup.py
+include setup.cfg
 include setupegg.py
 include bin/*
 include *requirements*.txt
