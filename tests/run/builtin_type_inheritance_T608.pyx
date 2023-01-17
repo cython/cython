@@ -148,3 +148,36 @@ def test_exception_type_cast(Exception maybe_exn):
     """
     cdef object o = maybe_exn
     cdef Exception e = o
+
+
+# inheritance from PyVarObject with no change to C-level structure
+
+cdef class MyTuple(tuple):
+    """
+    >>> MyTuple([1,2,3]) == (1,2,3)
+    True
+    >>> repr(MyTuple([1,2,3]))
+    'MyTuple(1, 2, 3)'
+    """
+    def __repr__(self):
+        return "MyTuple" + tuple.__repr__(self)
+
+cdef class MyBytes(bytes):
+    """
+    >>> MyBytes(b'abc') == b'abc'
+    True
+    >>> repr(MyBytes(b'zzz'))
+    'b(MyBytes)'
+    """
+    def __repr__(self):
+        return "b(MyBytes)"
+
+cdef class MyStr(str): # PyVarObject only in Py2
+    """
+    >>> MyStr('abc') == 'abc'
+    True
+    >>> repr(MyStr('abc'))
+    "MyStr('abc')"
+    """
+    def __repr__(self):
+        return "MyStr(" + str.__repr__(self) + ")"
