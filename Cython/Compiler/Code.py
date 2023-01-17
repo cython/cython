@@ -2584,6 +2584,7 @@ class PyrexCodeWriter(object):
     def dedent(self):
         self.level -= 1
 
+
 class PyxCodeWriter(object):
     """
     Can be used for writing out some Cython code.
@@ -2642,8 +2643,7 @@ class PyxCodeWriter(object):
             self._putln(line)
 
     def insertion_point(self):
-        return type(self)(self.buffer.insertion_point(), self.level,
-                             self.context)
+        return type(self)(self.buffer.insertion_point(), self.level, self.context)
 
     def reset(self):
         # resets the buffer so that nothing gets written. Most useful
