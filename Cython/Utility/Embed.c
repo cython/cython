@@ -44,6 +44,8 @@ static int __Pyx_main(int argc, wchar_t **argv)
 
         PyConfig config;
         PyConfig_InitPythonConfig(&config);
+        /* Disable parsing command line arguments */
+        config.parse_argv = 0;
 
         if (argc && argv) {
             status = PyConfig_SetString(&config, &config.program_name, argv[0]);
