@@ -577,7 +577,7 @@ class Scope(object):
 
     def declare_type(self, name, type, pos,
             cname = None, visibility = 'private', api = 0, defining = 1,
-            shadow = 0, template = 0, dont_set_entry = False):
+            shadow = 0, template = 0):
         # Add an entry for a type definition.
         if not cname:
             cname = name
@@ -588,10 +588,8 @@ class Scope(object):
         if defining:
             self.type_entries.append(entry)
 
-        # DW - TODO there's potentially a lot of cases where we replace the
-        # entry of a type and we shouldn't do. I'm suspicious of redeclaring
-        # entries in derived cppclasses for example.
-        if not (template or dont_set_entry):
+        # don't replace an entry that's already set
+        if not template and getattr(type, "entry", None) is None:
             type.entry = entry
 
         # here we would set as_variable to an object representing this type
