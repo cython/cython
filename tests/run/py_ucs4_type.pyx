@@ -374,6 +374,38 @@ def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
     return dval, objval
 
 
+def uchar_cast_to_int(Py_UCS4 uchar):
+    """
+    >>> ints = uchar_cast_to_int(u'3'); ints == (51, 3, 3, 3, 3) or ints
+    True
+    >>> ints = uchar_cast_to_int(u'0'); ints == (48, 0, 0, 0, 0) or ints
+    True
+    >>> uchar_cast_to_int(u'A')
+    Traceback (most recent call last):
+    ValueError: invalid literal for int() with base 10: 'A'
+    """
+    cdef object ustr_object = uchar
+    cdef str ustr_str = str(uchar)
+    cdef unicode ustr_unicode = uchar
+    return <int>uchar, <int>int(ustr_object[0]), <int>int(ustr_str[0]), <int>int(ustr_unicode[0]), <int>int(uchar)
+
+
+def uchar_cast_to_float(Py_UCS4 uchar):
+    """
+    >>> floats = uchar_cast_to_float(u'3'); floats == (51, 3, 3, 3, 3) or floats
+    True
+    >>> floats = uchar_cast_to_float(u'0'); floats == (48, 0, 0, 0, 0) or floats
+    True
+    >>> uchar_cast_to_float(u'A')
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: 'A'
+    """
+    cdef object ustr_object = uchar
+    cdef str ustr_str = str(uchar)
+    cdef unicode ustr_unicode = uchar
+    return <double>uchar, <double>float(ustr_object[0]), <double>float(ustr_str[0]), <double>float(ustr_unicode[0]), <double>float(uchar)
+
+
 _WARNINGS = """
 373:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
 """

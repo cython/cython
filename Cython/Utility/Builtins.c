@@ -270,6 +270,42 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
+//////////////////// int_pyucs4.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
+
+//////////////////// int_pyucs4 ////////////////////
+
+static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
+    int digit = Py_UNICODE_TODIGIT(uchar);
+    if (unlikely(digit < 0)) {
+        PyErr_Format(PyExc_ValueError,
+            "invalid literal for int() with base 10: '%c'",
+            (int) uchar);
+        return -1;
+    }
+    return digit;
+}
+
+
+//////////////////// float_pyucs4.proto ////////////////////
+
+static CYTHON_INLINE double __Pyx_double_from_UCS4(Py_UCS4 uchar);
+
+//////////////////// float_pyucs4 ////////////////////
+
+static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
+    double digit = Py_UNICODE_TONUMERIC(uchar);
+    if (unlikely(digit < 0.0)) {
+        PyErr_Format(PyExc_ValueError,
+            "could not convert string to float: '%c'",
+            (int) uchar);
+        return -1.0;
+    }
+    return digit;
+}
+
+
 //////////////////// object_ord.proto ////////////////////
 //@requires: TypeConversion.c::UnicodeAsUCS4
 
