@@ -2052,7 +2052,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
                 Py_DECREF(dict);
                 goto cleanup_failed;
             }
-            compiled = Py_CompileString("lambda ignore, *args, **kwds: method(*args, **kwds)",
+            compiled = Py_CompileString("lambda _, *args, **kwds: method(*args, **kwds)",
                                         "<bound_method_wrapper>", Py_eval_input);
             if (!compiled) {
                 Py_DECREF(dict);
