@@ -2023,8 +2023,8 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     if (PyCFunction_Check(method))
 #endif
     {
-        PyObject *self = NULL;
-        int self_found = 0;
+        PyObject *self;
+        int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         self = PyObject_GetAttrString(method, "__self__");
         if (!self) {
@@ -2034,7 +2034,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         self = PyCFunction_GET_SELF(method);
 #endif
         self_found = (self && self != Py_None);
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
         Py_XDECREF(self);
 #endif
         if (self_found) {
