@@ -1992,57 +1992,23 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-typedef struct {
-    PyMethodDef def;
-    PyObject *method;
-} __Pyx_SelflessMethodWrapper;
-
 #define REINTERPRET_CAST(type, var) (*(type *)&(var))
 
-__Pyx_SelflessMethodWrapper *__Pyx_GetSelflessMethodWrapper(PyObject *capsule) {
-    return (__Pyx_SelflessMethodWrapper *)PyCapsule_GetPointer(capsule, NULL);
-}
-
-PyObject *__Pyx_SelflessCall(PyObject *capsule, PyObject *args, PyObject *kwargs) {
-    __Pyx_SelflessMethodWrapper *wrapper = __Pyx_GetSelflessMethodWrapper(capsule);
-    if (unlikely(!wrapper)) return NULL;
-    if (unlikely(!wrapper->method)) {
-        PyErr_SetString(PyExc_RuntimeError, "SelflessMethodWrapper.method is uninitialized");
-        return NULL;
-    }
-
+static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
     if (unlikely(!selfless_args)) return NULL;
 
-    PyObject *result = PyObject_Call(wrapper->method, selfless_args, kwargs);
+    PyObject *result = PyObject_Call(method, selfless_args, kwargs);
     Py_DECREF(selfless_args);
     return result;
 }
 
-__Pyx_SelflessMethodWrapper *__Pyx_SelflessMethodWrapper_New(PyObject *method, const char *name, const char *doc) {
-    __Pyx_SelflessMethodWrapper *wrapper = PyMem_Malloc(sizeof(__Pyx_SelflessMethodWrapper));
-    if (unlikely(!wrapper)) return NULL;
-
-    wrapper->def.ml_name = name;
-    wrapper->def.ml_meth = REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall);
-    wrapper->def.ml_flags = METH_VARARGS | METH_KEYWORDS;
-    wrapper->def.ml_doc = doc;
-
-    wrapper->method = method;
-    Py_INCREF(wrapper->method);
-
-    return wrapper;
-}
-
-void __Pyx_SelflessMethodWrapperDestructor(__Pyx_SelflessMethodWrapper *wrapper) {
-    if (unlikely(!wrapper)) return;
-    Py_DECREF(wrapper->method);
-    PyMem_Free(wrapper);
-}
-
-void __Pyx_SelflessMethodWrapper_CapsuleDestructor(PyObject *capsule) {
-    __Pyx_SelflessMethodWrapperDestructor(__Pyx_GetSelflessMethodWrapper(capsule));
-}
+static PyMethodDef __Pyx_UnboundCMethod_Def = {
+    /* .ml_name = */ "UnboundCMethod",
+    /* .ml_meth = */ REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
+    /* .ml_doc = */ NULL
+};
 
 static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     PyObject *method;
@@ -2090,101 +2056,12 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         Py_XDECREF(self);
 #endif
         if (self_found) {
-            __Pyx_SelflessMethodWrapper *wrapper = __Pyx_SelflessMethodWrapper_New(method, "temp_name", NULL);
-            if (unlikely(!wrapper)) goto cleanup_failed;
-            // __Pyx_SelflessMethodWrapper *wrapper = PyMem_Malloc(sizeof(__Pyx_SelflessMethodWrapper));
-            // if (unlikely(!wrapper)) goto cleanup_failed;
-            // wrapper->def.ml_name = ...;
-            // wrapper->def.ml_meth = (PyCFunction)__Pyx_SelflessCall;
-            // wrapper->def.ml_flags = METH_VARARGS | METH_KEYWORDS;
-            // wrapper->def.ml_doc = NULL;
-            // wrapper->method = method;
-            // Py_INCREF(wrapper->method);
-
-            PyObject *capsule = PyCapsule_New((void *)wrapper, NULL, __Pyx_SelflessMethodWrapper_CapsuleDestructor);
-            if (unlikely(!capsule)) {
-                __Pyx_SelflessMethodWrapperDestructor(wrapper);
-                // Py_DECREF(wrapper->method);
-                // PyMem_Free(wrapper);
-                goto cleanup_failed;
-            }
-
-            target->method = PyCFunction_New(&wrapper->def, capsule);
+            Py_INCREF(method);
+            target->method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
             if (unlikely(!target->method)) {
                 Py_DECREF(capsule);
                 goto cleanup_failed;
             }
-
-            // PyMethodDef *def = PyMem_Malloc(sizeof(PyMethodDef));
-            // if (unlikely(!def)) goto cleanup_failed;
-            // *def = (PyMethodDef){
-            //     .ml_name = ...,
-            //     .ml_meth = (PyCFunction)SelflessCall,
-            //     .ml_flags = METH_VARARGS | METH_KEYWORDS,
-            //     .ml_doc = NULL
-            // };
-
-            // PyTupleObject *tup = PyTuple_New(2);
-            // if (unlikely(!tup)) {
-            //     PyMem_Free(def);
-            //     goto cleanup_failed;
-            // }
-            // PyTuple_SetItem(tup, 0, method);
-            // PyObject *capsule = PyCapsule_New((void *)def, NULL, __Pyx_SelflessMethodWrapper_CapsuleDestructor)
-            // if (unlikely(!capsule)) {
-            //     PyMem_Free(def);
-            //     goto cleanup_failed;
-            // }
-            // PyTuple_SetItem(tup, 1, capsule);
-
-            // target->method = PyCFunction_New(&def, tup);
-            // if (unlikely(!target->method)) {
-            //     Py_DECREF(tup);
-            //     goto cleanup_failed;
-            // }
-
-
-            //             // This is almost certainly a pessimization - we have
-            //             a bound classmethod
-            //             // which will be passed "self". We therefore just
-            //             create a lambda function
-            //             // to ignore the "self" argument. However, there are
-            //             only 5 builtin
-            //             // type classmethods as of 2022, and they'll mostly
-            //             be called as
-            //             // "dict.fromkeys" instead of "{}.fromkeys".
-            //             Therefore it's unlikely to
-            //             // be an important pessimization, and it does allow
-            //             us to keep the
-            //             // general "bound methods of builtin types"
-            //             optimization largely unchanged. PyObject *dict =
-            //             PyDict_New(); PyObject *compiled = NULL,
-            //             *unbound_method = NULL; if (!dict) goto
-            //             cleanup_failed; if (PyDict_SetItemString(dict,
-            //             "method", method)) {
-            //                 Py_DECREF(dict);
-            //                 goto cleanup_failed;
-            //             }
-            //             compiled = Py_CompileString("lambda _, *args, **kwds:
-            //             method(*args, **kwds)",
-            //                                         "<bound_method_wrapper>",
-            //                                         Py_eval_input);
-            //             if (!compiled) {
-            //                 Py_DECREF(dict);
-            //                 goto cleanup_failed;
-            //             }
-            //             unbound_method = PyEval_EvalCode(
-            // #if PY_MAJOR_VERSION == 2
-            //                 (PyCodeObject *)
-            // #endif
-            //                 compiled, dict, dict);
-            //             Py_DECREF(compiled);
-            //             Py_DECREF(dict);
-            //             if (!compiled) {
-            //                 goto cleanup_failed;
-            //             }
-            //             Py_DECREF(target->method);
-            //             target->method = unbound_method;
         }
     }
     return 0;
