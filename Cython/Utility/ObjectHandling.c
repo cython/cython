@@ -2000,7 +2000,7 @@ typedef struct {
 #define REINTERPRET_CAST(type, var) (*(type *)&(var))
 
 __Pyx_SelflessMethodWrapper *__Pyx_GetSelflessMethodWrapper(PyObject *capsule) {
-    return PyCapsule_GetPointer(capsule, NULL);
+    return (__Pyx_SelflessMethodWrapper *)PyCapsule_GetPointer(capsule, NULL);
 }
 
 PyObject *__Pyx_SelflessCall(PyObject *capsule, PyObject *args, PyObject *kwargs) {
@@ -2019,7 +2019,7 @@ PyObject *__Pyx_SelflessCall(PyObject *capsule, PyObject *args, PyObject *kwargs
     return result;
 }
 
-__Pyx_SelflessMethodWrapper *__Pyx_SelflessMethodWrapper_New(PyObject *method, char *name, char *doc) {
+__Pyx_SelflessMethodWrapper *__Pyx_SelflessMethodWrapper_New(PyObject *method, const char *name, const char *doc) {
     __Pyx_SelflessMethodWrapper *wrapper = PyMem_Malloc(sizeof(__Pyx_SelflessMethodWrapper));
     if (unlikely(!wrapper)) return NULL;
 
