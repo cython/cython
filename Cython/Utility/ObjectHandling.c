@@ -1992,7 +1992,7 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#define REINTERPRET_CAST(type, var) (*(type *)&(var))
+#define REINTERPRET_CAST(type, var) ((type)(void *)(var))
 
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
