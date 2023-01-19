@@ -1749,6 +1749,15 @@ class ModuleScope(Scope):
 
         if self.directives.get('final'):
             entry.type.is_final_type = True
+        collection_type = self.directives.get('collection_type')
+        if collection_type:
+            from .UtilityCode import NonManglingModuleScope
+            if not isinstance(self, NonManglingModuleScope):
+                # TODO - DW would like to make it public, but I'm making it internal-only
+                # for now to avoid adding new features without consensus
+                error(pos, "'collection_type' is not a public cython directive")
+        if collection_type == 'sequence':
+            entry.type.has_sequence_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -2618,6 +2627,7 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.is_inherited = True
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
@@ -2768,7 +2778,7 @@ class CppClassScope(Scope):
             if base_entry.name not in base_templates:
                 entry = self.declare_type(base_entry.name, base_entry.type,
                                           base_entry.pos, base_entry.cname,
-                                          base_entry.visibility)
+                                          base_entry.visibility, defining=False)
                 entry.is_inherited = 1
 
     def specialize(self, values, type_entry):

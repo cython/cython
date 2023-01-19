@@ -888,6 +888,7 @@ class CArgDeclNode(Node):
     is_self_arg = 0
     is_type_arg = 0
     is_generic = 1
+    is_special_method_optional = False
     kw_only = 0
     pos_only = 0
     not_none = 0
@@ -1635,6 +1636,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 elif isinstance(attr, CompilerDirectivesNode):
                     for sub_attr in func_attributes(attr.body.stats):
                         yield sub_attr
+                elif isinstance(attr, CppClassNode) and attr.attributes is not None:
+                    for sub_attr in func_attributes(attr.attributes):
+                        yield sub_attr
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1850,6 +1854,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if arg.is_generic:
                     arg.default = arg.default.analyse_types(env)
                     arg.default = arg.default.coerce_to(arg.type, env)
+                elif arg.is_special_method_optional:
+                    if not arg.default.is_none:
+                        error(arg.pos, "This argument cannot have a non-None default value")
+                        arg.default = None
                 else:
                     error(arg.pos, "This argument cannot have a default value")
                     arg.default = None
@@ -1996,6 +2004,11 @@ class FuncDefNode(StatNode, BlockNode):
         # Initialize the return variable __pyx_r
         init = ""
         return_type = self.return_type
+        if return_type.is_cv_qualified and return_type.is_const:
+            # Within this function body, we want to be able to set this
+            # variable, even though the function itself needs to return
+            # a const version
+            return_type = return_type.cv_base_type
         if not return_type.is_void:
             if return_type.is_pyobject:
                 init = " = NULL"
@@ -3261,7 +3274,8 @@ class DefNode(FuncDefNode):
                         self.entry.signature = TypeSlots.ibinaryfunc
 
         sig = self.entry.signature
-        nfixed = sig.num_fixed_args()
+        nfixed = sig.max_num_fixed_args()
+        min_nfixed = sig.min_num_fixed_args()
         if (sig is TypeSlots.pymethod_signature and nfixed == 1
                and len(self.args) == 0 and self.star_arg):
             # this is the only case where a diverging number of
@@ -3269,10 +3283,10 @@ class DefNode(FuncDefNode):
             # 'self' parameter as in method(*args)
             sig = self.entry.signature = TypeSlots.pyfunction_signature  # self is not 'really' used
             self.self_in_stararg = 1
-            nfixed = 0
+            nfixed = min_nfixed = 0
 
         if self.is_staticmethod and env.is_c_class_scope:
-            nfixed = 0
+            nfixed = min_nfixed = 0
             self.self_in_stararg = True  # FIXME: why for staticmethods?
 
             self.entry.signature = sig = copy.copy(sig)
@@ -3287,6 +3301,8 @@ class DefNode(FuncDefNode):
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
+            if i >= min_nfixed:
+                arg.is_special_method_optional = True
             if sig.is_self_arg(i) and not self.is_staticmethod:
                 if self.is_classmethod:
                     arg.is_type_arg = 1
@@ -3303,7 +3319,7 @@ class DefNode(FuncDefNode):
                     else:
                         arg.needs_conversion = 1
 
-        if nfixed > len(self.args):
+        if min_nfixed > len(self.args):
             self.bad_signature()
             return
         elif nfixed < len(self.args):
@@ -3340,9 +3356,11 @@ class DefNode(FuncDefNode):
 
     def bad_signature(self):
         sig = self.entry.signature
-        expected_str = "%d" % sig.num_fixed_args()
+        expected_str = "%d" % sig.min_num_fixed_args()
         if sig.has_generic_args:
             expected_str += " or more"
+        elif sig.optional_object_arg_count:
+            expected_str += " to %d" % sig.max_num_fixed_args()
         name = self.name
         if name.startswith("__") and name.endswith("__"):
             desc = "Special method"
@@ -3729,8 +3747,6 @@ class DefNodeWrapper(FuncDefNode):
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             varargs_args = "PyObject *%s, PyObject *%s" % (
                     Naming.args_cname, Naming.kwds_cname)
@@ -3742,6 +3758,9 @@ class DefNodeWrapper(FuncDefNode):
                         fastcall_args, varargs_args))
             else:
                 arg_code_list.append(varargs_args)
+        if entry.is_special:
+            for n in range(len(self.args), sig.max_num_fixed_args()):
+                arg_code_list.append("CYTHON_UNUSED PyObject *unused_arg_%s" % n)
         arg_code = ", ".join(arg_code_list)
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
@@ -4012,15 +4031,9 @@ class DefNodeWrapper(FuncDefNode):
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
         non_pos_args_id = ','.join(
             ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
             non_pos_args_id))
-        code.putln("#else")
-        code.putln("static PyObject **%s[] = {%s};" % (
-            Naming.pykwdlist_cname,
-            non_pos_args_id))
-        code.putln("#endif")
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -4519,6 +4532,36 @@ class DefNodeWrapper(FuncDefNode):
                                           arg.type.is_buffer or
                                           arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
+        if self.target.entry.is_special:
+            for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
+                # for special functions with optional args (e.g. power which can
+                # take 2 or 3 args), unused args are None since this is what the
+                # compilers sets
+                if self.target.entry.name == "__ipow__":
+                    # Bug in Python < 3.8 - __ipow__ is used as a binary function
+                    # and attempts to access the third argument will always fail
+                    code.putln("#if PY_VERSION_HEX >= 0x03080000")
+                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, '
+                    '"%s() takes %s arguments but %s were given");' % (
+                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln("}")
+                if self.target.entry.name == "__ipow__":
+                    code.putln("#endif /*PY_VERSION_HEX >= 0x03080000*/")
+            if self.target.entry.name == "__ipow__" and len(self.args) != 2:
+                # It's basically impossible to safely support it:
+                # Class().__ipow__(1) is guaranteed to crash.
+                # Therefore, raise an error.
+                # Use "if" instead of "#if" to avoid warnings about unused variables
+                code.putln("if ((PY_VERSION_HEX < 0x03080000)) {")
+                code.putln(
+                    'PyErr_SetString(PyExc_NotImplementedError, '
+                    '"3-argument %s cannot be used in Python<3.8");' % (
+                        self.target.entry.qualified_name))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln('}')
 
     def error_value(self):
         return self.signature.error_value
@@ -8737,7 +8780,7 @@ class FromCImportStatNode(StatNode):
     #
     #  module_name     string                        Qualified name of module
     #  relative_level  int or None                   Relative import: number of dots before module_name
-    #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
+    #  imported_names  [(pos, name, as_name)]  Names to be imported
 
     child_attrs = []
     module_name = None
@@ -8761,29 +8804,21 @@ class FromCImportStatNode(StatNode):
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
-        for pos, name, as_name, kind in self.imported_names:
+        for pos, name, as_name in self.imported_names:
             if name == "*":
                 for local_name, entry in list(module_scope.entries.items()):
                     env.add_imported_entry(local_name, entry, pos)
             else:
                 entry = module_scope.lookup(name)
                 if entry:
-                    if kind and not self.declaration_matches(entry, kind):
-                        entry.redeclared(pos)
                     entry.used = 1
                 else:
-                    if kind == 'struct' or kind == 'union':
-                        entry = module_scope.declare_struct_or_union(
-                            name, kind=kind, scope=None, typedef_flag=0, pos=pos)
-                    elif kind == 'class':
-                        entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
+                    submodule_scope = env.context.find_module(
+                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                    if submodule_scope.parent_module is module_scope:
+                        env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:
-                        submodule_scope = env.context.find_module(
-                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
-                        if submodule_scope.parent_module is module_scope:
-                            env.declare_module(as_name or name, submodule_scope, self.pos)
-                        else:
-                            error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
+                        error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
 
                 if entry:
                     local_name = as_name or name
@@ -8792,7 +8827,7 @@ class FromCImportStatNode(StatNode):
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
                 env.use_utility_code(utility_code_for_cimports[module_name]())
-            for _, name, _, _ in self.imported_names:
+            for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
                     env.use_utility_code(utility_code_for_cimports[fqname]())

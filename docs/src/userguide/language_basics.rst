@@ -128,51 +128,6 @@ the declaration in most cases:
                 cdef float *g = [1, 2, 3, 4]
                 cdef float *h = &f
 
-In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
-are supported:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
-
-        .. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
-
-        See also :ref:`struct-union-enum-styles`
-
-        .. note::
-
-            Structs can be declared as ``cdef packed struct``, which has
-            the same effect as the C directive ``#pragma pack(1)``.
-
-        Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
-
-            cpdef enum CheeseState:
-                hard = 1
-                soft = 2
-                runny = 3
-
-        There is currently no special syntax for defining a constant, but you can use
-        an anonymous :keyword:`enum` declaration for this purpose, for example,::
-
-            cdef enum:
-                tons_of_spam = 3
-
-        .. note::
-            the words ``struct``, ``union`` and ``enum`` are used only when
-            defining a type, not when referring to it. For example, to declare a variable
-            pointing to a ``Grail`` struct, you would write::
-
-                cdef Grail *gp
-
-            and not::
-
-                cdef struct Grail *gp  # WRONG
 
 .. note::
 
@@ -197,46 +152,82 @@ are supported:
 
                 ctypedef int* IntPtr
 
+.. _structs:
 
-You can create a C function by declaring it with :keyword:`cdef` or by decorating a Python function with ``@cfunc``:
+Structs, Unions, Enums
+----------------------
 
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            @cython.cfunc
-            def eggs(l: cython.ulong, f: cython.float) -> cython.int:
-                ...
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            cdef int eggs(unsigned long l, float f):
-                ...
-
-You can read more about them in :ref:`python_functions_vs_c_functions`.
-
-Classes can be declared as :ref:`extension-types`.  Those will
-have a behavior very close to python classes, but are faster because they use a ``struct``
-internally to store attributes.
-They are declared with the :keyword:`cdef` keyword or the ``@cclass`` class decorator.
-
-Here is a simple example:
+In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
+are supported:
 
 .. tabs::
 
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+        .. literalinclude:: ../../examples/userguide/language_basics/struct.py
 
     .. group-tab:: Cython
 
-        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+        .. literalinclude:: ../../examples/userguide/language_basics/struct.pyx
 
-You can read more about them in :ref:`extension-types`.
+Structs can be declared as ``cdef packed struct``, which has
+the same effect as the C directive ``#pragma pack(1)``::
+
+    cdef packed struct StructArray:
+        int spam[4]
+        signed char eggs[5]
+
+.. note::
+    This declaration removes the empty
+    space between members that C automatically to ensure that they're aligned in memory
+    (see `Wikipedia article <https://en.wikipedia.org/wiki/Data_structure_alignment>`_ for more details).
+    The main use is that numpy structured arrays store their data in packed form, so a ``cdef packed struct``
+    can be :ref:`used in a memoryview<using_memoryviews>` to match that.
+
+    Pure python mode does not support packed structs.
+
+The following example shows a declaration of unions:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/union.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/union.pyx
+
+Enums are created by ``cdef enum`` statement:
+
+.. literalinclude:: ../../examples/userguide/language_basics/enum.pyx
+
+
+.. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
+
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+
+    cpdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+There is currently no special syntax for defining a constant, but you can use
+an anonymous :keyword:`enum` declaration for this purpose, for example,::
+
+    cdef enum:
+        tons_of_spam = 3
+
+.. note::
+    In the Cython syntax, the words ``struct``, ``union`` and ``enum`` are used only when
+    defining a type, not when referring to it. For example, to declare a variable
+    pointing to a ``Grail`` struct, you would write::
+
+        cdef Grail *gp
+
+    and not::
+
+        cdef struct Grail *gp  # WRONG
 
 
 .. _typing_types:
@@ -326,11 +317,57 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+
+Type qualifiers
+---------------
+
+Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_::
+
+    cdef volatile int i = 5
+
+    cdef const int sum(const int a, const int b):
+        return a + b
+
+    cdef void print_const_pointer(const int *value):
+        print(value[0])
+
+    cdef void print_pointer_to_const_value(int * const value):
+        print(value[0])
+
+    cdef void print_const_pointer_to_const_value(const int * const value):
+        print(value[0])
+
+.. Note::
+
+    Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
+    in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
+    we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
+    work with an existing C/C++ interface.
+
+
+Extension Types
+---------------
+
 It is also possible to declare :ref:`extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
-This does allow subclasses. This typing is mostly used to access
-``cdef``/``@cfunc`` methods and attributes of the extension type.
+Those will have a behaviour very close to python classes (e.g. creating subclasses),
+but access to their members is faster from Cython code. Typing a variable
+as extension type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
 The C code uses a variable which is a pointer to a structure of the
 specific type, something like ``struct MyExtensionTypeObject*``.
+
+Here is a simple example:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+
+You can read more about them in :ref:`extension-types`.
 
 
 Grouping multiple C declarations
@@ -634,7 +671,15 @@ parameters and has two required keyword parameters.
 Function Pointers
 -----------------
 
-Functions declared in a ``struct`` are automatically converted to function pointers.
+.. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
+The following example shows declaring a ``ptr_add`` function pointer and assigning the ``add`` function to it:
+
+.. literalinclude:: ../../examples/userguide/language_basics/function_pointer.pyx
+
+Functions declared in a ``struct`` are automatically converted to function pointers:
+
+.. literalinclude:: ../../examples/userguide/language_basics/function_pointer_struct.pyx
 
 For using error return values with function pointers, see the note at the bottom
 of :ref:`error_return_values`.
@@ -655,8 +700,8 @@ error return value.
 While this is always the case for Python functions, functions
 defined as C functions or ``cpdef``/``@ccall`` functions can return arbitrary C types,
 which do not have such a well-defined error return value.
-Extra care must be taken to ensure Python exceptions are correctly
-propagated from such functions.
+By default Cython uses a dedicated return value to signal that an exception has been raised from non-external ``cpdef``/``@ccall``
+functions. However, how Cython handles exceptions from these functions can be changed if needed.
 
 A ``cdef`` function may be declared with an exception return value for it
 as a contract with the caller. Here is an example:
@@ -682,7 +727,12 @@ as a contract with the caller. Here is an example:
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
 a call to spam returns ``-1``, the caller will assume that an exception has
-occurred and can now process or propagate it.
+occurred and can now process or propagate it. Calling ``spam()`` is roughly translated to the following C code:
+
+.. code-block:: C
+
+    ret_val = spam();
+    if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
 or implicitly return that value.  This includes empty :keyword:`return`
@@ -708,7 +758,7 @@ form of exception value declaration
             def spam() -> cython.int:
                 ...
 
-        The keyword argument ``check=True`` indicates that the value ``-1`` _may_ signal an error.
+        The keyword argument ``check=True`` indicates that the value ``-1`` **may** signal an error.
 
     .. group-tab:: Cython
 
@@ -717,11 +767,17 @@ form of exception value declaration
             cdef int spam() except? -1:
                 ...
 
-        The ``?`` indicates that the value ``-1`` _may_ signal an error.
+        The ``?`` indicates that the value ``-1`` **may** signal an error.
 
 In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
-result.
+result. Calling ``spam()`` is roughly translated to the following C code:
+
+
+.. code-block:: C
+
+    ret_val = spam();
+    if (ret_val == -1 && PyErr_Occurred()) goto error_handler;
 
 There is also a third form of exception value declaration
 
@@ -733,18 +789,25 @@ There is also a third form of exception value declaration
 
             @cython.cfunc
             @cython.exceptval(check=True)
-            def spam() -> cython.int:
+            def spam() -> cython.void:
                 ...
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int spam() except *:
+            cdef void spam() except *:
                 ...
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
-*every* call to spam, regardless of what value it returns. If you have a
+*every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly translated to the following C code:
+
+.. code-block:: C
+
+    spam()
+    if (PyErr_Occurred()) goto error_handler;
+
+If you have a
 function returning ``void`` that needs to propagate errors, you will have to
 use this form, since there isn't any error return value to test.
 Otherwise, an explicit error return value allows the C compiler to generate
@@ -760,21 +823,39 @@ See :ref:`wrapping-cplusplus` for more details.
 
 Finally, if you are certain that your function should not raise an exception, (e.g., it
 does not use Python objects at all, or you plan to use it as a callback in C code that
-is unaware of Python exceptions), you can declare it as such using ``noexcept``::
+is unaware of Python exceptions), you can declare it as such using ``noexcept`` or by ``@cython.exceptval(check=False)``:
 
-    cdef int spam() noexcept
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(check=False)
+            def spam() -> cython.int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int spam() noexcept:
+                ...
 
 If a ``noexcept`` function *does* finish with an exception then it will print a warning message but not allow the exception to propagate further.
+On the other hand, calling a ``noexcept`` function has zero overhead related to managing exceptions, unlike the previous declarations.
+
 Some things to note:
 
-* ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept``.
-  In the uncommon case of external C/C++ functions that _can_  raise Python exceptions,
+* ``cdef`` functions that are also ``extern`` are implicitly declared ``noexcept`` or ``@cython.exceptval(check=False)``.
+  In the uncommon case of external C/C++ functions that **can**  raise Python exceptions,
   e.g., external functions that use the Python C API, you should explicitly declare
   them with an exception value.
 
 * ``cdef`` functions that are *not* ``extern`` are implicitly declared with a suitable
-  exception specification for the return type (e.g. ``except *`` for a ``void`` return
-  type, ``except? -1`` for an ``int`` return type).
+  exception specification for the return type (e.g. ``except *`` or ``@cython.exceptval(check=True)`` for a ``void`` return
+  type, ``except? -1`` or ``@cython.exceptval(-1, check=True)`` for an ``int`` return type).
 
 * Exception values can only be declared for functions returning a C integer,
   enum, float or pointer type, and the value must be a constant expression.
@@ -790,6 +871,10 @@ Some things to note:
       int (*grail)(int, char*) except -1
 
   .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+
+* If the returning type of a ``cdef`` function with ``except *`` or ``@cython.exceptval(check=True)`` is C integer,
+  enum, float or pointer type, Cython calls :c:func:`PyErr_Occurred` only when
+  dedicated value is returned instead of checking after every call of the function.
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
