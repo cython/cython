@@ -1997,8 +1997,14 @@ typedef struct {
     PyObject *method;
 } __Pyx_SelflessMethodWrapper;
 
+#define REINTERPRET_CAST(type, var) (*(type *)&(var))
+
+__Pyx_SelflessMethodWrapper *__Pyx_GetSelflessMethodWrapper(PyObject *capsule) {
+    return PyCapsule_GetPointer(capsule, NULL);
+}
+
 PyObject *__Pyx_SelflessCall(PyObject *capsule, PyObject *args, PyObject *kwargs) {
-    __Pyx_SelflessMethodWrapper *wrapper = PyCapsule_GetPointer(capsule, NULL);
+    __Pyx_SelflessMethodWrapper *wrapper = __Pyx_GetSelflessMethodWrapper(capsule);
     if (unlikely(!wrapper)) return NULL;
     if (unlikely(!wrapper->method)) {
         PyErr_SetString(PyExc_RuntimeError, "SelflessMethodWrapper.method is uninitialized");
@@ -2018,7 +2024,7 @@ __Pyx_SelflessMethodWrapper *__Pyx_SelflessMethodWrapper_New(PyObject *method, c
     if (unlikely(!wrapper)) return NULL;
 
     wrapper->def.ml_name = name;
-    wrapper->def.ml_meth = (PyCFunction)__Pyx_SelflessCall;
+    wrapper->def.ml_meth = REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall);
     wrapper->def.ml_flags = METH_VARARGS | METH_KEYWORDS;
     wrapper->def.ml_doc = doc;
 
@@ -2035,7 +2041,7 @@ void __Pyx_SelflessMethodWrapperDestructor(__Pyx_SelflessMethodWrapper *wrapper)
 }
 
 void __Pyx_SelflessMethodWrapper_CapsuleDestructor(PyObject *capsule) {
-    __Pyx_SelflessMethodWrapperDestructor(PyCapsule_GetPointer(capsule, NULL));
+    __Pyx_SelflessMethodWrapperDestructor(__Pyx_GetSelflessMethodWrapper(capsule));
 }
 
 static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
@@ -2103,7 +2109,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
                 goto cleanup_failed;
             }
 
-            target->method = PyCFunction_New(&(wrapper->def), capsule);
+            target->method = PyCFunction_New(&wrapper->def, capsule);
             if (unlikely(!target->method)) {
                 Py_DECREF(capsule);
                 goto cleanup_failed;
