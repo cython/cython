@@ -2005,10 +2005,10 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
 }
 
 static PyMethodDef __Pyx_UnboundCMethod_Def = {
-    /* .ml_name = */ "UnboundCMethod",
-    /* .ml_meth = */ CONST_REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_name  = */ "UnboundCMethod",
+    /* .ml_meth  = */ CONST_REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall),
     /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
-    /* .ml_doc = */ NULL
+    /* .ml_doc   = */ NULL
 };
 
 static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
