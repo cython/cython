@@ -2056,19 +2056,16 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         Py_XDECREF(self);
 #endif
         if (self_found) {
-            Py_INCREF(method);
-            target->method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
-            if (unlikely(!target->method)) {
-                Py_DECREF(capsule);
-                goto cleanup_failed;
+            PyObject *unbound_method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
+            if (unlikely(!unbound_method)) {
+                Py_DECREF(method);
+                return -1;
             }
+            Py_INCREF(method);  // PyCFunction will Py_XDECREF method on destruction
+            target->method = unbound_method;
         }
     }
     return 0;
-
-    cleanup_failed:
-    Py_CLEAR(target->method);
-    return -1;
 }
 
 
