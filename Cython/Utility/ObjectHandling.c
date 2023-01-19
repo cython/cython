@@ -1992,7 +1992,8 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#define REINTERPRET_CAST(type, var) ((type)(void *)(var))
+#define CONST_REINTERPRET_CAST(pointer_type, pointer) ((pointer_type)(void *)(pointer))
+#define REINTERPRET_CAST(type, var) (*(type *)(&var))
 
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
@@ -2005,7 +2006,7 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
 
 static PyMethodDef __Pyx_UnboundCMethod_Def = {
     /* .ml_name = */ "UnboundCMethod",
-    /* .ml_meth = */ REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_meth = */ CONST_REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall),
     /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
     /* .ml_doc = */ NULL
 };
