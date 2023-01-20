@@ -1,6 +1,6 @@
 ---
-name: Other
-about: Anything that does not qualify as either "bug" or "feature request". DO NOT post support requests here.
+name: Blank
+about: Anything is not a "bug" or a "feature request". DO NOT post support requests here, use "I NEED HELP" link.
 title: ""
 labels: ''
 assignees: ''
