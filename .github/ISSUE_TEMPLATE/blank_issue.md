@@ -1,6 +1,6 @@
 ---
-name: Blank
-about: Anything is not a "bug" or a "feature request". DO NOT post support requests here, use "I NEED HELP" link.
+name: Blank Issue
+about: Anything is not a "bug" or a "feature request". DO NOT post support questions here, use "I NEED HELP" link.
 title: ""
 labels: ''
 assignees: ''
@@ -10,7 +10,7 @@ assignees: ''
 <!--
 **Note:**
 - DO NOT use the bug and feature tracker for general questions and support requests.
-  Use the `cython-users` mailing list instead.
+  Use the [`cython-users`](https://groups.google.com/g/cython-users) mailing list instead.
   It has a wider audience, so you get more and better answers.
 - Did you search for similar issues already?
   Please do, it helps to save us precious time that we otherwise could not invest into development.
