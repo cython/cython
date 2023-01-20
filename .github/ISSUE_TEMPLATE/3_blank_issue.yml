@@ -1,5 +1,5 @@
 name: Blank Issue
-description: Not a [bug](./1_bug_report.yml) or a "feature request". DO NOT post support questions here, use "I NEED HELP" link
+description: Not a `Bug` or a `Feature request`. DO NOT post support questions here, use `I NEED HELP` link
 body:
   - type: markdown
     attributes:
