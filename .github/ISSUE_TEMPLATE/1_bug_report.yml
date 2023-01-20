@@ -39,19 +39,19 @@ body:
   - type: input
     id: environment_os
     attributes:
-      label: Environment: OS
+      label: "Environment: OS"
       description: "please complete the following information"
       placeholder: "[e.g. Linux, Windows, macOS]"
   - type: input
     id: environment_python_v
     attributes:
-      label: Environment: Python version
+      label: "Environment: Python version"
       description: "please complete the following information"
       placeholder: "[e.g. 3.10.2]"
   - type: input
     id: environment_cython_v
     attributes:
-      label: Environment: Cython version
+      label: "Environment: Cython version"
       description: "please complete the following information"
       placeholder: "[e.g. 3.0.0a11]"
   - type: textarea
