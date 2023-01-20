@@ -1,5 +1,5 @@
 name: Blank Issue
-description: Not a `Bug` or a `Feature request`. DO NOT post support questions here, use `I NEED HELP` link
+description: Not a Bug or a Feature Request. DO NOT post support questions here, use I NEED HELP section
 body:
   - type: markdown
     attributes:
