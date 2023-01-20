@@ -41,7 +41,7 @@ body:
     attributes:
       label: Environment
       description: "please complete the following information"
-      value: |
+      placeholder: |
         OS: [e.g. Linux, Windows, macOS]
         Python version [e.g. 3.10.2]
         Cython version [e.g. 3.0.0a11]
