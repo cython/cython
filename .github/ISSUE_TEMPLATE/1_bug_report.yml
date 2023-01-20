@@ -44,17 +44,17 @@ body:
     id: environment_os
     attributes:
       label: "OS"
-      placeholder: "[e.g. Linux, Windows, macOS]"
+      placeholder: "e.g. Linux, Windows, macOS"
   - type: input
     id: environment_python_v
     attributes:
       label: "Python version"
-      placeholder: "[e.g. 3.10.2]"
+      placeholder: "e.g. 3.10.2"
   - type: input
     id: environment_cython_v
     attributes:
       label: "Cython version"
-      placeholder: "[e.g. 3.0.0a11]"
+      placeholder: "e.g. 3.0.0a11"
   - type: textarea
     id: context
     attributes:
