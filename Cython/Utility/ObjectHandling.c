@@ -3104,10 +3104,13 @@ static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul) {
+#if CYTHON_USE_TYPE_SLOTS
     PyTypeObject *type = Py_TYPE(seq);
     if (likely(type->tp_as_sequence && type->tp_as_sequence->sq_repeat)) {
         return type->tp_as_sequence->sq_repeat(seq, mul);
-    } else {
+    } else
+#endif
+    {
         return __Pyx_PySequence_Multiply_Generic(seq, mul);
     }
 }
