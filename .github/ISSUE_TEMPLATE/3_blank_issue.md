@@ -1,6 +1,6 @@
 ---
 name: Blank Issue
-about: Anything is not a "bug" or a "feature request". DO NOT post support questions here, use "I NEED HELP" link.
+about: Not a "bug" or a "feature request". DO NOT post support questions here, use "I NEED HELP" link.
 title: ""
 labels: ''
 assignees: ''
