@@ -1992,9 +1992,9 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#define __PYX_REINTERPRET_CAST_FUNC(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
-#define __PYX_CONST_REINTERPRET_CAST(pointer_type, pointer) ((pointer_type)(void *)(pointer))
-#define __PYX_REINTERPRET_CAST(type, var) (*(type *)(&var))
+#define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
+#define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
+#define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
 
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
@@ -2007,7 +2007,7 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
 
 static PyMethodDef __Pyx_UnboundCMethod_Def = {
     /* .ml_name  = */ "UnboundCMethod",
-    /* .ml_meth  = */ __PYX_REINTERPRET_CAST_FUNC(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_meth  = */ __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_SelflessCall),
     /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
     /* .ml_doc   = */ NULL
 };
