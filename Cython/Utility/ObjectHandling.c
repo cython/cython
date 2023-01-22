@@ -1992,8 +1992,9 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#define CONST_REINTERPRET_CAST(pointer_type, pointer) ((pointer_type)(void *)(pointer))
-#define REINTERPRET_CAST(type, var) (*(type *)(&var))
+#define __PYX_REINTERPRET_CAST_FUNC(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
+#define __PYX_CONST_REINTERPRET_CAST(pointer_type, pointer) ((pointer_type)(void *)(pointer))
+#define __PYX_REINTERPRET_CAST(type, var) (*(type *)(&var))
 
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
@@ -2006,7 +2007,7 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
 
 static PyMethodDef __Pyx_UnboundCMethod_Def = {
     /* .ml_name  = */ "UnboundCMethod",
-    /* .ml_meth  = */ CONST_REINTERPRET_CAST(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_meth  = */ __PYX_REINTERPRET_CAST_FUNC(PyCFunction, __Pyx_SelflessCall),
     /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
     /* .ml_doc   = */ NULL
 };
@@ -2057,15 +2058,16 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         Py_XDECREF(self);
 #endif
         if (self_found) {
+            // PyCFunction_New will create and own method reference, no need to worry about it
             PyObject *unbound_method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
             if (unlikely(!unbound_method)) {
-                Py_DECREF(method);
+                Py_DECREF(method);  // __Pyx_PyObject_GetAttrStr
                 return -1;
             }
-            Py_INCREF(method);  // PyCFunction will Py_XDECREF method on destruction
             target->method = unbound_method;
         }
     }
+    Py_DECREF(method);  // __Pyx_PyObject_GetAttrStr
     return 0;
 }
 
