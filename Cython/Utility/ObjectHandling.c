@@ -2006,7 +2006,7 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
 }
 
 static PyMethodDef __Pyx_UnboundCMethod_Def = {
-    /* .ml_name  = */ "UnboundCMethod",
+    /* .ml_name  = */ "CythonUnboundCMethod",
     /* .ml_meth  = */ __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_SelflessCall),
     /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
     /* .ml_doc   = */ NULL
@@ -2035,7 +2035,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 #endif
     // bound classmethods need special treatment
 #if defined(CYTHON_COMPILING_IN_PYPY)
-    // In these functions are regular methods, so just do
+    // In PyPy functions are regular methods, so just do
     // the self check
 #elif PY_VERSION_HEX >= 0x03090000
     if (PyCFunction_CheckExact(method))
@@ -2060,14 +2060,13 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         if (self_found) {
             // PyCFunction_New will create and own method reference, no need to worry about it
             PyObject *unbound_method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
+            Py_DECREF(method);  // __Pyx_PyObject_GetAttrStr
             if (unlikely(!unbound_method)) {
-                Py_DECREF(method);  // __Pyx_PyObject_GetAttrStr
                 return -1;
             }
             target->method = unbound_method;
         }
     }
-    Py_DECREF(method);  // __Pyx_PyObject_GetAttrStr
     return 0;
 }
 
