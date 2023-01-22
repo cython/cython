@@ -2058,7 +2058,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         Py_XDECREF(self);
 #endif
         if (self_found) {
-            // PyCFunction_New will create and own method reference, no need to worry about it
+            // New PyCFunction will own method reference
             PyObject *unbound_method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
             Py_DECREF(method);  // __Pyx_PyObject_GetAttrStr
             if (unlikely(!unbound_method)) {
