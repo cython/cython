@@ -541,6 +541,12 @@
   #endif
 #endif
 
+// reinterpret
+
+#define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
+#define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
+#define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
+
 /////////////// CInitCode ///////////////
 
 // inline attribute
