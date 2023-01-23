@@ -1608,51 +1608,67 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 //////////////////// ClassMethod.proto ////////////////////
 
 #include "descrobject.h"
-CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+static CYTHON_INLINE int __Pyx_PyMethodDescr_Check(PyObject *method);  /*proto*/
+static PyTypeObject *__Pyx_PyMethodDescr_Type(PyObject *method);  /*proto*/
+CYTHON_UNUSED static PyObject *__Pyx_Method_ClassMethod(PyObject *method);  /*proto*/
 
 //////////////////// ClassMethod ////////////////////
 
-static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
+static CYTHON_INLINE int __Pyx_PyMethodDescr_Check_old(PyObject *method) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    #if PY_MAJOR_VERSION >= 3
+    if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
+    #else
+    // Method descriptor type isn't exported in Py2.x, cannot easily check the type there
+    // Therefore, reverse the check to the most likely alternative
+    // (which is returned for class methods)
+    if (likely(!PyCFunction_Check(method)))
+    #endif
+        return 1;
+#endif
+    return 0;
+}
+
+static CYTHON_INLINE int __Pyx_PyMethodDescr_Check(PyObject *method) {
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
-    if (PyObject_TypeCheck(method, &PyWrapperDescr_Type)) {
-        // cdef classes
-        return PyClassMethod_New(method);
-    }
-#else
-#if CYTHON_COMPILING_IN_PYPY
+    return PyObject_TypeCheck(method, &PyWrapperDescr_Type);
+#elif CYTHON_COMPILING_IN_PYPY
     // special C-API function only in PyPy >= 5.9
-    if (PyMethodDescr_Check(method))
-#else
-    #if PY_MAJOR_VERSION == 2
+    return PyMethodDescr_Check(method);
+#elif PY_MAJOR_VERSION == 2
     // PyMethodDescr_Type is not exposed in the CPython C-API in Py2.
     static PyTypeObject *methoddescr_type = NULL;
     if (unlikely(methoddescr_type == NULL)) {
        PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
-       if (unlikely(!meth)) return NULL;
+       if (unlikely(!meth)) return 0;
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
-    #else
-    PyTypeObject *methoddescr_type = &PyMethodDescr_Type;
-    #endif
-    if (__Pyx_TypeCheck(method, methoddescr_type))
+    return __Pyx_TypeCheck(method, methoddescr_type);
+#else
+    return __Pyx_TypeCheck(method, &PyMethodDescr_Type);
 #endif
-    {
-        // cdef classes
-        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
-        #if PY_VERSION_HEX < 0x03020000
-        PyTypeObject *d_type = descr->d_type;
-        #else
-        PyTypeObject *d_type = descr->d_common.d_type;
-        #endif
-        return PyDescr_NewClassMethod(d_type, descr->d_method);
-    }
+}
+
+static PyTypeObject *__Pyx_PyMethodDescr_GetType(PyObject *method) {
+    PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+#if PY_VERSION_HEX < 0x03020000
+    return descr->d_type;
+#else
+    return descr->d_common.d_type;
 #endif
-    else if (PyMethod_Check(method)) {
-        // python classes
+}
+
+static PyObject *__Pyx_Method_ClassMethod(PyObject *method) {
+    if (__Pyx_PyMethodDescr_Check(method)) {  // cdef classes
+#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
+        return PyClassMethod_New(method);
+#else
+        return PyDescr_NewClassMethod(__Pyx_PyMethodDescr_GetType(method), descr->d_method);
+#endif
+    } else if (PyMethod_Check(method)) {  // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
-    }
-    else {
+    } else {
         return PyClassMethod_New(method);
     }
 }
