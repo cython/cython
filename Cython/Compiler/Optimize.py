@@ -3451,7 +3451,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if not result:
             return node
         func_cname, utility_code, extra_args, num_type = result
-        args = list(args)+extra_args        
+        args = list(args)+extra_args
 
         call_node = self._substitute_method_call(
             node, function,
@@ -4156,7 +4156,9 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
     if not numval.has_constant_result():
         return None
 
-    is_float = numval.type.is_float
+    # is_float is an instance check rather that numval.type.is_float because
+    # it will often be a Python float type rather than a C float type
+    is_float = isinstance(numval, ExprNodes.FloatNode)
     num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
     if is_float:
         if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
