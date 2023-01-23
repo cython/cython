@@ -13073,9 +13073,10 @@ class CmpNode(object):
                         self.operand2
                     )
                     if result:
-                        self.special_bool_cmp_function = result[0]
-                        self.special_bool_cmp_utility_code = result[1]
-                        self.special_bool_extra_args = result[2]
+                        (self.special_bool_cmp_function,
+                         self.special_bool_cmp_utility_code,
+                         self.special_bool_extra_args,
+                         _) = result
                         return True
         elif self.operator in ('in', 'not_in'):
             if self.operand2.type is Builtin.dict_type:
@@ -13126,10 +13127,9 @@ class CmpNode(object):
                 result2 = operand2.py_result()
             else:
                 result2 = operand2.result()
-            special_bool_extra_args_result = [
+            special_bool_extra_args_result = ", ".join([
                 extra_arg.result() for extra_arg in self.special_bool_extra_args
-            ]
-            special_bool_extra_args_result = ", ".join(special_bool_extra_args_result)
+            ])
             if self.special_bool_cmp_utility_code:
                 code.globalstate.use_utility_code(self.special_bool_cmp_utility_code)
             code.putln(

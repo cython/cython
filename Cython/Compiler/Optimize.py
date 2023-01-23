@@ -4156,7 +4156,7 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
     if not numval.has_constant_result():
         return None
 
-    is_float = isinstance(numval, ExprNodes.FloatNode)
+    is_float = numval.type.is_float
     num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
     if is_float:
         if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
