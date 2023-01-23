@@ -1992,11 +1992,8 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
-#define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
-#define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
-
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
+    // NOTE: possible optimization - use vectorcall
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
     if (unlikely(!selfless_args)) return NULL;
 
