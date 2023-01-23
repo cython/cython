@@ -2015,6 +2015,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     if (unlikely(!method))
         return -1;
     target->method = method;
+// FIXME: use functionality from CythonFunction.c/ClassMethod
 #if CYTHON_COMPILING_IN_CPYTHON
     #if PY_MAJOR_VERSION >= 3
     if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
