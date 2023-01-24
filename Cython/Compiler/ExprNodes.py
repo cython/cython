@@ -12024,12 +12024,13 @@ class MulNode(NumBinopNode):
     def calculate_is_sequence_mul(self):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if (type1 is long_type or type1.is_int) or (type2 is long_type or type2.is_int):
-            if type1.is_string or type2.is_string:
+        if type1 is long_type or type1.is_int:
+            # normalise to (X * int)
+            type1, type2 = type2, type1
+        if type2 is long_type or type2.is_int:
+            if type1.is_string or type1.is_ctuple:
                 return True
             if type1.is_builtin_type and type1 in sequence_types:
-                return True
-            if type2.is_builtin_type and type2 in sequence_types:
                 return True
         return False
 
