@@ -396,9 +396,9 @@ def uchar_cast_to_float(Py_UCS4 uchar):
     True
     >>> floats = uchar_cast_to_float(u'0'); floats == (48, 0, 0, 0, 0) or floats
     True
-    >>> uchar_cast_to_float(u'A')
+    >>> uchar_cast_to_float(u'A')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: could not convert string to float: 'A'
+    ValueError: could not convert string to float: ...A...
     """
     cdef object ustr_object = uchar
     cdef str ustr_str = str(uchar)
