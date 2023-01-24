@@ -380,9 +380,9 @@ def uchar_cast_to_int(Py_UCS4 uchar):
     True
     >>> ints = uchar_cast_to_int(u'0'); ints == (48, 0, 0, 0, 0) or ints
     True
-    >>> uchar_cast_to_int(u'A')
+    >>> uchar_cast_to_int(u'A')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: invalid literal for int() with base 10: 'A'
+    ValueError: invalid literal for int() with base 10: ...A...
     """
     cdef object ustr_object = uchar
     cdef str ustr_str = str(uchar)
