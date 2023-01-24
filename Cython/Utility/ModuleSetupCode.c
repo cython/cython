@@ -548,6 +548,7 @@
 // #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
 // #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
 
+
 /////////////// CInitCode ///////////////
 
 // inline attribute
