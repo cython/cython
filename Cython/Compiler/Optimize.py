@@ -2299,6 +2299,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if func_arg.type.is_int or node.type.is_int:
                 if func_arg.type == node.type:
                     return func_arg
+                elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+                    # need to parse (<Py_UCS4>'1') as digit 1
+                    return self._pyucs4_to_number(node, function.name, func_arg)
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(node.pos, operand=func_arg, type=node.type)
             elif func_arg.type.is_float and node.type.is_numeric:
@@ -2319,10 +2322,37 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if func_arg.type.is_float or node.type.is_float:
                 if func_arg.type == node.type:
                     return func_arg
+                elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+                    # need to parse (<Py_UCS4>'1') as digit 1
+                    return self._pyucs4_to_number(node, function.name, func_arg)
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(
                         node.pos, operand=func_arg, type=node.type)
         return node
+
+    pyucs4_int_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
+        ],
+        exception_value="-1")
+
+    pyucs4_double_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
+        ],
+        exception_value="-1.0")
+
+    def _pyucs4_to_number(self, node, py_type_name, func_arg):
+        assert py_type_name in ("int", "float")
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_int_from_UCS4" if py_type_name == "int" else "__Pyx_double_from_UCS4",
+            func_type=self.pyucs4_int_func_type if py_type_name == "int" else self.pyucs4_double_func_type,
+            args=[func_arg],
+            py_name=py_type_name,
+            is_temp=node.is_temp,
+            result_is_used=node.result_is_used,
+            utility_code=UtilityCode.load_cached("int_pyucs4" if py_type_name == "int" else "float_pyucs4", "Builtins.c"),
+        ).coerce_to(node.type, self.current_env())
 
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
         if not expected:  # None or 0
@@ -2622,6 +2652,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_arg = func_arg.arg
         if func_arg.type is PyrexTypes.c_double_type:
             return func_arg
+        elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+            # need to parse (<Py_UCS4>'1') as digit 1
+            return self._pyucs4_to_number(node, function.name, func_arg)
         elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
             return ExprNodes.TypecastNode(
                 node.pos, operand=func_arg, type=node.type)
