@@ -1097,6 +1097,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         entry.is_type and entry.type.is_cpp_class
                     ):
                         scope = entry.type.scope
+                    elif entry and entry.as_module:
+                        scope = entry.as_module
                     else:
                         scope = None
                         break
