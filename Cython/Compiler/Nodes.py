@@ -3066,9 +3066,14 @@ class DefNode(FuncDefNode):
             cfunc_args = []
             for formal_arg in self.args:
                 name_declarator, type = formal_arg.analyse(scope, nonempty=1)
+                annotation=formal_arg.annotation
+                if annotation:
+                    # CFunc annotations are likely to contain things that can't be evaluated.
+                    # And they're not introspectable either
+                    annotation.convert_to_string_annotation()
                 cfunc_args.append(PyrexTypes.CFuncTypeArg(name=name_declarator.name,
                                                           cname=None,
-                                                          annotation=formal_arg.annotation,
+                                                          annotation=annotation,
                                                           type=py_object_type,
                                                           pos=formal_arg.pos))
             cfunc_type = PyrexTypes.CFuncType(return_type=py_object_type,

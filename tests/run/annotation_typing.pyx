@@ -385,7 +385,7 @@ _WARNINGS = """
 311:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # DUPLICATE:
 63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
-# BUG:
+# BUG - mostly from utility code:
 63:6: 'pytypes_cpdef' redeclared
 155:0: 'struct_io' redeclared
 190:0: 'struct_convert' redeclared

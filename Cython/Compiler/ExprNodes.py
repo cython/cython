@@ -2204,6 +2204,13 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             entry = env.lookup(self.name)
+            if env.analysing_evaluated_annotation:
+                if self.analyse_as_type(env) and (
+                        not entry or (entry.is_type and not entry.as_variable)):
+                    # it's a C type in an annotation. It can't be sensibly evaluated
+                    # so return a string instead. The annotation node will be prepared
+                    # to handle this exception
+                    raise AnnotationNode.NeedsStringConversion
             if not entry:
                 entry = env.declare_builtin(self.name, self.pos)
                 if entry and entry.is_builtin and entry.is_const:
@@ -7346,6 +7353,11 @@ class AttributeNode(ExprNode):
         if node is None:
             node = self.analyse_as_ordinary_attribute_node(env, target)
             assert node is not None
+        if not node.entry and env.analysing_evaluated_annotation:
+            if self.analyse_as_type(env):
+                # it's almost certainly a cname which won't evaluate well.
+                # The parent annotation node will  be prepared to handle this exception
+                raise AnnotationNode.NeedsStringConversion
         if (node.is_attribute or node.is_name) and node.entry:
             node.entry.used = True
         if node.is_attribute:
@@ -14413,6 +14425,9 @@ class AnnotationNode(ExprNode):
     string_annotation = False  # bool - set to true if from __future__ import annotations
     original_expr = None  # set if expr is reassigned to a string (to avoid being an invalid evaluation)
 
+    class NeedsStringConversion(Exception):
+        pass
+
     @property
     def subexprs(self):
         if self.string_annotation:
@@ -14441,12 +14456,14 @@ class AnnotationNode(ExprNode):
         if self.string_annotation:
             self.type = self.string.type
         else:
-            if not isinstance(self.expr, TupleNode):
-                # C-tuples mostly
-                tp = self.expr.analyse_as_type(env)
-                self._analyse_expression_of_c_type(tp)
-            self.expr = self.expr.analyse_types(env)
-            self.type = self.expr.type
+            try:
+                with env.new_analysing_evaluated_annotation_context(True):
+                    self.expr = self.expr.analyse_types(env)
+                self.type = self.expr.type
+            except self.NeedsStringConversion:
+                # Somewhere below we have a C annotation that won't evaluate at runtime.
+                # In this case it's best just to revert to the equivalent string
+                self.convert_to_string_annotation()
         return self
 
     def analyse_as_type(self, env):
@@ -14492,24 +14509,11 @@ class AnnotationNode(ExprNode):
         if arg_type.is_complex:
             # creating utility code needs to be special-cased for complex types
             arg_type.create_declaration_utility_code(env)
-        if arg_type is not None:
-            self._analyse_expression_of_c_type(arg_type)
 
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
         modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
         return modifiers, arg_type
-
-    def _analyse_expression_of_c_type(self, arg_type):
-        # generally something that's been successfully analysed as a type will not lead to
-        # a valid expression (and will lead to the annotation failing to evaluate correctly).
-        # In this case be lenient and just replace it with a string
-        if (arg_type and not arg_type.is_pyobject and
-                self.string.value not in [b"float", b"int"]  # special cases these as also being Python objects
-                ):
-            # specified a C type, no equivalent Python type
-            self.original_expr = self.expr
-            self.expr = copy.copy(self.string)
 
     def generate_result_code(self, code):
         pass
@@ -14519,6 +14523,12 @@ class AnnotationNode(ExprNode):
             return self.string.result()
         else:
             return self.expr.result()
+
+    def convert_to_string_annotation(self):
+        self.original_expr = self.expr
+        self.expr = copy.copy(self.string)
+        self.type =self.expr.type
+
 
 
 class AssignmentExpressionNode(ExprNode):

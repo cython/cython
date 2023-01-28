@@ -378,6 +378,8 @@ class Scope(object):
     return_type = None
     # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
     in_c_type_context = True
+    # set while analysing annotations. Allows use to stringify a few cases that won't evaluate
+    analysing_evaluated_annotation = False
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -501,6 +503,14 @@ class Scope(object):
             self.in_c_type_context = in_c_type_context
         yield
         self.in_c_type_context = old_c_type_context
+
+    @try_finally_contextmanager
+    def new_analysing_evaluated_annotation_context(self, analysing_evaluated_annotation=None):
+        old_analysing_evaluated_annotation = self.analysing_evaluated_annotation
+        if analysing_evaluated_annotation is not None:
+            self.analysing_evaluated_annotation = analysing_evaluated_annotation
+        yield
+        self.analysing_evaluated_annotation = old_analysing_evaluated_annotation
 
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if
