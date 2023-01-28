@@ -797,8 +797,6 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(f.__annotations__, {'return': list})
 
         # Test expressions as decorators (PEP 614):
-        # FIXME: implement PEP 614
-        """
         @False or null
         def f(x): pass
         @d := null
@@ -811,7 +809,6 @@ class GrammarTests(unittest.TestCase):
         def f(x): pass
         @[null][0].__call__.__call__
         def f(x): pass
-        """
 
         # test closures with a variety of opargs
         closure = 1
@@ -1705,8 +1702,6 @@ class GrammarTests(unittest.TestCase):
         class G: pass
 
         # Test expressions as decorators (PEP 614):
-        # FIXME: implement PEP 614
-        """
         @False or class_decorator
         class H: pass
         @d := class_decorator
@@ -1719,7 +1714,6 @@ class GrammarTests(unittest.TestCase):
         class L: pass
         @[class_decorator][0].__call__.__call__
         class M: pass
-        """
 
     def test_dictcomps(self):
         # dictorsetmaker: ( (test ':' test (comp_for |

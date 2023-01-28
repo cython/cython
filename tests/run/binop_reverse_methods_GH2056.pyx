@@ -30,6 +30,12 @@ class Base(object):
     'Base.__rpow__(Base(), 2, None)'
     >>> pow(Base(), 2, 100)
     'Base.__pow__(Base(), 2, 100)'
+    >>> Base() // 1
+    True
+    >>> set() // Base()
+    True
+
+    # version dependent tests for @ and / are external
     """
     implemented: cython.bint
 
@@ -66,6 +72,44 @@ class Base(object):
 
     def __repr__(self):
         return "%s()" % (self.__class__.__name__)
+
+    # The following methods were missed from the initial implementation
+    # that typed 'self'. These tests are a quick test to confirm that
+    # but not the full binop behaviour
+    def __matmul__(self, other):
+        return cython.typeof(self) == 'Base'
+
+    def __rmatmul__(self, other):
+        return cython.typeof(self) == 'Base'
+
+    def __truediv__(self, other):
+        return cython.typeof(self) == 'Base'
+
+    def __rtruediv__(self, other):
+        return cython.typeof(self) == 'Base'
+
+    def __floordiv__(self, other):
+        return cython.typeof(self) == 'Base'
+
+    def __rfloordiv__(self, other):
+        return cython.typeof(self) == 'Base'
+
+
+if sys.version_info >= (3, 5):
+    __doc__ += """
+    >>> Base() @ 1
+    True
+    >>> set() @ Base()
+    True
+    """
+
+if sys.version_info >= (3, 0):
+    __doc__ += """
+    >>> Base() / 1
+    True
+    >>> set() / Base()
+    True
+    """
 
 
 @cython.c_api_binop_methods(False)

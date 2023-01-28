@@ -247,9 +247,10 @@ class TreeAssertVisitor(VisitorTransform):
                         "Expected path '%s' not found in result tree" % path)
         if 'test_fail_if_path_exists' in directives:
             for path in directives['test_fail_if_path_exists']:
-                if TreePath.find_first(node, path) is not None:
+                first_node = TreePath.find_first(node, path)
+                if first_node is not None:
                     Errors.error(
-                        node.pos,
+                        first_node.pos,
                         "Unexpected path '%s' found in result tree" % path)
         if 'test_assert_c_code_has' in directives:
             self._c_patterns.extend(directives['test_assert_c_code_has'])

@@ -155,7 +155,7 @@ def global_name(global_name):
     return global_name + 321
 
 
-cdef int cy_add_nogil(int a, int b) nogil except -1:
+cdef int cy_add_nogil(int a, int b) except -1 nogil:
     x = a + b   # 1
     return x    # 2
 

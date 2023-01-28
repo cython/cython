@@ -1728,7 +1728,7 @@ def test_oob():
     print a[:, 20]
 
 
-cdef int nogil_oob(int[:, :] a) nogil except 0:
+cdef int nogil_oob(int[:, :] a) except 0 nogil:
     a[100, 9:]
     return 1
 
@@ -1772,7 +1772,7 @@ def test_nogil_oob2():
         a[100, 9:]
 
 @cython.boundscheck(False)
-cdef int cdef_nogil(int[:, :] a) nogil except 0:
+cdef int cdef_nogil(int[:, :] a) except 0 nogil:
     cdef int i, j
     cdef int[:, :] b = a[::-1, 3:10:2]
     for i in range(b.shape[0]):
@@ -2669,3 +2669,32 @@ def test_local_in_closure(a):
     def inner():
         return (a_view[0], a_view[1])
     return inner
+
+@testcase
+def test_local_in_generator_expression(a, initialize, execute_now):
+    """
+    >>> A1 = IntMockBuffer("A1", range(6), shape=(6,))
+    >>> A2 = IntMockBuffer("A2", range(6), shape=(6,))
+    >>> test_local_in_generator_expression(A1, initialize=False, execute_now=False)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    UnboundLocalError...
+
+    >>> test_local_in_generator_expression(A1, initialize=True, execute_now=True)
+    acquired A1
+    released A1
+    True
+
+    >>> genexp = test_local_in_generator_expression(A2, initialize=True, execute_now=False)
+    acquired A2
+    >>> sum(genexp)
+    released A2
+    2
+    """
+    cdef int[:] a_view
+    if initialize:
+        a_view = a
+    if execute_now:
+        return any(ai > 3 for ai in a_view)
+    else:
+        return (ai > 3 for ai in a_view)

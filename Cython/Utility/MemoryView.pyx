@@ -81,7 +81,7 @@ cdef extern from *:
                                  __Pyx_memviewslice *from_mvs,
                                  char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
-                                 bint dtype_is_object) nogil except *
+                                 bint dtype_is_object) except * nogil
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
                             {{memviewslice_name}} mvs, char order, int ndim) nogil
     bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
@@ -109,6 +109,7 @@ except:
 ### cython.array class
 #
 
+@cython.collection_type("sequence")
 @cname("__pyx_array")
 cdef class array:
 
@@ -122,7 +123,7 @@ cdef class array:
         Py_ssize_t itemsize
         unicode mode  # FIXME: this should have been a simple 'char'
         bytes _format
-        void (*callback_free_data)(void *data)
+        void (*callback_free_data)(void *data) noexcept
         # cdef object _memview
         cdef bint free_data
         cdef bint dtype_is_object
@@ -808,7 +809,7 @@ cdef int slice_memviewslice(
         int dim, int new_ndim, int *suboffset_dim,
         Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
         int have_start, int have_stop, int have_step,
-        bint is_slice) nogil except -1:
+        bint is_slice) except -1 nogil:
     """
     Create a new slice dst given slice src.
 
@@ -938,7 +939,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
 ### Transposing a memoryviewslice
 #
 @cname('__pyx_memslice_transpose')
-cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except -1:
+cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil:
     cdef int ndim = memslice.memview.view.ndim
 
     cdef Py_ssize_t *shape = memslice.shape
@@ -959,6 +960,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except -1:
 #
 ### Creating new memoryview objects from slices and memoryviews
 #
+@cython.collection_type("sequence")
 @cname('__pyx_memoryviewslice')
 cdef class _memoryviewslice(memoryview):
     "Internal class for passing memoryview slices to Python"
@@ -1182,7 +1184,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
                              src.shape, dst.shape, ndim, itemsize)
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) noexcept nogil:
     "Return the size of the memory occupied by the slice in number of bytes"
     cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
@@ -1216,7 +1218,7 @@ cdef Py_ssize_t fill_contig_strides_array(
 cdef void *copy_data_to_temp({{memviewslice_name}} *src,
                              {{memviewslice_name}} *tmpslice,
                              char order,
-                             int ndim) nogil except NULL:
+                             int ndim) except NULL nogil:
     """
     Copy a direct slice to temporary contiguous memory. The caller should free
     the result when done.
@@ -1276,7 +1278,7 @@ cdef int _err_no_memory() except -1 with gil:
 cdef int memoryview_copy_contents({{memviewslice_name}} src,
                                   {{memviewslice_name}} dst,
                                   int src_ndim, int dst_ndim,
-                                  bint dtype_is_object) nogil except -1:
+                                  bint dtype_is_object) except -1 nogil:
     """
     Copy memory from slice src to slice dst.
     Check for overlapping memory and verify the shapes.
@@ -1380,7 +1382,7 @@ cdef void refcount_objects_in_slice_with_gil(char *data, Py_ssize_t *shape,
 
 @cname('__pyx_memoryview_refcount_objects_in_slice')
 cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
-                                    Py_ssize_t *strides, int ndim, bint inc):
+                                    Py_ssize_t *strides, int ndim, bint inc) noexcept:
     cdef Py_ssize_t i
     cdef Py_ssize_t stride = strides[0]
 

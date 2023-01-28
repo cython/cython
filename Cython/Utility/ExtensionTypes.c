@@ -11,8 +11,8 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
-    (void) spec;
-    (void) type;
+    CYTHON_UNUSED_VAR(spec);
+    CYTHON_UNUSED_VAR(type);
 #else
     // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
     // Copied and adapted from https://bugs.python.org/issue38140
@@ -156,7 +156,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 /////////////// PyType_Ready.proto ///////////////
 
 // unused when using type specs
-static CYTHON_UNUSED int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
@@ -230,6 +230,15 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#if PY_VERSION_HEX >= 0x030A0000
+        // As of https://github.com/python/cpython/pull/25520
+        // PyType_Ready marks types as immutable if they are static types
+        // and requires the Py_TPFLAGS_IMMUTABLETYPE flag to mark types as
+        // immutable
+        // Manually set the Py_TPFLAGS_IMMUTABLETYPE flag, since the type
+        // is immutable
+        t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
+#endif
 #else
         // avoid C warning about unused helper function
         (void)__Pyx_PyObject_CallMethod0;
