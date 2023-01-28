@@ -670,9 +670,9 @@ async def async_def_annotations(x: 'int') -> 'float':
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
     >>> print(ret[0]); print(ret[1])
     return
-    'float'
+    float
     >>> print(arg[0]); print(arg[1])
     x
-    'int'
+    int
     """
     return float(x)

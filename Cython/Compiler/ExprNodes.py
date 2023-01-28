@@ -7353,7 +7353,7 @@ class AttributeNode(ExprNode):
         if node is None:
             node = self.analyse_as_ordinary_attribute_node(env, target)
             assert node is not None
-        if not node.entry and env.analysing_evaluated_annotation:
+        if not getattr(node, 'entry', None) and env.analysing_evaluated_annotation:
             if self.analyse_as_type(env):
                 # it's almost certainly a cname which won't evaluate well.
                 # The parent annotation node will  be prepared to handle this exception
