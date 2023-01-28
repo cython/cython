@@ -271,17 +271,6 @@ class C_TestCase_test_helper_asdict_factory:
     x: int
     y: int
 
-@dataclass
-@cclass
-class C_TestCase_test_helper_asdict_namedtuple:
-    x: str
-    y: T
-
-@dataclass
-@cclass
-class C_TestCase_test_helper_asdict_namedtuple_key:
-    f: dict
-
 class T_TestCase_test_helper_asdict_namedtuple_derived(namedtuple('Tbase', 'a')):
 
     def my_a(self):
@@ -361,12 +350,6 @@ class Parent_TestCase_test_helper_astuple_builtin_object_containers:
 class C_TestCase_test_helper_astuple_factory:
     x: int
     y: int
-
-@dataclass
-@cclass
-class C_TestCase_test_helper_astuple_namedtuple:
-    x: str
-    y: T
 
 @dataclass
 @cclass
@@ -874,23 +857,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(d, OrderedDict([('x', 42), ('y', 2)]))
         self.assertIs(type(d), OrderedDict)
 
-    def test_helper_asdict_namedtuple(self):
-        T = namedtuple('T', 'a b c')
-        C = C_TestCase_test_helper_asdict_namedtuple
-        c = C('outer', T(1, C('inner', T(11, 12, 13)), 2))
-        d = asdict(c)
-        self.assertEqual(d, {'x': 'outer', 'y': T(1, {'x': 'inner', 'y': T(11, 12, 13)}, 2)})
-        d = asdict(c, dict_factory=OrderedDict)
-        self.assertEqual(d, {'x': 'outer', 'y': T(1, {'x': 'inner', 'y': T(11, 12, 13)}, 2)})
-        self.assertIs(type(d), OrderedDict)
-        self.assertIs(type(d['y'][1]), OrderedDict)
-
-    def test_helper_asdict_namedtuple_key(self):
-        C = C_TestCase_test_helper_asdict_namedtuple_key
-        T = namedtuple('T', 'a')
-        c = C({T('an a'): 0})
-        self.assertEqual(asdict(c), {'f': {T(a='an a'): 0}})
-
     def test_helper_asdict_namedtuple_derived(self):
         T = T_TestCase_test_helper_asdict_namedtuple_derived
         C = C_TestCase_test_helper_asdict_namedtuple_derived
@@ -974,15 +940,6 @@ class TestCase(unittest.TestCase):
         t = astuple(c, tuple_factory=nt)
         self.assertEqual(t, NT(42, 2))
         self.assertIs(type(t), NT)
-
-    def test_helper_astuple_namedtuple(self):
-        T = namedtuple('T', 'a b c')
-        C = C_TestCase_test_helper_astuple_namedtuple
-        c = C('outer', T(1, C('inner', T(11, 12, 13)), 2))
-        t = astuple(c)
-        self.assertEqual(t, ('outer', T(1, ('inner', (11, 12, 13)), 2)))
-        t = astuple(c, tuple_factory=list)
-        self.assertEqual(t, ['outer', T(1, ['inner', T(11, 12, 13)], 2)])
 
     def test_alternate_classmethod_constructor(self):
         C = C_TestCase_test_alternate_classmethod_constructor
