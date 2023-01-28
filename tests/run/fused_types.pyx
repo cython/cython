@@ -22,6 +22,11 @@ ctypedef int *p_int
 fused_type3 = cython.fused_type(int, double)
 fused_composite = cython.fused_type(fused_type2, fused_type3)
 
+ctypedef int inttypedef
+ctypedef double doubletypedef
+fused_with_typedef = cython.fused_type(inttypedef, doubletypedef)
+
+
 def test_pure():
     """
     >>> test_pure()
@@ -479,3 +484,13 @@ def convert_to_ptr(cython.floating x):
         return handle_float(&x)
     elif cython.floating is double:
         return handle_double(&x)
+
+
+def constfused_with_typedef(const fused_with_typedef[:] x):
+    """
+    >>> constfused_with_typedef(get_array(8, 'd'))
+    5.0
+    >>> constfused_with_typedef(get_intc_array())
+    5
+    """
+    return x[5]
