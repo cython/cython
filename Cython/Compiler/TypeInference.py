@@ -560,10 +560,12 @@ def safe_spanning_type(types, might_overflow, scope):
             return py_object_type
         else:
             return result_type
-    elif result_type is PyrexTypes.c_double_type:
+    elif (result_type is PyrexTypes.c_double_type or
+            result_type is PyrexTypes.c_float_type):
         # Python's float type is just a C double, so it's safe to use
-        # the C type instead
-        return result_type
+        # the C type instead. Similarly if given a C float, converting
+        # it to a C double will always behave like Python
+        return PyrexTypes.c_double_type
     elif result_type is PyrexTypes.c_bint_type:
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
