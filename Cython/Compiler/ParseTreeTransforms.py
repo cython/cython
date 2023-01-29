@@ -3582,7 +3582,9 @@ class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
     """
-    current_annotation_node = None
+    def __init__(self, *args, **kwds):
+        super(TransformBuiltinMethods, self).__init__(*args, **kwds)
+        self.current_annotation_node = None
 
     def visit_SingleAssignmentNode(self, node):
         if node.declaration_only:
