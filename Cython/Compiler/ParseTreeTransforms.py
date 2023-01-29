@@ -3582,6 +3582,7 @@ class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
     """
+    current_annotation_node = None
 
     def visit_SingleAssignmentNode(self, node):
         if node.declaration_only:
@@ -3612,6 +3613,9 @@ class TransformBuiltinMethods(EnvTransform):
                 pass
             elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
+            elif self.current_annotation_node:
+                # There's lots of non-evaluable cython annotations that shouldn't be a failure
+                self.current_annotation_node.convert_to_string_annotation()
             else:
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
@@ -3679,6 +3683,14 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_CascadedCmpNode(self, node):
         return self.visit_PrimaryCmpNode(node)
+
+    def visit_AnnotationNode(self, node):
+        # There's a few places where we want to avoid generating errors from code inside
+        # annotation nodes, so just track if we're visiting an AnnotationNode to do it
+        old_annotation_node, self.current_annotation_node = self.current_annotation_node, node
+        self.visitchildren(node)
+        self.current_annotation_node = old_annotation_node
+        return node
 
     def _inject_eval(self, node, func_name):
         lenv = self.current_env()
@@ -3774,6 +3786,9 @@ class TransformBuiltinMethods(EnvTransform):
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
+            elif self.current_annotation_node:
+                # There's lots of non-evaluable cython annotations that shouldn't be a failure
+                self.current_annotation_node.convert_to_string_annotation()
             else:
                 error(node.function.pos,
                       u"'%s' not a valid cython language construct" % function)
