@@ -58,11 +58,6 @@ skip_tests = frozenset(
         ("TestCase", "test_class_attrs"),
         ("TestCase", "test_hash_field_rules"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
-        # named tuples assigned to local variables then evaluated in annotations
-        # (PEP563 related)
-        ("TestCase", "test_helper_astuple_namedtuple"),
-        ("TestCase", "test_helper_asdict_namedtuple"),
-        ("TestCase", "test_helper_asdict_namedtuple_key"),
         # Currently unsupported
         # =====================
         (
