@@ -14442,9 +14442,12 @@ class AnnotationNode(ExprNode):
             # (e.g. cython.int) don't evaluate correctly, and this avoids turning
             # them into runtime errors.
             self.expr = self._evaluated_annotation_wrap_in_try_catch(env)
-            with env.new_analysing_evaluated_annotation_context(True):
-                self.expr = self.expr.analyse_types(env)
-            self.type = self.expr.type
+            with local_errors(ignore=True) as errors:
+                with env.new_analysing_evaluated_annotation_context(True):
+                    self.expr = self.expr.analyse_types(env)
+                self.type = self.expr.type
+            if errors:
+                self.convert_to_string_annotation()
         return self
 
     def analyse_as_type(self, env):
