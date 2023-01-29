@@ -2204,13 +2204,6 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             entry = env.lookup(self.name)
-            if env.analysing_evaluated_annotation:
-                if self.analyse_as_type(env) and (
-                        not entry or (entry.is_type and not entry.as_variable)):
-                    # it's a C type in an annotation. It can't be sensibly evaluated
-                    # so return a string instead. The annotation node will be prepared
-                    # to handle this exception
-                    raise AnnotationNode.NeedsStringConversion
             if not entry:
                 entry = env.declare_builtin(self.name, self.pos)
                 if entry and entry.is_builtin and entry.is_const:
@@ -7353,11 +7346,6 @@ class AttributeNode(ExprNode):
         if node is None:
             node = self.analyse_as_ordinary_attribute_node(env, target)
             assert node is not None
-        if not getattr(node, 'entry', None) and env.analysing_evaluated_annotation:
-            if self.analyse_as_type(env):
-                # it's almost certainly a cname which won't evaluate well.
-                # The parent annotation node will  be prepared to handle this exception
-                raise AnnotationNode.NeedsStringConversion
         if (node.is_attribute or node.is_name) and node.entry:
             node.entry.used = True
         if node.is_attribute:
@@ -14425,9 +14413,6 @@ class AnnotationNode(ExprNode):
     string_annotation = False  # bool - set to true if from __future__ import annotations
     original_expr = None  # set if expr is reassigned to a string (to avoid being an invalid evaluation)
 
-    class NeedsStringConversion(Exception):
-        pass
-
     @property
     def subexprs(self):
         if self.string_annotation:
@@ -14449,21 +14434,17 @@ class AnnotationNode(ExprNode):
         self.string_annotation = string_annotation
 
     def analyse_types(self, env):
-        # I'd like to be able to delete body_as_obj if unneeded, but it is used
-        # in the optimization code at the minute
-        #  - do skip processing it though because things like undeclared variables
-        #  in annotations shouldn't matter with pep563
         if self.string_annotation:
             self.type = self.string.type
         else:
-            try:
-                with env.new_analysing_evaluated_annotation_context(True):
-                    self.expr = self.expr.analyse_types(env)
-                self.type = self.expr.type
-            except self.NeedsStringConversion:
-                # Somewhere below we have a C annotation that won't evaluate at runtime.
-                # In this case it's best just to revert to the equivalent string
-                self.convert_to_string_annotation()
+            # convert to a form that catches name/attribute lookup failures.
+            # This isn't completely Python-compatible, however a lot of C types
+            # (e.g. cython.int) don't evaluate correctly, and this avoids turning
+            # them into runtime errors.
+            self.expr = self._evaluated_annotation_wrap_in_try_catch(env)
+            with env.new_analysing_evaluated_annotation_context(True):
+                self.expr = self.expr.analyse_types(env)
+            self.type = self.expr.type
         return self
 
     def analyse_as_type(self, env):
@@ -14529,6 +14510,44 @@ class AnnotationNode(ExprNode):
         self.expr = copy.copy(self.string)
         self.type =self.expr.type
 
+    def _evaluated_annotation_wrap_in_try_catch(self, env):
+        from .UtilNodes import TempResultFromStatNode, ResultRefNode
+        pos = self.expr.pos
+        result = ResultRefNode(pos=pos, type=py_object_type)
+        result.lhs_of_first_assignment = True
+        assignment = Nodes.SingleAssignmentNode(
+            pos,
+            lhs = result,
+            rhs = self.expr
+        )
+        backup_assignment = Nodes.SingleAssignmentNode(
+            pos,
+            lhs = result,
+            rhs = self.string
+        )
+        errors = [
+            NameNode(
+                pos,
+                name=StringEncoding.EncodedString(name),
+                type=py_object_type,
+                entry=env.builtin_scope().lookup(name)
+            ) for name in ("NameError", "AttributeError")
+        ]
+        except_clause = Nodes.ExceptClauseNode(
+            pos,
+            pattern=errors,
+            target=None,
+            body=backup_assignment
+        )
+        try_node = Nodes.TryExceptStatNode(
+            pos,
+            body=assignment,
+            except_clauses=[except_clause],
+            else_clause=None,
+        )
+        return TempResultFromStatNode(
+            result, try_node
+        )
 
 
 class AssignmentExpressionNode(ExprNode):

@@ -1189,7 +1189,9 @@ class BuiltinScope(Scope):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
-                if Options.error_on_unknown_names:
+                if self.analysing_evaluated_annotation:
+                    pass  # quite likely to fail, no warning
+                elif Options.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
@@ -1387,7 +1389,9 @@ class ModuleScope(Scope):
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
             else:
-                if Options.error_on_unknown_names:
+                if self.analysing_evaluated_annotation:
+                    pass  # no warning - quite likely
+                elif Options.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
