@@ -185,3 +185,13 @@ def test_nested_sub_struct(x):
     assert s.int_value == x
     s.typed_value = x
     return s.typed_value
+
+cimport cpp_nested_names
+
+def test_nested_names():
+    """
+    >>> test_nested_names()
+    NestedClass
+    """
+    cdef cpp_nested_names.OuterClass.NestedClass n = cpp_nested_names.OuterClass.get()
+    print(n.get_str().decode('ascii'))

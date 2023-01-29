@@ -3,9 +3,9 @@
 from libcpp.string cimport string
 
 cdef extern from "cpp_nested_names_helper.h":
-    cdef cppclass A:
-        cppclass B:
+    cdef cppclass OuterClass:
+        cppclass NestedClass:
             string get_str()
 
         @staticmethod
-        B get()
+        NestedClass get()
