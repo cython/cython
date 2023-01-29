@@ -14443,9 +14443,7 @@ class AnnotationNode(ExprNode):
             # them into runtime errors.
             self.expr = self._evaluated_annotation_wrap_in_try_catch(env)
             with local_errors(ignore=True) as errors:
-                with env.new_analysing_evaluated_annotation_context(True):
-                    self.expr = self.expr.analyse_types(env)
-                self.type = self.expr.type
+                self.expr = self.expr.analyse_types(env)
             if errors:
                 self.convert_to_string_annotation()
         return self
