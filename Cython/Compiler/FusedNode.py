@@ -52,6 +52,7 @@ class FusedCFuncDefNode(StatListNode):
 
         self.nodes = []
         self.node = node
+        self.used_names = {}
 
         is_def = isinstance(self.node, DefNode)
         if is_def:
@@ -292,9 +293,19 @@ class FusedCFuncDefNode(StatListNode):
                 """)
 
     def _dtype_name(self, dtype):
+        # avoid duplicating names
+        if dtype in self.used_names:
+            return self.used_names[dtype]
         if dtype.is_typedef:
-            return ('___pyx_%s' % dtype).replace(' ', '_')
-        return str(dtype).replace(' ', '_')
+            base_name = ('___pyx_%s' % dtype).replace(' ', '_')
+        else:
+            base_name = str(dtype).replace(' ', '_')
+        name = base_name
+        n = 0
+        while name in self.used_names:
+            name = base_name + str(n)
+        self.used_names[dtype] = name
+        return name
 
     def _dtype_type(self, dtype):
         if dtype.is_typedef:
