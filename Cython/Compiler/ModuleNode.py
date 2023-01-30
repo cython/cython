@@ -2787,10 +2787,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.module_cname,
             Naming.pymoduledef_cname))
         module_state.putln("#else")
-        module_state.putln('static %s %s_static = {0};' % (
+        module_state.putln('static %s %s_static =' % (
             Naming.modulestate_cname,
             Naming.modulestateglobal_cname
         ))
+        module_state.putln('#ifdef __cplusplus')
+        # C++ likes to be initialized with {} to avoid "missing initializer" warnings
+        # but it isn't valid C
+        module_state.putln('    {};')
+        module_state.putln('#else')
+        module_state.putln('    {0};')
+        module_state.putln('#endif')
         module_state.putln('static %s *%s = &%s_static;' % (
             Naming.modulestate_cname,
             Naming.modulestateglobal_cname,
