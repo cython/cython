@@ -1907,6 +1907,7 @@ class NewExprNode(AtomicExprNode):
     #
     # cppclass              node                 c++ class to create
 
+    child_attrs = ["cppclass"]
     type = None
 
     def infer_type(self, env):
@@ -7216,6 +7217,7 @@ class AttributeNode(ExprNode):
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
 
+    child_attrs = ["attribute"]
     is_attribute = 1
     subexprs = ['obj']
 
@@ -10123,7 +10125,7 @@ class LambdaNode(InnerFunctionNode):
     # result_expr   ExprNode
     # def_node      DefNode                the underlying function 'def' node
 
-    child_attrs = ['def_node']
+    child_attrs = ['args', 'result_expr', 'def_node']
 
     name = StringEncoding.EncodedString('<lambda>')
 
@@ -10909,6 +10911,7 @@ class TypecastNode(ExprNode):
     #  If used from a transform, one can if wanted specify the attribute
     #  "type" directly and leave base_type and declarator to None
 
+    child_attrs = ["base_type"]
     subexprs = ['operand']
     base_type = declarator = type = None
 
@@ -11076,6 +11079,7 @@ class CythonArrayNode(ExprNode):
     base_type_node      MemoryViewSliceTypeNode  the cast expression node
     """
 
+    child_attrs = ["base_type_node"]
     subexprs = ['operand', 'shapes']
 
     shapes = None
@@ -14401,6 +14405,7 @@ class AnnotationNode(ExprNode):
     # Doesn't handle the pre PEP-563 version where the
     # annotation is evaluated into a Python Object.
 
+    child_attrs = ["expr"]
     subexprs = []
 
     # 'untyped' is set for fused specializations:

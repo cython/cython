@@ -1373,7 +1373,7 @@ class FusedTypeNode(CBaseTypeNode):
     types           [CSimpleBaseTypeNode]   is the list of types to be fused
     """
 
-    child_attrs = []
+    child_attrs = ["types"]
 
     def analyse_declarations(self, env):
         type = self.analyse(env)
@@ -5212,7 +5212,7 @@ class CClassDefNode(ClassDefNode):
     #  buffer_defaults_node DictNode or None Declares defaults for a buffer
     #  buffer_defaults_pos
 
-    child_attrs = ["body"]
+    child_attrs = ["bases", "decorators", "body"]
     buffer_defaults_node = None
     buffer_defaults_pos = None
     typedef_flag = False
@@ -7505,6 +7505,7 @@ class _ForInStatNode(LoopNode, StatNode):
 class ForInStatNode(_ForInStatNode):
     #  'for' statement
 
+    child_attrs = ["target"]
     is_async = False
 
     def _create_item_node(self):
