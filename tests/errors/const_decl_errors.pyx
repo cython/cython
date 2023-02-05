@@ -2,10 +2,11 @@
 
 cdef const object o
 
-# TODO: This requires making the assignment at declaration time.
-# (We could fake this case by dropping the const here in the C code,
-# as it's not needed for agreeing with external libraries.
 cdef const int x = 10
+x = 20           # nok
+
+cdef const int y
+cdef const int *z
 
 cdef struct S:
     int member
@@ -25,19 +26,32 @@ cdef func(const int a, const int* b, const (int*) c, const S s, int *const d, in
     f = NULL     # ok
     t = &s
 
+cdef func2():
+    global y, z
+    y = 10       # nok
+    z = &y       # ok
+    z[0] = 10    # nok
+
+cdef func3():
+    y = 10       # ok
+    z = &y       # ok
+    z[0] = 10    # ok
+
 cdef volatile object v
 
 
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
-8:5: Assignment to const 'x'
-15:4: Assignment to const 'a'
-16:4: Assignment to const 'c'
-17:5: Assignment to const dereference
-18:5: Assignment to const attribute 'member'
-19:4: Assignment to const 'd'
-22:4: Assignment to const 'e'
-24:5: Assignment to const dereference
-26:4: Assignment to const 't'
-28:5: Const/volatile base type cannot be a Python object
+7:4: Assignment to const 'x'
+17:8: Assignment to const 'a'
+18:8: Assignment to const 'c'
+19:5: Assignment to const dereference
+20:5: Assignment to const attribute 'member'
+21:8: Assignment to const 'd'
+24:8: Assignment to const 'e'
+26:5: Assignment to const dereference
+28:8: Assignment to const 't'
+32:8: Assignment to const 'y'
+34:5: Assignment to const dereference
+41:5: Const/volatile base type cannot be a Python object
 """

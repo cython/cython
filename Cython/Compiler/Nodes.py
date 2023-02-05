@@ -6047,6 +6047,20 @@ class SingleAssignmentNode(AssignmentNode):
 
         self.rhs = self.rhs.analyse_types(env)
 
+        if self.lhs.is_name and self.lhs.entry.type.is_const:
+            # const variable can be initialised if:
+            # * we are in module scope
+            # * self.lhs was not assigned before
+            # * self.rhs is constant value
+            # * self.rhs is literal or const variable
+            if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
+                if self.rhs.is_literal:
+                    self.lhs.entry.init = self.rhs.value
+                else:
+                    self.lhs.entry.init = self.rhs.result()
+            else:
+                error(self.pos, "Assignment to const '%s'" % self.lhs.name)
+
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:
             return unrolled_assignment
