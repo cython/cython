@@ -42,16 +42,16 @@ cdef volatile object v
 
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
-7:4: Assignment to const 'x'
-17:8: Assignment to const 'a'
-18:8: Assignment to const 'c'
-19:5: Assignment to const dereference
-20:5: Assignment to const attribute 'member'
-21:8: Assignment to const 'd'
-24:8: Assignment to const 'e'
-26:5: Assignment to const dereference
-28:8: Assignment to const 't'
-32:8: Assignment to const 'y'
-34:5: Assignment to const dereference
-41:5: Const/volatile base type cannot be a Python object
+6:4: Assignment to const 'x'
+16:8: Assignment to const 'a'
+17:8: Assignment to const 'c'
+18:5: Assignment to const dereference
+19:5: Assignment to const attribute 'member'
+20:8: Assignment to const 'd'
+23:8: Assignment to const 'e'
+25:5: Assignment to const dereference
+27:8: Assignment to const 't'
+31:8: Assignment to const 'y'
+33:5: Assignment to const dereference
+40:5: Const/volatile base type cannot be a Python object
 """
