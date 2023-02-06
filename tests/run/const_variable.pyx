@@ -26,6 +26,14 @@ def test_constant_int_value():
     print(int_constant2)
     print(int_sum_constant)
 
+def test_array():
+    """
+    >>> test_array()
+    5
+    """
+    cdef int[int_constant3] int_array
+    print(len(int_array))
+
 
 def test_constant_float_value():
     """
