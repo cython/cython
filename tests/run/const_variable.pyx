@@ -2,8 +2,7 @@
 
 cdef const int int_constant = 50
 cdef const int int_constant2 = int_constant
-cdef const int int_constant3
-int_constant3 = 5
+cdef const int int_constant3 = 5
 cdef const int *pint_constant = &int_constant
 cdef const int int_sum_constant = 50 + 50
 # FIXME:
