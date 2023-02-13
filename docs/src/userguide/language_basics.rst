@@ -75,7 +75,7 @@ define global C variables.
                 j: cython.int
                 k: cython.int
                 f: cython.float
-                g: cython.int[42]
+                g: cython.float[42]
                 h: cython.p_float
 
                 i = j = 5
@@ -88,7 +88,8 @@ define global C variables.
 
             def func():
                 cdef int i, j, k
-                cdef float f, g[42], *h
+                cdef float f, *h
+                cdef float[42] g
 
                 i = j = 5
 
@@ -124,8 +125,7 @@ the declaration in most cases:
             def func():
                 cdef int i = 10, j, k
                 cdef float f = 2.5
-                # cdef float g[4] = [1,2,3,4]  # currently not supported
-                cdef float *g = [1, 2, 3, 4]
+                cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
 
 
@@ -174,8 +174,8 @@ Structs can be declared as ``cdef packed struct``, which has
 the same effect as the C directive ``#pragma pack(1)``::
 
     cdef packed struct StructArray:
-        int spam[4]
-        signed char eggs[5]
+        int[4] spam
+        signed char[5] eggs
 
 .. note::
     This declaration removes the empty
