@@ -977,7 +977,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         const Py_ssize_t size = Py_SIZE(exp);
         // tuned to optimise branch prediction
         if (likely(size == 1)) {
-            shiftby = ((PyLongObject*)exp)->ob_digit[0];
+            shiftby = __Pyx_PyLong_Digits(exp)[0];
         } else if (size == 0) {
             return PyInt_FromLong(1L);
         } else if (unlikely(size < 0)) {
@@ -1058,7 +1058,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
         int unequal;
         unsigned long uintval;
         Py_ssize_t size = Py_SIZE({{pyval}});
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         if (intval == 0) {
             // == 0  =>  Py_SIZE(pyval) == 0
             {{return_compare('size', '0', c_op)}}
@@ -1237,7 +1237,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         PY_LONG_LONG ll{{ival}}, llx;
 #endif
         {{endif}}
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         const Py_ssize_t size = Py_SIZE({{pyval}});
         {{if c_op == '&'}}
         // special case for &-ing arbitrarily large numbers with known single digit operands
@@ -1492,7 +1492,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
         #if CYTHON_USE_PYLONG_INTERNALS
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
             case  0: {{fval}} = 0.0; {{zerodiv_check(fval)}} break;

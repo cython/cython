@@ -1065,7 +1065,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         if (Py_SIZE(value) == 0) {
             ival = 0;
         } else {
-            ival = ((PyLongObject*)value)->ob_digit[0];
+            ival = __Pyx_PyLong_Digits(value)[0];
             if (unlikely(ival > 255)) goto bad_range;
         }
     } else

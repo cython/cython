@@ -247,7 +247,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
     if (likely(Py_SIZE(n) == -1)) {
         // digits are unsigned
-        return PyLong_FromLong(((PyLongObject*)n)->ob_digit[0]);
+        return PyLong_FromLong(__Pyx_PyLong_Digits(n)[0]);
     }
 #if CYTHON_COMPILING_IN_CPYTHON
     {
