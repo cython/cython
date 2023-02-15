@@ -88,8 +88,10 @@ define global C variables.
 
             def func():
                 cdef int i, j, k
-                cdef float f, *h
+                cdef float f
                 cdef float[42] g
+                cdef float *h
+                # cdef float f, g[42], *h  # mix of pointers, arrays and values in a single line is deprecated
 
                 i = j = 5
 
