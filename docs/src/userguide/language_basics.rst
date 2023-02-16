@@ -142,6 +142,17 @@ the declaration in most cases:
                 cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
 
+        The soft-deprecated C style array declaration doesn't support
+        initialization.
+
+        .. code-block:: cython
+
+            cdef int g[4] = [1, 2, 3, 4]  # error
+
+            cdef int[4] g = [1, 2, 3, 4]  # OK
+
+            cdef int g[4]        # OK but not recommended
+            g = [1, 2, 3, 4]
 
 .. note::
 
