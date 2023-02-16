@@ -95,6 +95,18 @@ define global C variables.
 
                 i = j = 5
 
+        Cython currently supports two ways to declare an array:
+
+        .. code-block:: cython
+
+            cdef int arr1[4], arr2[4]  # C style array declaration
+            cdef int[4] arr1, arr2     # Java style array declaration
+
+        Both of them generate the same C code, but the Java style is more
+        consistent with :ref:`memoryviews` and :ref:`fusedtypes`. The C style
+        declaration is soft-deprecated and it's recommended to use Java style
+        declaration instead.
+
 As known from C, declared global variables are automatically initialised to
 ``0``, ``NULL`` or ``None``, depending on their type.  However, also as known
 from both Python and C, for a local variable, simply declaring it is not enough
