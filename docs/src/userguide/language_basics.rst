@@ -95,18 +95,6 @@ define global C variables.
 
                 i = j = 5
 
-        Cython currently supports two ways to declare an array:
-
-        .. code-block:: cython
-
-            cdef int arr1[4], arr2[4]  # C style array declaration
-            cdef int[4] arr1, arr2     # Java style array declaration
-
-        Both of them generate the same C code, but the Java style is more
-        consistent with :ref:`memoryviews` and :ref:`fusedtypes`. The C style
-        declaration is soft-deprecated and it's recommended to use Java style
-        declaration instead.
-
 As known from C, declared global variables are automatically initialised to
 ``0``, ``NULL`` or ``None``, depending on their type.  However, also as known
 from both Python and C, for a local variable, simply declaring it is not enough
@@ -142,18 +130,6 @@ the declaration in most cases:
                 cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
 
-        The soft-deprecated C style array declaration doesn't support
-        initialization.
-
-        .. code-block:: cython
-
-            cdef int g[4] = [1, 2, 3, 4]  # error
-
-            cdef int[4] g = [1, 2, 3, 4]  # OK
-
-            cdef int g[4]        # OK but not recommended
-            g = [1, 2, 3, 4]
-
 .. note::
 
     There is also support for giving names to types using the
@@ -176,6 +152,59 @@ the declaration in most cases:
                 ctypedef unsigned long ULong
 
                 ctypedef int* IntPtr
+
+C Arrays
+--------
+
+C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def func():
+                g: cython.float[42]
+                f: cython.int[5][5][5]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def func():
+                cdef float[42] g
+                cdef int[5][5][5] f
+
+.. note::
+
+    Cython syntax currently supports two ways to declare an array:
+
+    .. code-block:: cython
+
+        cdef int arr1[4], arr2[4]  # C style array declaration
+        cdef int[4] arr1, arr2     # Java style array declaration
+
+    Both of them generate the same C code, but the Java style is more
+    consistent with :ref:`memoryviews` and :ref:`fusedtypes`. The C style
+    declaration is soft-deprecated and it's recommended to use Java style
+    declaration instead.
+
+    The soft-deprecated C style array declaration doesn't support
+    initialization.
+
+    .. code-block:: cython
+
+        cdef int g[4] = [1, 2, 3, 4]  # error
+
+        cdef int[4] g = [1, 2, 3, 4]  # OK
+
+        cdef int g[4]        # OK but not recommended
+        g = [1, 2, 3, 4]
+
+
+
+
 
 .. _structs:
 
