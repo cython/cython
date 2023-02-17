@@ -202,10 +202,6 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
         cdef int g[4]        # OK but not recommended
         g = [1, 2, 3, 4]
 
-
-
-
-
 .. _structs:
 
 Structs, Unions, Enums
