@@ -129,6 +129,14 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 // __Pyx_PyNumber_Float is now in it's own section since it has dependencies (needed to make
 // string conversion work the same in all circumstances)
 
+#if CYTHON_USE_PYLONG_INTERNALS
+  #if PY_VERSION_HEX >= 0x030C00A5
+  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
+  #else
+  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
+  #endif
+#endif
+
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
 static int __Pyx_init_sys_getdefaultencoding_params(void) {
@@ -405,7 +413,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 #endif
   if (likely(PyLong_CheckExact(b))) {
     #if CYTHON_USE_PYLONG_INTERNALS
-    const digit* digits = ((PyLongObject*)b)->ob_digit;
+    const digit* digits = __Pyx_PyLong_Digits(b);
     const Py_ssize_t size = Py_SIZE(b);
     // handle most common case first to avoid indirect branch and optimise branch prediction
     if (likely(__Pyx_sst_abs(size) <= 1)) {
@@ -478,7 +486,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
     double val;
     if (PyLong_CheckExact(obj)) {
 #if CYTHON_USE_PYLONG_INTERNALS
-        const digit* digits = ((PyLongObject*)obj)->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits(obj);
         switch (Py_SIZE(obj)) {
             case 0:
                 val = 0.0;
@@ -968,7 +976,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
 #if CYTHON_USE_PYLONG_INTERNALS
-            const digit* digits = ((PyLongObject*)x)->ob_digit;
+            const digit* digits = __Pyx_PyLong_Digits(x);
             switch (Py_SIZE(x)) {
                 case  0: return ({{TYPE}}) 0;
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
@@ -1009,7 +1017,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         } else {
             // signed
 #if CYTHON_USE_PYLONG_INTERNALS
-            const digit* digits = ((PyLongObject*)x)->ob_digit;
+            const digit* digits = __Pyx_PyLong_Digits(x);
             switch (Py_SIZE(x)) {
                 case  0: return ({{TYPE}}) 0;
                 case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, (sdigit) (-(sdigit)digits[0]))
