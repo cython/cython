@@ -21,7 +21,11 @@ cdef class Foo(Base, Obj):
 ######## wrongbase.pyx ########
 
 cdef class Base:
-    pass
+    # On some version of Python the __init_subclass__ base check gets there first and
+    # thus emits a different error message. Assigning an empty lambda to it
+    # avoids that. Which error is produced isn't that important, except that it's
+    # hard to make a consistent check
+    __init_subclass__ = lambda *args, **kwds: None
 
 Str = type("")
 

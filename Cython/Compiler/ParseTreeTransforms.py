@@ -2129,6 +2129,7 @@ if VALUE is not None:
                     and not node.scope.lookup('__reduce__')
                     and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
+            self._inject_init_subclass(node)
         return node
 
     def _inject_pickle_methods(self, node):
@@ -2265,6 +2266,63 @@ if VALUE is not None:
             self.visit(pickle_func)
             self.exit_scope()
             node.body.stats.append(pickle_func)
+
+    def _inject_init_subclass(self, node):
+        """
+        Performs a bit of validation when cdef classes are inherited from
+        to diagnose issues __cinit__ and __dealloc__ won't be called.
+        This can happen with multiple inheritance from (layout compatible)
+        cdef classes.
+
+        The validation only happens reliably on Python 3.6+, but that's OK because
+        it's a "nice to have" warning for an odd corner-case only. (In some cases
+        Cython itself calls __init_subclass__ on earlier versions though)
+        """
+        if node.scope.lookup('__init_subclass__'):
+            return  # shouldn't happen much currently because __init_subclass__ is not
+                    # supported for extension types (but may in future)
+
+        is_subclass_func = ExprNodes.PythonCapiFunctionNode(
+            node.pos,
+            "PyType_IsSubtype",
+            "PyType_IsSubtype",
+            PyrexTypes.CFuncType(
+                PyrexTypes.c_int_type,
+                [PyrexTypes.CFuncTypeArg("a", Builtin.type_type, None), PyrexTypes.CFuncTypeArg("b", Builtin.type_type, None)])
+        )
+
+        # TODO cls.__base__ could be optimized to a direct access to tp_base (at the cost of a bit more utility code)
+        func = TreeFragment(u"""
+            @classmethod
+            def __init_subclass__(cls, **kwds):
+                cdef object cls_base, super_init_subclass  # keep w_undeclared test happy
+                cls_base = cls.__base__
+                if not IS_SUBCLASS_PLACEHOLDER(cls_base, %(class_name)s):
+                    raise TypeError(("Invalid inheritance from cdef class %(class_name)s: "
+                        "{cls_name}.__base__ must be a subclass of %(class_name)s. "
+                        "({cls_name}.__base__ == {cls_base_name})").format(cls_name=cls.__name__, cls_base_name=cls_base.__name__))
+                try:
+                    super_init_subclass = super().__init_subclass__
+                except AttributeError:
+                    pass  # Cython still calls __init_subclass__ even on old versions, but the base class won't define it
+                else:
+                    super_init_subclass(**kwds)
+
+                """ % {
+                    'class_name': node.class_name,
+                }, level='c_class', pipeline=[NormalizeTree(None)]).substitute(
+                    { "IS_SUBCLASS_PLACEHOLDER": is_subclass_func })
+        # use a "generated_by_cython" flag to override the ban on "__init_subclass__"
+        # for cdef classes - the ban is mainly because it not called when inherited by other cdef classes,
+        #    (which is not a problem for this validation function)
+        func.stats[0].generated_by_cython = True
+        directives = Options.copy_inherited_directives(node.scope.directives, binding=True)
+        func = Nodes.CompilerDirectivesNode(func.pos, body=func, directives=directives)
+        func.analyse_declarations(node.scope)
+        self.enter_scope(node, node.scope)  # functions should be visited in the class scope
+        self.visit(func)
+        self.exit_scope()
+        node.body.stats.append(func)
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
         """

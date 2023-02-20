@@ -118,9 +118,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  scope                The module scope.
     #  compilation_source   A CompilationSource (see Main)
     #  directives           Top-level compiler directives
+    #  user_code_starts_at  Index for element in body - used to insert utility code before the user code
 
     child_attrs = ["body"]
     directives = None
+    user_code_starts_at = 0
 
     def merge_in(self, tree, scope, merge_scope=False):
         # Merges in the contents of another tree, and possibly scope. With the
@@ -136,10 +138,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # merged in nodes should keep their original compiler directives
             # (for example inline cdef functions)
             tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
+        # Cython-language utility code is inserted before user code (but is inserted in the order it
+        # is defined). This makes sense because the user code depends on the utility code, so
+        # potentially relies on it being fully executed.
         if isinstance(tree, Nodes.StatListNode):
-            self.body.stats.extend(tree.stats)
+            self.body.stats[self.user_code_starts_at:self.user_code_starts_at] = tree.stats
+            self.user_code_starts_at += len(tree.stats)
         else:
-            self.body.stats.append(tree)
+            self.body.stats.insert(self.user_code_starts_at, tree)
+            self.user_code_starts_at += 1
 
         self.scope.utility_code_list.extend(scope.utility_code_list)
 

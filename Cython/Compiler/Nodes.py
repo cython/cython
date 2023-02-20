@@ -3028,6 +3028,7 @@ class DefNode(FuncDefNode):
     requires_classobj = False
     defaults_struct = None  # Dynamic kwrds structure name
     doc = None
+    generated_by_cython = False
 
     fused_py_func = False
     specialized_cpdefs = None
@@ -3150,7 +3151,7 @@ class DefNode(FuncDefNode):
         if env.is_py_class_scope or env.is_c_class_scope:
             if self.name == '__new__' and env.is_py_class_scope:
                 self.is_staticmethod = True
-            elif self.name == '__init_subclass__' and env.is_c_class_scope:
+            elif self.name == '__init_subclass__' and env.is_c_class_scope and not self.generated_by_cython:
                 error(self.pos, "'__init_subclass__' is not supported by extension class")
             elif self.name in IMPLICIT_CLASSMETHODS and not self.is_classmethod:
                 self.is_classmethod = True
