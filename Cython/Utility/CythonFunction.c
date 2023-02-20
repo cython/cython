@@ -1605,15 +1605,13 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     return 0;
 }
 
-//////////////////// ClassMethod.proto ////////////////////
 
-#include "descrobject.h"
+//////////////////// PyMethodDescr.proto ////////////////////
+
 static CYTHON_INLINE int __Pyx_PyMethodDescr_Check(PyObject *method);  /*proto*/
-static PyTypeObject *__Pyx_PyMethodDescr_Type(PyObject *method);  /*proto*/
-CYTHON_UNUSED static PyObject *__Pyx_Method_ClassMethod(PyObject *method);  /*proto*/
+static CYTHON_INLINE PyTypeObject *__Pyx_PyMethodDescr_GetType(PyObject *method);  /*proto*/
 
-//////////////////// ClassMethod ////////////////////
-
+//////////////////// PyMethodDescr ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyMethodDescr_Check(PyObject *method) {
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
@@ -1636,7 +1634,7 @@ static CYTHON_INLINE int __Pyx_PyMethodDescr_Check(PyObject *method) {
 #endif
 }
 
-static PyTypeObject *__Pyx_PyMethodDescr_GetType(PyObject *method) {
+static CYTHON_INLINE PyTypeObject *__Pyx_PyMethodDescr_GetType(PyObject *method) {
     PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
 #if PY_VERSION_HEX < 0x03020000
     return descr->d_type;
@@ -1644,6 +1642,15 @@ static PyTypeObject *__Pyx_PyMethodDescr_GetType(PyObject *method) {
     return descr->d_common.d_type;
 #endif
 }
+
+
+//////////////////// ClassMethod.proto ////////////////////
+
+#include "descrobject.h"
+CYTHON_UNUSED static PyObject *__Pyx_Method_ClassMethod(PyObject *method);  /*proto*/
+
+//////////////////// ClassMethod ////////////////////
+//@requires: PyMethodDescr
 
 static PyObject *__Pyx_Method_ClassMethod(PyObject *method) {
     if (__Pyx_PyMethodDescr_Check(method))  // cdef classes
