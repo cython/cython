@@ -2039,13 +2039,6 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
             target->method = unbound_method;
         }
     }
-#if CYTHON_COMPILING_IN_CPYTHON
-    else {
-        PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
-        target->func = descr->d_method->ml_meth;
-        target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
-    }
-#endif
     return 0;
 }
 
