@@ -1614,20 +1614,6 @@ CYTHON_UNUSED static PyObject *__Pyx_Method_ClassMethod(PyObject *method);  /*pr
 
 //////////////////// ClassMethod ////////////////////
 
-static CYTHON_INLINE int __Pyx_PyMethodDescr_Check_old(PyObject *method) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    #if PY_MAJOR_VERSION >= 3
-    if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
-    #else
-    // Method descriptor type isn't exported in Py2.x, cannot easily check the type there
-    // Therefore, reverse the check to the most likely alternative
-    // (which is returned for class methods)
-    if (likely(!PyCFunction_Check(method)))
-    #endif
-        return 1;
-#endif
-    return 0;
-}
 
 static CYTHON_INLINE int __Pyx_PyMethodDescr_Check(PyObject *method) {
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
