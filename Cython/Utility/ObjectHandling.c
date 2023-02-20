@@ -1991,6 +1991,7 @@ typedef struct {
 
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: CythonFunction.c::PyMethodDescr
 
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
     // NOTE: possible optimization - use vectorcall
@@ -2015,32 +2016,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     if (unlikely(!method))
         return -1;
     target->method = method;
-// FIXME: use functionality from CythonFunction.c/ClassMethod
-#if CYTHON_COMPILING_IN_CPYTHON
-    #if PY_MAJOR_VERSION >= 3
-    if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
-    #else
-    // method descriptor type isn't exported in Py2.x, cannot easily check the type there.
-    // Therefore, reverse the check to the most likely alternative
-    // (which is returned for class methods)
-    if (likely(!PyCFunction_Check(method)))
-    #endif
-    {
-        PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
-        target->func = descr->d_method->ml_meth;
-        target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
-    } else
-#endif
-    // bound classmethods need special treatment
-#if defined(CYTHON_COMPILING_IN_PYPY)
-    // In PyPy functions are regular methods, so just do
-    // the self check
-#elif PY_VERSION_HEX >= 0x03090000
-    if (PyCFunction_CheckExact(method))
-#else
-    if (PyCFunction_Check(method))
-#endif
-    {
+    if (__Pyx_PyMethodDescr_Check(method)) {
         PyObject *self;
         int self_found;
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
@@ -2063,6 +2039,13 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
             target->method = unbound_method;
         }
     }
+#if CYTHON_COMPILING_IN_CPYTHON
+    else {
+        PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
+        target->func = descr->d_method->ml_meth;
+        target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
+    }
+#endif
     return 0;
 }
 
