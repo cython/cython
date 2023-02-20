@@ -821,6 +821,26 @@ class IterationTransform(Visitor.EnvTransform):
             step_pos = step.pos
             if not isinstance(step.constant_result, _py_int_types):
                 # cannot determine step direction
+                if len(args) == 3:
+                    try:
+                        has_long = -1
+                        _fix_range_3_args = []
+                        for i in range(3):
+                            arg_node = args[i]
+                            arg_int = arg_node.coerce_to_integer(self.current_env())
+                            if arg_int is not None:
+                                arg_int.analyse_types(self.current_env())
+                                if arg_int.type.is_numeric and (not arg_int.is_literal):
+                                    arg_temp = arg_int.coerce_to_temp(self.current_env())
+                                    if arg_temp.arg.type.empty_declaration_code() == 'long':
+                                        has_long = i
+                                    _fix_range_3_args.append(arg_node)
+                        if len(_fix_range_3_args) == 3:
+                            _fix_range_3_args.append(has_long)
+                            node._fix_range_3_args = _fix_range_3_args
+                            node.is_rewrite_3_arg = True
+                    except:
+                        pass
                 return node
             step_value = step.constant_result
             if step_value == 0:
