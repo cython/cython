@@ -1646,15 +1646,14 @@ static PyTypeObject *__Pyx_PyMethodDescr_GetType(PyObject *method) {
 }
 
 static PyObject *__Pyx_Method_ClassMethod(PyObject *method) {
-    if (__Pyx_PyMethodDescr_Check(method)) {  // cdef classes
+    if (__Pyx_PyMethodDescr_Check(method))  // cdef classes
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
         return PyClassMethod_New(method);
 #else
-        return PyDescr_NewClassMethod(__Pyx_PyMethodDescr_GetType(method), descr->d_method);
+        return PyDescr_NewClassMethod(__Pyx_PyMethodDescr_GetType(method),
+                                      ((PyMethodDescrObject *)method)->d_method);
 #endif
-    } else if (PyMethod_Check(method)) {  // python classes
+    if (PyMethod_Check(method))  // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
-    } else {
-        return PyClassMethod_New(method);
-    }
+    return PyClassMethod_New(method);
 }
