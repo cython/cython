@@ -1,4 +1,4 @@
-sphinx>=4.5.0
+sphinx==4.5.0
 sphinx-issues==3.0.1
 sphinx-tabs==3.4.1
 Jinja2==3.1.2
