@@ -2584,6 +2584,7 @@ class PyrexCodeWriter(object):
     def dedent(self):
         self.level -= 1
 
+
 class PyxCodeWriter(object):
     """
     Can be used for writing out some Cython code.
@@ -2592,6 +2593,7 @@ class PyxCodeWriter(object):
     def __init__(self, buffer=None, indent_level=0, context=None, encoding='ascii'):
         self.buffer = buffer or StringIOTree()
         self.level = indent_level
+        self.original_level = indent_level
         self.context = context
         self.encoding = encoding
 
@@ -2613,6 +2615,9 @@ class PyxCodeWriter(object):
         yield
         self.dedent()
 
+    def empty(self):
+        return self.buffer.empty()
+
     def getvalue(self):
         result = self.buffer.getvalue()
         if isinstance(result, bytes):
@@ -2626,7 +2631,7 @@ class PyxCodeWriter(object):
         self._putln(line)
 
     def _putln(self, line):
-        self.buffer.write("%s%s\n" % (self.level * "    ", line))
+        self.buffer.write(u"%s%s\n" % (self.level * u"    ", line))
 
     def put_chunk(self, chunk, context=None):
         context = context or self.context
@@ -2638,8 +2643,13 @@ class PyxCodeWriter(object):
             self._putln(line)
 
     def insertion_point(self):
-        return PyxCodeWriter(self.buffer.insertion_point(), self.level,
-                             self.context)
+        return type(self)(self.buffer.insertion_point(), self.level, self.context)
+
+    def reset(self):
+        # resets the buffer so that nothing gets written. Most useful
+        # for abandoning all work in a specific insertion point
+        self.buffer.reset()
+        self.level = self.original_level
 
     def named_insertion_point(self, name):
         setattr(self, name, self.insertion_point())

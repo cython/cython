@@ -4583,20 +4583,17 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
-class PythonTypeConstructor(PyObjectType):
+class PythonTypeConstructorMixin(object):
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
     modifier_name = None
 
-    def __init__(self, name, base_type=None):
+    def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
-        self.base_type = base_type
 
     def specialize_here(self, pos, env, template_values=None):
-        if self.base_type:
-            # for a lot of the typing classes it doesn't really matter what the template is
-            # (i.e. typing.Dict[int] is really just a dict)
-            return self.base_type
+        # for a lot of the typing classes it doesn't really matter what the template is
+        # (i.e. typing.Dict[int] is really just a dict)
         return self
 
     def __repr__(self):
@@ -4609,7 +4606,17 @@ class PythonTypeConstructor(PyObjectType):
         return True
 
 
-class PythonTupleTypeConstructor(PythonTypeConstructor):
+class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorMixin):
+    """
+    builtin types like list, dict etc which can be subscripted in annotations
+    """
+    def __init__(self, name, cname, objstruct_cname=None):
+        super(BuiltinTypeConstructorObjectType, self).__init__(
+            name, cname, objstruct_cname=objstruct_cname)
+        self.set_python_type_constructor_name(name)
+
+
+class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
     def specialize_here(self, pos, env, template_values=None):
         if (template_values and None not in template_values and
                 not any(v.is_pyobject for v in template_values)):
@@ -4620,13 +4627,14 @@ class PythonTupleTypeConstructor(PythonTypeConstructor):
         return super(PythonTupleTypeConstructor, self).specialize_here(pos, env, template_values)
 
 
-class SpecialPythonTypeConstructor(PythonTypeConstructor):
+class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
     """
     For things like ClassVar, Optional, etc, which are not types and disappear during type analysis.
     """
 
     def __init__(self, name):
-        super(SpecialPythonTypeConstructor, self).__init__(name, base_type=None)
+        super(SpecialPythonTypeConstructor, self).__init__()
+        self.set_python_type_constructor_name(name)
         self.modifier_name = name
 
     def __repr__(self):

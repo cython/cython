@@ -3900,7 +3900,7 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
-        if base_type and (not base_type.is_pyobject or base_type.python_type_constructor_name):
+        if base_type:
             if base_type.is_cpp_class or base_type.python_type_constructor_name:
                 if self.index.is_sequence_constructor:
                     template_values = self.index.args
@@ -3917,7 +3917,7 @@ class IndexNode(_IndexingBaseNode):
                 env.use_utility_code(MemoryView.view_utility_code)
                 axes = [self.index] if self.index.is_slice else list(self.index.args)
                 return PyrexTypes.MemoryViewSliceType(base_type, MemoryView.get_axes_specs(env, axes))
-            else:
+            elif not base_type.is_pyobject:
                 # C array
                 index = self.index.compile_time_value(env)
                 if index is not None:
@@ -3937,7 +3937,8 @@ class IndexNode(_IndexingBaseNode):
         modifier_node = self
         while modifier_node.is_subscript:
             modifier_type = modifier_node.base.analyse_as_type(env)
-            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+            if (modifier_type and modifier_type.python_type_constructor_name
+                    and modifier_type.modifier_name):
                 modifiers.append(modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
@@ -5411,7 +5412,7 @@ class SliceIndexNode(ExprNode):
 
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
-        if base_type and not base_type.is_pyobject:
+        if base_type:
             if not self.start and not self.stop:
                 # memory view
                 from . import MemoryView
@@ -12863,6 +12864,7 @@ class CmpNode(object):
 
     special_bool_cmp_function = None
     special_bool_cmp_utility_code = None
+    special_bool_extra_args = []
 
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
@@ -13079,6 +13081,21 @@ class CmpNode(object):
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("StrEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyString_Equals"
                     return True
+                elif result_is_bool:
+                    from .Optimize import optimise_numeric_binop
+                    result = optimise_numeric_binop(
+                        "Eq" if self.operator == "==" else "Ne",
+                        self,
+                        PyrexTypes.c_bint_type,
+                        self.operand1,
+                        self.operand2
+                    )
+                    if result:
+                        (self.special_bool_cmp_function,
+                         self.special_bool_cmp_utility_code,
+                         self.special_bool_extra_args,
+                         _) = result
+                        return True
         elif self.operator in ('in', 'not_in'):
             if self.operand2.type is Builtin.dict_type:
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
@@ -13104,7 +13121,7 @@ class CmpNode(object):
         return False
 
     def generate_operation_code(self, code, result_code,
-            operand1, op , operand2):
+            operand1, op, operand2):
         if self.type.is_pyobject:
             error_clause = code.error_goto_if_null
             got_ref = "__Pyx_XGOTREF(%s); " % result_code
@@ -13128,6 +13145,9 @@ class CmpNode(object):
                 result2 = operand2.py_result()
             else:
                 result2 = operand2.result()
+            special_bool_extra_args_result = ", ".join([
+                extra_arg.result() for extra_arg in self.special_bool_extra_args
+            ])
             if self.special_bool_cmp_utility_code:
                 code.globalstate.use_utility_code(self.special_bool_cmp_utility_code)
             code.putln(
@@ -13135,7 +13155,8 @@ class CmpNode(object):
                     result_code,
                     coerce_result,
                     self.special_bool_cmp_function,
-                    result1, result2, richcmp_constants[op],
+                    result1, result2,
+                    special_bool_extra_args_result if self.special_bool_extra_args else richcmp_constants[op],
                     got_ref,
                     error_clause(result_code, self.pos)))
 
@@ -13209,7 +13230,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     #  Instead, we override all the framework methods
     #  which use it.
 
-    child_attrs = ['operand1', 'operand2', 'coerced_operand2', 'cascade']
+    child_attrs = ['operand1', 'operand2', 'coerced_operand2', 'cascade',
+                   'special_bool_extra_args']
 
     cascade = None
     coerced_operand2 = None
@@ -13437,6 +13459,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
         self.operand2.generate_evaluation_code(code)
+        for extra_arg in self.special_bool_extra_args:
+            extra_arg.generate_evaluation_code(code)
         if self.is_temp:
             self.allocate_temp_result(code)
             self.generate_operation_code(code, self.result(),
@@ -13479,7 +13503,8 @@ class CascadedCmpNode(Node, CmpNode):
     #  operand2      ExprNode
     #  cascade       CascadedCmpNode
 
-    child_attrs = ['operand2', 'coerced_operand2', 'cascade']
+    child_attrs = ['operand2', 'coerced_operand2', 'cascade',
+                   'special_bool_extra_args']
 
     cascade = None
     coerced_operand2 = None
@@ -13543,6 +13568,8 @@ class CascadedCmpNode(Node, CmpNode):
         if needs_evaluation:
             operand1.generate_evaluation_code(code)
         self.operand2.generate_evaluation_code(code)
+        for extra_arg in self.special_bool_extra_args:
+            extra_arg.generate_evaluation_code(code)
         self.generate_operation_code(code, result,
             operand1, self.operator, self.operand2)
         if self.cascade:
@@ -14453,23 +14480,23 @@ class AnnotationNode(ExprNode):
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)
 
-        if arg_type is None:
-            self._warn_on_unknown_annotation(env, annotation)
-            return [], arg_type
+            if arg_type is None:
+                self._warn_on_unknown_annotation(env, annotation)
+                return [], arg_type
 
-        if annotation.is_string_literal:
-            warning(annotation.pos,
-                    "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
-                    level=1)
-        if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
-            warning(annotation.pos,
-                    "Python type declaration in signature annotation does not refer to a Python type")
-        if arg_type.is_complex:
-            # creating utility code needs to be special-cased for complex types
-            arg_type.create_declaration_utility_code(env)
+            if annotation.is_string_literal:
+                warning(annotation.pos,
+                        "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
+                        level=1)
+            if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
+                warning(annotation.pos,
+                        "Python type declaration in signature annotation does not refer to a Python type")
+            if arg_type.is_complex:
+                # creating utility code needs to be special-cased for complex types
+                arg_type.create_declaration_utility_code(env)
 
-        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-        modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
         return modifiers, arg_type
 

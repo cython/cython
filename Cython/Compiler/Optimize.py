@@ -2299,6 +2299,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if func_arg.type.is_int or node.type.is_int:
                 if func_arg.type == node.type:
                     return func_arg
+                elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+                    # need to parse (<Py_UCS4>'1') as digit 1
+                    return self._pyucs4_to_number(node, function.name, func_arg)
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(node.pos, operand=func_arg, type=node.type)
             elif func_arg.type.is_float and node.type.is_numeric:
@@ -2319,10 +2322,37 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if func_arg.type.is_float or node.type.is_float:
                 if func_arg.type == node.type:
                     return func_arg
+                elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+                    # need to parse (<Py_UCS4>'1') as digit 1
+                    return self._pyucs4_to_number(node, function.name, func_arg)
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(
                         node.pos, operand=func_arg, type=node.type)
         return node
+
+    pyucs4_int_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
+        ],
+        exception_value="-1")
+
+    pyucs4_double_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
+        ],
+        exception_value="-1.0")
+
+    def _pyucs4_to_number(self, node, py_type_name, func_arg):
+        assert py_type_name in ("int", "float")
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_int_from_UCS4" if py_type_name == "int" else "__Pyx_double_from_UCS4",
+            func_type=self.pyucs4_int_func_type if py_type_name == "int" else self.pyucs4_double_func_type,
+            args=[func_arg],
+            py_name=py_type_name,
+            is_temp=node.is_temp,
+            result_is_used=node.result_is_used,
+            utility_code=UtilityCode.load_cached("int_pyucs4" if py_type_name == "int" else "float_pyucs4", "Builtins.c"),
+        ).coerce_to(node.type, self.current_env())
 
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
         if not expected:  # None or 0
@@ -2622,6 +2652,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_arg = func_arg.arg
         if func_arg.type is PyrexTypes.c_double_type:
             return func_arg
+        elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+            # need to parse (<Py_UCS4>'1') as digit 1
+            return self._pyucs4_to_number(node, function.name, func_arg)
         elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
             return ExprNodes.TypecastNode(
                 node.pos, operand=func_arg, type=node.type)
@@ -3468,6 +3501,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         Optimise math operators for (likely) float or small integer operations.
         """
+        if getattr(node, "special_bool_cmp_function", None):
+            return node  # already optimized
+
         if len(args) != 2:
             return node
 
@@ -3478,66 +3514,15 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         else:
             return node
 
-        # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
-        # Prefer constants on RHS as they allows better size control for some operators.
-        num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
-        if isinstance(args[1], num_nodes):
-            if args[0].type is not PyrexTypes.py_object_type:
-                return node
-            numval = args[1]
-            arg_order = 'ObjC'
-        elif isinstance(args[0], num_nodes):
-            if args[1].type is not PyrexTypes.py_object_type:
-                return node
-            numval = args[0]
-            arg_order = 'CObj'
-        else:
+        result = optimise_numeric_binop(operator, node, ret_type, args[0], args[1])
+        if not result:
             return node
-
-        if not numval.has_constant_result():
-            return node
-
-        is_float = isinstance(numval, ExprNodes.FloatNode)
-        num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
-        if is_float:
-            if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
-                return node
-        elif operator == 'Divide':
-            # mixed old-/new-style division is not currently optimised for integers
-            return node
-        elif abs(numval.constant_result) > 2**30:
-            # Cut off at an integer border that is still safe for all operations.
-            return node
-
-        if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
-            if args[1].constant_result == 0:
-                # Don't optimise division by 0. :)
-                return node
-
-        args = list(args)
-        args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
-            numval.pos, value=numval.value, constant_result=numval.constant_result,
-            type=num_type))
-        inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
-        args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
-        if is_float or operator not in ('Eq', 'Ne'):
-            # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
-            zerodivision_check = arg_order == 'CObj' and (
-                not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
-            args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
-
-        utility_code = TempitaUtilityCode.load_cached(
-            "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
-            "Optimize.c",
-            context=dict(op=operator, order=arg_order, ret_type=ret_type))
+        func_cname, utility_code, extra_args, num_type = result
+        args = list(args)+extra_args
 
         call_node = self._substitute_method_call(
             node, function,
-            "__Pyx_Py%s_%s%s%s" % (
-                'Float' if is_float else 'Int',
-                '' if ret_type.is_pyobject else 'Bool',
-                operator,
-                arg_order),
+            func_cname,
             self.Pyx_BinopInt_func_types[(num_type, ret_type)],
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
             may_return_none=True,
@@ -4213,6 +4198,75 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                                            constant_result=default_value))
         else:
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
+
+
+def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
+    """
+    Optimise math operators for (likely) float or small integer operations.
+    """
+    # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
+    # Prefer constants on RHS as they allows better size control for some operators.
+    num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
+    if isinstance(arg1, num_nodes):
+        if arg0.type is not PyrexTypes.py_object_type:
+            return None
+        numval = arg1
+        arg_order = 'ObjC'
+    elif isinstance(arg0, num_nodes):
+        if arg1.type is not PyrexTypes.py_object_type:
+            return None
+        numval = arg0
+        arg_order = 'CObj'
+    else:
+        return None
+
+    if not numval.has_constant_result():
+        return None
+
+    # is_float is an instance check rather that numval.type.is_float because
+    # it will often be a Python float type rather than a C float type
+    is_float = isinstance(numval, ExprNodes.FloatNode)
+    num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
+    if is_float:
+        if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
+            return None
+    elif operator == 'Divide':
+        # mixed old-/new-style division is not currently optimised for integers
+        return None
+    elif abs(numval.constant_result) > 2**30:
+        # Cut off at an integer border that is still safe for all operations.
+        return None
+
+    if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
+        if arg1.constant_result == 0:
+            # Don't optimise division by 0. :)
+            return None
+
+    extra_args = []
+
+    extra_args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
+        numval.pos, value=numval.value, constant_result=numval.constant_result,
+        type=num_type))
+    inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
+    extra_args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
+    if is_float or operator not in ('Eq', 'Ne'):
+        # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
+        zerodivision_check = arg_order == 'CObj' and (
+            not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
+        extra_args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
+
+    utility_code = TempitaUtilityCode.load_cached(
+        "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
+        "Optimize.c",
+        context=dict(op=operator, order=arg_order, ret_type=ret_type))
+
+    func_cname = "__Pyx_Py%s_%s%s%s" % (
+        'Float' if is_float else 'Int',
+        '' if ret_type.is_pyobject else 'Bool',
+        operator,
+        arg_order)
+
+    return func_cname, utility_code, extra_args, num_type
 
 
 unicode_tailmatch_utility_code = UtilityCode.load_cached('unicode_tailmatch', 'StringTools.c')

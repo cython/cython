@@ -3934,15 +3934,11 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname, self.error_value()))
             code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
-            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
-            if allow_null:
-                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
-            else:
-                code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
-                code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-                code.put_var_gotref(self.starstar_arg.entry)
-            self.starstar_arg.entry.xdecref_cleanup = allow_null
+            code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                self.starstar_arg.entry.cname, self.error_value()))
+            code.put_var_gotref(self.starstar_arg.entry)
+            self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
 
         if self.self_in_stararg and not self.target.is_staticmethod:

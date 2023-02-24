@@ -368,7 +368,8 @@
     #undef CYTHON_USE_DICT_VERSIONS
     #define CYTHON_USE_DICT_VERSIONS 0
   #elif !defined(CYTHON_USE_DICT_VERSIONS)
-    #define CYTHON_USE_DICT_VERSIONS 1
+    // Python 3.12a5 deprecated "ma_version_tag"
+    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
   #endif
   #if PY_VERSION_HEX < 0x030700A3
     #undef CYTHON_USE_EXC_INFO_STACK
@@ -540,6 +541,14 @@
     #endif
   #endif
 #endif
+
+// reinterpret
+
+// TODO: refactor existing code to use those macros
+#define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
+// #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
+// #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
+
 
 /////////////// CInitCode ///////////////
 
