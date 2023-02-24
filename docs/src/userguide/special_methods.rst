@@ -3,6 +3,9 @@
 Special Methods of Extension Types
 ===================================
 
+.. include::
+    ../two-syntax-variants-used
+
 This page describes the special methods currently supported by Cython extension
 types. A complete list of all the special methods appears in the table at the
 bottom. Some of these methods behave differently from their Python
@@ -12,7 +15,8 @@ mention.
 .. Note::
 
     Everything said on this page applies only to extension types, defined
-    with the :keyword:`cdef` class statement. It doesn't apply to classes defined with the
+    with the :keyword:`cdef` class statement or decorated using ``@cclass`` decorator.
+    It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
 
 .. _declaration:
@@ -20,7 +24,7 @@ mention.
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
-:keyword:`cdef`. This does not impact their performance--Python uses different
+:keyword:`cdef`/``@cfunc``. This does not impact their performance--Python uses different
 calling conventions to invoke these special methods.
 
 .. _docstrings:
@@ -225,19 +229,15 @@ Depending on the application, one way or the other may be better:
   decorator specifically for ``cdef`` classes.  (Normal Python classes can use
   the original ``functools`` decorator.)
 
-  .. code-block:: cython
+.. tabs::
 
-    @cython.total_ordering
-    cdef class ExtGe:
-        cdef int x
+    .. group-tab:: Pure Python
 
-        def __ge__(self, other):
-            if not isinstance(other, ExtGe):
-                return NotImplemented
-            return self.x >= (<ExtGe>other).x
+        .. literalinclude:: ../../examples/userguide/special_methods/total_ordering.py
 
-        def __eq__(self, other):
-            return isinstance(other, ExtGe) and self.x == (<ExtGe>other).x
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/special_methods/total_ordering.pyx
 
 
 .. _the__next__method:
@@ -378,6 +378,8 @@ used the bidirectional C slot signature for the regular methods, thus making the
 first argument ambiguous (not 'self' typed).
 Since Cython 3.0, the operator calls are passed to the respective special methods.
 See the section on :ref:`Arithmetic methods <arithmetic_methods>` above.
+Cython 0.x also did not support the 2 argument version of ``__pow__`` and 
+``__rpow__``, or the 3 argument version of ``__ipow__``.
 
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
@@ -422,7 +424,7 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __imod__ 	        | self, x 	                        | object      | `%=` operator                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __ipow__ 	        | self, y, z                            | object      | `**=` operator                                      |
+| __ipow__ 	        | self, y, [z]                          | object      | `**=` operator (3-arg form only on Python >= 3.8)   |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __ilshift__ 	        | self, x 	                        | object      | `<<=` operator                                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

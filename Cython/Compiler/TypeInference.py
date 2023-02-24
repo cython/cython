@@ -104,10 +104,11 @@ class MarkParallelAssignments(EnvTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
+        iterator_scope = node.iterator.expr_scope or self.current_env()
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
@@ -115,7 +116,7 @@ class MarkParallelAssignments(EnvTransform):
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
-                                iterator_type = iterator.infer_type(self.current_env())
+                                iterator_type = iterator.infer_type(iterator_scope)
                                 if iterator_type.is_builtin_type:
                                     # assume that builtin types have a length within Py_ssize_t
                                     self.mark_assignment(
@@ -127,7 +128,7 @@ class MarkParallelAssignments(EnvTransform):
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name in ('range', 'xrange'):
                         is_special = True
@@ -559,9 +560,11 @@ def safe_spanning_type(types, might_overflow, scope):
             return py_object_type
         else:
             return result_type
-    elif result_type is PyrexTypes.c_double_type:
+    elif (result_type is PyrexTypes.c_double_type or
+            result_type is PyrexTypes.c_float_type):
         # Python's float type is just a C double, so it's safe to use
-        # the C type instead
+        # the C type instead. Similarly if given a C float, it leads to
+        # a small loss of precision vs Python but is otherwise the same
         return result_type
     elif result_type is PyrexTypes.c_bint_type:
         # find_spanning_type() only returns 'bint' for clean boolean
@@ -583,8 +586,10 @@ def safe_spanning_type(types, might_overflow, scope):
         return result_type
     elif result_type.is_memoryviewslice:
         return result_type
-    # TODO: double complex should be OK as well, but we need
-    # to make sure everything is supported.
+    elif result_type is PyrexTypes.soft_complex_type:
+        return result_type
+    elif result_type == PyrexTypes.c_double_complex_type:
+        return result_type
     elif (result_type.is_int or result_type.is_enum) and not might_overflow:
         return result_type
     elif (not result_type.can_coerce_to_pyobject(scope)

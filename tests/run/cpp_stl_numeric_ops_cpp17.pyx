@@ -3,7 +3,7 @@
 
 from libcpp.numeric cimport (reduce, transform_reduce, inclusive_scan, 
                              exclusive_scan, transform_inclusive_scan, 
-                             transform_exclusive_scan)
+                             transform_exclusive_scan, gcd, lcm)
 from libcpp.execution cimport seq
 from libcpp.vector cimport vector
 
@@ -275,3 +275,19 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     cdef vector[int] out = vector[int](v.size())
     transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
+
+def test_gcd(int a, int b):
+    """
+    Test gcd
+    >>> test_gcd(12, 18)
+    6
+    """
+    return gcd[int](a, b)
+
+def test_lcm(int a, int b):
+    """
+    Test lcm
+    >>> test_lcm(45, 75)
+    225
+    """
+    return lcm[int](a, b)

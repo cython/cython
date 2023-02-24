@@ -579,6 +579,11 @@ class OrderedSet(object):
             self._list.append(e)
             self._set.add(e)
 
+    def __bool__(self):
+        return bool(self._set)
+
+    __nonzero__ = __bool__
+
 
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
@@ -606,17 +611,23 @@ def raise_error_if_module_name_forbidden(full_module_name):
 
 def build_hex_version(version_string):
     """
-    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_VERSION_HEX).
+    Parse and translate public version identifier like '4.3a1' into the readable hex representation '0x040300A1' (like PY_VERSION_HEX).
+
+    SEE: https://peps.python.org/pep-0440/#public-version-identifiers
     """
-    # First, parse '4.12a1' into [4, 12, 0, 0xA01].
+    # Parse '4.12a1' into [4, 12, 0, 0xA01]
+    # And ignore .dev, .pre and .post segments
     digits = []
     release_status = 0xF0
-    for digit in re.split('([.abrc]+)', version_string):
-        if digit in ('a', 'b', 'rc'):
-            release_status = {'a': 0xA0, 'b': 0xB0, 'rc': 0xC0}[digit]
+    for segment in re.split(r'(\D+)', version_string):
+        if segment in ('a', 'b', 'rc'):
+            release_status = {'a': 0xA0, 'b': 0xB0, 'rc': 0xC0}[segment]
             digits = (digits + [0, 0])[:3]  # 1.2a1 -> 1.2.0a1
-        elif digit != '.':
-            digits.append(int(digit))
+        elif segment in ('.dev', '.pre', '.post'):
+            break  # break since those are the last segments
+        elif segment != '.':
+            digits.append(int(segment))
+
     digits = (digits + [0] * 3)[:4]
     digits[3] += release_status
 
@@ -626,3 +637,23 @@ def build_hex_version(version_string):
         hexversion = (hexversion << 8) + digit
 
     return '0x%08X' % hexversion
+
+
+def write_depfile(target, source, dependencies):
+    src_base_dir = os.path.dirname(source)
+    cwd = os.getcwd()
+    if not src_base_dir.endswith(os.sep):
+        src_base_dir += os.sep
+    # paths below the base_dir are relative, otherwise absolute
+    paths = []
+    for fname in dependencies:
+        if fname.startswith(src_base_dir):
+            paths.append(os.path.relpath(fname, cwd))
+        else:
+            paths.append(os.path.abspath(fname))
+
+    depline = os.path.relpath(target, cwd) + ": \\\n  "
+    depline += " \\\n  ".join(paths) + "\n"
+
+    with open(target+'.dep', 'w') as outfile:
+        outfile.write(depline)

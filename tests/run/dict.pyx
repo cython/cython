@@ -136,3 +136,17 @@ def dict_unpacking_not_for_arg_create_a_copy():
 
     print(sorted(call_once.items()))
     print(sorted(call_twice.items()))
+
+def from_keys_bound(dict d, val):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> sorted(from_keys_bound({}, 100).items())
+    [('a', 100), ('b', 100)]
+    >>> sorted(from_keys_bound({}, None).items())
+    [('a', None), ('b', None)]
+    """
+    if val is not None:
+        return d.fromkeys(("a", "b"), val)
+    else:
+        return d.fromkeys(("a", "b"))

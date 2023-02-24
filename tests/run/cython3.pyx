@@ -633,10 +633,12 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     return result
 
 
-def builtin_as_annotation(text: str):
+@cython.annotation_typing(False)
+def builtin_as_ignored_annotation(text: str):
+    # Used to crash the compiler when annotation typing is disabled.
     # See https://github.com/cython/cython/issues/2811
     """
-    >>> builtin_as_annotation("abc")
+    >>> builtin_as_ignored_annotation("abc")
     a
     b
     c
@@ -645,6 +647,24 @@ def builtin_as_annotation(text: str):
         print(c)
 
 
+@cython.annotation_typing(True)
+def int_annotation(x: int) -> int:
+    """
+    >>> print(int_annotation(1))
+    2
+    >>> print(int_annotation(10))
+    1024
+    >>> print(int_annotation(100))
+    1267650600228229401496703205376
+    >>> print(int_annotation((10 * 1000 * 1000) // 1000 // 1000))  # 'long' arg in Py2
+    1024
+    >>> print(int_annotation((100 * 1000 * 1000) // 1000 // 1000))  # 'long' arg in Py2
+    1267650600228229401496703205376
+    """
+    return 2 ** x
+
+
+@cython.annotation_typing(True)
 async def async_def_annotations(x: 'int') -> 'float':
     """
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
@@ -656,11 +676,3 @@ async def async_def_annotations(x: 'int') -> 'float':
     'int'
     """
     return float(x)
-
-
-def repr_returns_str(x) -> str:
-    """
-    >>> repr_returns_str(123)
-    '123'
-    """
-    return repr(x)

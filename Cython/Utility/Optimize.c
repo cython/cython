@@ -445,7 +445,7 @@ static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set
         return iterable;
     }
 #else
-    (void)is_set;
+    CYTHON_UNUSED_VAR(is_set);
     *p_source_is_set = 0;
 #endif
     *p_orig_length = 0;
@@ -461,8 +461,8 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         if (unlikely(!*value)) {
             return __Pyx_IterFinish();
         }
-        (void)orig_length;
-        (void)ppos;
+        CYTHON_UNUSED_VAR(orig_length);
+        CYTHON_UNUSED_VAR(ppos);
         return 1;
     }
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -904,7 +904,7 @@ static CYTHON_INLINE int __Pyx__PyBytes_AsDouble_IsSpace(char ch) {
     return (ch == 0x20) | !((ch < 0x9) | (ch > 0xd));
 }
 
-static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
+CYTHON_UNUSED static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
     double value;
     Py_ssize_t i, digits;
     const char *last = start + length;
@@ -977,7 +977,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         const Py_ssize_t size = Py_SIZE(exp);
         // tuned to optimise branch prediction
         if (likely(size == 1)) {
-            shiftby = ((PyLongObject*)exp)->ob_digit[0];
+            shiftby = __Pyx_PyLong_Digits(exp)[0];
         } else if (size == 0) {
             return PyInt_FromLong(1L);
         } else if (unlikely(size < 0)) {
@@ -1058,7 +1058,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
         int unequal;
         unsigned long uintval;
         Py_ssize_t size = Py_SIZE({{pyval}});
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         if (intval == 0) {
             // == 0  =>  Py_SIZE(pyval) == 0
             {{return_compare('size', '0', c_op)}}
@@ -1237,7 +1237,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         PY_LONG_LONG ll{{ival}}, llx;
 #endif
         {{endif}}
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         const Py_ssize_t size = Py_SIZE({{pyval}});
         {{if c_op == '&'}}
         // special case for &-ing arbitrarily large numbers with known single digit operands
@@ -1318,7 +1318,8 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
             }
         {{else}}
             {{if c_op == '*'}}
-                (void)a; (void)b;
+                CYTHON_UNUSED_VAR(a);
+                CYTHON_UNUSED_VAR(b);
                 #ifdef HAVE_LONG_LONG
                 ll{{ival}} = {{ival}};
                 goto long_long;
@@ -1464,8 +1465,8 @@ def zerodiv_check(operand, _is_mod=op == 'Remainder', _needs_check=(order == 'CO
 static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
-    // Prevent "unused" warnings.
-    (void)inplace; (void)zerodivision_check;
+    CYTHON_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
@@ -1491,7 +1492,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
         #if CYTHON_USE_PYLONG_INTERNALS
-        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
             case  0: {{fval}} = 0.0; {{zerodiv_check(fval)}} break;

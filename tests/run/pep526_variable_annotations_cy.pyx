@@ -48,9 +48,9 @@ def test_tuple(typing.Tuple[int, float] a,  typing.Tuple[int, ...] b,
     tuple object
     tuple object
     """
-    cdef typing.Tuple[int, float] x = (a[0], a[1])
+    cdef typing.Tuple[int, float] x = (a[0], a[1])  # C int/float
     cdef Tuple[int, ...] y = (1,2.)
-    z = a[0]  # should infer to int
+    z = a[0]  # should infer to C int
 
     print(cython.typeof(z))
     print(cython.typeof(x[0]))

@@ -26,6 +26,7 @@ jupyter-console==5.2.0
 jupyter-core==4.6.3
 line-profiler==3.1.0
 MarkupSafe==1.1.1
+maturin==0.7.6; os_name == "nt"  # actually 0.9.4, but it's not available; pywinpty dependency
 mistune==0.8.4
 nbconvert==5.6.1
 nbformat==4.4.0
@@ -44,6 +45,7 @@ Pygments==2.5.2
 pyparsing==2.4.7
 pyrsistent==0.15.7
 python-dateutil==2.8.1
+pywinpty==0.5.7  # terminado dependency (pywinpty>=0.5)
 pyzmq==16.0.4
 qtconsole==4.7.7
 QtPy==1.9.0
@@ -60,3 +62,4 @@ wcwidth==0.2.5
 webencodings==0.5.1
 widgetsnbextension==3.5.1
 zipp==1.2.0
+mock==3.0.5

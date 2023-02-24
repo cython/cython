@@ -2,7 +2,204 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 11 (2022-0?-??)
+3.0.0 alpha 12 (2022-01-??)
+===========================
+
+Features added
+--------------
+
+* Cython implemented C functions now propagate exceptions by default, rather than
+  swallowing them in non-object returning function if the user forgot to add an
+  ``except`` declaration to the signature.  This was a long-standing source of bugs,
+  but can require adding the ``noexcept`` declaration to existing functions if
+  exception propagation is really undesired.
+  (Github issue :issue:`4280`)
+
+* To opt out of the new, safer exception handling behaviour, legacy code can set the new
+  directive ``legacy_implicit_noexcept=True`` for a transition period to keep the
+  previous, unsafe behaviour.  This directive will eventually be removed in a later release.
+  Patch by Matúš Valo.  (Github issue :issue:`5094`)
+
+* The ``**`` power operator now behaves more like in Python by returning the correct complex
+  result if required by math.  A new ``cpow`` directive was added to turn on the previous
+  C-like behaviour.
+  (Github issue :issue:`4936`)
+
+* The special ``__*pow__`` methods now support the 2- and 3-argument variants.
+  (Github issue :issue:`5160`)
+
+* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+  decorators can now be arbitrary Python expressions.
+  (Github issue :issue:`4570`)
+
+* ``cpdef`` enums can now be pickled.
+  (Github issue :issue:`5120`)
+
+* Bound C methods can now coerce to Python objects.
+  (Github issues :issue:`4890`, :issue:`5062`)
+
+* C arrays can be initialised inside of nogil functions.
+  Patch by Matúš Valo.  (Github issue :issue:`1662`)
+
+* ``reversed()`` can now be used together with C++ iteration.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5002`)
+
+* Standard C/C++ atomic operations are now used for memory views, if available.
+  (Github issue :issue:`4925`)
+
+* C11 ``complex.h`` is now properly detected.
+  (Github issue :issue:`2513`)
+
+* Nested ``cppclass`` definitions are supported.
+  Patch by samaingw.  (Github issue :issue:`1218`)
+
+* ``cpp_locals`` no longer have to be "assignable".
+  (Github issue :issue:`4558`)
+
+* ``cythonize --help`` now also prints information about the supported environment variables.
+  Patch by Matúš Valo.  (Github issue :issue:`1711`)
+
+* Declarations were added for the C++ bit operations, some other parts of C++20 and CPython APIs.
+  Patches by Jonathan Helgert, Dobatymo and William Ayd.
+  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`)
+
+Bugs fixed
+----------
+
+* Generator expressions and comprehensions now look up their outer-most iterable
+  on creation, as Python does, and not later on start, as they did previously.
+  (Github issue :issue:`1159`)
+
+* Type annotations for Python ``int`` rejected ``long`` under Py2 in the alpha-11 release.
+  They are now ignored again (as always before) when ``language_level=2``, and accept
+  both ``int`` and ``long`` in Py2 (and only ``int`` in Py3) otherwise.
+  (Github issue :issue:`4944`)
+
+* Iterating over memoryviews in generator expressions could leak a buffer reference.
+  (Github issue :issue:`4968`)
+
+* Memory views and the internal Cython array type now identify as ``collections.abc.Sequence``
+  by setting the ``Py_TPFLAGS_SEQUENCE`` type flag directly.
+  (Github issue :issue:`5187`)
+
+* ``__del__`` finaliser methods were not always called if they were only inherited.
+  (Github issue :issue:`4995`)
+
+* Extension types are now explicitly marked as immutable types to prevent them from
+  being considered mutable.
+  Patch by Max Bachmann.  (Github issue :issue:`5023`)
+
+* ``const`` types could not be returned from functions.
+  Patch by Mike Graham.  (Github issue :issue:`5135`)
+
+* ``cdef public`` functions declared in .pxd files could use an incorrectly mangled C name.
+  Patch by EpigeneMax.  (Github issue :issue:`2940`)
+
+* ``cdef public`` functions used an incorrect linkage declaration in C++.
+  Patch by Maximilien Colange.  (Github issue :issue:`1839`)
+
+* C++ post-increment/-decrement operators were not correctly looked up on declared C++
+  classes, thus allowing Cython declarations to be missing for them and incorrect C++
+  code to be generated.
+  Patch by Max Bachmann.  (Github issue :issue:`4536`)
+
+* C++ iteration more safely stores the iterable in temporary variables.
+  Patch by Xavier.  (Github issue :issue:`3828`)
+
+* C++ references did not work on fused types.
+  (Github issue :issue:`4717`)
+
+* The module state struct was not initialised in correct C (before C23), leading to
+  compile errors on Windows.
+  Patch by yudonglin.  (Github issue :issue:`5169`)
+
+* Structs that contained an array field resulted in incorrect C code.  Their initialisation
+  now uses ``memcpy()``.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5178`)
+
+* Nesting fused types in other fused types could fail to specialise the inner type.
+  (Github issue :issue:`4725`)
+
+* The special methods ``__matmul__``, ``__truediv__``, ``__floordiv__`` failed to type
+  their ``self`` argument.
+  (Github issue :issue:`5067`)
+
+* Coverage analysis failed in projects with a separate source subdirectory.
+  Patch by Sviatoslav Sydorenko and Ruben Vorderman.  (Github issue :issue:`3636`)
+
+* The ``annotation_typing`` directive was missing in pure Python mode.
+  Patch by 0dminnimda.  (Github issue :issue:`5194`)
+
+* The ``@dataclass`` directive was accidentally inherited by methods and subclasses.
+  (Github issue :issue:`4953`)
+
+* Some issues with Cython ``@dataclass`` arguments, hashing, inheritance and ``repr()``
+  were resolved.  (Github issues :issue:`4956`, :issue:`5046`)
+
+* ``cpdef`` enums no longer use ``OrderedDict`` but ``dict`` in Python 3.6 and later.
+  Patch by GalaxySnail.  (Github issue :issue:`5180`)
+
+* Larger numbers of extension types with multiple subclasses could take very long to compile.
+  Patch by Scott Wolchok.  (Github issue :issue:`5139`)
+
+* Relative imports failed in compiled ``__init__.py`` package modules.
+  Patch by Matúš Valo.  (Github issue :issue:`3442`)
+
+* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
+  Patch by Matúš Valo.  (Github issue :issue:`4640`)
+
+* The ``cython`` and ``cythonize`` commands ignored non-existing input files without error.
+  Patch by Matúš Valo.  (Github issue :issue:`4629`)
+
+* Invalid and misspelled ``cython.*`` module names were not reported as errors.
+  (Github issue :issue:`4947`)
+
+* Extended glob paths with ``/**/`` and ``\**\`` for finding source files failed on Windows.
+
+* Annotated HTML generation was missing newlines in 3.0.0a11.
+  (Github issue :issue:`4945`)
+
+* Some parser issues were resolved.
+  (Github issue :issue:`4992`)
+
+* ``setup.cfg`` was missing from the source distribution.
+  (Github issue :issue:`5199`)
+
+* Some C/C++ warnings were resolved.
+  Patches by Max Bachmann, Alexander Shadchin, at al.
+  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
+
+* Intel C compilers could complain about unsupported gcc pragmas.
+  Patch by Ralf Gommers.  (Github issue :issue:`5052`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.33` release.
+
+Other changes
+-------------
+
+* The undocumented, untested and apparently useless syntax
+  ``from somemodule cimport class/struct/union somename`` was removed.  The type
+  modifier is not needed here and a plain ``cimport`` of the name will do.
+  (Github issue :issue:`4904`)
+
+* The wheel building process was migrated to use the ``cibuildwheel`` tool.
+  Patch by Thomas Li.  (Github issue :issue:`4736`)
+
+* Wheels now include a compiled parser again, which increases their size a little
+  but gives about a 10% speed-up when running Cython.
+
+* The ``Tempita`` module no longer contains HTML processing capabilities, which
+  were found to be broken in Python 3.8 and later.
+  Patch by Marcel Stimberg.  (Github issue :issue:`3309`)
+
+* The Emacs Cython mode file ``cython-mode.el`` is now maintained in a separate repo:
+  https://github.com/cython/emacs-cython-mode
+
+* Cython now uses a ``.dev0`` version suffix for unreleased source installations.
+
+
+3.0.0 alpha 11 (2022-07-31)
 ===========================
 
 Features added
@@ -10,29 +207,53 @@ Features added
 
 * A new decorator ``@cython.dataclasses.dataclass`` was implemented that provides
   compile time dataclass generation capabilities to ``cdef`` classes (extension types).
-  Patch by David Woods.  (Github issue :issue:`2903`)
+  Patch by David Woods.  (Github issue :issue:`2903`).  ``kw_only`` dataclasses
+  added by Yury Sokov.  (Github issue :issue:`4794`)
 
 * Named expressions (PEP 572) aka. assignment expressions (aka. the walrus operator
   ``:=``) were implemented.
   Patch by David Woods.  (Github issue :issue:`2636`)
 
-* Some C++ library declarations were extended and fixed.
-  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion.
-  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`, :issue:`4751`)
+* Context managers can be written in parentheses.
+  Patch by David Woods.  (Github issue :issue:`4814`)
 
-* The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
-  files for the compilation unit.  This can be used by external build tools to track
-  these dependencies.  Already available in Cython :ref:`0.29.27`.
-  Patch by Evgeni Burovski.  (Github issue :issue:`1214`)
+* Cython avoids raising ``StopIteration`` in ``__next__`` methods when possible.
+  Patch by David Woods.  (Github issue :issue:`3447`)
+
+* Some C++ and CPython library declarations were extended and fixed.
+  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion, Wenjun Si.
+  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`,
+  :issue:`4751`, :issue:`4818`, :issue:`4762`, :issue:`4910`)
+
+* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
+  to generate ``.dep`` dependency files for the compilation unit.  This can be used
+  by external build tools to track these dependencies.
+  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
+  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
 
 * ``cythonize()`` and the corresponding CLI command now regenerate the output files
   also when they already exist but were generated by a different Cython version.
+
+* Memory views and the internal Cython array type now identify as ``collections.abc.Sequence``.
+  Patch by David Woods.  (Github issue :issue:`4817`)
+
+* Cython generators and coroutines now identify as ``CO_ASYNC_GENERATOR``,
+  ``CO_COROUTINE`` and ``CO_GENERATOR`` accordingly.
+  (Github issue :issue:`4902`)
+
+* Memory views can use atomic CPU instructions instead of locks in more cases.
+  Patch by Sam Gross.  (Github issue :issue:`4912`)
 
 * The environment variable ``CYTHON_FORCE_REGEN=1`` can be used to force ``cythonize``
   to regenerate the output files regardless of modification times and changes.
 
 * A new Cython build option ``--cython-compile-minimal`` was added to compile only a
-  smaller set of Cython modules, which can be used to reduce the package and install size.
+  smaller set of Cython's own modules, which can be used to reduce the package
+  and install size.
+
+* Improvements to ``PyTypeObject`` definitions in pxd wrapping of libpython.
+  Patch by John Kirkham. (Github issue :issue:`4699`)
+
 
 Bugs fixed
 ----------
@@ -43,15 +264,32 @@ Bugs fixed
 * Exceptions within for-loops that run over memoryviews could lead to a ref-counting error.
   Patch by David Woods.  (Github issue :issue:`4662`)
 
+* Using memoryview arguments in closures of inner functions could lead to ref-counting errors.
+  Patch by David Woods.  (Github issue :issue:`4798`)
+
 * Several optimised string methods failed to accept ``None`` as arguments to their options.
   Test patch by Kirill Smelkov.  (Github issue :issue:`4737`)
 
+* A regression in 3.0.0a10 was resolved that prevented property setter methods from
+  having the same name as their value argument.
+  Patch by David Woods.  (Github issue :issue:`4836`)
+
 * Typedefs for the ``bint`` type did not always behave like ``bint``.
-  Patch by 0dminnimda.  (Github issue :issue:`4660`)
+  Patch by Nathan Manville and 0dminnimda.  (Github issue :issue:`4660`)
 
 * The return type of a fused function is no longer ignored for function pointers,
   since it is relevant when passing them e.g. as argument into other fused functions.
   Patch by David Woods.  (Github issue :issue:`4644`)
+
+* The ``__self__`` attribute of fused functions reports its availability correctly
+  with ``hasattr()``.  Patch by David Woods.
+  (Github issue :issue:`4808`)
+
+* ``pyximport`` no longer uses the deprecated ``imp`` module.
+  Patch by Matúš Valo.  (Github issue :issue:`4560`)
+
+* ``pyximport`` failed for long filenames on Windows.
+  Patch by Matti Picus.  (Github issue :issue:`4630`)
 
 * The generated C code failed to compile in CPython 3.11a4 and later.
   (Github issue :issue:`4500`)
@@ -62,9 +300,33 @@ Bugs fixed
 * Using the Limited API could report incorrect line numbers in tracebacks.
 
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
-  (Github issue :issue:4329)
+  (Github issue :issue:`4329`)
 
-* Includes all bug-fixes from the :ref:`0.29.29` release.
+* Improve conversion between function pointers with non-identical but
+  compatible exception specifications.  Patches by David Woods.
+  (Github issues :issue:`4770`, :issue:`4689`)
+
+* The runtime size check for imported ``PyVarObject`` types was improved
+  to reduce false positives and adapt to Python 3.11.
+  Patch by David Woods.  (Github issues :issue:`4827`, :issue:`4894`)
+
+* The generated modules no longer import NumPy internally when using
+  fused types but no memoryviews.
+  Patch by David Woods.  (Github issue :issue:`4935`)
+
+* Improve compatibility with forthcoming CPython 3.12 release.
+
+* Limited API C preprocessor warning is compatible with MSVC. Patch by
+  Victor Molina Garcia.  (Github issue :issue:`4826`)
+
+* Some C compiler warnings were fixed.
+  Patch by mwtian.  (Github issue :issue:`4831`)
+
+* The parser allowed some invalid spellings of ``...``.
+  Patch by 0dminnimda.  (Github issue :issue:`4868`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.32` release.
 
 Other changes
 -------------
@@ -75,9 +337,13 @@ Other changes
   for users who did not expect ``None`` to be allowed as input.  To allow ``None``, use
   ``typing.Optional`` as in ``func(x: Optional[list])``.  ``None`` is also automatically
   allowed when it is used as default argument, i.e. ``func(x: list = None)``.
-  Note that, for backwards compatibility reasons, this does not apply when using Cython's
-  C notation, as in ``func(list x)``.  Here, ``None`` is still allowed, as always.
-  (Github issues :issue:`3883`, :issue:`2696`)
+  ``int`` and ``float`` are now also recognised in type annotations and restrict the
+  value type at runtime.  They were previously ignored.
+  Note that, for backwards compatibility reasons, the new behaviour does not apply when using
+  Cython's C notation, as in ``func(list x)``.  Here, ``None`` is still allowed, as always.
+  Also, the ``annotation_typing`` directive can now be enabled and disabled more finely
+  within the module.
+  (Github issues :issue:`3883`, :issue:`2696`, :issue:`4669`, :issue:`4606`, :issue:`4886`)
 
 * The compile-time ``DEF`` and ``IF`` statements are deprecated and generate a warning.
   They should be replaced with normal constants, code generation or C macros.
@@ -85,6 +351,10 @@ Other changes
 
 * Reusing an extension type attribute name as a method name is now an error.
   Patch by 0dminnimda.  (Github issue :issue:`4661`)
+
+* Improve compatibility between classes pickled in Cython 3.0 and 0.29.x
+  by accepting MD5, SHA-1 and SHA-256 checksums.
+  (Github issue :issue:`4680`)
 
 
 3.0.0 alpha 10 (2022-01-06)
@@ -96,10 +366,10 @@ Features added
 * ``Cython.Distutils.build_ext`` now uses ``cythonize()`` internally (previously
   known as ``new_build_ext``), while still supporting the options that were
   available in the old implementation (``old_build_ext``).
-  Patch by Matus Valo.  (Github issue :issue:`3541`)
+  Patch by Matúš Valo.  (Github issue :issue:`3541`)
 
 * ``pyximport`` now uses ``cythonize()`` internally.
-  Patch by Matus Valo.  (Github issue :issue:`2304`)
+  Patch by Matúš Valo.  (Github issue :issue:`2304`)
 
 * ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
   Original patch by ax487.  (Github issue :issue:`3612`)
@@ -169,7 +439,7 @@ Bugs fixed
   Original patch by Max Bachmann. (Github issue :issue:`4550`)
 
 * Python object types were not allowed as ``->`` return type annotations.
-  Patch by Matus Valo.  (Github issue :issue:`4433`)
+  Patch by Matúš Valo.  (Github issue :issue:`4433`)
 
 * Default values for memory views arguments were not properly supported.
   Patch by Corentin Cadiou.  (Github issue :issue:`4313`)
@@ -250,7 +520,7 @@ Other changes
 
 * Parts of the documentation were (and are being) rewritten to show the
   Cython language syntax next to the equivalent Python syntax.
-  Patches by 0dminnimda and Matus Valo.  (Github issue :issue:`4187`)
+  Patches by 0dminnimda and Matúš Valo.  (Github issue :issue:`4187`)
 
 
 3.0.0 alpha 8 (2021-07-02)
@@ -447,7 +717,7 @@ Bugs fixed
 
 * Generator expressions in pxd-overridden ``cdef`` functions could
   fail to compile.
-  Patch by Matus Valo.  (Github issue :issue:`3477`)
+  Patch by Matúš Valo.  (Github issue :issue:`3477`)
 
 * A reference leak on import failures was resolved.
   Patch by Max Bachmann.  (Github issue :issue:`4056`)
@@ -977,10 +1247,165 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.33:
+
+0.29.33 (2023-01-06)
+====================
+
+Features added
+--------------
+
+* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
+  to generate ``.dep`` dependency files for the compilation unit.  This can be used
+  by external build tools to track these dependencies.
+  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
+  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
+
+Bugs fixed
+----------
+
+* ``const`` fused types could not be used with memory views.
+  Patch by Thomas Vincent.  (Github issue :issue:`1772`)
+
+* ``wstr`` usage was removed in Python 3.12 and later (PEP-623).
+  (Github issue :issue:`5145`)
+
+* A type check assertion for Cython functions failed in debug Python builds.
+  (Github issue :issue:`5031`)
+
+* Fixed various compiler warnings.
+  Patches by Lisandro Dalcin et al.  (Github issues :issue:`4948`, :issue:`5086`)
+
+* Fixed error when calculating complex powers of negative numbers.
+  (Github issue :issue:`5014`)
+  
+* Corrected a small mis-formatting of exception messages on Python 2.
+  (Github issue :issue:`5018`)
+
+* The ``PyUnicode_AsUTF8AndSize()`` C-API function was missing from the CPython declarations.
+  (Github issue :issue:`5163`)
+
+* A performance problem in the compiler was resolved when nesting conditional expressions.
+  (Github issue :issue:`5197`)
+
+* Test suite problems with recent NumPy and CPython versions were resolved.
+  (Github issues :issue:`5183`, :issue:`5190`)
+
+Other changes
+-------------
+  
+* The undocumented, untested and apparently useless syntax
+  ``from somemodule cimport class/struct/union somename`` was deprecated
+  in anticipation of its removal in Cython 3.  The type
+  modifier is not needed here and a plain ``cimport`` of the name will do.
+  (Github issue :issue:`4905`)
+  
+* Properly disable generation of descriptor docstrings on PyPy since they cause crashes.
+  It was previously disabled, but only accidentally via a typo.
+  Patch by Matti Picus.  (Github issue :issue:`5083`)
+
+* The ``cpow`` directive of Cython 3.0 is available as a no-op.
+  (Github issue :issue:`5016`)
+
+
+.. _0.29.32:
+
+0.29.32 (2022-07-29)
+====================
+
+Bugs fixed
+----------
+
+* Revert "Using memoryview typed arguments in inner functions is now rejected as unsupported."
+  Patch by David Woods.  (Github issue :issue:`4798`)
+
+* ``from module import *`` failed in 0.29.31 when using memoryviews.
+  Patch by David Woods.  (Github issue :issue:`4927`)
+
+
+.. _0.29.31:
+
+0.29.31 (2022-07-27)
+====================
+
+Features added
+--------------
+
+* A new argument ``--module-name`` was added to the ``cython`` command to
+  provide the (one) exact target module name from the command line.
+  Patch by Matthew Brett and h-vetinari.  (Github issue :issue:`4906`)
+
+Bugs fixed
+----------
+
+* Use ``importlib.util.find_spec()`` instead of the deprecated ``importlib.find_loader()``
+  function when setting up the package path at import-time.
+  Patch by Matti Picus.  (Github issue :issue:`4764`)
+
+* Require the C compiler to support the two-arg form of ``va_start``
+  on Python 3.10 and higher.
+  Patch by Thomas Caswell.  (Github issue :issue:`4820`)
+
+* Make ``fused_type`` subscriptable in Shadow.py.
+  Patch by Pfebrer.  (Github issue :issue:`4842`)
+
+* Fix the incorrect code generation of the target type in ``bytearray`` loops.
+  Patch by Kenrick Everett.  (Github issue :issue:`4108`)
+
+* Atomic refcounts for memoryviews were not used on some GCC versions by accident.
+  Patch by Sam Gross.  (Github issue :issue:`4915`)
+
+* Silence some GCC ``-Wconversion`` warnings in C utility code.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`4854`)
+
+* Tuple multiplication was ignored in expressions such as ``[*(1,) * 2]``.
+  Patch by David Woods.  (Github issue :issue:`4864`)
+
+* Calling ``append`` methods on extension types could fail to find the method
+  in some cases.
+  Patch by David Woods.  (Github issue :issue:`4828`)
+
+* Ensure that object buffers (e.g. ``ndarray[object, ndim=1]``) containing
+  ``NULL``  pointers are safe to use, returning ``None`` instead of the ``NULL``
+  pointer.
+  Patch by Sebastian Berg.  (Github issue :issue:`4859`)
+
+* Using memoryview typed arguments in inner functions is now rejected as unsupported.
+  Patch by David Woods.  (Github issue :issue:`4798`)
+
+* Compilation could fail on systems (e.g. FIPS) that block MD5 checksums at runtime.
+  (Github issue :issue:`4909`)
+
+* Experimental adaptations for the CPython "nogil" fork was added.
+  Note that there is no official support for this in Cython 0.x.
+  Patch by Sam Gross.  (Github issue :issue:`4912`)
+
+
+.. _0.29.30:
+
+0.29.30 (2022-05-16)
+====================
+
+Bugs fixed
+----------
+
+* The GIL handling changes in 0.29.29 introduced a regression where
+  objects could be deallocated without holding the GIL.
+  (Github issue :issue:`4796`)
+
+
 .. _0.29.29:
 
-0.29.29 (2022-??-??)
+0.29.29 (2022-05-16)
 ====================
+
+Features added
+--------------
+
+* Avoid acquiring the GIL at the end of nogil functions.
+  This change was backported in order to avoid generating wrong C code
+  that would trigger C compiler warnings with tracing support enabled.
+  Backport by Oleksandr Pavlyk.  (Github issue :issue:`4637`)
 
 Bugs fixed
 ----------
@@ -994,6 +1419,18 @@ Bugs fixed
 * Pickles can now be exchanged again with those generated from Cython 3.0 modules.
   (Github issue :issue:`4680`)
 
+* Cython now correctly generates Python methods for both the provided regular and
+  reversed special numeric methods of extension types.
+  Patch by David Woods.  (Github issue :issue:`4750`)
+
+* Calling unbound extension type methods without arguments could raise an
+  ``IndexError`` instead of a ``TypeError``.
+  Patch by David Woods.  (Github issue :issue:`4779`)
+
+* Calling unbound ``.__contains__()`` super class methods on some builtin base
+  types could trigger an infinite recursion.
+  Patch by David Woods.  (Github issue :issue:`4785`)
+
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue :issue:`4727`)
 
@@ -1002,7 +1439,7 @@ Bugs fixed
 
 * Improved compatibility with CPython 3.10/11.
   Patches by Thomas Caswell, David Woods.
-  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`)
+  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`, :issue:`4777`)
 
 * Docstrings of descriptors are now provided in PyPy 7.3.9.
   Patch by Matti Picus.  (Github issue :issue:`4701`)

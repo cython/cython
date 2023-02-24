@@ -248,7 +248,7 @@ cdef extern from "bufaccess.h":
     ctypedef unsigned int td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
-cdef void dealloc_callback(void *data):
+cdef void dealloc_callback(void *data) noexcept:
     print "deallocating..."
 
 def build_numarray(array array):

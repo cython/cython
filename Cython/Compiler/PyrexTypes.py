@@ -13,6 +13,7 @@ try:
 except NameError:
     from functools import reduce
 from functools import partial
+from itertools import product
 
 from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
@@ -205,6 +206,7 @@ class PyrexType(BaseType):
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
+    #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
@@ -277,6 +279,7 @@ class PyrexType(BaseType):
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
+    equivalent_type = None
     default_value = ""
     declaration_value = ""
 
@@ -1453,6 +1456,9 @@ class BuiltinObjectType(PyObjectType):
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
+        elif type_name == 'int':
+            # For backwards compatibility of (Py3) 'x: int' annotations in Py2, we also allow 'long' there.
+            type_check = '__Pyx_Py3Int_Check'
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
         if exact and type_name not in ('bool', 'slice', 'Exception'):
@@ -1504,7 +1510,6 @@ class PyExtensionType(PyObjectType):
     #
     #  name             string
     #  scope            CClassScope      Attribute namespace
-    #  visibility       string
     #  typedef_flag     boolean
     #  base_type        PyExtensionType or None
     #  module_name      string or None   Qualified name of defining module
@@ -1518,8 +1523,11 @@ class PyExtensionType(PyObjectType):
     #  vtable_cname     string           Name of C method table definition
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
+    #  is_external      boolean          Defined in a extern block
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
     #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
+    #  multiple_bases    boolean          Does this class have multiple bases
+    #  has_sequence_flag  boolean        Set Py_TPFLAGS_SEQUENCE
 
     is_extension_type = 1
     has_attributes = 1
@@ -1527,6 +1535,8 @@ class PyExtensionType(PyObjectType):
 
     objtypedef_cname = None
     dataclass_fields = None
+    multiple_bases = False
+    has_sequence_flag = False
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1833,7 +1843,27 @@ class FusedType(CType):
         for t in types:
             if t.is_fused:
                 # recursively merge in subtypes
-                for subtype in t.types:
+                if isinstance(t, FusedType):
+                    t_types = t.types
+                else:
+                    # handle types that aren't a fused type themselves but contain fused types
+                    # for example a C++ template where the template type is fused.
+                    t_fused_types = t.get_fused_types()
+                    t_types = []
+                    for substitution in product(
+                        *[fused_type.types for fused_type in t_fused_types]
+                    ):
+                        t_types.append(
+                            t.specialize(
+                                {
+                                    fused_type: sub
+                                    for fused_type, sub in zip(
+                                        t_fused_types, substitution
+                                    )
+                                }
+                            )
+                        )
+                for subtype in t_types:
                     if subtype not in flattened_types:
                         flattened_types.append(subtype)
             elif t not in flattened_types:
@@ -2313,14 +2343,27 @@ class CFloatType(CNumericType):
 class CComplexType(CNumericType):
 
     is_complex = 1
-    to_py_function = "__pyx_PyComplex_FromComplex"
     has_attributes = 1
     scope = None
+
+    @property
+    def to_py_function(self):
+        return "__pyx_PyComplex_FromComplex%s" % self.implementation_suffix
 
     def __init__(self, real_type):
         while real_type.is_typedef and not real_type.typedef_is_external:
             real_type = real_type.typedef_base_type
         self.funcsuffix = "_%s" % real_type.specialization_name()
+        if not real_type.is_float:
+            # neither C nor C++ supports non-floating complex numbers,
+            # so fall back the on Cython implementation.
+            self.implementation_suffix = "_Cy"
+        elif real_type.is_typedef and real_type.typedef_is_external:
+            # C can't handle typedefs in complex numbers,
+            # so in this case also fall back on the Cython implementation.
+            self.implementation_suffix = "_CyTypedef"
+        else:
+            self.implementation_suffix = ""
         if real_type.is_float:
             self.math_h_modifier = real_type.math_h_modifier
         else:
@@ -2412,18 +2455,23 @@ class CComplexType(CNumericType):
             'real_type': self.real_type.empty_declaration_code(),
             'func_suffix': self.funcsuffix,
             'm': self.math_h_modifier,
-            'is_float': int(self.real_type.is_float)
+            'is_float': int(self.real_type.is_float),
+            'is_extern_float_typedef': int(
+                self.real_type.is_float and self.real_type.is_typedef and self.real_type.typedef_is_external)
         }
 
     def create_declaration_utility_code(self, env):
         # This must always be run, because a single CComplexType instance can be shared
         # across multiple compilations (the one created in the module scope)
-        env.use_utility_code(UtilityCode.load_cached('Header', 'Complex.c'))
-        env.use_utility_code(UtilityCode.load_cached('RealImag', 'Complex.c'))
+        if self.real_type.is_float:
+            env.use_utility_code(UtilityCode.load_cached('Header', 'Complex.c'))
+        utility_code_context = self._utility_code_context()
+        env.use_utility_code(UtilityCode.load_cached(
+            'RealImag' + self.implementation_suffix, 'Complex.c'))
         env.use_utility_code(TempitaUtilityCode.load_cached(
-            'Declarations', 'Complex.c', self._utility_code_context()))
+            'Declarations', 'Complex.c', utility_code_context))
         env.use_utility_code(TempitaUtilityCode.load_cached(
-            'Arithmetic', 'Complex.c', self._utility_code_context()))
+            'Arithmetic', 'Complex.c', utility_code_context))
         return True
 
     def can_coerce_to_pyobject(self, env):
@@ -2433,7 +2481,8 @@ class CComplexType(CNumericType):
         return True
 
     def create_to_py_utility_code(self, env):
-        env.use_utility_code(UtilityCode.load_cached('ToPy', 'Complex.c'))
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            'ToPy', 'Complex.c', self._utility_code_context()))
         return True
 
     def create_from_py_utility_code(self, env):
@@ -2466,6 +2515,12 @@ class CComplexType(CNumericType):
     def cast_code(self, expr_code):
         return expr_code
 
+    def real_code(self, expr_code):
+        return "__Pyx_CREAL%s(%s)" % (self.implementation_suffix, expr_code)
+
+    def imag_code(self, expr_code):
+        return "__Pyx_CIMAG%s(%s)" % (self.implementation_suffix, expr_code)
+
 complex_ops = {
     (1, '-'): 'neg',
     (1, 'zero'): 'is_zero',
@@ -2477,6 +2532,42 @@ complex_ops = {
     (2, '=='): 'eq',
 }
 
+
+class SoftCComplexType(CComplexType):
+    """
+    a**b in Python can return either a complex or a float
+    depending on the sign of a. This "soft complex" type is
+    stored as a C complex (and so is a little slower than a
+    direct C double) but it prints/coerces to a float if
+    the imaginary part is 0. Therefore it provides a C
+    representation of the Python behaviour.
+    """
+
+    to_py_function = "__pyx_Py_FromSoftComplex"
+
+    def __init__(self):
+        super(SoftCComplexType, self).__init__(c_double_type)
+
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+        base_result =  super(SoftCComplexType, self).declaration_code(
+            entity_code,
+            for_display=for_display,
+            dll_linkage=dll_linkage,
+            pyrex=pyrex,
+        )
+        if for_display:
+            return "soft %s" % base_result
+        else:
+            return base_result
+
+    def create_to_py_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('SoftComplexToPy', 'Complex.c'))
+        return True
+
+    def __repr__(self):
+        result = super(SoftCComplexType, self).__repr__()
+        assert result[-1] == ">"
+        return "%s (soft)%s" % (result[:-1], result[-1])
 
 class CPyTSSTType(CType):
     #
@@ -2696,6 +2787,12 @@ class CArrayType(CPointerBaseType):
             source_code, result_code, self.size)
         return code.error_goto_if_neg(call_code, error_pos)
 
+    def error_condition(self, result_code):
+        # It isn't possible to use CArrays as return type so the error_condition
+        # is irrelevant. Returning a falsy value does avoid an error when getting
+        # from_py_call_code from a typedef.
+        return ""
+
 
 class CPtrType(CPointerBaseType):
     #  base_type     CType              Reference type
@@ -2787,6 +2884,8 @@ class CReferenceBaseType(BaseType):
     is_fake_reference = 0
 
     # Common base type for C reference and C++ rvalue reference types.
+
+    subtypes = ['ref_base_type']
 
     def __init__(self, base_type):
         self.ref_base_type = base_type
@@ -3044,6 +3143,9 @@ class CFuncType(CType):
             # must catch C++ exceptions if we raise them
             return 0
         if not other_type.exception_check or other_type.exception_value is not None:
+            # There's no problem if this type doesn't emit exceptions but the other type checks
+            if other_type.exception_check and not (self.exception_check or self.exception_value):
+                return 1
             # if other does not *always* check exceptions, self must comply
             if not self._same_exception_value(other_type.exception_value):
                 return 0
@@ -3129,8 +3231,10 @@ class CFuncType(CType):
         if (pyrex or for_display) and not self.return_type.is_pyobject:
             if self.exception_value and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value:
+            elif self.exception_value and not self.exception_check:
                 trailer = " except %s" % self.exception_value
+            elif not self.exception_value and not self.exception_check:
+                trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
             elif self.exception_check and for_display:
@@ -4159,6 +4263,25 @@ class CppScopedEnumType(CType):
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
+        if self.entry.create_wrapper:
+            from .UtilityCode import CythonUtilityCode
+            self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+            if self.entry.scope != env.global_scope():
+                module_name = self.entry.scope.qualified_name
+            else:
+                module_name = None
+            env.use_utility_code(CythonUtilityCode.load(
+                "EnumTypeToPy", "CpdefEnums.pyx",
+                context={"funcname": self.to_py_function,
+                        "name": self.name,
+                        "items": tuple(self.values),
+                        "underlying_type": self.underlying_type.empty_declaration_code(),
+                        "module_name": module_name,
+                        "is_flag": False,
+                        },
+                outer_module_scope=self.entry.scope  # ensure that "name" is findable
+            ))
+            return True
         if self.underlying_type.create_to_py_utility_code(env):
             # Using a C++11 lambda here, which is fine since
             # scoped enums are a C++11 feature
@@ -4179,6 +4302,7 @@ class CppScopedEnumType(CType):
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
                 "enum_doc": self.doc,
+                "static_modname": env.qualified_name,
             },
             outer_module_scope=env.global_scope())
 
@@ -4284,13 +4408,46 @@ class CEnumType(CIntLike, CType):
 
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode
+        # Generate "int"-like conversion function
+        old_to_py_function = self.to_py_function
+        self.to_py_function = None
+        CIntLike.create_to_py_utility_code(self, env)
+        enum_to_pyint_func = self.to_py_function
+        self.to_py_function = old_to_py_function  # we don't actually want to overwrite this
+
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
                      "items": tuple(self.values),
                      "enum_doc": self.doc,
+                     "enum_to_pyint_func": enum_to_pyint_func,
+                     "static_modname": env.qualified_name,
                      },
             outer_module_scope=env.global_scope()))
+
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return self.to_py_function
+        if not self.entry.create_wrapper:
+            return super(CEnumType, self).create_to_py_utility_code(env)
+        from .UtilityCode import CythonUtilityCode
+        self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+        if self.entry.scope != env.global_scope():
+            module_name = self.entry.scope.qualified_name
+        else:
+            module_name = None
+        env.use_utility_code(CythonUtilityCode.load(
+            "EnumTypeToPy", "CpdefEnums.pyx",
+            context={"funcname": self.to_py_function,
+                    "name": self.name,
+                    "items": tuple(self.values),
+                    "underlying_type": "int",
+                    "module_name": module_name,
+                    "is_flag": True,
+                    },
+            outer_module_scope=self.entry.scope  # ensure that "name" is findable
+        ))
+        return True
 
 
 class CTupleType(CType):
@@ -4426,19 +4583,17 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
-class PythonTypeConstructor(PyObjectType):
+class PythonTypeConstructorMixin(object):
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
+    modifier_name = None
 
-    def __init__(self, name, base_type=None):
+    def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
-        self.base_type = base_type
 
     def specialize_here(self, pos, env, template_values=None):
-        if self.base_type:
-            # for a lot of the typing classes it doesn't really matter what the template is
-            # (i.e. typing.Dict[int] is really just a dict)
-            return self.base_type
+        # for a lot of the typing classes it doesn't really matter what the template is
+        # (i.e. typing.Dict[int] is really just a dict)
         return self
 
     def __repr__(self):
@@ -4451,75 +4606,52 @@ class PythonTypeConstructor(PyObjectType):
         return True
 
 
-class PythonTupleTypeConstructor(PythonTypeConstructor):
+class BuiltinTypeConstructorObjectType(BuiltinObjectType, PythonTypeConstructorMixin):
+    """
+    builtin types like list, dict etc which can be subscripted in annotations
+    """
+    def __init__(self, name, cname, objstruct_cname=None):
+        super(BuiltinTypeConstructorObjectType, self).__init__(
+            name, cname, objstruct_cname=objstruct_cname)
+        self.set_python_type_constructor_name(name)
+
+
+class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
     def specialize_here(self, pos, env, template_values=None):
         if (template_values and None not in template_values and
                 not any(v.is_pyobject for v in template_values)):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
+                entry.used = True
                 return entry.type
         return super(PythonTupleTypeConstructor, self).specialize_here(pos, env, template_values)
 
 
-class SpecialPythonTypeConstructor(PythonTypeConstructor):
+class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
     """
-    For things like ClassVar, Optional, etc, which have extra features on top of being
-    a "templated" type.
+    For things like ClassVar, Optional, etc, which are not types and disappear during type analysis.
     """
 
-    def __init__(self, name, template_type=None):
-        super(SpecialPythonTypeConstructor, self).__init__(name, None)
-        if (name == "typing.ClassVar" and template_type
-                and not template_type.is_pyobject):
-            # because classvars end up essentially used as globals they have
-            # to be PyObjects. Try to find the nearest suitable type (although
-            # practically I doubt this matters).
-            py_type_name = template_type.py_type_name()
-            if py_type_name:
-                from .Builtin import builtin_scope
-                template_type = (builtin_scope.lookup_type(py_type_name)
-                                        or py_object_type)
-            else:
-                template_type = py_object_types
-        self.template_type = template_type
+    def __init__(self, name):
+        super(SpecialPythonTypeConstructor, self).__init__()
+        self.set_python_type_constructor_name(name)
+        self.modifier_name = name
 
     def __repr__(self):
-        if self.template_type:
-            return "%s[%r]" % (self.name, self.template_type)
-        else:
-            return self.name
-
-    def is_template_type(self):
-        return self.template_type is None
+        return self.name
 
     def resolve(self):
-        if self.template_type:
-            return self.template_type.resolve()
-        else:
-            return self
+        return self
 
     def specialize_here(self, pos, env, template_values=None):
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
-        # return a copy of the template type with python_type_constructor_name as an attribute
-        # so it can be identified, and a resolve function that gets back to
-        # the original type (since types are usually tested with "is")
-        new_type = template_values[0]
-        if self.python_type_constructor_name == "typing.ClassVar":
-            # classvar must remain a py_object_type
-            new_type = py_object_type
-        if (self.python_type_constructor_name == "typing.Optional" and
-                not new_type.is_pyobject):
-            # optional must be a py_object, but can be a specialized py_object
-            new_type = py_object_type
-        return SpecialPythonTypeConstructor(
-            self.python_type_constructor_name,
-            template_type = template_values[0])
-
-    def __getattr__(self, name):
-        if self.template_type:
-            return getattr(self.template_type, name)
-        return super(SpecialPythonTypeConstructor, self).__getattr__(name)
+            return error_type
+        if template_values[0] is None:
+            # FIXME: allowing unknown types for now since we don't recognise all Python types.
+            return None
+        # Replace this type with the actual 'template' argument.
+        return template_values[0].resolve()
 
 
 rank_to_type_name = (
@@ -4571,6 +4703,8 @@ c_longdouble_type =  CFloatType(7, math_h_modifier='l')
 c_float_complex_type =      CComplexType(c_float_type)
 c_double_complex_type =     CComplexType(c_double_type)
 c_longdouble_complex_type = CComplexType(c_longdouble_type)
+
+soft_complex_type = SoftCComplexType()
 
 c_anon_enum_type =   CAnonEnumType(-1)
 c_returncode_type =  CReturnCodeType(RANK_INT)
@@ -4917,6 +5051,14 @@ def widest_numeric_type(type1, type2):
             widest_numeric_type(
                 real_type(type1),
                 real_type(type2)))
+        if type1 is soft_complex_type or type2 is soft_complex_type:
+            type1_is_other_complex = type1 is not soft_complex_type and type1.is_complex
+            type2_is_other_complex = type2 is not soft_complex_type and type2.is_complex
+            if (not type1_is_other_complex and not type2_is_other_complex and
+                    widest_type.real_type == soft_complex_type.real_type):
+                # ensure we can do an actual "is" comparison
+                # (this possibly goes slightly wrong when mixing long double and soft complex)
+                widest_type = soft_complex_type
     elif type1.is_enum and type2.is_enum:
         widest_type = c_int_type
     elif type1.rank < type2.rank:
