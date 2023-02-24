@@ -142,3 +142,17 @@ def test_flow_control():
     >>> nested_loops(105.)
     -5.0
     """
+
+@cython.ufunc
+cdef double nested_function(double x):
+    def f(x):
+        return x*2
+    return f(x)
+
+def test_nested_function():
+    """
+    >>> np.allclose(nested_function(double_arr_1d), 2*double_arr_1d)
+    True
+    >>> nested_function(-1.)
+    -2.0
+    """
