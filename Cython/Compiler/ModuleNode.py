@@ -2972,6 +2972,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
         code.putln('int stringtab_initialized = 0;')
+        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln('int pystate_addmodule_run = 0;')
+        code.putln("#endif")
+
         tempdecl_code = code.insertion_point()
 
         profile = code.globalstate.directives['profile']
@@ -3143,6 +3147,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
         code.putln("#if !CYTHON_USE_MODULE_STATE")
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
+        code.putln("#else")
+        # This section is mainly for the limited API. env.module_cname still owns a reference so
+        # decrement that
+        code.put_decref(env.module_cname, py_object_type, nanny=False)
+        # Also remove the failed module from the module state lookup
+        # fetch/restore the error indicator because PyState_RemvoeModule might fail itself
+        code.putln("if (pystate_addmodule_run) {")
+        code.putln("PyObject *tp, *value, *tb;")
+        code.putln("PyErr_Fetch(&tp, &value, &tb);")
+        code.putln("PyState_RemoveModule(&%s);" % Naming.pymoduledef_cname)
+        code.putln("PyErr_Restore(tp, value, tb);")
+        code.putln("}")
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
         code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' %
@@ -3495,7 +3511,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 doc,
                 env.module_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
-        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#elif CYTHON_USE_MODULE_STATE")
         # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
@@ -3504,10 +3520,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
         code.putln("{")
+        # So that PyState_FindModule works in the init function:
         code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
             module_temp, Naming.pymoduledef_cname))
-        code.put_decref_clear(module_temp, type=py_object_type, nanny=False)
+        code.putln("%s = 0; /* transfer ownership from %s to %s pseudovariable */" % (
+            module_temp, module_temp, env.module_name
+        ))
+        # At this stage the module likely has a refcount of 2 - one owned by the list
+        # inside PyState_AddModule and one owned by "__pyx_m" (and returned from this
+        # function as a new reference).
         code.putln(code.error_goto_if_neg("add_module_result", self.pos))
+        code.putln("pystate_addmodule_run = 1;")
         code.putln("}")
         code.funcstate.release_temp(module_temp)
         code.putln('#else')
