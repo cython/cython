@@ -1,6 +1,10 @@
 # cython: language_level=3
 # mode: run
-# tag: pure3.6, pep526, pep484, warnings
+# tag: pure3.7, pep526, pep484, warnings
+
+# for the benefit of the pure tests, don't require annotations
+# to be evaluated
+from __future__ import annotations
 
 import cython
 
@@ -19,7 +23,9 @@ var: cython.int = 2
 fvar: cython.float = 1.2
 some_number: cython.int    # variable without initial value
 some_list: List[cython.int] = []  # variable with initial value
+another_list: list[cython.int] = []
 t: Tuple[cython.int, ...] = (1, 2, 3)
+t2: tuple[cython.int, ...]
 body: Optional[List[str]]
 descr_only : "descriptions are allowed but ignored"
 
@@ -162,15 +168,24 @@ def test_subscripted_types():
     """
     >>> test_subscripted_types()
     dict object
+    dict object
+    list object
+    list object
     list object
     set object
     """
-    a: typing.Dict[cython.int, cython.float] = {}
-    b: List[cython.int] = []
+    a1: typing.Dict[cython.int, cython.float] = {}
+    a2: dict[cython.int, cython.float] = {}
+    b1: List[cython.int] = []
+    b2: list[cython.int] = []
+    b3: List = []  # doesn't need to be subscripted
     c: _SET_[object] = set()
 
-    print(cython.typeof(a) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(b) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a1) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(a2) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b1) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b2) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
 # because tuple is specifically special cased to go to ctuple where possible
@@ -187,9 +202,11 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     tuple object
     tuple object
     tuple object
+    tuple object
     """
     x: typing.Tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
     y: Tuple[cython.int, ...] = (1,2.)
+    plain_tuple: Tuple = ()
     z = a[0]  # should infer to C int
     p = x[1]  # should infer to Python float -> C double
 
@@ -204,6 +221,40 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
     print(cython.typeof(y) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
+
+
+# because tuple is specifically special cased to go to ctuple where possible
+def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cython.int, ...],
+               c: tuple[cython.int, object]  # cannot be a ctuple
+               ):
+    """
+    >>> test_tuple_without_typing((1, 1.0), (1, 1.0), (1, 1.0))
+    int
+    int
+    Python object
+    Python object
+    (int, float)
+    tuple object
+    tuple object
+    tuple object
+    tuple object
+    """
+    x: tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
+    y: tuple[cython.int, ...] = (1,2.)
+    plain_tuple: tuple = ()
+    z = a[0]  # should infer to C int
+    p = x[1]  # should infer to Python float -> C double
+
+    print(cython.typeof(z))
+    print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
+    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
+    print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
+    print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
+    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
 
 
 def test_use_typing_attributes_as_non_annotations():
@@ -228,6 +279,20 @@ def test_use_typing_attributes_as_non_annotations():
     print(x1, x2)
     print(y1, str(y2) in allowed_optional_strings)
     print(z1, str(z2) in allowed_optional_strings)
+
+try:
+    import numpy.typing as npt
+    import numpy as np
+except ImportError:
+    # we can't actually use numpy typing right now, it was just part
+    # of a reproducer that caused a compiler crash. We don't need it
+    # available to use it in annotations, so don't fail if it's not there
+    pass
+
+def list_float_to_numpy(z: List[float]) -> List[npt.NDArray[np.float64]]:
+    # since we're not actually requiring numpy, don't make the return type match
+    assert cython.typeof(z) == 'list'
+    return [z[0]]
 
 if cython.compiled:
     __doc__ = """
