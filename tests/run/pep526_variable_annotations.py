@@ -181,7 +181,7 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
     int
     int
-    Python object
+    float
     Python object
     (int, float)
     tuple object
@@ -195,7 +195,10 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
 
     print(cython.typeof(z))
     print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
-    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
+    if cython.compiled:
+        print(cython.typeof(p))
+    else:
+        print('float' if cython.typeof(p) == 'float' else cython.typeof(p))
     print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
     print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
