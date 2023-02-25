@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 12 (2022-01-??)
-===========================
+3.0.0 beta 1 (2023-02-25)
+=========================
 
 Features added
 --------------
@@ -27,6 +27,23 @@ Features added
 
 * The special ``__*pow__`` methods now support the 2- and 3-argument variants.
   (Github issue :issue:`5160`)
+
+* Subscripted builtin types in type declarations (like ``list[float]``) are now
+  better supported.
+  (Github issue :issue:`5058`)
+
+* Python's ``memoryview`` is now a known builtin type with optimised properties.
+  (Github issue :issue:`3798`)
+
+* The call-time dispatch for fused memoryview types is less slow.
+  (Github issue :issue:`5073`)
+
+* Integer comparisons avoid Python coercions if possible.
+  (Github issue :issue:`4821`)
+
+* The Python Enum of a ``cpdef enum`` now inherits from ``IntFlag`` to better match
+  both Python and C semantics of enums.
+  (Github issue :issue:`2732`)
 
 * `PEP-614 <https://peps.python.org/pep-0614/>`_:
   decorators can now be arbitrary Python expressions.
@@ -60,8 +77,8 @@ Features added
   Patch by Matúš Valo.  (Github issue :issue:`1711`)
 
 * Declarations were added for the C++ bit operations, some other parts of C++20 and CPython APIs.
-  Patches by Jonathan Helgert, Dobatymo and William Ayd.
-  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`)
+  Patches by Jonathan Helgert, Dobatymo, William Ayd and Max Bachmann.
+  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`, :issue:`5257`)
 
 Bugs fixed
 ----------
@@ -74,6 +91,21 @@ Bugs fixed
   They are now ignored again (as always before) when ``language_level=2``, and accept
   both ``int`` and ``long`` in Py2 (and only ``int`` in Py3) otherwise.
   (Github issue :issue:`4944`)
+
+* Calling bound classmethods of builtin types could fail trying to call the unbound method.
+  (Github issue :issue:`5051`)
+
+* ``int(Py_UCS4)`` returned the code point instead of the parsed digit value.
+  (Github issue :issue:`5216`)
+
+* Several problems with CPython 3.12 were resolved.
+  (Github issue :issue:`5238`)
+
+* The C ``float`` type was not inferred on assignments.
+  (Github issue :issue:`5234`)
+
+* Memoryviews with ``object`` item type were not supported in Python type declarations.
+  (Github issue :issue:`4907`)
 
 * Iterating over memoryviews in generator expressions could leak a buffer reference.
   (Github issue :issue:`4968`)
@@ -154,6 +186,9 @@ Bugs fixed
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
 
+* Unused ``**kwargs`` arguments did not show up in ``locals()``.
+  (Github issue :issue:`4899`)
+
 * Extended glob paths with ``/**/`` and ``\**\`` for finding source files failed on Windows.
 
 * Annotated HTML generation was missing newlines in 3.0.0a11.
@@ -169,6 +204,10 @@ Bugs fixed
   Patches by Max Bachmann, Alexander Shadchin, at al.
   (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
 
+* The embedding code no longer calls deprecated C-API functions but uses the new ``PyConfig``
+  API instead on CPython versions that support it (3.8+).
+  Patch by Alexander Shadchin.  (Github issue :issue:`4895`)
+
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
 
@@ -182,6 +221,11 @@ Other changes
   ``from somemodule cimport class/struct/union somename`` was removed.  The type
   modifier is not needed here and a plain ``cimport`` of the name will do.
   (Github issue :issue:`4904`)
+
+* C-style array declarations (``cdef int a[4]``) are now (silently) deprecated in
+  favour of the Java-style ``cdef int[4] a`` form.  The latter was always available
+  and the Python type declaration syntax already used it exclusively (``a: int[4]``).
+  Patch by Matúš Valo.  (Github issue :issue:`5248`)
 
 * The wheel building process was migrated to use the ``cibuildwheel`` tool.
   Patch by Thomas Li.  (Github issue :issue:`4736`)
