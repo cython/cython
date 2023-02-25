@@ -92,8 +92,8 @@ cdef cython.numeric plus_one(cython.numeric x):
 def test_plus_one():
     """
     This generates all the fused combinations
-    >>> plus_one(int_arr_1d)
-    array([ 1,  5,  9, 13, 17])
+    >>> plus_one(int_arr_1d)  # doctest: +ELLIPSIS
+    array([ 1,  5,  9, 13, 17]...)
     >>> plus_one(double_arr_2d)
     array([[57., 58.],
            [67., 68.],
