@@ -2387,6 +2387,10 @@ if VALUE is not None:
             self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
+
+        if lenv.directives.get("ufunc"):
+            from . import UFuncs
+            return UFuncs.convert_to_ufunc(node)
         return node
 
     def visit_DefNode(self, node):

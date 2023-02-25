@@ -220,6 +220,7 @@ _directive_defaults = {
     'np_pythran': False,
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
+    'ufunc': False,
     'legacy_implicit_noexcept': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
@@ -391,6 +392,7 @@ directive_scopes = {  # defaults to available everywhere
     'total_ordering': ('cclass', ),
     'dataclasses.dataclass' : ('class', 'cclass',),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
 }
 
@@ -398,7 +400,7 @@ directive_scopes = {  # defaults to available everywhere
 # a list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
-    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass',
+    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
     # function signature directives
     'inline', 'exceptval', 'returns',
     # class directives

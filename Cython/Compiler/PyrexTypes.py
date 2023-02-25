@@ -4471,7 +4471,7 @@ class CTupleType(CType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
-            return str(self)
+            return "%s %s" % (str(self), entity_code)
         else:
             return self.base_declaration_code(self.cname, entity_code)
 
