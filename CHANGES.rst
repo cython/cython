@@ -20,6 +20,10 @@ Features added
   previous, unsafe behaviour.  This directive will eventually be removed in a later release.
   Patch by Matúš Valo.  (Github issue :issue:`5094`)
 
+* A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
+  applies the calculation function to an entire memoryview.
+  (Github issue :issue:`4758`)
+
 * The ``**`` power operator now behaves more like in Python by returning the correct complex
   result if required by math.  A new ``cpow`` directive was added to turn on the previous
   C-like behaviour.
@@ -27,6 +31,9 @@ Features added
 
 * The special ``__*pow__`` methods now support the 2- and 3-argument variants.
   (Github issue :issue:`5160`)
+
+* Unknown type annotations (e.g. because of typos) now emit a warning at compile time.
+  Patch by Matúš Valo.  (Github issue :issue:`5070`)
 
 * Subscripted builtin types in type declarations (like ``list[float]``) are now
   better supported.
