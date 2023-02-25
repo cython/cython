@@ -248,7 +248,7 @@ def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cytho
 
     print(cython.typeof(z))
     print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
-    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "float")  # FIXME: infer C double (or float *object*) from Python type annotation
+    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "float")  # FIXME: infer C double/PyFloat from Py type
     print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
     print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
