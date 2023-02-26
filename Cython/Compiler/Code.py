@@ -1350,8 +1350,11 @@ class GlobalState(object):
                 return const
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
-        if cleanup_level is not None \
-                and cleanup_level <= Options.generate_cleanup_code:
+        if (cleanup_level is not None
+                and cleanup_level <= Options.generate_cleanup_code
+                # Note that this function is used for all argument defaults
+                # which aren't just Python objects
+                and type.needs_refcounting):
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         if dedup_key is not None:
@@ -1508,6 +1511,11 @@ class GlobalState(object):
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
             self.parts['module_state_defines'].putln(
                 "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            if not c.type.needs_refcounting:
+                # Note that py_constants is used for all argument defaults
+                # which aren't necessarily PyObjects, so aren't appropriate
+                # to clear.
+                continue
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
