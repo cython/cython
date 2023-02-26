@@ -589,7 +589,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
 #if !CYTHON_COMPILING_IN_LIMITED_API
     itemsize = ((PyTypeObject *)base)->tp_itemsize;
 #else
-    py_itemsize = PyObject_GetAttrString(base, "__itemsize__");
+    py_itemsize = PyObject_GetAttrString((PyObject*)base, "__itemsize__");
     if (!py_itemsize)
         return -1;
     itemsize = PyLong_AsSsize_t(py_itemsize);
