@@ -568,7 +568,12 @@ static CYTHON_INLINE int __Pyx_init_unicode_iteration(
 
 static CYTHON_INLINE int __Pyx_init_unicode_iteration(
     PyObject* ustring, Py_ssize_t *length, void** data, int *kind) {
-#if CYTHON_PEP393_ENABLED
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // In the limited API we just point data to the unicode object
+    *kind   = 0;
+    *length = PyUnicode_GetLength(ustring);
+    *data   = (void*)ustring;
+#elif CYTHON_PEP393_ENABLED
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return -1;
     *kind   = PyUnicode_KIND(ustring);
     *length = PyUnicode_GET_LENGTH(ustring);
