@@ -13,7 +13,7 @@ def test_beta(double x, double y):
     """
     return beta(x, y)
 
-def test_legendre(double x, double y):
+def test_legendre(int x, double y):
     """
     Test C++17 std::legendre function
     >>> test_legendre(1, 2.0)
