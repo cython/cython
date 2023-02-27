@@ -280,6 +280,15 @@ def test_use_typing_attributes_as_non_annotations():
     print(y1, str(y2) in allowed_optional_strings)
     print(z1, str(z2) in allowed_optional_strings)
 
+def test_optional_ctuple(x: typing.Optional[tuple[float]]):
+    """
+    Should not be a C-tuple (because these can't be optional
+    >>> test_optional_ctuple((1.0,))
+    tuple object
+    """
+    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
+
+
 try:
     import numpy.typing as npt
     import numpy as np
