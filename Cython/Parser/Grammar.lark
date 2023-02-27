@@ -1,5 +1,7 @@
 # Grammar for Cython, based on the Grammar for Python 3
-
+#
+# https://lark-parser.readthedocs.io/en/latest/index.html
+#
 # Note: This grammar is not yet used by the Cython parser and is subject to change.
 
 # Start symbols for the grammar:
