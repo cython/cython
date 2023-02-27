@@ -32,3 +32,4 @@ def test_hypot(double x, double y, double z):
     5.0
     """
     return hypot(x, y, z)
+    
