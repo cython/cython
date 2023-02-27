@@ -85,7 +85,7 @@ Features added
   Patch by Matthew Brett and h-vetinari.  (Github issue #4906)
   
 * A new keyword ``noexcept`` was added.
-  Patch by David Woods.  (Github issue #4903))
+  Patch by David Woods.  (Github issue #4903)
 
 Bugs fixed
 ----------
