@@ -1555,6 +1555,7 @@ class WithTransform(VisitorTransform, SkipDeclarations):
         pos = node.pos
         is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
+        manager = node.manager = ExprNodes.ProxyNode(manager)
         node.enter_call = ExprNodes.SimpleCallNode(
             pos, function=ExprNodes.AttributeNode(
                 pos, obj=ExprNodes.CloneNode(manager),
