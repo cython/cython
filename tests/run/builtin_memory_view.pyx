@@ -38,3 +38,12 @@ def test_optimized_attributes(memoryview view):
     1 1 True
     """
     print(view.itemsize, view.ndim, view.readonly)
+
+def test_isinstance(x):
+    """
+    >>> test_isinstance(b"abc")
+    False
+    >>> test_isinstance(memoryview(b"abc"))
+    True
+    """
+    return isinstance(x, memoryview)
