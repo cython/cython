@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: I NEED HELP
+  - name: I NEED HELP or I have a question/comment
     url: https://groups.google.com/g/cython-users
-    about: Cython-users mailing list is a place to ask and answer support questions.
+    about: The Cython-users mailing list is a place to ask and answer support questions.
