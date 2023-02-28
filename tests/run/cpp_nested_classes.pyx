@@ -187,11 +187,28 @@ def test_nested_sub_struct(x):
     return s.typed_value
 
 cimport cpp_nested_names
+cimport libcpp.string
+from cython.operator cimport dereference as deref, preincrement as inc
 
 def test_nested_names():
     """
     >>> test_nested_names()
-    NestedClass
+    Nested
+    NestedNested
+    C
+    y
+    t
+    h
+    o
+    n
     """
-    cdef cpp_nested_names.OuterClass.NestedClass n = cpp_nested_names.OuterClass.get()
+    cdef cpp_nested_names.Outer.Nested n = cpp_nested_names.Outer.get()
+    cdef cpp_nested_names.Outer.Nested.NestedNested nn = n.get()
     print(n.get_str().decode('ascii'))
+    print(nn.get_str().decode('ascii'))
+
+    cdef libcpp.string.string s = "Cython"
+    cdef libcpp.string.string.iterator i = s.begin()
+    while i != s.end():
+        print(chr(deref(i)))
+        inc(i)

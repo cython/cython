@@ -3,12 +3,18 @@
 
 #include <string>
 
-struct OuterClass {
-  struct NestedClass {
-    std::string get_str() { return "NestedClass"; }
+struct Outer {
+  struct Nested {
+    struct NestedNested {
+      std::string get_str() { return "NestedNested"; }
+    };
+
+    std::string get_str() { return "Nested"; }
+
+    static NestedNested get() { return NestedNested(); }
   };
 
-  static NestedClass get() { return OuterClass::NestedClass(); }
+  static Nested get() { return Outer::Nested(); }
 };
 
 #endif
