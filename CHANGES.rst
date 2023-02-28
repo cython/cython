@@ -84,7 +84,7 @@ Features added
   provide the (one) exact target module name from the command line.
   Patch by Matthew Brett and h-vetinari.  (Github issue #4906)
   
-* A new keyword ``noexcept`` was added.
+* A new keyword ``noexcept`` was added for forward compatibility with Cython 3.
   Patch by David Woods.  (Github issue #4903)
 
 Bugs fixed
