@@ -4467,6 +4467,9 @@ class CTupleType(CType):
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
+        # equivalent_type must be set now because it isn't available at import time
+        from .Builtin import tuple_type
+        self.equivalent_type = tuple_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
