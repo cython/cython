@@ -149,7 +149,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # merged in nodes should keep their original compiler directives
             # (for example inline cdef functions)
             tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
-        
+
         target_stats = self.pxd_stats if stage == "pxd" else self.utility_code_stats
         if isinstance(tree, Nodes.StatListNode):
             target_stats.stats.extend(tree.stats)
