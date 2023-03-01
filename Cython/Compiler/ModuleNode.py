@@ -138,6 +138,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CodeGenerator, and tell that CodeGenerator to generate code
         # from multiple sources.
         assert isinstance(self.body, Nodes.StatListNode)
+        assert stage in ('pxd', 'utility')
 
         if self.pxd_stats is None:
             self.pxd_stats = Nodes.StatListNode(self.body.pos, stats=[])
