@@ -1459,6 +1459,9 @@ class BuiltinObjectType(PyObjectType):
         elif type_name == 'int':
             # For backwards compatibility of (Py3) 'x: int' annotations in Py2, we also allow 'long' there.
             type_check = '__Pyx_Py3Int_Check'
+        elif type_name == "memoryview":
+            # captialize doesn't catch the 'V'
+            type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
         if exact and type_name not in ('bool', 'slice', 'Exception'):

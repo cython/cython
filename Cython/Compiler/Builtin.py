@@ -364,21 +364,21 @@ builtin_types_table = [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
         # error checking would ideally be limited api only
-        BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryview_Get_ndim',
+        BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryView_Get_ndim',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="ndim")
                         )
         ),
-        BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryview_Get_readonly',
+        BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryView_Get_readonly',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="readonly")
                         )
         ),
-        BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryview_Get_itemsize',
+        BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryView_Get_itemsize',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
