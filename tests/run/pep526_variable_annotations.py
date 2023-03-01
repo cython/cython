@@ -282,7 +282,7 @@ def test_use_typing_attributes_as_non_annotations():
 
 def test_optional_ctuple(x: typing.Optional[tuple[float]]):
     """
-    Should not be a C-tuple (because these can't be optional
+    Should not be a C-tuple (because these can't be optional)
     >>> test_optional_ctuple((1.0,))
     tuple object
     """
