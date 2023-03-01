@@ -14131,20 +14131,29 @@ class CoerceToComplexNode(CoercionNode):
 
 
 def coerce_from_soft_complex(arg, dst_type, env):
+    nogil = env.nogil or getattr(arg, "nogil", False)
     cfunc_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type,
-        [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None) ],
+        [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None),
+          PyrexTypes.CFuncTypeArg("have_gil", PyrexTypes.c_bint_type, None) ],
         exception_value = "-1",
-        exception_check = True
+        exception_check = True,
+        nogil=True  # We can acquire the GIL internally on failure
     )
     call = PythonCapiCallNode(
         arg.pos,
         "__Pyx_SoftComplexToDouble",
         cfunc_type,
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
-        args = [arg]
+        args = [arg, BoolNode(arg.pos, value=not nogil)],
     )
+    # This can be called from outside analyse_types
+    # (e.g. from ExpandInPlaceOperatorsTransform)
+    # so we need to manually set env.nogil
+    old_nogil = env.nogil
+    env.nogil = nogil
     call = call.analyse_types(env)
+    env.nogil = old_nogil
     if call.type != dst_type:
         call = call.coerce_to(dst_type, env)
     return call
