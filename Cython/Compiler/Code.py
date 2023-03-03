@@ -1449,12 +1449,7 @@ class GlobalState(object):
 
     def new_const_cname(self, prefix='', value=''):
         value = replace_identifier('_', value)[:32].strip('_')
-        used = self.const_cnames_used
-        name_suffix = value
-        while name_suffix in used:
-            counter = used[value] = used[value] + 1
-            name_suffix = '%s_%d' % (value, counter)
-        used[name_suffix] = 1
+        name_suffix = self.make_unique_const_cname(value + "_%s")
         if prefix:
             prefix = Naming.interned_prefixes[prefix]
         else:
