@@ -1423,13 +1423,28 @@ class GlobalState(object):
         value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
-    def new_num_const_cname(self, value, py_type):
+    def make_unique_const_cname(self, format_str):  # type: (str) -> str
+        used = self.const_cnames_used
+        cname = format_str % ""
+        counter = 0
+        while used.get(cname):
+            counter += 1
+            cname = format_str % counter
+        used[cname] = 1
+        return cname
+
+    def new_num_const_cname(self, value, py_type):  # type: (str, str) -> str
         if py_type == 'long':
             value += 'L'
             py_type = 'int'
         prefix = Naming.interned_prefixes[py_type]
-        cname = "%s%s" % (prefix, value)
-        cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
+
+        value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
+        if len(value) > 42:
+            cname = self.make_unique_const_cname(
+                prefix + "large%d_" + value[:21] + "_XXX_" + value[-21:])
+        else:
+            cname = "%s%s" % (prefix, value)
         return cname
 
     def new_const_cname(self, prefix='', value=''):
