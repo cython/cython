@@ -1442,7 +1442,7 @@ class GlobalState(object):
         value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
         if len(value) > 42:
             cname = self.make_unique_const_cname(
-                prefix + "large%d_" + value[:21] + "_XXX_" + value[-21:])
+                prefix + "large%s_" + value[:21] + "_XXX_" + value[-21:])
         else:
             cname = "%s%s" % (prefix, value)
         return cname
