@@ -2279,7 +2279,7 @@ class FuncDefNode(StatNode, BlockNode):
                 empty_decl_code = return_type.empty_declaration_code()
                 # C++ doesn't want names of the form '= struct foo()' so
                 # remove the struct
-                empty_decl_code = empty_decl_code.replace("struct ", "")
+                empty_decl_code = empty_decl_code.replace("struct ", "").replace("union ", "")
                 init_insertion_point.putln("")
                 init_insertion_point.putln("#ifdef __cplusplus")
                 init_insertion_point.putln("= %s()" % empty_decl_code)
