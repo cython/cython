@@ -1426,9 +1426,8 @@ class GlobalState(object):
     def make_unique_const_cname(self, format_str):  # type: (str) -> str
         used = self.const_cnames_used
         cname = format_str % ""
-        counter = 0
-        while used.get(cname):
-            counter += 1
+        while cname in used:
+            counter = used[value] = used[value] + 1
             cname = format_str % counter
         used[cname] = 1
         return cname
@@ -1442,7 +1441,7 @@ class GlobalState(object):
         value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
         if len(value) > 42:
             cname = self.make_unique_const_cname(
-                prefix + "large%s_" + value[:21] + "_XXX_" + value[-21:])
+                prefix + "large%s_" + value[:18] + "_xxx_" + value[-18:])
         else:
             cname = "%s%s" % (prefix, value)
         return cname
