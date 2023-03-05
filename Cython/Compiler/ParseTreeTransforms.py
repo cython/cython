@@ -871,7 +871,8 @@ class InterpretCompilerDirectives(CythonTransform):
     def _check_valid_cython_module(self, pos, module_name):
         if not module_name.startswith("cython."):
             return
-        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+        submodule = module_name.split('.', 2)[1]
+        if submodule in self.valid_cython_submodules:
             return
 
         extra = ""
@@ -889,6 +890,13 @@ class InterpretCompilerDirectives(CythonTransform):
             if module_name.startswith("cython." + wrong):
                 extra = "Did you mean 'cython.%s' ?" % correct
                 break
+        if not extra:
+            from .. import Shadow
+            if (submodule in Shadow.__dict__
+                    or submodule in Options.directive_types):
+                extra = ("'%s' is not a module but is accessible within the 'cython' module. "
+                    + "Did you mean 'from cython cimport %s' or just 'cimport cython'?") % (
+                    submodule, submodule)
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
             module_name,
