@@ -1425,10 +1425,10 @@ class GlobalState(object):
 
     def make_unique_const_cname(self, format_str):  # type: (str) -> str
         used = self.const_cnames_used
-        cname = format_str % ""
+        cname = value = format_str % ""
         while cname in used:
             counter = used[value] = used[value] + 1
-            cname = format_str % counter
+            cname = format_str % ("_" + str(counter))
         used[cname] = 1
         return cname
 
@@ -1448,7 +1448,7 @@ class GlobalState(object):
 
     def new_const_cname(self, prefix='', value=''):
         value = replace_identifier('_', value)[:32].strip('_')
-        name_suffix = self.make_unique_const_cname(value + "_%s")
+        name_suffix = self.make_unique_const_cname(value + "%s")
         if prefix:
             prefix = Naming.interned_prefixes[prefix]
         else:
