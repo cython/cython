@@ -124,6 +124,7 @@ jobs:
             extra_hash: "-limited_api"
           - os: ubuntu-18.04
             python-version: "3.12-dev"
+            allowed_failure: true
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
             extra_hash: "-limited_api"
