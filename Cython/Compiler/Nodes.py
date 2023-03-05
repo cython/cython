@@ -2015,9 +2015,15 @@ class FuncDefNode(StatNode, BlockNode):
             elif return_type.is_memoryviewslice:
                 init = ' = ' + return_type.literal_code(return_type.default_value)
 
-            code.putln("%s%s;" % (
+            code.put("%s%s" % (
                 return_type.declaration_code(Naming.retval_cname),
                 init))
+            if not init:
+                # We may need to generate a C++ initialization later
+                # to avoid undefined behaviour when returing an uninitialized
+                # variable
+                init_insertion_point = code.insertion_point()
+            code.putln(";")
 
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
@@ -2267,6 +2273,17 @@ class FuncDefNode(StatNode, BlockNode):
                     code.putln("%s = %s;" % (Naming.retval_cname, err_val))
             elif not return_type.is_void:
                 code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
+                # For C, __Pyx_pretend_to_initialize() is sufficient (taking an address
+                # is enough to make returning a variable defined). For C++ this isn't
+                # true, and we genuinely have to make sure a variable is initialized.
+                empty_decl_code = return_type.empty_declaration_code()
+                # C++ doesn't want names of the form '= struct foo()' so
+                # remove the struct
+                empty_decl_code = empty_decl_code.replace("struct ", "")
+                init_insertion_point.putln("")
+                init_insertion_point.putln("#ifdef __cplusplus")
+                init_insertion_point.putln("= %s()" % empty_decl_code)
+                init_insertion_point.putln("#endif")
 
             if is_getbuffer_slot:
                 assure_gil('error')
