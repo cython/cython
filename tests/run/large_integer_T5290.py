@@ -1,6 +1,6 @@
 # mode: run
 # cython: test_assert_c_code_has = __pyx_int_large_498767777577077770_xxx_709777877895072797
-# cython: test_assert_c_code_has = __pyx_int_large_2_498767777577077770_xxx_709777877895072797
+# cython: test_assert_c_code_has = __pyx_int_large2_498767777577077770_xxx_709777877895072797
 
 __doc__ = """
 >>> large_int1
