@@ -46,7 +46,6 @@ Parts of this code were taken from Cython.inline.
 
 from __future__ import absolute_import, print_function
 
-import imp
 import io
 import os
 import re
@@ -84,7 +83,7 @@ from IPython.utils.text import dedent
 
 from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
-from .Inline import cython_inline
+from .Inline import cython_inline, load_dynamic
 from .Dependencies import cythonize
 
 
@@ -348,7 +347,7 @@ class CythonMagics(Magics):
             # Build failed and printed error message
             return None
 
-        module = imp.load_dynamic(module_name, module_path)
+        module = load_dynamic(module_name, module_path)
         self._import_all(module)
 
         if args.annotate:
@@ -411,7 +410,7 @@ class CythonMagics(Magics):
 
         # import and execute module code to generate profile
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
-        imp.load_dynamic(pgo_module_name, so_module_path)
+        load_dynamic(pgo_module_name, so_module_path)
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
