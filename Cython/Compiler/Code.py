@@ -1423,12 +1423,12 @@ class GlobalState(object):
         value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
-    def unique_const_cname(self, format_str, counter_prefix=""):  # type: (str, str) -> str
+    def unique_const_cname(self, format_str):  # type: (str) -> str
         used = self.const_cnames_used
-        cname = value = format_str % ""
+        cname = value = format_str.format(sep='', counter='')
         while cname in used:
             counter = used[value] = used[value] + 1
-            cname = format_str % (counter_prefix + str(counter))
+            cname = format_str.format(sep='_', counter=counter)
         used[cname] = 1
         return cname
 
@@ -1441,14 +1441,14 @@ class GlobalState(object):
         value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
         if len(value) > 42:
             cname = self.unique_const_cname(
-                prefix + "large%s_" + value[:18] + "_xxx_" + value[-18:])
+                prefix + "large{counter}_" + value[:18] + "_xxx_" + value[-18:])
         else:
             cname = "%s%s" % (prefix, value)
         return cname
 
     def new_const_cname(self, prefix='', value=''):
         value = replace_identifier('_', value)[:32].strip('_')
-        name_suffix = self.unique_const_cname(value + "%s", counter_prefix="_")
+        name_suffix = self.unique_const_cname(value + "{sep}{counter}")
         if prefix:
             prefix = Naming.interned_prefixes[prefix]
         else:
