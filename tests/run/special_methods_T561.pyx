@@ -49,10 +49,10 @@ __doc__ = u"""
     >>> g01 = object.__getattribute__(GetAttr(), '__getattribute__')
     >>> g01('attr')
     GetAttr getattr 'attr'
-    >>> g10 = object.__getattribute__(GetAttribute(), '__getattr__')
+    >>> g10 = object.__getattribute__(GetAttribute(), '__getattr__')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'
+    AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'...
     >>> g11 = object.__getattribute__(GetAttribute(), '__getattribute__')
     >>> g11('attr')
     GetAttribute getattribute 'attr'
@@ -62,15 +62,15 @@ __doc__ = u"""
     >>> sa_setattr('foo', 'bar')
     SetAttr setattr 'foo' 'bar'
     >>> sa_delattr = SetAttr().__delattr__
-    >>> sa_delattr('foo')
+    >>> sa_delattr('foo')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.SetAttr' object has no attribute 'foo'
+    AttributeError: 'special_methods_T561.SetAttr' object has no attribute 'foo'...
     >>> da_setattr = DelAttr().__setattr__
-    >>> da_setattr('foo', 'bar')
+    >>> da_setattr('foo', 'bar')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.DelAttr' object has no attribute 'foo'
+    AttributeError: 'special_methods_T561.DelAttr' object has no attribute 'foo'...
     >>> da_delattr = DelAttr().__delattr__
     >>> da_delattr('foo')
     DelAttr delattr 'foo'
