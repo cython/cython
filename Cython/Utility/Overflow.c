@@ -31,7 +31,7 @@ static int __Pyx_check_twos_complement(void) {
     }
 }
 
-#define __PYX_IS_UNSIGNED(type) ((((type) -1) > 0))
+#define __PYX_IS_UNSIGNED(type) ((type)(0) < (type)(-1))
 #define __PYX_SIGN_BIT(type)    ((((unsigned type) 1) << (sizeof(type) * 8 - 1)))
 #define __PYX_HALF_MAX(type)    ((((type) 1) << (sizeof(type) * 8 - 2)))
 #define __PYX_MIN(type)         ((__PYX_IS_UNSIGNED(type) ? (type) 0 : 0 - __PYX_HALF_MAX(type) - __PYX_HALF_MAX(type)))
