@@ -16,10 +16,10 @@ def test_beta(double x, double y):
 def test_legendre(int x, double y):
     """
     Test C++17 std::legendre function
-    >>> test_legendre(1, 2.0)
-    2.0
-    >>> test_legendre(2, 3.0)
-    13.0
+    >>> test_legendre(1, 0.5)
+    0.5
+    >>> test_legendre(2, 0.5)
+    -0.125
     """
     return legendre(x, y)
 
