@@ -46,8 +46,8 @@ cdef extern from "<cmath>" namespace "std" nogil:
     float acosh(float x) except +
     double acosh(double x) except +
     long double acosh(long double x) except +
-    float acoshf(float x)
-    long double acoshl(long double x)
+    float acoshf(float x) except +
+    long double acoshl(long double x) except +
     
     float asinh(float x) except +
     double asinh(double x) except +
