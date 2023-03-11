@@ -1960,6 +1960,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    module_state_lookup = ""
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2389,12 +2390,14 @@ class NameNode(AtomicExprNode):
             return "<error>"  # There was an error earlier
         if self.entry.is_cpp_optional and not self.is_target:
             return "(*%s)" % entry.cname
-        return entry.cname
+        return self.module_state_lookup + entry.cname
 
     def generate_result_code(self, code):
         entry = self.entry
         if entry is None:
             return  # There was an error earlier
+        if entry.scope.is_module_scope and (entry.is_cglobal or entry.is_pyglobal):
+            self.module_state_lookup = code.get_module_state_code() + "->"
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
         if entry.is_builtin and entry.is_const:
@@ -2498,7 +2501,7 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            namespace = self.entry.scope.namespace_cname
+            namespace = code.get_scope_namespace_cname_code(self.entry.scope)
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
@@ -2506,7 +2509,7 @@ class NameNode(AtomicExprNode):
                 namespace = '%s->tp_dict' % namespace
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
-                namespace = Naming.moddict_cname
+                namespace = "%s->%s" % (code.get_module_state_code(), Naming.moddict_cname)
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -8502,10 +8505,7 @@ class TupleNode(SequenceNode):
         return True
 
     def calculate_result_code(self):
-        if len(self.args) > 0:
-            return self.result_code
-        else:
-            return Naming.empty_tuple
+        return self.result_code
 
     def calculate_constant_result(self):
         self.constant_result = tuple([
@@ -8520,7 +8520,10 @@ class TupleNode(SequenceNode):
 
     def generate_operation_code(self, code):
         if len(self.args) == 0:
-            # result_code is Naming.empty_tuple
+            self.result_code = "%s->%s" % (
+                code.get_module_state_code(),
+                Naming.empty_tuple
+            )
             return
 
         if self.is_literal or self.is_partly_literal:
@@ -9882,6 +9885,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        moddict_cname = "%s->%s" % (
+            code.get_module_state_code(),
+            Naming.moddict_cname)
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
@@ -9891,7 +9897,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
-                Naming.moddict_cname,
+                moddict_cname,
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
 
@@ -10007,6 +10013,8 @@ class CodeObjectNode(ExprNode):
         elif self.def_node.is_generator:
             flags.append('CO_GENERATOR')
 
+        empty_bytes = "%s->%s" % (code.get_module_state_code(), Naming.empty_bytes)
+        empty_tuple = "%s->%s" % (code.get_module_state_code(), Naming.empty_tuple)
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
             len(func.args) - func.num_kwonly_args,  # argcount
@@ -10014,16 +10022,16 @@ class CodeObjectNode(ExprNode):
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
             '|'.join(flags) or '0',    # flags
-            Naming.empty_bytes,        # code
-            Naming.empty_tuple,        # consts
-            Naming.empty_tuple,        # names (FIXME)
+            empty_bytes,               # code
+            empty_tuple,               # consts
+            empty_tuple,               # names (FIXME)
             self.varnames.result(),    # varnames
-            Naming.empty_tuple,        # freevars (FIXME)
-            Naming.empty_tuple,        # cellvars (FIXME)
+            empty_tuple,               # freevars (FIXME)
+            empty_tuple,               # cellvars (FIXME)
             file_path_const,           # filename
             func_name,                 # name
             self.pos[1],               # firstlineno
-            Naming.empty_bytes,        # lnotab
+            empty_bytes,               # lnotab
             code.error_goto_if_null(self.result_code, self.pos),
             ))
 

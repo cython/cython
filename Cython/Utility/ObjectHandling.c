@@ -1556,7 +1556,7 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #define __Pyx_GetModuleGlobalName(var, name)  do { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
-    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION($moddict_cname))) ? \
+    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION(${modulestateglobal_cname}->$moddict_cname))) ? \
         (likely(__pyx_dict_cached_value) ? __Pyx_NewRef(__pyx_dict_cached_value) : __Pyx_GetBuiltinName(name)) : \
         __Pyx__GetModuleGlobalName(name, &__pyx_dict_version, &__pyx_dict_cached_value); \
 } while(0)

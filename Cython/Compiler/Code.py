@@ -540,8 +540,11 @@ class UtilityCode(UtilityCodeBase):
                 cname = replacements[key]
             except KeyError:
                 str_type, name = key
-                cname = replacements[key] = output.get_py_string_const(
+                cname = replacements[key] = "%s->%s" % (
+                    Naming.modulestateglobal_cname,
+                    output.get_py_string_const(
                         StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
+                )
             return cname
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
@@ -1139,7 +1142,6 @@ class GlobalState(object):
         'module_state',
         'module_state_clear',
         'module_state_traverse',
-        'module_state_defines',  # redefines names used in module_state/_clear/_traverse
         'module_code',  # user code goes here
         'pystring_table',
         'cached_builtins',
@@ -1207,7 +1209,8 @@ class GlobalState(object):
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(%s *%s) {" % (
+            Naming.modulestate_cname, Naming.modulestate_cname))
         w.put_declare_refcount_context()
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
@@ -1219,7 +1222,8 @@ class GlobalState(object):
         w = self.parts['init_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s *%s) {" %
+            (Naming.modulestate_cname, Naming.modulestate_cname))
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1509,8 +1513,6 @@ class GlobalState(object):
         consts.sort()
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
-            self.parts['module_state_defines'].putln(
-                "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
             if not c.type.needs_refcounting:
                 # Note that py_constants is used for all argument defaults
                 # which aren't necessarily PyObjects, so aren't appropriate
@@ -1582,7 +1584,9 @@ class GlobalState(object):
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
-            w.putln("static int __Pyx_CreateStringTabAndInitStrings(void) {")
+            w.putln("static int __Pyx_CreateStringTabAndInitStrings(%s *state) {" % (
+                Naming.modulestate_cname)
+            )
             # the stringtab is a function local rather than a global to
             # ensure that it doesn't conflict with module state
             w.putln("__Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
@@ -1596,17 +1600,13 @@ class GlobalState(object):
                     encoding = '"%s"' % py_string.encoding.lower()
 
                 self.parts['module_state'].putln("PyObject *%s;" % py_string.cname)
-                self.parts['module_state_defines'].putln("#define %s %s->%s" % (
-                    py_string.cname,
-                    Naming.modulestateglobal_cname,
-                    py_string.cname))
                 self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s);" %
                     py_string.cname)
                 self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
                     py_string.cname)
                 if py_string.py3str_cstring:
                     w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w.putln("{&state->%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
@@ -1614,7 +1614,7 @@ class GlobalState(object):
                         py_string.intern
                         ))
                     w.putln("#else")
-                w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                w.putln("{&state->%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1631,8 +1631,9 @@ class GlobalState(object):
             w.putln("}")
 
             init_constants.putln(
-                "if (__Pyx_CreateStringTabAndInitStrings() < 0) %s;" %
-                    init_constants.error_goto(self.module_pos))
+                "if (__Pyx_CreateStringTabAndInitStrings(%s) < 0) %s;" % (
+                    Naming.modulestate_cname,
+                    init_constants.error_goto(self.module_pos)))
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -1642,8 +1643,6 @@ class GlobalState(object):
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
-            self.parts['module_state_defines'].putln("#define %s %s->%s" % (
-                cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
@@ -1658,9 +1657,10 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
+            init_cname = "%s->%s" % (Naming.modulestate_cname, cname)
             init_constants.putln('%s = %s; %s' % (
-                cname, function % value_code,
-                init_constants.error_goto_if_null(cname, self.module_pos)))
+                init_cname, function % value_code,
+                init_constants.error_goto_if_null(init_cname, self.module_pos)))
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
@@ -1835,6 +1835,8 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
+        if s.find("__pyx_mstate->(PyObject *)__pyx_ptype_3mod_C") != -1:
+            import pdb; pdb.set_trace()
         if '\n' in s:
             self._write_lines(s)
         else:
@@ -1915,13 +1917,22 @@ class CCodeWriter(object):
     # constant handling
 
     def get_py_int(self, str_value, longness):
-        return self.globalstate.get_int_const(str_value, longness).cname
+        return "%s->%s" % (
+            self.get_module_state_code(),
+            self.globalstate.get_int_const(str_value, longness).cname
+        )
 
     def get_py_float(self, str_value, value_code):
-        return self.globalstate.get_float_const(str_value, value_code).cname
+        return "%s->%s" % (
+            self.get_module_state_code(),
+            self.globalstate.get_float_const(str_value, value_code).cname
+        )
 
     def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
-        return self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
+        return "%s->%s" % (
+            self.get_module_state_code(),
+            self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
+        )
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
@@ -1931,8 +1942,10 @@ class CCodeWriter(object):
 
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):
-        return self.globalstate.get_py_string_const(
+        cname = self.globalstate.get_py_string_const(
             text, identifier, is_str, unicode_value).cname
+        module_state = self.get_module_state_code()
+        return "%s->%s" % (module_state, cname)
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname
@@ -1945,6 +1958,19 @@ class CCodeWriter(object):
 
     def get_cached_constants_writer(self, target=None):
         return self.globalstate.get_cached_constants_writer(target)
+
+    def get_module_state_code(self):
+        # If we don't have a funcstate scope assume global scope for now
+        no_funcstate_scope = self.funcstate.scope is None
+        if no_funcstate_scope or self.funcstate.scope.is_module_scope:
+            return Naming.modulestate_cname
+        else:
+            # TODO - more choices depending on the type of env
+            return Naming.modulestateglobal_cname
+
+    def get_scope_namespace_cname_code(self, scope):
+        namespace_cname = scope.namespace_cname
+        return "%s->%s" % (self.get_module_state_code(), namespace_cname)
 
     # code generation
 
