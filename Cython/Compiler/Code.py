@@ -1440,6 +1440,7 @@ class GlobalState(object):
 
         value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
         if len(value) > 42:
+            # update tests/run/large_integer_T5290.py in case the amount is changed
             cname = self.unique_const_cname(
                 prefix + "large{counter}_" + value[:18] + "_xxx_" + value[-18:])
         else:
