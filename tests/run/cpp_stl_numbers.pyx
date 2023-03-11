@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp20
+# tag: cpp20, cpp
 
 from libcpp.numbers cimport pi, e
 
