@@ -8,8 +8,7 @@ to ensure that data related to the Python interpreter is not corrupted.
 It is *sometimes* to release this lock in Cython when you are not
 accessing Python data.
 
-There are two occasions when you may want to release the
-GIL:
+There are two occasions when you may want to release the GIL:
 
 #. Using :ref:`Cython's parallelism mechanism <parallel>`. The contents of a ``prange`` loop for example are required to be ``nogil``.
 
@@ -17,7 +16,7 @@ GIL:
 
     #. if you have a large computationally/IO-intensive block that doesn't need the GIL then it may be "polite" to release it, just to benefit users of your code who want to do multi-threading. However, this is mostly useful rather than necessary.
 
-    #. (very, very occasionally) it's sometimes useful to briefly release the GIL with a short with ``nogil: pass`` block. This is because Cython doesn't release it spontaneously (unlike Python) so if you're waiting on another Python thread to complete a task, this can avoid deadlocks. This sub-point probably doesn't apply to you unless you're compiling GUI code with Cython.
+    #. (very, very occasionally) in long-running Cython code that never calls into the Python interpreter, it can sometimes be useful to briefly release the GIL with a short ``with nogil: pass`` block. This is because Cython doesn't release it spontaneously (unlike the Python interpreter), so if you're waiting on another Python thread to complete a task, this can avoid deadlocks. This sub-point probably doesn't apply to you unless you're compiling GUI code with Cython.
 
 If neither of these two points apply then you probably do not need to release the GIL. The sort of Cython 
 code that can run without the GIL (no calls to Python, purely C-level numeric operations)
@@ -37,7 +36,7 @@ You can mark a whole function (either a Cython function or an :ref:`external fun
     
         .. code-block:: python
 
-            @cython.nogil(True)
+            @cython.nogil
             @cython.cfunc
             @cython.noexcept
             def some_func() -> None:
@@ -72,7 +71,7 @@ To actually release the GIL you can use context managers
     
         .. code-block:: python
         
-            with cython.nogil(True):
+            with cython.nogil:
                 ...  # some code that runs without the GIL
                 with cython.gil:
                     ...  # some code that runs with the GIL
@@ -89,13 +88,13 @@ To actually release the GIL you can use context managers
                 ...  # some more code without the GIL
             
 The ``with gil`` block is a useful trick to allow a small
-chunk of Python code to in a non-GIL block. Try not to use it
-too much since there is a cost to acquiring the GIL, and because these
-blocks cannot be parallelized.
+chunk of Python code or Python object processing inside a non-GIL block. Try not to use it
+too much since there is a cost to waiting for and acquiring the GIL, and because these
+blocks cannot run in parallel since all executions require the same lock.
 
 A function may be marked as ``with gil`` to ensure that the
-GIL is re-acquired then calling it. This is currently a Cython-only
-feature (no equivalent exists in pure-Python mode)::
+GIL is acquired immediately then calling it. This is currently a Cython-only
+feature (no equivalent syntax exists in pure-Python mode)::
 
   cdef int some_func() with gil:
       ...
@@ -112,15 +111,15 @@ This is most often used when working with :ref:`fusedtypes`
     
         .. code-block:: python
     
-            with cython.nogil(some_type is object):
-                ...  # some code that runs without the GIL
+            with cython.nogil(some_type is not object):
+                ...  # some code that runs without the GIL, unless we're processing objects
             
     .. group-tab:: Cython
     
         .. code-block:: cython
     
-            with nogil(some_type is object):
-                ...  # some code that runs without the GIL
+            with nogil(some_type is not object):
+                ...  # some code that runs without the GIL, unless we're processing objects
       
 Exceptions and the GIL
 ----------------------
@@ -134,7 +133,7 @@ it correctly without you needing to write explicit code to handle it.
 In most cases this is efficient since Cython is able to use the
 function's exception specification to check for an error, and then
 acquire the GIL only if needed, but ``except *`` functions are
-inefficient since Cython must always re-acquire the GIL.
+less efficient since Cython must always re-acquire the GIL.
 
 Don't use the GIL as a lock
 ---------------------------
@@ -156,5 +155,5 @@ there are numerous other creative ways to do so, and it is
 almost impossible to know that you aren't going to trigger one
 of these.
 
-If you want a reliable lock then use the tools in the builtin
+If you want a reliable lock then use the tools in the standard library's
 ``threading`` module.
