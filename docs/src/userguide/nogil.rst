@@ -5,24 +5,33 @@ Cython and the GIL
 
 Python has a global lock (:term:`the GIL <Global Interpreter Lock or GIL>`)
 to ensure that data related to the Python interpreter is not corrupted.
-It is *sometimes* to release this lock in Cython when you are not
+It is *sometimes* useful to release this lock in Cython when you are not
 accessing Python data.
 
 There are two occasions when you may want to release the GIL:
 
-#. Using :ref:`Cython's parallelism mechanism <parallel>`. The contents of a ``prange`` loop for example are required to be ``nogil``.
+#. Using :ref:`Cython's parallelism mechanism <parallel>`. The contents of 
+   a ``prange`` loop for example are required to be ``nogil``.
 
 #. If you want other (external) Python threads to be able to run at the same time.
 
-    #. if you have a large computationally/IO-intensive block that doesn't need the GIL then it may be "polite" to release it, just to benefit users of your code who want to do multi-threading. However, this is mostly useful rather than necessary.
+    #. if you have a large computationally/IO-intensive block that doesn't need the
+       GIL then it may be "polite" to release it, just to benefit users of your code
+       who want to do multi-threading. However, this is mostly useful rather than necessary.
 
-    #. (very, very occasionally) in long-running Cython code that never calls into the Python interpreter, it can sometimes be useful to briefly release the GIL with a short ``with nogil: pass`` block. This is because Cython doesn't release it spontaneously (unlike the Python interpreter), so if you're waiting on another Python thread to complete a task, this can avoid deadlocks. This sub-point probably doesn't apply to you unless you're compiling GUI code with Cython.
+    #. (very, very occasionally) in long-running Cython code that never calls into the
+       Python interpreter, it can sometimes be useful to briefly release the GIL with a 
+       short ``with nogil: pass`` block. This is because Cython doesn't release it 
+       spontaneously (unlike the Python interpreter), so if you're waiting on another
+       Python thread to complete a task, this can avoid deadlocks. This sub-point
+       probably doesn't apply to you unless you're compiling GUI code with Cython.
 
-If neither of these two points apply then you probably do not need to release the GIL. The sort of Cython 
-code that can run without the GIL (no calls to Python, purely C-level numeric operations)
-is often the sort of code that runs efficiently. This sometimes gives people the impression that the
-inverse is true and the trick is releasing the GIL, rather than the actual code they’re running.
-Don’t be misled by this -- your (single-threaded) code will run the same speed with or without the GIL.
+If neither of these two points apply then you probably do not need to release the GIL.
+The sort of Cython code that can run without the GIL (no calls to Python, purely C-level
+numeric operations) is often the sort of code that runs efficiently. This sometimes
+gives people the impression that the inverse is true and the trick is releasing the GIL,
+rather than the actual code they’re running. Don’t be misled by this --
+your (single-threaded) code will run the same speed with or without the GIL.
 
 Marking functions as able to run without the GIL
 ------------------------------------------------
