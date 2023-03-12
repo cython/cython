@@ -365,7 +365,7 @@ automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
 
 Be aware that the conversions do have some pitfalls, which are
-details in :ref:`the troubleshooting section <automatic_conversion_pitfalls>`.
+detailed in :ref:`the troubleshooting section <automatic_conversion_pitfalls>`.
 
 Iteration over stl containers (or indeed any class with ``begin()`` and
 ``end()`` methods returning an object supporting incrementing, dereferencing,
