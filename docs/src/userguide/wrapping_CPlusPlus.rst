@@ -310,6 +310,7 @@ the template parameter list following the function name:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_templates.pyx
 
+.. _stl_types:
 
 Standard library
 -----------------
@@ -362,6 +363,9 @@ All conversions create a new container and copy the data into it.
 The items in the containers are converted to a corresponding type
 automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
+
+Be aware that the conversions do have some pitfalls, which are
+details in :ref:`the troubleshooting section <automatic_conversion_pitfalls>`.
 
 Iteration over stl containers (or indeed any class with ``begin()`` and
 ``end()`` methods returning an object supporting incrementing, dereferencing,

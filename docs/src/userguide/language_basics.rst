@@ -1024,7 +1024,7 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | C array                    | iterable           | list [#2]_       |
 +----------------------------+--------------------+------------------+
-| struct,                    |                    | dict [#1]_       |
+| struct,                    |                    | dict [#1]_ [#4]_ |
 | union                      |                    |                  |
 +----------------------------+--------------------+------------------+
 
@@ -1039,6 +1039,10 @@ possibilities.
 .. [#2] Other than signed/unsigned char[].
    The conversion will fail if the length of C array is not known at compile time,
    and when using a slice of a C array.
+   
+.. [#4] The automatic conversion of a struct to a ``dict`` (and vice
+   versa) does have some potential pitfalls detailed
+   :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
 
 
 Caveats when using a Python string in a C context
