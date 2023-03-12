@@ -891,9 +891,18 @@ class InterpretCompilerDirectives(CythonTransform):
                 extra = "Did you mean 'cython.%s' ?" % correct
                 break
         if not extra:
-            from .. import Shadow
-            if (submodule in Shadow.__dict__
-                    or submodule in Options.directive_types):
+            in_shadow = False
+            try:
+                from .. import Shadow
+            except ImportError:
+                # Shadow is really a user-facing module, so if it isn't available
+                # it shouldn't be a hard failure - we're only generating a slightly
+                # better error message.
+                pass
+            else:
+                if not submodule.startswith("_"):
+                    in_shadow = hasattr(Shadow, submodule)
+            if (in_shadow or submodule in Options.directive_types):
                 extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
