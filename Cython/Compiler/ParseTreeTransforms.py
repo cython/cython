@@ -894,8 +894,7 @@ class InterpretCompilerDirectives(CythonTransform):
             from .. import Shadow
             if (submodule in Shadow.__dict__
                     or submodule in Options.directive_types):
-                extra = ("Instead, 'cimport cython' and use 'cython.%s'." %
-                    submodule)
+                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
             module_name,
