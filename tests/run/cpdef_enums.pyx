@@ -161,3 +161,16 @@ def test_pickle():
     True
     """
     pass
+
+def test_as_default_value(PxdEnum val=PxdEnum.RANK_1):
+    """
+    In order to work, this requires the utility code to be evaluated
+    before the function definition
+    >>> test_as_default_value()
+    True
+    >>> test_as_default_value(PxdEnum.RANK_2)
+    False
+    >>> test_as_default_value.__defaults__[0] == PxdEnum.RANK_1
+    True
+    """
+    return val == PxdEnum.RANK_1

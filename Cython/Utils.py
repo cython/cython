@@ -648,9 +648,14 @@ def write_depfile(target, source, dependencies):
     paths = []
     for fname in dependencies:
         if fname.startswith(src_base_dir):
-            paths.append(os.path.relpath(fname, cwd))
+            try:
+                newpath = os.path.relpath(fname, cwd)
+            except ValueError:
+                # if they are on different Windows drives, absolute is fine
+                newpath = os.path.abspath(fname)
         else:
-            paths.append(os.path.abspath(fname))
+            newpath = os.path.abspath(fname)
+        paths.append(newpath)
 
     depline = os.path.relpath(target, cwd) + ": \\\n  "
     depline += " \\\n  ".join(paths) + "\n"

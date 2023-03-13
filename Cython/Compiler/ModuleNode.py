@@ -121,25 +121,41 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     child_attrs = ["body"]
     directives = None
+    # internal - used in merging
+    pxd_stats = None
+    utility_code_stats = None
 
-    def merge_in(self, tree, scope, merge_scope=False):
+
+    def merge_in(self, tree, scope, stage, merge_scope=False):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
         # to code generation.
+        # Stage is one of "pxd" or "utility" to indicate pxd file or utility
+        # code. This helps define the order.
         #
         # Note: This way of doing it seems strange -- I believe the
         # right concept is to split ModuleNode into a ModuleNode and a
         # CodeGenerator, and tell that CodeGenerator to generate code
         # from multiple sources.
         assert isinstance(self.body, Nodes.StatListNode)
+        assert stage in ('pxd', 'utility')
+
+        if self.pxd_stats is None:
+            self.pxd_stats = Nodes.StatListNode(self.body.pos, stats=[])
+            self.utility_code_stats = Nodes.StatListNode(self.body.pos, stats=[])
+            self.body.stats.insert(0, self.pxd_stats)
+            self.body.stats.insert(0, self.utility_code_stats)
+
         if scope.directives != self.scope.directives:
             # merged in nodes should keep their original compiler directives
             # (for example inline cdef functions)
             tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
+
+        target_stats = self.pxd_stats if stage == "pxd" else self.utility_code_stats
         if isinstance(tree, Nodes.StatListNode):
-            self.body.stats.extend(tree.stats)
+            target_stats.stats.extend(tree.stats)
         else:
-            self.body.stats.append(tree)
+            target_stats.stats.append(tree)
 
         self.scope.utility_code_list.extend(scope.utility_code_list)
 
