@@ -5,6 +5,7 @@
 from libcpp cimport bool
 from libcpp.any cimport any, any_cast
 from libcpp.pair cimport pair
+from cython.operator cimport typeid
 
 def simple_test():
     """
@@ -36,10 +37,13 @@ def cast_test():
     """
     cdef any a
     a = 1
+    assert a.type() == typeid(int)
     assert any_cast[int](a) == 1
     a = 3.14
+    assert a.type() == typeid(double)
     assert any_cast[double](a) == 3.14
     a = <bool>(True)
+    assert a.type() == typeid(bool)
     assert any_cast[bool](a) == True
     # bad cast
     try:
