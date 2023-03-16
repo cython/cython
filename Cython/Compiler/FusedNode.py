@@ -929,8 +929,11 @@ class FusedCFuncDefNode(StatListNode):
             self.py_func.pymethdef_required = True
             self.fused_func_assignment.generate_function_definitions(env, code)
 
+        from . import Options
         for stat in self.stats:
-            if isinstance(stat, FuncDefNode) and stat.entry.used:
+            if (isinstance(stat, FuncDefNode)
+                and (stat.entry.used
+                     or (Options.cimport_from_pyx and not stat.entry.visibility == 'extern'))):
                 code.mark_pos(stat.pos)
                 stat.generate_function_definitions(env, code)
 
