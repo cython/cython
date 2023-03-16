@@ -2,6 +2,7 @@
 # tag: cimport
 
 PYTHON setup.py build_ext --inplace
+PYTHON -c "from pkg.a import test; assert test() == (5, 7)"
 PYTHON -c "from pkg.b import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.b_py2 import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.sub.c import test; assert test() == (1, 2)"
@@ -28,8 +29,17 @@ from .sub.reimport cimport myint
 cdef myint i = 5
 assert i == 5
 
+from .sub cimport myint as pkg_myint
+
+cdef pkg_myint pi = 7
+assert pi == 7
+
 cdef class test_pxd:
     pass
+
+
+def test():
+    return (i, pi)
 
 
 ######## pkg/a.pxd ########
@@ -89,5 +99,10 @@ ctypedef int myint
 
 
 ######## pkg/sub/reimport.pxd ########
+
+from .tdef cimport myint
+
+
+######## pkg/sub/__init__.pxd ########
 
 from .tdef cimport myint
