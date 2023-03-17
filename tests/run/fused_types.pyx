@@ -333,7 +333,7 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     double[:]
     """
     if array is None:
-        print cython.typeof(array)
+        print(cython.typeof(array))
         return
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
