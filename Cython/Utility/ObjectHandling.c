@@ -795,8 +795,8 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
 {
     PyObject *res;
     if (n <= 0) {
-        Py_INCREF($empty_tuple);
-        return $empty_tuple;
+        Py_INCREF(${modulestateglobal_cname}->$empty_tuple);
+        return ${modulestateglobal_cname}->$empty_tuple;
     }
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
@@ -1467,7 +1467,7 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
 //@substitute: naming
 
 static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
-    PyObject* result = __Pyx_PyObject_GetAttrStrNoError($builtins_cname, name);
+    PyObject* result = __Pyx_PyObject_GetAttrStrNoError(${modulestateglobal_cname}->$builtins_cname, name);
     if (unlikely(!result) && !PyErr_Occurred()) {
         PyErr_Format(PyExc_NameError,
 #if PY_MAJOR_VERSION >= 3
@@ -1588,31 +1588,31 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
 #if !CYTHON_AVOID_BORROWED_REFS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
     // Identifier names are always interned and have a pre-calculated hash value.
-    result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    result = _PyDict_GetItem_KnownHash(${modulestateglobal_cname}->$moddict_cname, name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE(${modulestateglobal_cname}->$moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     } else if (unlikely(PyErr_Occurred())) {
         return NULL;
     }
 #elif CYTHON_COMPILING_IN_LIMITED_API
-    if (unlikely(!$module_cname)) {
+    if (unlikely(!${modulestateglobal_cname}->$module_cname)) {
         return NULL;
     }
-    result = PyObject_GetAttr($module_cname, name);
+    result = PyObject_GetAttr(${modulestateglobal_cname}->$module_cname, name);
     if (likely(result)) {
         return result;
     }
 #else
-    result = PyDict_GetItem($moddict_cname, name);
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    result = PyDict_GetItem(${modulestateglobal_cname}->$moddict_cname, name);
+    __PYX_UPDATE_DICT_CACHE(${modulestateglobal_cname}->$moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
 #endif
 #else
-    result = PyObject_GetItem($moddict_cname, name);
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    result = PyObject_GetItem(${modulestateglobal_cname}->$moddict_cname, name);
+    __PYX_UPDATE_DICT_CACHE(${modulestateglobal_cname}->$moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
@@ -2347,7 +2347,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #endif
 
     if (nargs == 0) {
-        return __Pyx_PyObject_Call(func, $empty_tuple, kwargs);
+        return __Pyx_PyObject_Call(func, ${modulestateglobal_cname}->$empty_tuple, kwargs);
     }
     return __Pyx_PyObject_FastCall_fallback(func, args, (size_t)nargs, kwargs);
 }

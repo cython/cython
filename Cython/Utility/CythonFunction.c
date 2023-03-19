@@ -1,5 +1,6 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
+//@substitute: naming
 
 #define __Pyx_CyFunction_USED
 
@@ -67,8 +68,8 @@ typedef struct {
     PyObject *func_is_coroutine;
 } __pyx_CyFunctionObject;
 
-#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __pyx_CyFunctionType)
-#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, ${modulestateglobal_cname}->__pyx_CyFunctionType)
+#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, ${modulestateglobal_cname}->__pyx_CyFunctionType, &PyCFunction_Type)
 #define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
@@ -1059,13 +1060,16 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(PyObject *module) {
+    $modulestate_cname *mstate;
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
+    mstate = $modulestate_cname(module);
+    mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
     CYTHON_UNUSED_VAR(module);
-    __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
+    mstate = $modulestateglobal_cname;
+    mstate->__pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
-    if (unlikely(__pyx_CyFunctionType == NULL)) {
+    if (unlikely(mstate->__pyx_CyFunctionType == NULL)) {
         return -1;
     }
     return 0;
@@ -1111,12 +1115,13 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject* code);
 
 //////////////////// CythonFunction ////////////////////
+//@substitute: naming
 //@requires: CythonFunctionShared
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
-        PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType),
+        PyObject_GC_New(__pyx_CyFunctionObject, $modulestateglobal_cname->__pyx_CyFunctionType),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {

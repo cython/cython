@@ -2502,6 +2502,7 @@ class NameNode(AtomicExprNode):
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             namespace = code.get_scope_namespace_cname_code(self.entry.scope)
+            namespace_typecast = self.entry.scope.namespace_cname_typecast
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
@@ -2517,6 +2518,8 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
+            if namespace_typecast:
+                namespace = "(%s%s)" % (namespace_typecast, namespace)
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -2532,7 +2535,7 @@ class NameNode(AtomicExprNode):
             if entry.is_member:
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
-                           entry.scope.parent_type.typeptr_cname)
+                           code.get_scope_namespace_cname_code(self.entry.scope))
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)

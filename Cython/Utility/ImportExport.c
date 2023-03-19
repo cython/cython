@@ -164,7 +164,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *empty_list = 0;
     #if PY_MAJOR_VERSION < 3
     PyObject *py_import;
-    py_import = __Pyx_PyObject_GetAttrStr($builtins_cname, PYIDENT("__import__"));
+    py_import = __Pyx_PyObject_GetAttrStr(${modulestateglobal_cname}->$builtins_cname, PYIDENT("__import__"));
     if (unlikely(!py_import))
         goto bad;
     if (!from_list) {
@@ -188,7 +188,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                     name, empty_dict, empty_dict, from_list, 1);
                 #else
                 module = PyImport_ImportModuleLevelObject(
-                    name, $moddict_cname, empty_dict, from_list, 1);
+                    name, ${modulestateglobal_cname}->$moddict_cname, empty_dict, from_list, 1);
                 #endif
                 if (unlikely(!module)) {
                     if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
@@ -205,7 +205,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
             if (unlikely(!py_level))
                 goto bad;
             module = PyObject_CallFunctionObjArgs(py_import,
-                name, $moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
+                name, ${modulestateglobal_cname}->$moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
             #if CYTHON_COMPILING_IN_LIMITED_API
@@ -213,7 +213,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                 name, empty_dict, empty_dict, from_list, level);
             #else
             module = PyImport_ImportModuleLevelObject(
-                name, $moddict_cname, empty_dict, from_list, level);
+                name, ${modulestateglobal_cname}->$moddict_cname, empty_dict, from_list, level);
             #endif
             #endif
         }

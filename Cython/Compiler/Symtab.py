@@ -1270,6 +1270,7 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
+    namespace_cname_typecast = ""
 
     def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
@@ -2414,7 +2415,8 @@ class CClassScope(ClassScope):
             # xxx: is_pyglobal changes behaviour in so many places that I keep it in for now.
             # is_member should be enough later on
             entry.is_pyglobal = 1
-            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+            self.namespace_cname = self.parent_type.typeptr_cname
+            self.namespace_cname_typecast = "(PyObject *)"
 
             return entry
 
