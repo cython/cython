@@ -210,6 +210,15 @@ The behaviour for any ``cdef`` function that is declared with an
 explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
 also unchanged.
 
+There's an easy-to-encounter performance pitfall here with ``nogil`` functions
+with an implicit exception specification of ``except *``. This can happen
+most commonly when the return type is ``void`` (but in principle applies
+to most non-numeric return types).  In this case Cython is forced to
+re-acquire the GIL briefly after each call to check the exception state.
+To avoid this overhead, either change the signature to ``noexcept`` (if
+you have determined that it's suitable to do so), or to return a ``int``
+instead to let Cython use the ``int`` as an error flag.
+
 .. note::
   The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
   setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
