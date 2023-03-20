@@ -54,14 +54,6 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 /////////////// BufferFormatStructs.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
-#ifdef __cplusplus
-template<typename T>
-struct IS_UNSIGNED_IMPL {static const bool value = T(0) < T(-1);};
-#define IS_UNSIGNED(type) IS_UNSIGNED_IMPL<type>::value
-#else
-#define IS_UNSIGNED(type) (((type) -1) > 0)
-#endif
-
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
