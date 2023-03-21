@@ -936,9 +936,9 @@ Some things to note:
   In this case Cython must always briefly re-acquire the GIL after a function
   call to check if an exception has been raised.  This can commonly happen with a
   function returning nothing (C ``void``).  Simple workarounds are to mark the
-  function as ``noexcept`` if you're certain that exceptions cannot be throw, or
+  function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
   to change the return type to ``int`` and just let Cython use the return value
-  as an error flag.
+  as an error flag (by default, ``-1`` triggers the exception check).
 
 
 .. _checking_return_values_of_non_cython_functions:
