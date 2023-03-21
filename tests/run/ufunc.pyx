@@ -10,6 +10,17 @@ int_arr_1d = np.arange(20, dtype=int)[::4]
 int_arr_2d = np.arange(500, dtype=int).reshape((50, -1))[5:8, 6:8]
 double_arr_1d = int_arr_1d.astype(np.double)
 double_arr_2d = int_arr_2d.astype(np.double)
+# Numpy has a cutoff at about 500 where it releases the GIL, so test some large arrays
+large_int_arr_1d = np.arange(1500, dtype=int)
+large_int_arr_2d = np.arange(1500*600, dtype=int).reshape((1500, -1))
+large_double_arr_1d = large_int_arr_1d.astype(np.double)
+large_double_arr_2d = large_int_arr_2d.astype(np.double)
+
+def dont_print(x):
+    """
+    For the large arrays, it's just a "don't crash" test
+    """
+    pass
 
 # it's fairly hard to test that nogil results in the GIL actually
 # being released unfortunately
@@ -29,6 +40,8 @@ def test_tripple_it():
     array([[168., 171.],
            [198., 201.],
            [228., 231.]])
+    >>> dont_print(tripple_it(large_int_arr_1d))
+    >>> dont_print(tripple_it(large_int_arr_2d))
     """
 
 @cython.ufunc
@@ -41,6 +54,8 @@ def test_to_the_power():
     True
     >>> np.allclose(to_the_power(1., double_arr_2d), np.ones_like(double_arr_2d))
     True
+    >>> dont_print(to_the_power(large_double_arr_1d, -large_double_arr_1d))
+    >>> dont_print(to_the_power(large_double_arr_2d, -large_double_arr_2d))
     """
 
 @cython.ufunc
@@ -56,6 +71,7 @@ def test_py_return_value():
     >>> py_return_value(double_arr_1d).dtype
     dtype('O')
     >>> py_return_value(-1.)  # returns None
+    >>> dont_print(py_return_value(large_double_arr_1d))
     """
 
 @cython.ufunc
@@ -66,6 +82,7 @@ def test_py_arg():
     """
     >>> py_arg(np.array([1, "2.0", 3.0], dtype=object))
     array([1., 2., 3.])
+    >>> dont_print(py_arg(np.array([1]*1200, dtype=object)))
     """
 
 @cython.ufunc
@@ -155,4 +172,32 @@ def test_nested_function():
     True
     >>> nested_function(-1.)
     -2.0
+    """
+
+@cython.ufunc
+cdef double can_throw(double x):
+    if x<0:
+        raise RuntimeError
+    return x
+
+def test_can_throw():
+    """
+    >>> arr = double_arr_1d.copy()
+    >>> arr[1] = -1.
+    >>> can_throw(arr)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    >>> large_arr = large_double_arr_1d.copy()
+    >>> large_arr[-4] = -2.
+    >>> can_throw(large_arr)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    >>> large_arr2d = large_double_arr_2d.copy()
+    >>> large_arr2d[100, 200] = -1.
+    >>> can_throw(large_arr2d)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
     """

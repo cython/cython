@@ -138,6 +138,9 @@ class UFuncConversion(object):
 
         ufunc_cname = self.global_scope.next_id(self.node.entry.name + "_ufunc_def")
 
+        outer_is_nogil = not (any(t.is_pyobject for t in arg_types) or
+            any(t.is_pyobject for t in out_types))
+
         context = dict(
             func_cname=ufunc_cname,
             in_types=arg_types,
@@ -145,6 +148,7 @@ class UFuncConversion(object):
             inline_func_call=self.node.entry.cname,
             inline_func_declaration=inline_func_decl,
             nogil=self.node.entry.type.nogil,
+            outer_is_nogil=outer_is_nogil,
         )
 
         code = CythonUtilityCode.load(
