@@ -16,32 +16,28 @@ large_int_arr_2d = np.arange(1500*600, dtype=int).reshape((1500, -1))
 large_double_arr_1d = large_int_arr_1d.astype(np.double)
 large_double_arr_2d = large_int_arr_2d.astype(np.double)
 
-def dont_print(x):
-    """
-    For the large arrays, it's just a "don't crash" test
-    """
-    pass
-
 # it's fairly hard to test that nogil results in the GIL actually
 # being released unfortunately
 @cython.ufunc
-cdef double tripple_it(long x) nogil:
-    """tripple_it doc"""
+cdef double triple_it(long x) nogil:
+    """triple_it doc"""
     return x*3.
 
-def test_tripple_it():
+def test_triple_it():
     """
     Ufunc also generates a signature so just look at the end
-    >>> tripple_it.__doc__.endswith('tripple_it doc')
+    >>> triple_it.__doc__.endswith('triple_it doc')
     True
-    >>> tripple_it(int_arr_1d)
+    >>> triple_it(int_arr_1d)
     array([ 0., 12., 24., 36., 48.])
-    >>> tripple_it(int_arr_2d)
+    >>> triple_it(int_arr_2d)
     array([[168., 171.],
            [198., 201.],
            [228., 231.]])
-    >>> dont_print(tripple_it(large_int_arr_1d))
-    >>> dont_print(tripple_it(large_int_arr_2d))
+
+    Treat the large arrays just as a "don't crash" test
+    >>> _ = triple_it(large_int_arr_1d)
+    >>> _ = triple_it(large_int_arr_2d)
     """
 
 @cython.ufunc
@@ -54,8 +50,8 @@ def test_to_the_power():
     True
     >>> np.allclose(to_the_power(1., double_arr_2d), np.ones_like(double_arr_2d))
     True
-    >>> dont_print(to_the_power(large_double_arr_1d, -large_double_arr_1d))
-    >>> dont_print(to_the_power(large_double_arr_2d, -large_double_arr_2d))
+    >>> _ = to_the_power(large_double_arr_1d, -large_double_arr_1d)
+    >>> _ = to_the_power(large_double_arr_2d, -large_double_arr_2d)
     """
 
 @cython.ufunc
@@ -71,7 +67,7 @@ def test_py_return_value():
     >>> py_return_value(double_arr_1d).dtype
     dtype('O')
     >>> py_return_value(-1.)  # returns None
-    >>> dont_print(py_return_value(large_double_arr_1d))
+    >>> _ = py_return_value(large_double_arr_1d)
     """
 
 @cython.ufunc
@@ -82,7 +78,7 @@ def test_py_arg():
     """
     >>> py_arg(np.array([1, "2.0", 3.0], dtype=object))
     array([1., 2., 3.])
-    >>> dont_print(py_arg(np.array([1]*1200, dtype=object)))
+    >>> _ = py_arg(np.array([1]*1200, dtype=object))
     """
 
 @cython.ufunc

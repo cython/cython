@@ -8,7 +8,7 @@ cdef extern from *:
 
 # variable names have to come from tempita to avoid duplication
 @cname("{{func_cname}}")
-cdef void {{func_cname}}(char **args, const npy_intp *dimensions, const npy_intp* steps, void* data) except * {{"nogil" if outer_is_nogil else ""}}:
+cdef void {{func_cname}}(char **args, const npy_intp *dimensions, const npy_intp* steps, void* data) except * {{"nogil" if will_be_called_without_gil else ""}}:
     cdef npy_intp i
     cdef npy_intp n = dimensions[0]
     {{for idx, tp in enumerate(in_types)}}
@@ -23,7 +23,7 @@ cdef void {{func_cname}}(char **args, const npy_intp *dimensions, const npy_intp
     cdef npy_intp step_{{idx}} = steps[{{idx}}]
     {{endfor}}
 
-    {{"with gil" if (not nogil and outer_is_nogil) else "if True"}}:
+    {{"with gil" if (not nogil and will_be_called_without_gil) else "if True"}}:
         for i in range(n):
             {{for idx, tp in enumerate(in_types)}}
             {{if tp.is_pyobject}}
