@@ -86,15 +86,17 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
         part = PySequence_ITEM(parts_tuple, i);
 #endif
         submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
+        // We stop if the attribute isn't found, i.e. if submodule is NULL here.
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_DECREF(part);
 #endif
         Py_DECREF(module);
         module = submodule;
     }
-    if (likely(module))
-        return module;
-    return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
+    if (unlikely(!module)) {
+        return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
+    }
+    return module;
 }
 #endif
 
