@@ -22,16 +22,29 @@ PYTHON test.py  # cython3
 import sub as _sub
 import imported as _imported
 import sub.subimported as _subimported
+import sub2.imports2 as _imports2
 
 assert "pkg" not in globals()
 assert "sub" not in globals()
 assert "imported" not in globals()
+assert "imports2" not in globals()
 assert _sub.__name__ == "pkg.sub", _sub.__name__
 assert _imported.__name__ == "pkg.imported", _imported.__name__
 assert _subimported.__name__ == "pkg.sub.subimported", _subimported.__name__
+assert _imports2.__name__ == "pkg.sub2.imports2", _imports2.__name__
+assert _imports2._corey.__name__ == "distutils.core", _imports2._corey.__name__
 
 
 ######## pkg/imports.pyx ########
+
+import sys as _sous
+import distutils.core as _corey
+from copy import deepcopy as _copey
+import distutils.command as _commie
+
+######## pkg/sub2/__init__.py ########
+
+######## pkg/sub2/imports2.pyx ########
 
 import sys as _sous
 import distutils.core as _corey
