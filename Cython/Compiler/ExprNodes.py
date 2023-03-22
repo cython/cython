@@ -2778,11 +2778,18 @@ class ImportNode(ExprNode):
         assert self.module_name.is_string_literal
         module_name = self.module_name.value
 
-        if self.level == 0 and not self.name_list and not self.get_top_level_module:
+        if self.level <= 0 and not self.name_list and not self.get_top_level_module:
             if self.module_names:
                 assert self.module_names.is_literal  # make sure we create the tuple only once
-            code.globalstate.use_utility_code(UtilityCode.load_cached("ImportDottedModule", "ImportExport.c"))
-            import_code = "__Pyx_ImportDottedModule(%s, %s)" % (
+            if self.level == 0:
+                utility_code = UtilityCode.load_cached("ImportDottedModule", "ImportExport.c")
+                helper_func = "__Pyx_ImportDottedModule"
+            else:
+                utility_code = UtilityCode.load_cached("ImportDottedModuleRelFirst", "ImportExport.c")
+                helper_func = "__Pyx_ImportDottedModuleRelFirst"
+            code.globalstate.use_utility_code(utility_code)
+            import_code = "%s(%s, %s)" % (
+                helper_func,
                 self.module_name.py_result(),
                 self.module_names.py_result() if self.module_names else 'NULL',
             )
