@@ -221,7 +221,10 @@ Managing the Global Interpreter Lock
     @cython.nogil
     @cython.cfunc
     def func_released_gil() -> cython.int:
-        # function with the GIL released
+        # function that can be run with the GIL released
+        
+  Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
+  function *can* be run without the GIL. See :ref:`<cython_and_gil>` for more details.
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
