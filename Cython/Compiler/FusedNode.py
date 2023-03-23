@@ -432,7 +432,7 @@ class FusedCFuncDefNode(StatListNode):
                         __pyx_PyErr_Clear()
             """ % self.match)
 
-    def _buffer_checks(self, buffer_types, pythran_types, pyx_code, decl_code, env):
+    def _buffer_checks(self, buffer_types, pythran_types, pyx_code, decl_code, accept_none, env):
         """
         Generate Cython code to match objects to buffer specializations.
         First try to get a numpy dtype object and match it against the individual
@@ -488,6 +488,21 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.named_insertion_point("numpy_dtype_checks")
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
+
+        if accept_none:
+            # If None is acceptable, then Cython <3.0 matched None with the
+            # first type. This behaviour isn't ideal, but keep it for backwards
+            # compatibility. Better behaviour would be to see if subsequent
+            # arguments give a stronger match.
+            pyx_code.context.update(
+                specialized_type_name=buffer_types[0].specialization_string
+            )
+            pyx_code.put_chunk(
+                """
+                if arg is None:
+                    %s
+                    break
+                """ % self.match)
 
         # creating a Cython memoryview from a Python memoryview avoids the
         # need to get the buffer multiple times, and we can
@@ -730,7 +745,9 @@ class FusedCFuncDefNode(StatListNode):
                         self._fused_instance_checks(normal_types, pyx_code, env)
                     if buffer_types or pythran_types:
                         env.use_utility_code(Code.UtilityCode.load_cached("IsLittleEndian", "ModuleSetupCode.c"))
-                        self._buffer_checks(buffer_types, pythran_types, pyx_code, decl_code, env)
+                        self._buffer_checks(
+                            buffer_types, pythran_types, pyx_code, decl_code,
+                            arg.accept_none, env)
                     if has_object_fallback:
                         pyx_code.context.update(specialized_type_name='object')
                         pyx_code.putln(self.match)
