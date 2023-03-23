@@ -1161,14 +1161,14 @@ cdef void _copy_strided_to_strided(char *src_data, Py_ssize_t *src_strides,
     cdef Py_ssize_t dst_stride = dst_strides[0]
 
     if ndim == 1:
-       if (src_stride > 0 and dst_stride > 0 and
-           <size_t> src_stride == itemsize == <size_t> dst_stride):
-           memcpy(dst_data, src_data, itemsize * dst_extent)
-       else:
-           for i in range(dst_extent):
-               memcpy(dst_data, src_data, itemsize)
-               src_data += src_stride
-               dst_data += dst_stride
+        if (src_stride > 0 and dst_stride > 0 and
+            <size_t> src_stride == itemsize == <size_t> dst_stride):
+            memcpy(dst_data, src_data, itemsize * dst_extent)
+        else:
+            for i in range(dst_extent):
+                memcpy(dst_data, src_data, itemsize)
+                src_data += src_stride
+                dst_data += dst_stride
     else:
         for i in range(dst_extent):
             _copy_strided_to_strided(src_data, src_strides + 1,
@@ -1437,27 +1437,27 @@ cdef extern from *:
         __PYX_BUF_FLAGS_INTEGER_COMPLEX
 
     ctypedef struct __Pyx_TypeInfo:
-      char* name
-      __Pyx_StructField* fields
-      size_t size
-      size_t arraysize[8]
-      int ndim
-      char typegroup
-      char is_unsigned
-      int flags
+        char* name
+        __Pyx_StructField* fields
+        size_t size
+        size_t arraysize[8]
+        int ndim
+        char typegroup
+        char is_unsigned
+        int flags
 
     ctypedef struct __Pyx_StructField:
-      __Pyx_TypeInfo* type
-      char* name
-      size_t offset
+        __Pyx_TypeInfo* type
+        char* name
+        size_t offset
 
     ctypedef struct __Pyx_BufFmt_StackElem:
-      __Pyx_StructField* field
-      size_t parent_offset
+        __Pyx_StructField* field
+        size_t parent_offset
 
     #ctypedef struct __Pyx_BufFmt_Context:
     #  __Pyx_StructField root
-      __Pyx_BufFmt_StackElem* head
+        __Pyx_BufFmt_StackElem* head
 
     struct __pyx_typeinfo_string:
         char string[3]

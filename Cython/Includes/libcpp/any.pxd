@@ -14,5 +14,3 @@ cdef extern from "<any>" namespace "std" nogil:
         any& operator=[U](U&) except +
 
     cdef T any_cast[T](any&) except +
-
-

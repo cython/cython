@@ -49,4 +49,3 @@ cdef void {{func_cname}}(char **args, const npy_intp *dimensions, const npy_intp
             {{for idx in range(len(out_types))}}
             out_{{idx}} += step_{{idx+len(in_types)}}
             {{endfor}}
-
