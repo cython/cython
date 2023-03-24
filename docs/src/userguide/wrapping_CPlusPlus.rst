@@ -520,12 +520,14 @@ created using the Python C API. ::
 The above example leverages Cython's ability to include :ref:`verbatim C code
 <verbatim_c>` in pxd files to create a new Python exception type
 ``CustomLogicError`` and map it to the standard C++ ``std::logic_error`` using
-the ``custom_exception_handler`` function. The ``Raiser::raise_exception`` is
-then marked with ``+custom_exception_handler`` to indicate that this function
-should be called whenever an exception is raised. The corresponding Python
-function ``PyRaiser.raise_exception`` will then raise a ``CustomLogicError``
-whenever it is called. Defining ``PyCustomLogicError`` allows other code to
-catch this exception, as shown below: ::
+the ``custom_exception_handler`` function. There is nothing special about using
+a standard exception class here, ``std::logic_error`` could easily be replaced
+with some new C++ exception type defined in this file. The
+``Raiser::raise_exception`` is marked with ``+custom_exception_handler`` to
+indicate that this function should be called whenever an exception is raised.
+The corresponding Python function ``PyRaiser.raise_exception`` will raise a
+``CustomLogicError`` whenever it is called. Defining ``PyCustomLogicError``
+allows other code to catch this exception, as shown below: ::
     
     try:
         PyRaiser().raise_exception()
