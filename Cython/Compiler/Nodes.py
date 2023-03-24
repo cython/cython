@@ -6414,9 +6414,6 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env):
-        # it's useful to know in this node is coerced to
-        # a soft complex node, where the conversion needs nogil
-        self.nogil = env.nogil
         self.rhs = self.rhs.analyse_types(env)
         self.lhs = self.lhs.analyse_target_types(env)
 

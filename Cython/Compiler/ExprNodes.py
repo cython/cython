@@ -14131,7 +14131,7 @@ class CoerceToComplexNode(CoercionNode):
 
 
 def coerce_from_soft_complex(arg, dst_type, env):
-    nogil = env.nogil or getattr(arg, "nogil", False)
+    from .UtilNodes import HasGilNode
     cfunc_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type,
         [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None),
@@ -14145,18 +14145,21 @@ def coerce_from_soft_complex(arg, dst_type, env):
         "__Pyx_SoftComplexToDouble",
         cfunc_type,
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
-        args = [arg, BoolNode(arg.pos, value=not nogil)],
+        args = [arg, HasGilNode(arg.pos)],
     )
-    # This can be called from outside analyse_types
+    # Because this function can be called from outside analyse_types
     # (e.g. from ExpandInPlaceOperatorsTransform)
-    # so we need to manually set env.nogil
-    old_nogil = env.nogil
-    env.nogil = nogil
-    call = call.analyse_types(env)
-    env.nogil = old_nogil
-    if call.type != dst_type:
-        call = call.coerce_to(dst_type, env)
-    return call
+    # we can't rely on env.nogil being right. Therefore monkey-patch
+    # generate_result_code to work out the gil state then
+    old_generate_result_code = call.generate_result_code
+    def new_generate_result_code(code):
+        call.nogil = not code.funcstate.gil_owned
+        return old_generate_result_code(code)
+    call.generate_result_code = new_generate_result_code
+    analysed_call = call.analyse_types(env)
+    if analysed_call.type != dst_type:
+        analysed_call = analysed_call.coerce_to(dst_type, env)
+    return analysed_call
 
 
 class CoerceToTempNode(CoercionNode):

@@ -2823,8 +2823,7 @@ class ExpandInplaceOperators(EnvTransform):
                                      operator = node.operator,
                                      operand1 = dup,
                                      operand2 = rhs,
-                                     inplace = True,
-                                     nogil = node.nogil)
+                                     inplace = True)
         # Manually analyse types for new node.
         lhs = lhs.analyse_target_types(env)
         dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
