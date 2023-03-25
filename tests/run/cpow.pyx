@@ -223,6 +223,7 @@ def power_coercion_in_nogil_1(double a, double b):
         c = a**b
     return c
 
+
 cdef double nogil_fun(double x) nogil:
     return x
 
