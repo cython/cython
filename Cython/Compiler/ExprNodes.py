@@ -6305,8 +6305,6 @@ class SimpleCallNode(CallNode):
         if self.is_temp and self.type.is_reference:
             self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
 
-        # Called in 'nogil' context?
-        self.nogil = env.nogil
         # C++ exception handler
         if func_type.exception_check == '+':
             if needs_cpp_exception_conversion(func_type):
@@ -6424,6 +6422,7 @@ class SimpleCallNode(CallNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
         elif func_type.is_cfunction:
+            nogil = not code.funcstate.gil_owned
             if self.has_optional_args:
                 actual_nargs = len(self.args)
                 expected_nargs = len(func_type.args) - func_type.optional_arg_count
@@ -6451,7 +6450,7 @@ class SimpleCallNode(CallNode):
                 if exc_val is not None:
                     exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
                 if exc_check:
-                    if self.nogil:
+                    if nogil:
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
@@ -6471,7 +6470,7 @@ class SimpleCallNode(CallNode):
                 if func_type.exception_check == '+':
                     translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
                                             self.result() if self.type.is_pyobject else None,
-                                            func_type.exception_value, self.nogil)
+                                            func_type.exception_value, nogil)
                 else:
                     if exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
@@ -14147,19 +14146,10 @@ def coerce_from_soft_complex(arg, dst_type, env):
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
         args = [arg, HasGilNode(arg.pos)],
     )
-    # Because this function can be called from outside analyse_types
-    # (e.g. from ExpandInPlaceOperatorsTransform)
-    # we can't rely on env.nogil being right. Therefore monkey-patch
-    # generate_result_code to work out the gil state then
-    old_generate_result_code = call.generate_result_code
-    def new_generate_result_code(code):
-        call.nogil = not code.funcstate.gil_owned
-        return old_generate_result_code(code)
-    call.generate_result_code = new_generate_result_code
-    analysed_call = call.analyse_types(env)
-    if analysed_call.type != dst_type:
-        analysed_call = analysed_call.coerce_to(dst_type, env)
-    return analysed_call
+    call = call.analyse_types(env)
+    if call.type != dst_type:
+        call = call.coerce_to(dst_type, env)
+    return call
 
 
 class CoerceToTempNode(CoercionNode):
