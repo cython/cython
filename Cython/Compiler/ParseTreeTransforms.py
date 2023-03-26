@@ -1107,7 +1107,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # for most transforms annotations are left unvisited (because they're unevaluated)
         # however, it is important to pick up compiler directives from them
         if node.expr:
-            self.visitchildren(node.expr)
+            self.visit(node.expr)
         return node
 
     def visit_NewExprNode(self, node):
