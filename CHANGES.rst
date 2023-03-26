@@ -2,6 +2,74 @@
 Cython Changelog
 ================
 
+3.0.0 beta 2 (2023-03-26)
+=========================
+
+Features added
+--------------
+
+* C++ declarations for ``<cmath>``, ``<numbers>`` and ``std::any`` were added.
+  Patches by Jonathan Helgert and Maximilien Colange.
+  (Github issues :issue:`5262`, :issue:`5309`, :issue:`5314`)
+
+Bugs fixed
+----------
+
+* Unintended internal exception handling lead to a visible performance regression
+  for ``nogil`` memoryview code in 3.0.0b1.
+  (Github issue :issue:`5324`)
+
+* ``None`` default arguments for arguments with fused memoryview types could select a different
+  implementation in 3.0 than in 0.29.x.  The selection behaviour is generally considered
+  suboptimal but was at least reverted to the old behaviour for now.
+  (Github issue :issue:`5297`)
+
+* The new complex vs. floating point behaviour of the ``**`` power operator accidentally
+  added a dependency on the GIL, which was really only required on failures.
+  (Github issue :issue:`5287`)
+
+* ``from cython cimport … as …`` could lead to imported names not being found in annotations.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5235`)
+
+* Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
+  (Github issue :issue:`5328`)
+
+* Very long Python integer constants could exceed the maximum C name length of MSVC.
+  Patch by 0dminnimda.  (Github issue :issue:`5290`)
+
+* ``cimport_from_pyx`` could miss some declarations.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5318`)
+
+* Fully qualified C++ names prefixed by a cimported module name could fail to compile.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5229`)
+
+* Cython generated C++ code accidentally used C++11 features in some cases.
+  (Github issue :issue:`5316`)
+
+* Some C++ warnings regarding ``const`` usage in internally generated utility code were resolved.
+  Patch by Max Bachmann.  (Github issue :issue:`5301`)
+
+* With ``language_level=2``, imports of modules in packages could return the wrong module in Python 3.
+  (Github issue :issue:`5308`)
+
+* ``typing.Optional`` could fail on tuple types.
+  (Github issue :issue:`5263`)
+
+* Auto-generated utility code didn't always have all required user defined types available.
+  (Github issue :issue:`5269`)
+
+* Type checks for Python's ``memoryview`` type generated incorrect C code.
+  (Github issues :issue:`5268`, :issue:`5270`)
+
+* Some issues with ``depfile`` generation were resolved.
+  Patches by Eli Schwartz.  (Github issues :issue:`5279`, :issue:`5291`)
+
+* Some C code issue were resolved for the Limited API target.
+  (Github issues :issue:`5264`, :issue:`5265`, :issue:`5266`)
+
+* The C code shown in the annotated HTML output could lack the last C code line(s).
+
+
 3.0.0 beta 1 (2023-02-25)
 =========================
 
