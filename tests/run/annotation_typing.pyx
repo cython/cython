@@ -368,6 +368,19 @@ cdef class ClassTurnOffTyping:
         return typeof(self.x), typeof(self.d), typeof(arg)
 
 
+from cython cimport int as cy_i
+
+
+def int_alias(a: cython.int, b: cy_i):
+    """
+    >>> int_alias(1, 2)
+    int
+    int
+    """
+    print(cython.typeof(a))
+    print(cython.typeof(b))
+
+
 _WARNINGS = """
 14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
