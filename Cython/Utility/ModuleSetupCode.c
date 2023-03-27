@@ -331,7 +331,8 @@
     #define CYTHON_UNPACK_METHODS 1
   #endif
   #ifndef CYTHON_FAST_THREAD_STATE
-    #define CYTHON_FAST_THREAD_STATE 1
+    // CPython 3.12a6 made PyThreadState an opaque struct.
+    #define CYTHON_FAST_THREAD_STATE (PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_FAST_GIL
     // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
