@@ -871,7 +871,8 @@ class InterpretCompilerDirectives(CythonTransform):
     def _check_valid_cython_module(self, pos, module_name):
         if not module_name.startswith("cython."):
             return
-        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+        submodule = module_name.split('.', 2)[1]
+        if submodule in self.valid_cython_submodules:
             return
 
         extra = ""
@@ -889,6 +890,15 @@ class InterpretCompilerDirectives(CythonTransform):
             if module_name.startswith("cython." + wrong):
                 extra = "Did you mean 'cython.%s' ?" % correct
                 break
+        if not extra:
+            is_simple_cython_name = submodule in Options.directive_types
+            if not is_simple_cython_name and not submodule.startswith("_"):
+                # Try to find it in the Shadow module (i.e. the pure Python namespace of cython.*).
+                # FIXME: use an internal reference of "cython.*" names instead of Shadow.py
+                from .. import Shadow
+                is_simple_cython_name = hasattr(Shadow, submodule)
+            if is_simple_cython_name:
+                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
             module_name,
