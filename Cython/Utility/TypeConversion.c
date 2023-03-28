@@ -126,8 +126,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #else
 #define __Pyx_PyNumber_Int(x) (PyInt_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Int(x))
 #endif
-// __Pyx_PyNumber_Float is now in it's own section since it has dependencies (needed to make
-// string conversion work the same in all circumstances)
+// __Pyx_PyNumber_Float is now in its own section since it has dependencies (needed to make
+// string conversion work the same in all circumstances).
 
 #if CYTHON_USE_PYLONG_INTERNALS
   #if PY_VERSION_HEX >= 0x030C00A5
