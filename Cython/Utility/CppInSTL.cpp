@@ -42,8 +42,6 @@ struct InContainer<Container, T, false, false>
 template<class Container, class T>
 struct InContainer<Container, T, false, true>
 {
-  typedef void has_find;
-
   bool
   in(const T& x, const Container& c) const
   {
@@ -54,8 +52,6 @@ struct InContainer<Container, T, false, true>
 template<class Container, class T, bool has_find>
 struct InContainer<Container, T, true, has_find>
 {
-  typedef void has_contains;
-
   bool
   in(const T& x, const Container& c) const
   {
