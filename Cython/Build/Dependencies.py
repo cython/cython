@@ -963,6 +963,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         pythran_options.cplus = True
         pythran_options.np_pythran = True
 
+    if force is None:
+        force = os.environ.get("CYTHON_FORCE_REGEN") == "1"  # allow global overrides for build systems
+
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
