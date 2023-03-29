@@ -2,6 +2,21 @@
 Cython Changelog
 ================
 
+0.29.34 (2023-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Some C compile failures in CPython 3.12 were resolved.
+
+* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
+  Patch by Matúš Valo.  (Github issue :issue:`5300`)
+
+* Some issues with ``depfile`` generation were resolved.
+  Patches by Eli Schwartz.  (Github issues :issue:`5279`, :issue:`5291`)
+
+
 0.29.33 (2023-01-06)
 ====================
 
