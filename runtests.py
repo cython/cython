@@ -503,8 +503,11 @@ VER_DEP_MODULES = {
                                          ]),
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
-    (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
-                                         ]),
+    (3,11,999): (operator.gt, lambda x: x in [
+        'run.py_unicode_strings',  # Py_UNICODE was removed
+        'compile.pylong',  # PyLongObject changed its structure
+        'run.longintrepr',  # PyLongObject changed its structure
+    ]),
 
 }
 
