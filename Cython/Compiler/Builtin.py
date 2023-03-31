@@ -419,7 +419,7 @@ def init_builtins():
 
     builtin_scope.declare_var(
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
-        pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
+        pos=None, cname='__pyx_assertions_enabled()', is_cdef=True)
 
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
