@@ -13,7 +13,7 @@ cdef extern from "Python.h":
     # access C APIs defined in dynamically loaded modules.
 
 
-    ctypedef void (*PyCapsule_Destructor)(object o)
+    ctypedef void (*PyCapsule_Destructor)(object o) noexcept
     # The type of a destructor callback for a capsule.
     #
     # See PyCapsule_New() for the semantics of PyCapsule_Destructor
