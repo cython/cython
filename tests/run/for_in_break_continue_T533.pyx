@@ -1,3 +1,4 @@
+# mode: run
 # ticket: t533
 
 def for_in():
@@ -20,6 +21,7 @@ def for_in():
         break
     return i
 
+
 def for_from():
     """
     >>> for_from()
@@ -39,3 +41,27 @@ def for_from():
         print "BREAK", i
         break
     return i
+
+
+def for_in_break2(data, avoid):
+    """
+    >>> for_in_break2([1,2,3,None], avoid=[1,2,3])
+    3
+    >>> for_in_break2([1,2,3,None], avoid=[1])
+    1
+    >>> for_in_break2([1,2,3,None], avoid=[1])
+    1
+    """
+    data_iter = iter(data)
+    value = None
+    while 1:
+        match = next(data_iter)
+        if match is None:
+            break
+        for value in avoid:
+            if match == value:
+                break
+        else:
+            break
+
+    return value
