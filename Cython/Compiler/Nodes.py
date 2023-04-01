@@ -7464,25 +7464,20 @@ class _ForInStatNode(LoopNode, StatNode):
             # In nested loops, the 'else' block can contain 'continue' or 'break'
             # statements for the outer loop, but we may need to generate cleanup code
             # before taking those paths, so we intercept them here.
-            orig_exit_labels = (code.continue_label, code.break_label)
-            code.continue_label = code.new_label('outer_continue')
-            code.break_label = code.new_label('outer_break')
-
+            intercepted_loop_labels = code.new_loop_labels("outer_")
             code.putln("/*else*/ {")
             self.else_clause.generate_execution_code(code)
             code.putln("}")
 
-            needs_goto_end = not self.else_clause.is_terminator
-            for exit_label, orig_exit_label in zip([code.continue_label, code.break_label], orig_exit_labels):
-                if not code.label_used(exit_label):
-                    continue
-                if needs_goto_end:
-                    code.put_goto(break_label)
-                    needs_goto_end = False
-                code.mark_pos(self.pos)
-                code.put_label(exit_label)
+            label_intercepts = code.label_interceptor(
+                code.get_loop_labels(),
+                intercepted_loop_labels,
+                skip_to_label=None if self.else_clause.is_terminator else break_label,
+                pos=self.pos,
+            )
+
+            for _ in label_intercepts:
                 self.iterator.generate_disposal_code(code)
-                code.put_goto(orig_exit_label)
             code.set_loop_labels(old_loop_labels)
 
         code.mark_pos(self.pos)
@@ -8035,19 +8030,17 @@ class TryExceptStatNode(StatNode):
             if not self.has_default_clause:
                 code.put_goto(except_error_label)
 
-        for exit_label, old_label in [(except_error_label, old_error_label),
-                                      (try_break_label, old_break_label),
-                                      (try_continue_label, old_continue_label),
-                                      (try_return_label, old_return_label),
-                                      (except_return_label, old_return_label)]:
-            if code.label_used(exit_label):
-                if not normal_case_terminates and not code.label_used(try_end_label):
-                    code.put_goto(try_end_label)
-                code.put_label(exit_label)
-                code.mark_pos(self.pos, trace=False)
-                if can_raise:
-                    restore_saved_exception()
-                code.put_goto(old_label)
+        label_intercepts = code.label_interceptor(
+            [except_error_label, try_break_label, try_continue_label, try_return_label, except_return_label],
+            [old_error_label, old_break_label, old_continue_label, old_return_label, old_return_label],
+            skip_to_label=try_end_label if not normal_case_terminates and not code.label_used(try_end_label) else None,
+            pos=self.pos,
+            trace=False,
+        )
+
+        for _ in label_intercepts:
+            if can_raise:
+                restore_saved_exception()
 
         if code.label_used(except_end_label):
             if not normal_case_terminates and not code.label_used(try_end_label):
@@ -8225,9 +8218,7 @@ class ExceptClauseNode(Node):
             for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
 
-        old_break_label, old_continue_label = code.break_label, code.continue_label
-        code.break_label = code.new_label('except_break')
-        code.continue_label = code.new_label('except_continue')
+        old_loop_labels = code.new_loop_labels("except_")
 
         old_exc_vars = code.funcstate.exc_vars
         code.funcstate.exc_vars = exc_vars
@@ -8241,15 +8232,11 @@ class ExceptClauseNode(Node):
                 code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
-        for new_label, old_label in [(code.break_label, old_break_label),
-                                     (code.continue_label, old_continue_label)]:
-            if code.label_used(new_label):
-                code.put_label(new_label)
-                for var in exc_vars:
-                    code.put_decref_clear(var, py_object_type)
-                code.put_goto(old_label)
-        code.break_label = old_break_label
-        code.continue_label = old_continue_label
+        for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
+            for var in exc_vars:
+                code.put_decref_clear(var, py_object_type)
+
+        code.set_loop_labels(old_loop_labels)
 
         for temp in exc_vars:
             code.funcstate.release_temp(temp)
@@ -8405,12 +8392,8 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.release_temp(exc_filename_cname)
                 code.put_goto(old_error_label)
 
-            for new_label, old_label in zip(code.get_all_labels(), finally_old_labels):
-                if not code.label_used(new_label):
-                    continue
-                code.put_label(new_label)
+            for _ in code.label_interceptor(code.get_all_labels(), finally_old_labels):
                 self.put_error_cleaner(code, exc_vars)
-                code.put_goto(old_label)
 
             for cname in exc_vars:
                 code.funcstate.release_temp(cname)
@@ -8420,6 +8403,7 @@ class TryFinallyStatNode(StatNode):
         return_label = code.return_label
         exc_vars = ()
 
+        # TODO: use code.label_interceptor()?
         for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
             if not code.label_used(new_label):
                 continue
