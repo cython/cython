@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+3.0.0 beta 3 (2023-??-??)
+=========================
+
+Bugs fixed
+----------
+
+* Some C compile failures in CPython 3.12 were resolved.
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.34` release.
+
+Other changes
+-------------
+
+* For-loops now release the internal reference to their list/tuple iterable before
+  instead of after the ``else:`` clause.  This probably has no practical impact.
+  (Github issue :issue:`5347`)
+
+
 3.0.0 beta 2 (2023-03-27)
 =========================
 
