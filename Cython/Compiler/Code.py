@@ -772,9 +772,9 @@ class FunctionState(object):
         self.yield_labels.append(num_and_label)
         return num_and_label
 
-    def new_error_label(self):
+    def new_error_label(self, prefix=""):
         old_err_lbl = self.error_label
-        self.error_label = self.new_label('error')
+        self.error_label = self.new_label(prefix + 'error')
         return old_err_lbl
 
     def get_loop_labels(self):
@@ -786,11 +786,11 @@ class FunctionState(object):
         (self.continue_label,
          self.break_label) = labels
 
-    def new_loop_labels(self):
+    def new_loop_labels(self, prefix=""):
         old_labels = self.get_loop_labels()
         self.set_loop_labels(
-            (self.new_label("continue"),
-             self.new_label("break")))
+            (self.new_label(prefix + "continue"),
+             self.new_label(prefix + "break")))
         return old_labels
 
     def get_all_labels(self):
@@ -1901,13 +1901,37 @@ class CCodeWriter(object):
     @funccontext_property
     def yield_labels(self): pass
 
+    def label_interceptor(self, new_labels, orig_labels, skip_to_label=None, pos=None, trace=True):
+        """
+        Helper for generating multiple label interceptor code blocks.
+
+        @param new_labels: the new labels that should be intercepted
+        @param orig_labels: the original labels that we should dispatch to after the interception
+        @param skip_to_label: a label to skip to before starting the code blocks
+        @param pos: the node position to mark for each interceptor block
+        @param trace: add a trace line for the pos marker or not
+        """
+        for label, orig_label in zip(new_labels, orig_labels):
+            if not self.label_used(label):
+                continue
+            if skip_to_label:
+                # jump over the whole interception block
+                self.put_goto(skip_to_label)
+                skip_to_label = None
+
+            if pos is not None:
+                self.mark_pos(pos, trace=trace)
+            self.put_label(label)
+            yield (label, orig_label)
+            self.put_goto(orig_label)
+
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
-    def new_error_label(self):         return self.funcstate.new_error_label()
+    def new_error_label(self, *args):  return self.funcstate.new_error_label(*args)
     def new_yield_label(self, *args):  return self.funcstate.new_yield_label(*args)
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
-    def new_loop_labels(self):         return self.funcstate.new_loop_labels()
+    def new_loop_labels(self, *args):  return self.funcstate.new_loop_labels(*args)
     def get_all_labels(self):          return self.funcstate.get_all_labels()
     def set_all_labels(self, labels):  return self.funcstate.set_all_labels(labels)
     def all_new_labels(self):          return self.funcstate.all_new_labels()
