@@ -7457,34 +7457,33 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
         code.putln("}")
-        break_label = code.break_label
+
+        # clean up before we enter the 'else:' branch
+        self.iterator.generate_disposal_code(code)
+
+        else_label = code.new_label("for_else") if self.else_clause else None
+        end_label = code.new_label("for_end")
+        label_intercepts = code.label_interceptor(
+            [code.break_label],
+            [end_label],
+            skip_to_label=else_label or end_label,
+            pos=self.pos,
+        )
+
+        code.mark_pos(self.pos)
+        for _ in label_intercepts:
+            self.iterator.generate_disposal_code(code)
+
         code.set_loop_labels(old_loop_labels)
+        self.iterator.free_temps(code)
 
         if self.else_clause:
-            # In nested loops, the 'else' block can contain 'continue' or 'break'
-            # statements for the outer loop, but we may need to generate cleanup code
-            # before taking those paths, so we intercept them here.
-            intercepted_loop_labels = code.new_loop_labels("outer_")
             code.putln("/*else*/ {")
+            code.put_label(else_label)
             self.else_clause.generate_execution_code(code)
             code.putln("}")
 
-            label_intercepts = code.label_interceptor(
-                code.get_loop_labels(),
-                intercepted_loop_labels,
-                skip_to_label=None if self.else_clause.is_terminator else break_label,
-                pos=self.pos,
-            )
-
-            for _ in label_intercepts:
-                self.iterator.generate_disposal_code(code)
-            code.set_loop_labels(old_loop_labels)
-
-        code.mark_pos(self.pos)
-        if code.label_used(break_label):
-            code.put_label(break_label)
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
+        code.put_label(end_label)
 
     def generate_function_definitions(self, env, code):
         self.target.generate_function_definitions(env, code)
