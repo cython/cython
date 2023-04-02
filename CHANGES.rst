@@ -1374,6 +1374,10 @@ Other changes
 Bugs fixed
 ----------
 
+* A refence leak of the for-loop list/tuple iterable was resolved if the for-loop's
+  ``else:`` branch executes a ``break`` for an outer loop.
+  (Github issue :issue:`5347`)
+
 * Some C compile failures in CPython 3.12 were resolved.
 
 * Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
