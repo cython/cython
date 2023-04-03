@@ -45,7 +45,6 @@ jobs:
         backend: [c, cpp]
         python-version:
           - "2.7"
-          - "3.4"
           - "3.5"
           - "3.6"
           - "3.7"
@@ -246,8 +245,6 @@ jobs:
           # fails due to lack of a compatible compiler
           - os: windows-2019
             python-version: 2.7
-          - os: windows-2019
-            python-version: 3.4
 
           # cpp specific test fails
           - os: windows-2019
