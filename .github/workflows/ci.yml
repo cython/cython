@@ -41,7 +41,7 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [windows-2019, ubuntu-20.04]
+        os: [windows-2019, ubuntu-20.04, macos-11]
         backend: [c, cpp]
         python-version:
           - "2.7"
@@ -190,56 +190,12 @@ jobs:
             allowed_failure: true
           - os: windows-2019
             # TestInline
-            python-version: 3.10
+            python-version: "3.10"
             allowed_failure: true
           - os: windows-2019
             # TestInline
-            python-version: 3.11
+            python-version: "3.11"
             allowed_failure: true
-
-          # MacOS sub-jobs
-          # ==============
-          # (C-only builds are used to create wheels)
-          - os: macos-11
-            python-version: 2.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 2.7
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.5
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.6
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-11
-            python-version: 3.8
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
-          - os: macos-11
-            python-version: 3.9
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.9
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
         exclude:
           # fails due to lack of a compatible compiler
@@ -261,6 +217,7 @@ jobs:
     env:
       BACKEND: ${{ matrix.backend }}
       PYTHON_VERSION: ${{ matrix.python-version }}
+      MACOSX_DEPLOYMENT_TARGET: 10.15
       GCC_VERSION: 8
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
