@@ -12,7 +12,7 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
-  sudo apt install -y -q gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
+  sudo apt install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
