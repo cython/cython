@@ -13087,7 +13087,7 @@ class CmpNode(object):
                         "Eq" if self.operator == "==" else "Ne",
                         self,
                         PyrexTypes.c_bint_type,
-                        self.operand1,
+                        operand1,
                         self.operand2
                     )
                     if result:
@@ -13399,7 +13399,15 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                         self.operand2, env, result_is_bool=True)
                     if operand2 is not self.operand2:
                         self.coerced_operand2 = operand2
-                return self
+                    # Note that cascade.type is only set on success
+                    if getattr(self.cascade, "type", None) is PyrexTypes.py_object_type:
+                        # unfortunately we've failed to optimize the cascade
+                        # so must fall back to a PyObject and normal coercion
+                        self.type = PyrexTypes.py_object_type
+                    else:
+                        return self
+                else:
+                    return self
         # TODO: check if we can optimise parts of the cascade here
         return ExprNode.coerce_to_boolean(self, env)
 
@@ -13535,15 +13543,22 @@ class CascadedCmpNode(Node, CmpNode):
         return False
 
     def optimise_comparison(self, operand1, env, result_is_bool=False):
-        if self.find_special_bool_compare_function(env, operand1, result_is_bool):
+        success = self.find_special_bool_compare_function(env, operand1, result_is_bool)
+        if success:
             self.is_pycmp = False
-            self.type = PyrexTypes.c_bint_type
             if not operand1.type.is_pyobject:
                 operand1 = operand1.coerce_to_pyobject(env)
+        cascade_success = success
         if self.cascade:
-            operand2 = self.cascade.optimise_comparison(self.operand2, env, result_is_bool)
+            operand2 = self.cascade.optimise_comparison(
+                self.operand2, env, success and result_is_bool)
+            # Note that "cascade.type" is only set on success
+            cascade_success = getattr(self.cascade, "type", None) is PyrexTypes.c_bint_type
             if operand2 is not self.operand2:
                 self.coerced_operand2 = operand2
+        if success and cascade_success:
+            self.type = PyrexTypes.c_bint_type
+
         return operand1
 
     def coerce_operands_to_pyobjects(self, env):
