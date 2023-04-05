@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.29.35 (2023-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Function signatures containing a type like `tuple[()]` could not be printed.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
+
+
 0.29.34 (2023-04-02)
 ====================
 
