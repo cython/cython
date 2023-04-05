@@ -53,7 +53,7 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 
 /////////////// BufferFormatStructs.proto ///////////////
 //@proto_block: utility_code_proto_before_types
-//@requires: Overflow.c::Common
+//@requires: CMath.c::IsUnsigned
 
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
