@@ -1061,11 +1061,11 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
     } else
 #endif
 #if CYTHON_USE_PYLONG_INTERNALS
-    if (likely(PyLong_CheckExact(value)) && likely(Py_SIZE(value) == 1 || Py_SIZE(value) == 0)) {
-        if (Py_SIZE(value) == 0) {
+    if (likely(PyLong_CheckExact(value)) && likely(__Pyx_PyLong_IsCompact(value))) {
+        if (__Pyx_PyLong_IsZero(value)) {
             ival = 0;
         } else {
-            ival = __Pyx_PyLong_Digits(value)[0];
+            ival = __Pyx_PyLong_CompactValue(value);
             if (unlikely(ival > 255)) goto bad_range;
         }
     } else
