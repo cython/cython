@@ -18,7 +18,6 @@ TODO: Conditionally support 128-bit with intmax_t?
 */
 
 /////////////// Common.proto ///////////////
-//@requires: CMath.c::IsUnsigned
 
 static int __Pyx_check_twos_complement(void) {
     if ((-1 != ~0)) {
