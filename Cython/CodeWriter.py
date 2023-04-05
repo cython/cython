@@ -678,7 +678,10 @@ class ExpressionWriter(TreeVisitor):
         self.visit(node.base)
         self.put(u"[")
         if isinstance(node.index, TupleNode):
-            self.emit_sequence(node.index)
+            if node.index.subexpr_nodes():
+                self.emit_sequence(node.index)
+            else:
+                self.put(u"()")
         else:
             self.visit(node.index)
         self.put(u"]")
