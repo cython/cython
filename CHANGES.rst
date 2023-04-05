@@ -10,6 +10,9 @@ Bugs fixed
 
 * Some C compile failures in CPython 3.12 were resolved.
 
+* Function signatures containing a type like `tuple[()]` could not be printed.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
+
 * Includes all bug-fixes and features from the 0.29 maintenance branch
   up to the :ref:`0.29.34` release.
 
@@ -1383,6 +1386,18 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.35:
+
+0.29.35 (2023-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Function signatures containing a type like `tuple[()]` could not be printed.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
 
 
 .. _0.29.34:
