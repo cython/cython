@@ -137,7 +137,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_IsZero(x)  (__Pyx_PyLong_Sign(x) & 1)
   #define __Pyx_PyLong_IsPos(x)  (__Pyx_PyLong_Sign(x) == 0)
   #define __Pyx_PyLong_IsCompact(x)  (((PyLongObject*)x)->long_value.lv_tag < (2 << 3))  // (2 << NON_SIZE_BITS)
-  #define __Pyx_PyLong_CompactValue(x)  ((1 - __Pyx_PyLong_Sign(x)) * (Py_ssize_t) __Pyx_PyLong_Digits(x)[0])
+  #define __Pyx_PyLong_CompactValue(x)  ((1 - (Py_ssize_t) __Pyx_PyLong_Sign(x)) * (Py_ssize_t) __Pyx_PyLong_Digits(x)[0])
   #define __Pyx_PyLong_CompactValueUnsigned(x)  (__Pyx_PyLong_Digits(x)[0])
   #define __Pyx_PyLong_DigitCount(x)  (((PyLongObject*)x)->long_value.lv_tag >> 3)  // (>> NON_SIZE_BITS)
   #define __Pyx_PyLong_SignedDigitCount(x)  \
