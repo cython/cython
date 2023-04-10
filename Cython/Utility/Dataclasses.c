@@ -101,7 +101,10 @@ static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject
         key = PySequence_GetItem(args_list, i);
         if (!key) return -1;
 
-        if (PyUnicode_Check(key) && PyUnicode_CompareWithASCIIString(key, "self") == 0) {
+        if (PyUnicode_Check(key) && (
+                PyUnicode_CompareWithASCIIString(key, "self") == 0) ||
+                // namedtuple constructor in fallback code
+                PyUnicode_CompareWithASCIIString(key, "_cls") == 0)) {
             Py_DECREF(key);
             continue;
         }
