@@ -327,7 +327,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         node.pos,
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
            ExprNodes.BoolNode(node.pos, value=v))
-          for k, v in kwargs.items() ] + 
+          for k, v in kwargs.items() ] +
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
            ExprNodes.BoolNode(node.pos, value=v))
           for k, v in [('kw_only', kw_only), ('match_args', False),
