@@ -501,7 +501,23 @@ C++ public declarations
 
 When a file is compiled as C++, the public function is declared as C++ API (using ``extern "C++"``). This disallows to call
 the function from C code. To declare the function as C API, the ``extern`` declaration needs to be manually specified by the user.
-This can be done by setting ``__PYX_EXTERN_C`` macro to ``extern "C"`` during compilation of generated C++ file.
+This can be done by setting ``__PYX_EXTERN_C`` C macro to ``extern "C"`` during compilation of generated C++ file::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension(
+            "module", ["module.pyx"],
+            define_macros=[("__PYX_EXTERN_C", 'extern "C"')],
+            language="c++",
+        )
+    ]
+
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
 
 .. _api:
 
