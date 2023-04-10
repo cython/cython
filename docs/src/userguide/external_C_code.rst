@@ -496,6 +496,13 @@ file consists of the full dotted name of the module, e.g. a module called
     the resulting ``.so`` file like a dynamic library.
     Beware that this is not portable, so it should be avoided.
 
+C++ public declarations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+When a file is compiled as C++, the public function is declared as C++ API (using ``extern "C++"``). This disallows to call
+the function from C code. To declare the function as C API, the ``extern`` declaration needs to be manually specified by the user.
+This can be done by setting ``__PYX_EXTERN_C`` macro to ``extern "C"`` during compilation of generated C++ file.
+
 .. _api:
 
 C API Declarations

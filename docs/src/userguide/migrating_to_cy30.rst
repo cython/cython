@@ -264,6 +264,11 @@ When running into an error it is required to add the corresponding operator::
         Example operator++(int)
         Example operator--(int)
 
+Public Declarations in C++
+==========================
+
+Public declaration in C++ mode are exported as C++ API in Cython 3. This behavior can be changed by
+setting export keyword using ``__PYX_EXTERN_C`` macro: ``-D__PYX_EXTERN_C=extern "C"``.
 
 ``**`` power operator
 =====================
