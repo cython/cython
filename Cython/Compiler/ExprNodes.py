@@ -13405,7 +13405,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     if operand2 is not self.operand2:
                         self.coerced_operand2 = operand2
                 self.unify_cascade_type()
-            return self
+                return self
         # TODO: check if we can optimise parts of the cascade here
         return ExprNode.coerce_to_boolean(self, env)
 
