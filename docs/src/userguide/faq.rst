@@ -803,6 +803,148 @@ with simple test:
 Explanations
 ============
 
+What is the difference between a .pxd and .pxi file? When should either be used?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SHORT **Answer**:  You should always use .pxd files for declarations and .pxi files only for code that you want to include.
+
+MEDIUM **Answer**:  A .pxd files are lists of declarations, .pxi files are textually included, and their use for declarations is a historical artifact of the way common declarations were shared before .pxd files existed.
+
+LONG **Answer**:  A .pxd file is a declaration file, and is used to declare classes, methods, etc. in a C extension module, (typically as implemented in a .pyx file of the same name). It can contain declarations only, i.e. no executable statements. One can ``cimport`` things from .pxd files just as one would import things in Python. Two separate modules cimporting from the same .pxd file will receive identical objects.
+
+A .pxi file is an include file and is textually included (similar to the C ``#include`` directive) and may contain any valid Cython code at the given point in the program. It may contain implementations (e.g. common cdef inline functions) which will be copied into both files. For example, this means that if I have a class A declared in a.pxi, and both b.pyx and c.pyx do ``include a.pxi`` then I will have two distinct classes b.A and c.A. Interfaces to C libraries (including the Python/C API) have usually been declared in .pxi files (as they are not associated to a specific module). It is also re-parsed at every invocation.
+
+Now that "cimport *" can be used, there is no reason to use .pxi files for external declarations.
+
+----------
+
+What is better, a single big module or multiple separate modules?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In short, one big module is clumsy to handle but allows broader optimisations by the C compiler.
+
+The compile time might actually decrease for multiple modules since the build can be parallelised. The "build_ext" command in distutils has a "-j" option since Py3.5. Also, smaller modules are usually faster to compile by the C compiler, because some optimisations may involve non-linear overhead.
+
+The distribution size, and the size per module, will probably increase when splitting a module because there are some things that Cython has to copy into each module. There is a [[feature request|https://github.com/cython/cython/issues/2356]] that would mitigate this.
+
+C calls between modules are slightly slower than C calls inside of a module, simply because the C compiler cannot optimise and/or inline them. You will have to use shared .pxd declarations for them, which will then call through a function pointer. If modules use a functional split, however, this should not hurt too much. It might still be a good idea to create a shared .pxd file (or .pxi) with inline functions for performance critical code that is used in multiple modules.
+
+When splitting an existing module, you will also have to deal with the API changes. Leaving some legacy imports here and there, or turning a module into a package that merges the module namespaces back together via imports, might prevent code breakage for users of your original module when you move names around and redistribute them across multiple modules.
+
+----------
+
+What is the difference between PyObject* and object?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**:  A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
+
+::
+
+    from cpython.ref cimport PyObject
+
+    py_object = [1,2,3]
+
+    cdef PyObject* ptr = <PyObject*>py_object
+
+    cdef object l = <object>ptr    # this increases the reference count to the list
+
+Note that the lifetime of the object is only bound to its owned references, not to any C pointers that happen to point to it. This means that ``ptr`` in the example above becomes invalid as soon as the last reference to the object dies:
+
+::
+
+    py_object = [1,2,3]
+    cdef PyObject* ptr = <PyObject*>py_object
+    py_object = None   # last reference to list dies here
+
+    # ptr now points to a dead object
+    print(<object>ptr)   # expect a crash here!
+
+Pointers are commonly used when passing objects through C callbacks, e.g.
+
+::
+
+    cdef int call_it_from_c(void* py_function, void* args):
+        py_args = <tuple>args if args is not NULL else ()
+        return (<object>py_function)(*py_args)
+
+    def py_func(a,b,c):
+        print(a,b,c)
+        return -1
+
+    args = [1,2,3]
+
+    call_it_from_c(<PyObject*>py_func, <PyObject*>args)
+
+Once again, care must be taken to keep the objects alive as long as any pointers to them are still in use.
+
+----------
+
+''Why does ** on int literals not work (as it seems to do in Pyrex)?''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It works as expected in recent versions of Cython.
+
+In older versions, it was considered that the fact that a binary operation on two integer types returned a float was counter-intuitive (both compared to every other kind of binary op in C, and the "expected" behavior from python). We discovered it because it was causing errors (e.g. in functions that were expecting an integer value but getting a float) and after much discussion decided that disabling this behavior was better than letting it go. Also a**b will (silently) overflow as an int/be inexact as a double except for very small values of b. If one *wants* the old behavior, one can always do, e.g, 13.0**5, where it is much clearer what's going on. One would have to do <int>(13**5) in pyrex anyway, which looks kind of strange.
+
+----------
+
+Why does Cython not always give errors for uninitialized variables?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: Cython does some static checks for variable initialization before use during  compile time, but these are very basic, as Cython has no definite knowledge  what paths of code will be taken at runtime:
+
+Consider the following
+
+.. code:: python
+
+    def testUnboundedLocal1():
+       if False:
+          c = 1
+       print c
+    def testUnboundedLocal2():
+       print c
+
+With CPython, both functions lead to the following exception:
+
+::
+
+    NameError: global name 'c' is not defined
+
+With Cython, the first variant prints "None", the second variant leads to a  compile time error. Both behaviours differ from CPython's.
+
+This is considered a BUG and will change in the future.
+
+----------
+
+Why does a function with cdef'd parameters accept None?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: It is a fairly common idiom in Python to use ``None`` as a way to mean "no value" or "invalid". This doesn't play well with C, as ``None`` is not compatible with any C type. To accommodate for this, the default behavior is for functions with cdefed parameters to also accept None. This behavior was inherited from Pyrex, and while it has been proposed that it be changed, it will likely stay (at least for a while) for backwards capability.
+
+You have four choices for how to handle ``None`` in your code:
+
+1. In Cython 3.x, use Python type annotations instead of Cython syntax. Python type annotations distinguish between ``func(x: MyType)`` and ``func(x: Optional[MyType])``, where the first **disallows** ``None`` and the second explicitly allows it.  ``func(x: MyType = None)`` allows it as well because it is explicitly required by the provided default value.
+
+2. If you want to consider ``None`` invalid input, then you need to write code that checks for it, and raised an appropriate exception.
+
+3. If you want Cython to raise an exception if ``None`` is passed in for an extension type parameter, you can use the ``not None`` declaration:
+
+   ::
+
+       def foo(MyClass val not None): <...>
+
+   which is a short-hand for
+
+   ::
+
+       def foo(MyClass val):
+           if val is None: raise <...>
+           <...>
+
+4. You can also put ``#cython: nonecheck=True`` at the top of your file and all access will be checked for None, but it
+   will slow things down, as it is adding a check on every access, rather that once on function call.
+
+
 About the project
 =================
 
@@ -905,146 +1047,3 @@ If you wish to cite it, here's the Bibtex:
         doi={10.1109/MCSE.2010.118},
         ISSN={1521-9615},
     }
-
-----------
-
-''Why does ** on int literals not work (as it seems to do in Pyrex)?''
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-It works as expected in recent versions of Cython.
-
-In older versions, it was considered that the fact that a binary operation on two integer types returned a float was counter-intuitive (both compared to every other kind of binary op in C, and the "expected" behavior from python). We discovered it because it was causing errors (e.g. in functions that were expecting an integer value but getting a float) and after much discussion decided that disabling this behavior was better than letting it go. Also a**b will (silently) overflow as an int/be inexact as a double except for very small values of b. If one *wants* the old behavior, one can always do, e.g, 13.0**5, where it is much clearer what's going on. One would have to do <int>(13**5) in pyrex anyway, which looks kind of strange.
-
-----------
-
-Why does Cython not always give errors for uninitialized variables?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: Cython does some static checks for variable initialization before use during  compile time, but these are very basic, as Cython has no definite knowledge  what paths of code will be taken at runtime:
-
-Consider the following
-
-.. code:: python
-
-    def testUnboundedLocal1():
-       if False:
-          c = 1
-       print c
-    def testUnboundedLocal2():
-       print c
-
-With CPython, both functions lead to the following exception:
-
-::
-
-    NameError: global name 'c' is not defined
-
-With Cython, the first variant prints "None", the second variant leads to a  compile time error. Both behaviours differ from CPython's.
-
-This is considered a BUG and will change in the future.
-
-----------
-
-What is the difference between PyObject* and object?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:  A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
-
-::
-
-    from cpython.ref cimport PyObject
-
-    py_object = [1,2,3]
-
-    cdef PyObject* ptr = <PyObject*>py_object
-
-    cdef object l = <object>ptr    # this increases the reference count to the list
-
-Note that the lifetime of the object is only bound to its owned references, not to any C pointers that happen to point to it. This means that ``ptr`` in the example above becomes invalid as soon as the last reference to the object dies:
-
-::
-
-    py_object = [1,2,3]
-    cdef PyObject* ptr = <PyObject*>py_object
-    py_object = None   # last reference to list dies here
-
-    # ptr now points to a dead object
-    print(<object>ptr)   # expect a crash here!
-
-Pointers are commonly used when passing objects through C callbacks, e.g.
-
-::
-
-    cdef int call_it_from_c(void* py_function, void* args):
-        py_args = <tuple>args if args is not NULL else ()
-        return (<object>py_function)(*py_args)
-
-    def py_func(a,b,c):
-        print(a,b,c)
-        return -1
-
-    args = [1,2,3]
-
-    call_it_from_c(<PyObject*>py_func, <PyObject*>args)
-
-Once again, care must be taken to keep the objects alive as long as any pointers to them are still in use.
-
-----------
-
-What is the difference between a .pxd and .pxi file? When should either be used?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-SHORT **Answer**:  You should always use .pxd files for declarations and .pxi files only for code that you want to include.
-
-MEDIUM **Answer**:  A .pxd files are lists of declarations, .pxi files are textually included, and their use for declarations is a historical artifact of the way common declarations were shared before .pxd files existed.
-
-LONG **Answer**:  A .pxd file is a declaration file, and is used to declare classes, methods, etc. in a C extension module, (typically as implemented in a .pyx file of the same name). It can contain declarations only, i.e. no executable statements. One can ``cimport`` things from .pxd files just as one would import things in Python. Two separate modules cimporting from the same .pxd file will receive identical objects.
-
-A .pxi file is an include file and is textually included (similar to the C ``#include`` directive) and may contain any valid Cython code at the given point in the program. It may contain implementations (e.g. common cdef inline functions) which will be copied into both files. For example, this means that if I have a class A declared in a.pxi, and both b.pyx and c.pyx do ``include a.pxi`` then I will have two distinct classes b.A and c.A. Interfaces to C libraries (including the Python/C API) have usually been declared in .pxi files (as they are not associated to a specific module). It is also re-parsed at every invocation.
-
-Now that "cimport *" can be used, there is no reason to use .pxi files for external declarations.
-
-----------
-
-Why does a function with cdef'd parameters accept None?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: It is a fairly common idiom in Python to use ``None`` as a way to mean "no value" or "invalid". This doesn't play well with C, as ``None`` is not compatible with any C type. To accommodate for this, the default behavior is for functions with cdefed parameters to also accept None. This behavior was inherited from Pyrex, and while it has been proposed that it be changed, it will likely stay (at least for a while) for backwards capability.
-
-You have four choices for how to handle ``None`` in your code:
-
-1. In Cython 3.x, use Python type annotations instead of Cython syntax. Python type annotations distinguish between ``func(x: MyType)`` and ``func(x: Optional[MyType])``, where the first **disallows** ``None`` and the second explicitly allows it.  ``func(x: MyType = None)`` allows it as well because it is explicitly required by the provided default value.
-
-2. If you want to consider ``None`` invalid input, then you need to write code that checks for it, and raised an appropriate exception.
-
-3. If you want Cython to raise an exception if ``None`` is passed in for an extension type parameter, you can use the ``not None`` declaration:
-
-   ::
-
-       def foo(MyClass val not None): <...>
-
-   which is a short-hand for
-
-   ::
-
-       def foo(MyClass val):
-           if val is None: raise <...>
-           <...>
-
-4. You can also put ``#cython: nonecheck=True`` at the top of your file and all access will be checked for None, but it
-   will slow things down, as it is adding a check on every access, rather that once on function call.
-
-----------
-
-What is better, a single big module or multiple separate modules?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-In short, one big module is clumsy to handle but allows broader optimisations by the C compiler.
-
-The compile time might actually decrease for multiple modules since the build can be parallelised. The "build_ext" command in distutils has a "-j" option since Py3.5. Also, smaller modules are usually faster to compile by the C compiler, because some optimisations may involve non-linear overhead.
-
-The distribution size, and the size per module, will probably increase when splitting a module because there are some things that Cython has to copy into each module. There is a [[feature request|https://github.com/cython/cython/issues/2356]] that would mitigate this.
-
-C calls between modules are slightly slower than C calls inside of a module, simply because the C compiler cannot optimise and/or inline them. You will have to use shared .pxd declarations for them, which will then call through a function pointer. If modules use a functional split, however, this should not hurt too much. It might still be a good idea to create a shared .pxd file (or .pxi) with inline functions for performance critical code that is used in multiple modules.
-
-When splitting an existing module, you will also have to deal with the API changes. Leaving some legacy imports here and there, or turning a module into a package that merges the module namespaces back together via imports, might prevent code breakage for users of your original module when you move names around and redistribute them across multiple modules.
