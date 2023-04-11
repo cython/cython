@@ -571,7 +571,21 @@ It is also possible to use distutils by adding the file cslurp.c (or your files 
 How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-See the main article [[here|AutoPxd|here]].
+Several people have created scripts to parse header files and automatically produce Cython bindings.
+
+### autowrap
+
+autowrap automatically generates python extension modules for wrapping C++ libraries based on annotated (commented) cython pxd files. Current features include wrapping of template classes, enums, free functions and static methods as well as converters from Python data types to (many) STL containers and back. Finally, also manually written Cython code can be incorporated for wrapping code.
+
+http://github.com/uweschmitt/autowrap
+
+### python-autopxd
+
+Automatically generate pxd from C headers. It uses [pycparser](https://github.com/eliben/pycparser) to parse the definitions, so the only requirement beyond python dependencies is a C preprocessor on PATH.
+
+https://github.com/gabrieldemarmiesse/python-autopxd2 (A friendly fork of python-autopxd, supporting recent Python versions)
+
+https://github.com/tarruda/python-autopxd (original version)
 
 ----------
 
