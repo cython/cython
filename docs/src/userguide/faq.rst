@@ -3,8 +3,8 @@
 Basics
 ======
 
-Do I need to rename my .py file to .pyx?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Do I need to rename my ``.py`` file to ``.pyx``?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
 
@@ -21,22 +21,22 @@ Can Cython generate C code for classes?
 
 ----------
 
-Is it possible to call my Python code from C?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Can I call my Python code from C?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**:  Yes, easily. Follow the example in Demos/callback/ in the Cython source distribution.
 
 ----------
 
-How can I interface numpy arrays using Cython?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I interface numpy arrays using Cython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: Follow the example: https://cython.readthedocs.io/en/latest/src/userguide/numpy_tutorial.html
 
 ----------
 
-How to compile Cython with subpackages
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I compile Cython with subpackages?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It's highly recommended to arrange Cython modules in exactly the same Python package structure as the Python parts of the code base. As long as you don't keep your Cython code in unusual places, everything should just work.
 
@@ -44,8 +44,8 @@ This is in part due to the fact that fully qualified names are resolved at compi
 
 ----------
 
-How can I speed up the C compilation?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I speed up the C compilation?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Especially with large modules, the code that Cython generates can take the C compiler quite some time to optimise. This is usually ok for production builds, but during development, this can get in the way.
 
@@ -53,8 +53,8 @@ It can substantially speed up the C compiler runs to disable the code optimisati
 
 ----------
 
-How can I reduce the size of the binary modules?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I reduce the size of the binary modules?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Python distutils build often includes debugging symbols in the extension modules.  The default for gcc is ``-g2``, for example. Disabling them (``CFLAGS=-g0`` for gcc), or setting them to the bare minimum that is required to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce the size of the binaries.
 
@@ -80,15 +80,15 @@ How do I pickle cdef classes?
 
 ----------
 
-How do I use a Cython class in a C++ framework
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I use a Cython class in a C++ framework?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 See, for example, http://bitbucket.org/binet/cy-cxxfwk/src and http://groups.google.com/group/cython-users/browse_thread/thread/bc007d85b2ccc518 .
 
 ----------
 
-How can I help Cython find numpy header files?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I help Cython find numpy header files?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: If you are seeing errors like these:
 
@@ -149,8 +149,8 @@ Note that there is also a type called ``bint``, which is essentially a C ``int``
 
 ----------
 
-How do I use 'const'?
-^^^^^^^^^^^^^^^^^^^^^
+How do I use ``const``?
+^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: Since Cython 0.18, you can just use it in your code and in your declarations.
 
@@ -173,10 +173,10 @@ Note that the above declarations for the different ``const char*`` types are sti
 
 ----------
 
-Can I use builtins like len() with the C type char *?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I use builtins like ``len()`` with the C type ``char *``?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Yes you can. Cython 0.12.1 and later map ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call since 0.12, and applying it to sliced ``char*`` values will skip the length counting step.
+**Answer**: Cython 0.12.1 and later map ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call since 0.12, and applying it to sliced ``char*`` values will skip the length counting step.
 
 See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
 
@@ -184,10 +184,10 @@ For other Python operations on ``char*``, the generated code may be inefficient,
 
 ----------
 
-Is it possible to make a cdef'd class that derives from a builtin Python type such as list?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I make a cdef'd class that derives from a builtin Python type such as list?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Yes, since Cython 0.14, you can just use the type as a base class in your cdef class declaration. Older versions of Cython required a [[work-around|FAQ/cdef_derive|work-around]] that has several drawbacks, especially for optimisations.
+**Answer**: Since Cython 0.14, you can just use the type as a base class in your cdef class declaration. Older versions of Cython required a [[work-around|FAQ/cdef_derive|work-around]] that has several drawbacks, especially for optimisations.
 
 The only exception are the types bytes ('str' in Python 2) and tuple, which can only be subtyped by Python classes (not cdef classes). This is considered a [[bug|http://trac.cython.org/cython_trac/ticket/152|bug]]. However, you can safely subtype 'unicode' and 'list' instead.
 
@@ -241,8 +241,8 @@ See http://docs.python.org/tutorial/classes.html#python-scopes-and-name-spaces f
 
 ----------
 
-Can Cython create objects or apply operators to locally created objects as pure C code?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I create objects or apply operators to locally created objects as pure C code?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For methods like ``__init__`` and ``__getitem__`` the Python calling convention is mandatory and identical for all objects, so Cython cannot provide a major speed-up for them.
 
@@ -285,8 +285,8 @@ and then define it as a Cython function as follows:
         instance._value = 1
         return instance
 
-How do I implement a single class method in a Cython module ?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I implement a single class method in a Cython module?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: Cython-defined methods don't bind by default, regardless from where they are referenced. Because of this the following does not work:
 
@@ -331,8 +331,8 @@ or by using the ``cython.binding`` directive to make the method bind automatical
 
 ----------
 
-How to pass string buffers that may contain 0 bytes to Cython?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I pass string buffers that may contain 0 bytes to Cython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
 
@@ -418,7 +418,7 @@ The above is the right thing to do in Py3. However, some (not all, just some) mo
 
 ----------
 
-How do I use variable args.
+How do I use variable args?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It can't be done cleanly yet, but the code below works:
@@ -451,8 +451,8 @@ It can't be done cleanly yet, but the code below works:
 
 ----------
 
-How can I make a standalone binary from a Python program using cython?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I make a standalone binary from a Python program using cython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You probably want a recipe something like this:
 
@@ -467,8 +467,8 @@ The magic is the --embed option, which embeds a copy of the Python interpreter m
 
 ----------
 
-How to wrap C code that uses the restrict qualifier?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I have to wrap C code that uses the restrict qualifier?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: There currently is no way of doing this directly into C code. Cython does not understand the restrict qualifier. However you can wrap your way around it.
 
@@ -568,15 +568,15 @@ It is also possible to use distutils by adding the file cslurp.c (or your files 
 
 ----------
 
-Is there any tool to automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 See the main article [[here|AutoPxd|here]].
 
 ----------
 
-How can I run doctests in Cython code (pyx files)?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I run doctests in Cython code (pyx files)?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**:
 
@@ -648,8 +648,8 @@ This module (let's call it "cydoctest") offers a Cython-compatible workaround.
 
 ----------
 
-How do I work around the -Wno-long-double error when installing on OS X
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I work around the ``-Wno-long-double error`` when installing on OS X?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**:
 
@@ -803,8 +803,8 @@ with simple test:
 Explanations
 ============
 
-What is the difference between a .pxd and .pxi file? When should either be used?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What is the difference between a ``.pxd`` and ``.pxi`` file? When should either be used?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 SHORT **Answer**:  You should always use .pxd files for declarations and .pxi files only for code that you want to include.
 
@@ -833,8 +833,8 @@ When splitting an existing module, you will also have to deal with the API chang
 
 ----------
 
-What is the difference between PyObject* and object?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What is the difference between ``PyObject*`` and ``object``?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**:  A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
 
@@ -879,7 +879,7 @@ Once again, care must be taken to keep the objects alive as long as any pointers
 
 ----------
 
-''Why does ** on int literals not work (as it seems to do in Pyrex)?''
+Why does ``**`` on int literals not work (as it seems to do in Pyrex)?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It works as expected in recent versions of Cython.
