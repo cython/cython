@@ -4,9 +4,9 @@
 
 """
 PYTHON setup.py build_ext --inplace
-PYTHON -c "from foo import test; test()"
-PYTHON -c "from bar import test; test()"
-PYTHON -c "from baz import test; test()"
+PYTHON -c "from include_as_c_and_cpp import test; test()"
+PYTHON -c "from include_from_c_and_cpp import test; test()"
+PYTHON -c "from cdefines import test; test()"
 """
 
 ######## setup.py ########
@@ -16,32 +16,33 @@ from Cython.Distutils.extension import Extension
 from distutils.core import setup
 import sys
 
-foo = Extension(
-    "foo",
-    ["foo.pyx", "foo1.cpp", "foo2.cpp"],
+include_as_c_and_cpp = Extension(
+    "include_as_c_and_cpp",
+    ["include_as_c_and_cpp.pyx", "include_as_c.cpp", "include_as_cpp.cpp"],
 )
-bar = Extension(
-    "bar",
-    ["bar.pyx", "bar1.c", "bar2.cpp"],
+include_from_c_and_cpp = Extension(
+    "include_from_c_and_cpp",
+    ["include_from_c_and_cpp.pyx", "include_from_c.c", "include_from_cpp.cpp"],
 )
 
-baz = Extension(
-    "baz",
-    ["baz.pyx", "baz1.c", "baz2.cpp"],
+cdefines = Extension(
+    "cdefines",
+    ["cdefines.pyx", "cdefines_clean.c", "cdefines_plain.cpp"],
     define_macros = [("CYTHON_EXTERN_C", 'extern "C"')],
 )
 
-ext_modules = [foo, bar]
+ext_modules = [include_as_c_and_cpp, include_from_c_and_cpp]
 if sys.platform != "win32":
     # It's very hard to get the command-line macro define to escape properly on Windows,
     # so skip it
-    ext_modules.append(baz)
+    ext_modules.append(cdefines)
 
 setup(
     ext_modules=cythonize(ext_modules),
 )
 
-######## foo.pyx ########
+
+######## include_as_c_and_cpp.pyx ########
 
 # distutils: language = c++
 
@@ -50,7 +51,7 @@ from libcpp cimport vector
 cdef public vector.vector[int] get_vector():
     return [1,2,3]
 
-cdef extern from "foo_header.h":
+cdef extern from "include_as_c_and_cpp_header.h":
     cdef size_t size_vector1()
     cdef size_t size_vector2()
 
@@ -58,40 +59,41 @@ def test():
     assert size_vector1() == 3
     assert size_vector2() == 3
 
-######## foo_header.h ########
+######## include_as_c_and_cpp_header.h ########
 
 size_t size_vector1();
 size_t size_vector2();
 
-######## foo1.cpp ########
+######## include_as_cpp.cpp ########
 
 #include <vector>
-#include "foo.h"
+#include "include_as_c_and_cpp.h"
 
 size_t size_vector1() {
     return get_vector().size();
 }
 
-######## foo2.cpp ########
+######## include_as_c.cpp ########
 
 #include <vector>
 extern "C" {
 // #include within `extern "C"` is legal.
 // We want to make sure here that Cython C++ functions are flagged as `extern "C++"`.
 // Otherwise they would be interpreted with C-linkage if the header is include within a `extern "C"` block.
-#include "foo.h"
+#include "include_as_c_and_cpp.h"
 }
 
 size_t size_vector2() {
     return get_vector().size();
 }
 
-######## bar.pyx ########
+
+######## include_from_c_and_cpp.pyx ########
 
 cdef public char get_char():
     return 42
 
-cdef extern from "bar_header.h":
+cdef extern from "include_from_c_and_cpp_header.h":
     cdef int get_int1()
     cdef int get_int2()
 
@@ -99,33 +101,34 @@ def test():
     assert get_int1() == 42
     assert get_int2() == 42
 
-######## bar_header.h ########
+######## include_from_c_and_cpp_header.h ########
 
 int get_int1();
 int get_int2();
 
-######## bar1.c ########
+######## include_from_c.c ########
 
-#include "bar.h"
+#include "include_from_c_and_cpp.h"
 
 int get_int1() { return (int)get_char(); }
 
-######## bar2.cpp ########
+######## include_from_cpp.cpp ########
 
 extern "C" {
-#include "bar.h"
+#include "include_from_c_and_cpp.h"
 }
 
 extern "C" int get_int2() { return (int)get_char(); }
 
-######## baz.pyx ########
+
+######## cdefines.pyx ########
 
 # distutils: language = c++
 
 cdef public char get_char():
     return 42
 
-cdef extern from "baz_header.h":
+cdef extern from "cdefines_header.h":
     cdef int get_int1()
     cdef int get_int2()
 
@@ -133,32 +136,32 @@ def test():
     assert get_int1() == 42
     assert get_int2() == 42
 
-######## baz_header.h ########
+######## cdefines_header.h ########
 
 #ifdef __cplusplus
-  #define BAZ_EXTERN_C extern "C"
+  #define cdefines_EXTERN_C extern "C"
 #else
-  #define BAZ_EXTERN_C
+  #define cdefines_EXTERN_C
 #endif
 
-BAZ_EXTERN_C int get_int1();
+cdefines_EXTERN_C int get_int1();
 int get_int2();
 
-######## baz1.c ########
+######## cdefines_clean.c ########
 
 #undef CYTHON_EXTERN_C
 #define CYTHON_EXTERN_C
-#include "baz.h"
+#include "cdefines.h"
 
 int get_int1() { return (int)get_char(); }
 
-######## baz2.cpp ########
+######## cdefines_plain.cpp ########
 
-#include "baz.h"
+#include "cdefines.h"
 
 int get_int2() { return (int)get_char(); }
 
-######## baz.py ##########
+######## cdefines.py ##########
 
 # Dummy module so Windows test works
 import sys
