@@ -1,5 +1,17 @@
 .. contents::
 
+Basics
+======
+
+How do I ...?
+=============
+
+Explanations
+============
+
+About the project
+=================
+
 What is the relation between Cython and Pyrex? Are the barriers between the two based on technical direction? Differing goals?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
