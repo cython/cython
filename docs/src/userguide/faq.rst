@@ -172,7 +172,7 @@ How do I make a cdef'd class that derives from a builtin Python type such as lis
 
 **Answer**: You can just use the type as a base class in your cdef class declaration.
 
-The only exception are the types bytes ('str' in Python 2) and tuple, which can only be subtyped by Python classes (not cdef classes). This is considered a [[bug|http://trac.cython.org/cython_trac/ticket/152|bug]]. However, you can safely subtype 'unicode' and 'list' instead.
+The only exception are the types bytes ('str' in Python 2) and tuple, which can only be subtyped by Python classes (not cdef classes). This is considered a [[bug|https://github.com/cython/cython/issues/711|bug]]. However, you can safely subtype 'unicode' and 'list' instead.
 
 ----------
 
