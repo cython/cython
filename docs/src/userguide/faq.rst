@@ -73,72 +73,114 @@ See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|strin
 How do I ...?
 =============
 
-Explanations
-============
-
-About the project
-=================
-
-What is the relation between Cython and Pyrex? Are the barriers between the two based on technical direction? Differing goals?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Somewhat. Cython is much more open to extensions than Pyrex. Greg usually said that he was still "designing" Pyrex as a language, so he would sometimes reject patches for design reasons that solve practical problems in a practical way, and that therefore find (or found) their way into Cython. Eventually, these features might still make it into Pyrex in one way or another, but that usually means that Greg refactors or rewrites them his own way, which implies that he first has to find the time to do so.
-
-Cython can afford to be more agile and advanced even though doing so means that Cython will not always align with future Pyrex versions.  However, both Greg Ewing and the Cython developers make reasonable effort to maintain compatibility.
-
-Today, Cython is an advanced version of Pyrex that has several additions already integrated that never made it into mainline Pyrex, including:
-
-1. Conditional expressions (``a if blah else b``)
-2. List/set/dict comprehensions
-3. Optimized looping (``for x in blah:`` is much faster in Cython)
-4. Compatibility with Python 3 (as well as Python 2.4 or later) without regenerating the C code
-5. Support for the new buffer protocol ([[PEP 3118|http://www.python.org/dev/peps/pep-3118/|PEP 3118]]), featuring efficient access to data structures in [[NumPy|http://numpy.scipy.org/|NumPy]] or [[PIL|http://www.pythonware.com/products/pil/|PIL]]
-
-The intention is to make it for the most part a drop-in replacement for existing Pyrex code, though some changes to that existing code may have to be made. The immediate speed-up is generally worth the switch.
-
-To you as a user this means that if you use Cython today, you can write your code a lot cleaner and simpler now as you can rely on Cython to optimise it for you in a lot of ways that you do not have to care about. But if you use Cython specific syntax features (i.e. syntax elements that are not described in the documentation of Pyrex or Python), you may have to do minor syntactic code changes in the near or far future if you want to go back to a future Pyrex version. In general, however, both Pyrex and Cython try to adhere to the existing Python syntax as close as possible, so these cases should be rare.
-
-In early versions, Cython used to follow a 4-digit versioning scheme that kept the corresponding Pyrex version in the first three digits.  As most of the development in Cython is now completely independent from  what is going on with Pyrex, we have broken with this scheme. Cython versions are now unrelated to Pyrex versions.
-
-----------
-
-Is Cython a Python implementation?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Not officially, no. However, it compiles almost all existing Python code, which gets it pretty close to a real Python implementation. The result depends on the CPython runtime, though, which we consider a major compatibility advantage. In any case, it is an official goal for Cython to compile regular Python code and run (most of) the normal Python test suite - obviously faster than CPython. ;-)
-
-----------
-
-Is Cython faster than CPython?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-For most things, yes. For example, a Cython compiled pybench runs more than 30% faster in total, while being 60-90% faster on control structures like ``if-elif-else`` and ``for``-loops. We regularly run the tests from the CPython benchmark suite (which includes Django templates, 2to3, computational benchmarks and other applications) and most of them work out-of-the-box without modifications or static typing, with a performance increase of 20-60%.
-
-However the main advantage of Cython is that it scales very well to even greater performance requirements. For code that operates heavily on common builtin types (lists, dicts, strings), Cython can often speed up processing loops by factors. For numerical code, speed-ups of 100-1000 times compared to CPython are not unusual, and are achieved by simply adding static type declarations to performance critical parts of the code, thus trading Python's dynamic typing for speed. As this can be done at any granularity in the code, Cython makes it easy to write simple Python code that is fast enough, and just tune the critical 5% of your code into maximum performance by using static C types in just the right places.
-
-----------
-
-What Python versions does Cython support?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Version 0.20 of the Cython compiler runs in all Python versions from 2.4 to 3.4 inclusive (excluding 3.0). From Cython 0.21 on, support for CPython 2.4, 2.5 and 3.1 has been dropped, so that the supported versions become 2.6, 2.7, 3.2 and later. Cython 3.0 removes support for Python 2.6 and requires either Python 2.7 or Python 3.4+. Python 2.x support is scheduled for removal in Cython 3.1, which will probably require Python 3.6 or later at the time of its release.
-
-The C code generated by Cython is portable and builds in all supported Python versions. All supported CPython release series are tested regularly. New CPython versions are usually supported before they are released.
-
-The source code that Cython compiles can use both Python 2 and Python 3 syntax, defaulting to Python 2 syntax in Cython 0.x and Python 3 syntax in Cython 3.x and later. When compiling Cython modules (.pyx files) in Python 2 mode, most Python 3 syntax features are available by default if they do not interfere with Python 2 syntax (as in Python 2.7), but the general language semantics are defined as in Python 2. When compiling Python modules (.py files), the special Cython syntax (such as the ``cdef`` keyword) is not available. For both input types, the language level can be set to Python 3 by either passing the "-3" option to the compiler, or by putting
-
-::
-
-    # cython: language_level=3
-
-at the top of the module file (within the first comment and before any code or empty lines). With Cython 3.x, compiling Python 2 code requires the option "-2" or the directive ``language_level=2``. The most visible difference is that unprefixed strings are unicode strings under Python 3 semantics, but this also makes ``print()`` a function, keeps loop variables in list comprehensions from leaking into the outer scope, etc. To get Python 3 syntax features without enforcing unicode literals, set ``language_level=3str`` or use the option ``--3str``.
-
-----------
-
 How do I pickle cdef classes?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: See [[the documentation|https://cython.readthedocs.io/en/latest/src/userguide/extension_types.html?highlight=pickle#controlling-pickling|the documentation]].
+
+----------
+
+How do I use a Cython class in a C++ framework
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+See, for example, http://bitbucket.org/binet/cy-cxxfwk/src and http://groups.google.com/group/cython-users/browse_thread/thread/bc007d85b2ccc518 .
+
+----------
+
+How can I help Cython find numpy header files?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: If you are seeing errors like these:
+
+::
+
+     error: numpy/arrayobject.h: No such file or directory
+     error: numpy/ufuncobject.h: No such file or directory
+
+You should modify your setup.py file to grab the numpy include directory as follows:
+
+::
+
+    import numpy
+    ...
+    setup(
+        ...
+        ext_modules = [Extension(..., include_dirs=[numpy.get_include()])]
+    )
+
+----------
+
+How do I declare numeric or integer C types?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: In most cases, you don't need to. For types declared in ``stdint.h``, just ``cimport`` them from ``libc.stdint`` which comes with Cython, e.g.
+
+::
+
+    from libc.stdint cimport uint32_t, int64_t
+    cdef int64_t i = 5
+
+For non-standard types, it's enough to provide Cython with a ``ctypedef`` declaration that maps them to a closely related standard C type, e.g.
+
+::
+
+    cdef extern from "someheader.h":
+        ctypedef unsigned long MySpecialCInt_t
+
+    cdef MySpecialCInt_t i
+
+Make sure you use the original C type name in declarations, not the replacement type you chose!
+
+The exact size of the type at C compile time is not that important because Cython generates automatic size detection code (evaluated at C compile time). However, when your code mixes different types in arithmetic code, Cython must know about the correct signedness and the approximate longness in order to infer the appropriate result type of an expression. Therefore, when using a ``ctypedef`` as above, try to come up with a good approximation of the expected C type. Since the largest type wins in mixed arithmetic expressions, it's usually not a problem if the type turns out to be somewhat larger than what the C compiler eventually determines for a given platform. In the worst case, if your replacement type is substantially larger than the real C type (say, 'long long' instead of 'int'), you may end up with slightly slower conversion code. However, if the type is declared too small and Cython considers it smaller than other types it is used together with, Cython may infer the wrong type for an expression and may end up generating incorrect coercion code. You may or may not get a warning by the C compiler in this case.
+
+Also note that Cython 0.14 and later will consider large integer literals (>32 bit signed) unsafe to use in C code and may therefore use Python objects to represent them. You can make sure a large literal is considered a safe C literal by appending a C suffix, such as 'LL' or 'UL'. Note that a single 'L' is not considered a C suffix in Python 2 code.
+
+----------
+
+How do I declare an object of type bool?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Well, that depends on whether you want the C99/C++ ``bool`` or the Python ``bool``. Previously, Cython always defaulted to the Python ``bool`` type, which led to hard-to-debug issues when users unsuspectingly used ``bool`` in wrapping C++ code. We decided to make the choice explicit -- you can import whichever you'd like:
+
+ * For the Python type, do ``from cpython cimport bool``.
+ * For the C++ type, do ``from libcpp cimport bool``.
+
+Note that there is also a type called ``bint``, which is essentially a C ``int`` but automatically coerces from and to a Python bool value, i.e. ``cdef object x = <bint>some_c_integer_value`` gives either ``True`` or ``False``.
+
+----------
+
+How do I use 'const'?
+^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: Since Cython 0.18, you can just use it in your code and in your declarations.
+
+Earlier versions of Cython did not support const directly and required the following hack to compile it into the C source code:
+
+::
+
+    cdef extern from *:
+        ctypedef char* const_char_ptr "const char*"
+    cdef public void foo_c(const_char_ptr s):
+        print s
+
+This textually replaces the type ``const_char_ptr`` by ``const char*`` and generates this C code:
+
+::
+
+    __PYX_EXTERN_C  DL_EXPORT(void) foo_c(const char* __pyx_v_s);
+
+Note that the above declarations for the different ``const char*`` types are still provided by the ``libc.string`` standard declarations for backwards compatibility reasons. A ``cimport`` from there will do the right thing in Cython 0.18 and later.
+
+----------
+
+Can I use builtins like len() with the C type char *?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: Yes you can. Cython 0.12.1 and later map ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call since 0.12, and applying it to sliced ``char*`` values will skip the length counting step.
+
+See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+
+For other Python operations on ``char*``, the generated code may be inefficient, as a temporary object may have to get created. If you notice this for your code and think that Cython can do better, please speak up on the mailing list.
 
 ----------
 
@@ -151,94 +193,51 @@ The only exception are the types bytes ('str' in Python 2) and tuple, which can 
 
 ----------
 
-Can I place the output under the BSD license, or does it have to be the python-license as well?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I raise an exception in Cython code that will be visible to ancestor (in the callstack) CPython code?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: You can use the output of Pyrex/Cython however you like (and license it how you like - be it BSD, public domain, GPL, all rights reserved, whatever).
+**Answer**:
 
-More details: The Python License is different from the GPL used for GCC, for example. GCC requires a special exception clause for its output as it is *linked* against the library part of GCC, i.e. against GPL software, which triggers the GPL restrictions.
+If your cdef or cpdef function or method does not declare a return type (as is normal in CPython code), then you get exceptions without any extra effort.
 
-Pyrex doesn't do anything similar, and linking against Python is not restricted by the Python License, so the output belongs to the User, no other rights or restrictions involved.
-
-Also, all of the copyright holders of Pyrex/Cython stated in mailing list that people are allowed to use the output of Pyrex/Cython however they would like.
+If your cdef or cpdef function or method declares a C-style return type, then look [[here|http://docs.cython.org/src/reference/language_basics.html#error-and-exception-handling]].
 
 ----------
 
-How do I cite Cython in an academic paper?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I declare a global variable?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you mention Cython, the simplest way to reference us is to add the URL to our website in a footnote. You may also choose to reference our software project
-in a more formal way, such as
+**Answer**:
 
 ::
 
-    R. Bradshaw, S. Behnel, D. S. Seljebotn, G. Ewing, et al., The Cython compiler, http://cython.org.
+    global variable
 
-(the list of author names were taken from setup.py)
+----------
 
-For a yet more formal citation, there is a [[journal paper|https://www.computer.org/csdl/magazine/cs/2011/02/mcs2011020031/13rRUx0Pqtw|journal paper]] on Cython.
-If you wish to cite it, here's the Bibtex:
+How do I assign to a global variable?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You need to declare the variable to be global (see above) before trying to assign to it. Often this occurs when one has code like
 
 ::
 
-    @ARTICLE{ behnel2010cython,
-        author={Behnel, S. and Bradshaw, R. and Citro, C. and Dalcin, L. and Seljebotn, D.S. and Smith, K.},
-        journal={Computing in Science Engineering},
-        title={Cython: The Best of Both Worlds},
-        year={2011},
-        month=march-april ,
-        volume={13},
-        number={2},
-        pages={31 -39},
-        keywords={Cython language;Fortran code;Python language extension;numerical loops;programming language;C language;numerical analysis;},
-        doi={10.1109/MCSE.2010.118},
-        ISSN={1521-9615},
-    }
+    cdef int *data
 
-----------
+    def foo(n):
+        data = malloc(n * sizeof(int))
 
-''Why does ** on int literals not work (as it seems to do in Pyrex)?''
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This will result in an error "Cannot convert 'int *' to Python object." This is because, as in Python, assignment declares a local variable. Instead, you must write
 
-It works as expected in recent versions of Cython.
+::
 
-In older versions, it was considered that the fact that a binary operation on two integer types returned a float was counter-intuitive (both compared to every other kind of binary op in C, and the "expected" behavior from python). We discovered it because it was causing errors (e.g. in functions that were expecting an integer value but getting a float) and after much discussion decided that disabling this behavior was better than letting it go. Also a**b will (silently) overflow as an int/be inexact as a double except for very small values of b. If one *wants* the old behavior, one can always do, e.g, 13.0**5, where it is much clearer what's going on. One would have to do <int>(13**5) in pyrex anyway, which looks kind of strange.
+    cdef int *data
 
-----------
+    def foo(n):
+        global data
+        data = malloc(n * sizeof(int))
 
-How to pass string buffers that may contain 0 bytes to Cython?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
-
-You need to use either a Python byte string object or a char*/length pair of variables.
-
-The normal way to convert a char* to a Python byte string is as follows:
-
-.. code:: python
-
-    #!python
-    cdef char* s = "a normal C byte string"
-    cdef bytes a_python_byte_string = s
-
-However, this will not work for C strings that contain 0 bytes, as a 0 byte is the normal C way of terminating a string. So the above method will cut the string at the first 0 byte. To handle this case correctly, you have to specify the total length of the string that you want to convert:
-
-.. code:: python
-
-    cdef char* s = "an unusual \0 containing C byte string"
-    a_python_byte_string = s[:21]    #  take the first 21 bytes of the string, including the \0 byte
-
-Note that this will not handle the case that the specified slice length is longer than the actual C string. This code will crash if the allocated memory area of the ``char*`` is shorter.
-
-Since Cython 0.12, there is also support for decoding a C string slice efficiently into a Python unicode string. Just do this:
-
-.. code:: python
-
-    # -*- coding: ISO8859-15
-    cdef char* s = "a UTF-8 encoded C string with fünny chäräctörs"
-    cdef Py_ssize_t byte_length = 46
-
-    a_python_unicode_string = s[:byte_length].decode('ISO8859-15')
+See http://docs.python.org/tutorial/classes.html#python-scopes-and-name-spaces for more details.
 
 ----------
 
@@ -286,33 +285,85 @@ and then define it as a Cython function as follows:
         instance._value = 1
         return instance
 
-----------
+How do I implement a single class method in a Cython module ?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Why does Cython not always give errors for uninitialized variables?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: Cython does some static checks for variable initialization before use during  compile time, but these are very basic, as Cython has no definite knowledge  what paths of code will be taken at runtime:
-
-Consider the following
-
-.. code:: python
-
-    def testUnboundedLocal1():
-       if False:
-          c = 1
-       print c
-    def testUnboundedLocal2():
-       print c
-
-With CPython, both functions lead to the following exception:
+**Answer**: Cython-defined methods don't bind by default, regardless from where they are referenced. Because of this the following does not work:
 
 ::
 
-    NameError: global name 'c' is not defined
+    #!python
+    import cython_module
 
-With Cython, the first variant prints "None", the second variant leads to a  compile time error. Both behaviours differ from CPython's.
+    class A(object):
+        method = cython_module.optimized_method
 
-This is considered a BUG and will change in the future.
+``method`` is unbound and trying to call it will result in an error:
+
+::
+
+    #!python
+    >>> a = A()
+    >>> a.method()
+    exceptions.TypeError: optimized_method() takes exactly one argument (0 given)
+
+You have can explicitly create a bound method, either in Python:
+
+::
+
+    #!python
+    import types
+    import cython_module
+
+    class A(object):
+        pass
+
+    A.method = types.MethodType(cython_module.optimized_method, None, A)
+
+or by using the ``cython.binding`` directive to make the method bind automatically, e.g.
+
+::
+
+    cimport cython
+    @cython.binding(True)
+    def optimized_method(self, ...):
+        ...
+
+----------
+
+How to pass string buffers that may contain 0 bytes to Cython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+
+You need to use either a Python byte string object or a char*/length pair of variables.
+
+The normal way to convert a char* to a Python byte string is as follows:
+
+.. code:: python
+
+    #!python
+    cdef char* s = "a normal C byte string"
+    cdef bytes a_python_byte_string = s
+
+However, this will not work for C strings that contain 0 bytes, as a 0 byte is the normal C way of terminating a string. So the above method will cut the string at the first 0 byte. To handle this case correctly, you have to specify the total length of the string that you want to convert:
+
+.. code:: python
+
+    cdef char* s = "an unusual \0 containing C byte string"
+    a_python_byte_string = s[:21]    #  take the first 21 bytes of the string, including the \0 byte
+
+Note that this will not handle the case that the specified slice length is longer than the actual C string. This code will crash if the allocated memory area of the ``char*`` is shorter.
+
+Since Cython 0.12, there is also support for decoding a C string slice efficiently into a Python unicode string. Just do this:
+
+.. code:: python
+
+    # -*- coding: ISO8859-15
+    cdef char* s = "a UTF-8 encoded C string with fünny chäräctörs"
+    cdef Py_ssize_t byte_length = 46
+
+    a_python_unicode_string = s[:byte_length].decode('ISO8859-15')
 
 ----------
 
@@ -367,345 +418,52 @@ The above is the right thing to do in Py3. However, some (not all, just some) mo
 
 ----------
 
-Can I use builtins like len() with the C type char *?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I use variable args.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Yes you can. Cython 0.12.1 and later map ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call since 0.12, and applying it to sliced ``char*`` values will skip the length counting step.
-
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
-
-For other Python operations on ``char*``, the generated code may be inefficient, as a temporary object may have to get created. If you notice this for your code and think that Cython can do better, please speak up on the mailing list.
-
-----------
-
-How do I declare numeric or integer C types?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: In most cases, you don't need to. For types declared in ``stdint.h``, just ``cimport`` them from ``libc.stdint`` which comes with Cython, e.g.
+It can't be done cleanly yet, but the code below works:
 
 ::
 
-    from libc.stdint cimport uint32_t, int64_t
-    cdef int64_t i = 5
-
-For non-standard types, it's enough to provide Cython with a ``ctypedef`` declaration that maps them to a closely related standard C type, e.g.
-
-::
-
-    cdef extern from "someheader.h":
-        ctypedef unsigned long MySpecialCInt_t
-
-    cdef MySpecialCInt_t i
-
-Make sure you use the original C type name in declarations, not the replacement type you chose!
-
-The exact size of the type at C compile time is not that important because Cython generates automatic size detection code (evaluated at C compile time). However, when your code mixes different types in arithmetic code, Cython must know about the correct signedness and the approximate longness in order to infer the appropriate result type of an expression. Therefore, when using a ``ctypedef`` as above, try to come up with a good approximation of the expected C type. Since the largest type wins in mixed arithmetic expressions, it's usually not a problem if the type turns out to be somewhat larger than what the C compiler eventually determines for a given platform. In the worst case, if your replacement type is substantially larger than the real C type (say, 'long long' instead of 'int'), you may end up with slightly slower conversion code. However, if the type is declared too small and Cython considers it smaller than other types it is used together with, Cython may infer the wrong type for an expression and may end up generating incorrect coercion code. You may or may not get a warning by the C compiler in this case.
-
-Also note that Cython 0.14 and later will consider large integer literals (>32 bit signed) unsafe to use in C code and may therefore use Python objects to represent them. You can make sure a large literal is considered a safe C literal by appending a C suffix, such as 'LL' or 'UL'. Note that a single 'L' is not considered a C suffix in Python 2 code.
-
-----------
-
-How can I help Cython find numpy header files?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: If you are seeing errors like these:
-
-::
-
-     error: numpy/arrayobject.h: No such file or directory
-     error: numpy/ufuncobject.h: No such file or directory
-
-You should modify your setup.py file to grab the numpy include directory as follows:
-
-::
-
-    import numpy
-    ...
-    setup(
-        ...
-        ext_modules = [Extension(..., include_dirs=[numpy.get_include()])]
-    )
-
-----------
-
-What is the difference between PyObject* and object?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:  A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
-
-::
-
-    from cpython.ref cimport PyObject
-
-    py_object = [1,2,3]
-
-    cdef PyObject* ptr = <PyObject*>py_object
-
-    cdef object l = <object>ptr    # this increases the reference count to the list
-
-Note that the lifetime of the object is only bound to its owned references, not to any C pointers that happen to point to it. This means that ``ptr`` in the example above becomes invalid as soon as the last reference to the object dies:
-
-::
-
-    py_object = [1,2,3]
-    cdef PyObject* ptr = <PyObject*>py_object
-    py_object = None   # last reference to list dies here
-
-    # ptr now points to a dead object
-    print(<object>ptr)   # expect a crash here!
-
-Pointers are commonly used when passing objects through C callbacks, e.g.
-
-::
-
-    cdef int call_it_from_c(void* py_function, void* args):
-        py_args = <tuple>args if args is not NULL else ()
-        return (<object>py_function)(*py_args)
-
-    def py_func(a,b,c):
-        print(a,b,c)
-        return -1
-
-    args = [1,2,3]
-
-    call_it_from_c(<PyObject*>py_func, <PyObject*>args)
-
-Once again, care must be taken to keep the objects alive as long as any pointers to them are still in use.
-
-----------
-
-What is the difference between a .pxd and .pxi file? When should either be used?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-SHORT **Answer**:  You should always use .pxd files for declarations and .pxi files only for code that you want to include.
-
-MEDIUM **Answer**:  A .pxd files are lists of declarations, .pxi files are textually included, and their use for declarations is a historical artifact of the way common declarations were shared before .pxd files existed.
-
-LONG **Answer**:  A .pxd file is a declaration file, and is used to declare classes, methods, etc. in a C extension module, (typically as implemented in a .pyx file of the same name). It can contain declarations only, i.e. no executable statements. One can ``cimport`` things from .pxd files just as one would import things in Python. Two separate modules cimporting from the same .pxd file will receive identical objects.
-
-A .pxi file is an include file and is textually included (similar to the C ``#include`` directive) and may contain any valid Cython code at the given point in the program. It may contain implementations (e.g. common cdef inline functions) which will be copied into both files. For example, this means that if I have a class A declared in a.pxi, and both b.pyx and c.pyx do ``include a.pxi`` then I will have two distinct classes b.A and c.A. Interfaces to C libraries (including the Python/C API) have usually been declared in .pxi files (as they are not associated to a specific module). It is also re-parsed at every invocation.
-
-Now that "cimport *" can be used, there is no reason to use .pxi files for external declarations.
-
-----------
-
-How do I access native Python file objects?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:  See this small example of how to access Python file objects:
-
-::
-
-    #!python
-    # Idiom for accessing Python files.
-    # First, declare the Python macro to access files:
-    cdef extern from "Python.h":
-        ctypedef struct FILE
-        FILE* PyFile_AsFile(object)
-        void  fprintf(FILE* f, char* s, char* s)
-    # Next, enter the builtin file class into the namespace:
-    cdef extern from "fileobject.h":
-        ctypedef class __builtin__.file [object PyFileObject]:
+    cdef extern from "stdarg.h":
+        ctypedef struct va_list:
             pass
-    # Now declare the C function that requires a file:
-    cdef void c_printSomething(FILE* outFile, char* str):
-        fprintf(outFile, "%s", str)
-    # Now create a class or some other definition that uses the function:
-    ctypedef class ExampleUsingFile:
-        def printSomething(self, file outFile, char* str):
-            c_printSomething(PyFile_AsFile(outFile), str)
+        ctypedef struct fake_type:
+            pass
+        void va_start(va_list, void* arg)
+        void* va_arg(va_list, fake_type)
+        void va_end(va_list)
+        fake_type int_type "int"
 
-with simple test:
+    cdef int foo(int n, ...):
+        print "starting"
+        cdef va_list args
+        va_start(args, <void*>n)
+        while n != 0:
+            print n
+            n = <int>va_arg(args, int_type)
+        va_end(args)
+        print "done"
 
-::
-
-    #!python
-    import sys
-    import file_example
-    x = file_example.ExampleUsingFile()
-    x.printSomething(sys.stdout, "hello world!\n")
-
-**Note**: This does no longer work in Python 3, where file objects have no representation at the C-API level.
-
-----------
-
-How do I declare a global variable?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:
-
-::
-
-    global variable
+    def call_foo():
+        foo(1, 2, 3, 0)
+        foo(1, 2, 0)
 
 ----------
 
-How do I assign to a global variable?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How can I make a standalone binary from a Python program using cython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You need to declare the variable to be global (see above) before trying to assign to it. Often this occurs when one has code like
-
-::
-
-    cdef int *data
-
-    def foo(n):
-        data = malloc(n * sizeof(int))
-
-This will result in an error "Cannot convert 'int *' to Python object." This is because, as in Python, assignment declares a local variable. Instead, you must write
+You probably want a recipe something like this:
 
 ::
 
-    cdef int *data
+    PYVERSION=2.7
+    foobar: foobar.py
+        cython --embed foobar.py -o foobar.c
+        $(CC) -I /usr/include/python$(PYVERSION) foobar.c -lpython$(PYVERSION) -o foobar
 
-    def foo(n):
-        global data
-        data = malloc(n * sizeof(int))
-
-See http://docs.python.org/tutorial/classes.html#python-scopes-and-name-spaces for more details.
-
-----------
-
-How do I use 'const'?
-^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: Since Cython 0.18, you can just use it in your code and in your declarations.
-
-Earlier versions of Cython did not support const directly and required the following hack to compile it into the C source code:
-
-::
-
-    cdef extern from *:
-        ctypedef char* const_char_ptr "const char*"
-    cdef public void foo_c(const_char_ptr s):
-        print s
-
-This textually replaces the type ``const_char_ptr`` by ``const char*`` and generates this C code:
-
-::
-
-    __PYX_EXTERN_C  DL_EXPORT(void) foo_c(const char* __pyx_v_s);
-
-Note that the above declarations for the different ``const char*`` types are still provided by the ``libc.string`` standard declarations for backwards compatibility reasons. A ``cimport`` from there will do the right thing in Cython 0.18 and later.
-
-----------
-
-How do I implement a single class method in a Cython module ?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: Cython-defined methods don't bind by default, regardless from where they are referenced. Because of this the following does not work:
-
-::
-
-    #!python
-    import cython_module
-
-    class A(object):
-        method = cython_module.optimized_method
-
-``method`` is unbound and trying to call it will result in an error:
-
-::
-
-    #!python
-    >>> a = A()
-    >>> a.method()
-    exceptions.TypeError: optimized_method() takes exactly one argument (0 given)
-
-You have can explicitly create a bound method, either in Python:
-
-::
-
-    #!python
-    import types
-    import cython_module
-
-    class A(object):
-        pass
-
-    A.method = types.MethodType(cython_module.optimized_method, None, A)
-
-or by using the ``cython.binding`` directive to make the method bind automatically, e.g.
-
-::
-
-    cimport cython
-    @cython.binding(True)
-    def optimized_method(self, ...):
-        ...
-
-----------
-
-How can I run doctests in Cython code (pyx files)?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:
-
-Recent versions of Cython generate a ``__test__`` dictionary in the module that contains all docstrings of Python visible functions and classes that look like doctests (i.e. that contain ``>>>``). The doctest module will properly pick this up and run the doctests.
-
-Older Cython versions suffer from a problem with doctest because it uses ``inspect.is_function`` to check
-whether something is a function, which fails for Cython functions (which
-instead answer to ``inspect.is_builtin``).
-
-This module (let's call it "cydoctest") offers a Cython-compatible workaround.
-
-::
-
-    #!python
-    """
-    Cython-compatible wrapper for doctest.testmod().
-
-    Usage example, assuming a Cython module mymod.pyx is compiled.
-    This is run from the command line, passing a command to Python:
-    python -c "import cydoctest, mymod; cydoctest.testmod(mymod)"
-
-    (This still won't let a Cython module run its own doctests
-    when called with "python mymod.py", but it's pretty close.
-    Further options can be passed to testmod() as desired, e.g.
-    verbose=True.)
-    """
-
-    import doctest
-    import inspect
-
-    def _from_module(module, object):
-        """
-        Return true if the given object is defined in the given module.
-        """
-        if module is None:
-            return True
-        elif inspect.getmodule(object) is not None:
-            return module is inspect.getmodule(object)
-        elif inspect.isfunction(object):
-            return module.__dict__ is object.func_globals
-        elif inspect.isclass(object):
-            return module.__name__ == object.__module__
-        elif hasattr(object, '__module__'):
-            return module.__name__ == object.__module__
-        elif isinstance(object, property):
-            return True # [XX] no way not be sure.
-        else:
-            raise ValueError("object must be a class or function")
-
-    def fix_module_doctest(module):
-        """
-        Extract docstrings from cython functions, that would be skipped by doctest
-        otherwise.
-        """
-        module.__test__ = {}
-        for name in dir(module):
-           value = getattr(module, name)
-           if inspect.isbuiltin(value) and isinstance(value.__doc__, str) and _from_module(module, value):
-               module.__test__[name] = value.__doc__
-
-    def testmod(m=None, *args, **kwargs):
-        """
-        Fix a Cython module's doctests, then call doctest.testmod()
-
-        All other arguments are passed directly to doctest.testmod().
-        """
-        fix_module_doctest(m)
-        doctest.testmod(m, *args, **kwargs)
+The magic is the --embed option, which embeds a copy of the Python interpreter main in the generated C.  You'll want to change 'foobar' to reflect the name of your script, of course, and PYVERSION as appropriate.
 
 ----------
 
@@ -810,33 +568,107 @@ It is also possible to use distutils by adding the file cslurp.c (or your files 
 
 ----------
 
-Why does a function with cdef'd parameters accept None?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Is there any tool to automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: It is a fairly common idiom in Python to use ``None`` as a way to mean "no value" or "invalid". This doesn't play well with C, as ``None`` is not compatible with any C type. To accommodate for this, the default behavior is for functions with cdefed parameters to also accept None. This behavior was inherited from Pyrex, and while it has been proposed that it be changed, it will likely stay (at least for a while) for backwards capability.
+See the main article [[here|AutoPxd|here]].
 
-You have four choices for how to handle ``None`` in your code:
+----------
 
-1. In Cython 3.x, use Python type annotations instead of Cython syntax. Python type annotations distinguish between ``func(x: MyType)`` and ``func(x: Optional[MyType])``, where the first **disallows** ``None`` and the second explicitly allows it.  ``func(x: MyType = None)`` allows it as well because it is explicitly required by the provided default value.
+How can I run doctests in Cython code (pyx files)?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-2. If you want to consider ``None`` invalid input, then you need to write code that checks for it, and raised an appropriate exception.
+**Answer**:
 
-3. If you want Cython to raise an exception if ``None`` is passed in for an extension type parameter, you can use the ``not None`` declaration:
+Recent versions of Cython generate a ``__test__`` dictionary in the module that contains all docstrings of Python visible functions and classes that look like doctests (i.e. that contain ``>>>``). The doctest module will properly pick this up and run the doctests.
 
-   ::
+Older Cython versions suffer from a problem with doctest because it uses ``inspect.is_function`` to check
+whether something is a function, which fails for Cython functions (which
+instead answer to ``inspect.is_builtin``).
 
-       def foo(MyClass val not None): <...>
+This module (let's call it "cydoctest") offers a Cython-compatible workaround.
 
-   which is a short-hand for
+::
 
-   ::
+    #!python
+    """
+    Cython-compatible wrapper for doctest.testmod().
 
-       def foo(MyClass val):
-           if val is None: raise <...>
-           <...>
+    Usage example, assuming a Cython module mymod.pyx is compiled.
+    This is run from the command line, passing a command to Python:
+    python -c "import cydoctest, mymod; cydoctest.testmod(mymod)"
 
-4. You can also put ``#cython: nonecheck=True`` at the top of your file and all access will be checked for None, but it
-   will slow things down, as it is adding a check on every access, rather that once on function call.
+    (This still won't let a Cython module run its own doctests
+    when called with "python mymod.py", but it's pretty close.
+    Further options can be passed to testmod() as desired, e.g.
+    verbose=True.)
+    """
+
+    import doctest
+    import inspect
+
+    def _from_module(module, object):
+        """
+        Return true if the given object is defined in the given module.
+        """
+        if module is None:
+            return True
+        elif inspect.getmodule(object) is not None:
+            return module is inspect.getmodule(object)
+        elif inspect.isfunction(object):
+            return module.__dict__ is object.func_globals
+        elif inspect.isclass(object):
+            return module.__name__ == object.__module__
+        elif hasattr(object, '__module__'):
+            return module.__name__ == object.__module__
+        elif isinstance(object, property):
+            return True # [XX] no way not be sure.
+        else:
+            raise ValueError("object must be a class or function")
+
+    def fix_module_doctest(module):
+        """
+        Extract docstrings from cython functions, that would be skipped by doctest
+        otherwise.
+        """
+        module.__test__ = {}
+        for name in dir(module):
+           value = getattr(module, name)
+           if inspect.isbuiltin(value) and isinstance(value.__doc__, str) and _from_module(module, value):
+               module.__test__[name] = value.__doc__
+
+    def testmod(m=None, *args, **kwargs):
+        """
+        Fix a Cython module's doctests, then call doctest.testmod()
+
+        All other arguments are passed directly to doctest.testmod().
+        """
+        fix_module_doctest(m)
+        doctest.testmod(m, *args, **kwargs)
+
+----------
+
+How do I work around the -Wno-long-double error when installing on OS X
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**:
+
+This is a known issue in OS X with some Python installs. It has nothing to do with Cython, and you will run
+on the same trouble **every** time you want to build an C extension
+module.
+
+This is the most sane (if not the only) way to fix it:
+
+1) Enter Python prompt, and type this:
+
+::
+
+    >>> from distutils import sysconfig
+    >>> sysconfig.get_makefile_filename()
+
+That should output the full path of a 'Makefile'... Open that file
+with any text editor and remove  all occurrences of '-Wno-long-double'
+flag.
 
 ----------
 
@@ -929,113 +761,278 @@ os.path.expanduser('~')
 
 ----------
 
-How do I work around the -Wno-long-double error when installing on OS X
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How do I access native Python file objects?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**:
-
-This is a known issue in OS X with some Python installs. It has nothing to do with Cython, and you will run
-on the same trouble **every** time you want to build an C extension
-module.
-
-This is the most sane (if not the only) way to fix it:
-
-1) Enter Python prompt, and type this:
+**Answer**:  See this small example of how to access Python file objects:
 
 ::
 
-    >>> from distutils import sysconfig
-    >>> sysconfig.get_makefile_filename()
+    #!python
+    # Idiom for accessing Python files.
+    # First, declare the Python macro to access files:
+    cdef extern from "Python.h":
+        ctypedef struct FILE
+        FILE* PyFile_AsFile(object)
+        void  fprintf(FILE* f, char* s, char* s)
+    # Next, enter the builtin file class into the namespace:
+    cdef extern from "fileobject.h":
+        ctypedef class __builtin__.file [object PyFileObject]:
+            pass
+    # Now declare the C function that requires a file:
+    cdef void c_printSomething(FILE* outFile, char* str):
+        fprintf(outFile, "%s", str)
+    # Now create a class or some other definition that uses the function:
+    ctypedef class ExampleUsingFile:
+        def printSomething(self, file outFile, char* str):
+            c_printSomething(PyFile_AsFile(outFile), str)
 
-That should output the full path of a 'Makefile'... Open that file
-with any text editor and remove  all occurrences of '-Wno-long-double'
-flag.
-----------
-
-How do I raise an exception in Cython code that will be visible to ancestor (in the callstack) CPython code?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:
-
-If your cdef or cpdef function or method does not declare a return type (as is normal in CPython code), then you get exceptions without any extra effort.
-
-If your cdef or cpdef function or method declares a C-style return type, then look [[here|http://docs.cython.org/src/reference/language_basics.html#error-and-exception-handling]].
-
-----------
-
-How do I use variable args.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-It can't be done cleanly yet, but the code below works:
+with simple test:
 
 ::
 
-    cdef extern from "stdarg.h":
-        ctypedef struct va_list:
-            pass
-        ctypedef struct fake_type:
-            pass
-        void va_start(va_list, void* arg)
-        void* va_arg(va_list, fake_type)
-        void va_end(va_list)
-        fake_type int_type "int"
+    #!python
+    import sys
+    import file_example
+    x = file_example.ExampleUsingFile()
+    x.printSomething(sys.stdout, "hello world!\n")
 
-    cdef int foo(int n, ...):
-        print "starting"
-        cdef va_list args
-        va_start(args, <void*>n)
-        while n != 0:
-            print n
-            n = <int>va_arg(args, int_type)
-        va_end(args)
-        print "done"
-
-    def call_foo():
-        foo(1, 2, 3, 0)
-        foo(1, 2, 0)
+**Note**: This does no longer work in Python 3, where file objects have no representation at the C-API level.
 
 
-----------
+Explanations
+============
 
-How do I use a Cython class in a C++ framework
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+About the project
+=================
 
-See, for example, http://bitbucket.org/binet/cy-cxxfwk/src and http://groups.google.com/group/cython-users/browse_thread/thread/bc007d85b2ccc518 .
+What is the relation between Cython and Pyrex? Are the barriers between the two based on technical direction? Differing goals?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-----------
+Somewhat. Cython is much more open to extensions than Pyrex. Greg usually said that he was still "designing" Pyrex as a language, so he would sometimes reject patches for design reasons that solve practical problems in a practical way, and that therefore find (or found) their way into Cython. Eventually, these features might still make it into Pyrex in one way or another, but that usually means that Greg refactors or rewrites them his own way, which implies that he first has to find the time to do so.
 
-Is there any tool to automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Cython can afford to be more agile and advanced even though doing so means that Cython will not always align with future Pyrex versions.  However, both Greg Ewing and the Cython developers make reasonable effort to maintain compatibility.
 
-See the main article [[here|AutoPxd|here]].
+Today, Cython is an advanced version of Pyrex that has several additions already integrated that never made it into mainline Pyrex, including:
+
+1. Conditional expressions (``a if blah else b``)
+2. List/set/dict comprehensions
+3. Optimized looping (``for x in blah:`` is much faster in Cython)
+4. Compatibility with Python 3 (as well as Python 2.4 or later) without regenerating the C code
+5. Support for the new buffer protocol ([[PEP 3118|http://www.python.org/dev/peps/pep-3118/|PEP 3118]]), featuring efficient access to data structures in [[NumPy|http://numpy.scipy.org/|NumPy]] or [[PIL|http://www.pythonware.com/products/pil/|PIL]]
+
+The intention is to make it for the most part a drop-in replacement for existing Pyrex code, though some changes to that existing code may have to be made. The immediate speed-up is generally worth the switch.
+
+To you as a user this means that if you use Cython today, you can write your code a lot cleaner and simpler now as you can rely on Cython to optimise it for you in a lot of ways that you do not have to care about. But if you use Cython specific syntax features (i.e. syntax elements that are not described in the documentation of Pyrex or Python), you may have to do minor syntactic code changes in the near or far future if you want to go back to a future Pyrex version. In general, however, both Pyrex and Cython try to adhere to the existing Python syntax as close as possible, so these cases should be rare.
+
+In early versions, Cython used to follow a 4-digit versioning scheme that kept the corresponding Pyrex version in the first three digits.  As most of the development in Cython is now completely independent from  what is going on with Pyrex, we have broken with this scheme. Cython versions are now unrelated to Pyrex versions.
 
 ----------
 
-How do I declare an object of type bool?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Is Cython a Python implementation?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Well, that depends on whether you want the C99/C++ ``bool`` or the Python ``bool``. Previously, Cython always defaulted to the Python ``bool`` type, which led to hard-to-debug issues when users unsuspectingly used ``bool`` in wrapping C++ code. We decided to make the choice explicit -- you can import whichever you'd like:
-
- * For the Python type, do ``from cpython cimport bool``.
- * For the C++ type, do ``from libcpp cimport bool``.
-
-Note that there is also a type called ``bint``, which is essentially a C ``int`` but automatically coerces from and to a Python bool value, i.e. ``cdef object x = <bint>some_c_integer_value`` gives either ``True`` or ``False``.
+Not officially, no. However, it compiles almost all existing Python code, which gets it pretty close to a real Python implementation. The result depends on the CPython runtime, though, which we consider a major compatibility advantage. In any case, it is an official goal for Cython to compile regular Python code and run (most of) the normal Python test suite - obviously faster than CPython. ;-)
 
 ----------
 
-How can I make a standalone binary from a Python program using cython?
+Is Cython faster than CPython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For most things, yes. For example, a Cython compiled pybench runs more than 30% faster in total, while being 60-90% faster on control structures like ``if-elif-else`` and ``for``-loops. We regularly run the tests from the CPython benchmark suite (which includes Django templates, 2to3, computational benchmarks and other applications) and most of them work out-of-the-box without modifications or static typing, with a performance increase of 20-60%.
+
+However the main advantage of Cython is that it scales very well to even greater performance requirements. For code that operates heavily on common builtin types (lists, dicts, strings), Cython can often speed up processing loops by factors. For numerical code, speed-ups of 100-1000 times compared to CPython are not unusual, and are achieved by simply adding static type declarations to performance critical parts of the code, thus trading Python's dynamic typing for speed. As this can be done at any granularity in the code, Cython makes it easy to write simple Python code that is fast enough, and just tune the critical 5% of your code into maximum performance by using static C types in just the right places.
+
+----------
+
+What Python versions does Cython support?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Version 0.20 of the Cython compiler runs in all Python versions from 2.4 to 3.4 inclusive (excluding 3.0). From Cython 0.21 on, support for CPython 2.4, 2.5 and 3.1 has been dropped, so that the supported versions become 2.6, 2.7, 3.2 and later. Cython 3.0 removes support for Python 2.6 and requires either Python 2.7 or Python 3.4+. Python 2.x support is scheduled for removal in Cython 3.1, which will probably require Python 3.6 or later at the time of its release.
+
+The C code generated by Cython is portable and builds in all supported Python versions. All supported CPython release series are tested regularly. New CPython versions are usually supported before they are released.
+
+The source code that Cython compiles can use both Python 2 and Python 3 syntax, defaulting to Python 2 syntax in Cython 0.x and Python 3 syntax in Cython 3.x and later. When compiling Cython modules (.pyx files) in Python 2 mode, most Python 3 syntax features are available by default if they do not interfere with Python 2 syntax (as in Python 2.7), but the general language semantics are defined as in Python 2. When compiling Python modules (.py files), the special Cython syntax (such as the ``cdef`` keyword) is not available. For both input types, the language level can be set to Python 3 by either passing the "-3" option to the compiler, or by putting
+
+::
+
+    # cython: language_level=3
+
+at the top of the module file (within the first comment and before any code or empty lines). With Cython 3.x, compiling Python 2 code requires the option "-2" or the directive ``language_level=2``. The most visible difference is that unprefixed strings are unicode strings under Python 3 semantics, but this also makes ``print()`` a function, keeps loop variables in list comprehensions from leaking into the outer scope, etc. To get Python 3 syntax features without enforcing unicode literals, set ``language_level=3str`` or use the option ``--3str``.
+
+----------
+
+Can I place the output under the BSD license, or does it have to be the python-license as well?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: You can use the output of Pyrex/Cython however you like (and license it how you like - be it BSD, public domain, GPL, all rights reserved, whatever).
+
+More details: The Python License is different from the GPL used for GCC, for example. GCC requires a special exception clause for its output as it is *linked* against the library part of GCC, i.e. against GPL software, which triggers the GPL restrictions.
+
+Pyrex doesn't do anything similar, and linking against Python is not restricted by the Python License, so the output belongs to the User, no other rights or restrictions involved.
+
+Also, all of the copyright holders of Pyrex/Cython stated in mailing list that people are allowed to use the output of Pyrex/Cython however they would like.
+
+----------
+
+How do I cite Cython in an academic paper?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you mention Cython, the simplest way to reference us is to add the URL to our website in a footnote. You may also choose to reference our software project
+in a more formal way, such as
+
+::
+
+    R. Bradshaw, S. Behnel, D. S. Seljebotn, G. Ewing, et al., The Cython compiler, http://cython.org.
+
+(the list of author names were taken from setup.py)
+
+For a yet more formal citation, there is a [[journal paper|https://www.computer.org/csdl/magazine/cs/2011/02/mcs2011020031/13rRUx0Pqtw|journal paper]] on Cython.
+If you wish to cite it, here's the Bibtex:
+
+::
+
+    @ARTICLE{ behnel2010cython,
+        author={Behnel, S. and Bradshaw, R. and Citro, C. and Dalcin, L. and Seljebotn, D.S. and Smith, K.},
+        journal={Computing in Science Engineering},
+        title={Cython: The Best of Both Worlds},
+        year={2011},
+        month=march-april ,
+        volume={13},
+        number={2},
+        pages={31 -39},
+        keywords={Cython language;Fortran code;Python language extension;numerical loops;programming language;C language;numerical analysis;},
+        doi={10.1109/MCSE.2010.118},
+        ISSN={1521-9615},
+    }
+
+----------
+
+''Why does ** on int literals not work (as it seems to do in Pyrex)?''
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You probably want a recipe something like this:
+It works as expected in recent versions of Cython.
+
+In older versions, it was considered that the fact that a binary operation on two integer types returned a float was counter-intuitive (both compared to every other kind of binary op in C, and the "expected" behavior from python). We discovered it because it was causing errors (e.g. in functions that were expecting an integer value but getting a float) and after much discussion decided that disabling this behavior was better than letting it go. Also a**b will (silently) overflow as an int/be inexact as a double except for very small values of b. If one *wants* the old behavior, one can always do, e.g, 13.0**5, where it is much clearer what's going on. One would have to do <int>(13**5) in pyrex anyway, which looks kind of strange.
+
+----------
+
+Why does Cython not always give errors for uninitialized variables?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: Cython does some static checks for variable initialization before use during  compile time, but these are very basic, as Cython has no definite knowledge  what paths of code will be taken at runtime:
+
+Consider the following
+
+.. code:: python
+
+    def testUnboundedLocal1():
+       if False:
+          c = 1
+       print c
+    def testUnboundedLocal2():
+       print c
+
+With CPython, both functions lead to the following exception:
 
 ::
 
-    PYVERSION=2.7
-    foobar: foobar.py
-        cython --embed foobar.py -o foobar.c
-        $(CC) -I /usr/include/python$(PYVERSION) foobar.c -lpython$(PYVERSION) -o foobar
+    NameError: global name 'c' is not defined
 
-The magic is the --embed option, which embeds a copy of the Python interpreter main in the generated C.  You'll want to change 'foobar' to reflect the name of your script, of course, and PYVERSION as appropriate.
+With Cython, the first variant prints "None", the second variant leads to a  compile time error. Both behaviours differ from CPython's.
+
+This is considered a BUG and will change in the future.
+
+----------
+
+What is the difference between PyObject* and object?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**:  A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
+
+::
+
+    from cpython.ref cimport PyObject
+
+    py_object = [1,2,3]
+
+    cdef PyObject* ptr = <PyObject*>py_object
+
+    cdef object l = <object>ptr    # this increases the reference count to the list
+
+Note that the lifetime of the object is only bound to its owned references, not to any C pointers that happen to point to it. This means that ``ptr`` in the example above becomes invalid as soon as the last reference to the object dies:
+
+::
+
+    py_object = [1,2,3]
+    cdef PyObject* ptr = <PyObject*>py_object
+    py_object = None   # last reference to list dies here
+
+    # ptr now points to a dead object
+    print(<object>ptr)   # expect a crash here!
+
+Pointers are commonly used when passing objects through C callbacks, e.g.
+
+::
+
+    cdef int call_it_from_c(void* py_function, void* args):
+        py_args = <tuple>args if args is not NULL else ()
+        return (<object>py_function)(*py_args)
+
+    def py_func(a,b,c):
+        print(a,b,c)
+        return -1
+
+    args = [1,2,3]
+
+    call_it_from_c(<PyObject*>py_func, <PyObject*>args)
+
+Once again, care must be taken to keep the objects alive as long as any pointers to them are still in use.
+
+----------
+
+What is the difference between a .pxd and .pxi file? When should either be used?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SHORT **Answer**:  You should always use .pxd files for declarations and .pxi files only for code that you want to include.
+
+MEDIUM **Answer**:  A .pxd files are lists of declarations, .pxi files are textually included, and their use for declarations is a historical artifact of the way common declarations were shared before .pxd files existed.
+
+LONG **Answer**:  A .pxd file is a declaration file, and is used to declare classes, methods, etc. in a C extension module, (typically as implemented in a .pyx file of the same name). It can contain declarations only, i.e. no executable statements. One can ``cimport`` things from .pxd files just as one would import things in Python. Two separate modules cimporting from the same .pxd file will receive identical objects.
+
+A .pxi file is an include file and is textually included (similar to the C ``#include`` directive) and may contain any valid Cython code at the given point in the program. It may contain implementations (e.g. common cdef inline functions) which will be copied into both files. For example, this means that if I have a class A declared in a.pxi, and both b.pyx and c.pyx do ``include a.pxi`` then I will have two distinct classes b.A and c.A. Interfaces to C libraries (including the Python/C API) have usually been declared in .pxi files (as they are not associated to a specific module). It is also re-parsed at every invocation.
+
+Now that "cimport *" can be used, there is no reason to use .pxi files for external declarations.
+
+----------
+
+Why does a function with cdef'd parameters accept None?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: It is a fairly common idiom in Python to use ``None`` as a way to mean "no value" or "invalid". This doesn't play well with C, as ``None`` is not compatible with any C type. To accommodate for this, the default behavior is for functions with cdefed parameters to also accept None. This behavior was inherited from Pyrex, and while it has been proposed that it be changed, it will likely stay (at least for a while) for backwards capability.
+
+You have four choices for how to handle ``None`` in your code:
+
+1. In Cython 3.x, use Python type annotations instead of Cython syntax. Python type annotations distinguish between ``func(x: MyType)`` and ``func(x: Optional[MyType])``, where the first **disallows** ``None`` and the second explicitly allows it.  ``func(x: MyType = None)`` allows it as well because it is explicitly required by the provided default value.
+
+2. If you want to consider ``None`` invalid input, then you need to write code that checks for it, and raised an appropriate exception.
+
+3. If you want Cython to raise an exception if ``None`` is passed in for an extension type parameter, you can use the ``not None`` declaration:
+
+   ::
+
+       def foo(MyClass val not None): <...>
+
+   which is a short-hand for
+
+   ::
+
+       def foo(MyClass val):
+           if val is None: raise <...>
+           <...>
+
+4. You can also put ``#cython: nonecheck=True`` at the top of your file and all access will be checked for None, but it
+   will slow things down, as it is adding a check on every access, rather that once on function call.
 
 ----------
 
