@@ -499,9 +499,9 @@ file consists of the full dotted name of the module, e.g. a module called
 C++ public declarations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-When a file is compiled as C++, the public function is declared as C++ API (using ``extern "C++"``). This disallows to call
+When a file is compiled as C++, the public function is declared as C++ API (using ``extern "C++"``) by default. This disallows to call
 the function from C code. To declare the function as C API, the ``extern`` declaration needs to be manually specified by the user.
-This can be done by setting ``__PYX_EXTERN_C`` C macro to ``extern "C"`` during compilation of generated C++ file::
+This can be done by setting ``CYTHON_EXTERN_C`` C macro to ``extern "C"`` during compilation of generated C++ file::
 
     from setuptools import Extension, setup
     from Cython.Build import cythonize
@@ -509,7 +509,7 @@ This can be done by setting ``__PYX_EXTERN_C`` C macro to ``extern "C"`` during 
     extensions = [
         Extension(
             "module", ["module.pyx"],
-            define_macros=[("__PYX_EXTERN_C", 'extern "C"')],
+            define_macros=[("CYTHON_EXTERN_C", 'extern "C"')],
             language="c++",
         )
     ]

@@ -268,7 +268,7 @@ Public Declarations in C++
 ==========================
 
 Public declaration in C++ mode are exported as C++ API in Cython 3. This behavior can be changed by
-setting export keyword using ``__PYX_EXTERN_C`` macro to allow Cython module to be implemented in C++
+setting export keyword using ``CYTHON_EXTERN_C`` macro to allow Cython module to be implemented in C++
 but callable in C.
 
 ``**`` power operator
