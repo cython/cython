@@ -89,7 +89,7 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
 // of arguments from the most recent version we know of, so needs
 // to remove any arguments that don't exist on earlier versions.
 
-#if PY_MAJOR_VERSION > 2
+#if PY_MAJOR_VERSION >= 3
 static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject *kwds, PyObject *new_kwds, PyObject *args_list, int is_kwonly) {
     Py_ssize_t size, i;
     size = PySequence_Size(args_list);
@@ -140,40 +140,35 @@ static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject
 #endif
 
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds) {
-    PyObject *new_kwds=NULL, *result=NULL;
 #if PY_MAJOR_VERSION < 3
     // We're falling back to our full replacement anyway
-    new_kwds = kwds;
+    return PyObject_Call(callable, $empty_tuple, kwds);
 #else
-    PyObject *inspect, *getfullargspec;
+    PyObject *new_kwds=NULL, *result=NULL;
+    PyObject *inspect;
     PyObject *args_list=NULL, *kwonly_args_list=NULL, *getfullargspec_result=NULL;
 
     // Going via inspect to work out what arguments to pass is unlikely to be the
     // fastest thing ever. However, it is compatible, and only happens once
     // at module-import time.
     inspect = PyImport_ImportModule("inspect");
-    if (!inspect) goto end;
-    getfullargspec = PyObject_GetAttrString(inspect, "getfullargspec");
+    if (!inspect) goto bad;
+    getfullargspec_result = PyObject_CallMethodObjArgs(inspect, PYUNICODE("getfullargspec"), callable, NULL);
     Py_DECREF(inspect);
-    if (!getfullargspec) goto end;
-    getfullargspec_result = PyObject_CallFunctionObjArgs(getfullargspec, callable, NULL);
-    Py_DECREF(getfullargspec);
-    if (!getfullargspec_result) goto end;
+    if (!getfullargspec_result) goto bad;
     args_list = PyObject_GetAttrString(getfullargspec_result, "args");
-    if (!args_list) goto end;
+    if (!args_list) goto bad;
     kwonly_args_list = PyObject_GetAttrString(getfullargspec_result, "kwonlyargs");
-    if (!kwonly_args_list) goto end;
+    if (!kwonly_args_list) goto bad;
 
     new_kwds = PyDict_New();
-    if (!new_kwds) goto end;
+    if (!new_kwds) goto bad;
 
     // copy over only those arguments that are in the specification
-    if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, args_list, 0) == -1) goto end;
-    if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, kwonly_args_list, 1) == -1) goto end;
-#endif
+    if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, args_list, 0) == -1) goto bad;
+    if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, kwonly_args_list, 1) == -1) goto bad;
     result = PyObject_Call(callable, $empty_tuple, new_kwds);
-#if PY_MAJOR_VERSION > 2
-    end:
+bad:
     Py_XDECREF(getfullargspec_result);
     Py_XDECREF(args_list);
     Py_XDECREF(kwonly_args_list);
