@@ -1046,21 +1046,9 @@ Especially with large modules, the code that Cython generates can take the C com
 
 It can substantially speed up the C compiler runs to disable the code optimisation, e.g. by setting the environment variable ``CFLAGS="-O0 -ggdb"`` on Linux or MacOS, which also enables full debugging symbols for better crash reports and debugger usage.  For MSVC on Windows, you can pass the option ``/Od`` to disable all optimisations.
 
+----------
 
 How can I reduce the size of the binary modules?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Python distutils build often includes debugging symbols in the extension modules.  The default for gcc is ``-g2``, for example. Disabling them (``CFLAGS=-g0`` for gcc), or setting them to the bare minimum that is required to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce the size of the binaries.
-
-----------
-
-Does anyone have a good FAQ format to suggest for this page?
-
-Other places to look:
- * http://www.scipy.org/FAQ (uses Headlines + Table-of-Contents macro)
-
-----------
-
-----
-
-CategoryCythonDoc
