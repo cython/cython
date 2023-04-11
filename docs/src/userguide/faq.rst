@@ -176,7 +176,7 @@ Since Cython 0.12, there is also support for decoding a C string slice efficient
     # -*- coding: ISO8859-15
     cdef char* s = "a UTF-8 encoded C string with fünny chäräctörs"
     cdef Py_ssize_t byte_length = 46
-    
+
     a_python_unicode_string = s[:byte_length].decode('ISO8859-15')
 
 ----------
@@ -195,7 +195,7 @@ To instantiate an extension type in Cython 0.12, however, the fastest way is to 
         def __init__(self):
             # calling "__new__()" will not call "__init__()" !
             raise TypeError("This class cannot be instantiated from Python")
-    
+
     cdef ExampleClass _factory():
         cdef ExampleClass instance = ExampleClass.__new__(ExampleClass)
         instance._value = 1
@@ -219,7 +219,7 @@ and then define it as a Cython function as follows:
     cdef extern from "theheader.h":
         # macro call to 't->tp_new()' for fast instantiation
         cdef ExampleClass NEW_EXAMPLE_CLASS "PY_NEW" (object t)
-    
+
     cdef ExampleClass _factory():
         cdef ExampleClass instance = NEW_EXAMPLE_CLASS(ExampleClass)
         instance._value = 1
@@ -304,7 +304,7 @@ The above is the right thing to do in Py3. However, some (not all, just some) mo
 ::
 
     from python_version cimport PY_MAJOR_VERSION
-    
+
     def work_with_text_data(text):
         if isinstance(text, unicode): # most common case first
             utf8_data = text.encode('UTF-8')
@@ -344,7 +344,7 @@ For non-standard types, it's enough to provide Cython with a ``ctypedef`` declar
 
     cdef extern from "someheader.h":
         ctypedef unsigned long MySpecialCInt_t
-    
+
     cdef MySpecialCInt_t i
 
 Make sure you use the original C type name in declarations, not the replacement type you chose!
@@ -400,11 +400,11 @@ What is the difference between PyObject* and object?
 ::
 
     from cpython.ref cimport PyObject
-    
+
     py_object = [1,2,3]
-    
+
     cdef PyObject* ptr = <PyObject*>py_object
-    
+
     cdef object l = <object>ptr    # this increases the reference count to the list
 
 Note that the lifetime of the object is only bound to its owned references, not to any C pointers that happen to point to it. This means that ``ptr`` in the example above becomes invalid as soon as the last reference to the object dies:
@@ -414,7 +414,7 @@ Note that the lifetime of the object is only bound to its owned references, not 
     py_object = [1,2,3]
     cdef PyObject* ptr = <PyObject*>py_object
     py_object = None   # last reference to list dies here
-    
+
     # ptr now points to a dead object
     print(<object>ptr)   # expect a crash here!
 
@@ -425,13 +425,13 @@ Pointers are commonly used when passing objects through C callbacks, e.g.
     cdef int call_it_from_c(void* py_function, void* args):
         py_args = <tuple>args if args is not NULL else ()
         return (<object>py_function)(*py_args)
-    
+
     def py_func(a,b,c):
         print(a,b,c)
         return -1
-    
+
     args = [1,2,3]
-    
+
     call_it_from_c(<PyObject*>py_func, <PyObject*>args)
 
 Once again, care must be taken to keep the objects alive as long as any pointers to them are still in use.
@@ -512,7 +512,7 @@ You need to declare the variable to be global (see above) before trying to assig
 ::
 
     cdef int *data
-    
+
     def foo(n):
         data = malloc(n * sizeof(int))
 
@@ -521,7 +521,7 @@ This will result in an error "Cannot convert 'int *' to Python object." This is 
 ::
 
     cdef int *data
-    
+
     def foo(n):
         global data
         data = malloc(n * sizeof(int))
@@ -563,7 +563,7 @@ How do I implement a single class method in a Cython module ?
 
     #!python
     import cython_module
-    
+
     class A(object):
         method = cython_module.optimized_method
 
@@ -583,10 +583,10 @@ You have can explicitly create a bound method, either in Python:
     #!python
     import types
     import cython_module
-    
+
     class A(object):
         pass
-    
+
     A.method = types.MethodType(cython_module.optimized_method, None, A)
 
 or by using the ``cython.binding`` directive to make the method bind automatically, e.g.
@@ -618,20 +618,20 @@ This module (let's call it "cydoctest") offers a Cython-compatible workaround.
     #!python
     """
     Cython-compatible wrapper for doctest.testmod().
-    
+
     Usage example, assuming a Cython module mymod.pyx is compiled.
     This is run from the command line, passing a command to Python:
     python -c "import cydoctest, mymod; cydoctest.testmod(mymod)"
-    
+
     (This still won't let a Cython module run its own doctests
     when called with "python mymod.py", but it's pretty close.
     Further options can be passed to testmod() as desired, e.g.
     verbose=True.)
     """
-    
+
     import doctest
     import inspect
-    
+
     def _from_module(module, object):
         """
         Return true if the given object is defined in the given module.
@@ -650,7 +650,7 @@ This module (let's call it "cydoctest") offers a Cython-compatible workaround.
             return True # [XX] no way not be sure.
         else:
             raise ValueError("object must be a class or function")
-    
+
     def fix_module_doctest(module):
         """
         Extract docstrings from cython functions, that would be skipped by doctest
@@ -661,11 +661,11 @@ This module (let's call it "cydoctest") offers a Cython-compatible workaround.
            value = getattr(module, name)
            if inspect.isbuiltin(value) and isinstance(value.__doc__, str) and _from_module(module, value):
                module.__test__[name] = value.__doc__
-    
+
     def testmod(m=None, *args, **kwargs):
         """
         Fix a Cython module's doctests, then call doctest.testmod()
-    
+
         All other arguments are passed directly to doctest.testmod().
         """
         fix_module_doctest(m)
@@ -690,7 +690,7 @@ slurp.h
     #include <stdlib.h>
     #include <regex.h>
     #include <Python.h>
-    
+
     int th_match(char *, char *);
 
 cslurp.c
@@ -699,7 +699,7 @@ cslurp.c
 ::
 
     #include "slurp.h"
-    
+
     int th_match(char *string, char *pattern) {
       int status;
       regex_t re;
@@ -707,7 +707,7 @@ cslurp.c
       status = regexec(&re, string, (size_t)0, NULL, 0);
       regfree(&re);
       if(status != 0)
-    	return 0;
+        return 0;
       return 1;
     }
 
@@ -718,13 +718,13 @@ slurp.pyx
 
     cdef extern from "slurp.h":
         int th_match(char *st, char *pt)
-    
+
     class Slurp:
         '''
         This is a simple, but optimized PEG (Parser Expression Group) parser.
         It will parse through anything you hand it provided what you hand it
         has a readline() method.
-    
+
         Example:
             import sys
             from thci.ext import slurp
@@ -732,12 +732,12 @@ slurp.pyx
             o.register_trigger('^root:.*:.*:.*:.*$', sys.stdout.write)
             o.process(open('/etc/passwd', 'r'))
         '''
-    
+
         def __init__(self):
             ''' __init__(self) '''
             self.map = {}
             self.idx = 0
-    
+
         def register_trigger(self, patt=None, cback=None, args=None):
             ''' register_trigger(self, patt=None, cback=None, args=None) '''
             if patt == None or cback == None:
@@ -746,7 +746,7 @@ slurp.pyx
             self.map[self.idx] = (patt, cback, args)
             self.idx += 0
             return True
-    
+
         def process(self, fp=None):
             ''' process(self, fp=None) '''
             if fp == None:
@@ -855,7 +855,7 @@ Therefore, the line should read:
 python pyprog.py build_ext --compiler=mingw32 --inplace
 ```
 This, however, does not solve the issue when using the pyximport method (see the tutorial).
-Alternatively, the following patch can be applied. 
+Alternatively, the following patch can be applied.
 
 **NOTE: This is untested.**
 
@@ -943,7 +943,7 @@ It can't be done cleanly yet, but the code below works:
         void* va_arg(va_list, fake_type)
         void va_end(va_list)
         fake_type int_type "int"
-    
+
     cdef int foo(int n, ...):
         print "starting"
         cdef va_list args
@@ -953,11 +953,11 @@ It can't be done cleanly yet, but the code below works:
             n = <int>va_arg(args, int_type)
         va_end(args)
         print "done"
-    
+
     def call_foo():
         foo(1, 2, 3, 0)
         foo(1, 2, 0)
-    
+
 
 ----------
 
@@ -996,8 +996,8 @@ You probably want a recipe something like this:
 
     PYVERSION=2.7
     foobar: foobar.py
-    	cython --embed foobar.py -o foobar.c
-    	$(CC) -I /usr/include/python$(PYVERSION) foobar.c -lpython$(PYVERSION) -o foobar
+        cython --embed foobar.py -o foobar.c
+        $(CC) -I /usr/include/python$(PYVERSION) foobar.c -lpython$(PYVERSION) -o foobar
 
 The magic is the --embed option, which embeds a copy of the Python interpreter main in the generated C.  You'll want to change 'foobar' to reflect the name of your script, of course, and PYVERSION as appropriate.
 
