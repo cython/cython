@@ -8,7 +8,7 @@ Do I need to rename my ``.py`` file to ``.pyx``?
 
 **Answer**: No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
 
-But you can use Cython's `pure Python mode <http://docs.cython.org/en/latest/src/tutorial/pure.html>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
+But you can use Cython's `pure Python mode<pure-mode>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
 
 For cases where no interaction with external C libraries is required, this is also the recommended way to type your code, since sticking to .py files with regular Python syntax keeps the whole range of debugging, linting, formatting, profiling etc. tools for Python code available for your software development needs, which usually cannot handle the syntax of .pyx files.
 
@@ -31,7 +31,7 @@ Can I call my Python code from C?
 How do I interface numpy arrays using Cython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Follow the example: https://cython.readthedocs.io/en/latest/src/userguide/numpy_tutorial.html
+**Answer**: Follow the `example<numpy_tutorial>`_.
 
 ----------
 
@@ -67,7 +67,7 @@ How well is Unicode supported?
 
 There is also native support for the ``Py_UNICODE`` type that represents a single unicode character. In fact, Cython will try to infer this type for single character unicode literals, and avoid the creation of a unicode string object for them if possible. This is because many operations work much more efficiently (in plain C) on ``Py_UNICODE`` than on unicode objects.
 
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+See the `string tutorial<string_tutorial>`_.
 
 
 How do I ...?
@@ -76,7 +76,7 @@ How do I ...?
 How do I pickle cdef classes?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: See [[the documentation|https://cython.readthedocs.io/en/latest/src/userguide/extension_types.html?highlight=pickle#controlling-pickling|the documentation]].
+**Answer**: See `the documentation<auto_pickle>`_.
 
 ----------
 
@@ -161,7 +161,7 @@ How do I use builtins like ``len()`` with the C type ``char *``?
 
 **Answer**: Cython maps ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call, and applying it to sliced ``char*`` values will skip the length counting step.
 
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+See the `string tutorial<string_tutorial>`_.
 
 For other Python operations on ``char*``, the generated code may be inefficient, as a temporary object may have to get created. If you notice this for your code and think that Cython can do better, please speak up on the mailing list.
 
@@ -295,7 +295,7 @@ or by using the ``cython.binding`` directive to make the method bind automatical
 How do I pass string buffers that may contain 0 bytes to Cython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+**Answer**: See the `string tutorial<string_tutorial>`_.
 
 You need to use either a Python byte string object or a char*/length pair of variables.
 
@@ -331,7 +331,7 @@ There is also support for decoding a C string slice efficiently into a Python un
 How do I pass a Python string parameter on to a C library?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+See the `string tutorial<string_tutorial>`_.
 
 **Answer**: It depends on the semantics of the string. Imagine you have this C function:
 
