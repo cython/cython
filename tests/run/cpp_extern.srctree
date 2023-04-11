@@ -28,7 +28,7 @@ bar = Extension(
 baz = Extension(
     "baz",
     ["baz.pyx", "baz1.c", "baz2.cpp"],
-    define_macros = [("__PYX_EXTERN_C", 'extern "C"')],
+    define_macros = [("CYTHON_EXTERN_C", 'extern "C"')],
 )
 
 ext_modules = [foo, bar]
@@ -146,8 +146,8 @@ int get_int2();
 
 ######## baz1.c ########
 
-#undef __PYX_EXTERN_C
-#define __PYX_EXTERN_C
+#undef CYTHON_EXTERN_C
+#define CYTHON_EXTERN_C
 #include "baz.h"
 
 int get_int1() { return (int)get_char(); }
