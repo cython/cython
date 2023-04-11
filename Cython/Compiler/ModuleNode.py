@@ -892,6 +892,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_extern_c_macro_definition(self, code, is_cpp):
         name = Naming.extern_c_macro
         code.putln("#ifndef %s" % name)
+        code.putln("  #ifdef CYTHON_EXTERN_C")
+        code.putln('    #define %s CYTHON_EXTERN_C' % name)
+        code.putln("  #else")
         if is_cpp:
             code.putln('    #define %s extern "C++"' % name)
         else:
@@ -900,6 +903,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("  #else")
             code.putln("    #define %s extern" % name)
             code.putln("  #endif")
+        code.putln("  #endif")
         code.putln("#endif")
 
     def generate_dl_import_macro(self, code):
