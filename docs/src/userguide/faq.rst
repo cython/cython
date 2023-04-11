@@ -65,7 +65,7 @@ How well is Unicode supported?
 
 **Answer**: The support for Unicode is as good as CPythons, as long as you are using the Python ``unicode`` string type. But there is no equivalent C type available for Unicode strings. To prevent user errors, Cython will also disallow any implicit conversion to char* as this not going to be correct.
 
-Since Cython 0.13, there is also native support for the ``Py_UNICODE`` type that represents a single unicode character. In fact, Cython will try to infer this type for single character unicode literals, and avoid the creation of a unicode string object for them if possible. This is because many operations work much more efficiently (in plain C) on ``Py_UNICODE`` than on unicode objects.
+There is also native support for the ``Py_UNICODE`` type that represents a single unicode character. In fact, Cython will try to infer this type for single character unicode literals, and avoid the creation of a unicode string object for them if possible. This is because many operations work much more efficiently (in plain C) on ``Py_UNICODE`` than on unicode objects.
 
 See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
 
@@ -133,7 +133,7 @@ Make sure you use the original C type name in declarations, not the replacement 
 
 The exact size of the type at C compile time is not that important because Cython generates automatic size detection code (evaluated at C compile time). However, when your code mixes different types in arithmetic code, Cython must know about the correct signedness and the approximate longness in order to infer the appropriate result type of an expression. Therefore, when using a ``ctypedef`` as above, try to come up with a good approximation of the expected C type. Since the largest type wins in mixed arithmetic expressions, it's usually not a problem if the type turns out to be somewhat larger than what the C compiler eventually determines for a given platform. In the worst case, if your replacement type is substantially larger than the real C type (say, 'long long' instead of 'int'), you may end up with slightly slower conversion code. However, if the type is declared too small and Cython considers it smaller than other types it is used together with, Cython may infer the wrong type for an expression and may end up generating incorrect coercion code. You may or may not get a warning by the C compiler in this case.
 
-Also note that Cython 0.14 and later will consider large integer literals (>32 bit signed) unsafe to use in C code and may therefore use Python objects to represent them. You can make sure a large literal is considered a safe C literal by appending a C suffix, such as 'LL' or 'UL'. Note that a single 'L' is not considered a C suffix in Python 2 code.
+Also note that Cython will consider large integer literals (>32 bit signed) unsafe to use in C code and may therefore use Python objects to represent them. You can make sure a large literal is considered a safe C literal by appending a C suffix, such as 'LL' or 'UL'. Note that a single 'L' is not considered a C suffix in Python 2 code.
 
 ----------
 
@@ -152,31 +152,14 @@ Note that there is also a type called ``bint``, which is essentially a C ``int``
 How do I use ``const``?
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Since Cython 0.18, you can just use it in your code and in your declarations.
-
-Earlier versions of Cython did not support const directly and required the following hack to compile it into the C source code:
-
-::
-
-    cdef extern from *:
-        ctypedef char* const_char_ptr "const char*"
-    cdef public void foo_c(const_char_ptr s):
-        print s
-
-This textually replaces the type ``const_char_ptr`` by ``const char*`` and generates this C code:
-
-::
-
-    __PYX_EXTERN_C  DL_EXPORT(void) foo_c(const char* __pyx_v_s);
-
-Note that the above declarations for the different ``const char*`` types are still provided by the ``libc.string`` standard declarations for backwards compatibility reasons. A ``cimport`` from there will do the right thing in Cython 0.18 and later.
+**Answer**: You can just use it in your code and in your declarations.
 
 ----------
 
 How do I use builtins like ``len()`` with the C type ``char *``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Cython 0.12.1 and later map ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call since 0.12, and applying it to sliced ``char*`` values will skip the length counting step.
+**Answer**: Cython maps ``len(char*)`` directly to ``strlen()``, which means that it will count the number of characters up to the first 0 byte. Similarly, ``(char*).decode(...)`` is optimised into a C-API call, and applying it to sliced ``char*`` values will skip the length counting step.
 
 See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
 
@@ -187,7 +170,7 @@ For other Python operations on ``char*``, the generated code may be inefficient,
 How do I make a cdef'd class that derives from a builtin Python type such as list?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Since Cython 0.14, you can just use the type as a base class in your cdef class declaration. Older versions of Cython required a [[work-around|FAQ/cdef_derive|work-around]] that has several drawbacks, especially for optimisations.
+**Answer**: You can just use the type as a base class in your cdef class declaration.
 
 The only exception are the types bytes ('str' in Python 2) and tuple, which can only be subtyped by Python classes (not cdef classes). This is considered a [[bug|http://trac.cython.org/cython_trac/ticket/152|bug]]. However, you can safely subtype 'unicode' and 'list' instead.
 
@@ -246,7 +229,7 @@ How do I create objects or apply operators to locally created objects as pure C 
 
 **Answer**: For methods like ``__init__`` and ``__getitem__`` the Python calling convention is mandatory and identical for all objects, so Cython cannot provide a major speed-up for them.
 
-To instantiate an extension type in Cython 0.12, however, the fastest way is to actually use the normal Python idiom of calling the ``__new__()`` method of a type:
+To instantiate an extension type, however, the fastest way is to actually use the normal Python idiom of calling the ``__new__()`` method of a type:
 
 .. code:: python
 
@@ -262,28 +245,6 @@ To instantiate an extension type in Cython 0.12, however, the fastest way is to 
         return instance
 
 Note that this has similar restrictions as the normal Python code: it will not call the ``__init__()`` method (which makes it quite a bit faster). Also, while all Python class members will be initialised to None, you have to take care to initialise the C members. Either the ``__cinit__()`` method or a factory function like the one above are good places to do so.
-
-In Cython 0.11 and older versions, you had to use the following C-ish hack in an external header file:
-
-.. code:: C
-
-    /* in FILE "theheader.h" */
-    #define PY_NEW(T) \
-         (((PyTypeObject*)(T))->tp_new( \
-                 (PyTypeObject*)(T), __pyx_empty_tuple, NULL))
-
-and then define it as a Cython function as follows:
-
-.. code:: python
-
-    cdef extern from "theheader.h":
-        # macro call to 't->tp_new()' for fast instantiation
-        cdef ExampleClass NEW_EXAMPLE_CLASS "PY_NEW" (object t)
-
-    cdef ExampleClass _factory():
-        cdef ExampleClass instance = NEW_EXAMPLE_CLASS(ExampleClass)
-        instance._value = 1
-        return instance
 
 How do I implement a single class method in a Cython module?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -355,7 +316,7 @@ However, this will not work for C strings that contain 0 bytes, as a 0 byte is t
 
 Note that this will not handle the case that the specified slice length is longer than the actual C string. This code will crash if the allocated memory area of the ``char*`` is shorter.
 
-Since Cython 0.12, there is also support for decoding a C string slice efficiently into a Python unicode string. Just do this:
+There is also support for decoding a C string slice efficiently into a Python unicode string. Just do this:
 
 .. code:: python
 
@@ -594,11 +555,7 @@ How do I run doctests in Cython code (pyx files)?
 
 **Answer**:
 
-Recent versions of Cython generate a ``__test__`` dictionary in the module that contains all docstrings of Python visible functions and classes that look like doctests (i.e. that contain ``>>>``). The doctest module will properly pick this up and run the doctests.
-
-Older Cython versions suffer from a problem with doctest because it uses ``inspect.is_function`` to check
-whether something is a function, which fails for Cython functions (which
-instead answer to ``inspect.is_builtin``).
+Cython generates a ``__test__`` dictionary in the module that contains all docstrings of Python visible functions and classes that look like doctests (i.e. that contain ``>>>``). The doctest module will properly pick this up and run the doctests.
 
 This module (let's call it "cydoctest") offers a Cython-compatible workaround.
 
@@ -898,8 +855,6 @@ Why does ``**`` on int literals not work (as it seems to do in Pyrex)?
 
 **Answer**: It works as expected in recent versions of Cython.
 
-In older versions, it was considered that the fact that a binary operation on two integer types returned a float was counter-intuitive (both compared to every other kind of binary op in C, and the "expected" behavior from python). We discovered it because it was causing errors (e.g. in functions that were expecting an integer value but getting a float) and after much discussion decided that disabling this behavior was better than letting it go. Also a**b will (silently) overflow as an int/be inexact as a double except for very small values of b. If one *wants* the old behavior, one can always do, e.g, 13.0**5, where it is much clearer what's going on. One would have to do <int>(13**5) in pyrex anyway, which looks kind of strange.
-
 ----------
 
 Why does Cython not always give errors for uninitialized variables?
@@ -981,7 +936,7 @@ However the main advantage of Cython is that it scales very well to even greater
 What Python versions does Cython support?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Version 0.20 of the Cython compiler runs in all Python versions from 2.4 to 3.4 inclusive (excluding 3.0). From Cython 0.21 on, support for CPython 2.4, 2.5 and 3.1 has been dropped, so that the supported versions become 2.6, 2.7, 3.2 and later. Cython 3.0 removes support for Python 2.6 and requires either Python 2.7 or Python 3.4+. Python 2.x support is scheduled for removal in Cython 3.1, which will probably require Python 3.6 or later at the time of its release.
+**Answer**: From Cython 0.21 on, the supported versions are 2.6, 2.7 and 3.4+. Cython 3.0 removes support for Python 2.6 and requires either Python 2.7 or Python 3.4+. Python 2.x support is scheduled for removal in Cython 3.1, which will probably require Python 3.6 or later at the time of its release.
 
 The C code generated by Cython is portable and builds in all supported Python versions. All supported CPython release series are tested regularly. New CPython versions are usually supported before they are released.
 
