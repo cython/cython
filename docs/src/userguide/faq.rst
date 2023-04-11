@@ -6,7 +6,7 @@ Basics
 Do I need to rename my ``.py`` file to ``.pyx``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
+**Answer**: No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
 
 But you can use Cython's `pure Python mode <http://docs.cython.org/en/latest/src/tutorial/pure.html>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
 
@@ -24,7 +24,7 @@ Can Cython generate C code for classes?
 Can I call my Python code from C?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**:  Yes, easily. Follow the example in Demos/callback/ in the Cython source distribution.
+**Answer**: Yes, easily. Follow the example in Demos/callback/ in the Cython source distribution.
 
 ----------
 
@@ -38,7 +38,7 @@ How do I interface numpy arrays using Cython?
 How do I compile Cython with subpackages?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It's highly recommended to arrange Cython modules in exactly the same Python package structure as the Python parts of the code base. As long as you don't keep your Cython code in unusual places, everything should just work.
+**Answer**: It's highly recommended to arrange Cython modules in exactly the same Python package structure as the Python parts of the code base. As long as you don't keep your Cython code in unusual places, everything should just work.
 
 This is in part due to the fact that fully qualified names are resolved at compile time, and moving .so files around or adding __init__ files between the Cython compile and the Python runtime invocation means that cimports and imports may resolve differently. Failure to do this may result in errors like .pxd files not found or ``'module' object has no attribute '__pyx_capi__'``.
 
@@ -47,7 +47,7 @@ This is in part due to the fact that fully qualified names are resolved at compi
 How do I speed up the C compilation?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Especially with large modules, the code that Cython generates can take the C compiler quite some time to optimise. This is usually ok for production builds, but during development, this can get in the way.
+**Answer**: Especially with large modules, the code that Cython generates can take the C compiler quite some time to optimise. This is usually ok for production builds, but during development, this can get in the way.
 
 It can substantially speed up the C compiler runs to disable the code optimisation, e.g. by setting the environment variable ``CFLAGS="-O0 -ggdb"`` on Linux or MacOS, which also enables full debugging symbols for better crash reports and debugger usage.  For MSVC on Windows, you can pass the option ``/Od`` to disable all optimisations.
 
@@ -56,7 +56,7 @@ It can substantially speed up the C compiler runs to disable the code optimisati
 How do I reduce the size of the binary modules?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Python distutils build often includes debugging symbols in the extension modules.  The default for gcc is ``-g2``, for example. Disabling them (``CFLAGS=-g0`` for gcc), or setting them to the bare minimum that is required to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce the size of the binaries.
+**Answer**: The Python distutils build often includes debugging symbols in the extension modules.  The default for gcc is ``-g2``, for example. Disabling them (``CFLAGS=-g0`` for gcc), or setting them to the bare minimum that is required to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce the size of the binaries.
 
 ----------
 
@@ -83,7 +83,7 @@ How do I pickle cdef classes?
 How do I use a Cython class in a C++ framework?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-See, for example, http://bitbucket.org/binet/cy-cxxfwk/src and http://groups.google.com/group/cython-users/browse_thread/thread/bc007d85b2ccc518 .
+**Answer**: See, for example, http://bitbucket.org/binet/cy-cxxfwk/src and http://groups.google.com/group/cython-users/browse_thread/thread/bc007d85b2ccc518 .
 
 ----------
 
@@ -140,7 +140,7 @@ Also note that Cython 0.14 and later will consider large integer literals (>32 b
 How do I declare an object of type bool?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Well, that depends on whether you want the C99/C++ ``bool`` or the Python ``bool``. Previously, Cython always defaulted to the Python ``bool`` type, which led to hard-to-debug issues when users unsuspectingly used ``bool`` in wrapping C++ code. We decided to make the choice explicit -- you can import whichever you'd like:
+**Answer**: Well, that depends on whether you want the C99/C++ ``bool`` or the Python ``bool``. Previously, Cython always defaulted to the Python ``bool`` type, which led to hard-to-debug issues when users unsuspectingly used ``bool`` in wrapping C++ code. We decided to make the choice explicit -- you can import whichever you'd like:
 
  * For the Python type, do ``from cpython cimport bool``.
  * For the C++ type, do ``from libcpp cimport bool``.
@@ -218,7 +218,7 @@ How do I declare a global variable?
 How do I assign to a global variable?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You need to declare the variable to be global (see above) before trying to assign to it. Often this occurs when one has code like
+**Answer**: You need to declare the variable to be global (see above) before trying to assign to it. Often this occurs when one has code like
 
 ::
 
@@ -244,7 +244,7 @@ See http://docs.python.org/tutorial/classes.html#python-scopes-and-name-spaces f
 How do I create objects or apply operators to locally created objects as pure C code?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For methods like ``__init__`` and ``__getitem__`` the Python calling convention is mandatory and identical for all objects, so Cython cannot provide a major speed-up for them.
+**Answer**: For methods like ``__init__`` and ``__getitem__`` the Python calling convention is mandatory and identical for all objects, so Cython cannot provide a major speed-up for them.
 
 To instantiate an extension type in Cython 0.12, however, the fastest way is to actually use the normal Python idiom of calling the ``__new__()`` method of a type:
 
@@ -334,7 +334,7 @@ or by using the ``cython.binding`` directive to make the method bind automatical
 How do I pass string buffers that may contain 0 bytes to Cython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+**Answer**: See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
 
 You need to use either a Python byte string object or a char*/length pair of variables.
 
@@ -421,7 +421,7 @@ The above is the right thing to do in Py3. However, some (not all, just some) mo
 How do I use variable args?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It can't be done cleanly yet, but the code below works:
+**Answer**: It can't be done cleanly yet, but the code below works:
 
 ::
 
@@ -454,7 +454,7 @@ It can't be done cleanly yet, but the code below works:
 How do I make a standalone binary from a Python program using cython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You probably want a recipe something like this:
+**Answer**: You probably want a recipe something like this:
 
 ::
 
@@ -571,7 +571,7 @@ It is also possible to use distutils by adding the file cslurp.c (or your files 
 How do I automatically generate Cython definition files from C (.h) or C++ (.hpp) header files ?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Several people have created scripts to parse header files and automatically produce Cython bindings.
+**Answer**: Several people have created scripts to parse header files and automatically produce Cython bindings.
 
 ### autowrap
 
@@ -835,7 +835,7 @@ Now that "cimport *" can be used, there is no reason to use .pxi files for exter
 What is better, a single big module or multiple separate modules?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In short, one big module is clumsy to handle but allows broader optimisations by the C compiler.
+**Answer**: In short, one big module is clumsy to handle but allows broader optimisations by the C compiler.
 
 The compile time might actually decrease for multiple modules since the build can be parallelised. The "build_ext" command in distutils has a "-j" option since Py3.5. Also, smaller modules are usually faster to compile by the C compiler, because some optimisations may involve non-linear overhead.
 
@@ -850,7 +850,7 @@ When splitting an existing module, you will also have to deal with the API chang
 What is the difference between ``PyObject*`` and ``object``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**:  A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
+**Answer**: A variable of type ``PyObject*`` is a simple C pointer, just like ``void*``. It is not reference counted, which is sometimes referred to as a borrowed reference. An ``object`` variable is an owned reference to a Python object. You can convert one into the other by casting:
 
 ::
 
@@ -896,7 +896,7 @@ Once again, care must be taken to keep the objects alive as long as any pointers
 Why does ``**`` on int literals not work (as it seems to do in Pyrex)?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It works as expected in recent versions of Cython.
+**Answer**: It works as expected in recent versions of Cython.
 
 In older versions, it was considered that the fact that a binary operation on two integer types returned a float was counter-intuitive (both compared to every other kind of binary op in C, and the "expected" behavior from python). We discovered it because it was causing errors (e.g. in functions that were expecting an integer value but getting a float) and after much discussion decided that disabling this behavior was better than letting it go. Also a**b will (silently) overflow as an int/be inexact as a double except for very small values of b. If one *wants* the old behavior, one can always do, e.g, 13.0**5, where it is much clearer what's going on. One would have to do <int>(13**5) in pyrex anyway, which looks kind of strange.
 
@@ -965,14 +965,14 @@ About the project
 Is Cython a Python implementation?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Not officially, no. However, it compiles almost all existing Python code, which gets it pretty close to a real Python implementation. The result depends on the CPython runtime, though, which we consider a major compatibility advantage. In any case, it is an official goal for Cython to compile regular Python code and run (most of) the normal Python test suite - obviously faster than CPython. ;-)
+**Answer**: Not officially, no. However, it compiles almost all existing Python code, which gets it pretty close to a real Python implementation. The result depends on the CPython runtime, though, which we consider a major compatibility advantage. In any case, it is an official goal for Cython to compile regular Python code and run (most of) the normal Python test suite - obviously faster than CPython. ;-)
 
 ----------
 
 Is Cython faster than CPython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For most things, yes. For example, a Cython compiled pybench runs more than 30% faster in total, while being 60-90% faster on control structures like ``if-elif-else`` and ``for``-loops. We regularly run the tests from the CPython benchmark suite (which includes Django templates, 2to3, computational benchmarks and other applications) and most of them work out-of-the-box without modifications or static typing, with a performance increase of 20-60%.
+**Answer**: For most things, yes. For example, a Cython compiled pybench runs more than 30% faster in total, while being 60-90% faster on control structures like ``if-elif-else`` and ``for``-loops. We regularly run the tests from the CPython benchmark suite (which includes Django templates, 2to3, computational benchmarks and other applications) and most of them work out-of-the-box without modifications or static typing, with a performance increase of 20-60%.
 
 However the main advantage of Cython is that it scales very well to even greater performance requirements. For code that operates heavily on common builtin types (lists, dicts, strings), Cython can often speed up processing loops by factors. For numerical code, speed-ups of 100-1000 times compared to CPython are not unusual, and are achieved by simply adding static type declarations to performance critical parts of the code, thus trading Python's dynamic typing for speed. As this can be done at any granularity in the code, Cython makes it easy to write simple Python code that is fast enough, and just tune the critical 5% of your code into maximum performance by using static C types in just the right places.
 
@@ -981,7 +981,7 @@ However the main advantage of Cython is that it scales very well to even greater
 What Python versions does Cython support?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Version 0.20 of the Cython compiler runs in all Python versions from 2.4 to 3.4 inclusive (excluding 3.0). From Cython 0.21 on, support for CPython 2.4, 2.5 and 3.1 has been dropped, so that the supported versions become 2.6, 2.7, 3.2 and later. Cython 3.0 removes support for Python 2.6 and requires either Python 2.7 or Python 3.4+. Python 2.x support is scheduled for removal in Cython 3.1, which will probably require Python 3.6 or later at the time of its release.
+**Answer**: Version 0.20 of the Cython compiler runs in all Python versions from 2.4 to 3.4 inclusive (excluding 3.0). From Cython 0.21 on, support for CPython 2.4, 2.5 and 3.1 has been dropped, so that the supported versions become 2.6, 2.7, 3.2 and later. Cython 3.0 removes support for Python 2.6 and requires either Python 2.7 or Python 3.4+. Python 2.x support is scheduled for removal in Cython 3.1, which will probably require Python 3.6 or later at the time of its release.
 
 The C code generated by Cython is portable and builds in all supported Python versions. All supported CPython release series are tested regularly. New CPython versions are usually supported before they are released.
 
@@ -1011,7 +1011,7 @@ Also, all of the copyright holders of Pyrex/Cython stated in mailing list that p
 How do I cite Cython in an academic paper?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you mention Cython, the simplest way to reference us is to add the URL to our website in a footnote. You may also choose to reference our software project
+**Answer**: If you mention Cython, the simplest way to reference us is to add the URL to our website in a footnote. You may also choose to reference our software project
 in a more formal way, such as
 
 ::
@@ -1044,7 +1044,7 @@ If you wish to cite it, here's the Bibtex:
 What is the relation between Cython and Pyrex? Are the barriers between the two based on technical direction? Differing goals?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Somewhat. Cython is much more open to extensions than Pyrex. Greg usually said that he was still "designing" Pyrex as a language, so he would sometimes reject patches for design reasons that solve practical problems in a practical way, and that therefore find (or found) their way into Cython. Eventually, these features might still make it into Pyrex in one way or another, but that usually means that Greg refactors or rewrites them his own way, which implies that he first has to find the time to do so.
+**Answer**: Somewhat. Cython is much more open to extensions than Pyrex. Greg usually said that he was still "designing" Pyrex as a language, so he would sometimes reject patches for design reasons that solve practical problems in a practical way, and that therefore find (or found) their way into Cython. Eventually, these features might still make it into Pyrex in one way or another, but that usually means that Greg refactors or rewrites them his own way, which implies that he first has to find the time to do so.
 
 Cython can afford to be more agile and advanced even though doing so means that Cython will not always align with future Pyrex versions.  However, both Greg Ewing and the Cython developers make reasonable effort to maintain compatibility.
 
