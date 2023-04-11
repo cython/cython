@@ -3,6 +3,73 @@
 Basics
 ======
 
+Do I need to rename my .py file to .pyx?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
+
+But you can use Cython's `pure Python mode <http://docs.cython.org/en/latest/src/tutorial/pure.html>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
+
+For cases where no interaction with external C libraries is required, this is also the recommended way to type your code, since sticking to .py files with regular Python syntax keeps the whole range of debugging, linting, formatting, profiling etc. tools for Python code available for your software development needs, which usually cannot handle the syntax of .pyx files.
+
+----------
+
+Can Cython generate C code for classes?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: Yes, these classes become fully fledged Python classes.
+
+----------
+
+Is it possible to call my Python code from C?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**:  Yes, easily. Follow the example in Demos/callback/ in the Cython source distribution.
+
+----------
+
+How can I interface numpy arrays using Cython?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: Follow the example: https://cython.readthedocs.io/en/latest/src/userguide/numpy_tutorial.html
+
+----------
+
+How to compile Cython with subpackages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It's highly recommended to arrange Cython modules in exactly the same Python package structure as the Python parts of the code base. As long as you don't keep your Cython code in unusual places, everything should just work.
+
+This is in part due to the fact that fully qualified names are resolved at compile time, and moving .so files around or adding __init__ files between the Cython compile and the Python runtime invocation means that cimports and imports may resolve differently. Failure to do this may result in errors like .pxd files not found or ``'module' object has no attribute '__pyx_capi__'``.
+
+----------
+
+How can I speed up the C compilation?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Especially with large modules, the code that Cython generates can take the C compiler quite some time to optimise. This is usually ok for production builds, but during development, this can get in the way.
+
+It can substantially speed up the C compiler runs to disable the code optimisation, e.g. by setting the environment variable ``CFLAGS="-O0 -ggdb"`` on Linux or MacOS, which also enables full debugging symbols for better crash reports and debugger usage.  For MSVC on Windows, you can pass the option ``/Od`` to disable all optimisations.
+
+----------
+
+How can I reduce the size of the binary modules?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Python distutils build often includes debugging symbols in the extension modules.  The default for gcc is ``-g2``, for example. Disabling them (``CFLAGS=-g0`` for gcc), or setting them to the bare minimum that is required to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce the size of the binaries.
+
+----------
+
+How well is Unicode supported?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Answer**: The support for Unicode is as good as CPythons, as long as you are using the Python ``unicode`` string type. But there is no equivalent C type available for Unicode strings. To prevent user errors, Cython will also disallow any implicit conversion to char* as this not going to be correct.
+
+Since Cython 0.13, there is also native support for the ``Py_UNICODE`` type that represents a single unicode character. In fact, Cython will try to infer this type for single character unicode literals, and avoid the creation of a unicode string object for them if possible. This is because many operations work much more efficiently (in plain C) on ``Py_UNICODE`` than on unicode objects.
+
+See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
+
+
 How do I ...?
 =============
 
@@ -65,24 +132,6 @@ The source code that Cython compiles can use both Python 2 and Python 3 syntax, 
     # cython: language_level=3
 
 at the top of the module file (within the first comment and before any code or empty lines). With Cython 3.x, compiling Python 2 code requires the option "-2" or the directive ``language_level=2``. The most visible difference is that unprefixed strings are unicode strings under Python 3 semantics, but this also makes ``print()`` a function, keeps loop variables in list comprehensions from leaking into the outer scope, etc. To get Python 3 syntax features without enforcing unicode literals, set ``language_level=3str`` or use the option ``--3str``.
-
-----------
-
-Do I need to rename my .py file to .pyx?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
-
-But you can use Cython's `pure Python mode <http://docs.cython.org/en/latest/src/tutorial/pure.html>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
-
-For cases where no interaction with external C libraries is required, this is also the recommended way to type your code, since sticking to .py files with regular Python syntax keeps the whole range of debugging, linting, formatting, profiling etc. tools for Python code available for your software development needs, which usually cannot handle the syntax of .pyx files.
-
-----------
-
-Can Cython generate C code for classes?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: Yes, these classes become fully fledged Python classes.
 
 ----------
 
@@ -267,17 +316,6 @@ This is considered a BUG and will change in the future.
 
 ----------
 
-How well is Unicode supported?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: The support for Unicode is as good as CPythons, as long as you are using the Python ``unicode`` string type. But there is no equivalent C type available for Unicode strings. To prevent user errors, Cython will also disallow any implicit conversion to char* as this not going to be correct.
-
-Since Cython 0.13, there is also native support for the ``Py_UNICODE`` type that represents a single unicode character. In fact, Cython will try to infer this type for single character unicode literals, and avoid the creation of a unicode string object for them if possible. This is because many operations work much more efficiently (in plain C) on ``Py_UNICODE`` than on unicode objects.
-
-See the [[string tutorial|http://docs.cython.org/src/tutorial/strings.html|string tutorial]].
-
-----------
-
 How do I pass a Python string parameter on to a C library?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -367,13 +405,6 @@ Also note that Cython 0.14 and later will consider large integer literals (>32 b
 
 ----------
 
-How can I interface numpy arrays using Cython?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: Follow the example: https://cython.readthedocs.io/en/latest/src/userguide/numpy_tutorial.html
-
-----------
-
 How can I help Cython find numpy header files?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -394,13 +425,6 @@ You should modify your setup.py file to grab the numpy include directory as foll
         ...
         ext_modules = [Extension(..., include_dirs=[numpy.get_include()])]
     )
-
-----------
-
-Is it possible to call my Python code from C?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:  Yes, easily. Follow the example in Demos/callback/ in the Cython source distribution.
 
 ----------
 
@@ -1015,15 +1039,6 @@ The magic is the --embed option, which embeds a copy of the Python interpreter m
 
 ----------
 
-How to compile Cython with subpackages
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-It's highly recommended to arrange Cython modules in exactly the same Python package structure as the Python parts of the code base. As long as you don't keep your Cython code in unusual places, everything should just work.
-
-This is in part due to the fact that fully qualified names are resolved at compile time, and moving .so files around or adding __init__ files between the Cython compile and the Python runtime invocation means that cimports and imports may resolve differently. Failure to do this may result in errors like .pxd files not found or ``'module' object has no attribute '__pyx_capi__'``.
-
-----------
-
 What is better, a single big module or multiple separate modules?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1036,19 +1051,3 @@ The distribution size, and the size per module, will probably increase when spli
 C calls between modules are slightly slower than C calls inside of a module, simply because the C compiler cannot optimise and/or inline them. You will have to use shared .pxd declarations for them, which will then call through a function pointer. If modules use a functional split, however, this should not hurt too much. It might still be a good idea to create a shared .pxd file (or .pxi) with inline functions for performance critical code that is used in multiple modules.
 
 When splitting an existing module, you will also have to deal with the API changes. Leaving some legacy imports here and there, or turning a module into a package that merges the module namespaces back together via imports, might prevent code breakage for users of your original module when you move names around and redistribute them across multiple modules.
-
-----------
-
-How can I speed up the C compilation?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Especially with large modules, the code that Cython generates can take the C compiler quite some time to optimise. This is usually ok for production builds, but during development, this can get in the way.
-
-It can substantially speed up the C compiler runs to disable the code optimisation, e.g. by setting the environment variable ``CFLAGS="-O0 -ggdb"`` on Linux or MacOS, which also enables full debugging symbols for better crash reports and debugger usage.  For MSVC on Windows, you can pass the option ``/Od`` to disable all optimisations.
-
-----------
-
-How can I reduce the size of the binary modules?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The Python distutils build often includes debugging symbols in the extension modules.  The default for gcc is ``-g2``, for example. Disabling them (``CFLAGS=-g0`` for gcc), or setting them to the bare minimum that is required to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce the size of the binaries.
