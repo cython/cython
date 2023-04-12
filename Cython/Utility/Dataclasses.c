@@ -173,6 +173,6 @@ bad:
     Py_XDECREF(args_list);
     Py_XDECREF(kwonly_args_list);
     Py_XDECREF(new_kwds);
-#endif
     return result;
+#endif
 }
