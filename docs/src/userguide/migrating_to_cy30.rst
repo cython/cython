@@ -267,9 +267,9 @@ When running into an error it is required to add the corresponding operator::
 Public Declarations in C++
 ==========================
 
-Public declaration in C++ mode are exported as C++ API in Cython 3. This behavior can be changed by
-setting export keyword using ``CYTHON_EXTERN_C`` macro to allow Cython module to be implemented in C++
-but callable in C.
+Public declarations in C++ mode are exported as C++ API in Cython 3, using ``extern "C++"``.
+This behaviour can be changed by setting the export keyword using the ``CYTHON_EXTERN_C`` macro
+to allow Cython modules to be implemented in C++ but callable from C.
 
 ``**`` power operator
 =====================

@@ -499,9 +499,10 @@ file consists of the full dotted name of the module, e.g. a module called
 C++ public declarations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-When a file is compiled as C++, the public function is declared as C++ API (using ``extern "C++"``) by default. This disallows to call
-the function from C code. To declare the function as C API, the ``extern`` declaration needs to be manually specified by the user.
-This can be done by setting ``CYTHON_EXTERN_C`` C macro to ``extern "C"`` during compilation of generated C++ file::
+When a file is compiled as C++, its public functions are declared as C++ API (using ``extern "C++"``) by default.
+This disallows to call the functions from C code.  If the functions are really meant as a plain C API,
+the ``extern`` declaration needs to be manually specified by the user.
+This can be done by setting the ``CYTHON_EXTERN_C`` C macro to ``extern "C"`` during the compilation of the generated C++ file::
 
     from setuptools import Extension, setup
     from Cython.Build import cythonize
