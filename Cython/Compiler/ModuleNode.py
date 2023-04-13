@@ -897,7 +897,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('    #define %s CYTHON_EXTERN_C' % name)
         code.putln("#elif defined(%s)" % name)
         code.putln("    #ifdef _MSC_VER")
-        code.putln("    #pragma NOTE(Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead.)" % name)
+        code.putln("    #pragma message (\"Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead.\")" % name)
         code.putln("    #else")
         code.putln("    #warning Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead." % name)
         code.putln("    #endif")
