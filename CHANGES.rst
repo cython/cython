@@ -1396,6 +1396,8 @@ Other changes
 Bugs fixed
 ----------
 
+* Some C compile failures in CPython 3.12 were resolved.
+
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
 
