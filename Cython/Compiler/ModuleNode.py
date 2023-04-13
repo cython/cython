@@ -891,7 +891,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_extern_c_macro_definition(self, code, is_cpp):
         name = Naming.extern_c_macro
-        code.putln("#ifndef %s" % name)
+        code.putln("#ifdef CYTHON_EXTERN_C")
+        # make sure that user overrides always take precedence
+        code.putln('    #undef %s' % name)
+        code.putln('    #define %s CYTHON_EXTERN_C' % name)
+        code.putln("#elif defined(%s)" % name)
+        code.putln("    #ifdef _MSC_VER")
+        code.putln("    #pragma message (\"Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead.\")" % name)
+        code.putln("    #else")
+        code.putln("    #warning Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead." % name)
+        code.putln("    #endif")
+        code.putln("#else")
         if is_cpp:
             code.putln('    #define %s extern "C++"' % name)
         else:
