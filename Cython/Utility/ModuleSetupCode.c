@@ -336,7 +336,8 @@
   #endif
   #ifndef CYTHON_FAST_GIL
     // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
-    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
+    // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
+    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000 && PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_METH_FASTCALL
     // CPython 3.6 introduced METH_FASTCALL but with slightly different
