@@ -178,7 +178,11 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #endif
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
+#if PY_VERSION_HEX >= 0x030C00A6
+    if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE)) {
+#else
     if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
+#endif
         // Python generator marked with "@types.coroutine" decorator
         return __Pyx_NewRef(obj);
     } else
@@ -443,8 +447,6 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
-static PyTypeObject *__pyx_CoroutineType = 0;
-static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_CoroutineType)
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
@@ -468,7 +470,6 @@ static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, Py
 //////////////////// Generator.proto ////////////////////
 
 #define __Pyx_Generator_USED
-static PyTypeObject *__pyx_GeneratorType = 0;
 #define __Pyx_Generator_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_GeneratorType)
 
 #define __Pyx_Generator_New(body, code, closure, name, qualname, module_name)  \
@@ -1662,6 +1663,9 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030C0000
+    0,                                  /*tp_watched*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1854,6 +1858,9 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030C0000
+    0,                                  /*tp_watched*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1891,8 +1898,6 @@ static int __pyx_Coroutine_init(PyObject *module) {
 //////////////////// IterableCoroutine.proto ////////////////////
 
 #define __Pyx_IterableCoroutine_USED
-
-static PyTypeObject *__pyx_IterableCoroutineType = 0;
 
 #undef __Pyx_Coroutine_Check
 #define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || __Pyx_IS_TYPE(obj, __pyx_IterableCoroutineType))
@@ -2003,6 +2008,9 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
+#endif
+#if PY_VERSION_HEX >= 0x030C0000
+    0,                                  /*tp_watched*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
     0,                                          /*tp_pypy_flags*/
@@ -2149,6 +2157,9 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
+#endif
+#if PY_VERSION_HEX >= 0x030C0000
+    0,                                  /*tp_watched*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
     0,                                          /*tp_pypy_flags*/

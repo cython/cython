@@ -12,6 +12,9 @@
 /////////////// ImportDottedModule.proto ///////////////
 
 static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple); /*proto*/
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple); /*proto*/
+#endif
 
 /////////////// ImportDottedModule ///////////////
 //@requires: Import
@@ -71,6 +74,32 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 }
 #endif
 
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
+    Py_ssize_t i, nparts;
+    nparts = PyTuple_GET_SIZE(parts_tuple);
+    for (i=1; i < nparts && module; i++) {
+        PyObject *part, *submodule;
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+        part = PyTuple_GET_ITEM(parts_tuple, i);
+#else
+        part = PySequence_ITEM(parts_tuple, i);
+#endif
+        submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
+        // We stop if the attribute isn't found, i.e. if submodule is NULL here.
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+        Py_DECREF(part);
+#endif
+        Py_DECREF(module);
+        module = submodule;
+    }
+    if (unlikely(!module)) {
+        return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
+    }
+    return module;
+}
+#endif
+
 static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
     PyObject *module, *from_list, *star = PYIDENT("*");
@@ -84,7 +113,6 @@ static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple
     Py_DECREF(from_list);
     return module;
 #else
-    Py_ssize_t i, nparts;
     PyObject *imported_module;
     PyObject *module = __Pyx_Import(name, NULL, 0);
     if (!parts_tuple || unlikely(!module))
@@ -97,25 +125,7 @@ static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple
         return imported_module;
     }
     PyErr_Clear();
-
-    nparts = PyTuple_GET_SIZE(parts_tuple);
-    for (i=1; i < nparts && module; i++) {
-        PyObject *part, *submodule;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        part = PyTuple_GET_ITEM(parts_tuple, i);
-#else
-        part = PySequence_ITEM(parts_tuple, i);
-#endif
-        submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_DECREF(part);
-#endif
-        Py_DECREF(module);
-        module = submodule;
-    }
-    if (likely(module))
-        return module;
-    return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
+    return __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
 #endif
 }
 
@@ -147,6 +157,43 @@ static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple)
 #endif
 
     return __Pyx__ImportDottedModule(name, parts_tuple);
+}
+
+
+/////////////// ImportDottedModuleRelFirst.proto ///////////////
+
+static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple); /*proto*/
+
+/////////////// ImportDottedModuleRelFirst ///////////////
+//@requires: ImportDottedModule
+//@requires: Import
+
+static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple) {
+    PyObject *module;
+    PyObject *from_list = NULL;
+#if PY_MAJOR_VERSION < 3
+    PyObject *star = PYIDENT("*");
+    from_list = PyList_New(1);
+    if (unlikely(!from_list))
+        return NULL;
+    Py_INCREF(star);
+    PyList_SET_ITEM(from_list, 0, star);
+#endif
+    module = __Pyx_Import(name, from_list, -1);
+    Py_XDECREF(from_list);
+    if (module) {
+        #if PY_MAJOR_VERSION >= 3
+        if (parts_tuple) {
+            module = __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
+        }
+        #endif
+        return module;
+    }
+    if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
+        return NULL;
+    PyErr_Clear();
+    // try absolute import
+    return __Pyx_ImportDottedModule(name, parts_tuple);
 }
 
 

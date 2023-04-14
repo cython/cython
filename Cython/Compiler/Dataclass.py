@@ -10,7 +10,7 @@ from . import PyrexTypes
 from . import Builtin
 from . import Naming
 from .Errors import error, warning
-from .Code import UtilityCode, TempitaUtilityCode
+from .Code import UtilityCode, TempitaUtilityCode, PyxCodeWriter
 from .Visitor import VisitorTransform
 from .StringEncoding import EncodedString
 from .TreeFragment import TreeFragment
@@ -34,7 +34,21 @@ def make_dataclasses_module_callnode(pos):
         args=[],
     )
 
-_INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
+def make_dataclass_call_helper(pos, callable, kwds):
+    utility_code = UtilityCode.load_cached("DataclassesCallHelper", "Dataclasses.c")
+    func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("callable", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("kwds", PyrexTypes.py_object_type, None)
+        ],
+    )
+    return ExprNodes.PythonCapiCallNode(
+        pos,
+        function_name="__Pyx_DataclassesCallHelper",
+        func_type=func_type,
+        utility_code=utility_code,
+        args=[callable, kwds],
+    )
 
 
 class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
@@ -82,27 +96,36 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
 
 
 class TemplateCode(object):
+    """
+    Adds the ability to keep track of placeholder argument names to PyxCodeWriter.
+
+    Also adds extra_stats which are nodes bundled at the end when this
+    is converted to a tree.
+    """
     _placeholder_count = 0
 
-    def __init__(self):
-        self.code_lines = []
-        self.placeholders = {}
-        self.extra_stats = []
-
-    def insertion_point(self):
-        return len(self.code_lines)
-
-    def insert_code_line(self, insertion_point, code_line):
-        self.code_lines.insert(insertion_point, code_line)
-
-    def reset(self, insertion_point=0):
-        del self.code_lines[insertion_point:]
+    def __init__(self, writer=None, placeholders=None, extra_stats=None):
+        self.writer = PyxCodeWriter() if writer is None else writer
+        self.placeholders = {} if placeholders is None else placeholders
+        self.extra_stats = [] if extra_stats is None else extra_stats
 
     def add_code_line(self, code_line):
-        self.code_lines.append(code_line)
+        self.writer.putln(code_line)
 
     def add_code_lines(self, code_lines):
-        self.code_lines.extend(code_lines)
+        for line in code_lines:
+            self.writer.putln(line)
+
+    def reset(self):
+        # don't attempt to reset placeholders - it really doesn't matter if
+        # we have unused placeholders
+        self.writer.reset()
+
+    def empty(self):
+        return self.writer.empty()
+
+    def indenter(self):
+        return self.writer.indenter()
 
     def new_placeholder(self, field_names, value):
         name = self._new_placeholder_name(field_names)
@@ -110,11 +133,13 @@ class TemplateCode(object):
         return name
 
     def add_extra_statements(self, statements):
+        if self.extra_stats is None:
+            assert False, "Can only use add_extra_statements on top-level writer"
         self.extra_stats.extend(statements)
 
     def _new_placeholder_name(self, field_names):
         while True:
-            name = "INIT_PLACEHOLDER_%d" % self._placeholder_count
+            name = "DATACLASS_PLACEHOLDER_%d" % self._placeholder_count
             if (name not in self.placeholders
                     and name not in field_names):
                 # make sure name isn't already used and doesn't
@@ -125,13 +150,21 @@ class TemplateCode(object):
 
     def generate_tree(self, level='c_class'):
         stat_list_node = TreeFragment(
-            "\n".join(self.code_lines),
+            self.writer.getvalue(),
             level=level,
             pipeline=[NormalizeTree(None)],
         ).substitute(self.placeholders)
 
         stat_list_node.stats += self.extra_stats
         return stat_list_node
+
+    def insertion_point(self):
+        new_writer = self.writer.insertion_point()
+        return TemplateCode(
+            writer=new_writer,
+            placeholders=self.placeholders,
+            extra_stats=self.extra_stats
+        )
 
 
 class _MISSING_TYPE(object):
@@ -302,8 +335,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
             kwargs[k] = v.value
 
-    # remove everything that does not belong into _DataclassParams()
-    global_kw_only = kwargs.pop("kw_only")
+    global_kw_only = kwargs['kw_only']
 
     fields = process_class_get_fields(node, global_kw_only)
 
@@ -318,11 +350,14 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         node.pos,
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
            ExprNodes.BoolNode(node.pos, value=v))
-          for k, v in kwargs.items() ])
-    dataclass_params = ExprNodes.GeneralCallNode(node.pos,
-                                                 function = dataclass_params_func,
-                                                 positional_args = ExprNodes.TupleNode(node.pos, args=[]),
-                                                 keyword_args = dataclass_params_keywords)
+          for k, v in kwargs.items() ] +
+        [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
+           ExprNodes.BoolNode(node.pos, value=v))
+          for k, v in [('kw_only', global_kw_only), ('match_args', False),
+                       ('slots', False), ('weakref_slot', False)]
+        ])
+    dataclass_params = make_dataclass_call_helper(
+        node.pos, dataclass_params_func, dataclass_params_keywords)
     dataclass_params_assignment = Nodes.SingleAssignmentNode(
         node.pos,
         lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__dataclass_params__")),
@@ -395,6 +430,7 @@ def generate_init_code(code, init, node, fields):
     args = [selfname]
 
     function_start_point = code.insertion_point()
+    code = code.insertion_point()
 
     # create a temp to get _HAS_DEFAULT_FACTORY
     dataclass_module = make_dataclasses_module_callnode(node.pos)
@@ -425,7 +461,7 @@ def generate_init_code(code, init, node, fields):
         elif seen_default and not field.kw_only.value and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
-            code.reset(function_start_point)
+            code.reset()
             return
 
         if field.kw_only.value and not seen_first_kw_only:
@@ -461,11 +497,11 @@ def generate_init_code(code, init, node, fields):
                                    if field.is_initvar)
         code.add_code_line("    %s.__post_init__(%s)" % (selfname, post_init_vars))
 
-    if function_start_point == code.insertion_point():
+    if code.empty():
         code.add_code_line("    pass")
 
     args = u", ".join(args)
-    code.insert_code_line(function_start_point, u"def __init__(%s):" % args)
+    function_start_point.add_code_line(u"def __init__(%s):" % args)
 
 
 def generate_repr_code(code, repr, node, fields):
@@ -807,10 +843,9 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
               for k, v in field.iterate_record_node_arguments()]
 
         )
-        dc_field_call = ExprNodes.GeneralCallNode(
-            node.pos, function = field_func,
-            positional_args = ExprNodes.TupleNode(node.pos, args=[]),
-            keyword_args = dc_field_keywords)
+        dc_field_call = make_dataclass_call_helper(
+            node.pos, field_func, dc_field_keywords
+        )
         dc_fields.key_value_pairs.append(
             ExprNodes.DictItemNode(
                 node.pos,

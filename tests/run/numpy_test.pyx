@@ -291,9 +291,9 @@ def test_dtype(dtype, inc1):
     >>> test_dtype('D', inc1_cdouble_struct)
     >>> test_dtype('G', inc1_clongdouble_struct)
 
-    >>> test_dtype(np.int, inc1_int_t)
+    >>> test_dtype(np.int_, inc1_int_t)
     >>> test_dtype(np.longlong, inc1_longlong_t)
-    >>> test_dtype(np.float, inc1_float_t)
+    >>> test_dtype(np.float_, inc1_float_t)
     >>> test_dtype(np.double, inc1_double_t)
     >>> test_dtype(np.intp, inc1_intp_t)
     >>> test_dtype(np.uintp, inc1_uintp_t)
@@ -654,7 +654,7 @@ def test_fused_ndarray_other_dtypes(np.ndarray[fused_dtype, ndim=1] a):
     ndarray[float complex,ndim=1] ndarray[float complex,ndim=1] (5+0j) (6+0j)
     >>> test_fused_ndarray_other_dtypes(np.arange(10, dtype=np.complex128))
     ndarray[double complex,ndim=1] ndarray[double complex,ndim=1] (5+0j) (6+0j)
-    >>> test_fused_ndarray_other_dtypes(np.arange(10, dtype=np.object))
+    >>> test_fused_ndarray_other_dtypes(np.arange(10, dtype=np.object_))
     ndarray[Python object,ndim=1] ndarray[Python object,ndim=1] 5 6
     """
     cdef np.ndarray[fused_dtype, ndim=1] b = a
@@ -799,7 +799,7 @@ cdef fused confusing_fused_typedef:
 
 def test_dispatch_external_typedef(np.ndarray[confusing_fused_typedef] a):
     """
-    >>> test_dispatch_external_typedef(np.arange(-5, 5, dtype=np.long))
+    >>> test_dispatch_external_typedef(np.arange(-5, 5, dtype=np.int_))
     -2
     """
     print a[3]
@@ -829,7 +829,7 @@ def test_fused_memslice_other_dtypes(memslice_fused_dtype[:] a):
     float[:] float[:] 5.0 6.0
     >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.dtype('i')))
     int[:] int[:] 5 6
-    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.object))
+    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.object_))
     object[:] object[:] 5 6
     """
     cdef memslice_fused_dtype[:] b = a
@@ -859,7 +859,7 @@ def test_fused_memslice(memslice_fused a):
     float[:] float[:] 5.0 6.0
     >>> test_fused_memslice(np.arange(10, dtype=np.dtype('i')))
     int[:] int[:] 5 6
-    >>> test_fused_memslice(np.arange(10, dtype=np.object))
+    >>> test_fused_memslice(np.arange(10, dtype=np.object_))
     object[:] object[:] 5 6
     """
     cdef memslice_fused b = a

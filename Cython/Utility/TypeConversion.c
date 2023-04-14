@@ -126,8 +126,43 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #else
 #define __Pyx_PyNumber_Int(x) (PyInt_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Int(x))
 #endif
-// __Pyx_PyNumber_Float is now in it's own section since it has dependencies (needed to make
-// string conversion work the same in all circumstances)
+// __Pyx_PyNumber_Float is now in its own section since it has dependencies (needed to make
+// string conversion work the same in all circumstances).
+
+#if CYTHON_USE_PYLONG_INTERNALS
+  #if PY_VERSION_HEX >= 0x030C00A7
+  #define __Pyx_PyLong_Sign(x)  (((PyLongObject*)x)->long_value.lv_tag & 3)
+  #define __Pyx_PyLong_IsNeg(x)  ((__Pyx_PyLong_Sign(x) & 2) != 0)
+  #define __Pyx_PyLong_IsNonNeg(x)  (!__Pyx_PyLong_IsNeg(x))
+  #define __Pyx_PyLong_IsZero(x)  (__Pyx_PyLong_Sign(x) & 1)
+  #define __Pyx_PyLong_IsPos(x)  (__Pyx_PyLong_Sign(x) == 0)
+  #define __Pyx_PyLong_IsCompact(x)  (((PyLongObject*)x)->long_value.lv_tag < (2 << 3))  // (2 << NON_SIZE_BITS)
+  #define __Pyx_PyLong_CompactValue(x)  ((1 - (Py_ssize_t) __Pyx_PyLong_Sign(x)) * (Py_ssize_t) __Pyx_PyLong_Digits(x)[0])
+  #define __Pyx_PyLong_CompactValueUnsigned(x)  (__Pyx_PyLong_Digits(x)[0])
+  #define __Pyx_PyLong_DigitCount(x)  (((PyLongObject*)x)->long_value.lv_tag >> 3)  // (>> NON_SIZE_BITS)
+  #define __Pyx_PyLong_SignedDigitCount(x)  \
+        ((1 - (Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag & 3)) * (Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag >> 3))  // (>> NON_SIZE_BITS)
+  #else  // Py < 3.12
+  #define __Pyx_PyLong_IsNeg(x)  (Py_SIZE(x) < 0)
+  #define __Pyx_PyLong_IsNonNeg(x)  (Py_SIZE(x) >= 0)
+  #define __Pyx_PyLong_IsZero(x)  (Py_SIZE(x) == 0)
+  #define __Pyx_PyLong_IsPos(x)  (Py_SIZE(x) > 0)
+  #define __Pyx_PyLong_IsCompact(x)  (Py_SIZE(x) == 0 || Py_SIZE(x) == 1 || Py_SIZE(x) == -1)
+  #define __Pyx_PyLong_CompactValue(x)  \
+        ((Py_SIZE(x) == 0) ? (sdigit) 0 : ((Py_SIZE(x) < 0) ? -(sdigit)__Pyx_PyLong_Digits(x)[0] : (sdigit)__Pyx_PyLong_Digits(x)[0]))
+  #define __Pyx_PyLong_CompactValueUnsigned(x)  ((Py_SIZE(x) == 0) ? 0 : __Pyx_PyLong_Digits(x)[0])
+  #define __Pyx_PyLong_DigitCount(x)  __Pyx_sst_abs(Py_SIZE(x))
+  #define __Pyx_PyLong_SignedDigitCount(x)  Py_SIZE(x)
+  #endif
+
+  typedef sdigit  __Pyx_compact_pylong;
+
+  #if PY_VERSION_HEX >= 0x030C00A5
+  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
+  #else
+  #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->ob_digit)
+  #endif
+#endif
 
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
@@ -405,14 +440,12 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 #endif
   if (likely(PyLong_CheckExact(b))) {
     #if CYTHON_USE_PYLONG_INTERNALS
-    const digit* digits = ((PyLongObject*)b)->ob_digit;
-    const Py_ssize_t size = Py_SIZE(b);
     // handle most common case first to avoid indirect branch and optimise branch prediction
-    if (likely(__Pyx_sst_abs(size) <= 1)) {
-        ival = likely(size) ? digits[0] : 0;
-        if (size == -1) ival = -ival;
-        return ival;
+    if (likely(__Pyx_PyLong_IsCompact(b))) {
+        return __Pyx_PyLong_CompactValue(b);
     } else {
+      const digit* digits = __Pyx_PyLong_Digits(b);
+      const Py_ssize_t size = __Pyx_PyLong_SignedDigitCount(b);
       switch (size) {
          {{for _size in (2, 3, 4)}}
          {{for _case in (_size, -_size)}}
@@ -478,24 +511,12 @@ static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
     double val;
     if (PyLong_CheckExact(obj)) {
 #if CYTHON_USE_PYLONG_INTERNALS
-        const digit* digits = ((PyLongObject*)obj)->ob_digit;
-        switch (Py_SIZE(obj)) {
-            case 0:
-                val = 0.0;
-                goto no_error;
-            // single digit PyLong values always cast safely to double
-            case 1:
-                val = (double) digits[0];
-                goto no_error;
-            case -1:
-                val = (double) - (sdigit) digits[0];
-                goto no_error;
-            default:
-                val = PyLong_AsDouble(obj);
+        if (likely(__Pyx_PyLong_IsCompact(obj))) {
+            val = (double) __Pyx_PyLong_CompactValue(obj);
+            goto no_error;
         }
-#else
-        val = PyLong_AsDouble(obj);
 #endif
+        val = PyLong_AsDouble(obj);
     } else if (PyUnicode_CheckExact(obj)) {
         val = __Pyx_PyUnicode_AsDouble(obj);
     } else if (PyBytes_CheckExact(obj)) {
@@ -968,24 +989,31 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
 #if CYTHON_USE_PYLONG_INTERNALS
-            const digit* digits = ((PyLongObject*)x)->ob_digit;
-            switch (Py_SIZE(x)) {
-                case  0: return ({{TYPE}}) 0;
-                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
-                {{for _size in (2, 3, 4)}}
-                case {{_size}}:
-                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
-                        } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
-                            return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
+            if (unlikely(__Pyx_PyLong_IsNeg(x))) {
+                goto raise_neg_overflow;
+            //} else if (__Pyx_PyLong_IsZero(x)) {
+            //    return ({{TYPE}}) 0;
+            } else if (__Pyx_PyLong_IsCompact(x)) {
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValueUnsigned(x))
+            } else {
+                const digit* digits = __Pyx_PyLong_Digits(x);
+                assert(__Pyx_PyLong_DigitCount(x) > 1);
+                switch (__Pyx_PyLong_DigitCount(x)) {
+                    {{for _size in (2, 3, 4)}}
+                    case {{_size}}:
+                        if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
+                            } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
+                                return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
+                            }
                         }
-                    }
-                    break;
-                {{endfor}}
+                        break;
+                    {{endfor}}
+                }
             }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
             if (unlikely(Py_SIZE(x) < 0)) {
                 goto raise_neg_overflow;
             }
@@ -1009,24 +1037,26 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         } else {
             // signed
 #if CYTHON_USE_PYLONG_INTERNALS
-            const digit* digits = ((PyLongObject*)x)->ob_digit;
-            switch (Py_SIZE(x)) {
-                case  0: return ({{TYPE}}) 0;
-                case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, (sdigit) (-(sdigit)digits[0]))
-                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}},  digit, +digits[0])
-                {{for _size in (2, 3, 4)}}
-                {{for _case in (-_size, _size)}}
-                case {{_case}}:
-                    if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                            __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
-                        } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
-                            return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
+            if (__Pyx_PyLong_IsCompact(x)) {
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+            } else {
+                const digit* digits = __Pyx_PyLong_Digits(x);
+                assert(__Pyx_PyLong_DigitCount(x) > 1);
+                switch (__Pyx_PyLong_SignedDigitCount(x)) {
+                    {{for _size in (2, 3, 4)}}
+                    {{for _case in (-_size, _size)}}
+                    case {{_case}}:
+                        if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
+                            } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
+                                return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
+                            }
                         }
-                    }
-                    break;
-                {{endfor}}
-                {{endfor}}
+                        break;
+                    {{endfor}}
+                    {{endfor}}
+                }
             }
 #endif
             if ((sizeof({{TYPE}}) <= sizeof(long))) {

@@ -18,8 +18,12 @@
 # Regarding ticket 3, we should additionally test that unbound method
 # calls to these special methods (e.g. ExtType.__init__()) do not use
 # a runtime lookup indirection.
+#
+# Additional tests added for 2 and 3 argument pow and ipow
 
 import sys
+
+from cpython.number cimport PyNumber_InPlacePower
 
 __doc__ = u"""
     >>> # If you define either setitem or delitem, you get wrapper objects
@@ -49,10 +53,10 @@ __doc__ = u"""
     >>> g01 = object.__getattribute__(GetAttr(), '__getattribute__')
     >>> g01('attr')
     GetAttr getattr 'attr'
-    >>> g10 = object.__getattribute__(GetAttribute(), '__getattr__')
+    >>> g10 = object.__getattribute__(GetAttribute(), '__getattr__')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'
+    AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'...
     >>> g11 = object.__getattribute__(GetAttribute(), '__getattribute__')
     >>> g11('attr')
     GetAttribute getattribute 'attr'
@@ -107,15 +111,15 @@ if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
     >>> sa_setattr('foo', 'bar')
     SetAttr setattr 'foo' 'bar'
     >>> sa_delattr = SetAttr().__delattr__
-    >>> sa_delattr('foo')
+    >>> sa_delattr('foo')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.SetAttr' object has no attribute 'foo'
+    AttributeError: 'special_methods_T561.SetAttr' object has no attribute 'foo'...
     >>> da_setattr = DelAttr().__setattr__
-    >>> da_setattr('foo', 'bar')
+    >>> da_setattr('foo', 'bar')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    AttributeError: 'special_methods_T561.DelAttr' object has no attribute 'foo'
+    AttributeError: 'special_methods_T561.DelAttr' object has no attribute 'foo'...
     >>> da_delattr = DelAttr().__delattr__
     >>> da_delattr('foo')
     DelAttr delattr 'foo'
@@ -961,7 +965,7 @@ cdef class ReverseMethodsExist:
 cdef class ArgumentTypeConversions:
     """
     The user can set the signature of special method arguments so that
-    it doesn't match the C signature. This just tests that a few 
+    it doesn't match the C signature. This just tests that a few
     variations work
 
     >>> obj = ArgumentTypeConversions()
@@ -997,3 +1001,112 @@ cdef class ArgumentTypeConversions:
     # force conversion of flags (int) to double
     def __getbuffer__(self, Py_buffer *buffer, double flags):
         raise RuntimeError("From __getbuffer__ with flags {}".format(flags))
+
+
+cdef class TwoArgPow:
+    """
+    >>> print(TwoArgPow('a')**2)
+    a**2
+    >>> print(pow(TwoArgPow('a'), 3))
+    a**3
+    >>> pow(TwoArgPow('a'), 'x', 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgPow.__pow__() takes 3 arguments but 2 were given
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __pow__(self, other):
+        return f"{self.name}**{other}"
+
+
+cdef class TwoArgRPow:
+    """
+    >>> print(2**TwoArgRPow('a'))
+    a**2
+    >>> print(pow(3, TwoArgRPow('a')))
+    a**3
+    >>> pow('x', TwoArgRPow('a'), 'y')
+    Traceback (most recent call last):
+        ...
+    TypeError: special_methods_T561.TwoArgRPow.__rpow__() takes 3 arguments but 2 were given
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __rpow__(self, other):
+        return f"{self.name}**{other}"
+
+
+def ipow(a, b, c):
+    # As far as DW can tell, calling through this C API call is the
+    # only way to actually use ternary __ipow__
+    return PyNumber_InPlacePower(a, b, c)
+
+
+cdef class TwoArgIPow:
+    """
+    >>> a = TwoArgIPow('a')
+    >>> a**=2
+    >>> print(a)
+    a**2
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __ipow__(self, other):
+        return f"{self.name}**{other}"
+
+if sys.version_info >= (3, 8):
+    # Due to a bug this check can't usefully work in Python <3.8
+    __doc__ += """
+>>> ipow(TwoArgIPow('a'), 'x', 'y')
+Traceback (most recent call last):
+    ...
+TypeError: special_methods_T561.TwoArgIPow.__ipow__() takes 3 arguments but 2 were given
+    """
+
+
+cdef class TwoOrThreeArgPow:
+    """
+    >>> print(TwoOrThreeArgPow('a')**2)
+    a**2[None]
+    >>> print(pow(TwoOrThreeArgPow('a'), 3))
+    a**3[None]
+    >>> print(pow(TwoOrThreeArgPow('a'), 'x', 'y'))
+    a**x[y]
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __pow__(self, other, base=None):
+        return f"{self.name}**{other}[{base}]"
+
+
+cdef class TwoOrThreeArgRPow:
+    """
+    >>> print(2**TwoOrThreeArgRPow('a'))
+    a**2[None]
+    >>> print(pow(3, TwoOrThreeArgRPow('a')))
+    a**3[None]
+    >>> print(pow('x', TwoOrThreeArgRPow('a'), 'y'))
+    a**x[y]
+    """
+    cdef str name
+
+    def __init__(self, name):
+        self.name = name
+
+    def __rpow__(self, other, base=None):
+        return f"{self.name}**{other}[{base}]"
+
+# See special_methods_T561_py38 for some extra tests for ipow

@@ -91,6 +91,8 @@ class Context(object):
         if language_level is not None:
             self.set_language_level(language_level)
 
+        self.legacy_implicit_noexcept = self.compiler_directives.get('legacy_implicit_noexcept', False)
+
         self.gdb_debug_outputwriter = None
 
     @classmethod
@@ -525,7 +527,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
-    if options.depfile:
+    if err is None and options.depfile:
         from ..Build.Dependencies import create_dependency_tree
         dependencies = create_dependency_tree(context).all_dependencies(result.main_source_file)
         Utils.write_depfile(result.c_file, result.main_source_file, dependencies)

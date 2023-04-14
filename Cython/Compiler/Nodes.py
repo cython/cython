@@ -888,6 +888,7 @@ class CArgDeclNode(Node):
     is_self_arg = 0
     is_type_arg = 0
     is_generic = 1
+    is_special_method_optional = False
     kw_only = 0
     pos_only = 0
     not_none = 0
@@ -1096,6 +1097,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         entry.is_type and entry.type.is_cpp_class
                     ):
                         scope = entry.type.scope
+                    elif entry and entry.as_module:
+                        scope = entry.as_module
                     else:
                         scope = None
                         break
@@ -1853,6 +1856,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if arg.is_generic:
                     arg.default = arg.default.analyse_types(env)
                     arg.default = arg.default.coerce_to(arg.type, env)
+                elif arg.is_special_method_optional:
+                    if not arg.default.is_none:
+                        error(arg.pos, "This argument cannot have a non-None default value")
+                        arg.default = None
                 else:
                     error(arg.pos, "This argument cannot have a default value")
                     arg.default = None
@@ -1999,6 +2006,11 @@ class FuncDefNode(StatNode, BlockNode):
         # Initialize the return variable __pyx_r
         init = ""
         return_type = self.return_type
+        if return_type.is_cv_qualified and return_type.is_const:
+            # Within this function body, we want to be able to set this
+            # variable, even though the function itself needs to return
+            # a const version
+            return_type = return_type.cv_base_type
         if not return_type.is_void:
             if return_type.is_pyobject:
                 init = " = NULL"
@@ -3264,7 +3276,8 @@ class DefNode(FuncDefNode):
                         self.entry.signature = TypeSlots.ibinaryfunc
 
         sig = self.entry.signature
-        nfixed = sig.num_fixed_args()
+        nfixed = sig.max_num_fixed_args()
+        min_nfixed = sig.min_num_fixed_args()
         if (sig is TypeSlots.pymethod_signature and nfixed == 1
                and len(self.args) == 0 and self.star_arg):
             # this is the only case where a diverging number of
@@ -3272,10 +3285,10 @@ class DefNode(FuncDefNode):
             # 'self' parameter as in method(*args)
             sig = self.entry.signature = TypeSlots.pyfunction_signature  # self is not 'really' used
             self.self_in_stararg = 1
-            nfixed = 0
+            nfixed = min_nfixed = 0
 
         if self.is_staticmethod and env.is_c_class_scope:
-            nfixed = 0
+            nfixed = min_nfixed = 0
             self.self_in_stararg = True  # FIXME: why for staticmethods?
 
             self.entry.signature = sig = copy.copy(sig)
@@ -3290,6 +3303,8 @@ class DefNode(FuncDefNode):
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
+            if i >= min_nfixed:
+                arg.is_special_method_optional = True
             if sig.is_self_arg(i) and not self.is_staticmethod:
                 if self.is_classmethod:
                     arg.is_type_arg = 1
@@ -3306,7 +3321,7 @@ class DefNode(FuncDefNode):
                     else:
                         arg.needs_conversion = 1
 
-        if nfixed > len(self.args):
+        if min_nfixed > len(self.args):
             self.bad_signature()
             return
         elif nfixed < len(self.args):
@@ -3343,9 +3358,11 @@ class DefNode(FuncDefNode):
 
     def bad_signature(self):
         sig = self.entry.signature
-        expected_str = "%d" % sig.num_fixed_args()
+        expected_str = "%d" % sig.min_num_fixed_args()
         if sig.has_generic_args:
             expected_str += " or more"
+        elif sig.optional_object_arg_count:
+            expected_str += " to %d" % sig.max_num_fixed_args()
         name = self.name
         if name.startswith("__") and name.endswith("__"):
             desc = "Special method"
@@ -3732,8 +3749,6 @@ class DefNodeWrapper(FuncDefNode):
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             varargs_args = "PyObject *%s, PyObject *%s" % (
                     Naming.args_cname, Naming.kwds_cname)
@@ -3745,6 +3760,9 @@ class DefNodeWrapper(FuncDefNode):
                         fastcall_args, varargs_args))
             else:
                 arg_code_list.append(varargs_args)
+        if entry.is_special:
+            for n in range(len(self.args), sig.max_num_fixed_args()):
+                arg_code_list.append("CYTHON_UNUSED PyObject *unused_arg_%s" % n)
         arg_code = ", ".join(arg_code_list)
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
@@ -3918,15 +3936,11 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname, self.error_value()))
             code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
-            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
-            if allow_null:
-                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
-            else:
-                code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
-                code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-                code.put_var_gotref(self.starstar_arg.entry)
-            self.starstar_arg.entry.xdecref_cleanup = allow_null
+            code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                self.starstar_arg.entry.cname, self.error_value()))
+            code.put_var_gotref(self.starstar_arg.entry)
+            self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
 
         if self.self_in_stararg and not self.target.is_staticmethod:
@@ -4015,15 +4029,9 @@ class DefNodeWrapper(FuncDefNode):
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
         non_pos_args_id = ','.join(
             ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
             non_pos_args_id))
-        code.putln("#else")
-        code.putln("static PyObject **%s[] = {%s};" % (
-            Naming.pykwdlist_cname,
-            non_pos_args_id))
-        code.putln("#endif")
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -4522,6 +4530,36 @@ class DefNodeWrapper(FuncDefNode):
                                           arg.type.is_buffer or
                                           arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
+        if self.target.entry.is_special:
+            for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
+                # for special functions with optional args (e.g. power which can
+                # take 2 or 3 args), unused args are None since this is what the
+                # compilers sets
+                if self.target.entry.name == "__ipow__":
+                    # Bug in Python < 3.8 - __ipow__ is used as a binary function
+                    # and attempts to access the third argument will always fail
+                    code.putln("#if PY_VERSION_HEX >= 0x03080000")
+                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, '
+                    '"%s() takes %s arguments but %s were given");' % (
+                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln("}")
+                if self.target.entry.name == "__ipow__":
+                    code.putln("#endif /*PY_VERSION_HEX >= 0x03080000*/")
+            if self.target.entry.name == "__ipow__" and len(self.args) != 2:
+                # It's basically impossible to safely support it:
+                # Class().__ipow__(1) is guaranteed to crash.
+                # Therefore, raise an error.
+                # Use "if" instead of "#if" to avoid warnings about unused variables
+                code.putln("if ((PY_VERSION_HEX < 0x03080000)) {")
+                code.putln(
+                    'PyErr_SetString(PyExc_NotImplementedError, '
+                    '"3-argument %s cannot be used in Python<3.8");' % (
+                        self.target.entry.qualified_name))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln('}')
 
     def error_value(self):
         return self.signature.error_value
@@ -6940,8 +6978,10 @@ class AssertStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c"))
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
-        code.putln("if (unlikely(!Py_OptimizeFlag)) {")
+        code.putln("if (unlikely(__pyx_assertions_enabled())) {")
         code.mark_pos(self.pos)
         self.condition.generate_evaluation_code(code)
         code.putln(
@@ -7417,34 +7457,33 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
         code.putln("}")
-        break_label = code.break_label
+
+        # clean up before we enter the 'else:' branch
+        self.iterator.generate_disposal_code(code)
+
+        else_label = code.new_label("for_else") if self.else_clause else None
+        end_label = code.new_label("for_end")
+        label_intercepts = code.label_interceptor(
+            [code.break_label],
+            [end_label],
+            skip_to_label=else_label or end_label,
+            pos=self.pos,
+        )
+
+        code.mark_pos(self.pos)
+        for _ in label_intercepts:
+            self.iterator.generate_disposal_code(code)
+
         code.set_loop_labels(old_loop_labels)
+        self.iterator.free_temps(code)
 
         if self.else_clause:
-            # in nested loops, the 'else' block can contain a
-            # 'continue' statement for the outer loop, but we may need
-            # to generate cleanup code before taking that path, so we
-            # intercept it here
-            orig_continue_label = code.continue_label
-            code.continue_label = code.new_label('outer_continue')
-
             code.putln("/*else*/ {")
+            code.put_label(else_label)
             self.else_clause.generate_execution_code(code)
             code.putln("}")
 
-            if code.label_used(code.continue_label):
-                code.put_goto(break_label)
-                code.mark_pos(self.pos)
-                code.put_label(code.continue_label)
-                self.iterator.generate_disposal_code(code)
-                code.put_goto(orig_continue_label)
-            code.set_loop_labels(old_loop_labels)
-
-        code.mark_pos(self.pos)
-        if code.label_used(break_label):
-            code.put_label(break_label)
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
+        code.put_label(end_label)
 
     def generate_function_definitions(self, env, code):
         self.target.generate_function_definitions(env, code)
@@ -7990,19 +8029,17 @@ class TryExceptStatNode(StatNode):
             if not self.has_default_clause:
                 code.put_goto(except_error_label)
 
-        for exit_label, old_label in [(except_error_label, old_error_label),
-                                      (try_break_label, old_break_label),
-                                      (try_continue_label, old_continue_label),
-                                      (try_return_label, old_return_label),
-                                      (except_return_label, old_return_label)]:
-            if code.label_used(exit_label):
-                if not normal_case_terminates and not code.label_used(try_end_label):
-                    code.put_goto(try_end_label)
-                code.put_label(exit_label)
-                code.mark_pos(self.pos, trace=False)
-                if can_raise:
-                    restore_saved_exception()
-                code.put_goto(old_label)
+        label_intercepts = code.label_interceptor(
+            [except_error_label, try_break_label, try_continue_label, try_return_label, except_return_label],
+            [old_error_label, old_break_label, old_continue_label, old_return_label, old_return_label],
+            skip_to_label=try_end_label if not normal_case_terminates and not code.label_used(try_end_label) else None,
+            pos=self.pos,
+            trace=False,
+        )
+
+        for _ in label_intercepts:
+            if can_raise:
+                restore_saved_exception()
 
         if code.label_used(except_end_label):
             if not normal_case_terminates and not code.label_used(try_end_label):
@@ -8180,9 +8217,7 @@ class ExceptClauseNode(Node):
             for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
 
-        old_break_label, old_continue_label = code.break_label, code.continue_label
-        code.break_label = code.new_label('except_break')
-        code.continue_label = code.new_label('except_continue')
+        old_loop_labels = code.new_loop_labels("except_")
 
         old_exc_vars = code.funcstate.exc_vars
         code.funcstate.exc_vars = exc_vars
@@ -8196,15 +8231,11 @@ class ExceptClauseNode(Node):
                 code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
-        for new_label, old_label in [(code.break_label, old_break_label),
-                                     (code.continue_label, old_continue_label)]:
-            if code.label_used(new_label):
-                code.put_label(new_label)
-                for var in exc_vars:
-                    code.put_decref_clear(var, py_object_type)
-                code.put_goto(old_label)
-        code.break_label = old_break_label
-        code.continue_label = old_continue_label
+        for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
+            for var in exc_vars:
+                code.put_decref_clear(var, py_object_type)
+
+        code.set_loop_labels(old_loop_labels)
 
         for temp in exc_vars:
             code.funcstate.release_temp(temp)
@@ -8360,12 +8391,8 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.release_temp(exc_filename_cname)
                 code.put_goto(old_error_label)
 
-            for new_label, old_label in zip(code.get_all_labels(), finally_old_labels):
-                if not code.label_used(new_label):
-                    continue
-                code.put_label(new_label)
+            for _ in code.label_interceptor(code.get_all_labels(), finally_old_labels):
                 self.put_error_cleaner(code, exc_vars)
-                code.put_goto(old_label)
 
             for cname in exc_vars:
                 code.funcstate.release_temp(cname)
@@ -8375,6 +8402,7 @@ class TryFinallyStatNode(StatNode):
         return_label = code.return_label
         exc_vars = ()
 
+        # TODO: use code.label_interceptor()?
         for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
             if not code.label_used(new_label):
                 continue

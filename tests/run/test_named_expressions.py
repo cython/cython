@@ -9,16 +9,17 @@ import unittest
 import cython
 from Cython.Compiler.Main import CompileError
 from Cython.Build.Inline import cython_inline
+import re
 import sys
 
 if cython.compiled:
+    try:
+        from StringIO import StringIO
+    except ImportError:
+        from io import StringIO
+
     class StdErrHider:
         def __enter__(self):
-            try:
-                from StringIO import StringIO
-            except ImportError:
-                from io import StringIO
-
             self.old_stderr = sys.stderr
             self.new_stderr = StringIO()
             sys.stderr = self.new_stderr
@@ -56,10 +57,12 @@ if cython.compiled:
                 # unhelpfully Cython sometimes raises a compile error and sometimes just raises the filename
                 raised_message = []
                 for line in err_messages.split("\n"):
-                    line = line.split(":",3)
+                    # search for the two line number groups (we can't just split by ':' because Windows
+                    # filenames contain ':')
+                    match = re.match(r"(.+?):\d+:\d+:(.*)", line)
                     # a usable error message with be filename:line:char: message
-                    if len(line) == 4 and line[0].endswith(".pyx"):
-                        raised_message.append(line[-1])
+                    if match and match.group(1).endswith(".pyx"):
+                        raised_message.append(match.group(2))
                 # output all the errors - we aren't worried about reproducing the exact order CPython
                 # emits errors in
                 raised_message = "; ".join(raised_message)

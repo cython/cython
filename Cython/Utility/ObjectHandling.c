@@ -1992,23 +1992,77 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
+static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
+    // NOTE: possible optimization - use vectorcall
+    PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
+    if (unlikely(!selfless_args)) return NULL;
+
+    PyObject *result = PyObject_Call(method, selfless_args, kwargs);
+    Py_DECREF(selfless_args);
+    return result;
+}
+
+static PyMethodDef __Pyx_UnboundCMethod_Def = {
+    /* .ml_name  = */ "CythonUnboundCMethod",
+    /* .ml_meth  = */ __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
+    /* .ml_doc   = */ NULL
+};
+
 static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     PyObject *method;
     method = __Pyx_PyObject_GetAttrStr(target->type, *target->method_name);
     if (unlikely(!method))
         return -1;
     target->method = method;
+// FIXME: use functionality from CythonFunction.c/ClassMethod
 #if CYTHON_COMPILING_IN_CPYTHON
     #if PY_MAJOR_VERSION >= 3
-    // method descriptor type isn't exported in Py2.x, cannot easily check the type there
     if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
+    #else
+    // method descriptor type isn't exported in Py2.x, cannot easily check the type there.
+    // Therefore, reverse the check to the most likely alternative
+    // (which is returned for class methods)
+    if (likely(!PyCFunction_Check(method)))
     #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
         target->func = descr->d_method->ml_meth;
         target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
-    }
+    } else
 #endif
+    // bound classmethods need special treatment
+#if defined(CYTHON_COMPILING_IN_PYPY)
+    // In PyPy functions are regular methods, so just do
+    // the self check
+#elif PY_VERSION_HEX >= 0x03090000
+    if (PyCFunction_CheckExact(method))
+#else
+    if (PyCFunction_Check(method))
+#endif
+    {
+        PyObject *self;
+        int self_found;
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
+        self = PyObject_GetAttrString(method, "__self__");
+        if (!self) {
+            PyErr_Clear();
+        }
+#else
+        self = PyCFunction_GET_SELF(method);
+#endif
+        self_found = (self && self != Py_None);
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
+        Py_XDECREF(self);
+#endif
+        if (self_found) {
+            PyObject *unbound_method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
+            if (unlikely(!unbound_method)) return -1;
+            // New PyCFunction will own method reference, thus decref __Pyx_PyObject_GetAttrStr
+            Py_DECREF(method);
+            target->method = unbound_method;
+        }
+    }
     return 0;
 }
 
@@ -2233,7 +2287,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
-#ifdef __Pyx_CyFunction_USED
+#if defined(__Pyx_CyFunction_USED) && defined(NDEBUG)
+        // TODO PyCFunction_GET_FLAGS has a type-check assert that breaks with a CyFunction
+        // in debug mode. There is likely to be a better way of avoiding tripping this
+        // check that doesn't involve disabling the optimized path.
         if (__Pyx_IsCyOrPyCFunction(func))
 #else
         if (PyCFunction_Check(func))

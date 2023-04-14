@@ -27,10 +27,10 @@ _WARNINGS = """
 36:10: 'cpdef_cname_method' redeclared
 
 # from MemoryView.pyx
-977:29: Ambiguous exception value, same as default return value: 0
-977:29: Ambiguous exception value, same as default return value: 0
-1018:46: Ambiguous exception value, same as default return value: 0
-1018:46: Ambiguous exception value, same as default return value: 0
-1108:29: Ambiguous exception value, same as default return value: 0
-1108:29: Ambiguous exception value, same as default return value: 0
+980:29: Ambiguous exception value, same as default return value: 0
+980:29: Ambiguous exception value, same as default return value: 0
+1021:46: Ambiguous exception value, same as default return value: 0
+1021:46: Ambiguous exception value, same as default return value: 0
+1111:29: Ambiguous exception value, same as default return value: 0
+1111:29: Ambiguous exception value, same as default return value: 0
 """

@@ -221,7 +221,10 @@ Managing the Global Interpreter Lock
     @cython.nogil
     @cython.cfunc
     def func_released_gil() -> cython.int:
-        # function with the GIL released
+        # function that can be run with the GIL released
+        
+  Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
+  function *can* be run without the GIL. See :ref:`<cython_and_gil>` for more details.
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
@@ -322,6 +325,12 @@ Further Cython functions and declarations
 
     t1 = cython.cast(T, t)
     t2 = cython.cast(T, t, typecheck=True)
+
+* ``fused_type`` creates a new type definition that refers to the multiple types.
+  The following example declares a new type called ``my_fused_type`` which can
+  be either an ``int`` or a ``double``.::
+
+    my_fused_type = cython.fused_type(cython.int, cython.float)
 
 .. _magic_attributes_pxd:
 
