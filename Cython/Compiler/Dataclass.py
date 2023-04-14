@@ -347,7 +347,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
     code = TemplateCode()
     generate_init_code(code, kwargs['init'], node, fields, kw_only)
-    generate_match_args(code, kwargs['match_args'], node, fields)
+    generate_match_args(code, kwargs['match_args'], node, fields, kw_only)
     generate_repr_code(code, kwargs['repr'], node, fields)
     generate_eq_code(code, kwargs['eq'], node, fields)
     generate_order_code(code, kwargs['order'], node, fields)
@@ -470,7 +470,7 @@ def generate_init_code(code, init, node, fields, kw_only):
     function_start_point.add_code_line(u"def __init__(%s):" % args)
 
 
-def generate_match_args(code, match_args, node, fields):
+def generate_match_args(code, match_args, node, fields, global_kw_only):
     """
     Generates a tuple containing what would be the positional args to __init__
 
@@ -480,10 +480,15 @@ def generate_match_args(code, match_args, node, fields):
         return
     positional_arg_names = []
     for field_name, field in fields.items():
-        if not field.kw_only.value:
+        # TODO hasattr and global_kw_only can be removed once full kw_only support is added
+        field_is_kw_only = global_kw_only or (
+            hasattr(field, 'kw_only') and field.kw_only.value
+        )
+        if not field_is_kw_only:
             positional_arg_names.append(repr(field_name))
+    positional_arg_names.append("")  # finish the tuple with a comma
     args = u", ".join(positional_arg_names)
-    code.add_code_line("__match_args__ = (%s,)" % args)
+    code.add_code_line("__match_args__ = (%s)" % args)
 
 
 def generate_repr_code(code, repr, node, fields):
