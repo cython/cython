@@ -245,16 +245,27 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #if CYTHON_USE_PYLONG_INTERNALS
 static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
+#if PY_VERSION_HEX >= 0x030C00A7
+    if (likely(__Pyx_PyLong_IsCompact(n))) {
+        return PyLong_FromSize_t(__Pyx_PyLong_CompactValueUnsigned(n));
+    }
+#else
     if (likely(Py_SIZE(n) == -1)) {
         // digits are unsigned
-        return PyLong_FromLong(__Pyx_PyLong_Digits(n)[0]);
+        return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
+#endif
 #if CYTHON_COMPILING_IN_CPYTHON
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
+            #if PY_VERSION_HEX >= 0x030C00A7
+            // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
+            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~3;
+            #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
+            #endif
         }
         return copy;
     }
