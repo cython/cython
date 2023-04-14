@@ -353,7 +353,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
           for k, v in kwargs.items() ] +
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
            ExprNodes.BoolNode(node.pos, value=v))
-          for k, v in [('kw_only', global_kw_only), ('match_args', False),
+          for k, v in [('match_args', False),
                        ('slots', False), ('weakref_slot', False)]
         ])
     dataclass_params = make_dataclass_call_helper(
