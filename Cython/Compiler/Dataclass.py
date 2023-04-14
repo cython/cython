@@ -185,7 +185,7 @@ class Field(object):
     default_factory = MISSING
     private = False
 
-    literal_keys = ("repr", "hash", "init", "compare", "metadata")
+    literal_keys = ("repr", "hash", "init", "compare", "kw_only", "metadata")
 
     # default values are defined by the CPython dataclasses.field
     def __init__(self, pos, default=MISSING, default_factory=MISSING,
