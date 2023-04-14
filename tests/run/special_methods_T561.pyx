@@ -53,10 +53,10 @@ __doc__ = u"""
     >>> g01 = object.__getattribute__(GetAttr(), '__getattribute__')
     >>> g01('attr')
     GetAttr getattr 'attr'
-    >>> g10 = object.__getattribute__(GetAttribute(), '__getattr__')  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'...
+    >>> try: object.__getattribute__(GetAttribute(), '__getattr__')
+    ... except AttributeError as err:
+    ...      assert '__getattr__' in str(err), err
+    ... else: print("NOT RAISED!")
     >>> g11 = object.__getattribute__(GetAttribute(), '__getattribute__')
     >>> g11('attr')
     GetAttribute getattribute 'attr'
