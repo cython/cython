@@ -486,9 +486,7 @@ def generate_match_args(code, match_args, node, fields, global_kw_only):
         )
         if not field_is_kw_only:
             positional_arg_names.append(repr(field_name))
-    positional_arg_names.append("")  # finish the tuple with a comma
-    args = u", ".join(positional_arg_names)
-    code.add_code_line("__match_args__ = (%s)" % args)
+    code.add_code_line("__match_args__ = %s" % tuple(args))
 
 
 def generate_repr_code(code, repr, node, fields):
