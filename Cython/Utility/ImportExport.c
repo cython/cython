@@ -512,37 +512,37 @@ set_path:
 /////////////// TypeImport.proto ///////////////
 //@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportType_proto_$cy_version
-#define __PYX_HAVE_RT_ImportType_proto_$cy_version
+#ifndef __PYX_HAVE_RT_ImportType_proto_$cyversion
+#define __PYX_HAVE_RT_ImportType_proto_$cyversion
 
 #if __STDC_VERSION__ >= 201112L
 #include <stdalign.h>
 #endif
 
 #if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
-#define __PYX_GET_STRUCT_ALIGNMENT_$cy_version(s) alignof(s)
+#define __PYX_GET_STRUCT_ALIGNMENT_$cyversion(s) alignof(s)
 #else
 // best guess at what the alignment could be since we can't measure it
-#define __PYX_GET_STRUCT_ALIGNMENT_$cy_version(s) sizeof(void*)
+#define __PYX_GET_STRUCT_ALIGNMENT_$cyversion(s) sizeof(void*)
 #endif
 
-enum __Pyx_ImportType_CheckSize_$cy_version {
-   __Pyx_ImportType_CheckSize_Error_$cy_version = 0,
-   __Pyx_ImportType_CheckSize_Warn_$cy_version = 1,
-   __Pyx_ImportType_CheckSize_Ignore_$cy_version = 2
+enum __Pyx_ImportType_CheckSize_$cyversion {
+   __Pyx_ImportType_CheckSize_Error_$cyversion = 0,
+   __Pyx_ImportType_CheckSize_Warn_$cyversion = 1,
+   __Pyx_ImportType_CheckSize_Ignore_$cyversion = 2
 };
 
-static PyTypeObject *__Pyx_ImportType_$cy_version(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cy_version check_size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size);  /*proto*/
 
 #endif
 
 /////////////// TypeImport ///////////////
 //@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportType_$cy_version
-#define __PYX_HAVE_RT_ImportType_$cy_version
-static PyTypeObject *__Pyx_ImportType_$cy_version(PyObject *module, const char *module_name, const char *class_name,
-    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cy_version check_size)
+#ifndef __PYX_HAVE_RT_ImportType_$cyversion
+#define __PYX_HAVE_RT_ImportType_$cyversion
+static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *module_name, const char *class_name,
+    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
 {
     PyObject *result = 0;
     char warning[200];
@@ -604,7 +604,7 @@ static PyTypeObject *__Pyx_ImportType_$cy_version(PyObject *module, const char *
     }
     // varobjects almost have structs  between basicsize and basicsize + itemsize
     // but the struct isn't always one of the two limiting values
-    if (check_size == __Pyx_ImportType_CheckSize_Error_$cy_version &&
+    if (check_size == __Pyx_ImportType_CheckSize_Error_$cyversion &&
             ((size_t)basicsize > size || (size_t)(basicsize + itemsize) < size)) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
@@ -612,7 +612,7 @@ static PyTypeObject *__Pyx_ImportType_$cy_version(PyObject *module, const char *
             module_name, class_name, size, basicsize, basicsize+itemsize);
         goto bad;
     }
-    else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cy_version && (size_t)basicsize > size) {
+    else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
@@ -630,14 +630,14 @@ bad:
 /////////////// FunctionImport.proto ///////////////
 //@substitute: naming
 
-static int __Pyx_ImportFunction_$cy_version(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
+static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
 
 /////////////// FunctionImport ///////////////
 //@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportFunction_$cy_version
-#define __PYX_HAVE_RT_ImportFunction_$cy_version
-static int __Pyx_ImportFunction_$cy_version(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
+#ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
+#define __PYX_HAVE_RT_ImportFunction_$cyversion
+static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
     union {
@@ -716,14 +716,14 @@ bad:
 /////////////// VoidPtrImport.proto ///////////////
 //@substitute: naming
 
-static int __Pyx_ImportVoidPtr_$cy_version(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
+static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
 
 /////////////// VoidPtrImport ///////////////
 //@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportVoidPtr_$cy_version
-#define __PYX_HAVE_RT_ImportVoidPtr_$cy_version
-static int __Pyx_ImportVoidPtr_$cy_version(PyObject *module, const char *name, void **p, const char *sig) {
+#ifndef __PYX_HAVE_RT_ImportVoidPtr_$cyversion
+#define __PYX_HAVE_RT_ImportVoidPtr_$cyversion
+static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
 

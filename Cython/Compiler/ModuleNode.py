@@ -420,13 +420,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 sig = entry.type.signature_string()
                 h_code.putln(
                     'if (__Pyx_ImportFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
-                    % (Naming.cy_version, entry.name.as_c_string_literal(), cname, sig))
+                    % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             for entry in api_vars:
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 sig = entry.type.empty_declaration_code()
                 h_code.putln(
                     'if (__Pyx_ImportVoidPtr_%s(module, %s, (void **)&%s, "%s") < 0) goto bad;'
-                    % (Naming.cy_version, entry.name.as_c_string_literal(), cname, sig))
+                    % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
                     self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
@@ -3714,7 +3714,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 signature = entry.type.empty_declaration_code()
                 code.putln(
                     'if (__Pyx_ImportVoidPtr_%s(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
-                        Naming.cy_version,
+                        Naming.cyversion,
                         temp, entry.name, cname, signature,
                         code.error_goto(self.pos)))
             code.put_decref_clear(temp, py_object_type)
@@ -3740,7 +3740,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in entries:
                 code.putln(
                     'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
-                        Naming.cy_version,
+                        Naming.cyversion,
                         temp,
                         entry.name.as_c_string_literal(),
                         entry.cname,
@@ -3820,7 +3820,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module = import_generator.imported_module(module_name, error_code)
         code.put('%s = __Pyx_ImportType_%s(%s, %s,' % (
             type.typeptr_cname,
-            Naming.cy_version,
+            Naming.cyversion,
             module,
             module_name))
 
@@ -3841,17 +3841,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cy_version, objstruct))
+                objstruct, Naming.cyversion, objstruct))
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
             code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cy_version, objstruct))
+                objstruct, Naming.cyversion, objstruct))
             code.putln("#else")
             code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                sizeof_objstruct, Naming.cy_version, sizeof_objstruct))
+                sizeof_objstruct, Naming.cyversion, sizeof_objstruct))
             code.putln("#endif")
         else:
             code.put('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cy_version, objstruct))
+                objstruct, Naming.cyversion, objstruct))
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
@@ -3862,7 +3862,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
                 type.check_size, module_name, type.name))
         code.put('__Pyx_ImportType_CheckSize_%s_%s);' % (
-            check_size.title(), Naming.cy_version))
+            check_size.title(), Naming.cyversion))
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 

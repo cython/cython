@@ -8,7 +8,7 @@
 from .. import __version__
 
 pyrex_prefix    = "__pyx_"
-cy_version = __version__.replace('.', '_')
+cyversion = __version__.replace('.', '_')
 
 
 codewriter_temp_prefix = pyrex_prefix + "t_"
