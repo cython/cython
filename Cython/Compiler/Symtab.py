@@ -2123,8 +2123,6 @@ class StructOrUnionScope(Scope):
         elif type.needs_refcounting:
             if not allow_refcounted:
                 error(pos, "C struct/union member cannot be reference-counted type '%s'" % type)
-        if visibility != 'private':
-            error(pos, "C struct/union member cannot be declared %s" % visibility)
         return entry
 
     def declare_cfunction(self, name, type, pos,

@@ -3391,6 +3391,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
             s.expect('NEWLINE')
             s.expect_indent()
             body_ctx = Ctx()
+            body_ctx.visibility = p_visibility(s, ctx.visibility)
             while s.sy != 'DEDENT':
                 if s.sy != 'pass':
                     attributes.append(
