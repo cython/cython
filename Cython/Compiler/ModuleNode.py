@@ -403,7 +403,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                     h_code.putln("static %s = 0;" % type.declaration_code(cname))
                     h_code.putln("#define %s (*%s)" % (entry.name, cname))
-            h_code.put(UtilityCode.load_as_string("PyIdentifierFromString", "ImportExport.c")[0])
             if api_vars:
                 h_code.put(UtilityCode.load_as_string("VoidPtrImport", "ImportExport.c")[1])
             if api_funcs:
@@ -420,14 +419,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
                 sig = entry.type.signature_string()
                 h_code.putln(
-                    'if (__Pyx_ImportFunction(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
-                    % (entry.name.as_c_string_literal(), cname, sig))
+                    'if (__Pyx_ImportFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
+                    % (Naming.cy_version, entry.name.as_c_string_literal(), cname, sig))
             for entry in api_vars:
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 sig = entry.type.empty_declaration_code()
                 h_code.putln(
-                    'if (__Pyx_ImportVoidPtr(module, %s, (void **)&%s, "%s") < 0) goto bad;'
-                    % (entry.name.as_c_string_literal(), cname, sig))
+                    'if (__Pyx_ImportVoidPtr_%s(module, %s, (void **)&%s, "%s") < 0) goto bad;'
+                    % (Naming.cy_version, entry.name.as_c_string_literal(), cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
                     self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
@@ -3714,7 +3713,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = module.mangle(Naming.varptr_prefix, entry.name)
                 signature = entry.type.empty_declaration_code()
                 code.putln(
-                    'if (__Pyx_ImportVoidPtr(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportVoidPtr_%s(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
+                        Naming.cy_version,
                         temp, entry.name, cname, signature,
                         code.error_goto(self.pos)))
             code.put_decref_clear(temp, py_object_type)
@@ -3739,7 +3739,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_gotref(temp, py_object_type)
             for entry in entries:
                 code.putln(
-                    'if (__Pyx_ImportFunction(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                        Naming.cy_version,
                         temp,
                         entry.name.as_c_string_literal(),
                         entry.cname,
@@ -3817,8 +3818,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put('%s = __Pyx_ImportType(%s, %s,' % (
+        code.put('%s = __Pyx_ImportType_%s(%s, %s,' % (
             type.typeptr_cname,
+            Naming.cy_version,
             module,
             module_name))
 
@@ -3855,7 +3857,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
                 type.check_size, module_name, type.name))
-        code.putln('__Pyx_ImportType_CheckSize_%s);' % check_size.title())
+        code.putln('__Pyx_ImportType_CheckSize_%s_%s);' % (
+            check_size.title(), Naming.cy_version))
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 
