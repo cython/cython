@@ -3850,7 +3850,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 sizeof_objstruct, Naming.cy_version, sizeof_objstruct))
             code.putln("#endif")
         else:
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
+            code.put('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
                 objstruct, Naming.cy_version, objstruct))
 
         # check_size
@@ -3861,7 +3861,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
                 type.check_size, module_name, type.name))
-        code.putln('__Pyx_ImportType_CheckSize_%s_%s);' % (
+        code.put('__Pyx_ImportType_CheckSize_%s_%s);' % (
             check_size.title(), Naming.cy_version))
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
