@@ -604,7 +604,7 @@ static PyTypeObject *__Pyx_ImportType_$cy_version(PyObject *module, const char *
     }
     // varobjects almost have structs  between basicsize and basicsize + itemsize
     // but the struct isn't always one of the two limiting values
-    if (check_size == __Pyx_ImportType_CheckSize_Error &&
+    if (check_size == __Pyx_ImportType_CheckSize_Error_%cy_version &&
             ((size_t)basicsize > size || (size_t)(basicsize + itemsize) < size)) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
@@ -612,7 +612,7 @@ static PyTypeObject *__Pyx_ImportType_$cy_version(PyObject *module, const char *
             module_name, class_name, size, basicsize, basicsize+itemsize);
         goto bad;
     }
-    else if (check_size == __Pyx_ImportType_CheckSize_Warn && (size_t)basicsize > size) {
+    else if (check_size == __Pyx_ImportType_CheckSize_Warn_%cy_version && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
