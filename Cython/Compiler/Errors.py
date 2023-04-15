@@ -221,11 +221,12 @@ def warning(position, message, level=0):
     return warn
 
 
-def warn_once(position, message, level=0):
+def warn_once(position, message, level=0, once_per_position=False):
     if level < LEVEL:
         return
     warn_once_seen = threadlocal.cython_errors_warn_once_seen
-    if message in warn_once_seen:
+    key = (message, position) if once_per_position else message
+    if key in warn_once_seen:
         return
     warn = CompileWarning(position, message)
     line = u"warning: %s\n" % warn
@@ -235,7 +236,7 @@ def warn_once(position, message, level=0):
     echo_file = threadlocal.cython_errors_echo_file
     if echo_file:
         _write_file_encode(echo_file, line)
-    warn_once_seen[message] = True
+    warn_once_seen.add(key)
     return warn
 
 

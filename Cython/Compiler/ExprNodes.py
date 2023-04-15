@@ -24,7 +24,7 @@ import operator
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
-    CannotSpecialize)
+    CannotSpecialize, warn_once)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -2130,7 +2130,11 @@ class NameNode(AtomicExprNode):
             type = entry.type
             if not env.in_c_type_context and type is Builtin.long_type:
                 # Try to give a helpful warning when users write plain C type names.
-                warning(self.pos, "Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?")
+                # (Only do this once for each position is analyse_types is often called
+                # more than once.)
+                warn_once(
+                    self.pos, "Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?",
+                    once_per_position=True)
                 type = py_object_type
             elif type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type

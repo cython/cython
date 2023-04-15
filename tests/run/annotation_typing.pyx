@@ -396,8 +396,6 @@ _WARNINGS = """
 90:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 283:44: Unknown type declaration in annotation, ignoring
 311:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
-# DUPLICATE:
-63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 # BUG:
 63:6: 'pytypes_cpdef' redeclared
 155:0: 'struct_io' redeclared
