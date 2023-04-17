@@ -1241,6 +1241,7 @@ match arr:
 
     return isinstance(<object>a, Sequence)
 
+
 ctypedef int aliasT
 def test_assignment_typedef():
     """
