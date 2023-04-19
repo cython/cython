@@ -937,7 +937,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_FromDouble(double value) {
 
 #define __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, exc) \
     {                                                                     \
-        func_type value = func_value;                                     \
+        func_type value = (func_type) func_value;                         \
         if (sizeof(target_type) < sizeof(func_type)) {                    \
             if (unlikely(value != (func_type) (target_type) value)) {     \
                 func_type zero = 0;                                       \
