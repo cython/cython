@@ -447,7 +447,8 @@ for Cython to discern that, so watch out with exception masks on IO streams. ::
 This will catch any C++ error and raise a Python MemoryError in its place.
 (Any Python exception is valid here.)
 
-Cython also supports using a custom exception handler. ::
+Cython also supports using a custom exception handler. This is an advanced feature
+that most users won't need, but for those that do a full example follows::
 
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
