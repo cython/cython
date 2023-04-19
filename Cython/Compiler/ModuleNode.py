@@ -651,7 +651,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 dfs(type_dict[v])
             result.append(u)
 
-        for key in type_order:
+        for key in reversed(type_order):
             dfs(type_dict[key])
 
         result.reverse()
