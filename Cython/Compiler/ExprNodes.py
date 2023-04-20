@@ -12046,9 +12046,13 @@ class MulNode(NumBinopNode):
 
     def coerce_operands_to_pyobjects(self, env):
         if self.is_sequence_mul:
-            pass  # keep operands as they are
-        else:
-            super(MulNode, self).coerce_operands_to_pyobjects(env)
+            # Keep operands as they are, but ctuples must become Python tuples to multiply them.
+            if self.operand1.type.is_ctuple:
+                self.operand1 = self.operand1.coerce_to_pyobject(env)
+            elif self.operand2.type.is_ctuple:
+                self.operand2 = self.operand2.coerce_to_pyobject(env)
+            return
+        super(MulNode, self).coerce_operands_to_pyobjects(env)
 
     def is_py_operation_types(self, type1, type2):
         return self.is_sequence_mul or super(MulNode, self).is_py_operation_types(type1, type2)
