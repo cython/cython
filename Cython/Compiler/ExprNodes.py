@@ -13,7 +13,8 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object, slice_type=object, sequence_types=object, _py_int_types=object,
+               bytearray_type=object, slice_type=object, memoryview_type=object,
+               builtin_sequence_types=object, _py_int_types=object,
                IS_PYTHON3=cython.bint)
 
 import re
@@ -37,7 +38,7 @@ from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
-    slice_type, long_type, sequence_types,
+    slice_type, long_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
 from . import Symtab
@@ -12021,6 +12022,10 @@ class MulNode(NumBinopNode):
         self.analyse_operation(env)
         return self
 
+    @staticmethod
+    def is_builtin_seqmul_type(type):
+        return type.is_builtin_type and type in builtin_sequence_types and type is not memoryview_type
+
     def calculate_is_sequence_mul(self):
         type1 = self.operand1.type
         type2 = self.operand2.type
@@ -12030,7 +12035,7 @@ class MulNode(NumBinopNode):
         if type2 is long_type or type2.is_int:
             if type1.is_string or type1.is_ctuple:
                 return True
-            if type1.is_builtin_type and type1 in sequence_types:
+            if self.is_builtin_seqmul_type(type1):
                 return True
         return False
 
@@ -12058,10 +12063,11 @@ class MulNode(NumBinopNode):
     def infer_builtin_types_operation(self, type1, type2):
         # let's assume that whatever builtin type you multiply a builtin sequence type with
         # will either return a sequence of the same type or fail with an exception
-        if type1 in sequence_types and type2.is_builtin_type:
-            return type1
-        if type2 in sequence_types and type1.is_builtin_type:
-            return type2
+        if type1.is_builtin_type and type2.is_builtin_type:
+            if self.is_builtin_seqmul_type(type1):
+                return type1
+            if self.is_builtin_seqmul_type(type2):
+                return type2
         # multiplication of containers/numbers with an integer value
         # always (?) returns the same type
         if type1.is_int:

@@ -505,19 +505,30 @@ def init_builtins():
     set_type   = builtin_scope.lookup('set').type
     frozenset_type = builtin_scope.lookup('frozenset').type
     slice_type   = builtin_scope.lookup('slice').type
+
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
+    memoryview_type = builtin_scope.lookup('memoryview').type
+
     float_type = builtin_scope.lookup('float').type
     int_type = builtin_scope.lookup('int').type
     long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
-    memoryview_type = builtin_scope.lookup('memoryview').type
 
-    sequence_types = (list_type, tuple_type, bytes_type, str_type, unicode_type, basestring_type, bytearray_type)
+    sequence_types = (
+        list_type,
+        tuple_type,
+        bytes_type,
+        str_type,
+        unicode_type,
+        basestring_type,
+        bytearray_type,
+        memoryview_type,
+    )
 
     # Set up type inference links between equivalent Python/C types
     bool_type.equivalent_type = PyrexTypes.c_bint_type
