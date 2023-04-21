@@ -225,6 +225,17 @@ def test_mul((int, int) ab, int c):
     """
     return ab * c
 
+def test_mul_to_ctuple((int, int) ab, int c):
+    """
+    >>> test_mul_to_ctuple((1, 2), 2)
+    (1, 2, 1, 2)
+    >>> test_mul_to_ctuple((1, 2), 3)
+    Traceback (most recent call last):
+    TypeError: Expected a tuple of size 4, got tuple
+    """
+    result: tuple[cython.int, cython.int, cython.int, cython.int] = ab * c
+    return result
+
 def test_unop((int, int) ab):
     """
     >>> test_unop((1, 2))
