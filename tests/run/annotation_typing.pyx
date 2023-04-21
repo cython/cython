@@ -149,6 +149,15 @@ def return_tuple_for_carray() -> tuple:
     return x
 
 
+def invalid_ctuple_syntax(a: (cython.int, cython.int), b: (int, int)):
+    """
+    >>> invalid_ctuple_syntax([1, 2], [3, 4])
+    [1, 2, 3, 4]
+    """
+    result: (cython.int, cython.int, cython.int, cython.int) = a + b
+    return result
+
+
 MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
 
 
@@ -394,14 +403,17 @@ _WARNINGS = """
 63:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 90:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 90:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-283:44: Unknown type declaration in annotation, ignoring
-311:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+152:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+152:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+157:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+292:44: Unknown type declaration in annotation, ignoring
+320:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # DUPLICATE:
 63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 # BUG:
 63:6: 'pytypes_cpdef' redeclared
-155:0: 'struct_io' redeclared
-190:0: 'struct_convert' redeclared
-209:0: 'exception_default' redeclared
-240:0: 'exception_default_uint' redeclared
+164:0: 'struct_io' redeclared
+199:0: 'struct_convert' redeclared
+218:0: 'exception_default' redeclared
+249:0: 'exception_default_uint' redeclared
 """
