@@ -576,11 +576,15 @@ static {{struct_type_decl}} {{funcname}}(PyObject *);
 static {{struct_type_decl}} {{funcname}}(PyObject * o) {
     {{struct_type_decl}} result;
 
-    if (!PyTuple_Check(o) || PyTuple_GET_SIZE(o) != {{size}}) {
+    if (unlikely(!PyTuple_Check(o))) {
         __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
-                     "Expected a tuple of size %d, got " __Pyx_FMT_TYPENAME, {{size}}, o_type_name);
+                     "Expected a tuple of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
+        goto bad;
+    } else if (unlikely(PyTuple_GET_SIZE(o) != {{size}})) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected a tuple of size %zd, got size %zd", (Py_ssize_t) {{size}}, PyTuple_GET_SIZE(o));
         goto bad;
     }
 
