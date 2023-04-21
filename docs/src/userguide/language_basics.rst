@@ -348,7 +348,7 @@ A ``ctuple`` is assembled from any valid C types. For example
         .. code-block:: python
 
             def main():
-                bar: (cython.double, cython.int)
+                bar: tuple[cython.double, cython.int]
 
     .. group-tab:: Cython
 
@@ -496,7 +496,7 @@ using normal C declaration syntax. For example,
         .. code-block:: python
 
             @cython.cfunc
-            def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
+            def chips(t: tuple[cython.long, cython.long, cython.double]) -> tuple[cython.int, cython.float]:
                 ...
 
     .. group-tab:: Cython
