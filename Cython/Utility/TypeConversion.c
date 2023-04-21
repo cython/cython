@@ -570,31 +570,41 @@ bad:
 
 
 /////////////// FromPyCTupleUtility.proto ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject *);
+static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject *);
 
 /////////////// FromPyCTupleUtility ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result;
-
-    if (unlikely(!PyTuple_Check(o))) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
-        PyErr_Format(PyExc_TypeError,
-                     "Expected a tuple of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
-        __Pyx_DECREF_TypeName(o_type_name);
-        goto bad;
-    } else if (unlikely(PyTuple_GET_SIZE(o) != {{size}})) {
-        PyErr_Format(PyExc_TypeError,
-                     "Expected a tuple of size %zd, got size %zd", (Py_ssize_t) {{size}}, PyTuple_GET_SIZE(o));
-        goto bad;
-    }
 
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+static {{struct_type_decl}} __Pyx_tuple_{{funcname}}(PyObject * o) {
+    {{struct_type_decl}} result;
+
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result.f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
-#else
+
+    return result;
+bad:
+    return result;
+}
+#endif
+
+static {{struct_type_decl}} __Pyx_seq_{{funcname}}(PyObject * o) {
+    {{struct_type_decl}} result;
+
+    if (unlikely(!PySequence_Check(o))) {
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        PyErr_Format(PyExc_TypeError,
+                     "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
+        __Pyx_DECREF_TypeName(o_type_name);
+        goto bad;
+    } else if (unlikely(PySequence_Length(o) != {{size}})) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected a sequence of size %zd, got size %zd", (Py_ssize_t) {{size}}, PySequence_Length(o));
+        goto bad;
+    }
+
     {
         PyObject *item;
     {{for ix, component in enumerate(components):}}
@@ -605,11 +615,20 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
     }
-#endif
 
     return result;
 bad:
     return result;
+}
+
+static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject * o) {
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    if (likely(PyTuple_Check(o) && PyTuple_GET_SIZE(o) == {{size}})) {
+        return __Pyx_tuple_{{funcname}}(o);
+    }
+    #endif
+
+    return __Pyx_seq_{{funcname}}(o);
 }
 
 
