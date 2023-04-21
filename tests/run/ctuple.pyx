@@ -8,11 +8,11 @@ def simple_convert(*o):
     >>> simple_convert(1)
     Traceback (most recent call last):
     ...
-    TypeError: Expected a tuple of size 2, got tuple
+    TypeError: Expected a tuple of size 2, got size 1
     >>> simple_convert(1, 2, 3)
     Traceback (most recent call last):
     ...
-    TypeError: Expected a tuple of size 2, got tuple
+    TypeError: Expected a tuple of size 2, got size 3
     """
     cdef (int, double) xy = o
     return xy
@@ -231,7 +231,7 @@ def test_mul_to_ctuple((int, int) ab, int c):
     (1, 2, 1, 2)
     >>> test_mul_to_ctuple((1, 2), 3)
     Traceback (most recent call last):
-    TypeError: Expected a tuple of size 4, got tuple
+    TypeError: Expected a tuple of size 4, got size 6
     """
     result: tuple[cython.int, cython.int, cython.int, cython.int] = ab * c
     return result
