@@ -871,7 +871,7 @@ class MemoryViewSliceType(PyrexType):
         if dst_dtype.is_cv_qualified:
             dst_dtype = dst_dtype.cv_base_type
 
-        if src_dtype != dst_dtype:
+        if not src_dtype.same_as(dst_dtype):
             return False
 
         if src.ndim != dst.ndim:
