@@ -1315,6 +1315,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
+        current_opt_dict = dict(self.directives)
+        missing = object()
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1322,8 +1324,11 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if self.directives.get(name, object()) != value:
+                        if current_opt_dict.get(name, missing) != value:
+                            if name == 'cfunc' and 'ufunc' in current_opt_dict:
+                                error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
                             directives.append(directive)
+                            current_opt_dict[name] = value
                         if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.

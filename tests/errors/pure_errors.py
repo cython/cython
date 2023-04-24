@@ -68,6 +68,12 @@ def test_contradicting_decorators2(x: object) -> object:
     return x
 
 
+@cython.cfunc
+@cython.ufunc
+def add_one(x: cython.double) -> cython.double:
+    return x+1
+
+
 _ERRORS = """
 44:22: Calling gil-requiring function not allowed without gil
 45:24: Calling gil-requiring function not allowed without gil
@@ -75,6 +81,7 @@ _ERRORS = """
 53:0: Exception clause not allowed for function returning Python object
 59:0: cfunc and ccall directives cannot be combined
 65:0: cfunc and ccall directives cannot be combined
+71:0: Cannot apply @cfunc to @ufunc, please reverse the decorators.
 """
 
 _WARNINGS = """
