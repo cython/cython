@@ -1466,7 +1466,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
                         self.generate_richcmp_function(scope, code)
-                    elif scope.directives.get('total_ordering'):
+                    elif 'total_ordering' in scope.directives:
                         # Warn if this is used when it can't have any effect.
                         warning(scope.parent_type.pos,
                                 "total_ordering directive used, but no comparison and equality methods defined")
@@ -2144,7 +2144,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # need to call up into base classes as we may not know all implemented comparison methods
             extern_parent = cls if cls.typeptr_cname else scope.parent_type.base_type
 
-        total_ordering = scope.directives.get('total_ordering', False)
+        total_ordering = 'total_ordering' in scope.directives
 
         comp_entry = {}
 

@@ -341,7 +341,7 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'total_ordering': bool,
+    'total_ordering': None,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
 }
@@ -405,7 +405,7 @@ immediate_decorator_directives = {
     'inline', 'exceptval', 'returns',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
-    'auto_pickle', 'internal', 'collection_type',
+    'auto_pickle', 'internal', 'collection_type', 'total_ordering',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
 }
