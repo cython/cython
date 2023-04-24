@@ -225,4 +225,3 @@ def manager_from_ternary(use_first):
             raise ValueError
     except ValueError:
         print("In except")
-
