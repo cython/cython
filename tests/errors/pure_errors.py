@@ -85,6 +85,7 @@ _ERRORS = """
 """
 
 _WARNINGS = """
+30:0: Directive does not change previous value (nogil=False)
 # bugs:
 59:0: 'test_contradicting_decorators1' redeclared
 65:0: 'test_contradicting_decorators2' redeclared

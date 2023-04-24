@@ -1,3 +1,6 @@
+# mode: run
+# tag: warnings
+
 import sys
 IS_PY2 = sys.version_info[0] < 3
 
@@ -602,3 +605,61 @@ def array_init_with_list():
     x[12] = 42
 
     return [x[10], x[12]]
+
+
+with cython.cdivision(True):
+
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    def test_override_reset(x: cython.int):
+        """
+        >>> test_override_reset(-3) if is_compiled else -2  # @cdivision(False)
+        -2
+        """
+        return x / 2
+
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    def test_override_set(x: cython.int):
+        """
+        >>> test_override_set(-5) if is_compiled else -1  # @cdivision(True)
+        -1
+        """
+        return x / 3
+
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    @cython.cdivision(False)
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    @cython.cdivision(True)
+    @cython.cdivision(True)
+    @cython.cdivision(True)
+    @cython.cdivision(False)
+    def test_override_set_repeated(x: cython.int):
+        """
+        >>> test_override_set_repeated(-5) if is_compiled else -1  # @cdivision(True)
+        -1
+        """
+        return x / 3
+
+
+_WARNINGS = """
+305:0: Directive does not change previous value (nogil=False)
+436:0: Unraisable exception in function 'pure_py.ccall_except_no_check'.
+613:4: Directive does not change previous value (cdivision=True)
+633:4: Directive does not change previous value (cdivision=False)
+634:4: Directive does not change previous value (cdivision=False)
+638:4: Directive does not change previous value (cdivision=True)
+639:4: Directive does not change previous value (cdivision=True)
+
+# BUGS:
+227:0: 'c_call' redeclared
+361:0: 'ccall_except' redeclared
+399:0: 'ccall_except_check' redeclared
+418:0: 'ccall_except_check_always' redeclared
+436:0: 'ccall_except_no_check' redeclared
+"""
