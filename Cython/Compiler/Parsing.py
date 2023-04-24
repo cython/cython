@@ -2141,6 +2141,10 @@ def p_with_items(s, is_async=False):
             s.next()
             items = p_with_items_list(s, is_async)
             s.expect(")")
+            if s.sy != ":":
+                # Fail - the message doesn't matter because we'll try the
+                # non-bracket version so it'll never be shown
+                s.error("")
         brackets_succeeded = not errors
     if not brackets_succeeded:
         # try the non-bracket version
