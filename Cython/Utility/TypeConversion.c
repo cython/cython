@@ -142,6 +142,11 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_DigitCount(x)  (((PyLongObject*)x)->long_value.lv_tag >> 3)  // (>> NON_SIZE_BITS)
   #define __Pyx_PyLong_SignedDigitCount(x)  \
         ((1 - (Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag & 3)) * (Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag >> 3))  // (>> NON_SIZE_BITS)
+
+  // CPython 3.12 requires C99
+  typedef ssize_t  __Pyx_compact_pylong;
+  typedef size_t  __Pyx_compact_upylong;
+
   #else  // Py < 3.12
   #define __Pyx_PyLong_IsNeg(x)  (Py_SIZE(x) < 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (Py_SIZE(x) >= 0)
@@ -153,9 +158,10 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_CompactValueUnsigned(x)  ((Py_SIZE(x) == 0) ? 0 : __Pyx_PyLong_Digits(x)[0])
   #define __Pyx_PyLong_DigitCount(x)  __Pyx_sst_abs(Py_SIZE(x))
   #define __Pyx_PyLong_SignedDigitCount(x)  Py_SIZE(x)
-  #endif
 
   typedef sdigit  __Pyx_compact_pylong;
+  typedef digit  __Pyx_compact_upylong;
+  #endif
 
   #if PY_VERSION_HEX >= 0x030C00A5
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
@@ -1017,7 +1023,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             //} else if (__Pyx_PyLong_IsZero(x)) {
             //    return ({{TYPE}}) 0;
             } else if (__Pyx_PyLong_IsCompact(x)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValueUnsigned(x))
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
             } else {
                 const digit* digits = __Pyx_PyLong_Digits(x);
                 assert(__Pyx_PyLong_DigitCount(x) > 1);
