@@ -2399,7 +2399,7 @@ if VALUE is not None:
 
         self.seen_vars_stack.pop()
 
-        if lenv.directives.get("ufunc"):
+        if "ufunc" in lenv.directives:
             from . import UFuncs
             return UFuncs.convert_to_ufunc(node)
         return node
