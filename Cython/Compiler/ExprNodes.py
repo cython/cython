@@ -13591,12 +13591,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 operand2.result(),
                 operand1.result())
         elif self.operator in ['in', 'not_in']:
-            if self.operator == 'not_in':
-                negation = "!"
-            else:
-                negation = ""
-            return "(%s__operator_in_containers_helpers__::is_in(%s,%s))" % (
-                negation,
+            return "(%s __operator_in_containers_helpers__::is_in(%s,%s))" % (
+                "!" if self.operator == 'not_in' else "",
                 operand1.result(),
                 operand2.result())
         else:
