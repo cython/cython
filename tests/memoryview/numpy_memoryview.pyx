@@ -739,11 +739,11 @@ def same_type_after_arrays_composite():
 ctypedef fused np_numeric_t:
     np.float64_t
 
-def test_issue5401(np_numeric_t[:] A):
+def test_invalid_buffer_fused_memoryview(np_numeric_t[:] A):
     """
     >>> import numpy as np
     >>> zz = np.zeros([5], dtype='M')
-    >>> test_issue5401(zz)
+    >>> test_invalid_buffer_fused_memoryview(zz)
     Traceback (most recent call last):
         ...
     TypeError: No matching signature found
