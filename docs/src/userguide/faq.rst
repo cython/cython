@@ -1,5 +1,9 @@
 .. contents::
 
+.. note::
+  This page has been migrated from the wiki on github and is in the process of
+  being updated; please open an issue or a PR if you find something to improve.
+
 Basics
 ======
 
@@ -83,7 +87,7 @@ How do I pickle cdef classes?
 How do I use a Cython class in a C++ framework?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: See, for example, http://bitbucket.org/binet/cy-cxxfwk/src and http://groups.google.com/group/cython-users/browse_thread/thread/bc007d85b2ccc518 .
+**Answer**: TODO
 
 ----------
 
@@ -419,12 +423,14 @@ How do I make a standalone binary from a Python program using cython?
 
 ::
 
-    PYVERSION=2.7
+    PYVERSION=3.9
     foobar: foobar.py
         cython --embed foobar.py -o foobar.c
         $(CC) -I /usr/include/python$(PYVERSION) foobar.c -lpython$(PYVERSION) -o foobar
 
 The magic is the --embed option, which embeds a copy of the Python interpreter main in the generated C.  You'll want to change 'foobar' to reflect the name of your script, of course, and PYVERSION as appropriate.
+
+More details can be found `here <embedding>`_.
 
 ----------
 
@@ -855,6 +861,9 @@ Why does ``**`` on int literals not work (as it seems to do in Pyrex)?
 
 **Answer**: It works as expected in recent versions of Cython.
 
+As of Cython 3.0, the power operator also has the same semantics as
+Python, with respect to complex numbers, see `here <power-operator>`_.
+
 ----------
 
 Why does Cython not always give errors for uninitialized variables?
@@ -950,8 +959,8 @@ at the top of the module file (within the first comment and before any code or e
 
 ----------
 
-Can I place the output under the BSD license, or does it have to be the python-license as well?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What's the license situation of Cython's output?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: You can use the output of Pyrex/Cython however you like (and license it how you like - be it BSD, public domain, GPL, all rights reserved, whatever).
 

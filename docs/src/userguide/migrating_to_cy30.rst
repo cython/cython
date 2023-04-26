@@ -265,6 +265,8 @@ When running into an error it is required to add the corresponding operator::
         Example operator--(int)
 
 
+.. _power-operator:
+
 ``**`` power operator
 =====================
 
