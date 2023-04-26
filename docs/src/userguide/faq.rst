@@ -955,7 +955,7 @@ The source code that Cython compiles can use both Python 2 and Python 3 syntax, 
 
     # cython: language_level=3
 
-at the top of the module file (within the first comment and before any code or empty lines). With Cython 3.x, compiling Python 2 code requires the option "-2" or the directive ``language_level=2``. By default, with the Python 3 semantics in Cython 3.0, ``print()`` is a function, loop variables in list comprehensions do not leak into the outer scope, etc. This is equivalent to ``language_level=3str`` or the option ``--3str``.  If you instead select ``language_level=3``, then, additionally, unprefixed strings are always unicode strings. 
+at the top of the module file (within the first comment and before any code or empty lines). With Cython 3.x, compiling Python 2 code requires the option "-2" or the directive ``language_level=2``. By default, with the Python 3 semantics in Cython 3.0, ``print()`` is a function, loop variables in list comprehensions do not leak into the outer scope, etc. This is equivalent to ``language_level=3str`` or the option ``--3str``.  If you instead select ``language_level=3``, then, additionally, unprefixed strings are always unicode strings.
 
 ----------
 
