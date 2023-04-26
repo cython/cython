@@ -20,7 +20,7 @@ TODO: Conditionally support 128-bit with intmax_t?
 /////////////// Common.proto ///////////////
 
 static int __Pyx_check_twos_complement(void) {
-    if ((-1 != ~0)) {
+    if ((-1) != (~0)) {
         PyErr_SetString(PyExc_RuntimeError, "Two's complement required for overflow checks.");
         return 1;
     } else if ((sizeof(short) == sizeof(int))) {

@@ -5,10 +5,26 @@ Cython Changelog
 3.0.0 beta 3 (2023-??-??)
 =========================
 
+Features added
+--------------
+
+* The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
+  ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
+
 Bugs fixed
 ----------
 
-* Some C compile failures in CPython 3.12 were resolved.
+* Some C compile failures in CPython 3.12.0a6/a7 were resolved.
+
+* Cascaded comparisons between integer constants and Python types could fail to compile.
+  (Github issue :issue:`5354`)
+
+* The internal macro ``__PYX_IS_UNSIGNED`` was accidentally duplicated in beta 2
+  which lead to C compile errors.
+  Patch by 0dminnimda.  (Github issue :issue:`5356`)
+
+* The dataclass implementation was adapted to support Python 3.12.
+  (Github issue :issue:`5346`)
 
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
@@ -1395,6 +1411,8 @@ Other changes
 
 Bugs fixed
 ----------
+
+* Some C compile failures in CPython 3.12 were resolved.
 
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)

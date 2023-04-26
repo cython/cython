@@ -403,7 +403,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                     h_code.putln("static %s = 0;" % type.declaration_code(cname))
                     h_code.putln("#define %s (*%s)" % (entry.name, cname))
-            h_code.put(UtilityCode.load_as_string("PyIdentifierFromString", "ImportExport.c")[0])
             if api_vars:
                 h_code.put(UtilityCode.load_as_string("VoidPtrImport", "ImportExport.c")[1])
             if api_funcs:
@@ -420,14 +419,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
                 sig = entry.type.signature_string()
                 h_code.putln(
-                    'if (__Pyx_ImportFunction(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
-                    % (entry.name.as_c_string_literal(), cname, sig))
+                    'if (__Pyx_ImportFunction_%s(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
+                    % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             for entry in api_vars:
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 sig = entry.type.empty_declaration_code()
                 h_code.putln(
-                    'if (__Pyx_ImportVoidPtr(module, %s, (void **)&%s, "%s") < 0) goto bad;'
-                    % (entry.name.as_c_string_literal(), cname, sig))
+                    'if (__Pyx_ImportVoidPtr_%s(module, %s, (void **)&%s, "%s") < 0) goto bad;'
+                    % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
                     self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
@@ -652,7 +651,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 dfs(type_dict[v])
             result.append(u)
 
-        for key in type_order:
+        for key in reversed(type_order):
             dfs(type_dict[key])
 
         result.reverse()
@@ -891,7 +890,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_extern_c_macro_definition(self, code, is_cpp):
         name = Naming.extern_c_macro
-        code.putln("#ifndef %s" % name)
+        code.putln("#ifdef CYTHON_EXTERN_C")
+        # make sure that user overrides always take precedence
+        code.putln('    #undef %s' % name)
+        code.putln('    #define %s CYTHON_EXTERN_C' % name)
+        code.putln("#elif defined(%s)" % name)
+        code.putln("    #ifdef _MSC_VER")
+        code.putln("    #pragma message (\"Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead.\")" % name)
+        code.putln("    #else")
+        code.putln("    #warning Please do not define the '%s' macro externally. Use 'CYTHON_EXTERN_C' instead." % name)
+        code.putln("    #endif")
+        code.putln("#else")
         if is_cpp:
             code.putln('    #define %s extern "C++"' % name)
         else:
@@ -1457,7 +1466,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
                         self.generate_richcmp_function(scope, code)
-                    elif scope.directives.get('total_ordering'):
+                    elif 'total_ordering' in scope.directives:
                         # Warn if this is used when it can't have any effect.
                         warning(scope.parent_type.pos,
                                 "total_ordering directive used, but no comparison and equality methods defined")
@@ -2135,7 +2144,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # need to call up into base classes as we may not know all implemented comparison methods
             extern_parent = cls if cls.typeptr_cname else scope.parent_type.base_type
 
-        total_ordering = scope.directives.get('total_ordering', False)
+        total_ordering = 'total_ordering' in scope.directives
 
         comp_entry = {}
 
@@ -3704,7 +3713,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = module.mangle(Naming.varptr_prefix, entry.name)
                 signature = entry.type.empty_declaration_code()
                 code.putln(
-                    'if (__Pyx_ImportVoidPtr(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportVoidPtr_%s(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
+                        Naming.cyversion,
                         temp, entry.name, cname, signature,
                         code.error_goto(self.pos)))
             code.put_decref_clear(temp, py_object_type)
@@ -3729,7 +3739,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_gotref(temp, py_object_type)
             for entry in entries:
                 code.putln(
-                    'if (__Pyx_ImportFunction(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                        Naming.cyversion,
                         temp,
                         entry.name.as_c_string_literal(),
                         entry.cname,
@@ -3807,8 +3818,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put('%s = __Pyx_ImportType(%s, %s,' % (
+        code.put('%s = __Pyx_ImportType_%s(%s, %s,' % (
             type.typeptr_cname,
+            Naming.cyversion,
             module,
             module_name))
 
@@ -3828,14 +3840,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not condition:
                 code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
+                objstruct, Naming.cyversion, objstruct))
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
+                objstruct, Naming.cyversion, objstruct))
             code.putln("#else")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (sizeof_objstruct, sizeof_objstruct))
+            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
+                sizeof_objstruct, Naming.cyversion, sizeof_objstruct))
             code.putln("#endif")
         else:
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT(%s),' % (objstruct, objstruct))
+            code.put('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
+                objstruct, Naming.cyversion, objstruct))
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
@@ -3845,7 +3861,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
                 type.check_size, module_name, type.name))
-        code.putln('__Pyx_ImportType_CheckSize_%s);' % check_size.title())
+        code.put('__Pyx_ImportType_CheckSize_%s_%s);' % (
+            check_size.title(), Naming.cyversion))
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 
