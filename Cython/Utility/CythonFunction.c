@@ -747,7 +747,10 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
+#if PY_VERSION_HEX >= 0x030C0000
+    0,                                  /*tp_watched*/
+#endif
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
 };
@@ -1279,7 +1282,10 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000
+#if PY_VERSION_HEX >= 0x030C0000
+    0,                                  /*tp_watched*/
+#endif
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
 };

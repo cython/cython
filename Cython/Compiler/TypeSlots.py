@@ -906,7 +906,7 @@ slot_table = (
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
     # PyPy specific extension - only here to avoid C compiler warnings.
-    EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000"),
+    EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000"),
 )
 
 #------------------------------------------------------------------------------------------
