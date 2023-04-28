@@ -2755,7 +2755,7 @@ def runtests(options, cmd_args, coverage=None):
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
-    if not COMPILER_HAS_INT128 or not IS_CPYTHON:
+    if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
 
     if options.shard_num > -1:
