@@ -1723,7 +1723,7 @@ class CEnumDefNode(StatNode):
             last_enum_value = 0 if self.visibility != 'extern' else None
             for item in self.items:
                 value_entry = item.analyse_declarations(scope, self.entry, last_enum_value)
-                last_enum_value = value_entry.equivalent_enum_value
+                last_enum_value = value_entry.equivalent_enum_value if self.visibility != 'extern' else None
                 if last_enum_value:
                     last_enum_value += 1
 
