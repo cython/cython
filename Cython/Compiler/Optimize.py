@@ -1256,7 +1256,7 @@ class SwitchTransform(Visitor.EnvTransform):
                 # final C value, but this is about the best we can do
                 try:
                     value_entry = value.entry
-                    if (value_entry.type.is_enum or value_entry.type.is_cpp_enum
+                    if ((value_entry.type.is_enum or value_entry.type.is_cpp_enum)
                             and value_entry.equivalent_enum_value is not None):
                         value_for_seen = value_entry.equivalent_enum_value
                     else:
