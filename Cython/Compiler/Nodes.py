@@ -1718,8 +1718,14 @@ class CEnumDefNode(StatNode):
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
+            # For extern enums we can't reason about their equivalent int values because
+            # we can't see them.
+            last_enum_value = 0 if self.visibility != 'extern' else None
             for item in self.items:
-                item.analyse_declarations(scope, self.entry)
+                value_entry = item.analyse_declarations(scope, self.entry, last_enum_value)
+                last_enum_value = value_entry.equivalent_enum_value
+                if last_enum_value:
+                    last_enum_value += 1
 
     def analyse_expressions(self, env):
         return self
@@ -1752,7 +1758,7 @@ class CEnumDefItemNode(StatNode):
 
     child_attrs = ["value"]
 
-    def analyse_declarations(self, env, enum_entry):
+    def analyse_declarations(self, env, enum_entry, incremental_enum_value):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
@@ -1769,9 +1775,26 @@ class CEnumDefItemNode(StatNode):
             self.value, self.pos, cname=cname,
             visibility=enum_entry.visibility, api=enum_entry.api,
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
+
+        enum_value = None
+        if self.value:
+            if self.value.is_literal:
+                enum_value = int(self.value.value)
+            else:
+                value_entry = getattr(self.value, 'entry', None)
+                if value_entry:
+                    enum_value = value_entry.equivalent_enum_value
+        else:
+            # The value it would have been just by incrementing
+            enum_value = incremental_enum_value
+        if enum_value is not None:
+            entry.equivalent_enum_value = enum_value
+
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
             enum_entry.type.values.append(entry.name)
+
+        return entry
 
 
 class CTypeDefNode(StatNode):

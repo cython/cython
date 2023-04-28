@@ -4273,6 +4273,17 @@ class CppScopedEnumType(CType):
                 module_name = self.entry.scope.qualified_name
             else:
                 module_name = None
+
+            directives = CythonUtilityCode.filter_inherited_directives(
+                env.global_scope().directives)
+            if any(value_entry.equivalent_enum_value is None for value_entry in self.entry.enum_values):
+                # We're at a high risk of making a switch statement with equal values in
+                # (because we simply can't tell, and enums are often used like that).
+                # So turn off the switch optimization to be safe.
+                # Although note that for now Cython doesn't do the switch optimization for
+                # scoped enums anyway, so this is mainly future-proofing
+                directives['optimize.use_switch'] = False
+
             env.use_utility_code(CythonUtilityCode.load(
                 "EnumTypeToPy", "CpdefEnums.pyx",
                 context={"funcname": self.to_py_function,
@@ -4282,7 +4293,8 @@ class CppScopedEnumType(CType):
                         "module_name": module_name,
                         "is_flag": False,
                         },
-                outer_module_scope=self.entry.scope  # ensure that "name" is findable
+                outer_module_scope=self.entry.scope,  # ensure that "name" is findable
+                compiler_directives=directives,
             ))
             return True
         if self.underlying_type.create_to_py_utility_code(env):
@@ -4439,6 +4451,15 @@ class CEnumType(CIntLike, CType):
             module_name = self.entry.scope.qualified_name
         else:
             module_name = None
+
+        directives = CythonUtilityCode.filter_inherited_directives(
+            env.global_scope().directives)
+        if any(value_entry.equivalent_enum_value is None for value_entry in self.entry.enum_values):
+            # We're at a high risk of making a switch statement with equal values in
+            # (because we simply can't tell, and enums are often used like that).
+            # So turn off the switch optimization to be safe
+            directives['optimize.use_switch'] = False
+
         env.use_utility_code(CythonUtilityCode.load(
             "EnumTypeToPy", "CpdefEnums.pyx",
             context={"funcname": self.to_py_function,
@@ -4448,7 +4469,8 @@ class CEnumType(CIntLike, CType):
                     "module_name": module_name,
                     "is_flag": True,
                     },
-            outer_module_scope=self.entry.scope  # ensure that "name" is findable
+            outer_module_scope=self.entry.scope,  # ensure that "name" is findable
+            compiler_directives = directives,
         ))
         return True
 
