@@ -142,6 +142,11 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_DigitCount(x)  (((PyLongObject*)x)->long_value.lv_tag >> 3)  // (>> NON_SIZE_BITS)
   #define __Pyx_PyLong_SignedDigitCount(x)  \
         ((1 - (Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag & 3)) * (Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag >> 3))  // (>> NON_SIZE_BITS)
+
+  // CPython 3.12 requires C99
+  typedef Py_ssize_t  __Pyx_compact_pylong;
+  typedef size_t  __Pyx_compact_upylong;
+
   #else  // Py < 3.12
   #define __Pyx_PyLong_IsNeg(x)  (Py_SIZE(x) < 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (Py_SIZE(x) >= 0)
@@ -153,9 +158,10 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_CompactValueUnsigned(x)  ((Py_SIZE(x) == 0) ? 0 : __Pyx_PyLong_Digits(x)[0])
   #define __Pyx_PyLong_DigitCount(x)  __Pyx_sst_abs(Py_SIZE(x))
   #define __Pyx_PyLong_SignedDigitCount(x)  Py_SIZE(x)
-  #endif
 
   typedef sdigit  __Pyx_compact_pylong;
+  typedef digit  __Pyx_compact_upylong;
+  #endif
 
   #if PY_VERSION_HEX >= 0x030C00A5
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
@@ -570,27 +576,41 @@ bad:
 
 
 /////////////// FromPyCTupleUtility.proto ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject *);
+static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject *);
 
 /////////////// FromPyCTupleUtility ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result;
-
-    if (!PyTuple_Check(o) || PyTuple_GET_SIZE(o) != {{size}}) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
-        PyErr_Format(PyExc_TypeError,
-                     "Expected a tuple of size %d, got " __Pyx_FMT_TYPENAME, {{size}}, o_type_name);
-        __Pyx_DECREF_TypeName(o_type_name);
-        goto bad;
-    }
 
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+static {{struct_type_decl}} __Pyx_tuple_{{funcname}}(PyObject * o) {
+    {{struct_type_decl}} result;
+
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result.f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
-#else
+
+    return result;
+bad:
+    return result;
+}
+#endif
+
+static {{struct_type_decl}} __Pyx_seq_{{funcname}}(PyObject * o) {
+    {{struct_type_decl}} result;
+
+    if (unlikely(!PySequence_Check(o))) {
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        PyErr_Format(PyExc_TypeError,
+                     "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
+        __Pyx_DECREF_TypeName(o_type_name);
+        goto bad;
+    } else if (unlikely(PySequence_Length(o) != {{size}})) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected a sequence of size %zd, got size %zd", (Py_ssize_t) {{size}}, PySequence_Length(o));
+        goto bad;
+    }
+
     {
         PyObject *item;
     {{for ix, component in enumerate(components):}}
@@ -601,11 +621,20 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
     }
-#endif
 
     return result;
 bad:
     return result;
+}
+
+static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject * o) {
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    if (likely(PyTuple_Check(o) && PyTuple_GET_SIZE(o) == {{size}})) {
+        return __Pyx_tuple_{{funcname}}(o);
+    }
+    #endif
+
+    return __Pyx_seq_{{funcname}}(o);
 }
 
 
@@ -994,7 +1023,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             //} else if (__Pyx_PyLong_IsZero(x)) {
             //    return ({{TYPE}}) 0;
             } else if (__Pyx_PyLong_IsCompact(x)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValueUnsigned(x))
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
             } else {
                 const digit* digits = __Pyx_PyLong_Digits(x);
                 assert(__Pyx_PyLong_DigitCount(x) > 1);

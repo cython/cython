@@ -1315,6 +1315,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
+        current_opt_dict = dict(self.directives)
+        missing = object()
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1322,8 +1324,14 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if self.directives.get(name, object()) != value:
+                        if current_opt_dict.get(name, missing) != value:
+                            if name == 'cfunc' and 'ufunc' in current_opt_dict:
+                                error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
                             directives.append(directive)
+                            current_opt_dict[name] = value
+                        else:
+                            warning(dec.pos, "Directive does not change previous value (%s%s)" % (
+                                name, '=%r' % value if value is not None else ''))
                         if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
@@ -2399,7 +2407,7 @@ if VALUE is not None:
 
         self.seen_vars_stack.pop()
 
-        if lenv.directives.get("ufunc"):
+        if "ufunc" in lenv.directives:
             from . import UFuncs
             return UFuncs.convert_to_ufunc(node)
         return node
@@ -2894,6 +2902,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
         if 'ccall' in self.directives:
+            if 'cfunc' in self.directives:
+                error(node.pos, "cfunc and ccall directives cannot be combined")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
