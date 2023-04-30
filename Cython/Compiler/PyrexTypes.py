@@ -532,8 +532,11 @@ class CTypedefType(BaseType):
                     self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntFromPy", "TypeConversion.c",
-                        context={"TYPE": self.empty_declaration_code(),
-                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                        context={
+                            "TYPE": self.empty_declaration_code(),
+                            "FROM_PY_FUNCTION": self.from_py_function,
+                            "IS_ENUM": base_type.is_enum,
+                        }))
                     return True
                 elif base_type.is_float:
                     pass  # XXX implement!
@@ -2043,8 +2046,11 @@ class CIntLike(object):
             self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntFromPy", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
-                         "FROM_PY_FUNCTION": self.from_py_function}))
+                context={
+                    "TYPE": self.empty_declaration_code(),
+                    "FROM_PY_FUNCTION": self.from_py_function,
+                    "IS_ENUM": self.is_enum,
+                }))
         return True
 
     @staticmethod

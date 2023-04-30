@@ -1097,6 +1097,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             }
         }
 
+        {{if IS_ENUM}}
+        PyErr_SetString(PyExc_RuntimeError,
+                        "_PyLong_AsByteArray() not available, cannot convert large enums");
+        return ({{TYPE}}) -1;
+        {{else}}
         // large integer type and no access to PyLong internals => allow for a more expensive conversion
         {
             {{TYPE}} val;
@@ -1110,7 +1115,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
             if (likely(v)) {
                 int ret = -1;
-#if 0 // !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
                 int one = 1; int is_little = (int)*(unsigned char *)&one;
                 unsigned char *bytes = (unsigned char *)&val;
                 ret = _PyLong_AsByteArray((PyLongObject *)v,
@@ -1214,6 +1219,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             }
             return ({{TYPE}}) -1;
         }
+        {{endif}}
     } else {
         {{TYPE}} val;
         PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
