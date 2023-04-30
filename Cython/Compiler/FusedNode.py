@@ -511,7 +511,7 @@ class FusedCFuncDefNode(StatListNode):
             """
             try:
                 arg_as_memoryview = memoryview(arg)
-            except TypeError:
+            except (ValueError, TypeError):
                 pass
             """)
         with pyx_code.indenter("else:"):
