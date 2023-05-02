@@ -57,6 +57,11 @@ class StringIOTree(object):
         self.write = stream.write
         self.markers = []
 
+    def empty(self):
+        if self.stream.tell():
+            return False
+        return all([child.empty() for child in self.prepended_children]) if self.prepended_children else True
+
     def getvalue(self):
         content = []
         self._collect_in(content)
@@ -87,6 +92,12 @@ class StringIOTree(object):
             self.markers = []
             self.stream = StringIO()
             self.write = self.stream.write
+
+    def reset(self):
+        self.prepended_children = []
+        self.markers = []
+        self.stream = StringIO()
+        self.write = self.stream.write
 
     def insert(self, iotree):
         """

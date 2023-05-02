@@ -9,26 +9,61 @@ cdef extern from "<list>" namespace "std" nogil:
         ctypedef size_t size_type
         ctypedef ptrdiff_t difference_type
 
+        cppclass const_iterator
         cppclass iterator:
-            iterator()
-            iterator(iterator &)
-            T& operator*()
+            iterator() except +
+            iterator(iterator&) except +
+            value_type& operator*()
             iterator operator++()
             iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
             bint operator==(iterator)
+            bint operator==(const_iterator)
             bint operator!=(iterator)
+            bint operator!=(const_iterator)
+        cppclass const_iterator:
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            const_iterator(const_iterator&) except +
+            operator=(iterator&) except +
+            const value_type& operator*()
+            const_iterator operator++()
+            const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
+        cppclass const_reverse_iterator
         cppclass reverse_iterator:
-            reverse_iterator()
-            reverse_iterator(iterator &)
-            T& operator*()
+            reverse_iterator() except +
+            reverse_iterator(reverse_iterator&) except +
+            value_type& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
+            reverse_iterator operator++(int)
+            reverse_iterator operator--(int)
             bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
-        cppclass const_iterator(iterator):
-            pass
-        cppclass const_reverse_iterator(reverse_iterator):
-            pass
+            bint operator!=(const_reverse_iterator)
+        cppclass const_reverse_iterator:
+            const_reverse_iterator() except +
+            const_reverse_iterator(reverse_iterator&) except +
+            operator=(reverse_iterator&) except +
+            const value_type& operator*()
+            const_reverse_iterator operator++()
+            const_reverse_iterator operator--()
+            const_reverse_iterator operator++(int)
+            const_reverse_iterator operator--(int)
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
+
         list() except +
         list(list&) except +
         list(size_t, T&) except +
@@ -43,10 +78,12 @@ cdef extern from "<list>" namespace "std" nogil:
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         void clear()
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
@@ -61,10 +98,12 @@ cdef extern from "<list>" namespace "std" nogil:
         void push_front(T&) except +
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
+        const_reverse_iterator crbegin()
         void remove(T&) except +
         #void remove_if(UnPred)
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
+        const_reverse_iterator crend()
         void resize(size_t, T&) except +
         void reverse()
         size_t size()

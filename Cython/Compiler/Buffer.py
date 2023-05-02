@@ -699,10 +699,10 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         flags = "0"
         is_unsigned = "0"
         if dtype is PyrexTypes.c_char_type:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "'H'"
         elif dtype.is_int:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "%s ? 'U' : 'I'" % is_unsigned
         elif complex_possible or dtype.is_complex:
             typegroup = "'C'"

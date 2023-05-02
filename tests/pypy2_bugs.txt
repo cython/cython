@@ -16,8 +16,9 @@ run.partial_circular_import
 # https://foss.heptapod.net/pypy/pypy/issues/3185
 run.language_level
 run.pure_pxd
+compile.pxd_mangling_names
 
-# Silly error with doctest matching slightly different string outputs rather than 
+# Silly error with doctest matching slightly different string outputs rather than
 # an actual bug but one I can't easily resolve
 run.with_gil
 
@@ -32,3 +33,6 @@ memoryview.numpy_memoryview
 # (the overridden __Pyx_PyObject_GetItem requires CYTHON_USE_TYPE_SLOTS)
 run.test_genericclass
 run.test_subclassinit
+
+# TypeError: 'memoryview' does not have the buffer interface
+run.buffer_n_overflowcheck_T5356

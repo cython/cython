@@ -46,3 +46,7 @@ run.cpp_classes_def
 memoryview_inplace_division
 run.pyarray
 run.array_cimport
+
+# relies on deprecated unicode APIs that will be removed in python3.12
+# exposing the underlying unicode buffer in PyPy is not thread-safe
+run.py_unicode_strings

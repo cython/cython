@@ -6,6 +6,32 @@
 // __Pyx_GetException()
 
 
+/////////////// AssertionsEnabled.init ///////////////
+__Pyx_init_assertions_enabled();
+
+/////////////// AssertionsEnabled.proto ///////////////
+
+#define __Pyx_init_assertions_enabled()
+
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
+  #define __pyx_assertions_enabled() (1)
+#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY  ||  defined(Py_LIMITED_API)
+  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
+  // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
+  // Py_OptimizeFlag is deprecated in Py3.12+
+  static int __pyx_assertions_enabled_flag;
+  #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
+
+  #undef __Pyx_init_assertions_enabled
+  static void __Pyx_init_assertions_enabled(void) {
+    __pyx_assertions_enabled_flag = ! _PyInterpreterState_GetConfig(__Pyx_PyThreadState_Current->interp)->optimization_level;
+  }
+#else
+  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
+#endif
+
+
 /////////////// ErrOccurredWithGIL.proto ///////////////
 static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
 
@@ -301,13 +327,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     PyErr_SetObject(type, value);
 
     if (tb) {
-#if CYTHON_COMPILING_IN_PYPY ||  CYTHON_COMPILING_IN_LIMITED_API
-        PyObject *tmp_type, *tmp_value, *tmp_tb;
-        PyErr_Fetch(&tmp_type, &tmp_value, &tmp_tb);
-        Py_INCREF(tb);
-        PyErr_Restore(tmp_type, tmp_value, tb);
-        Py_XDECREF(tmp_tb);
-#else
+#if CYTHON_FAST_THREAD_STATE
         PyThreadState *tstate = __Pyx_PyThreadState_Current;
         PyObject* tmp_tb = tstate->curexc_traceback;
         if (tb != tmp_tb) {
@@ -315,6 +335,12 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
             tstate->curexc_traceback = tb;
             Py_XDECREF(tmp_tb);
         }
+#else
+        PyObject *tmp_type, *tmp_value, *tmp_tb;
+        PyErr_Fetch(&tmp_type, &tmp_value, &tmp_tb);
+        Py_INCREF(tb);
+        PyErr_Restore(tmp_type, tmp_value, tb);
+        Py_XDECREF(tmp_tb);
 #endif
     }
 
@@ -327,13 +353,13 @@ bad:
 
 /////////////// GetTopmostException.proto ///////////////
 
-#if CYTHON_USE_EXC_INFO_STACK
+#if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
 static _PyErr_StackItem * __Pyx_PyErr_GetTopmostException(PyThreadState *tstate);
 #endif
 
 /////////////// GetTopmostException ///////////////
 
-#if CYTHON_USE_EXC_INFO_STACK
+#if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
 // Copied from errors.c in CPython.
 static _PyErr_StackItem *
 __Pyx_PyErr_GetTopmostException(PyThreadState *tstate)
@@ -675,10 +701,8 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
     PyGILState_STATE state;
     if (nogil)
         state = PyGILState_Ensure();
-#ifdef _MSC_VER
     /* arbitrary, to suppress warning */
-    else state = (PyGILState_STATE)-1;
-#endif
+    else state = (PyGILState_STATE)0;
 #endif
     CYTHON_UNUSED_VAR(clineno);
     CYTHON_UNUSED_VAR(lineno);
@@ -727,12 +751,14 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@substitute: naming
 
 #ifndef CYTHON_CLINE_IN_TRACEBACK
-static int __Pyx_CLineForTraceback(CYTHON_NCP_UNUSED PyThreadState *tstate, int c_line) {
+static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
 #if CYTHON_COMPILING_IN_CPYTHON
     PyObject **cython_runtime_dict;
 #endif
+
+    CYTHON_MAYBE_UNUSED_VAR(tstate);
 
     if (unlikely(!${cython_runtime_cname})) {
         // Very early error where the runtime module is not set up yet.
@@ -785,6 +811,12 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
@@ -792,9 +824,9 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     if (c_line) {
         // Avoid "unused" warning as long as we don't use this.
         (void) $cfilenm_cname;
-        c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
+        (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
-    _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
+    _PyTraceback_Add(funcname, filename, py_line);
 }
 #else
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
@@ -864,6 +896,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
     PyThreadState *tstate = __Pyx_PyThreadState_Current;
+    PyObject *ptype, *pvalue, *ptraceback;
 
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(tstate, c_line);
@@ -872,9 +905,18 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     // Negate to avoid collisions between py and c lines.
     py_code = $global_code_object_cache_find(c_line ? -c_line : py_line);
     if (!py_code) {
+        __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
         py_code = __Pyx_CreateCodeObjectForTraceback(
             funcname, c_line, py_line, filename);
-        if (!py_code) goto bad;
+        if (!py_code) {
+            /* If the code object creation fails, then we should clear the
+               fetched exception references and propagate the new exception */
+            Py_XDECREF(ptype);
+            Py_XDECREF(pvalue);
+            Py_XDECREF(ptraceback);
+            goto bad;
+        }
+        __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
         $global_code_object_cache_insert(c_line ? -c_line : py_line, py_code);
     }
     py_frame = PyFrame_New(

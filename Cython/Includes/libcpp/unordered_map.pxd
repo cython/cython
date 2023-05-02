@@ -6,17 +6,44 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         ctypedef U mapped_type
         ctypedef pair[const T, U] value_type
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
+        cppclass iterator
         cppclass iterator:
+            iterator() except +
+            iterator(iterator&) except +
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
             pair[T, U]& operator*()
-            iterator& operator++()
-            bint operator==(const iterator&)
-            bint operator!=(const iterator&)
+            iterator operator++()
+            iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            operator=(iterator&) except +
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
             const pair[T, U]& operator*()
-            const_iterator& operator++()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator operator++()
+            const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
         unordered_map() except +
         unordered_map(unordered_map&) except +
         #unordered_map(key_compare&)
@@ -32,11 +59,13 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         const U& const_at "at"(const T&) except +
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         void clear()
         size_t count(const T&)
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         pair[iterator, iterator] equal_range(const T&)
         pair[const_iterator, const_iterator] const_equal_range "equal_range"(const T&)
         iterator erase(iterator)
@@ -66,23 +95,48 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         size_t max_bucket_count()
         size_t bucket_size(size_t)
         size_t bucket(const T&)
+        # C++20
+        bint contains(const T&)
 
     cdef cppclass unordered_multimap[T, U, HASH=*, PRED=*, ALLOCATOR=*]:
         ctypedef T key_type
         ctypedef U mapped_type
         ctypedef pair[const T, U] value_type
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
+        cppclass const_iterator
         cppclass iterator:
+            iterator() except +
+            iterator(iterator&) except +
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
             pair[T, U]& operator*()
             iterator operator++()
+            iterator operator++(int)
             bint operator==(iterator)
+            bint operator==(const_iterator)
             bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            operator=(iterator&) except +
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
             const pair[T, U]& operator*()
-            const_iterator& operator++()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator operator++()
+            const_iterator operator++(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
         unordered_multimap() except +
         unordered_multimap(const unordered_multimap&) except +
         #unordered_multimap(key_compare&)
@@ -95,6 +149,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         bint operator>=(const unordered_multimap&, const unordered_multimap&)
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         #local_iterator begin(size_t)
         #const_local_iterator const_begin "begin"(size_t)
         void clear()
@@ -102,6 +157,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         #local_iterator end(size_t)
         #const_local_iterator const_end "end"(size_t)
         pair[iterator, iterator] equal_range(const T&)
@@ -126,9 +182,12 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
+        float load_factor()
         void rehash(size_t)
         void reserve(size_t)
         size_t bucket_count()
         size_t max_bucket_count()
         size_t bucket_size(size_t)
         size_t bucket(const T&)
+        # C++20
+        bint contains(const T&)

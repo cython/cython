@@ -9,7 +9,7 @@ from __future__ import absolute_import, print_function
 
 from .Compiler.Visitor import TreeVisitor
 from .Compiler.ExprNodes import *
-from .Compiler.Nodes import CNameDeclaratorNode, CSimpleBaseTypeNode
+from .Compiler.Nodes import CSimpleBaseTypeNode
 
 
 class LinesResult(object):
@@ -644,7 +644,10 @@ class ExpressionWriter(TreeVisitor):
         self.visit(node.base)
         self.put(u"[")
         if isinstance(node.index, TupleNode):
-            self.emit_sequence(node.index)
+            if node.index.subexpr_nodes():
+                self.emit_sequence(node.index)
+            else:
+                self.put(u"()")
         else:
             self.visit(node.index)
         self.put(u"]")

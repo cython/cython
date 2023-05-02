@@ -8,8 +8,11 @@
 Using Parallelism
 **********************************
 
+.. include::
+    ../two-syntax-variants-used
+
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the GIL must be released
+module. To use this kind of parallelism, the :term:`GIL<Global Interpreter Lock or GIL>` must be released
 (see :ref:`Releasing the GIL <nogil>`).
 It currently supports OpenMP, but later on more backends might be supported.
 
@@ -87,7 +90,7 @@ It currently supports OpenMP, but later on more backends might be supported.
         runtime:
             The schedule and chunk size are taken from the runtime scheduling
             variable, which can be set through the ``openmp.omp_set_schedule()``
-            function call, or the OMP_SCHEDULE environment variable.  Note that
+            function call, or the ``OMP_SCHEDULE`` environment variable.  Note that
             this essentially disables any static compile time optimisations of
             the scheduling code itself and may therefore show a slightly worse
             performance than when the same scheduling policy is statically
@@ -116,17 +119,27 @@ It currently supports OpenMP, but later on more backends might be supported.
 
 Example with a reduction:
 
-.. literalinclude:: ../../examples/userguide/parallelism/simple_sum.pyx
+.. tabs::
 
-Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)::
+    .. group-tab:: Pure Python
 
-    from cython.parallel import prange
+        .. literalinclude:: ../../examples/userguide/parallelism/simple_sum.py
 
-    def func(double[:] x, double alpha):
-        cdef Py_ssize_t i
+    .. group-tab:: Cython
 
-        for i in prange(x.shape[0]):
-            x[i] = alpha * x[i]
+        .. literalinclude:: ../../examples/userguide/parallelism/simple_sum.pyx
+
+Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/parallelism/memoryview_sum.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/parallelism/memoryview_sum.pyx
 
 .. function:: parallel(num_threads=None)
 
@@ -137,29 +150,17 @@ Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)::
     is also private to the prange. Variables that are private in the parallel
     block are unavailable after the parallel block.
 
-    Example with thread-local buffers::
+    Example with thread-local buffers
 
-       from cython.parallel import parallel, prange
-       from libc.stdlib cimport abort, malloc, free
+    .. tabs::
 
-       cdef Py_ssize_t idx, i, n = 100
-       cdef int * local_buf
-       cdef size_t size = 10
+        .. group-tab:: Pure Python
 
-       with nogil, parallel():
-           local_buf = <int *> malloc(sizeof(int) * size)
-           if local_buf is NULL:
-               abort()
+            .. literalinclude:: ../../examples/userguide/parallelism/parallel.py
 
-           # populate our local buffer in a sequential loop
-           for i in xrange(size):
-               local_buf[i] = i * 2
+        .. group-tab:: Cython
 
-           # share the work using the thread-local buffer(s)
-           for i in prange(n, schedule='guided'):
-               func(local_buf)
-
-           free(local_buf)
+            .. literalinclude:: ../../examples/userguide/parallelism/parallel.pyx
 
     Later on sections might be supported in parallel blocks, to distribute
     code sections of work among threads.
@@ -174,9 +175,17 @@ Compiling
 =========
 
 To actually use the OpenMP support, you need to tell the C or C++ compiler to
-enable OpenMP.  For gcc this can be done as follows in a setup.py:
+enable OpenMP.  For gcc this can be done as follows in a ``setup.py``:
 
-.. literalinclude:: ../../examples/userguide/parallelism/setup.py
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/parallelism/setup_py.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/parallelism/setup_pyx.py
 
 For Microsoft Visual C++ compiler, use ``'/openmp'`` instead of ``'-fopenmp'``.
 
@@ -188,13 +197,21 @@ The parallel with and prange blocks support the statements break, continue and
 return in nogil mode. Additionally, it is valid to use a ``with gil`` block
 inside these blocks, and have exceptions propagate from them.
 However, because the blocks use OpenMP, they can not just be left, so the
-exiting procedure is best-effort. For prange() this means that the loop
+exiting procedure is best-effort. For ``prange()`` this means that the loop
 body is skipped after the first break, return or exception for any subsequent
 iteration in any thread. It is undefined which value shall be returned if
 multiple different values may be returned, as the iterations are in no
 particular order:
 
-.. literalinclude:: ../../examples/userguide/parallelism/breaking_loop.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/parallelism/breaking_loop.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/parallelism/breaking_loop.pyx
 
 In the example above it is undefined whether an exception shall be raised,
 whether it will simply break or whether it will return 2.
@@ -203,7 +220,17 @@ Using OpenMP Functions
 ======================
 OpenMP functions can be used by cimporting ``openmp``:
 
-.. literalinclude:: ../../examples/userguide/parallelism/cimport_openmp.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/parallelism/cimport_openmp.py
+            :lines: 3-
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/parallelism/cimport_openmp.pyx
+            :lines: 3-
 
 .. rubric:: References
 

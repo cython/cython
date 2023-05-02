@@ -248,7 +248,7 @@ cdef extern from "bufaccess.h":
     ctypedef unsigned int td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
-cdef void dealloc_callback(void *data):
+cdef void dealloc_callback(void *data) noexcept:
     print "deallocating..."
 
 def build_numarray(array array):
@@ -734,3 +734,29 @@ def same_type_after_arrays_composite():
     cdef SameTypeAfterArraysStructComposite element
     arr = np.ones(2, np.asarray(<SameTypeAfterArraysStructComposite[:1]>&element).dtype)
     cdef SameTypeAfterArraysStructComposite[:] memview = arr
+
+ctypedef fused np_numeric_t:
+    np.float64_t
+
+def test_invalid_buffer_fused_memoryview(np_numeric_t[:] A):
+    """
+    >>> import numpy as np
+    >>> zz = np.zeros([5], dtype='M')
+    >>> test_invalid_buffer_fused_memoryview(zz)
+    Traceback (most recent call last):
+        ...
+    TypeError: No matching signature found
+    """
+    return
+
+ctypedef fused np_numeric_object_t:
+    np.float64_t[:]
+    object
+
+def test_valid_buffer_fused_memoryview(np_numeric_object_t A):
+    """
+    >>> import numpy as np
+    >>> zz = np.zeros([5], dtype='M')
+    >>> test_valid_buffer_fused_memoryview(zz)
+    """
+    return

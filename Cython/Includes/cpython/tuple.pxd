@@ -70,4 +70,3 @@ cdef extern from "Python.h":
     # the object referenced by *p is replaced, the original *p is
     # destroyed. On failure, returns -1 and sets *p to NULL, and
     # raises MemoryError or SystemError.
-

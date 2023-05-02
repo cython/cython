@@ -24,7 +24,9 @@ Contents:
    parallelism
    debugging
    numpy_tutorial
+   numpy_ufuncs
    numpy_pythran
+   nogil
 
 Indices and tables
 ------------------
@@ -32,7 +34,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-.. toctree::
-
-   glossary

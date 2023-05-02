@@ -11,8 +11,8 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
-    (void) spec;
-    (void) type;
+    CYTHON_UNUSED_VAR(spec);
+    CYTHON_UNUSED_VAR(type);
 #else
     // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
     // Copied and adapted from https://bugs.python.org/issue38140
@@ -156,7 +156,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 /////////////// PyType_Ready.proto ///////////////
 
 // unused when using type specs
-static CYTHON_UNUSED int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
@@ -230,6 +230,15 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#if PY_VERSION_HEX >= 0x030A0000
+        // As of https://github.com/python/cpython/pull/25520
+        // PyType_Ready marks types as immutable if they are static types
+        // and requires the Py_TPFLAGS_IMMUTABLETYPE flag to mark types as
+        // immutable
+        // Manually set the Py_TPFLAGS_IMMUTABLETYPE flag, since the type
+        // is immutable
+        t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
+#endif
 #else
         // avoid C warning about unused helper function
         (void)__Pyx_PyObject_CallMethod0;
@@ -409,18 +418,37 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
 static int __Pyx_setup_reduce(PyObject* type_obj) {
     int ret = 0;
     PyObject *object_reduce = NULL;
+    PyObject *object_getstate = NULL;
     PyObject *object_reduce_ex = NULL;
     PyObject *reduce = NULL;
     PyObject *reduce_ex = NULL;
     PyObject *reduce_cython = NULL;
     PyObject *setstate = NULL;
     PyObject *setstate_cython = NULL;
+    PyObject *getstate = NULL;
 
 #if CYTHON_USE_PYTYPE_LOOKUP
-    if (_PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"))) goto __PYX_GOOD;
+    getstate = _PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"));
 #else
-    if (PyObject_HasAttr(type_obj, PYIDENT("__getstate__"))) goto __PYX_GOOD;
+    getstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__getstate__"));
+    if (!getstate && PyErr_Occurred()) {
+        goto __PYX_BAD;
+    }
 #endif
+    if (getstate) {
+        // Python 3.11 introduces object.__getstate__. Because it's version-specific failure to find it should not be an error
+#if CYTHON_USE_PYTYPE_LOOKUP
+        object_getstate = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__getstate__"));
+#else
+        object_getstate = __Pyx_PyObject_GetAttrStrNoError((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"));
+        if (!object_getstate && PyErr_Occurred()) {
+            goto __PYX_BAD;
+        }
+#endif
+        if (object_getstate != getstate) {
+            goto __PYX_GOOD;
+        }
+    }
 
 #if CYTHON_USE_PYTYPE_LOOKUP
     object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto __PYX_BAD;
@@ -480,6 +508,8 @@ __PYX_GOOD:
 #if !CYTHON_USE_PYTYPE_LOOKUP
     Py_XDECREF(object_reduce);
     Py_XDECREF(object_reduce_ex);
+    Py_XDECREF(object_getstate);
+    Py_XDECREF(getstate);
 #endif
     Py_XDECREF(reduce);
     Py_XDECREF(reduce_ex);
@@ -542,4 +572,38 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
         return {{call_right}};
     }
     return __Pyx_NewRef(Py_NotImplemented);
+}
+
+/////////////// ValidateExternBase.proto ///////////////
+
+static int __Pyx_validate_extern_base(PyTypeObject *base); /* proto */
+
+/////////////// ValidateExternBase ///////////////
+//@requires: ObjectHandling.c::FormatTypeName
+
+static int __Pyx_validate_extern_base(PyTypeObject *base) {
+    Py_ssize_t itemsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_itemsize;
+#endif
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    itemsize = ((PyTypeObject *)base)->tp_itemsize;
+#else
+    py_itemsize = PyObject_GetAttrString((PyObject*)base, "__itemsize__");
+    if (!py_itemsize)
+        return -1;
+    itemsize = PyLong_AsSsize_t(py_itemsize);
+    Py_DECREF(py_itemsize);
+    py_itemsize = 0;
+    if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        return -1;
+#endif
+    if (itemsize) {
+        __Pyx_TypeName b_name = __Pyx_PyType_GetName(base);
+        PyErr_Format(PyExc_TypeError,
+                "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
+        __Pyx_DECREF_TypeName(b_name);
+        return -1;
+    }
+    return 0;
 }

@@ -12,16 +12,21 @@ file named :file:`primes.pyx`.
 
 Cython code, unlike Python, must be compiled.  This happens in two stages:
 
-  * A ``.pyx`` file is compiled by Cython to a ``.c`` file.
+  * A ``.pyx`` (or ``.py``) file is compiled by Cython to a ``.c`` file.
 
   * The ``.c`` file is compiled by a C compiler to a ``.so`` file (or a
     ``.pyd`` file on Windows)
 
-Once you have written your ``.pyx`` file, there are a couple of ways of turning it
-into an extension module.
+Once you have written your ``.pyx``/``.py`` file, there are a couple of ways
+how to turn it into an extension module.
 
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
+
+There are also a number of tools that process ``.pyx`` files apart from Cython, e.g.
+
+- Linting: https://pypi.org/project/cython-lint/
+
 
 .. _compiling_command_line:
 
@@ -103,6 +108,7 @@ that CPython generates for disambiguation, such as
 ``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
 of CPython 3.5.
 
+
 .. _basic_setup.py:
 
 Basic setup.py
@@ -139,6 +145,7 @@ documentation`_. To compile the extension for use in the current directory use:
 .. code-block:: text
 
     $ python setup.py build_ext --inplace
+
 
 Configuring the C-Build
 ------------------------
@@ -313,6 +320,7 @@ Just as an example, this adds ``mylib`` as library to every extension::
     If you Cythonize in parallel (using the ``nthreads`` argument),
     then the argument to ``create_extension`` must be pickleable.
     In particular, it cannot be a lambda function.
+
 
 .. _cythonize_arguments:
 
@@ -605,11 +613,12 @@ Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
 efficient re-use.
 
+
 Compiling with ``cython.compile``
 =================================
 
 Cython supports transparent compiling of the cython code in a function using the
-``@cython.compile`` dedorator::
+``@cython.compile`` decorator::
 
     @cython.compile
     def plus(a, b):
@@ -634,6 +643,7 @@ will produce following output::
     35
     8
 
+
 .. _compiling_with_sage:
 
 Compiling with Sage
@@ -647,6 +657,7 @@ running session.  Please check `Sage documentation
 
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
+
 
 .. _compiling_notebook:
 
@@ -807,11 +818,12 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
 ``initializedcheck`` (True / False)
-    If set to True, Cython checks that 
+    If set to True, Cython checks that
      - a memoryview is initialized whenever its elements are accessed 
-       or assigned to. 
+       or assigned to.
      - a C++ class is initialized when it is accessed 
        (only when ``cpp_locals`` is on)
+
     Setting this to False disables these checks.
     Default is True.
 
@@ -856,6 +868,24 @@ Cython code.  Here is the list of currently supported directives:
     division is performed with negative operands.  See `CEP 516
     <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
     False.
+    
+``cpow`` (True / False)
+    ``cpow`` modifies the return type of ``a**b``, as shown in the
+    table below:
+    
+        .. csv-table:: cpow behaviour
+            :file: cpow_table.csv
+            :header-rows: 1
+            :class: longtable
+            :widths: 1 1 3 3
+    
+    The ``cpow==True`` behaviour largely keeps the result type the
+    same as the operand types, while the ``cpow==False`` behaviour
+    follows Python and returns a flexible type depending on the
+    inputs.
+
+    Introduced in Cython 3.0 with a default of False;
+    before that, the behaviour matched the ``cpow=True`` version.
 
 ``always_allow_keywords`` (True / False)
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
@@ -893,13 +923,15 @@ Cython code.  Here is the list of currently supported directives:
     explicitly requested.
 
 ``language_level`` (2/3/3str)
-    Globally set the Python language level to be used for module
-    compilation.  Default is compatibility with Python 2.  To enable
-    Python 3 source code semantics, set this to 3 (or 3str) at the start
+    Globally set the Python language level to be used for module compilation.
+    Default is compatibility with Python 3 in Cython 3.x and with Python 2 in Cython 0.x.
+    To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
     of a module or pass the "-3" or "--3str" command line options to the
-    compiler.  The ``3str`` option enables Python 3 semantics but does
+    compiler.  For Python 2 semantics, use 2 and "-2" accordingly.  The ``3str``
+    option enables Python 3 semantics but does
     not change the ``str`` type and unprefixed string literals to
     ``unicode`` when the compiled code runs in Python 2.x.
+    Language level 2 ignores ``x: int`` type annotations due to the int/long ambiguity.
     Note that cimported files inherit this setting from the module
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.
@@ -933,22 +965,31 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
-  
+
 ``annotation_typing`` (True / False)
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
-    Must be set globally.
+    From Cython 3.0, ``annotation_typing`` can be set on a per-function or
+    per-class basis.
 
 ``emit_code_comments`` (True / False)
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
-    
+
 ``cpp_locals`` (True / False)
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
+
+``legacy_implicit_noexcept`` (True / False)
+    When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
+    the function will behave in the same way as if declared with `noexcept` keyword. See
+    :ref:`error_return_values` for details. Setting this directive to ``True`` will
+    cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
+    to help migrate legacy code written before Cython 3. It will be removed in a future release.
+
 
 .. _configurable_optimisations:
 
@@ -969,6 +1010,7 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
+
 
 .. _warnings:
 
