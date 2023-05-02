@@ -2133,7 +2133,7 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// UtilityCodePragmas /////////////////////////
 
-#if _MSC_VER
+#ifdef _MSC_VER
 #pragma warning( push )
 /* Warning 4127: conditional expression is constant
  * Cython uses constant conditional expressions to allow in inline functions to be optimized at
@@ -2144,6 +2144,6 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// UtilityCodePragmasEnd //////////////////////
 
-#if _MSV_VER
+#ifdef _MSC_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif
