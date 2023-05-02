@@ -158,8 +158,12 @@
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS (PY_MAJOR_VERSION >= 3)
   #endif
-  #undef CYTHON_PEP489_MULTI_PHASE_INIT
-  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #if PY_VERSION_HEX < 0x03090000
+    #undef CYTHON_PEP489_MULTI_PHASE_INIT
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #elif !defined(CYTHON_PEP489_MULTI_PHASE_INIT)
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
+  #endif
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
   #undef CYTHON_USE_TP_FINALIZE
@@ -2129,7 +2133,7 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// UtilityCodePragmas /////////////////////////
 
-#if _MSC_VER
+#ifdef _MSC_VER
 #pragma warning( push )
 /* Warning 4127: conditional expression is constant
  * Cython uses constant conditional expressions to allow in inline functions to be optimized at
@@ -2140,6 +2144,6 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// UtilityCodePragmasEnd //////////////////////
 
-#if _MSV_VER
+#ifdef _MSC_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif
