@@ -5566,10 +5566,12 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(Py_bf_getbuffer) && defined(Py_bf_releasebuffer)")
+                code.putln("/* PY_VERSION_HEX >= 0x03090000 || Py_LIMITED_API >= 0x030B0000 */")
                 code.putln("#elif defined(_MSC_VER)")
-                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API < 3.11.\")")
                 code.putln("#else")
-                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API < 3.11.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(

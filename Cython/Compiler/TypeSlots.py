@@ -268,6 +268,10 @@ class SlotDescriptor(object):
         if value == "0":
             return
         preprocessor_guard = self.preprocessor_guard_code()
+        if not preprocessor_guard:
+            if self.py3 and self.slot_name.startswith('bf_'):
+                # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
+                preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
         code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
@@ -628,9 +632,6 @@ class SuiteSlot(SlotDescriptor):
                 code.putln("#endif")
 
     def generate_spec(self, scope, code):
-        if self.slot_name == "tp_as_buffer":
-            # Cannot currently support the buffer protocol in the limited C-API.
-            return
         for slot in self.sub_slots:
             slot.generate_spec(scope, code)
 
