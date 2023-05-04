@@ -2094,11 +2094,9 @@ class GeneratorExpressionScope(ClosureScope):
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
-    #  visibility     string   Visibility of a C struct or union
 
-    def __init__(self, name="?", visibility='private'):
-        Scope.__init__(self, name, None, None)
-        self.visibility = visibility
+    def __init__(self, name="?"):
+        Scope.__init__(self, name, outer_scope=None, parent_scope=None)
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2125,8 +2123,6 @@ class StructOrUnionScope(Scope):
         elif type.needs_refcounting:
             if not allow_refcounted:
                 error(pos, "C struct/union member cannot be reference-counted type '%s'" % type)
-        if visibility != self.visibility:
-            error(pos, "C struct/union visibility %s does not match the member visibility %s" % (self.visibility, visibility))
         return entry
 
     def declare_cfunction(self, name, type, pos,

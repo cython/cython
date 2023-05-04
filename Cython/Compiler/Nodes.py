@@ -1557,7 +1557,7 @@ class CStructOrUnionDefNode(StatNode):
     def analyse_declarations(self, env):
         scope = None
         if self.attributes is not None:
-            scope = StructOrUnionScope(self.name, self.visibility)
+            scope = StructOrUnionScope(self.name)
         self.declare(env, scope)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
