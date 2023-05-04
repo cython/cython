@@ -254,11 +254,11 @@ class SlotDescriptor(object):
         py3 = self.py3
         guard = None
         if ifdef:
-            guard = ("#if %s" % ifdef)
+            guard = "#if %s" % ifdef
         elif not py3 or py3 == '<RESERVED>':
-            guard = ("#if PY_MAJOR_VERSION < 3")
+            guard = "#if PY_MAJOR_VERSION < 3"
         elif not py2:
-            guard = ("#if PY_MAJOR_VERSION >= 3")
+            guard = "#if PY_MAJOR_VERSION >= 3"
         return guard
 
     def generate_spec(self, scope, code):
