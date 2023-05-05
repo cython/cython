@@ -139,9 +139,45 @@ def inline(f, *args, **kwds):
         return f
 
 
-def compile(f):
-    from Cython.Build.Inline import RuntimeCompiledFunction
-    return RuntimeCompiledFunction(f)
+def compile(*args, **kwargs):
+    import re
+    import inspect
+    from functools import wraps, partial
+    from Cython.Build.Inline import cython_inline, IS_PY3
+
+    f_locals = inspect.currentframe().f_back.f_locals
+    _cython_inline = partial(cython_inline, locals=f_locals, **kwargs)
+
+    decorator_pat = re.compile(r'@([.\w]+)[\(]?')
+
+    def decorator(f):
+        if not IS_PY3:
+            f_globals = f.func_globals
+        else:
+            f_globals = f.__globals__
+
+        code = inspect.getsourcelines(f)[0]
+
+        # We need to search for this decorator and strip it from the source
+        m = decorator_pat.match(code[0].strip())
+        if m:
+            compile_fn_name = m.groups()[0]
+            decorator_obj = f_locals.get(compile_fn_name) or f_globals.get(compile_fn_name)
+            if decorator_obj and decorator_obj.__name__ == 'compile':
+                code = code[1:]
+
+        code = ''.join(code)
+
+        @wraps(f)
+        def wrapped_f(*args, **kwargs):
+            all = inspect.getcallargs(f, *args, **kwargs)
+            return _cython_inline(code, __fn_name=f.__name__, globals=f_globals, **all)
+        return wrapped_f
+
+    if len(args) == 1 and callable(args[0]):
+        return decorator(args[0])
+
+    return decorator
 
 
 # Special functions
