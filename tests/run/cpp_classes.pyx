@@ -10,6 +10,7 @@ cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Ellipse(Shape):
         Ellipse(int a, int b) nogil except +
+        Ellipse() except + nogil
 
     cdef cppclass Circle(Ellipse):
         int radius

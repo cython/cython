@@ -2821,7 +2821,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s)
+    exc_val, exc_check = p_exception_value_clause(s, ctx)
     # TODO - warning to enforce preferred exception specification order
     nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
@@ -2939,7 +2939,7 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s):
+def p_exception_value_clause(s, ctx):
     exc_val = None
     exc_check = 0
 
@@ -2954,7 +2954,9 @@ def p_exception_value_clause(s):
         elif s.sy == '+':
             exc_check = '+'
             s.next()
-            if s.sy == 'IDENT':
+            if p_nogil(s):
+                ctx.nogil = True
+            elif s.sy == 'IDENT':
                 name = s.systring
                 s.next()
                 exc_val = p_name(s, name)

@@ -17,7 +17,7 @@ namespace shapes {
     class Rectangle : public Shape
     {
     public:
-    	Rectangle() { }
+        Rectangle() { }
         Rectangle(int width, int height)
         {
             this->width = width;
@@ -43,6 +43,7 @@ namespace shapes {
     
     class Ellipse : public Shape {
     public:
+        Ellipse() { }
         Ellipse(int a, int b) { this->a = a; this->b = b; }
         float area() const { return 3.1415926535897931f * a * b; }
         int a, b;

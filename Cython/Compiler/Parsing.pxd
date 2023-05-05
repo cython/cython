@@ -163,7 +163,7 @@ cdef p_c_simple_declarator(PyrexScanner s, ctx, bint empty, bint is_type, bint c
                           bint assignable, bint nonempty)
 cdef p_nogil(PyrexScanner s)
 cdef p_with_gil(PyrexScanner s)
-cdef p_exception_value_clause(PyrexScanner s)
+cdef p_exception_value_clause(PyrexScanner s, ctx)
 cpdef p_c_arg_list(PyrexScanner s, ctx = *, bint in_pyfunc = *, bint cmethod_flag = *,
                    bint nonempty_declarators = *, bint kw_only = *, bint annotated = *)
 cdef p_optional_ellipsis(PyrexScanner s)
