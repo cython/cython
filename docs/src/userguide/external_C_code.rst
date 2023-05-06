@@ -496,6 +496,30 @@ file consists of the full dotted name of the module, e.g. a module called
     the resulting ``.so`` file like a dynamic library.
     Beware that this is not portable, so it should be avoided.
 
+C++ public declarations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+When a file is compiled as C++, its public functions are declared as C++ API (using ``extern "C++"``) by default.
+This disallows to call the functions from C code.  If the functions are really meant as a plain C API,
+the ``extern`` declaration needs to be manually specified by the user.
+This can be done by setting the ``CYTHON_EXTERN_C`` C macro to ``extern "C"`` during the compilation of the generated C++ file::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension(
+            "module", ["module.pyx"],
+            define_macros=[("CYTHON_EXTERN_C", 'extern "C"')],
+            language="c++",
+        )
+    ]
+
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
+
 .. _api:
 
 C API Declarations

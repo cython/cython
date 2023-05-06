@@ -3082,6 +3082,36 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
 
+
+/////////////// PySequenceMultiply.proto ///////////////
+
+#define __Pyx_PySequence_Multiply_Left(mul, seq)  __Pyx_PySequence_Multiply(seq, mul)
+static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul);
+
+/////////////// PySequenceMultiply ///////////////
+
+static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul) {
+    PyObject *result, *pymul = PyInt_FromSsize_t(mul);
+    if (unlikely(!pymul))
+        return NULL;
+    result = PyNumber_Multiply(seq, pymul);
+    Py_DECREF(pymul);
+    return result;
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul) {
+#if CYTHON_USE_TYPE_SLOTS
+    PyTypeObject *type = Py_TYPE(seq);
+    if (likely(type->tp_as_sequence && type->tp_as_sequence->sq_repeat)) {
+        return type->tp_as_sequence->sq_repeat(seq, mul);
+    } else
+#endif
+    {
+        return __Pyx_PySequence_Multiply_Generic(seq, mul);
+    }
+}
+
+
 /////////////// FormatTypeName.proto ///////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API

@@ -6,6 +6,32 @@
 // __Pyx_GetException()
 
 
+/////////////// AssertionsEnabled.init ///////////////
+__Pyx_init_assertions_enabled();
+
+/////////////// AssertionsEnabled.proto ///////////////
+
+#define __Pyx_init_assertions_enabled()
+
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
+  #define __pyx_assertions_enabled() (1)
+#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY  ||  defined(Py_LIMITED_API)
+  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
+  // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
+  // Py_OptimizeFlag is deprecated in Py3.12+
+  static int __pyx_assertions_enabled_flag;
+  #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
+
+  #undef __Pyx_init_assertions_enabled
+  static void __Pyx_init_assertions_enabled(void) {
+    __pyx_assertions_enabled_flag = ! _PyInterpreterState_GetConfig(__Pyx_PyThreadState_Current->interp)->optimization_level;
+  }
+#else
+  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
+#endif
+
+
 /////////////// ErrOccurredWithGIL.proto ///////////////
 static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
 
@@ -327,13 +353,13 @@ bad:
 
 /////////////// GetTopmostException.proto ///////////////
 
-#if CYTHON_USE_EXC_INFO_STACK
+#if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
 static _PyErr_StackItem * __Pyx_PyErr_GetTopmostException(PyThreadState *tstate);
 #endif
 
 /////////////// GetTopmostException ///////////////
 
-#if CYTHON_USE_EXC_INFO_STACK
+#if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
 // Copied from errors.c in CPython.
 static _PyErr_StackItem *
 __Pyx_PyErr_GetTopmostException(PyThreadState *tstate)

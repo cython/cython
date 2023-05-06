@@ -871,7 +871,8 @@ class InterpretCompilerDirectives(CythonTransform):
     def _check_valid_cython_module(self, pos, module_name):
         if not module_name.startswith("cython."):
             return
-        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+        submodule = module_name.split('.', 2)[1]
+        if submodule in self.valid_cython_submodules:
             return
 
         extra = ""
@@ -889,6 +890,15 @@ class InterpretCompilerDirectives(CythonTransform):
             if module_name.startswith("cython." + wrong):
                 extra = "Did you mean 'cython.%s' ?" % correct
                 break
+        if not extra:
+            is_simple_cython_name = submodule in Options.directive_types
+            if not is_simple_cython_name and not submodule.startswith("_"):
+                # Try to find it in the Shadow module (i.e. the pure Python namespace of cython.*).
+                # FIXME: use an internal reference of "cython.*" names instead of Shadow.py
+                from .. import Shadow
+                is_simple_cython_name = hasattr(Shadow, submodule)
+            if is_simple_cython_name:
+                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
             module_name,
@@ -1107,7 +1117,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # for most transforms annotations are left unvisited (because they're unevaluated)
         # however, it is important to pick up compiler directives from them
         if node.expr:
-            self.visitchildren(node.expr)
+            self.visit(node.expr)
         return node
 
     def visit_NewExprNode(self, node):
@@ -1305,6 +1315,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
+        current_opt_dict = dict(self.directives)
+        missing = object()
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1312,8 +1324,14 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if self.directives.get(name, object()) != value:
+                        if current_opt_dict.get(name, missing) != value:
+                            if name == 'cfunc' and 'ufunc' in current_opt_dict:
+                                error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
                             directives.append(directive)
+                            current_opt_dict[name] = value
+                        else:
+                            warning(dec.pos, "Directive does not change previous value (%s%s)" % (
+                                name, '=%r' % value if value is not None else ''))
                         if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
@@ -1555,6 +1573,7 @@ class WithTransform(VisitorTransform, SkipDeclarations):
         pos = node.pos
         is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
+        manager = node.manager = ExprNodes.ProxyNode(manager)
         node.enter_call = ExprNodes.SimpleCallNode(
             pos, function=ExprNodes.AttributeNode(
                 pos, obj=ExprNodes.CloneNode(manager),
@@ -2388,7 +2407,7 @@ if VALUE is not None:
 
         self.seen_vars_stack.pop()
 
-        if lenv.directives.get("ufunc"):
+        if "ufunc" in lenv.directives:
             from . import UFuncs
             return UFuncs.convert_to_ufunc(node)
         return node
@@ -2883,6 +2902,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
         if 'ccall' in self.directives:
+            if 'cfunc' in self.directives:
+                error(node.pos, "cfunc and ccall directives cannot be combined")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)

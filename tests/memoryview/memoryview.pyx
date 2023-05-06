@@ -1240,3 +1240,18 @@ match arr:
         assert globs['res']
 
     return isinstance(<object>a, Sequence)
+
+
+ctypedef int aliasT
+def test_assignment_typedef():
+    """
+    >>> test_assignment_typedef()
+    1
+    2
+    """
+    cdef int[2] x
+    cdef aliasT[:] y
+    x[:] = [1, 2]
+    y = x
+    for v in y:
+        print(v)

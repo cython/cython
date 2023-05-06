@@ -232,14 +232,14 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
     OutputIt merge[InputIt1, InputIt2, OutputIt, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
-    
+
     void inplace_merge[BidirIt](BidirIt first, BidirIt middle, BidirIt last) except +
     void inplace_merge[BidirIt, Compare](BidirIt first, BidirIt middle, BidirIt last, Compare comp) except +
 
     # Set operations (on sorted ranges)
     bool includes[InputIt1, InputIt2](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
-        
+
     bool includes[InputIt1, InputIt2, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Compare comp) except +
 
@@ -247,21 +247,21 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
     OutputIt set_difference[InputIt1, InputIt2, OutputIt, Compare](
-        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, 
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2,
         OutputIt out, Compare comp) except +
-    
+
     OutputIt set_intersection[InputIt1, InputIt2, OutputIt](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
     OutputIt set_intersection[InputIt1, InputIt2, OutputIt, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
-    
+
     OutputIt set_symmetric_difference[InputIt1, InputIt2, OutputIt](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
     OutputIt set_symmetric_difference[InputIt1, InputIt2, OutputIt, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
-    
+
     OutputIt set_union[InputIt1, InputIt2, OutputIt](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
@@ -302,7 +302,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     # ambiguous with previous overload
     #bool equal[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
     bool equal[InputIt1, InputIt2, BinPred](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, BinPred pred) except +
-    
+
     bool lexicographical_compare[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
     # ambiguous with next overload
     #bool lexicographical_compare[InputIt1, InputIt2, ExecutionPolicy](ExecutionPolicy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +

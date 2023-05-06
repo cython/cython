@@ -466,6 +466,8 @@ VER_DEP_MODULES = {
                                            'run.different_package_names',
                                            'run.unicode_imports',  # encoding problems on appveyor in Py2
                                            'run.reimport_failure',  # reimports don't do anything in Py2
+                                           'run.cpp_stl_cmath_cpp17',
+                                           'run.cpp_stl_cmath_cpp20'
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
@@ -501,8 +503,11 @@ VER_DEP_MODULES = {
                                          ]),
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
-    (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
-                                         ]),
+    (3,11,999): (operator.gt, lambda x: x in [
+        'run.py_unicode_strings',  # Py_UNICODE was removed
+        'compile.pylong',  # PyLongObject changed its structure
+        'run.longintrepr',  # PyLongObject changed its structure
+    ]),
 
 }
 
@@ -1800,17 +1805,51 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
+        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
+
         import pycodestyle
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
             config_file = os.path.join(os.path.dirname(__file__), "setup.cfg")
+        total_errors = 0
+
+        # checks for .py files
         paths = []
-        for codedir in ['Cython', 'Demos', 'docs', 'pyximport', 'tests']:
+        for codedir in source_dirs:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
-        self.assertEqual(result.total_errors, 0, "Found code style errors.")
+        total_errors += result.total_errors
+
+        # checks for non-Python source files
+        paths = []
+        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            # whitespace
+            "W1", "W2", "W3",
+            # indentation
+            "E101", "E111",
+        ])
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        """
+        # checks for non-Python test files
+        paths = []
+        for codedir in ['tests']:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(select=[
+            # whitespace
+            "W1", "W2", "W3",
+        ])
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+        """
+
+        self.assertEqual(total_errors, 0, "Found code style errors.")
 
 
 include_debugger = IS_CPYTHON

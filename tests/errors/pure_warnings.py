@@ -49,9 +49,9 @@ _WARNINGS = """
 # Spurious warnings from utility code - not part of the core test
 25:10: 'cpdef_method' redeclared
 36:10: 'cpdef_cname_method' redeclared
-979:29: Ambiguous exception value, same as default return value: 0
-1020:46: Ambiguous exception value, same as default return value: 0
-1110:29: Ambiguous exception value, same as default return value: 0
+980:29: Ambiguous exception value, same as default return value: 0
+1021:46: Ambiguous exception value, same as default return value: 0
+1111:29: Ambiguous exception value, same as default return value: 0
 """
 
 _ERRORS = """

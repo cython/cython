@@ -803,9 +803,9 @@ class FunctionState(object):
         self.yield_labels.append(num_and_label)
         return num_and_label
 
-    def new_error_label(self):
+    def new_error_label(self, prefix=""):
         old_err_lbl = self.error_label
-        self.error_label = self.new_label('error')
+        self.error_label = self.new_label(prefix + 'error')
         return old_err_lbl
 
     def get_loop_labels(self):
@@ -817,11 +817,11 @@ class FunctionState(object):
         (self.continue_label,
          self.break_label) = labels
 
-    def new_loop_labels(self):
+    def new_loop_labels(self, prefix=""):
         old_labels = self.get_loop_labels()
         self.set_loop_labels(
-            (self.new_label("continue"),
-             self.new_label("break")))
+            (self.new_label(prefix + "continue"),
+             self.new_label(prefix + "break")))
         return old_labels
 
     def get_all_labels(self):
@@ -1457,23 +1457,33 @@ class GlobalState(object):
         value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
-    def new_num_const_cname(self, value, py_type):
+    def unique_const_cname(self, format_str):  # type: (str) -> str
+        used = self.const_cnames_used
+        cname = value = format_str.format(sep='', counter='')
+        while cname in used:
+            counter = used[value] = used[value] + 1
+            cname = format_str.format(sep='_', counter=counter)
+        used[cname] = 1
+        return cname
+
+    def new_num_const_cname(self, value, py_type):  # type: (str, str) -> str
         if py_type == 'long':
             value += 'L'
             py_type = 'int'
         prefix = Naming.interned_prefixes[py_type]
-        cname = "%s%s" % (prefix, value)
-        cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
+
+        value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
+        if len(value) > 42:
+            # update tests/run/large_integer_T5290.py in case the amount is changed
+            cname = self.unique_const_cname(
+                prefix + "large{counter}_" + value[:18] + "_xxx_" + value[-18:])
+        else:
+            cname = "%s%s" % (prefix, value)
         return cname
 
     def new_const_cname(self, prefix='', value=''):
         value = replace_identifier('_', value)[:32].strip('_')
-        used = self.const_cnames_used
-        name_suffix = value
-        while name_suffix in used:
-            counter = used[value] = used[value] + 1
-            name_suffix = '%s_%d' % (value, counter)
-        used[name_suffix] = 1
+        name_suffix = self.unique_const_cname(value + "{sep}{counter}")
         if prefix:
             prefix = Naming.interned_prefixes[prefix]
         else:
@@ -1922,13 +1932,37 @@ class CCodeWriter(object):
     @funccontext_property
     def yield_labels(self): pass
 
+    def label_interceptor(self, new_labels, orig_labels, skip_to_label=None, pos=None, trace=True):
+        """
+        Helper for generating multiple label interceptor code blocks.
+
+        @param new_labels: the new labels that should be intercepted
+        @param orig_labels: the original labels that we should dispatch to after the interception
+        @param skip_to_label: a label to skip to before starting the code blocks
+        @param pos: the node position to mark for each interceptor block
+        @param trace: add a trace line for the pos marker or not
+        """
+        for label, orig_label in zip(new_labels, orig_labels):
+            if not self.label_used(label):
+                continue
+            if skip_to_label:
+                # jump over the whole interception block
+                self.put_goto(skip_to_label)
+                skip_to_label = None
+
+            if pos is not None:
+                self.mark_pos(pos, trace=trace)
+            self.put_label(label)
+            yield (label, orig_label)
+            self.put_goto(orig_label)
+
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
-    def new_error_label(self):         return self.funcstate.new_error_label()
+    def new_error_label(self, *args):  return self.funcstate.new_error_label(*args)
     def new_yield_label(self, *args):  return self.funcstate.new_yield_label(*args)
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
-    def new_loop_labels(self):         return self.funcstate.new_loop_labels()
+    def new_loop_labels(self, *args):  return self.funcstate.new_loop_labels(*args)
     def get_all_labels(self):          return self.funcstate.get_all_labels()
     def set_all_labels(self, labels):  return self.funcstate.set_all_labels(labels)
     def all_new_labels(self):          return self.funcstate.all_new_labels()

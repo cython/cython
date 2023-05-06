@@ -871,7 +871,7 @@ class MemoryViewSliceType(PyrexType):
         if dst_dtype.is_cv_qualified:
             dst_dtype = dst_dtype.cv_base_type
 
-        if src_dtype != dst_dtype:
+        if not src_dtype.same_as(dst_dtype):
             return False
 
         if src.ndim != dst.ndim:
@@ -1459,6 +1459,9 @@ class BuiltinObjectType(PyObjectType):
         elif type_name == 'int':
             # For backwards compatibility of (Py3) 'x: int' annotations in Py2, we also allow 'long' there.
             type_check = '__Pyx_Py3Int_Check'
+        elif type_name == "memoryview":
+            # captialize doesn't catch the 'V'
+            type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
         if exact and type_name not in ('bool', 'slice', 'Exception'):
@@ -4463,6 +4466,9 @@ class CTupleType(CType):
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
+        # equivalent_type must be set now because it isn't available at import time
+        from .Builtin import tuple_type
+        self.equivalent_type = tuple_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)

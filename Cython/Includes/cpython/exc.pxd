@@ -261,4 +261,3 @@ cdef extern from "Python.h":
     # identifies the context in which the unraisable exception
     # occurred. The repr of obj will be printed in the warning
     # message.
-

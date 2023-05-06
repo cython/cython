@@ -292,21 +292,33 @@ builtin_types_table = [
     ("basestring", "PyBaseString_Type", [
                                     BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBaseString_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("bytearray", "PyByteArray_Type", [
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("str",     "PyString_Type",   [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
                                                   builtin_return_type='basestring',
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("unicode", "PyUnicode_Type",  [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
 
-    ("tuple",   "PyTuple_Type",    []),
+    ("tuple",   "PyTuple_Type",    [BuiltinMethod("__mul__", "Tz", "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                    ]),
 
     ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
@@ -314,6 +326,8 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
                                                   utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
@@ -364,21 +378,21 @@ builtin_types_table = [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
         # error checking would ideally be limited api only
-        BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryview_Get_ndim',
+        BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryView_Get_ndim',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="ndim")
                         )
         ),
-        BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryview_Get_readonly',
+        BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryView_Get_readonly',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="readonly")
                         )
         ),
-        BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryview_Get_itemsize',
+        BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryView_Get_itemsize',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
@@ -477,12 +491,13 @@ def init_builtins():
 
     builtin_scope.declare_var(
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
-        pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
+        pos=None, cname='__pyx_assertions_enabled()', is_cdef=True)
 
-    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type
-    global slice_type, bytes_type, str_type, unicode_type, basestring_type, bytearray_type
+    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
+    global bytes_type, str_type, unicode_type, basestring_type, bytearray_type
     global float_type, int_type, long_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
+    global sequence_types
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -490,17 +505,30 @@ def init_builtins():
     set_type   = builtin_scope.lookup('set').type
     frozenset_type = builtin_scope.lookup('frozenset').type
     slice_type   = builtin_scope.lookup('slice').type
+
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
+    memoryview_type = builtin_scope.lookup('memoryview').type
+
     float_type = builtin_scope.lookup('float').type
     int_type = builtin_scope.lookup('int').type
     long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
-    memoryview_type = builtin_scope.lookup('memoryview').type
+
+    sequence_types = (
+        list_type,
+        tuple_type,
+        bytes_type,
+        str_type,
+        unicode_type,
+        basestring_type,
+        bytearray_type,
+        memoryview_type,
+    )
 
     # Set up type inference links between equivalent Python/C types
     bool_type.equivalent_type = PyrexTypes.c_bint_type

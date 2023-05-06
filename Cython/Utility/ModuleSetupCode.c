@@ -331,11 +331,13 @@
     #define CYTHON_UNPACK_METHODS 1
   #endif
   #ifndef CYTHON_FAST_THREAD_STATE
-    #define CYTHON_FAST_THREAD_STATE 1
+    // CPython 3.12a6 made PyThreadState an opaque struct.
+    #define CYTHON_FAST_THREAD_STATE (PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_FAST_GIL
     // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
-    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
+    // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
+    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000 && PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_METH_FASTCALL
     // CPython 3.6 introduced METH_FASTCALL but with slightly different
@@ -542,6 +544,14 @@
   #endif
 #endif
 
+#ifdef __cplusplus
+  template <typename T>
+  struct __PYX_IS_UNSIGNED_IMPL {static const bool value = T(0) < T(-1);};
+  #define __PYX_IS_UNSIGNED(type) (__PYX_IS_UNSIGNED_IMPL<type>::value)
+#else
+  #define __PYX_IS_UNSIGNED(type) (((type)-1) > 0)
+#endif
+
 // reinterpret
 
 // TODO: refactor existing code to use those macros
@@ -603,18 +613,14 @@ class __Pyx_FakeReference {
     // TODO(robertwb): Delegate all operators (or auto-generate unwrapping code where needed).
     template<typename U> bool operator ==(const U& other) const { return *ptr == other; }
     template<typename U> bool operator !=(const U& other) const { return *ptr != other; }
-    template<typename U=T> bool operator==(const __Pyx_FakeReference<U>& other) const { return *ptr == *other.ptr; }
-    template<typename U=T> bool operator!=(const __Pyx_FakeReference<U>& other) const { return *ptr != *other.ptr; }
+    template<typename U> bool operator==(const __Pyx_FakeReference<U>& other) const { return *ptr == *other.ptr; }
+    template<typename U> bool operator!=(const __Pyx_FakeReference<U>& other) const { return *ptr != *other.ptr; }
   private:
     T *ptr;
 };
 
 
 /////////////// PythonCompatibility ///////////////
-
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define Py_OptimizeFlag 0
-#endif
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
@@ -635,10 +641,10 @@ class __Pyx_FakeReference {
         // TODO - currently written to be simple and work in limited API etc.
         // A more optimized version would be good
         PyObject *kwds=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
-        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *call_result=NULL, *empty=NULL;
+        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
         const char *fn_cstr=NULL;
         const char *name_cstr=NULL;
-        PyCodeObject* co=NULL;
+        PyCodeObject *co=NULL, *result=NULL;
         PyObject *type, *value, *traceback;
 
         // we must be able to call this while an exception is happening - thus clear then restore the state
@@ -669,20 +675,14 @@ class __Pyx_FakeReference {
         if (!(name_cstr=PyUnicode_AsUTF8AndSize(name, NULL))) goto end;
         if (!(co = PyCode_NewEmpty(fn_cstr, name_cstr, fline))) goto end;
 
-        if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto cleanup_code_too;
-        if (!(empty = PyTuple_New(0))) goto cleanup_code_too; // unfortunately __pyx_empty_tuple isn't available here
-        if (!(call_result = PyObject_Call(replace, empty, kwds))) goto cleanup_code_too;
+        if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto end;
+        // unfortunately, __pyx_empty_tuple isn't available here
+        if (!(empty = PyTuple_New(0))) goto end;
 
-        Py_XDECREF((PyObject*)co);
-        co = (PyCodeObject*)call_result;
-        call_result = NULL;
+        result = (PyCodeObject*) PyObject_Call(replace, empty, kwds);
 
-        if (0) {
-            cleanup_code_too:
-            Py_XDECREF((PyObject*)co);
-            co = NULL;
-        }
-        end:
+    end:
+        Py_XDECREF((PyObject*) co);
         Py_XDECREF(kwds);
         Py_XDECREF(argcount);
         Py_XDECREF(posonlyargcount);
@@ -690,12 +690,11 @@ class __Pyx_FakeReference {
         Py_XDECREF(nlocals);
         Py_XDECREF(stacksize);
         Py_XDECREF(replace);
-        Py_XDECREF(call_result);
         Py_XDECREF(empty);
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
-        return co;
+        return result;
     }
 #elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
 

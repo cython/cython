@@ -323,22 +323,27 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// SoftComplexToDouble.proto //////////////////
 
-static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value); /* proto */
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value, int have_gil); /* proto */
 
 /////////////// SoftComplexToDouble //////////////////
 //@requires: RealImag
 
-static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value) {
+static double __Pyx_SoftComplexToDouble(__pyx_t_double_complex value, int have_gil) {
     // This isn't an absolutely perfect match for the Python behaviour:
     // In Python the type would be determined right after the number is
     // created (usually '**'), while here it's determined when coerced
     // to a PyObject, which may be a few operations later.
     if (unlikely(__Pyx_CIMAG(value))) {
+        PyGILState_STATE gilstate;
+        if (!have_gil)
+            gilstate = PyGILState_Ensure();
         PyErr_SetString(PyExc_TypeError,
             "Cannot convert 'complex' with non-zero imaginary component to 'double' "
             "(this most likely comes from the '**' operator; "
             "use 'cython.cpow(True)' to return 'nan' instead of a "
             "complex number).");
+        if (!have_gil)
+            PyGILState_Release(gilstate);
         return -1.;
     }
     return __Pyx_CREAL(value);

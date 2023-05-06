@@ -324,7 +324,17 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     double[:] double[:] 5.0 6.0
     >>> test_fused_memslice_dtype[cython.float](get_array(4, 'f'))
     float[:] float[:] 5.0 6.0
+
+    # None should evaluate to *something* (currently the first
+    # in the list, but this shouldn't be a hard requirement)
+    >>> test_fused_memslice_dtype(None)
+    float[:]
+    >>> test_fused_memslice_dtype[cython.double](None)
+    double[:]
     """
+    if array is None:
+        print(cython.typeof(array))
+        return
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]

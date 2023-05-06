@@ -348,7 +348,7 @@ A ``ctuple`` is assembled from any valid C types. For example
         .. code-block:: python
 
             def main():
-                bar: (cython.double, cython.int)
+                bar: tuple[cython.double, cython.int]
 
     .. group-tab:: Cython
 
@@ -496,7 +496,7 @@ using normal C declaration syntax. For example,
         .. code-block:: python
 
             @cython.cfunc
-            def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
+            def chips(t: tuple[cython.long, cython.long, cython.double]) -> tuple[cython.int, cython.float]:
                 ...
 
     .. group-tab:: Cython
@@ -930,6 +930,15 @@ Some things to note:
   which return Python objects. Remember that a function with no declared
   return type implicitly returns a Python object. (Exceptions on such
   functions are implicitly propagated by returning ``NULL``.)
+  
+* There's a known performance pitfall when combining ``nogil`` and 
+  ``except *`` \ ``@cython.exceptval(check=True)``.
+  In this case Cython must always briefly re-acquire the GIL after a function
+  call to check if an exception has been raised.  This can commonly happen with a
+  function returning nothing (C ``void``).  Simple workarounds are to mark the
+  function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
+  to change the return type to ``int`` and just let Cython use the return value
+  as an error flag (by default, ``-1`` triggers the exception check).
 
 
 .. _checking_return_values_of_non_cython_functions:

@@ -27,5 +27,3 @@ cdef extern from "<bit>" namespace "std" nogil:
         little,
         big,
         native
-
-

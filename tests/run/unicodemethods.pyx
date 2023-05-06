@@ -777,3 +777,158 @@ def replace_maxcount(unicode s, substring, repl, maxcount):
     ab jd  sdflk as SA  sadas asdas fsdf\x20
     """
     return s.replace(substring, repl, maxcount)
+
+
+# unicode * int
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply(astr, -1))
+    <BLANKLINE>
+    >>> print(multiply(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(multiply(astr, 0))
+    <BLANKLINE>
+    >>> print(multiply(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(multiply(astr, 1))
+    abc
+    >>> print(multiply(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(multiply(astr, 2))
+    abcabc
+    >>> print(multiply(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(multiply(astr, 5))
+    abcabcabcabcabc
+    >>> print(multiply(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return ustring * mul
+
+
+#@cython.test_fail_if_path_exists(
+#    "//CoerceToPyTypeNode",
+#    "//CastNode", "//TypecastNode")
+#@cython.test_assert_path_exists(
+#    "//PythonCapiCallNode")
+def multiply_inplace(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_inplace(astr, -1))
+    <BLANKLINE>
+    >>> print(multiply_inplace(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(multiply_inplace(astr, 0))
+    <BLANKLINE>
+    >>> print(multiply_inplace(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(multiply_inplace(astr, 1))
+    abc
+    >>> print(multiply_inplace(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(multiply_inplace(astr, 2))
+    abcabc
+    >>> print(multiply_inplace(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(multiply_inplace(astr, 5))
+    abcabcabcabcabc
+    >>> print(multiply_inplace(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    ustring *= mul
+    return ustring
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply_reversed(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_reversed(astr, -1))
+    <BLANKLINE>
+    >>> print(multiply_reversed(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(multiply_reversed(astr, 0))
+    <BLANKLINE>
+    >>> print(multiply_reversed(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(multiply_reversed(astr, 1))
+    abc
+    >>> print(multiply_reversed(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(multiply_reversed(astr, 2))
+    abcabc
+    >>> print(multiply_reversed(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(multiply_reversed(astr, 5))
+    abcabcabcabcabc
+    >>> print(multiply_reversed(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return mul * ustring
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def unicode__mul__(unicode ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(unicode__mul__(astr, -1))
+    <BLANKLINE>
+    >>> print(unicode__mul__(ustr, -1))
+    <BLANKLINE>
+
+    >>> print(unicode__mul__(astr, 0))
+    <BLANKLINE>
+    >>> print(unicode__mul__(ustr, 0))
+    <BLANKLINE>
+
+    >>> print(unicode__mul__(astr, 1))
+    abc
+    >>> print(unicode__mul__(ustr, 1))
+    abcüöä\U0001F642
+
+    >>> print(unicode__mul__(astr, 2))
+    abcabc
+    >>> print(unicode__mul__(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+
+    >>> print(unicode__mul__(astr, 5))
+    abcabcabcabcabc
+    >>> print(unicode__mul__(ustr, 5))
+    abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return ustring.__mul__(mul)
