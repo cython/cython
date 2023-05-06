@@ -1060,9 +1060,9 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(PyObject *module) {
-    $modulestate_cname *mstate;
+    $modulestatetype_cname *mstate;
 #if CYTHON_USE_TYPE_SPECS
-    mstate = $modulestate_cname(module);
+    mstate = $modulestategetter_cname(module);
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
     CYTHON_UNUSED_VAR(module);

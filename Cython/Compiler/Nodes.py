@@ -5478,7 +5478,7 @@ class CClassDefNode(ClassDefNode):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
-        typeptr_cname = "%s->%s" % (Naming.modulestate_cname, type.typeptr_cname)
+        typeptr_cname = "%s->%s" % (Naming.modulestatevalue_cname, type.typeptr_cname)
         scope = type.scope
         if not scope:  # could be None if there was an error
             return

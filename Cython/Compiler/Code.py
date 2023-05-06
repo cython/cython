@@ -1210,7 +1210,7 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(%s *%s) {" % (
-            Naming.modulestate_cname, Naming.modulestate_cname))
+            Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
         w.put_declare_refcount_context()
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
@@ -1223,7 +1223,7 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s *%s) {" %
-            (Naming.modulestate_cname, Naming.modulestate_cname))
+            (Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1585,7 +1585,7 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static int __Pyx_CreateStringTabAndInitStrings(%s *state) {" % (
-                Naming.modulestate_cname)
+                Naming.modulestatetype_cname)
             )
             # the stringtab is a function local rather than a global to
             # ensure that it doesn't conflict with module state
@@ -1632,7 +1632,7 @@ class GlobalState(object):
 
             init_constants.putln(
                 "if (__Pyx_CreateStringTabAndInitStrings(%s) < 0) %s;" % (
-                    Naming.modulestate_cname,
+                    Naming.modulestatevalue_cname,
                     init_constants.error_goto(self.module_pos)))
 
     def generate_num_constants(self):
@@ -1657,7 +1657,7 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
-            init_cname = "%s->%s" % (Naming.modulestate_cname, cname)
+            init_cname = "%s->%s" % (Naming.modulestatevalue_cname, cname)
             init_constants.putln('%s = %s; %s' % (
                 init_cname, function % value_code,
                 init_constants.error_goto_if_null(init_cname, self.module_pos)))
@@ -1960,7 +1960,7 @@ class CCodeWriter(object):
     def get_module_state_code(self):
         # If we don't have a funcstate scope assume global scope for now
         if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
-            return Naming.modulestate_cname
+            return Naming.modulestatevalue_cname
         else:
             # TODO - more choices depending on the type of env
             return Naming.modulestateglobal_cname
