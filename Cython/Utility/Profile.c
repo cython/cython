@@ -291,7 +291,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
         *frame = PyFrame_New(
             tstate,                          /*PyThreadState *tstate*/
             *code,                           /*PyCodeObject *code*/
-            $moddict_cname,                  /*PyObject *globals*/
+            CGLOBAL($moddict_cname),         /*PyObject *globals*/
             0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
@@ -354,16 +354,16 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
         0,                /*int stacksize,*/
         // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
         CO_OPTIMIZED | CO_NEWLOCALS,  /*int flags,*/
-        $empty_bytes,     /*PyObject *code,*/
-        $empty_tuple,     /*PyObject *consts,*/
-        $empty_tuple,     /*PyObject *names,*/
-        $empty_tuple,     /*PyObject *varnames,*/
-        $empty_tuple,     /*PyObject *freevars,*/
-        $empty_tuple,     /*PyObject *cellvars,*/
+        CGLOBAL($empty_bytes),     /*PyObject *code,*/
+        CGLOBAL($empty_tuple),     /*PyObject *consts,*/
+        CGLOBAL($empty_tuple),     /*PyObject *names,*/
+        CGLOBAL($empty_tuple),     /*PyObject *varnames,*/
+        CGLOBAL($empty_tuple),     /*PyObject *freevars,*/
+        CGLOBAL($empty_tuple),     /*PyObject *cellvars,*/
         py_srcfile,       /*PyObject *filename,*/
         py_funcname,      /*PyObject *name,*/
         firstlineno,      /*int firstlineno,*/
-        $empty_bytes      /*PyObject *lnotab*/
+        CGLOBAL($empty_bytes)      /*PyObject *lnotab*/
     );
 
 bad:

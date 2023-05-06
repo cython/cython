@@ -164,7 +164,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *empty_list = 0;
     #if PY_MAJOR_VERSION < 3
     PyObject *py_import;
-    py_import = __Pyx_PyObject_GetAttrStr(${modulestateglobal_cname}->$builtins_cname, PYIDENT("__import__"));
+    py_import = __Pyx_PyObject_GetAttrStr(CGLOBAL($builtins_cname), PYIDENT("__import__"));
     if (unlikely(!py_import))
         goto bad;
     if (!from_list) {
@@ -188,7 +188,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                     name, empty_dict, empty_dict, from_list, 1);
                 #else
                 module = PyImport_ImportModuleLevelObject(
-                    name, ${modulestateglobal_cname}->$moddict_cname, empty_dict, from_list, 1);
+                    name, CGLOBAL($moddict_cname), empty_dict, from_list, 1);
                 #endif
                 if (unlikely(!module)) {
                     if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
@@ -205,7 +205,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
             if (unlikely(!py_level))
                 goto bad;
             module = PyObject_CallFunctionObjArgs(py_import,
-                name, ${modulestateglobal_cname}->$moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
+                name, CGLOBAL($moddict_cname), empty_dict, from_list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
             #if CYTHON_COMPILING_IN_LIMITED_API
@@ -213,7 +213,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                 name, empty_dict, empty_dict, from_list, level);
             #else
             module = PyImport_ImportModuleLevelObject(
-                name, ${modulestateglobal_cname}->$moddict_cname, empty_dict, from_list, level);
+                name, CGLOBAL($moddict_cname), empty_dict, from_list, level);
             #endif
             #endif
         }
@@ -434,7 +434,7 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     if (unlikely(!file_path))
         goto bad;
 
-    if (unlikely(PyObject_SetAttrString($module_cname, "__file__", file_path) < 0))
+    if (unlikely(PyObject_SetAttrString(CGLOBAL($module_cname), "__file__", file_path) < 0))
         goto bad;
 
     osmod = PyImport_ImportModule("os");
@@ -466,7 +466,7 @@ bad:
         return -1;
 
 set_path:
-    result = PyObject_SetAttrString($module_cname, "__path__", package_path);
+    result = PyObject_SetAttrString(CGLOBAL($module_cname), "__path__", package_path);
     Py_DECREF(package_path);
     return result;
 }
@@ -649,14 +649,14 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         void *p;
     } tmp;
 
-    d = PyObject_GetAttrString($module_cname, (char *)"$api_name");
+    d = PyObject_GetAttrString(CGLOBAL($module_cname), (char *)"$api_name");
     if (!d) {
         PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
         Py_INCREF(d);
-        if (PyModule_AddObject($module_cname, (char *)"$api_name", d) < 0)
+        if (PyModule_AddObject(CGLOBAL($module_cname), (char *)"$api_name", d) < 0)
             goto bad;
     }
     tmp.fp = f;
@@ -726,13 +726,13 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyDict_GetItem($moddict_cname, PYIDENT("$api_name"));
+    d = PyDict_GetItem(CGLOBAL($moddict_cname), PYIDENT("$api_name"));
     Py_XINCREF(d);
     if (!d) {
         d = PyDict_New();
         if (!d)
             goto bad;
-        if (__Pyx_PyObject_SetAttrStr($module_cname, PYIDENT("$api_name"), d) < 0)
+        if (__Pyx_PyObject_SetAttrStr(CGLOBAL($module_cname), PYIDENT("$api_name"), d) < 0)
             goto bad;
     }
     cobj = PyCapsule_New(p, sig, 0);

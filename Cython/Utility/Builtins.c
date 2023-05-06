@@ -11,7 +11,6 @@
 static PyObject* __Pyx_Globals(void); /*proto*/
 
 //////////////////// Globals ////////////////////
-//@substitute: naming
 //@requires: ObjectHandling.c::GetAttr
 
 // This is a stub implementation until we have something more complete.
@@ -20,7 +19,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    return __Pyx_NewRef($moddict_cname);
+    return __Pyx_NewRef(CGLOBAL($moddict_cname));
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -28,11 +27,10 @@ static PyObject* __Pyx_Globals(void) {
 static PyObject* __Pyx_PyExecGlobals(PyObject*);
 
 //////////////////// PyExecGlobals ////////////////////
-//@substitute: naming
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    return __Pyx_PyExec2(code, $moddict_cname);
+    return __Pyx_PyExec2(code, CGLOBAL($moddict_cname));
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -41,7 +39,6 @@ static PyObject* __Pyx_PyExec3(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject*, PyObject*);
 
 //////////////////// PyExec ////////////////////
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
     return __Pyx_PyExec3(o, globals, NULL);
@@ -53,7 +50,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     char *code = 0;
 
     if (!globals || globals == Py_None) {
-        globals = $moddict_cname;
+        globals = CGLOBAL($moddict_cname);
     } else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
             __Pyx_PyType_GetName(Py_TYPE(globals));
@@ -475,7 +472,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
 
 //////////////////// pyfrozenset_new ////////////////////
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
@@ -505,9 +501,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
 #endif
     }
 #if CYTHON_USE_TYPE_SLOTS
-    return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
+    return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, CGLOBAL($empty_tuple), NULL);
 #else
-    return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
+    return PyObject_Call((PyObject*)&PyFrozenSet_Type, CGLOBAL($empty_tuple), NULL);
 #endif
 }
 

@@ -68,8 +68,8 @@ typedef struct {
     PyObject *func_is_coroutine;
 } __pyx_CyFunctionObject;
 
-#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, ${modulestateglobal_cname}->__pyx_CyFunctionType)
-#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, ${modulestateglobal_cname}->__pyx_CyFunctionType, &PyCFunction_Type)
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
+#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
 #define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
@@ -1121,7 +1121,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
-        PyObject_GC_New(__pyx_CyFunctionObject, $modulestateglobal_cname->__pyx_CyFunctionType),
+        PyObject_GC_New(__pyx_CyFunctionObject, CGLOBAL(__pyx_CyFunctionType)),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {

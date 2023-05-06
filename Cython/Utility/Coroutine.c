@@ -1434,7 +1434,7 @@ __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
         frame = (PyObject *) PyFrame_New(
             PyThreadState_Get(),            /*PyThreadState *tstate,*/
             (PyCodeObject*) self->gi_code,  /*PyCodeObject *code,*/
-            $moddict_cname,                 /*PyObject *globals,*/
+            CGLOBAL($moddict_cname),                 /*PyObject *globals,*/
             0                               /*PyObject *locals*/
         );
         if (unlikely(!frame))
@@ -2268,7 +2268,7 @@ static PyObject* __Pyx_Coroutine_patch_module(PyObject* module, const char* py_c
     #endif
     if (unlikely(result < 0)) goto ignore;
     if (unlikely(PyDict_SetItemString(globals, "_module", module) < 0)) goto ignore;
-    if (unlikely(PyDict_SetItemString(globals, "__builtins__", $builtins_cname) < 0)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "__builtins__", CGLOBAL($builtins_cname)) < 0)) goto ignore;
     result_obj = PyRun_String(py_code, Py_file_input, globals, globals);
     if (unlikely(!result_obj)) goto ignore;
     Py_DECREF(result_obj);

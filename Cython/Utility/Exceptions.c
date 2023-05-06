@@ -734,7 +734,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 
     CYTHON_MAYBE_UNUSED_VAR(tstate);
 
-    if (unlikely(!${modulestateglobal_cname}->${cython_runtime_cname})) {
+    if (unlikely(!CGLOBAL($cython_runtime_cname))) {
         // Very early error where the runtime module is not set up yet.
         return c_line;
     }
@@ -742,7 +742,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
 #if CYTHON_COMPILING_IN_CPYTHON
-    cython_runtime_dict = _PyObject_GetDictPtr(${modulestateglobal_cname}->${cython_runtime_cname});
+    cython_runtime_dict = _PyObject_GetDictPtr(CGLOBAL($cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, *cython_runtime_dict,
@@ -750,7 +750,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     } else
 #endif
     {
-      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(${modulestateglobal_cname}->${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
+      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(CGLOBAL(${cython_runtime_cname}), PYIDENT("cline_in_traceback"));
       if (use_cline_obj) {
         use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
         Py_DECREF(use_cline_obj);
@@ -762,7 +762,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     if (!use_cline) {
         c_line = 0;
         // No need to handle errors here when we reset the exception state just afterwards.
-        (void) PyObject_SetAttr(${modulestateglobal_cname}->${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
+        (void) PyObject_SetAttr(CGLOBAL(${cython_runtime_cname}), PYIDENT("cline_in_traceback"), Py_False);
     }
     else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
@@ -780,7 +780,6 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 /////////////// AddTraceback ///////////////
 //@requires: ModuleSetupCode.c::CodeObjectCache
 //@requires: CLineInTraceback
-//@substitute: naming
 
 #include "compile.h"
 #include "frameobject.h"
@@ -840,16 +839,16 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/
         0,            /*int flags,*/
-        $empty_bytes, /*PyObject *code,*/
-        $empty_tuple, /*PyObject *consts,*/
-        $empty_tuple, /*PyObject *names,*/
-        $empty_tuple, /*PyObject *varnames,*/
-        $empty_tuple, /*PyObject *freevars,*/
-        $empty_tuple, /*PyObject *cellvars,*/
+        CGLOBAL($empty_bytes), /*PyObject *code,*/
+        CGLOBAL($empty_tuple), /*PyObject *consts,*/
+        CGLOBAL($empty_tuple), /*PyObject *names,*/
+        CGLOBAL($empty_tuple), /*PyObject *varnames,*/
+        CGLOBAL($empty_tuple), /*PyObject *freevars,*/
+        CGLOBAL($empty_tuple), /*PyObject *cellvars,*/
         py_srcfile,   /*PyObject *filename,*/
         py_funcname,  /*PyObject *name,*/
         py_line,      /*int firstlineno,*/
-        $empty_bytes  /*PyObject *lnotab*/
+        CGLOBAL($empty_bytes)  /*PyObject *lnotab*/
     );
     Py_DECREF(py_srcfile);
     #else
@@ -896,7 +895,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     py_frame = PyFrame_New(
         tstate,            /*PyThreadState *tstate,*/
         py_code,           /*PyCodeObject *code,*/
-        ${modulestateglobal_cname}->$moddict_cname,    /*PyObject *globals,*/
+        CGLOBAL($moddict_cname),    /*PyObject *globals,*/
         0                  /*PyObject *locals*/
     );
     if (!py_frame) goto bad;

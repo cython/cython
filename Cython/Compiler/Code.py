@@ -530,7 +530,8 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
-        if 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl:
+        special_strings = ['PYIDENT(', 'PYUNICODE(', 'CGLOBAL(']
+        if not any(special_string in impl for special_string in special_strings):
             return False, impl
 
         replacements = {}
@@ -548,7 +549,20 @@ class UtilityCode(UtilityCodeBase):
             return cname
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
-        assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
+
+        def handle_cglobal(matchobj):
+            name = matchobj.group(1).strip()
+            if name.startswith("$"):
+                # don't require substitute.Naming; do it ourselves
+                name = name[1:]
+                if name.startswith('{') and name.endswith('}'):
+                    name = name[1:-1]
+                name = getattr(Naming, name)
+            return "%s->%s" % (Naming.modulestateglobal_cname, name)
+        
+        impl = re.sub(r'CGLOBAL\(([^)]+)\)', handle_cglobal, impl)
+
+        assert not any(special_string in impl for special_string in special_strings)
         return True, impl
 
     def inject_unbound_methods(self, impl, output):

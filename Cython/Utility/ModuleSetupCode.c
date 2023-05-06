@@ -1529,8 +1529,8 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     // For now, we only have exactly one module instance.
     if (__Pyx_check_single_interpreter())
         return NULL;
-    if (${module_cname})
-        return __Pyx_NewRef(${module_cname});
+    if (CGLOBAL(${module_cname}))
+        return __Pyx_NewRef(CGLOBAL(${module_cname}));
 
     modname = PyObject_GetAttrString(spec, "name");
     if (unlikely(!modname)) goto bad;

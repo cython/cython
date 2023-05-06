@@ -78,7 +78,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
     PyObject* result = 0;
     PyObject* end_string;
     if (unlikely(!$print_function)) {
-        $print_function = PyObject_GetAttr($builtins_cname, PYIDENT("print"));
+        $print_function = PyObject_GetAttr(CGLOBAL($builtins_cname), PYIDENT("print"));
         if (!$print_function)
             return -1;
     }
