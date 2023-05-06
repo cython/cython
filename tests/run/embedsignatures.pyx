@@ -84,7 +84,7 @@ __doc__ = ur"""
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a=u'spam')
+    Ext.m(self, a=u'spam', b='foo', c=b'bar')
 
     >>> print (Ext.n.__doc__)
     Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
@@ -268,7 +268,7 @@ cdef class Ext:
         """Existing string"""
         pass
 
-    def m(self, a=u'spam'):
+    def m(self, a=u'spam', b='foo', c=b'bar'):
         pass
 
     def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
@@ -409,6 +409,7 @@ lambda_bar = lambda x: 20
 
 
 cdef class Foo:
+    def __init__(self, *args, **kwargs): pass
     def m00(self, a: None) ->  None: pass
     def m01(self, a: ...) ->  Ellipsis: pass
     def m02(self, a: True, b: False) ->  bool: pass
@@ -444,6 +445,10 @@ cdef class Foo:
     def m32(self, a: tuple[()]) -> tuple[tuple[()]]: pass
 
 __doc__ += ur"""
+>>> print(Foo.__doc__)
+Foo(*args, **kwargs)
+>>> assert Foo.__init__.__doc__ == type.__init__.__doc__
+
 >>> print(Foo.m00.__doc__)
 Foo.m00(self, a: None) -> None
 
