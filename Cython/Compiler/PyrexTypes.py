@@ -4219,7 +4219,7 @@ class CppClassType(CType):
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
         return "(%s.has_value())" % cname
-    
+
 
 class EnumMixin(object):
     """
