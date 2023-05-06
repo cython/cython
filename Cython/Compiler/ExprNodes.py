@@ -2397,7 +2397,7 @@ class NameNode(AtomicExprNode):
         if entry is None:
             return  # There was an error earlier
         if entry.scope.is_module_scope and (entry.is_cglobal or entry.is_pyglobal):
-            self.module_state_lookup = code.code.name_in_module_state("")
+            self.module_state_lookup = code.name_in_module_state("")
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
         if entry.is_builtin and entry.is_const:
@@ -2510,7 +2510,7 @@ class NameNode(AtomicExprNode):
                 namespace = '%s->tp_dict' % namespace
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
-                namespace = code.code.name_in_module_state(Naming.moddict_cname)
+                namespace = code.name_in_module_state(Naming.moddict_cname)
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -8523,7 +8523,7 @@ class TupleNode(SequenceNode):
 
     def generate_operation_code(self, code):
         if len(self.args) == 0:
-            self.result_code = self.name_in_module_state(Naming.empty_tuple)
+            self.result_code = code.name_in_module_state(Naming.empty_tuple)
             return
 
         if self.is_literal or self.is_partly_literal:
@@ -9885,7 +9885,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        moddict_cname = code.self.name_in_module_state(Naming.moddict_cname)
+        moddict_cname = code.name_in_module_state(Naming.moddict_cname)
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),

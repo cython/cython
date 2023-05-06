@@ -2765,7 +2765,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('')
         module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (
             Naming.modulestateglobal_cname,
-            Naming.modulestatetype_cname,
+            Naming.modulestategetter_cname,
             Naming.pymoduledef_cname))
         module_state.putln('')
         module_state.putln('#define %s (PyState_FindModule(&%s))' % (

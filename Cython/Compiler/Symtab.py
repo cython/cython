@@ -2227,6 +2227,10 @@ class PyClassScope(ClassScope):
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
 
+    @property
+    def namespace_cname_typecast(self):
+        return self.namespace_cname
+
 
 class CClassScope(ClassScope):
     #  Namespace of an extension type.

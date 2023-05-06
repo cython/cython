@@ -527,11 +527,33 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    def inject_cglobal(self, impl):
+        """
+        Replace 'CGLOBAL(xyz)' with code looking up the name on the module state struct.
+        """
+        if not 'CGLOBAL(' in impl:
+            return impl
+        
+        def handle_cglobal(matchobj):
+            name = matchobj.group(1).strip()
+            if name.startswith("$"):
+                # don't require substitute.Naming; do it ourselves
+                name = name[1:]
+                if name.startswith('{') and name.endswith('}'):
+                    name = name[1:-1]
+                name = getattr(Naming, name)
+            return "%s->%s" % (Naming.modulestateglobal_cname, name)
+
+        impl = re.sub(r'CGLOBAL\(([^)]+)\)', handle_cglobal, impl)
+
+        assert not 'CGLOBAL(' in impl
+        return impl
+        
+
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
-        special_strings = ['PYIDENT(', 'PYUNICODE(', 'CGLOBAL(']
-        if not any(special_string in impl for special_string in special_strings):
+        if 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl:
             return False, impl
 
         replacements = {}
@@ -550,19 +572,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
 
-        def handle_cglobal(matchobj):
-            name = matchobj.group(1).strip()
-            if name.startswith("$"):
-                # don't require substitute.Naming; do it ourselves
-                name = name[1:]
-                if name.startswith('{') and name.endswith('}'):
-                    name = name[1:-1]
-                name = getattr(Naming, name)
-            return "%s->%s" % (Naming.modulestateglobal_cname, name)
-        
-        impl = re.sub(r'CGLOBAL\(([^)]+)\)', handle_cglobal, impl)
-
-        assert not any(special_string in impl for special_string in special_strings)
+        assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
         return True, impl
 
     def inject_unbound_methods(self, impl, output):
@@ -612,9 +622,11 @@ class UtilityCode(UtilityCodeBase):
             writer = output[self.proto_block]
             writer.putln("/* %s.proto */" % self.name)
             writer.put_or_include(
-                self.format_code(self.proto), '%s_proto' % self.name)
+                self.inject_cglobal(self.format_code(self.proto)),
+                '%s_proto' % self.name)
         if self.impl:
             impl = self.format_code(self.wrap_c_strings(self.impl))
+            impl = self.inject_cglobal(impl)
             is_specialised1, impl = self.inject_string_constants(impl, output)
             is_specialised2, impl = self.inject_unbound_methods(impl, output)
             writer = output['utility_code_def']
@@ -628,7 +640,7 @@ class UtilityCode(UtilityCodeBase):
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
             if isinstance(self.init, basestring):
-                writer.put(self.format_code(self.init))
+                writer.put(self.inject_cglobal(self.format_code(self.init)))
             else:
                 self.init(writer, output.module_pos)
             writer.putln(writer.error_goto_if_PyErr(output.module_pos))
@@ -638,7 +650,7 @@ class UtilityCode(UtilityCodeBase):
             writer.putln("/* %s.cleanup */" % self.name)
             if isinstance(self.cleanup, basestring):
                 writer.put_or_include(
-                    self.format_code(self.cleanup),
+                    self.inject_cglobal(self.format_code(self.cleanup)),
                     '%s_cleanup' % self.name)
             else:
                 self.cleanup(writer, output.module_pos)
