@@ -2397,7 +2397,7 @@ class NameNode(AtomicExprNode):
         if entry is None:
             return  # There was an error earlier
         if entry.scope.is_module_scope and (entry.is_cglobal or entry.is_pyglobal):
-            self.module_state_lookup = code.get_module_state_code() + "->"
+            self.module_state_lookup = code.code.name_in_module_state("")
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
         if entry.is_builtin and entry.is_const:
@@ -2501,7 +2501,7 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            namespace = code.get_scope_namespace_cname_code(self.entry.scope)
+            namespace = code.name_in_module_state(self.entry.scope.namespace_cname)
             namespace_typecast = self.entry.scope.namespace_cname_typecast
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
@@ -2510,7 +2510,7 @@ class NameNode(AtomicExprNode):
                 namespace = '%s->tp_dict' % namespace
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
-                namespace = "%s->%s" % (code.get_module_state_code(), Naming.moddict_cname)
+                namespace = code.code.name_in_module_state(Naming.moddict_cname)
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2535,7 +2535,7 @@ class NameNode(AtomicExprNode):
             if entry.is_member:
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
-                           code.get_scope_namespace_cname_code(self.entry.scope))
+                           code.name_in_module_state(self.entry.scope.namespace_cname))
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -8523,10 +8523,7 @@ class TupleNode(SequenceNode):
 
     def generate_operation_code(self, code):
         if len(self.args) == 0:
-            self.result_code = "%s->%s" % (
-                code.get_module_state_code(),
-                Naming.empty_tuple
-            )
+            self.result_code = self.name_in_module_state(Naming.empty_tuple)
             return
 
         if self.is_literal or self.is_partly_literal:
@@ -9888,9 +9885,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        moddict_cname = "%s->%s" % (
-            code.get_module_state_code(),
-            Naming.moddict_cname)
+        moddict_cname = code.self.name_in_module_state(Naming.moddict_cname)
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
@@ -10016,8 +10011,8 @@ class CodeObjectNode(ExprNode):
         elif self.def_node.is_generator:
             flags.append('CO_GENERATOR')
 
-        empty_bytes = "%s->%s" % (code.get_module_state_code(), Naming.empty_bytes)
-        empty_tuple = "%s->%s" % (code.get_module_state_code(), Naming.empty_tuple)
+        empty_bytes = code.name_in_module_state(Naming.empty_bytes)
+        empty_tuple = code.name_in_module_state(Naming.empty_tuple)
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
             len(func.args) - func.num_kwonly_args,  # argcount

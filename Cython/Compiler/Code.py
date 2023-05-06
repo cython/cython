@@ -1915,20 +1915,17 @@ class CCodeWriter(object):
     # constant handling
 
     def get_py_int(self, str_value, longness):
-        return "%s->%s" % (
-            self.get_module_state_code(),
+        return self.name_in_module_state(
             self.globalstate.get_int_const(str_value, longness).cname
         )
 
     def get_py_float(self, str_value, value_code):
-        return "%s->%s" % (
-            self.get_module_state_code(),
+        return self.name_in_module_state(
             self.globalstate.get_float_const(str_value, value_code).cname
         )
 
     def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
-        return "%s->%s" % (
-            self.get_module_state_code(),
+        return self.name_in_module_state(
             self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
         )
 
@@ -1942,8 +1939,7 @@ class CCodeWriter(object):
                             is_str=False, unicode_value=None):
         cname = self.globalstate.get_py_string_const(
             text, identifier, is_str, unicode_value).cname
-        module_state = self.get_module_state_code()
-        return "%s->%s" % (module_state, cname)
+        return self.name_in_module_state(cname)
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname
@@ -1957,17 +1953,14 @@ class CCodeWriter(object):
     def get_cached_constants_writer(self, target=None):
         return self.globalstate.get_cached_constants_writer(target)
 
-    def get_module_state_code(self):
+    def name_in_module_state(self, cname):
         # If we don't have a funcstate scope assume global scope for now
         if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
-            return Naming.modulestatevalue_cname
+            modulestate_name = Naming.modulestatevalue_cname
         else:
             # TODO - more choices depending on the type of env
-            return Naming.modulestateglobal_cname
-
-    def get_scope_namespace_cname_code(self, scope):
-        namespace_cname = scope.namespace_cname
-        return "%s->%s" % (self.get_module_state_code(), namespace_cname)
+            modulestate_name = Naming.modulestateglobal_cname
+        return "%s->%s" % (modulestate_name, cname)
 
     # code generation
 
