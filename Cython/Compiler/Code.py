@@ -422,7 +422,8 @@ class UtilityCodeBase(object):
         """
         util = cls.load(util_code_name, from_file, **kwargs)
         proto, impl = util.proto, util.impl
-        return util.format_code(proto), util.format_code(impl)
+        return (util.inject_cglobal(util.format_code(proto)),
+                util.inject_cglobal(util.format_code(impl)))
 
     def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
         """
@@ -527,11 +528,12 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+
     def inject_cglobal(self, impl):
         """
         Replace 'CGLOBAL(xyz)' with code looking up the name on the module state struct.
         """
-        if not 'CGLOBAL(' in impl:
+        if not impl or not 'CGLOBAL(' in impl:
             return impl
         
         def handle_cglobal(matchobj):
@@ -1230,7 +1232,9 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
+            # modulestate argument is currently unused
+            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(%s *%s) {" % (
+                Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
@@ -1518,7 +1522,8 @@ class GlobalState(object):
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
-        interned_cname = self.get_interned_identifier(name).cname
+        interned_cname = "%s->%s" % (
+            Naming.modulestatevalue_cname, self.get_interned_identifier(name).cname)
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
@@ -1565,8 +1570,8 @@ class GlobalState(object):
             init.putln('%s.type = (PyObject*)&%s;' % (
                 cname, type_cname))
             # method name string isn't static in limited api
-            init.putln('%s.method_name = &%s;' % (
-                cname, method_name_cname))
+            init.putln('%s.method_name = &%s->%s;' % (
+                cname, Naming.modulestatevalue_cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -1968,7 +1973,7 @@ class CCodeWriter(object):
         return self.name_in_module_state(cname)
 
     def get_argument_default_const(self, type):
-        return self.globalstate.get_py_const(type).cname
+        return self.name_in_module_state(self.globalstate.get_py_const(type).cname)
 
     def intern(self, text):
         return self.get_py_string_const(text)

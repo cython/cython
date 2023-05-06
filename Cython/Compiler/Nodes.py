@@ -2429,6 +2429,8 @@ class FuncDefNode(StatNode, BlockNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ArgTypeTest", "FunctionArguments.c"))
             typeptr_cname = arg.type.typeptr_cname
+            if arg.type.is_extension_type:
+                typeptr_cname = code.name_in_module_state(typeptr_cname)
             arg_code = "((PyObject *)%s)" % arg.entry.cname
             code.putln(
                 'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, %s, %s))) %s' % (

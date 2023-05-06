@@ -780,6 +780,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 /////////////// AddTraceback ///////////////
 //@requires: ModuleSetupCode.c::CodeObjectCache
 //@requires: CLineInTraceback
+//@substitute: naming
 
 #include "compile.h"
 #include "frameobject.h"

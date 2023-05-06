@@ -434,7 +434,7 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     if (unlikely(!file_path))
         goto bad;
 
-    if (unlikely(PyObject_SetAttrString(CGLOBAL($module_cname), "__file__", file_path) < 0))
+    if (unlikely(PyObject_SetAttrString($module_cname, "__file__", file_path) < 0))
         goto bad;
 
     osmod = PyImport_ImportModule("os");
@@ -466,7 +466,7 @@ bad:
         return -1;
 
 set_path:
-    result = PyObject_SetAttrString(CGLOBAL($module_cname), "__path__", package_path);
+    result = PyObject_SetAttrString($module_cname, "__path__", package_path);
     Py_DECREF(package_path);
     return result;
 }
@@ -649,14 +649,14 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         void *p;
     } tmp;
 
-    d = PyObject_GetAttrString(CGLOBAL($module_cname), (char *)"$api_name");
+    d = PyObject_GetAttrString($module_cname, (char *)"$api_name");
     if (!d) {
         PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
         Py_INCREF(d);
-        if (PyModule_AddObject(CGLOBAL($module_cname), (char *)"$api_name", d) < 0)
+        if (PyModule_AddObject($module_cname, (char *)"$api_name", d) < 0)
             goto bad;
     }
     tmp.fp = f;
@@ -732,7 +732,7 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
         d = PyDict_New();
         if (!d)
             goto bad;
-        if (__Pyx_PyObject_SetAttrStr(CGLOBAL($module_cname), PYIDENT("$api_name"), d) < 0)
+        if (__Pyx_PyObject_SetAttrStr($module_cname, PYIDENT("$api_name"), d) < 0)
             goto bad;
     }
     cobj = PyCapsule_New(p, sig, 0);

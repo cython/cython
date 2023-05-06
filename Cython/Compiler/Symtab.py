@@ -105,6 +105,10 @@ class Entry(object):
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
+    # is_cclass_varentry  boolean Is a var entry of an extension type
+    #                              (Hack! Only needed because most C globals are
+    #                               static variables while these live in the module scope.
+    #                               Remove when fixed.)
     # is_cpp_class     boolean    Is a C++ class
     # is_const         boolean    Is a constant
     # is_property      boolean    Is a property of an extension type:
@@ -189,6 +193,7 @@ class Entry(object):
     is_anonymous = 0
     is_type = 0
     is_cclass = 0
+    is_cclass_var_entry = False  # Remove when other cglobals are in the module scope 
     is_cpp_class = 0
     is_const = 0
     is_property = 0
@@ -1862,6 +1867,7 @@ class ModuleScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.is_cclass_var_entry = True
         var_entry.scope = entry.scope
         entry.as_variable = var_entry
 
@@ -2177,6 +2183,7 @@ class ClassScope(Scope):
             entry.utility_code_definition = Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c")
             self.use_entry_utility_code(entry)
             entry.is_cfunction = 1
+            entry.scope = self.builtin_scope()
         return entry
 
 
@@ -2186,6 +2193,7 @@ class PyClassScope(ClassScope):
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
+    namespace_cname_typecast = ""
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2226,10 +2234,6 @@ class PyClassScope(ClassScope):
 
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
-
-    @property
-    def namespace_cname_typecast(self):
-        return self.namespace_cname
 
 
 class CClassScope(ClassScope):

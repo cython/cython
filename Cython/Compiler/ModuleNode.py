@@ -2696,7 +2696,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.type.is_pyobject:
                     if entry.type.is_extension_type or entry.type.is_builtin_type:
                         code.putln("if (!(%s)) %s;" % (
-                            entry.type.type_test_code("o"),
+                            entry.type.type_test_code(code, "o"),
                             code.error_goto(entry.pos)))
                     code.putln("Py_INCREF(o);")
                     code.put_decref(entry.cname, entry.type, nanny=False)
@@ -3022,7 +3022,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins()")
+            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins(%s)" %
+                                  Naming.modulestatevalue_cname)
 
         code.putln("/*--- Constants init code ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants(%s)" %
@@ -3714,9 +3715,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
-            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s); %s" % (
+            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->%s); %s" % (
                 type.vtabptr_cname,
                 type.vtabstruct_cname,
+                Naming.modulestatevalue_cname,
                 type.typeptr_cname,
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
@@ -3749,7 +3751,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put('%s = __Pyx_ImportType(%s, %s,' % (
+        code.put('%s->%s = __Pyx_ImportType(%s, %s,' % (
+            Naming.modulestatevalue_cname,
             type.typeptr_cname,
             module,
             module_name))
@@ -3789,7 +3792,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.check_size, module_name, type.name))
         code.putln('__Pyx_ImportType_CheckSize_%s);' % check_size.title())
 
-        code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
+        code.putln(' if (!%s->%s) %s' % (
+            Naming.modulestatevalue_cname, type.typeptr_cname, error_code))
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

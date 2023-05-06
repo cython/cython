@@ -2396,7 +2396,11 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return  # There was an error earlier
-        if entry.scope.is_module_scope and (entry.is_cglobal or entry.is_pyglobal):
+        if not hasattr(entry, "scope"):
+            import pdb; pdb.set_trace()
+        if entry.scope.is_module_scope and (
+                entry.is_pyglobal or entry.is_cclass_var_entry):
+            # TODO - eventually this should apply to cglobals too
             self.module_state_lookup = code.name_in_module_state("")
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
@@ -2501,7 +2505,10 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            namespace = code.name_in_module_state(self.entry.scope.namespace_cname)
+            if (self.entry.scope.is_c_class_scope or self.entry.scope.is_py_class_scope):
+                namespace = self.entry.scope.namespace_cname
+            else:
+                namespace = code.name_in_module_state(self.entry.scope.namespace_cname)
             namespace_typecast = self.entry.scope.namespace_cname_typecast
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
@@ -2520,6 +2527,8 @@ class NameNode(AtomicExprNode):
                 assert False, repr(entry)
             if namespace_typecast:
                 namespace = "(%s%s)" % (namespace_typecast, namespace)
+            if namespace.find("__pyx_mstate->__pyx_t_5") != -1:
+                import pdb; pdb.set_trace()
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -3732,7 +3741,7 @@ class FormattedValueNode(ExprNode):
             # common case: expect simple Unicode pass-through if no format spec
             format_func = '__Pyx_PyObject_FormatSimple'
             # passing a Unicode format string in Py2 forces PyObject_Format() to also return a Unicode string
-            format_spec = Naming.empty_unicode
+            format_spec = code.name_in_module_state(Naming.empty_unicode)
 
         conversion_char = self.conversion_char
         if conversion_char == 's' and value_is_unicode:
@@ -13769,13 +13778,14 @@ class PyTypeTestNode(CoercionNode):
         if self.type.typeobj_is_available():
             if self.type.is_builtin_type:
                 type_test = self.type.type_test_code(
+                    code,
                     self.arg.py_result(),
                     self.notnone, exact=self.exact_builtin_type)
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
                     "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
                 type_test = self.type.type_test_code(
-                    self.arg.py_result(), self.notnone)
+                    code, self.arg.py_result(), self.notnone)
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
             code.putln("if (!(%s)) %s" % (

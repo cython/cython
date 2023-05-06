@@ -1468,7 +1468,7 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, arg, notnone=False, exact=True):
+    def type_test_code(self, code, arg, notnone=False, exact=True):
         type_check = self.type_check_function(exact=exact)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
@@ -1613,11 +1613,10 @@ class PyExtensionType(PyObjectType):
                 entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def type_test_code(self, py_arg, notnone=False):
-
+    def type_test_code(self, code, py_arg, notnone=False):
         none_check = "((%s) == Py_None)" % py_arg
         type_check = "likely(__Pyx_TypeTest(%s, %s))" % (
-            py_arg, self.typeptr_cname)
+            py_arg, code.name_in_module_state(self.typeptr_cname))
         if notnone:
             return type_check
         else:
