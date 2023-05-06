@@ -1722,7 +1722,8 @@ class CEnumDefNode(StatNode):
             # we can't see them.
             last_enum_value = 0 if self.visibility != 'extern' else None
             for item in self.items:
-                value_entry = item.analyse_declarations(scope, self.entry, last_enum_value)
+                item.analyse_declarations(scope, self.entry, last_enum_value)
+                value_entry = item.entry
                 last_enum_value = value_entry.equivalent_enum_value if self.visibility != 'extern' else None
                 if last_enum_value:
                     last_enum_value += 1
@@ -1770,7 +1771,7 @@ class CEnumDefItemNode(StatNode):
         else:
             cname = self.cname
 
-        entry = env.declare_const(
+        self.entry = entry = env.declare_const(
             self.name, enum_entry.type,
             self.value, self.pos, cname=cname,
             visibility=enum_entry.visibility, api=enum_entry.api,
@@ -1780,10 +1781,8 @@ class CEnumDefItemNode(StatNode):
         if self.value:
             if self.value.is_literal:
                 enum_value = int(self.value.value)
-            else:
-                value_entry = getattr(self.value, 'entry', None)
-                if value_entry:
-                    enum_value = value_entry.equivalent_enum_value
+            elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
+                enum_value = self.value.entry.equivalent_enum_value
         else:
             # The value it would have been just by incrementing
             enum_value = incremental_enum_value
@@ -1793,8 +1792,6 @@ class CEnumDefItemNode(StatNode):
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
             enum_entry.type.values.append(entry.name)
-
-        return entry
 
 
 class CTypeDefNode(StatNode):

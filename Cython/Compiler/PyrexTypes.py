@@ -4219,9 +4219,51 @@ class CppClassType(CType):
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
         return "(%s.has_value())" % cname
+    
+
+class EnumMixin(object):
+    """
+    Common implementation details for C and C++ enums.
+    """
+
+    def create_to_py_utility_code_implementation(self, env):
+        from .UtilityCode import CythonUtilityCode
+        self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+        if self.entry.scope != env.global_scope():
+            module_name = self.entry.scope.qualified_name
+        else:
+            module_name = None
+
+        directives = CythonUtilityCode.filter_inherited_directives(
+            env.global_scope().directives)
+        if any(value_entry.equivalent_enum_value is None for value_entry in self.entry.enum_values):
+            # We're at a high risk of making a switch statement with equal values in
+            # (because we simply can't tell, and enums are often used like that).
+            # So turn off the switch optimization to be safe.
+            # (Note that for now Cython doesn't do the switch optimization for
+            # scoped enums anyway)
+            directives['optimize.use_switch'] = False
+
+        if self.is_cpp_enum:
+            underlying_type_str = self.underlying_type.empty_declaration_code()
+        else:
+            underlying_type_str = "int"
+
+        env.use_utility_code(CythonUtilityCode.load(
+            "EnumTypeToPy", "CpdefEnums.pyx",
+            context={"funcname": self.to_py_function,
+                    "name": self.name,
+                    "items": tuple(self.values),
+                    "underlying_type": underlying_type_str,
+                    "module_name": module_name,
+                    "is_flag": True,
+                    },
+            outer_module_scope=self.entry.scope,  # ensure that "name" is findable
+            compiler_directives = directives,
+        ))
 
 
-class CppScopedEnumType(CType):
+class CppScopedEnumType(CType, EnumMixin):
     # name    string
     # doc     string or None
     # cname   string
@@ -4267,35 +4309,7 @@ class CppScopedEnumType(CType):
         if self.to_py_function is not None:
             return True
         if self.entry.create_wrapper:
-            from .UtilityCode import CythonUtilityCode
-            self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
-            if self.entry.scope != env.global_scope():
-                module_name = self.entry.scope.qualified_name
-            else:
-                module_name = None
-
-            directives = CythonUtilityCode.filter_inherited_directives(
-                env.global_scope().directives)
-            if any(value_entry.equivalent_enum_value is None for value_entry in self.entry.enum_values):
-                # We're at a high risk of making a switch statement with equal values in
-                # (because we simply can't tell, and enums are often used like that).
-                # So turn off the switch optimization to be safe.
-                # Although note that for now Cython doesn't do the switch optimization for
-                # scoped enums anyway, so this is mainly future-proofing
-                directives['optimize.use_switch'] = False
-
-            env.use_utility_code(CythonUtilityCode.load(
-                "EnumTypeToPy", "CpdefEnums.pyx",
-                context={"funcname": self.to_py_function,
-                        "name": self.name,
-                        "items": tuple(self.values),
-                        "underlying_type": self.underlying_type.empty_declaration_code(),
-                        "module_name": module_name,
-                        "is_flag": False,
-                        },
-                outer_module_scope=self.entry.scope,  # ensure that "name" is findable
-                compiler_directives=directives,
-            ))
+            self.create_to_py_utility_code_implementation(env)
             return True
         if self.underlying_type.create_to_py_utility_code(env):
             # Using a C++11 lambda here, which is fine since
@@ -4371,7 +4385,7 @@ def is_optional_template_param(type):
     return isinstance(type, TemplatePlaceholderType) and type.optional
 
 
-class CEnumType(CIntLike, CType):
+class CEnumType(CIntLike, CType, EnumMixin):
     #  name           string
     #  doc            string or None
     #  cname          string or None
@@ -4445,33 +4459,7 @@ class CEnumType(CIntLike, CType):
             return self.to_py_function
         if not self.entry.create_wrapper:
             return super(CEnumType, self).create_to_py_utility_code(env)
-        from .UtilityCode import CythonUtilityCode
-        self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
-        if self.entry.scope != env.global_scope():
-            module_name = self.entry.scope.qualified_name
-        else:
-            module_name = None
-
-        directives = CythonUtilityCode.filter_inherited_directives(
-            env.global_scope().directives)
-        if any(value_entry.equivalent_enum_value is None for value_entry in self.entry.enum_values):
-            # We're at a high risk of making a switch statement with equal values in
-            # (because we simply can't tell, and enums are often used like that).
-            # So turn off the switch optimization to be safe
-            directives['optimize.use_switch'] = False
-
-        env.use_utility_code(CythonUtilityCode.load(
-            "EnumTypeToPy", "CpdefEnums.pyx",
-            context={"funcname": self.to_py_function,
-                    "name": self.name,
-                    "items": tuple(self.values),
-                    "underlying_type": "int",
-                    "module_name": module_name,
-                    "is_flag": True,
-                    },
-            outer_module_scope=self.entry.scope,  # ensure that "name" is findable
-            compiler_directives = directives,
-        ))
+        self.create_to_py_utility_code_implementation(env)
         return True
 
 
