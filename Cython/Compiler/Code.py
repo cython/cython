@@ -1959,8 +1959,7 @@ class CCodeWriter(object):
 
     def get_module_state_code(self):
         # If we don't have a funcstate scope assume global scope for now
-        no_funcstate_scope = self.funcstate.scope is None
-        if no_funcstate_scope or self.funcstate.scope.is_module_scope:
+        if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
             return Naming.modulestate_cname
         else:
             # TODO - more choices depending on the type of env
