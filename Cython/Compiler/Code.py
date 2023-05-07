@@ -1876,8 +1876,6 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        if s.find(" "+"__pyx_ptype_6Cython_8Compiler_4Code_UtilityCodeBase") != -1:
-            import pdb; pdb.set_trace()
         if '\n' in s:
             self._write_lines(s)
         else:
@@ -2022,13 +2020,14 @@ class CCodeWriter(object):
 
     def name_in_module_state(self, cname, force_global=False):
         # If we don't have a funcstate scope assume global scope for now
-        if not force_global and (
-                self.funcstate.scope is None or
-                self.funcstate.scope.is_module_scope):
-            modulestate_name = Naming.modulestatevalue_cname
-        else:
+
+        # default fallback option if we don't know better
+        modulestate_name = Naming.modulestateglobal_cname
+        if not force_global and self.funcstate:
+            if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
+                modulestate_name = Naming.modulestatevalue_cname
             # TODO - more choices depending on the type of env
-            modulestate_name = Naming.modulestateglobal_cname
+            
         return "%s->%s" % (modulestate_name, cname)
 
     # code generation
