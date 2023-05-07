@@ -705,9 +705,9 @@ class BaseClassSlot(SlotDescriptor):
         base_type = scope.parent_type.base_type
         if base_type:
             code.putln("%s->%s = %s;" % (
-                scope.parent_type.typeptr_cname,
+                code.name_in_module_state(scope.parent_type.typeptr_cname),
                 self.slot_name,
-                base_type.typeptr_cname))
+                code.name_in_module_state(base_type.typeptr_cname)))
 
 
 class DictOffsetSlot(SlotDescriptor):

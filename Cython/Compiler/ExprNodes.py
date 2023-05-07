@@ -2397,8 +2397,6 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return  # There was an error earlier
-        if not hasattr(entry, "scope"):
-            import pdb; pdb.set_trace()
         if entry.scope.is_module_scope and (
                 entry.is_pyglobal or entry.is_cclass_var_entry):
             # TODO - eventually this should apply to cglobals too
@@ -2459,13 +2457,19 @@ class NameNode(AtomicExprNode):
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
+                if self.entry.scope.is_py_class_scope:
+                    namespace_cname = entry.scope.namespace_cname
+                else:
+                    namespace_cname = code.name_in_module_state(entry.scope.namespace_cname)
+                namespace_typecast = self.entry.scope.namespace_cname_typecast
                 # FIXME: is_pyglobal is also used for class namespace
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
                 code.putln(
-                    '__Pyx_GetNameInClass(%s, %s, %s); %s' % (
+                    '__Pyx_GetNameInClass(%s, %s%s, %s); %s' % (
                         self.result(),
-                        entry.scope.namespace_cname,
+                        namespace_typecast,
+                        namespace_cname,
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
@@ -2506,7 +2510,7 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            if (self.entry.scope.is_c_class_scope or self.entry.scope.is_py_class_scope):
+            if self.entry.scope.is_py_class_scope:
                 namespace = self.entry.scope.namespace_cname
             else:
                 namespace = code.name_in_module_state(self.entry.scope.namespace_cname)

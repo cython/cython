@@ -1876,6 +1876,8 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
+        if s.find(" "+"__pyx_ptype_6Cython_8Compiler_4Code_UtilityCodeBase") != -1:
+            import pdb; pdb.set_trace()
         if '\n' in s:
             self._write_lines(s)
         else:
@@ -2018,9 +2020,11 @@ class CCodeWriter(object):
     def get_cached_constants_writer(self, target=None):
         return self.globalstate.get_cached_constants_writer(target)
 
-    def name_in_module_state(self, cname):
+    def name_in_module_state(self, cname, force_global=False):
         # If we don't have a funcstate scope assume global scope for now
-        if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
+        if not force_global and (
+                self.funcstate.scope is None or
+                self.funcstate.scope.is_module_scope):
             modulestate_name = Naming.modulestatevalue_cname
         else:
             # TODO - more choices depending on the type of env

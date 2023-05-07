@@ -1539,7 +1539,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_new is None:
-                tp_new = "__Pyx_PyType_GetSlot(%s, tp_new, newfunc)" % base_type.typeptr_cname
+                tp_new = "__Pyx_PyType_GetSlot(%s, tp_new, newfunc)" % (
+                    code.name_in_module_state(base_type.typeptr_cname))
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
         else:
             code.putln("PyObject *o;")
@@ -1768,7 +1769,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                base_cname = base_type.typeptr_cname
+                base_cname = code.name_in_module_state(base_type.typeptr_cname)
                 code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); "
                            "else __Pyx_call_next_tp_dealloc(o, %s);" % (
                                base_cname, base_cname, slot_func_cname))
@@ -1855,7 +1856,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                base_cname = base_type.typeptr_cname
+                base_cname = code.name_in_module_state(base_type.typeptr_cname, force_global=True)
                 code.putln(
                     "e = ((likely(%s)) ? ((%s->tp_traverse) ? %s->tp_traverse(o, v, a) : 0) : "
                     "__Pyx_call_next_tp_traverse(o, v, a, %s)); if (e) return e;" % (
@@ -1921,7 +1922,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                base_cname = base_type.typeptr_cname
+                base_cname = code.name_in_module_state(base_type.typeptr_cname, force_global=True)
                 code.putln(
                     "if (likely(%s)) { if (%s->tp_clear) %s->tp_clear(o); } else __Pyx_call_next_tp_clear(o, %s);" % (
                         base_cname, base_cname, base_cname, slot_func))
@@ -2289,7 +2290,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 return '%s_maybe_call_slot(__Pyx_PyType_GetSlot(%s, tp_base, PyTypeObject*), left, right %s)' % (
                     func_name,
-                    scope.parent_type.typeptr_cname,
+                    code.name_in_module_state(scope.parent_type.typeptr_cname),
                     extra_arg)
 
         if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
