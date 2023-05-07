@@ -70,7 +70,7 @@ typedef struct {
 
 #define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
 #define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
-#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
+#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -1178,6 +1178,7 @@ static int __pyx_FusedFunction_init(PyObject *module);
 
 //////////////////// FusedFunction ////////////////////
 //@requires: CythonFunctionShared
+//@substitute: naming
 
 static PyObject *
 __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
@@ -1591,8 +1592,10 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 
 static int __pyx_FusedFunction_init(PyObject *module) {
+    $modulestatetype_cname *mstate;
 #if CYTHON_USE_TYPE_SPECS
-    PyObject *bases = PyTuple_Pack(1, __pyx_CyFunctionType);
+    mstate = $modulestategetter_cname(module);
+    PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);
     if (unlikely(!bases)) {
         return -1;
     }
@@ -1600,11 +1603,12 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     Py_DECREF(bases);
 #else
     CYTHON_UNUSED_VAR(module);
+    mstate = $modulestateglobal_cname;
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
-    __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
-    __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
+    __pyx_FusedFunctionType_type.tp_base = mstate->__pyx_CyFunctionType;
+    mstate->__pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
 #endif
-    if (unlikely(__pyx_FusedFunctionType == NULL)) {
+    if (unlikely(mstate->__pyx_FusedFunctionType == NULL)) {
         return -1;
     }
     return 0;
