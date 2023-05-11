@@ -11,7 +11,7 @@ from .TypeSlots import Signature
 from . import PyrexTypes
 
 
-# C-level implementations of builtin types, functions and methods
+# C-level implementations of builtin types, functions and methods.
 
 iter_next_utility_code = UtilityCode.load("IterNext", "ObjectHandling.c")
 getattr_utility_code = UtilityCode.load("GetAttr", "ObjectHandling.c")
@@ -25,7 +25,7 @@ builtin_utility_code = {
 }
 
 
-# mapping from builtins to their C-level equivalents
+# Mapping from builtins to their C-level equivalents.
 
 class _BuiltinOverride(object):
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
@@ -56,12 +56,12 @@ class BuiltinAttribute(object):
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
-        self.field_type_name = field_type_name  # can't do the lookup before the type is declared!
+        self.field_type_name = field_type_name  # Can't do the lookup before the type is declared!
         self.field_type = field_type
 
     def declare_in_type(self, self_type):
         if self.field_type_name is not None:
-            # lazy type lookup
+            # Lazy type lookup
             field_type = builtin_scope.lookup(self.field_type_name).type
         else:
             field_type = self.field_type or PyrexTypes.py_object_type
@@ -82,7 +82,7 @@ class BuiltinMethod(_BuiltinOverride):
     def declare_in_type(self, self_type):
         method_type, sig = self.func_type, self.sig
         if method_type is None:
-            # override 'self' type (first argument)
+            # Override 'self' type (first argument).
             self_arg = PyrexTypes.CFuncTypeArg("", self_type, None)
             self_arg.not_none = True
             self_arg.accept_builtin_subtypes = True
@@ -92,7 +92,7 @@ class BuiltinMethod(_BuiltinOverride):
 
 
 class BuiltinProperty(object):
-    # read only for now
+    # Read only for now.
     def __init__(self, py_name, property_type, call_cname,
                  exception_value=None, exception_check=None, utility_code=None):
         self.py_name = py_name
@@ -195,11 +195,11 @@ builtin_function_table = [
     #('max',       "",     "",      ""),
     #('min',       "",     "",      ""),
     BuiltinFunction('next',       "O",    "O",     "__Pyx_PyIter_Next",
-                    utility_code = iter_next_utility_code),   # not available in Py2 => implemented here
+                    utility_code = iter_next_utility_code),   # Not available in Py2 => implemented here.
     BuiltinFunction('next',      "OO",    "O",     "__Pyx_PyIter_Next2",
-                    utility_code = iter_next_utility_code),  # not available in Py2 => implemented here
+                    utility_code = iter_next_utility_code),  # Not available in Py2 => implemented here.
     #('oct',       "",     "",      ""),
-    #('open',       "ss",   "O",     "PyFile_FromString"),   # not in Py3
+    #('open',       "ss",   "O",     "PyFile_FromString"),   # Not in Py3.
 ] + [
     BuiltinFunction('ord',        None,    None,   "__Pyx_long_cast",
                     func_type=PyrexTypes.CFuncType(
@@ -366,7 +366,7 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_set_discard", "Optimize.c")),
                                     BuiltinMethod("remove",  "TO", "r", "__Pyx_PySet_Remove",
                                                   utility_code=UtilityCode.load("py_set_remove", "Optimize.c")),
-                                    # update is actually variadic (see Github issue #1645)
+                                    # Update is actually variadic (see Github issue #1645)
 #                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
 #                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
@@ -375,9 +375,9 @@ builtin_types_table = [
     ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
     ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)[0]", []),
     ("memoryview", "PyMemoryView_Type", [
-        # TODO - format would be nice, but hard to get
+        # TODO - format would be nice, but hard to get.
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
-        # error checking would ideally be limited api only
+        # Error checking would ideally be limited api only.
         BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryView_Get_ndim',
                         exception_value="-1", exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
@@ -404,7 +404,7 @@ builtin_types_table = [
 
 
 types_that_construct_their_instance = frozenset({
-    # some builtin types do not always return an instance of
+    # Some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'long', 'float', 'complex',
     'bytes', 'unicode', 'bytearray',
@@ -436,7 +436,7 @@ builtin_structs_table = [
       ])
 ]
 
-# set up builtin scope
+# Set up builtin scope
 
 builtin_scope = BuiltinScope()
 
@@ -484,7 +484,7 @@ def init_builtin_structs():
 
 
 def init_builtins():
-    #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
+    #Errors.init_thread()  # Hopefully not needed - we should not emit warnings ourselves.
     init_builtin_structs()
     init_builtin_types()
     init_builtin_funcs()
@@ -530,7 +530,7 @@ def init_builtins():
         memoryview_type,
     )
 
-    # Set up type inference links between equivalent Python/C types
+    # Set up type inference links between equivalent Python/C types.
     bool_type.equivalent_type = PyrexTypes.c_bint_type
     PyrexTypes.c_bint_type.equivalent_type = bool_type
 
@@ -600,12 +600,12 @@ def get_known_standard_library_entry(qualified_name):
     module_name = EncodedString(name_parts[0])
     rest = name_parts[1:]
 
-    if len(rest) > 1:  # for now, we don't know how to deal with any nested modules
+    if len(rest) > 1:  # For now, we don't know how to deal with any nested modules.
         return None
 
     mod = get_known_standard_library_module_scope(module_name)
 
-    # eventually handle more sophisticated multiple lookups if needed
+    # Eventually handle more sophisticated multiple lookups if needed.
     if mod and rest:
         return mod.lookup_here(rest[0])
     return None
