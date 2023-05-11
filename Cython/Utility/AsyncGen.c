@@ -206,7 +206,9 @@ __Pyx_async_gen_repr(__pyx_CoroutineObject *o)
 static int
 __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
 {
+#if CYTHON_COMPILING_IN_CPYTHON
     PyThreadState *tstate;
+#endif
     PyObject *finalizer;
     PyObject *firstiter;
 
@@ -216,15 +218,22 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
 
     o->ag_hooks_inited = 1;
 
+#if CYTHON_COMPILING_IN_CPYTHON
     tstate = __Pyx_PyThreadState_Current;
-
     finalizer = tstate->async_gen_finalizer;
+#else
+    finalizer = _PyEval_GetAsyncGenFinalizer();
+#endif
     if (finalizer) {
         Py_INCREF(finalizer);
         o->ag_finalizer = finalizer;
     }
 
+#if CYTHON_COMPILING_IN_CPYTHON
     firstiter = tstate->async_gen_firstiter;
+#else
+    firstiter = _PyEval_GetAsyncGenFirstiter();
+#endif
     if (firstiter) {
         PyObject *res;
 #if CYTHON_UNPACK_METHODS

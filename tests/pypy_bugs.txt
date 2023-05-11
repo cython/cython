@@ -46,7 +46,6 @@ run.coverage_api
 run.coverage_nogil
 
 # very little coroutine-related seems to work
-run.test_asyncgen
 run.test_coroutines_pep492
 run.embedsignatures
 run.asyncio_generators
