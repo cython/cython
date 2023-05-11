@@ -24,9 +24,6 @@ run.special_methods_T561_py2
 
 # tests for things that don't exist in cpyext
 compile.pylong
-run.datetime_pxd
-run.datetime_cimport
-run.datetime_members
 run.extern_builtins_T258
 run.line_trace
 run.line_profile_test
