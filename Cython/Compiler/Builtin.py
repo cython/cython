@@ -43,7 +43,7 @@ class _BuiltinOverride(object):
     def build_func_type(self, sig=None, self_arg=None):
         if sig is None:
             sig = Signature(self.args, self.ret_type, nogil=self.nogil)
-            sig.exception_check = False  # not needed for the current builtins
+            sig.exception_check = False  # Not needed for the current builtins.
         func_type = sig.function_type(self_arg)
         if self.is_strict_signature:
             func_type.is_strict_signature = True
@@ -237,7 +237,7 @@ builtin_function_table = [
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
-    #  Can't do these easily until we have builtin type entries.
+    #  Can't do these easily until we have builtin type entries
     #('typecheck',  "OO",   "i",     "PyObject_TypeCheck", False),
     #('issubtype',  "OO",   "i",     "PyType_IsSubtype",   False),
 
@@ -436,7 +436,7 @@ builtin_structs_table = [
       ])
 ]
 
-# Set up builtin scope
+# Set up builtin scope.
 
 builtin_scope = BuiltinScope()
 
