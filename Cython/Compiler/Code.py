@@ -533,9 +533,9 @@ class UtilityCode(UtilityCodeBase):
         """
         Replace 'CGLOBAL(xyz)' with code looking up the name on the module state struct.
         """
-        if not impl or not 'CGLOBAL(' in impl:
+        if not impl or 'CGLOBAL(' not in impl:
             return impl
-        
+
         def handle_cglobal(matchobj):
             name = matchobj.group(1).strip()
             if name.startswith("$"):
@@ -548,9 +548,9 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'CGLOBAL\(([^)]+)\)', handle_cglobal, impl)
 
-        assert not 'CGLOBAL(' in impl
+        assert 'CGLOBAL(' not in impl
         return impl
-        
+
 
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
@@ -2028,7 +2028,7 @@ class CCodeWriter(object):
             if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
                 modulestate_name = Naming.modulestatevalue_cname
             # TODO - more choices depending on the type of env
-            
+
         return "%s->%s" % (modulestate_name, cname)
 
     # code generation
