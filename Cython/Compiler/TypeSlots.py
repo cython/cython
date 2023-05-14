@@ -337,10 +337,12 @@ class SlotDescriptor(object):
             return
 
         if scope.parent_type.typeptr_cname:
-            target = "%s->%s" % (scope.parent_type.typeptr_cname, self.slot_name)
+            target = "%s->%s" % (
+                code.name_in_module_state(scope.parent_type.typeptr_cname), self.slot_name)
         else:
             assert scope.parent_type.typeobj_cname
-            target = "%s.%s" % (scope.parent_type.typeobj_cname, self.slot_name)
+            target = "%s.%s" % (
+                code.name_in_module_state(scope.parent_type.typeobj_cname), self.slot_name)
 
         code.putln("%s = %s;" % (target, value))
 
@@ -494,9 +496,9 @@ class ConstructorSlot(InternalMethodSlot):
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
         if base_type.typeptr_cname:
-            src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+            src = '%s->%s' % (code.name_in_module_state(base_type.typeptr_cname), self.slot_name)
         elif base_type.is_extension_type and base_type.typeobj_cname:
-            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
+            src = '%s.%s' % (code.name_in_module_state(base_type.typeobj_cname), self.slot_name)
         else:
             return
 
