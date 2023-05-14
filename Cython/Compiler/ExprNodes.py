@@ -2532,8 +2532,6 @@ class NameNode(AtomicExprNode):
                 assert False, repr(entry)
             if namespace_typecast:
                 namespace = "(%s%s)" % (namespace_typecast, namespace)
-            if namespace.find("__pyx_mstate->__pyx_t_5") != -1:
-                import pdb; pdb.set_trace()
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (

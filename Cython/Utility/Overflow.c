@@ -67,7 +67,7 @@ static int __Pyx_check_twos_complement(void) {
 
 // FIXME: Propagate the error here instead of just printing it.
 if (unlikely(__Pyx_check_twos_complement())) {
-    PyErr_WriteUnraisable(CGLOBAL($module_cname));
+    PyErr_WriteUnraisable($module_cname);
 }
 
 /////////////// BaseCaseUnsigned.proto ///////////////
@@ -326,7 +326,7 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 // FIXME: Propagate the error here instead of just printing it.
 if (unlikely(__Pyx_check_sane_{{NAME}}())) {
-    PyErr_WriteUnraisable(CGLOBAL($module_cname));
+    PyErr_WriteUnraisable($module_cname);
 }
 
 /////////////// SizeCheck.proto ///////////////

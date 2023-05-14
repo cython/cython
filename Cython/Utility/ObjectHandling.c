@@ -1593,10 +1593,10 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return NULL;
     }
 #elif CYTHON_COMPILING_IN_LIMITED_API
-    if (unlikely(!CGLOBAL($module_cname)) {
+    if (unlikely(!$module_cname)) {
         return NULL;
     }
-    result = PyObject_GetAttr(CGLOBAL($module_cname), name);
+    result = PyObject_GetAttr($module_cname, name);
     if (likely(result)) {
         return result;
     }
