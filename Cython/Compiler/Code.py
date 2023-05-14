@@ -1261,7 +1261,8 @@ class GlobalState(object):
             w = self.parts['cleanup_globals']
             w.enter_cfunc_scope()
             w.putln("")
-            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
+            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(%s *%s) {" %
+                (Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
 
         code = self.parts['utility_code_proto']
         code.putln("")
@@ -1390,7 +1391,7 @@ class GlobalState(object):
                 # which aren't just Python objects
                 and type.needs_refcounting):
             cleanup_writer = self.parts['cleanup_globals']
-            cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
+            cleanup_writer.putln('Py_CLEAR(%s->%s);' % (Naming.modulestatevalue_cname, const.cname))
         if dedup_key is not None:
             self.dedup_const_index[dedup_key] = const
         return const

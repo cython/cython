@@ -3304,6 +3304,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
                    Naming.cleanup_cname)
         code.enter_cfunc_scope(env)
+        code.putln("%s *%s;" % (
+            Naming.modulestatetype_cname, Naming.modulestatevalue_cname,))
+        #Naming.modulestategetter_cname))
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("%s = %s(self);" % (Naming.modulestatevalue_cname, Naming.modulestategetter_cname))
+        code.putln("#else")
+        code.putln("%s = %s;" % (Naming.modulestatevalue_cname, Naming.modulestateglobal_cname))
+        code.putln("#endif")
 
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
@@ -3312,16 +3320,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in rev_entries:
                 if entry.visibility != 'extern':
                     if entry.type.is_pyobject and entry.used:
+                        entry_cname = code.name_in_module_state(entry.cname)
                         code.put_xdecref_clear(
-                            entry.cname, entry.type,
+                            entry_cname, entry.type,
                             clear_before_decref=True,
                             nanny=False)
-        code.putln("__Pyx_CleanupGlobals();")
+        code.putln("__Pyx_CleanupGlobals(%s);" % Naming.modulestatevalue_cname)
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for ext_type in sorted(env.types_imported, key=operator.attrgetter('typeptr_cname')):
+                typeptr_cname = "%s->%s" % (Naming.modulestatevalue_cname, ext_type.typeptr_cname)
                 code.put_xdecref_clear(
-                    ext_type.typeptr_cname, ext_type,
+                    typeptr_cname, ext_type,
                     clear_before_decref=True,
                     nanny=False)
         if Options.cache_builtins:
@@ -3332,7 +3342,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     clear_before_decref=True,
                     nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
-        code.put_decref_clear(Naming.empty_tuple,
+        code.put_decref_clear("%s->%s" % (Naming.modulestatevalue_cname, Naming.empty_tuple),
                               PyrexTypes.py_object_type,
                               clear_before_decref=True,
                               nanny=False)
@@ -3366,8 +3376,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_decref_clear(Naming.preimport_cname, py_object_type,
                                   nanny=False, clear_before_decref=True)
         for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
+            cname = "%s->%s" % (Naming.modulestatevalue_cname, cname)
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
-        code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False, clear_before_decref=True)
+        code.put_decref_clear("%s->%s" % (
+                Naming.modulestatevalue_cname, env.module_dict_cname),
+            py_object_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
         module_is_main = self.is_main_module_flag_cname()
