@@ -47,8 +47,8 @@ cdef class MethodDispatcherTransform(EnvTransform):
                                      node, function, arg_list, kwargs)
 
 cdef class RecursiveNodeReplacer(VisitorTransform):
-     cdef public orig_node
-     cdef public new_node
+    cdef public orig_node
+    cdef public new_node
 
 cdef class NodeFinder(TreeVisitor):
     cdef node

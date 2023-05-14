@@ -18,19 +18,37 @@ cdef extern from *:
     # define this as extern since Cython converts internal "except*" to "except -1"
     cdef int exceptstar(int bad) except *
 
+    struct mystruct:
+        int (*func_ptr)(int param) nogil
+        void (*func_ptr_void)(int param) nogil
+
 def fail_exceptstar(bad):
-    cdef int (*fptr_a)(int) # noexcept
+    cdef int (*fptr_a)(int) noexcept
     cdef int (*fptr_b)(int) except -1
     cdef int (*fptr_c)(int) except ?-1
     fptr_a = exceptstar
     fptr_b = exceptstar
     fptr_c = exceptstar
 
+cdef int cb(int param) nogil:
+    return param
+
+cdef void cb_void(int param) except * nogil:
+    return
+
+def fail_struct_pointer():
+    cdef mystruct ms = mystruct(&cb, &cb_void)
+
+
 _ERRORS = """
 13:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -2'
 14:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -1'
 15:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except? -1'
-25:13: Cannot assign type 'int (int) except *' to 'int (*)(int)'
-26:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except -1'
-27:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except? -1'
+29:13: Cannot assign type 'int (int) except *' to 'int (*)(int) noexcept'
+30:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except -1'
+31:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except? -1'
+40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'
+40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'
+40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'
+40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'
 """

@@ -348,6 +348,7 @@ class Scope(object):
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
+    # is_c_dataclass_scope     boolean or "frozen"  is a cython.dataclasses.dataclass
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -370,6 +371,7 @@ class Scope(object):
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_c_dataclass_scope = False
     is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
@@ -591,7 +593,8 @@ class Scope(object):
         if defining:
             self.type_entries.append(entry)
 
-        if not template:
+        # don't replace an entry that's already set
+        if not template and getattr(type, "entry", None) is None:
             type.entry = entry
 
         # here we would set as_variable to an object representing this type
@@ -1164,9 +1167,9 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        for name, definition in sorted(self.builtin_entries.items()):
-            cname, type = definition
-            self.declare_var(name, type, None, cname)
+        # Most entries are initialized in init_builtins, except for "bool"
+        # which is apparently a special case because it conflicts with C++ bool
+        self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
 
     def lookup(self, name, language_level=None, str_is_str=None):
         # 'language_level' and 'str_is_str' are passed by ModuleScope
@@ -1206,9 +1209,10 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
 
-    def declare_builtin_type(self, name, cname, utility_code = None, objstruct_cname = None):
+    def declare_builtin_type(self, name, cname, utility_code=None,
+                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
         name = EncodedString(name)
-        type = PyrexTypes.BuiltinObjectType(name, cname, objstruct_cname)
+        type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
         if name == 'bool':
@@ -1240,35 +1244,6 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
-    # FIXME: remove redundancy with Builtin.builtin_types_table
-    builtin_entries = {
-
-        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
-
-        "bool":   ["((PyObject*)&PyBool_Type)", py_object_type],
-        "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
-        "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
-        "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
-        "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
-
-        "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
-        "bytearray":   ["((PyObject*)&PyByteArray_Type)", py_object_type],
-        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
-        "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
-
-        "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
-        "list":   ["((PyObject*)&PyList_Type)", py_object_type],
-        "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
-        "set":    ["((PyObject*)&PySet_Type)", py_object_type],
-        "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
-
-        "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
-#        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],  # not in Py3
-
-        "None":   ["Py_None", py_object_type],
-        "False":  ["Py_False", py_object_type],
-        "True":   ["Py_True", py_object_type],
-    }
 
 const_counter = 1  # As a temporary solution for compiling code in pxds
 
@@ -1305,19 +1280,13 @@ class ModuleScope(Scope):
         '__spec__', '__loader__', '__package__', '__cached__',
     ]
 
-    def __init__(self, name, parent_module, context):
+    def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
         self.parent_module = parent_module
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
-        if name == "__init__":
-            # Treat Spam/__init__.pyx specially, so that when Python loads
-            # Spam/__init__.so, initSpam() is defined.
-            self.module_name = parent_module.module_name
-            self.is_package = True
-        else:
-            self.module_name = name
-            self.is_package = False
+        self.is_package = is_package
+        self.module_name = name
         self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
@@ -1427,9 +1396,16 @@ class ModuleScope(Scope):
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
-            while relative_level > 0 and relative_to:
+
+            top_level = 1 if self.is_package else 0
+            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            #   i.e. dot in `from . import ...` points to the current package
+            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            #   i.e. dot in `from . import ...` points to the package where module is placed
+            while relative_level > top_level and relative_to:
                 relative_to = relative_to.parent_module
                 relative_level -= 1
+
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
             relative_to = self.parent_module
@@ -1439,7 +1415,7 @@ class ModuleScope(Scope):
         return module_scope.context.find_module(
             module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
-    def find_submodule(self, name):
+    def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
         if '.' in name:
@@ -1448,10 +1424,10 @@ class ModuleScope(Scope):
             submodule = None
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name, parent_module=self, context=self.context)
+            scope = ModuleScope(name, parent_module=self, context=self.context, is_package=True if submodule else as_package)
             self.module_entries[name] = scope
         if submodule:
-            scope = scope.find_submodule(submodule)
+            scope = scope.find_submodule(submodule, as_package=as_package)
         return scope
 
     def lookup_submodule(self, name):
@@ -1621,7 +1597,7 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry and entry.defined_in_pxd:
             if entry.visibility != "private":
-                mangled_cname = self.mangle(Naming.var_prefix, name)
+                mangled_cname = self.mangle(Naming.func_prefix, name)
                 if entry.cname == mangled_cname:
                     cname = name
                     entry.cname = cname
@@ -1753,6 +1729,15 @@ class ModuleScope(Scope):
 
         if self.directives.get('final'):
             entry.type.is_final_type = True
+        collection_type = self.directives.get('collection_type')
+        if collection_type:
+            from .UtilityCode import NonManglingModuleScope
+            if not isinstance(self, NonManglingModuleScope):
+                # TODO - DW would like to make it public, but I'm making it internal-only
+                # for now to avoid adding new features without consensus
+                error(pos, "'collection_type' is not a public cython directive")
+        if collection_type == 'sequence':
+            entry.type.has_sequence_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -2118,7 +2103,7 @@ class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
 
     def __init__(self, name="?"):
-        Scope.__init__(self, name, None, None)
+        Scope.__init__(self, name, outer_scope=None, parent_scope=None)
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2145,8 +2130,6 @@ class StructOrUnionScope(Scope):
         elif type.needs_refcounting:
             if not allow_refcounted:
                 error(pos, "C struct/union member cannot be reference-counted type '%s'" % type)
-        if visibility != 'private':
-            error(pos, "C struct/union member cannot be declared %s" % visibility)
         return entry
 
     def declare_cfunction(self, name, type, pos,
@@ -2325,6 +2308,25 @@ class CClassScope(ClassScope):
         """
         return self.needs_gc() and not self.directives.get('no_gc_clear', False)
 
+    def may_have_finalize(self):
+        """
+        This covers cases where we definitely have a __del__ function
+        and also cases where one of the base classes could have a __del__
+        function but we don't know.
+        """
+        current_type_scope = self
+        while current_type_scope:
+            del_entry = current_type_scope.lookup_here("__del__")
+            if del_entry and del_entry.is_special:
+                return True
+            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or
+                    current_type_scope.parent_type.multiple_bases):
+                # we don't know if we have __del__, so assume we do and call it
+                return True
+            current_base_type = current_type_scope.parent_type.base_type
+            current_type_scope = current_base_type.scope if current_base_type else None
+        return False
+
     def get_refcounted_entries(self, include_weakref=False,
                                include_gc_simple=True):
         py_attrs = []
@@ -2358,7 +2360,7 @@ class CClassScope(ClassScope):
                         type = py_object_type
                     else:
                         type = type.equivalent_type
-            if  "dataclasses.InitVar" in pytyping_modifiers and 'dataclasses.dataclass' not in self.directives:
+            if  "dataclasses.InitVar" in pytyping_modifiers and not self.is_c_dataclass_scope:
                 error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:
@@ -2608,6 +2610,7 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.is_inherited = True
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
@@ -2758,7 +2761,7 @@ class CppClassScope(Scope):
             if base_entry.name not in base_templates:
                 entry = self.declare_type(base_entry.name, base_entry.type,
                                           base_entry.pos, base_entry.cname,
-                                          base_entry.visibility)
+                                          base_entry.visibility, defining=False)
                 entry.is_inherited = 1
 
     def specialize(self, values, type_entry):

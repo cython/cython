@@ -40,7 +40,7 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a Python object from the data stream in a FILE* opened for
     # reading.
-    
+
     # On error, sets the appropriate exception (EOFError, ValueError or
     # TypeError) and returns NULL.
 

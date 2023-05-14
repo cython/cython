@@ -443,7 +443,9 @@ def type_infer(double[:, :] arg):
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 def memview_iter(double[:, :] arg):
     """
-    memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    >>> memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    acquired C
+    released C
     True
     """
     cdef double total = 0
@@ -1238,3 +1240,18 @@ match arr:
         assert globs['res']
 
     return isinstance(<object>a, Sequence)
+
+
+ctypedef int aliasT
+def test_assignment_typedef():
+    """
+    >>> test_assignment_typedef()
+    1
+    2
+    """
+    cdef int[2] x
+    cdef aliasT[:] y
+    x[:] = [1, 2]
+    y = x
+    for v in y:
+        print(v)

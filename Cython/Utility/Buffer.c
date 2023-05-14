@@ -54,8 +54,6 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 /////////////// BufferFormatStructs.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
-#define IS_UNSIGNED(type) (((type) -1) > 0)
-
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
