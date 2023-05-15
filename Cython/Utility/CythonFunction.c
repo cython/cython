@@ -1064,7 +1064,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     .tp_dealloc = (destructor) __Pyx_CyFunction_dealloc,
 #if !CYTHON_METH_FASTCALL
 #elif CYTHON_BACKPORT_VECTORCALL
-    .tp_vectorcall_offset = (printfunc)offsetof(__pyx_CyFunctionObject, func_vectorcall),
+    .tp_print = (printfunc)offsetof(__pyx_CyFunctionObject, func_vectorcall),
 #else
     .tp_vectorcall_offset = offsetof(PyCFunctionObject, vectorcall),
 #endif
