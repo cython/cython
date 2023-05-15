@@ -557,17 +557,9 @@
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY == 1
-  #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000
-    #define CYTHON_NEED_TP_PRINT 1
-  #else
-    #define CYTHON_NEED_TP_PRINT 0
-  #endif
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000)
 #else
-  #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
-    #define CYTHON_NEED_TP_PRINT 1
-  #else
-    #define CYTHON_NEED_TP_PRINT 0
-  #endif
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000)
 #endif
 // reinterpret
 
