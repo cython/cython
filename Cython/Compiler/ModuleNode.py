@@ -1761,28 +1761,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                    clear_before_decref=True, have_gil=True)
 
         if base_type:
+            base_cname = base_type.typeptr_cname
             if needs_gc:
                 # The base class deallocator probably expects this to be tracked,
                 # so undo the untracking above.
-                if base_type.scope and base_type.scope.needs_gc():
-                    code.putln("PyObject_GC_Track(o);")
+                if base_type.scope:
+                    # Assume that we know whether the base class uses GC or not.
+                    if base_type.scope.needs_gc():
+                        code.putln("PyObject_GC_Track(o);")
                 else:
-                    code.putln("#if CYTHON_USE_TYPE_SLOTS")
-                    code.putln("if (PyType_IS_GC(Py_TYPE(o)->tp_base))")
-                    code.putln("#endif")
-                    code.putln("PyObject_GC_Track(o);")
+                    code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
                 code.putln("%s(o);" % tp_dealloc)
             elif base_type.is_builtin_type:
-                code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_type.typeptr_cname)
+                code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_cname)
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                base_cname = base_type.typeptr_cname
                 code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); "
                            "else __Pyx_call_next_tp_dealloc(o, %s);" % (
                                base_cname, base_cname, slot_func_cname))
