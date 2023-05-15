@@ -1100,7 +1100,7 @@ class SlotTable(object):
             SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
-            EmptySlot("tp_print", ifdef="CYTHON_NEED_TP_PRINT"),
+            EmptySlot("tp_print", ifdef="CYTHON_NEED_TP_PRINT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             # PyPy specific extension - only here to avoid C compiler warnings.
             EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000"),

@@ -556,7 +556,7 @@
   #define __PYX_IS_UNSIGNED(type) (((type)-1) > 0)
 #endif
 
-#ifdef CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY == 1
   #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000
     #define CYTHON_NEED_TP_PRINT 1
   #else
