@@ -1059,81 +1059,33 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #else /* CYTHON_USE_TYPE_SPECS */
 
 static PyTypeObject __pyx_CyFunctionType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",  /*tp_name*/
-    sizeof(__pyx_CyFunctionObject),   /*tp_basicsize*/
-    0,                                  /*tp_itemsize*/
-    (destructor) __Pyx_CyFunction_dealloc, /*tp_dealloc*/
+    .tp_name = __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",
+    .tp_basicsize = sizeof(__pyx_CyFunctionObject),
+    .tp_dealloc = (destructor) __Pyx_CyFunction_dealloc,
 #if !CYTHON_METH_FASTCALL
-    0,                                  /*tp_print*/
 #elif CYTHON_BACKPORT_VECTORCALL
-    (printfunc)offsetof(__pyx_CyFunctionObject, func_vectorcall), /*tp_vectorcall_offset backported into tp_print*/
+    .tp_vectorcall_offset = (printfunc)offsetof(__pyx_CyFunctionObject, func_vectorcall),
 #else
-    offsetof(PyCFunctionObject, vectorcall), /*tp_vectorcall_offset*/
+    .tp_vectorcall_offset = offsetof(PyCFunctionObject, vectorcall),
 #endif
-    0,                                  /*tp_getattr*/
-    0,                                  /*tp_setattr*/
-    0,                                  /*tp_as_async*/
-    (reprfunc) __Pyx_CyFunction_repr,   /*tp_repr*/
-    0,                                  /*tp_as_number*/
-    0,                                  /*tp_as_sequence*/
-    0,                                  /*tp_as_mapping*/
-    0,                                  /*tp_hash*/
-    __Pyx_CyFunction_CallAsMethod,      /*tp_call*/
-    0,                                  /*tp_str*/
-    0,                                  /*tp_getattro*/
-    0,                                  /*tp_setattro*/
-    0,                                  /*tp_as_buffer*/
+    .tp_repr = (reprfunc) __Pyx_CyFunction_repr,
+    .tp_call = __Pyx_CyFunction_CallAsMethod,
+    .tp_flags = 
 #ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
     Py_TPFLAGS_METHOD_DESCRIPTOR |
 #endif
 #if defined(_Py_TPFLAGS_HAVE_VECTORCALL) && CYTHON_METH_FASTCALL
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    0,                                  /*tp_doc*/
-    (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
-    (inquiry) __Pyx_CyFunction_clear,   /*tp_clear*/
-    0,                                  /*tp_richcompare*/
-    offsetof(PyCFunctionObject, m_weakreflist),         /*tp_weaklistoffset*/
-    0,                                  /*tp_iter*/
-    0,                                  /*tp_iternext*/
-    __pyx_CyFunction_methods,           /*tp_methods*/
-    __pyx_CyFunction_members,           /*tp_members*/
-    __pyx_CyFunction_getsets,           /*tp_getset*/
-    0,                                  /*tp_base*/
-    0,                                  /*tp_dict*/
-    __Pyx_PyMethod_New,                 /*tp_descr_get*/
-    0,                                  /*tp_descr_set*/
-    offsetof(__pyx_CyFunctionObject, func_dict),/*tp_dictoffset*/
-    0,                                  /*tp_init*/
-    0,                                  /*tp_alloc*/
-    0,                                  /*tp_new*/
-    0,                                  /*tp_free*/
-    0,                                  /*tp_is_gc*/
-    0,                                  /*tp_bases*/
-    0,                                  /*tp_mro*/
-    0,                                  /*tp_cache*/
-    0,                                  /*tp_subclasses*/
-    0,                                  /*tp_weaklist*/
-    0,                                  /*tp_del*/
-    0,                                  /*tp_version_tag*/
-    0,                                  /*tp_finalize*/
-#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
-    0,                                  /*tp_vectorcall*/
-#endif
-#if __PYX_NEED_TP_PRINT_SLOT
-    0,                                  /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030C0000
-    0,                                  /*tp_watched*/
-#endif
-#if PY_VERSION_HEX >= 0x030d00A4
-    0,                                          /*tp_versions_used*/
-#endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
-    0,                                          /*tp_pypy_flags*/
-#endif
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .tp_traverse = (traverseproc) __Pyx_CyFunction_traverse,
+    .tp_clear = (inquiry) __Pyx_CyFunction_clear,
+    .tp_weaklistoffset = offsetof(PyCFunctionObject, m_weakreflist),
+    .tp_methods = __pyx_CyFunction_methods,
+    .tp_members = __pyx_CyFunction_members,
+    .tp_getset = __pyx_CyFunction_getsets,
+    .tp_descr_get = __Pyx_PyMethod_New,
+    .tp_dictoffset = offsetof(__pyx_CyFunctionObject, func_dict)
 };
 #endif  /* CYTHON_USE_TYPE_SPECS */
 
@@ -1579,70 +1531,19 @@ static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
 };
 
 static PyTypeObject __pyx_FusedFunctionType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    __PYX_TYPE_MODULE_PREFIX "fused_cython_function",  /*tp_name*/
-    sizeof(__pyx_FusedFunctionObject), /*tp_basicsize*/
-    0,                                  /*tp_itemsize*/
-    (destructor) __pyx_FusedFunction_dealloc, /*tp_dealloc*/
-    0,                                  /*tp_print*/
-    0,                                  /*tp_getattr*/
-    0,                                  /*tp_setattr*/
-    0,                                  /*tp_as_async*/
-    0,                                  /*tp_repr*/
-    0,                                  /*tp_as_number*/
-    0,                                  /*tp_as_sequence*/
-    &__pyx_FusedFunction_mapping_methods, /*tp_as_mapping*/
-    0,                                  /*tp_hash*/
-    (ternaryfunc) __pyx_FusedFunction_call, /*tp_call*/
-    0,                                  /*tp_str*/
-    0,                                  /*tp_getattro*/
-    0,                                  /*tp_setattro*/
-    0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    0,                                  /*tp_doc*/
-    (traverseproc) __pyx_FusedFunction_traverse,   /*tp_traverse*/
-    (inquiry) __pyx_FusedFunction_clear,/*tp_clear*/
-    0,                                  /*tp_richcompare*/
-    0,                                  /*tp_weaklistoffset*/
-    0,                                  /*tp_iter*/
-    0,                                  /*tp_iternext*/
-    0,                                  /*tp_methods*/
-    __pyx_FusedFunction_members,        /*tp_members*/
-    __pyx_FusedFunction_getsets,           /*tp_getset*/
+    .tp_name = __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
+    .tp_basicsize = sizeof(__pyx_FusedFunctionObject),
+    .tp_dealloc = (destructor) __pyx_FusedFunction_dealloc,
+    .tp_as_mapping = &__pyx_FusedFunction_mapping_methods,
+    .tp_call = (ternaryfunc) __pyx_FusedFunction_call,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .tp_traverse = (traverseproc) __pyx_FusedFunction_traverse,
+    .tp_clear = (inquiry) __pyx_FusedFunction_clear,
+    .tp_members = __pyx_FusedFunction_members,
+    .tp_getset = __pyx_FusedFunction_getsets,
     // NOTE: tp_base may be changed later during module initialisation when importing CyFunction across modules.
-    &__pyx_CyFunctionType_type,         /*tp_base*/
-    0,                                  /*tp_dict*/
-    __pyx_FusedFunction_descr_get,      /*tp_descr_get*/
-    0,                                  /*tp_descr_set*/
-    0,                                  /*tp_dictoffset*/
-    0,                                  /*tp_init*/
-    0,                                  /*tp_alloc*/
-    0,                                  /*tp_new*/
-    0,                                  /*tp_free*/
-    0,                                  /*tp_is_gc*/
-    0,                                  /*tp_bases*/
-    0,                                  /*tp_mro*/
-    0,                                  /*tp_cache*/
-    0,                                  /*tp_subclasses*/
-    0,                                  /*tp_weaklist*/
-    0,                                  /*tp_del*/
-    0,                                  /*tp_version_tag*/
-    0,                                  /*tp_finalize*/
-#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
-    0,                                  /*tp_vectorcall*/
-#endif
-#if __PYX_NEED_TP_PRINT_SLOT
-    0,                                  /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030C0000
-    0,                                  /*tp_watched*/
-#endif
-#if PY_VERSION_HEX >= 0x030d00A4
-    0,                                          /*tp_versions_used*/
-#endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
-    0,                                          /*tp_pypy_flags*/
-#endif
+    .tp_base = __pyx_CyFunctionType_type,
+    .tp_descr_get = __pyx_FusedFunction_descr_get
 };
 #endif
 
