@@ -1412,7 +1412,7 @@ Other changes
 Bugs fixed
 ----------
 
-* Some C compile failures in CPython 3.12 were resolved.
+* Some C compile failures and crashes in CPython 3.12 were resolved.
 
 * A C compile failure in PyPy 3.10 was resolved.
   Patch by Matti Picus.  (Github issue :issue:`5408`)
