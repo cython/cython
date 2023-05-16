@@ -463,7 +463,7 @@ static PyTypeObject __pyx_AsyncGenType_type = {
 #if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                          /*tp_vectorcall*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
+#if __PYX_NEED_TP_PRINT_SLOT
     0,                                          /*tp_print*/
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
@@ -738,7 +738,7 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
 #if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                          /*tp_vectorcall*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
+#if __PYX_NEED_TP_PRINT_SLOT
     0,                                          /*tp_print*/
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
@@ -876,7 +876,7 @@ static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
 #if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                          /*tp_vectorcall*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
+#if __PYX_NEED_TP_PRINT_SLOT
     0,                                          /*tp_print*/
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
@@ -1220,7 +1220,7 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
 #if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                          /*tp_vectorcall*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
+#if __PYX_NEED_TP_PRINT_SLOT
     0,                                          /*tp_print*/
 #endif
 #if PY_VERSION_HEX >= 0x030C0000

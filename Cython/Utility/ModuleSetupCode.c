@@ -556,6 +556,11 @@
   #define __PYX_IS_UNSIGNED(type) (((type)-1) > 0)
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY == 1
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000)
+#else
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000)
+#endif
 // reinterpret
 
 // TODO: refactor existing code to use those macros
