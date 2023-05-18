@@ -865,12 +865,12 @@ Cython code.  Here is the list of currently supported directives:
     type).  The specific output and type mapping are experimental and
     may change over time.
     The ``clinic`` format generates signatures that are compatible
-    with those used with the CPython's Argument Clinic tool. The
+    with those understood by CPython's Argument Clinic tool. The
     CPython runtime strips these signatures from docstrings and
     translates them into a ``__text_signature__`` attribute. This is
     mainly useful when using ``binding=False``, since the Cython
-    functions generated with ``binding=True`` do not have a
-    ``__text_signature__`` attribute.
+    functions generated with ``binding=True`` do not have (nor need)
+    a ``__text_signature__`` attribute.
     Default is ``c``.
 
 ``cdivision`` (True / False)
