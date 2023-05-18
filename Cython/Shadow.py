@@ -119,7 +119,8 @@ exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
 
-overflowcheck.fold = optimize.use_switch = \
+
+embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
