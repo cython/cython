@@ -523,6 +523,10 @@ __PYX_GOOD:
 
 /////////////// BinopSlot ///////////////
 
+#ifndef __cplusplus
+    #include <stdbool.h>
+#endif
+
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
 #if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
@@ -534,7 +538,7 @@ static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type,
 }
 
 static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
-    int maybe_self_is_left, maybe_self_is_right = 0;
+    bool maybe_self_is_left, maybe_self_is_right = false;
     maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
             || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
@@ -555,7 +559,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
             // Don't bother calling it again.
-            maybe_self_is_right = 0;
+            maybe_self_is_right = false;
         }
         res = {{call_left}};
         if (res != Py_NotImplemented) return res;
