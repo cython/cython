@@ -234,7 +234,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #define __Pyx_PyNumber_Absolute(x) \
     ((likely(PyLong_CheckExact(x))) ? \
-         (likely(Py_SIZE(x) >= 0) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
+         (likely(__Pyx_PyLong_IsNonNeg(x)) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
          PyNumber_Absolute(x))
 
 #else
@@ -245,16 +245,27 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #if CYTHON_USE_PYLONG_INTERNALS
 static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
+#if PY_VERSION_HEX >= 0x030C00A7
+    if (likely(__Pyx_PyLong_IsCompact(n))) {
+        return PyLong_FromSize_t(__Pyx_PyLong_CompactValueUnsigned(n));
+    }
+#else
     if (likely(Py_SIZE(n) == -1)) {
         // digits are unsigned
-        return PyLong_FromLong(((PyLongObject*)n)->ob_digit[0]);
+        return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
+#endif
 #if CYTHON_COMPILING_IN_CPYTHON
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
+            #if PY_VERSION_HEX >= 0x030C00A7
+            // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
+            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~3;
+            #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
+            #endif
         }
         return copy;
     }
@@ -268,6 +279,42 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 //////////////////// pow2.proto ////////////////////
 
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
+
+
+//////////////////// int_pyucs4.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
+
+//////////////////// int_pyucs4 ////////////////////
+
+static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
+    int digit = Py_UNICODE_TODIGIT(uchar);
+    if (unlikely(digit < 0)) {
+        PyErr_Format(PyExc_ValueError,
+            "invalid literal for int() with base 10: '%c'",
+            (int) uchar);
+        return -1;
+    }
+    return digit;
+}
+
+
+//////////////////// float_pyucs4.proto ////////////////////
+
+static CYTHON_INLINE double __Pyx_double_from_UCS4(Py_UCS4 uchar);
+
+//////////////////// float_pyucs4 ////////////////////
+
+static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
+    double digit = Py_UNICODE_TONUMERIC(uchar);
+    if (unlikely(digit < 0.0)) {
+        PyErr_Format(PyExc_ValueError,
+            "could not convert string to float: '%c'",
+            (int) uchar);
+        return -1.0;
+    }
+    return digit;
+}
 
 
 //////////////////// object_ord.proto ////////////////////
@@ -505,3 +552,50 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     Py_DECREF(retval);
     return 0;
 }
+
+///////////////// memoryview_get_from_buffer.proto ////////////////////
+
+// buffer is in limited api from Py3.11
+#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#define __Pyx_PyMemoryView_Get_{{name}}(o) PyMemoryView_GET_BUFFER(o)->{{name}}
+#else
+{{py:
+out_types = dict(
+    ndim='int', readonly='int',
+    len='Py_ssize_t', itemsize='Py_ssize_t')
+}} // can't get format like this unfortunately. It's unicode via getattr
+{{py: out_type = out_types[name]}}
+static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj); /* proto */
+#endif
+
+////////////// memoryview_get_from_buffer /////////////////////////
+
+#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#else
+{{py:
+out_types = dict(
+    ndim='int', readonly='int',
+    len='Py_ssize_t', itemsize='Py_ssize_t')
+}}
+{{py: out_type = out_types[name]}}
+static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
+    {{out_type}} result;
+    PyObject *attr = PyObject_GetAttr(obj, PYIDENT("{{name}}"));
+    if (!attr) {
+        goto bad;
+    }
+{{if out_type == 'int'}}
+    // I'm not worrying about overflow here because
+    // ultimately it comes from a C struct that's an int
+    result = PyLong_AsLong(attr);
+{{elif out_type == 'Py_ssize_t'}}
+    result = PyLong_AsSsize_t(attr);
+{{endif}}
+    Py_DECREF(attr);
+    return result;
+
+    bad:
+    Py_XDECREF(attr);
+    return -1;
+}
+#endif

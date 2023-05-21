@@ -155,5 +155,3 @@ class CdefModifyNames:
     #    m_deleted = __module__
     #except NameError:
     #    pass
-
-

@@ -441,6 +441,7 @@ cdef class Foo:
     def m29(self, a: list(range(3))[0:1:1]): pass
     def m30(self, a: list(range(3))[7, 3:2:1, ...]): pass
     def m31(self, double[::1] a): pass
+    def m32(self, a: tuple[()]) -> tuple[tuple[()]]: pass
 
 __doc__ += ur"""
 >>> print(Foo.m00.__doc__)
@@ -538,4 +539,8 @@ Foo.m30(self, a: list(range(3))[7, 3:2:1, ...])
 
 >>> print(Foo.m31.__doc__)
 Foo.m31(self, double[::1] a)
+
+>>> print(Foo.m32.__doc__)
+Foo.m32(self, a: tuple[()]) -> tuple[tuple[()]]
+
 """

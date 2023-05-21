@@ -471,7 +471,9 @@ For example, in the following snippet that includes :file:`grail.h`:
     }
 
 This C code can then be built together with the Cython-generated C code
-in a single program (or library).
+in a single program (or library). Be aware that this program will not include
+any external dependencies that your module uses. Therefore typically this will
+not generate a truly portable application for most cases.
 
 In Python 3.x, calling the module init function directly should be avoided.  Instead,
 use the `inittab mechanism <https://docs.python.org/3/c-api/import.html#c._inittab>`_
@@ -493,6 +495,30 @@ file consists of the full dotted name of the module, e.g. a module called
     build the Cython extension in the usual way and then link against
     the resulting ``.so`` file like a dynamic library.
     Beware that this is not portable, so it should be avoided.
+
+C++ public declarations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+When a file is compiled as C++, its public functions are declared as C++ API (using ``extern "C++"``) by default.
+This disallows to call the functions from C code.  If the functions are really meant as a plain C API,
+the ``extern`` declaration needs to be manually specified by the user.
+This can be done by setting the ``CYTHON_EXTERN_C`` C macro to ``extern "C"`` during the compilation of the generated C++ file::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension(
+            "module", ["module.pyx"],
+            define_macros=[("CYTHON_EXTERN_C", 'extern "C"')],
+            language="c++",
+        )
+    ]
+
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
 
 .. _api:
 
@@ -579,7 +605,7 @@ Acquiring and Releasing the GIL
 ---------------------------------
 
 Cython provides facilities for acquiring and releasing the
-`Global Interpreter Lock (GIL) <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
+Global Interpreter Lock (GIL) (see :term:`our glossary<Global Interpreter Lock or GIL>` or `external documentation <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_).
 This may be useful when calling from multi-threaded code into
 (external C) code that may block, or when wanting to use Python
 from a (native) C thread callback.  Releasing the GIL should

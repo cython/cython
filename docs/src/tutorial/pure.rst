@@ -29,6 +29,7 @@ In pure mode, you are more or less restricted to code that can be expressed
 beyond that can only be done in .pyx files with extended language syntax,
 because it depends on features of the Cython compiler.
 
+.. _augmenting_pxd:
 
 Augmenting .pxd
 ---------------
@@ -220,7 +221,10 @@ Managing the Global Interpreter Lock
     @cython.nogil
     @cython.cfunc
     def func_released_gil() -> cython.int:
-        # function with the GIL released
+        # function that can be run with the GIL released
+        
+  Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
+  function *can* be run without the GIL. See :ref:`<cython_and_gil>` for more details.
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
@@ -248,6 +252,8 @@ releasing or acquiring the GIL. The condition must be constant (at compile time)
 
 A common use case for conditionally acquiring and releasing the GIL are fused types
 that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
+
+.. py:module:: cython.cimports
 
 cimports
 ^^^^^^^^
@@ -320,6 +326,12 @@ Further Cython functions and declarations
     t1 = cython.cast(T, t)
     t2 = cython.cast(T, t, typecheck=True)
 
+* ``fused_type`` creates a new type definition that refers to the multiple types.
+  The following example declares a new type called ``my_fused_type`` which can
+  be either an ``int`` or a ``double``.::
+
+    my_fused_type = cython.fused_type(cython.int, cython.float)
+
 .. _magic_attributes_pxd:
 
 Magic Attributes within the .pxd
@@ -344,8 +356,7 @@ PEP-484 type annotations
 
 Python `type hints <https://www.python.org/dev/peps/pep-0484>`_
 can be used to declare argument types, as shown in the
-following example.  To avoid conflicts with other kinds of annotation
-usages, this can be disabled with the directive ``annotation_typing=False``.
+following example:
 
   .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
@@ -375,6 +386,18 @@ declare types of variables in a Python 3.6 compatible way as follows:
 
 There is currently no way to express the visibility of object attributes.
 
+Disabling annotations
+^^^^^^^^^^^^^^^^^^^^^
+
+To avoid conflicts with other kinds of annotation
+usages, Cython's use of annotations to specify types can be disabled with the
+``annotation_typing`` :ref:`compiler directive<compiler-directives>`. From Cython 3
+you can use this as a decorator or a with statement, as shown in the following example:
+
+.. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
+
+
+
 ``typing`` Module
 ^^^^^^^^^^^^^^^^^
 
@@ -395,6 +418,19 @@ unsupported since these type hints are not relevant for the compilation to
 efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to
 improve the type analysis in Cython.
+
+Reference table
+^^^^^^^^^^^^^^^
+
+The following reference table documents how type annotations are currently interpreted.
+Cython 0.29 behaviour is only shown where it differs from Cython 3.0 behaviour.
+The current limitations will likely be lifted at some point.
+
+.. csv-table:: Annotation typing rules
+   :file: annotation_typing_table.csv
+   :header-rows: 1
+   :class: longtable
+   :widths: 1 1 1
 
 Tips and Tricks
 ---------------

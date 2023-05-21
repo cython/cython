@@ -4,6 +4,8 @@
 
 print(end='')  # test that language_level 3 applies immediately at the module start, for the first token.
 
+import cython
+
 __doc__ = """
 >>> items = sorted(locals_function(1).items())
 >>> for item in items:
@@ -147,6 +149,8 @@ def strip_wrapped_string(s):
     assert s[0] == s[-1] # delimiters on either end are the same
     return s[1:-1] # strip them
 
+
+@cython.annotation_typing(False)
 def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":
     """
     >>> annotation_syntax(1)
@@ -170,3 +174,12 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     result : int = a + b
 
     return result
+
+
+@cython.annotation_typing(True)
+def repr_returns_str(x) -> str:
+    """
+    >>> repr_returns_str(123)
+    '123'
+    """
+    return repr(x)

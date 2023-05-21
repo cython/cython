@@ -24,7 +24,9 @@ Contents:
    parallelism
    debugging
    numpy_tutorial
+   numpy_ufuncs
    numpy_pythran
+   nogil
 
 Indices and tables
 ------------------
