@@ -2269,6 +2269,10 @@ class CClassScope(ClassScope):
         self.property_entries = []
         self.inherited_var_entries = []
         self.parent_type = parent_type
+        # Usually parent_type will be an extension type and so the typeptr_cname
+        # can be used to calculate the namespace_cname. Occassionally other types
+        # are used (e.g. numeric/complex types) and in these cases the typeptr
+        # isn't relevant.
         if ((parent_type.is_builtin_type or parent_type.is_extension_type)
                 and parent_type.typeptr_cname):
             self.namespace_cname = "(PyObject *)%s" % parent_type.typeptr_cname
