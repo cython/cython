@@ -2252,9 +2252,9 @@ class CClassScope(ClassScope):
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
         self.property_entries = []
         self.inherited_var_entries = []
-        self.parent_type = parent_type  # needs to be initialized
-        if hasattr(self.parent_type, "typeptr_cname"):
-            # otherwise, namespace_cname will remain unset
+        self.parent_type = parent_type
+        if ((self.parent_type.is_builtin_type or self.parent_type.is_extension_type)
+                and self.parent_type.typeptr_cname):
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
     def needs_gc(self):

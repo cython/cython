@@ -2556,9 +2556,9 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         ).analyse_expressions(self.current_env()))
 
     def visit_ClassDefNode(self, node):
-        needs_qualname_assignment = self.needs_qualname_assignment
+        orig_needs_qualname_assignment = self.needs_qualname_assignment
         self.needs_qualname_assignment = False
-        needs_module_assignment = self.needs_module_assignment
+        orig_needs_module_assignment = self.needs_module_assignment
         self.needs_module_assignment = False
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
@@ -2572,8 +2572,8 @@ class CalculateQualifiedNamesTransform(EnvTransform):
             self.generate_assignment(node, "__module__",
                                      EncodedString(self.module_name))
         self.qualified_name = orig_qualified_name
-        self.needs_qualname_assignment = needs_qualname_assignment  # restore
-        self.needs_module_assignment = needs_module_assignment
+        self.needs_qualname_assignment = orig_needs_qualname_assignment
+        self.needs_module_assignment = orig_needs_module_assignment
         return node
 
     def visit_NameNode(self, node):
