@@ -21,4 +21,4 @@ proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
 _, err = proc.communicate()
 # The error should contain the line number and the line text where the
 # undefined identifier is used.
-assert b'line 3, in init error_pos' and b'abcdefg(line)' in err, err
+assert b'line 3, in init error_pos' in err and b'abcdefg(line)' in err, err
