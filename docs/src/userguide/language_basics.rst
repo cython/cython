@@ -75,7 +75,7 @@ define global C variables.
                 j: cython.int
                 k: cython.int
                 f: cython.float
-                g: cython.int[42]
+                g: cython.float[42]
                 h: cython.p_float
 
                 i = j = 5
@@ -88,7 +88,10 @@ define global C variables.
 
             def func():
                 cdef int i, j, k
-                cdef float f, g[42], *h
+                cdef float f
+                cdef float[42] g
+                cdef float *h
+                # cdef float f, g[42], *h  # mix of pointers, arrays and values in a single line is deprecated
 
                 i = j = 5
 
@@ -124,10 +127,8 @@ the declaration in most cases:
             def func():
                 cdef int i = 10, j, k
                 cdef float f = 2.5
-                # cdef float g[4] = [1,2,3,4]  # currently not supported
-                cdef float *g = [1, 2, 3, 4]
+                cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
-
 
 .. note::
 
@@ -152,6 +153,55 @@ the declaration in most cases:
 
                 ctypedef int* IntPtr
 
+C Arrays
+--------
+
+C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def func():
+                g: cython.float[42]
+                f: cython.int[5][5][5]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def func():
+                cdef float[42] g
+                cdef int[5][5][5] f
+
+.. note::
+
+    Cython syntax currently supports two ways to declare an array:
+
+    .. code-block:: cython
+
+        cdef int arr1[4], arr2[4]  # C style array declaration
+        cdef int[4] arr1, arr2     # Java style array declaration
+
+    Both of them generate the same C code, but the Java style is more
+    consistent with :ref:`memoryviews` and :ref:`fusedtypes`. The C style
+    declaration is soft-deprecated and it's recommended to use Java style
+    declaration instead.
+
+    The soft-deprecated C style array declaration doesn't support
+    initialization.
+
+    .. code-block:: cython
+
+        cdef int g[4] = [1, 2, 3, 4]  # error
+
+        cdef int[4] g = [1, 2, 3, 4]  # OK
+
+        cdef int g[4]        # OK but not recommended
+        g = [1, 2, 3, 4]
+
 .. _structs:
 
 Structs, Unions, Enums
@@ -174,8 +224,8 @@ Structs can be declared as ``cdef packed struct``, which has
 the same effect as the C directive ``#pragma pack(1)``::
 
     cdef packed struct StructArray:
-        int spam[4]
-        signed char eggs[5]
+        int[4] spam
+        signed char[5] eggs
 
 .. note::
     This declaration removes the empty
@@ -298,7 +348,7 @@ A ``ctuple`` is assembled from any valid C types. For example
         .. code-block:: python
 
             def main():
-                bar: (cython.double, cython.int)
+                bar: tuple[cython.double, cython.int]
 
     .. group-tab:: Cython
 
@@ -446,7 +496,7 @@ using normal C declaration syntax. For example,
         .. code-block:: python
 
             @cython.cfunc
-            def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
+            def chips(t: tuple[cython.long, cython.long, cython.double]) -> tuple[cython.int, cython.float]:
                 ...
 
     .. group-tab:: Cython
@@ -880,6 +930,15 @@ Some things to note:
   which return Python objects. Remember that a function with no declared
   return type implicitly returns a Python object. (Exceptions on such
   functions are implicitly propagated by returning ``NULL``.)
+  
+* There's a known performance pitfall when combining ``nogil`` and 
+  ``except *`` \ ``@cython.exceptval(check=True)``.
+  In this case Cython must always briefly re-acquire the GIL after a function
+  call to check if an exception has been raised.  This can commonly happen with a
+  function returning nothing (C ``void``).  Simple workarounds are to mark the
+  function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
+  to change the return type to ``int`` and just let Cython use the return value
+  as an error flag (by default, ``-1`` triggers the exception check).
 
 
 .. _checking_return_values_of_non_cython_functions:

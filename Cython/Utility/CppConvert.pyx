@@ -66,13 +66,14 @@ cdef extern from "Python.h":
 cdef object {{cname}}(const vector[X]& v):
     if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
+    v_size_signed = <Py_ssize_t> v.size()
 
-    o = PyList_New(<Py_ssize_t> v.size())
+    o = PyList_New(v_size_signed)
 
     cdef Py_ssize_t i
     cdef object item
 
-    for i in range(v.size()):
+    for i in range(v_size_signed):
         item = v[i]
         Py_INCREF(item)
         PyList_SET_ITEM(o, i, item)

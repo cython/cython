@@ -2,8 +2,114 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 12 (2022-01-??)
-===========================
+3.0.0 beta 3 (2023-??-??)
+=========================
+
+Features added
+--------------
+
+* The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
+  ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
+
+Bugs fixed
+----------
+
+* Some C compile failures in CPython 3.12.0a6/a7 were resolved.
+
+* Cascaded comparisons between integer constants and Python types could fail to compile.
+  (Github issue :issue:`5354`)
+
+* The internal macro ``__PYX_IS_UNSIGNED`` was accidentally duplicated in beta 2
+  which lead to C compile errors.
+  Patch by 0dminnimda.  (Github issue :issue:`5356`)
+
+* The dataclass implementation was adapted to support Python 3.12.
+  (Github issue :issue:`5346`)
+
+* Function signatures containing a type like `tuple[()]` could not be printed.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.34` release.
+
+Other changes
+-------------
+
+* For-loops now release the internal reference to their list/tuple iterable before
+  instead of after the ``else:`` clause.  This probably has no practical impact.
+  (Github issue :issue:`5347`)
+
+
+3.0.0 beta 2 (2023-03-27)
+=========================
+
+Features added
+--------------
+
+* C++ declarations for ``<cmath>``, ``<numbers>`` and ``std::any`` were added.
+  Patches by Jonathan Helgert and Maximilien Colange.
+  (Github issues :issue:`5262`, :issue:`5309`, :issue:`5314`)
+
+Bugs fixed
+----------
+
+* Unintended internal exception handling lead to a visible performance regression
+  for ``nogil`` memoryview code in 3.0.0b1.
+  (Github issue :issue:`5324`)
+
+* ``None`` default arguments for arguments with fused memoryview types could select a different
+  implementation in 3.0 than in 0.29.x.  The selection behaviour is generally considered
+  suboptimal but was at least reverted to the old behaviour for now.
+  (Github issue :issue:`5297`)
+
+* The new complex vs. floating point behaviour of the ``**`` power operator accidentally
+  added a dependency on the GIL, which was really only required on failures.
+  (Github issue :issue:`5287`)
+
+* ``from cython cimport … as …`` could lead to imported names not being found in annotations.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5235`)
+
+* Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
+  (Github issue :issue:`5328`)
+
+* Very long Python integer constants could exceed the maximum C name length of MSVC.
+  Patch by 0dminnimda.  (Github issue :issue:`5290`)
+
+* ``cimport_from_pyx`` could miss some declarations.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5318`)
+
+* Fully qualified C++ names prefixed by a cimported module name could fail to compile.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5229`)
+
+* Cython generated C++ code accidentally used C++11 features in some cases.
+  (Github issue :issue:`5316`)
+
+* Some C++ warnings regarding ``const`` usage in internally generated utility code were resolved.
+  Patch by Max Bachmann.  (Github issue :issue:`5301`)
+
+* With ``language_level=2``, imports of modules in packages could return the wrong module in Python 3.
+  (Github issue :issue:`5308`)
+
+* ``typing.Optional`` could fail on tuple types.
+  (Github issue :issue:`5263`)
+
+* Auto-generated utility code didn't always have all required user defined types available.
+  (Github issue :issue:`5269`)
+
+* Type checks for Python's ``memoryview`` type generated incorrect C code.
+  (Github issues :issue:`5268`, :issue:`5270`)
+
+* Some issues with ``depfile`` generation were resolved.
+  Patches by Eli Schwartz.  (Github issues :issue:`5279`, :issue:`5291`)
+
+* Some C code issue were resolved for the Limited API target.
+  (Github issues :issue:`5264`, :issue:`5265`, :issue:`5266`)
+
+* The C code shown in the annotated HTML output could lack the last C code line(s).
+
+
+3.0.0 beta 1 (2023-02-25)
+=========================
 
 Features added
 --------------
@@ -20,6 +126,10 @@ Features added
   previous, unsafe behaviour.  This directive will eventually be removed in a later release.
   Patch by Matúš Valo.  (Github issue :issue:`5094`)
 
+* A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
+  applies the calculation function to an entire memoryview.
+  (Github issue :issue:`4758`)
+
 * The ``**`` power operator now behaves more like in Python by returning the correct complex
   result if required by math.  A new ``cpow`` directive was added to turn on the previous
   C-like behaviour.
@@ -27,6 +137,26 @@ Features added
 
 * The special ``__*pow__`` methods now support the 2- and 3-argument variants.
   (Github issue :issue:`5160`)
+
+* Unknown type annotations (e.g. because of typos) now emit a warning at compile time.
+  Patch by Matúš Valo.  (Github issue :issue:`5070`)
+
+* Subscripted builtin types in type declarations (like ``list[float]``) are now
+  better supported.
+  (Github issue :issue:`5058`)
+
+* Python's ``memoryview`` is now a known builtin type with optimised properties.
+  (Github issue :issue:`3798`)
+
+* The call-time dispatch for fused memoryview types is less slow.
+  (Github issue :issue:`5073`)
+
+* Integer comparisons avoid Python coercions if possible.
+  (Github issue :issue:`4821`)
+
+* The Python Enum of a ``cpdef enum`` now inherits from ``IntFlag`` to better match
+  both Python and C semantics of enums.
+  (Github issue :issue:`2732`)
 
 * `PEP-614 <https://peps.python.org/pep-0614/>`_:
   decorators can now be arbitrary Python expressions.
@@ -60,8 +190,8 @@ Features added
   Patch by Matúš Valo.  (Github issue :issue:`1711`)
 
 * Declarations were added for the C++ bit operations, some other parts of C++20 and CPython APIs.
-  Patches by Jonathan Helgert, Dobatymo and William Ayd.
-  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`)
+  Patches by Jonathan Helgert, Dobatymo, William Ayd and Max Bachmann.
+  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`, :issue:`5257`)
 
 Bugs fixed
 ----------
@@ -74,6 +204,21 @@ Bugs fixed
   They are now ignored again (as always before) when ``language_level=2``, and accept
   both ``int`` and ``long`` in Py2 (and only ``int`` in Py3) otherwise.
   (Github issue :issue:`4944`)
+
+* Calling bound classmethods of builtin types could fail trying to call the unbound method.
+  (Github issue :issue:`5051`)
+
+* ``int(Py_UCS4)`` returned the code point instead of the parsed digit value.
+  (Github issue :issue:`5216`)
+
+* Several problems with CPython 3.12 were resolved.
+  (Github issue :issue:`5238`)
+
+* The C ``float`` type was not inferred on assignments.
+  (Github issue :issue:`5234`)
+
+* Memoryviews with ``object`` item type were not supported in Python type declarations.
+  (Github issue :issue:`4907`)
 
 * Iterating over memoryviews in generator expressions could leak a buffer reference.
   (Github issue :issue:`4968`)
@@ -154,6 +299,9 @@ Bugs fixed
 * Invalid and misspelled ``cython.*`` module names were not reported as errors.
   (Github issue :issue:`4947`)
 
+* Unused ``**kwargs`` arguments did not show up in ``locals()``.
+  (Github issue :issue:`4899`)
+
 * Extended glob paths with ``/**/`` and ``\**\`` for finding source files failed on Windows.
 
 * Annotated HTML generation was missing newlines in 3.0.0a11.
@@ -169,6 +317,10 @@ Bugs fixed
   Patches by Max Bachmann, Alexander Shadchin, at al.
   (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
 
+* The embedding code no longer calls deprecated C-API functions but uses the new ``PyConfig``
+  API instead on CPython versions that support it (3.8+).
+  Patch by Alexander Shadchin.  (Github issue :issue:`4895`)
+
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
 
@@ -182,6 +334,11 @@ Other changes
   ``from somemodule cimport class/struct/union somename`` was removed.  The type
   modifier is not needed here and a plain ``cimport`` of the name will do.
   (Github issue :issue:`4904`)
+
+* C-style array declarations (``cdef int a[4]``) are now (silently) deprecated in
+  favour of the Java-style ``cdef int[4] a`` form.  The latter was always available
+  and the Python type declaration syntax already used it exclusively (``a: int[4]``).
+  Patch by Matúš Valo.  (Github issue :issue:`5248`)
 
 * The wheel building process was migrated to use the ``cibuildwheel`` tool.
   Patch by Thomas Li.  (Github issue :issue:`4736`)
@@ -1247,6 +1404,51 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.35:
+
+0.29.35 (2023-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Some C compile failures and crashes in CPython 3.12 were resolved.
+
+* A C compile failure in PyPy 3.10 was resolved.
+  Patch by Matti Picus.  (Github issue :issue:`5408`)
+
+* Cython modules now use PEP-489 multi-phase init by default in PyPy 3.9 and later.
+  Original patch by Matti Picus.  (Github issue :issue:`5413`)
+
+* API header files generated by different Cython versions can now be included in the
+  same C file.
+  (Github issue :issue:`5383`)
+
+* Function signatures containing a type like `tuple[()]` could not be printed.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
+
+
+.. _0.29.34:
+
+0.29.34 (2023-04-02)
+====================
+
+Bugs fixed
+----------
+
+* A refence leak of the for-loop list/tuple iterable was resolved if the for-loop's
+  ``else:`` branch executes a ``break`` for an outer loop.
+  (Github issue :issue:`5347`)
+
+* Some C compile failures in CPython 3.12 were resolved.
+
+* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
+  Patch by Matúš Valo.  (Github issue :issue:`5300`)
+
+* Some issues with ``depfile`` generation were resolved.
+  Patches by Eli Schwartz.  (Github issues :issue:`5279`, :issue:`5291`)
+
+
 .. _0.29.33:
 
 0.29.33 (2023-01-06)
@@ -1334,6 +1536,9 @@ Features added
 * A new argument ``--module-name`` was added to the ``cython`` command to
   provide the (one) exact target module name from the command line.
   Patch by Matthew Brett and h-vetinari.  (Github issue :issue:`4906`)
+
+* A new keyword ``noexcept`` was added for forward compatibility with Cython 3.
+  Patch by David Woods.  (Github issue :issue:`4903`)
 
 Bugs fixed
 ----------

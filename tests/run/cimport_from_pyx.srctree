@@ -83,3 +83,18 @@ def cfuncOutside():
 
 cdef class ClassC:
     cdef int value
+
+######## d.pyx ########
+
+ctypedef fused fused_type:
+    long
+    double
+
+cdef fused_checker(fused_type i):
+    if fused_type is long:
+        return True
+    else:
+        return False
+
+def test():
+    return fused_checker(0)

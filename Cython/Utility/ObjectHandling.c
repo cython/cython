@@ -167,7 +167,7 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     PyObject* exc_type;
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
-    exc_type = __Pyx_PyErr_Occurred();
+    exc_type = __Pyx_PyErr_CurrentExceptionType();
     if (unlikely(exc_type)) {
         if (!defval || unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
             return NULL;
@@ -231,43 +231,24 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
 static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 
 /////////////// IterFinish ///////////////
+//@requires: Exceptions.c::PyThreadStateGet
+//@requires: Exceptions.c::PyErrFetchRestore
 
 // When PyIter_Next(iter) has returned NULL in order to signal termination,
 // this function does the right cleanup and returns 0 on success.  If it
 // detects an error that occurred in the iterator, it returns -1.
 
 static CYTHON_INLINE int __Pyx_IterFinish(void) {
-#if CYTHON_FAST_THREAD_STATE
-    PyThreadState *tstate = __Pyx_PyThreadState_Current;
-    PyObject* exc_type = tstate->curexc_type;
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();
     if (unlikely(exc_type)) {
-        if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) {
-            PyObject *exc_value, *exc_tb;
-            exc_value = tstate->curexc_value;
-            exc_tb = tstate->curexc_traceback;
-            tstate->curexc_type = 0;
-            tstate->curexc_value = 0;
-            tstate->curexc_traceback = 0;
-            Py_DECREF(exc_type);
-            Py_XDECREF(exc_value);
-            Py_XDECREF(exc_tb);
-            return 0;
-        } else {
+        if (unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
             return -1;
-        }
+        __Pyx_PyErr_Clear();
+        return 0;
     }
     return 0;
-#else
-    if (unlikely(PyErr_Occurred())) {
-        if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) {
-            PyErr_Clear();
-            return 0;
-        } else {
-            return -1;
-        }
-    }
-    return 0;
-#endif
 }
 
 
@@ -1992,23 +1973,77 @@ typedef struct {
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
+static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
+    // NOTE: possible optimization - use vectorcall
+    PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
+    if (unlikely(!selfless_args)) return NULL;
+
+    PyObject *result = PyObject_Call(method, selfless_args, kwargs);
+    Py_DECREF(selfless_args);
+    return result;
+}
+
+static PyMethodDef __Pyx_UnboundCMethod_Def = {
+    /* .ml_name  = */ "CythonUnboundCMethod",
+    /* .ml_meth  = */ __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_SelflessCall),
+    /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
+    /* .ml_doc   = */ NULL
+};
+
 static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     PyObject *method;
     method = __Pyx_PyObject_GetAttrStr(target->type, *target->method_name);
     if (unlikely(!method))
         return -1;
     target->method = method;
+// FIXME: use functionality from CythonFunction.c/ClassMethod
 #if CYTHON_COMPILING_IN_CPYTHON
     #if PY_MAJOR_VERSION >= 3
-    // method descriptor type isn't exported in Py2.x, cannot easily check the type there
     if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
+    #else
+    // method descriptor type isn't exported in Py2.x, cannot easily check the type there.
+    // Therefore, reverse the check to the most likely alternative
+    // (which is returned for class methods)
+    if (likely(!PyCFunction_Check(method)))
     #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
         target->func = descr->d_method->ml_meth;
         target->flag = descr->d_method->ml_flags & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_STACKLESS);
-    }
+    } else
 #endif
+    // bound classmethods need special treatment
+#if defined(CYTHON_COMPILING_IN_PYPY)
+    // In PyPy functions are regular methods, so just do
+    // the self check
+#elif PY_VERSION_HEX >= 0x03090000
+    if (PyCFunction_CheckExact(method))
+#else
+    if (PyCFunction_Check(method))
+#endif
+    {
+        PyObject *self;
+        int self_found;
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
+        self = PyObject_GetAttrString(method, "__self__");
+        if (!self) {
+            PyErr_Clear();
+        }
+#else
+        self = PyCFunction_GET_SELF(method);
+#endif
+        self_found = (self && self != Py_None);
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
+        Py_XDECREF(self);
+#endif
+        if (self_found) {
+            PyObject *unbound_method = PyCFunction_New(&__Pyx_UnboundCMethod_Def, method);
+            if (unlikely(!unbound_method)) return -1;
+            // New PyCFunction will own method reference, thus decref __Pyx_PyObject_GetAttrStr
+            Py_DECREF(method);
+            target->method = unbound_method;
+        }
+    }
     return 0;
 }
 
@@ -3031,6 +3066,36 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
+
+
+/////////////// PySequenceMultiply.proto ///////////////
+
+#define __Pyx_PySequence_Multiply_Left(mul, seq)  __Pyx_PySequence_Multiply(seq, mul)
+static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul);
+
+/////////////// PySequenceMultiply ///////////////
+
+static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul) {
+    PyObject *result, *pymul = PyInt_FromSsize_t(mul);
+    if (unlikely(!pymul))
+        return NULL;
+    result = PyNumber_Multiply(seq, pymul);
+    Py_DECREF(pymul);
+    return result;
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize_t mul) {
+#if CYTHON_USE_TYPE_SLOTS
+    PyTypeObject *type = Py_TYPE(seq);
+    if (likely(type->tp_as_sequence && type->tp_as_sequence->sq_repeat)) {
+        return type->tp_as_sequence->sq_repeat(seq, mul);
+    } else
+#endif
+    {
+        return __Pyx_PySequence_Multiply_Generic(seq, mul);
+    }
+}
+
 
 /////////////// FormatTypeName.proto ///////////////
 
