@@ -223,11 +223,12 @@ Depending on the application, one way or the other may be better:
 
   These constants can be cimported from the ``cpython.object`` module.
 
-* Use the ``@cython.total_ordering`` decorator, which is a low-level
-  re-implementation of the `functools.total_ordering
-  <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
-  decorator specifically for ``cdef`` classes.  (Normal Python classes can use
-  the original ``functools`` decorator.)
+* If you use the `functools.total_ordering<https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
+  decorator on an extension type/``cdef`` class, Cython replaces it with a low-level reimplementation
+  designed specifically for extension types.  (On a normal Python classes, the ``functools`` 
+  decorator continues to work as before.)  As a shortcut you can also use ``cython.total_ordering``, which
+  applies the same re-implementation but also transforms the class to an extension type if it
+  isn't already.
 
 .. tabs::
 
