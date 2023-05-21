@@ -196,7 +196,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     // We always do a quick slot check because calling PyIter_Check() is so wasteful.
     iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
     if (likely(iternext)) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
         next = iternext(iterator);
         if (likely(next))
             return next;
