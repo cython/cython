@@ -1984,7 +1984,7 @@ class CNumericType(CType):
                     '',
                     None,
                     visibility="extern",
-                    parent_type = self)
+                    parent_type=self)
             scope.directives = {}
             scope.declare_cfunction(
                     "conjugate",

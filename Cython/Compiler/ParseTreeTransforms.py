@@ -2747,8 +2747,8 @@ class CalculateQualifiedNamesTransform(EnvTransform):
             unicode_value=value)
         node.body.stats.insert(0, Nodes.SingleAssignmentNode(
             node.pos,
-            lhs = lhs,
-            rhs = rhs
+            lhs=lhs,
+            rhs=rhs,
         ).analyse_expressions(self.current_env()))
 
     def visit_ClassDefNode(self, node):
