@@ -391,7 +391,7 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
-    'total_ordering': ('cclass', ),
+    'total_ordering': ('cclass', 'class'),
     'dataclasses.dataclass' : ('class', 'cclass',),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),

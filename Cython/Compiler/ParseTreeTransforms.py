@@ -1339,17 +1339,6 @@ class InterpretCompilerDirectives(CythonTransform):
                         scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
-            for realdec in realdecs:
-                dec_pos = realdec.pos
-                realdec = realdec.decorator
-                if ((realdec.is_name and realdec.name == "dataclass") or
-                        (realdec.is_attribute and realdec.attribute == "dataclass")):
-                    error(dec_pos,
-                          "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
-            # Note - arbitrary C function decorators are caught later in DecoratorTransform
-            raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
@@ -2872,6 +2861,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.inline
     @cython.nogil
     """
+    # list of directives that cause conversion to cclass
+    converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
 
     def visit_ModuleNode(self, node):
         self.directives = node.directives
@@ -2929,7 +2920,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_PyClassDefNode(self, node):
-        if 'cclass' in self.directives:
+        if any(directive in self.directives for directive in self.converts_to_cclass):
             node = node.as_cclass()
             return self.visit(node)
         else:
