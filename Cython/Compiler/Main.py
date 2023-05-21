@@ -169,11 +169,11 @@ class Context(object):
         return os.path.basename(path) in ('__init__.pyx', '__init__.py', '__init__.pxd') if path else False
 
     @staticmethod
-    def _check_pxd_filename(pos, pxd_pathname):
+    def _check_pxd_filename(pos, pxd_pathname, qualified_name):
         if not pxd_pathname:
             return
         pxd_filename = os.path.basename(pxd_pathname)
-        if '.' in os.path.splitext(pxd_filename)[0]:
+        if '.' in qualified_name and qualified_name == os.path.splitext(pxd_filename)[0]:
             warning(pos, "Dotted filenames ('%s') are deprecated."
                     " Please use the normal Python package directory layout." % pxd_filename, level=1)
 
@@ -215,7 +215,7 @@ class Context(object):
             scope = relative_to.lookup_submodule(module_name)
             if not scope:
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
-                self._check_pxd_filename(pos, pxd_pathname)
+                self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if pxd_pathname:
                     is_package = self._is_init_file(pxd_pathname)
                     scope = relative_to.find_submodule(module_name, as_package=is_package)
@@ -238,7 +238,7 @@ class Context(object):
                 # Only look in sys.path if we are explicitly looking
                 # for a .pxd file.
                 pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=need_pxd)
-                self._check_pxd_filename(pos, pxd_pathname)
+                self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if debug_find_module:
                     print("......found %s" % pxd_pathname)
                 if not pxd_pathname and need_pxd:
