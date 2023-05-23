@@ -447,6 +447,7 @@ class PyrexScanner(Scanner):
             self.error_at_scanpos("Unrecognized character")
             return  # just a marker, error() always raises
         if sy == IDENT:
+            systring = self.context.intern_ustring(systring)
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
                     self.keywords.discard('print')
@@ -454,7 +455,6 @@ class PyrexScanner(Scanner):
                     self.keywords.discard('exec')
                 else:
                     sy = systring
-            systring = self.context.intern_ustring(systring)
         if self.put_back_on_failure is not None:
             self.put_back_on_failure.append((sy, systring, self.position()))
         self.sy = sy
