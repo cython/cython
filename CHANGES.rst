@@ -10,6 +10,11 @@ Bugs fixed
 
 * Some C compile failures and crashes in CPython 3.12 were resolved.
 
+* ``except + nogil`` was syntactically not allowed.
+  ``except +nogil`` (i.e. defining a C++ exception handling function called ``nogil``)
+  is now disallowed to prevent typos.
+  (Github issue :issue:`5430`)
+
 * A C compile failure in PyPy 3.10 was resolved.
   Patch by Matti Picus.  (Github issue :issue:`5408`)
 
