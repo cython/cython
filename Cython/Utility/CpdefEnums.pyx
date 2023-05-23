@@ -153,7 +153,7 @@ cdef {{funcname}}({{name}} c_val):
         pass
 {{for item in items}}
     elif c_val == {{name}}.{{item}}:
-       return __pyx_enum.{{item}}
+        return __pyx_enum.{{item}}
 {{endfor}}
     else:
         underlying_c_val = <{{underlying_type}}>c_val

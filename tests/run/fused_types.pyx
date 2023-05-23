@@ -324,7 +324,17 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     double[:] double[:] 5.0 6.0
     >>> test_fused_memslice_dtype[cython.float](get_array(4, 'f'))
     float[:] float[:] 5.0 6.0
+
+    # None should evaluate to *something* (currently the first
+    # in the list, but this shouldn't be a hard requirement)
+    >>> test_fused_memslice_dtype(None)
+    float[:]
+    >>> test_fused_memslice_dtype[cython.double](None)
+    double[:]
     """
+    if array is None:
+        print(cython.typeof(array))
+        return
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
@@ -390,6 +400,37 @@ def test_cython_numeric(cython.numeric arg):
     double complex (10+1j)
     """
     print cython.typeof(arg), arg
+
+
+cdef fused int_t:
+    int
+
+def test_pylong(int_t i):
+    """
+    >>> import cython
+    >>> try:    long = long # Python 2
+    ... except: long = int  # Python 3
+
+    >>> test_pylong[int](int(0))
+    int
+    >>> test_pylong[cython.int](int(0))
+    int
+    >>> test_pylong(int(0))
+    int
+
+    >>> test_pylong[int](long(0))
+    int
+    >>> test_pylong[cython.int](long(0))
+    int
+    >>> test_pylong(long(0))
+    int
+
+    >>> test_pylong[cython.long](0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    KeyError: ...
+    """
+    print cython.typeof(i)
+
 
 cdef fused ints_t:
     int

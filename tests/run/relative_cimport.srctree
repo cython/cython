@@ -2,9 +2,11 @@
 # tag: cimport
 
 PYTHON setup.py build_ext --inplace
+PYTHON -c "from pkg.a import test; assert test() == (5, 7)"
 PYTHON -c "from pkg.b import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.b_py2 import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.sub.c import test; assert test() == (1, 2)"
+PYTHON -c "from pkg.sub.d import test; assert test() == 3"
 
 ######## setup.py ########
 
@@ -24,12 +26,23 @@ setup(
 ######## pkg/a.pyx ########
 
 from .sub.reimport cimport myint
+from .sub cimport c
 
 cdef myint i = 5
 assert i == 5
+assert c.sum_func(1, 2) == 3
+
+from .sub cimport myint as pkg_myint
+
+cdef pkg_myint pi = 7
+assert pi == 7
 
 cdef class test_pxd:
     pass
+
+
+def test():
+    return (i, pi)
 
 
 ######## pkg/a.pxd ########
@@ -82,6 +95,19 @@ def test():
     obj.y = 2
     return (obj.x, obj.y)
 
+cdef int sum_func(int n, int m):
+    return n + m
+
+######## pkg/sub/c.pxd ########
+
+cdef int sum_func(int n, int m)
+
+######## pkg/sub/d.pyx ########
+
+from . cimport c
+
+def test():
+    return c.sum_func(1, 2)
 
 ######## pkg/sub/tdef.pxd ########
 
@@ -91,3 +117,9 @@ ctypedef int myint
 ######## pkg/sub/reimport.pxd ########
 
 from .tdef cimport myint
+
+
+######## pkg/sub/__init__.pxd ########
+
+from .tdef cimport myint
+from . cimport c

@@ -12,7 +12,7 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
-  sudo apt install -y -q gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
+  sudo apt install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
@@ -144,7 +144,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
 else
-  CFLAGS="-O0 -ggdb -Wall -Wextra"
+  CFLAGS="-O0 -ggdb -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
 fi
 # Trying to cover debug assertions in the CI without adding
 # extra jobs. Therefore, odd-numbered minor versions of Python

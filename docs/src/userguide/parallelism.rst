@@ -12,7 +12,7 @@ Using Parallelism
     ../two-syntax-variants-used
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the GIL must be released
+module. To use this kind of parallelism, the :term:`GIL<Global Interpreter Lock or GIL>` must be released
 (see :ref:`Releasing the GIL <nogil>`).
 It currently supports OpenMP, but later on more backends might be supported.
 

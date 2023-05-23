@@ -3,7 +3,7 @@ cimport cython
 from .Actions cimport Action
 from .Transitions cimport TransitionMap
 
-cdef long maxint
+cdef int maxint
 
 
 @cython.final
@@ -22,7 +22,7 @@ cdef class Node:
     cdef readonly Action action
     cdef public dict epsilon_closure
     cdef readonly Py_ssize_t number
-    cdef readonly long action_priority
+    cdef readonly int action_priority
 
 
 @cython.final

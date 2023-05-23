@@ -179,9 +179,15 @@ _strip_c_comments = partial(re.compile(
 
 _strip_cython_code_from_html = partial(re.compile(
     re.sub(r'\s\s+', '', r'''
+    (?:
         <pre class=["'][^"']*cython\s+line[^"']*["']\s*>
         (?:[^<]|<(?!/pre))+
         </pre>
+    )|(?:
+        <style[^>]*>
+        (?:[^<]|<(?!/style))+
+        </style>
+    )
     ''')
 ).sub, '')
 
