@@ -3106,8 +3106,12 @@ def p_exception_value_clause(s, ctx):
             s.next()
         elif s.sy == '+':
             exc_check = '+'
+            plus_char_pos = s.position()[2]
             s.next()
             if p_nogil(s):
+                if s.position()[2] == plus_char_pos + 6:  #  len("+nogil")
+                    error(s.position(),
+                          "'except +nogil' defines an exception handling function. Use 'except + nogil' for the 'nogil' modifier.")
                 ctx.nogil = True
             elif s.sy == 'IDENT':
                 name = s.systring
