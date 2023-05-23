@@ -27,130 +27,86 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-18.04]
+        os: [ubuntu-20.04, macos-11]
         backend: [c, cpp]
-        python-version: ["2.7", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12-dev"]
+        python-version: ["2.7", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12-dev"]
         env: [{}]
 
         include:
-          # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
+          # Temporary - Allow failure on Python 3.12-dev jobs for Cython 0.29.x
           - python-version: 3.12-dev
             allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
           # GCC 11
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 3.9
             backend: c
             env: { GCC_VERSION: 11 }
             extra_hash: "-gcc11"
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 3.9
             backend: cpp
             env: { GCC_VERSION: 11 }
             extra_hash: "-gcc11"
           # compile all modules
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 2.7
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 2.7
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 3.9
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 3.9
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           # Linting
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 3.7
             backend: "c,cpp"
             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"
           # Stackless
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 2.7
             backend: c
             env: { STACKLESS: true, PY: 2 }
             extra_hash: "-stackless"
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: 3.6
             backend: c
             env: { STACKLESS: true, PY: 3 }
             extra_hash: "-stackless"
           # Pypy
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             python-version: pypy-2.7
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
             allowed_failure: true
             extra_hash: "-allowed_failures"
-          - os: ubuntu-18.04
-            python-version: pypy-3.7
+          - os: ubuntu-20.04
+            python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
             allowed_failure: true
             extra_hash: "-allowed_failures"
           # Coverage - Disabled due to taking too long to run
-          # - os: ubuntu-18.04
+          # - os: ubuntu-20.04
           #   python-version: 3.7
           #   backend: "c,cpp"
           #   env: { COVERAGE: 1 }
           #   extra_hash: '-coverage'
-
-          # MacOS sub-jobs
-          # ==============
-          # (C-only builds are used to create wheels)
-          - os: macos-11
-            python-version: 2.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 2.7
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.5
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.6
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.7
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.8
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.9
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: 3.9
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: c
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
-          - os: macos-11
-            python-version: "3.10"
-            backend: cpp
-            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20/~30 minutes, so a limit of 40 minutes should be enough. This can always be
@@ -167,6 +123,7 @@ jobs:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
       CCACHE_MAXSIZE: "200M"
+      MACOSX_DEPLOYMENT_TARGET: "11"
 
     steps:
       - name: Checkout repo
@@ -184,7 +141,7 @@ jobs:
         if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/ci-run.sh') }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
