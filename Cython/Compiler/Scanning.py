@@ -310,10 +310,11 @@ class PyrexScanner(Scanner):
 
         if filename.is_python_file():
             self.in_python_file = True
-            self.keywords = set(py_reserved_words)
+            keywords = py_reserved_words
         else:
             self.in_python_file = False
-            self.keywords = set(pyx_reserved_words)
+            keywords = pyx_reserved_words
+        self.keywords = {keyword: keyword for keyword in keywords}
 
         self.async_enabled = 0
 
@@ -449,11 +450,11 @@ class PyrexScanner(Scanner):
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
-                    self.keywords.discard('print')
+                    self.keywords.pop('print', None)
                 elif systring == u'exec' and self.context.language_level >= 3:
-                    self.keywords.discard('exec')
+                    self.keywords.pop('exec', None)
                 else:
-                    sy = systring
+                    sy = self.keywords[systring]  # intern
             systring = self.context.intern_ustring(systring)
         if self.put_back_on_failure is not None:
             self.put_back_on_failure.append((sy, systring, self.position()))
@@ -540,15 +541,15 @@ class PyrexScanner(Scanner):
     def enter_async(self):
         self.async_enabled += 1
         if self.async_enabled == 1:
-            self.keywords.add('async')
-            self.keywords.add('await')
+            self.keywords['async'] = 'async'
+            self.keywords['await'] = 'await'
 
     def exit_async(self):
         assert self.async_enabled > 0
         self.async_enabled -= 1
         if not self.async_enabled:
-            self.keywords.discard('await')
-            self.keywords.discard('async')
+            del self.keywords['await']
+            del self.keywords['async']
             if self.sy in ('async', 'await'):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 

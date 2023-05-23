@@ -29,7 +29,7 @@ cdef class PyrexScanner(Scanner):
     cdef public bint parse_comments
     cdef public bint in_python_file
     cdef public source_encoding
-    cdef set keywords
+    cdef dict keywords
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
