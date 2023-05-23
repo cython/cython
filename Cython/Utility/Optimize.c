@@ -1180,7 +1180,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
                 return PyInt_FromLong(x);
             return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif c_op == '%'}}
-            // see ExprNodes.py :: mod_int_utility_code
+            // see CMath.c :: ModInt utility code
             x = a % b;
             x += ((x != 0) & ((x ^ b) < 0)) * b;
             return PyInt_FromLong(x);
@@ -1196,7 +1196,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
                 return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
             else {
                 long q, r;
-                // see ExprNodes.py :: div_int_utility_code
+                // see CMath.c :: DivInt utility code
                 q = a / b;
                 r = a - q*b;
                 q -= ((r != 0) & ((r ^ b) < 0));
@@ -1323,7 +1323,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
                 return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
                 #endif
             {{elif c_op == '%'}}
-                // see ExprNodes.py :: mod_int_utility_code
+                // see CMath.c :: ModInt utility code
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
@@ -1335,7 +1335,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
             {{elif op == 'FloorDivide'}}
                 {
                     long q, r;
-                    // see ExprNodes.py :: div_int_utility_code
+                    // see CMath.c :: DivInt utility code
                     q = a / b;
                     r = a - q*b;
                     q -= ((r != 0) & ((r ^ b) < 0));
@@ -1360,13 +1360,13 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
 #ifdef HAVE_LONG_LONG
         long_long:
             {{if c_op == '%'}}
-                // see ExprNodes.py :: mod_int_utility_code
+                // see CMath.c :: ModInt utility code
                 llx = lla % llb;
                 llx += ((llx != 0) & ((llx ^ llb) < 0)) * llb;
             {{elif op == 'FloorDivide'}}
                 {
                     PY_LONG_LONG q, r;
-                    // see ExprNodes.py :: div_int_utility_code
+                    // see CMath.c :: DivInt utility code
                     q = lla / llb;
                     r = lla - q*llb;
                     q -= ((r != 0) & ((r ^ llb) < 0));
