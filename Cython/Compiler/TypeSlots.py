@@ -269,8 +269,10 @@ class SlotDescriptor(object):
             return
         preprocessor_guard = self.preprocessor_guard_code()
         if not preprocessor_guard:
-            if self.py3 and self.slot_name.startswith('bf_'):
-                # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
+            prefix = self.slot_name[:3]
+            if self.py3 and prefix in ('bf_', 'am_'):
+                # The buffer protocol requires Limited API 3.11 and 'am_send' requires 3.10,
+                # so check if the spec slots are available.
                 preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
