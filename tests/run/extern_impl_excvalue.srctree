@@ -1,6 +1,7 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import foo"
 PYTHON -c "import a"
+PYTHON -c "import b"
 
 ######## setup.py ########
 
@@ -15,6 +16,10 @@ setup(
 
 cdef int bar() except *
 
+cdef extern from "bar_impl.c":
+    struct mystruct:
+        int (*func_ptr)(int param) nogil
+
 ######## foo.pyx ########
 
 cdef extern from "bar_impl.c":
@@ -24,9 +29,24 @@ cdef extern from "bar_impl.c":
 
 static int bar() { return -1; }
 
+typedef struct mystruct {
+  int (*func_ptr)(int param);
+} mystruct_t;
+
 ######## a.pyx ########
 
 cimport cython
 from foo cimport bar
 
 assert bar() == -1
+
+
+######## b.pyx ########
+
+from foo cimport mystruct
+
+cdef int cb(int param) noexcept nogil:
+    return param
+
+cdef mystruct ms = mystruct(&cb)
+assert ms.func_ptr(5) == 5

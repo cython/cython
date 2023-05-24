@@ -233,7 +233,7 @@ builtin_function_table = [
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    BuiltinFunction('unichr',     "l",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
+    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
@@ -591,7 +591,15 @@ def get_known_standard_library_module_scope(module_name):
         var_entry.is_pyglobal = True
         var_entry.scope = mod
         entry.as_variable = var_entry
+        for name in ["dataclass", "field"]:
+            mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
         _known_module_scopes[module_name] = mod
+    elif module_name == "functools":
+        mod = ModuleScope(module_name, None, None)
+        for name in ["total_ordering"]:
+            mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
+        _known_module_scopes[module_name] = mod
+
     return mod
 
 
@@ -609,3 +617,24 @@ def get_known_standard_library_entry(qualified_name):
     if mod and rest:
         return mod.lookup_here(rest[0])
     return None
+
+
+def exprnode_to_known_standard_library_name(node, env):
+    qualified_name_parts = []
+    known_name = None
+    while node.is_attribute:
+        qualified_name_parts.append(node.attribute)
+        node = node.obj
+    if node.is_name:
+        entry = env.lookup(node.name)
+        if entry and entry.known_standard_library_import:
+            if get_known_standard_library_entry(
+                    entry.known_standard_library_import):
+                known_name = entry.known_standard_library_import
+            else:
+                standard_env = get_known_standard_library_module_scope(
+                    entry.known_standard_library_import)
+                if standard_env:
+                    qualified_name_parts.append(standard_env.name)
+                    known_name = ".".join(reversed(qualified_name_parts))
+    return known_name

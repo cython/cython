@@ -2942,7 +2942,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx)
+    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx.visibility == 'extern')
     if nogil and exc_clause:
         warning(
             s.position(),
@@ -3062,7 +3062,7 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s, ctx):
+def p_exception_value_clause(s, is_extern):
     """
     Parse exception value clause.
 
@@ -3089,10 +3089,7 @@ def p_exception_value_clause(s, ctx):
     """
     exc_clause = False
     exc_val = None
-    if ctx.visibility  == 'extern':
-        exc_check = False
-    else:
-        exc_check = True
+    exc_check = False if is_extern else True
 
     if s.sy == 'IDENT' and s.systring == 'noexcept':
         exc_clause = True
@@ -3106,13 +3103,18 @@ def p_exception_value_clause(s, ctx):
             s.next()
         elif s.sy == '+':
             exc_check = '+'
+            plus_char_pos = s.position()[2]
             s.next()
-            if p_nogil(s):
-                ctx.nogil = True
-            elif s.sy == 'IDENT':
+            if s.sy == 'IDENT':
                 name = s.systring
-                s.next()
-                exc_val = p_name(s, name)
+                if name == 'nogil':
+                    if s.position()[2] == plus_char_pos + 1:
+                        error(s.position(),
+                              "'except +nogil' defines an exception handling function. Use 'except + nogil' for the 'nogil' modifier.")
+                    # 'except + nogil' is parsed outside
+                else:
+                    exc_val = p_name(s, name)
+                    s.next()
             elif s.sy == '*':
                 exc_val = ExprNodes.CharNode(s.position(), value=u'*')
                 s.next()
@@ -3124,7 +3126,7 @@ def p_exception_value_clause(s, ctx):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    if not exc_clause and ctx.visibility  != 'extern' and s.context.legacy_implicit_noexcept:
+    if not is_extern and not exc_clause and s.context.legacy_implicit_noexcept:
         exc_check = False
         warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.", level=2)
     return exc_val, exc_check, exc_clause
@@ -3394,7 +3396,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
         else:
             s.expect('NEWLINE')
             s.expect_indent()
-            body_ctx = Ctx()
+            body_ctx = Ctx(visibility=ctx.visibility)
             while s.sy != 'DEDENT':
                 if s.sy != 'pass':
                     attributes.append(

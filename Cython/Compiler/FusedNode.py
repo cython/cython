@@ -293,8 +293,12 @@ class FusedCFuncDefNode(StatListNode):
         """
         for specialized_type in normal_types:
             # all_numeric = all_numeric and specialized_type.is_numeric
+            py_type_name = specialized_type.py_type_name()
+            if py_type_name == 'int':
+                # Support Python 2 long
+                py_type_name = '(int, long)'
             pyx_code.context.update(
-                py_type_name=specialized_type.py_type_name(),
+                py_type_name=py_type_name,
                 specialized_type_name=specialized_type.specialization_string,
             )
             pyx_code.put_chunk(
