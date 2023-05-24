@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode
+from .Code import UtilityCode, TempitaUtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -89,6 +89,28 @@ class BuiltinMethod(_BuiltinOverride):
             method_type = self.build_func_type(sig, self_arg)
         self_type.scope.declare_builtin_cfunction(
             self.py_name, method_type, self.cname, utility_code=self.utility_code)
+
+
+class BuiltinProperty(object):
+    # read only for now
+    def __init__(self, py_name, property_type, call_cname,
+                 exception_value=None, exception_check=None, utility_code=None):
+        self.py_name = py_name
+        self.property_type = property_type
+        self.call_cname = call_cname
+        self.utility_code = utility_code
+        self.exception_value = exception_value
+        self.exception_check = exception_check
+
+    def declare_in_type(self, self_type):
+        self_type.scope.declare_cproperty(
+            self.py_name,
+            self.property_type,
+            self.call_cname,
+            exception_value=self.exception_value,
+            exception_check=self.exception_check,
+            utility_code=self.utility_code
+        )
 
 
 builtin_function_table = [
@@ -211,7 +233,7 @@ builtin_function_table = [
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    BuiltinFunction('unichr',     "l",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
+    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
@@ -270,21 +292,33 @@ builtin_types_table = [
     ("basestring", "PyBaseString_Type", [
                                     BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBaseString_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("bytearray", "PyByteArray_Type", [
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("str",     "PyString_Type",   [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
                                                   builtin_return_type='basestring',
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
     ("unicode", "PyUnicode_Type",  [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
 
-    ("tuple",   "PyTuple_Type",    []),
+    ("tuple",   "PyTuple_Type",    [BuiltinMethod("__mul__", "Tz", "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                    ]),
 
     ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
@@ -292,6 +326,8 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
                                                   utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
+                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
+                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
@@ -338,6 +374,32 @@ builtin_types_table = [
     ("frozenset", "PyFrozenSet_Type", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
     ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)[0]", []),
+    ("memoryview", "PyMemoryView_Type", [
+        # TODO - format would be nice, but hard to get
+        # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
+        # error checking would ideally be limited api only
+        BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryView_Get_ndim',
+                        exception_value="-1", exception_check=True,
+                        utility_code=TempitaUtilityCode.load_cached(
+                            "memoryview_get_from_buffer", "Builtins.c",
+                            context=dict(name="ndim")
+                        )
+        ),
+        BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryView_Get_readonly',
+                        exception_value="-1", exception_check=True,
+                        utility_code=TempitaUtilityCode.load_cached(
+                            "memoryview_get_from_buffer", "Builtins.c",
+                            context=dict(name="readonly")
+                        )
+        ),
+        BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryView_Get_itemsize',
+                        exception_value="-1", exception_check=True,
+                        utility_code=TempitaUtilityCode.load_cached(
+                            "memoryview_get_from_buffer", "Builtins.c",
+                            context=dict(name="itemsize")
+                        )
+        )]
+    )
 ]
 
 
@@ -349,6 +411,7 @@ types_that_construct_their_instance = frozenset({
     'tuple', 'list', 'dict', 'set', 'frozenset',
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
+    'memoryview'
 })
 
 
@@ -399,7 +462,13 @@ def init_builtin_types():
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
-        the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname)
+        type_class = PyrexTypes.BuiltinObjectType
+        if name in ['dict', 'list', 'set', 'frozenset']:
+            type_class = PyrexTypes.BuiltinTypeConstructorObjectType
+        elif name == 'tuple':
+            type_class = PyrexTypes.PythonTupleTypeConstructor
+        the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname,
+                                                      type_class=type_class)
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
@@ -422,11 +491,13 @@ def init_builtins():
 
     builtin_scope.declare_var(
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
-        pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
+        pos=None, cname='__pyx_assertions_enabled()', is_cdef=True)
 
-    global list_type, tuple_type, dict_type, set_type, frozenset_type
-    global bytes_type, str_type, unicode_type, basestring_type, slice_type
-    global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
+    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
+    global bytes_type, str_type, unicode_type, basestring_type, bytearray_type
+    global float_type, int_type, long_type, bool_type, complex_type
+    global memoryview_type, py_buffer_type
+    global sequence_types
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -434,15 +505,30 @@ def init_builtins():
     set_type   = builtin_scope.lookup('set').type
     frozenset_type = builtin_scope.lookup('frozenset').type
     slice_type   = builtin_scope.lookup('slice').type
+
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
+    memoryview_type = builtin_scope.lookup('memoryview').type
+
     float_type = builtin_scope.lookup('float').type
+    int_type = builtin_scope.lookup('int').type
     long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+
+    sequence_types = (
+        list_type,
+        tuple_type,
+        bytes_type,
+        str_type,
+        unicode_type,
+        basestring_type,
+        bytearray_type,
+        memoryview_type,
+    )
 
     # Set up type inference links between equivalent Python/C types
     bool_type.equivalent_type = PyrexTypes.c_bint_type
@@ -453,6 +539,8 @@ def init_builtins():
 
     complex_type.equivalent_type = PyrexTypes.c_double_complex_type
     PyrexTypes.c_double_complex_type.equivalent_type = complex_type
+
+    py_buffer_type = builtin_scope.lookup('Py_buffer').type
 
 
 init_builtins()
@@ -476,12 +564,8 @@ def get_known_standard_library_module_scope(module_name):
                 ('Set', set_type),
                 ('FrozenSet', frozenset_type),
                 ]:
-            if name == "Tuple":
-                indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
-            else:
-                indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
             name = EncodedString(name)
-            entry = mod.declare_type(name, indexed_type, pos = None)
+            entry = mod.declare_type(name, tp, pos = None)
             var_entry = Entry(name, None, PyrexTypes.py_object_type)
             var_entry.is_pyglobal = True
             var_entry.is_variable = True
@@ -507,7 +591,15 @@ def get_known_standard_library_module_scope(module_name):
         var_entry.is_pyglobal = True
         var_entry.scope = mod
         entry.as_variable = var_entry
+        for name in ["dataclass", "field"]:
+            mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
         _known_module_scopes[module_name] = mod
+    elif module_name == "functools":
+        mod = ModuleScope(module_name, None, None)
+        for name in ["total_ordering"]:
+            mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
+        _known_module_scopes[module_name] = mod
+
     return mod
 
 
@@ -525,3 +617,24 @@ def get_known_standard_library_entry(qualified_name):
     if mod and rest:
         return mod.lookup_here(rest[0])
     return None
+
+
+def exprnode_to_known_standard_library_name(node, env):
+    qualified_name_parts = []
+    known_name = None
+    while node.is_attribute:
+        qualified_name_parts.append(node.attribute)
+        node = node.obj
+    if node.is_name:
+        entry = env.lookup(node.name)
+        if entry and entry.known_standard_library_import:
+            if get_known_standard_library_entry(
+                    entry.known_standard_library_import):
+                known_name = entry.known_standard_library_import
+            else:
+                standard_env = get_known_standard_library_module_scope(
+                    entry.known_standard_library_import)
+                if standard_env:
+                    qualified_name_parts.append(standard_env.name)
+                    known_name = ".".join(reversed(qualified_name_parts))
+    return known_name

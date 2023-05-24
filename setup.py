@@ -274,7 +274,7 @@ def run_build():
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
         """),
-        license='Apache',
+        license='Apache-2.0',
         classifiers=[
             dev_status(version),
             "Intended Audience :: Developers",
@@ -291,6 +291,7 @@ def run_build():
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
             "Programming Language :: C",
@@ -299,6 +300,13 @@ def run_build():
             "Topic :: Software Development :: Compilers",
             "Topic :: Software Development :: Libraries :: Python Modules"
         ],
+        project_urls={
+            "Documentation": "https://cython.readthedocs.io/",
+            "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
+            "Source Code": "https://github.com/cython/cython",
+            "Bug Tracker": "https://github.com/cython/cython/issues",
+            "User Group": "https://groups.google.com/g/cython-users",
+        },
 
         scripts=scripts,
         packages=packages,

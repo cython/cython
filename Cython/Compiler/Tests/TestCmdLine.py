@@ -3,6 +3,10 @@ import sys
 import re
 from unittest import TestCase
 try:
+    from unittest.mock import patch, Mock
+except ImportError:  # Py2
+    from mock import patch, Mock
+try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO  # doesn't accept 'str' in Py2
@@ -12,7 +16,25 @@ from ..CmdLine import parse_command_line
 
 from .Utils import backup_Options, restore_Options, check_global_options
 
+unpatched_exists = os.path.exists
 
+def patched_exists(path):
+    # avoid the Cython command raising a file not found error
+    if path in (
+        'source.pyx',
+        os.path.join('/work/dir', 'source.pyx'),
+        os.path.join('my_working_path', 'source.pyx'),
+        'file.pyx',
+        'file1.pyx',
+        'file2.pyx',
+        'file3.pyx',
+        'foo.pyx',
+        'bar.pyx',
+    ):
+        return True
+    return unpatched_exists(path)
+
+@patch('os.path.exists', new=Mock(side_effect=patched_exists))
 class CmdLineParserTest(TestCase):
     def setUp(self):
         self._options_backup = backup_Options()

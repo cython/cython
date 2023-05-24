@@ -46,7 +46,8 @@ from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
-from ..Compiler.Options import CompilationOptions, default_options
+from ..Compiler.Options import (CompilationOptions, default_options,
+    get_directive_defaults)
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
@@ -85,11 +86,14 @@ def extended_iglob(pattern):
                 for path in extended_iglob(before + case + after):
                     yield path
             return
-    if '**/' in pattern:
+
+    # We always accept '/' and also '\' on Windows,
+    # because '/' is generally common for relative paths.
+    if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = pattern.split('**/', 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
         if first:
-            first = iglob(first+'/')
+            first = iglob(first + os.sep)
         else:
             first = ['']
         for root in first:
@@ -97,7 +101,7 @@ def extended_iglob(pattern):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(join_path(root, '*', '**/' + rest)):
+            for path in extended_iglob(join_path(root, '*', '**', rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
@@ -728,7 +732,8 @@ def create_dependency_tree(ctx=None, quiet=False):
     global _dep_tree
     if _dep_tree is None:
         if ctx is None:
-            ctx = Context(["."], CompilationOptions(default_options))
+            ctx = Context(["."], get_directive_defaults(),
+                          options=CompilationOptions(default_options))
         _dep_tree = DependencyTree(ctx, quiet=quiet)
     return _dep_tree
 

@@ -466,6 +466,8 @@ VER_DEP_MODULES = {
                                            'run.different_package_names',
                                            'run.unicode_imports',  # encoding problems on appveyor in Py2
                                            'run.reimport_failure',  # reimports don't do anything in Py2
+                                           'run.cpp_stl_cmath_cpp17',
+                                           'run.cpp_stl_cmath_cpp20'
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
@@ -482,6 +484,7 @@ VER_DEP_MODULES = {
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          'run.test_unicode',  # taken from Py3.7, difficult to backport
                                          'run.pep442_tp_finalize',
+                                         'run.pep442_tp_finalize_cimport',
                                          ]),
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
@@ -496,7 +499,16 @@ VER_DEP_MODULES = {
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
+                                         'run.test_dataclasses',
                                          ]),
+    (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
+                                         ]),
+    (3,11,999): (operator.gt, lambda x: x in [
+        'run.py_unicode_strings',  # Py_UNICODE was removed
+        'compile.pylong',  # PyLongObject changed its structure
+        'run.longintrepr',  # PyLongObject changed its structure
+    ]),
+
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1309,6 +1321,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 except CompileError as exc:
                     error = str(exc)
             stderr = get_stderr()
+            if stderr and b"Command line warning D9025" in stderr:
+                # Manually suppress annoying MSVC warnings about overridden CLI arguments.
+                stderr = b''.join([
+                    line for line in stderr.splitlines(keepends=True)
+                    if b"Command line warning D9025" not in line
+                ])
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
@@ -1431,6 +1449,8 @@ class CythonCompileTestCase(unittest.TestCase):
     def _match_output(self, expected_output, actual_output, write):
         try:
             for expected, actual in zip(expected_output, actual_output):
+                if expected != actual and '\\' in actual and os.sep == '\\' and '/' in expected and '\\' not in expected:
+                    expected = expected.replace('/', '\\')
                 self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
                 expected = expected_output[len(actual_output)]
@@ -1785,17 +1805,51 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
+        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
+
         import pycodestyle
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
             config_file = os.path.join(os.path.dirname(__file__), "setup.cfg")
+        total_errors = 0
+
+        # checks for .py files
         paths = []
-        for codedir in ['Cython', 'Demos', 'docs', 'pyximport', 'tests']:
+        for codedir in source_dirs:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
-        self.assertEqual(result.total_errors, 0, "Found code style errors.")
+        total_errors += result.total_errors
+
+        # checks for non-Python source files
+        paths = []
+        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            # whitespace
+            "W1", "W2", "W3",
+            # indentation
+            "E101", "E111",
+        ])
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        """
+        # checks for non-Python test files
+        paths = []
+        for codedir in ['tests']:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(select=[
+            # whitespace
+            "W1", "W2", "W3",
+        ])
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+        """
+
+        self.assertEqual(total_errors, 0, "Found code style errors.")
 
 
 include_debugger = IS_CPYTHON
@@ -2526,7 +2580,7 @@ def time_stamper_thread(interval=10):
             write('\n#### %s\n' % now())
 
     thread = threading.Thread(target=time_stamper, name='time_stamper')
-    thread.setDaemon(True)  # Py2 ...
+    thread.daemon = True
     thread.start()
     try:
         yield
@@ -2542,12 +2596,17 @@ def configure_cython(options):
         CompilationOptions, \
         default_options as pyrex_default_options
     from Cython.Compiler.Options import _directive_defaults as directive_defaults
+
     from Cython.Compiler import Errors
     Errors.LEVEL = 0  # show all warnings
+
     from Cython.Compiler import Options
     Options.generate_cleanup_code = 3  # complete cleanup code
+
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
+    DebugFlags.debug_no_exception_intercept = 1  # provide better crash output in CI runs
+
     pyrex_default_options['formal_grammar'] = options.use_formal_grammar
     if options.profile:
         directive_defaults['profile'] = True
@@ -2696,7 +2755,7 @@ def runtests(options, cmd_args, coverage=None):
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
-    if not COMPILER_HAS_INT128 or not IS_CPYTHON:
+    if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
 
     if options.shard_num > -1:

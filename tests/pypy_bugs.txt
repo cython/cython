@@ -46,11 +46,12 @@ run.coverage_api
 run.coverage_nogil
 
 # very little coroutine-related seems to work
+# For PyPy3.9+, missing support for _PyErr_StackItem in PyGenObject,
+# PyAsyncGenObject and PyCoroObject, which prevents supporting yields
+# from an exception handler
 run.test_asyncgen
 run.test_coroutines_pep492
-run.async_iter_pep492
 run.embedsignatures
-run.py35_asyncio_async_def
 run.asyncio_generators
 run.py35_pep492_interop
 
@@ -58,9 +59,6 @@ run.py35_pep492_interop
 external_ref_reassignment
 run.exttype_dealloc
 
-# bugs in cpyext
+# bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
 run.special_methods_T561_py2
-
-# unicode is a PyVarObject on PyPy3
-run.builtin_type_inheritance_T608

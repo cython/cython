@@ -507,3 +507,11 @@ def truthy(obj2):
         return True
     else:
         return False
+
+@cython.test_fail_if_path_exists("//CoerceToBooleanNode")
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def test_avoid_if_coercion(obj):
+    if obj == 1:  # this should not go through a Python intermediate
+        return True
+    else:
+        return False

@@ -58,7 +58,7 @@ def generate_pyx_code_stage_factory(options, result):
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
         for name, (statlistnode, scope) in context.pxds.items():
-            module_node.merge_in(statlistnode, scope)
+            module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
     return inject_pxd_code_stage
 
@@ -130,7 +130,8 @@ def inject_utility_code_stage_factory(context):
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
                 module_node.merge_in(tree.with_compiler_directives(),
-                                     tree.scope, merge_scope=True)
+                                     tree.scope, stage="utility",
+                                     merge_scope=True)
         return module_node
 
     return inject_utility_code_stage

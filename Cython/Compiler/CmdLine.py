@@ -4,9 +4,15 @@
 
 from __future__ import absolute_import
 
+import sys
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
+
+
+if sys.version_info < (3, 3):
+    # TODO: This workaround can be removed in Cython 3.1
+    FileNotFoundError = IOError
 
 
 class ParseDirectivesAction(Action):
@@ -209,6 +215,14 @@ def parse_command_line_raw(parser, args):
 def parse_command_line(args):
     parser = create_cython_argparser()
     arguments, sources = parse_command_line_raw(parser, args)
+
+    work_dir = getattr(arguments, 'working_path', '')
+    for source in sources:
+        if work_dir and not os.path.isabs(source):
+            source = os.path.join(work_dir, source)
+        if not os.path.exists(source):
+            import errno
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), source)
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():

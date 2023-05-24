@@ -11,8 +11,8 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
-    (void) spec;
-    (void) type;
+    CYTHON_UNUSED_VAR(spec);
+    CYTHON_UNUSED_VAR(type);
 #else
     // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
     // Copied and adapted from https://bugs.python.org/issue38140
@@ -156,7 +156,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 /////////////// PyType_Ready.proto ///////////////
 
 // unused when using type specs
-static CYTHON_UNUSED int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
@@ -230,6 +230,15 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#if PY_VERSION_HEX >= 0x030A0000
+        // As of https://github.com/python/cpython/pull/25520
+        // PyType_Ready marks types as immutable if they are static types
+        // and requires the Py_TPFLAGS_IMMUTABLETYPE flag to mark types as
+        // immutable
+        // Manually set the Py_TPFLAGS_IMMUTABLETYPE flag, since the type
+        // is immutable
+        t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
+#endif
 #else
         // avoid C warning about unused helper function
         (void)__Pyx_PyObject_CallMethod0;
@@ -531,34 +540,42 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
             || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
+
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+    {{if not overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || __Pyx_TypeCheck(right, {{type_cname}});
-    }
+            || __Pyx_TypeCheck(right, {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && {{overloads_right}} && !({{overloads_left}})) {
+
+        {{if overloads_right and not overloads_left}}
+        if (maybe_self_is_right) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
             // Don't bother calling it again.
             maybe_self_is_right = 0;
         }
+        {{endif}}
+
         res = {{call_left}};
         if (res != Py_NotImplemented) return res;
         Py_DECREF(res);
     }
-    if (({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+
+    {{if overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
-    }
+            || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_right) {
         return {{call_right}};
     }
@@ -580,7 +597,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
 #if !CYTHON_COMPILING_IN_LIMITED_API
     itemsize = ((PyTypeObject *)base)->tp_itemsize;
 #else
-    py_itemsize = PyObject_GetAttrString(base, "__itemsize__");
+    py_itemsize = PyObject_GetAttrString((PyObject*)base, "__itemsize__");
     if (!py_itemsize)
         return -1;
     itemsize = PyLong_AsSsize_t(py_itemsize);

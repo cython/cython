@@ -479,6 +479,64 @@ when it is deleted:
     We don't have: ['camembert', 'cheddar']
     We don't have: []
 
+
+C methods
+=========
+
+Extension types can have C methods as well as Python methods. Like C
+functions, C methods are declared using
+
+* :keyword:`cdef` instead of :keyword:`def` or ``@cfunc`` decorator for *C methods*, or
+* :keyword:`cpdef` instead of :keyword:`def` or ``@ccall`` decorator for *hybrid methods*.
+
+C methods are "virtual", and may be overridden in derived extension types.
+In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by Python
+methods when called as C method. This adds a little to their calling overhead
+compared to a :keyword:`cdef`/``@cfunc`` method:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/pets.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/pets.pyx
+
+.. code-block:: text
+
+    # Output
+    p1:
+    This parrot is resting.
+    p2:
+    This parrot is resting.
+    Lovely plumage!
+
+The above example also illustrates that a C method can call an inherited C
+method using the usual Python technique, i.e.::
+
+    Parrot.describe(self)
+
+:keyword:`cdef`/``@ccall`` methods can be declared static by using the ``@staticmethod`` decorator.
+This can be especially useful for constructing classes that take non-Python compatible types:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.pyx
+
+.. note::
+
+    Cython currently does not support decorating :keyword:`cdef`/``@ccall`` methods with
+    the ``@classmethod`` decorator.
+
+
 .. _subclassing:
 
 Subclassing
@@ -519,7 +577,7 @@ extern extension type. If the base type is defined in another Cython module, it
 must either be declared as an extern extension type or imported using the
 :keyword:`cimport` statement or importing from the special ``cython.cimports`` package.
 
-Multiple inheritance is supported, however the second and subsequent base 
+Multiple inheritance is supported, however the second and subsequent base
 classes must be an ordinary Python class (not an extension type or a built-in
 type).
 
@@ -530,7 +588,7 @@ must be compatible).
 
 There is a way to prevent extension types from
 being subtyped in Python.  This is done via the ``final`` directive,
-usually set on an extension type using a decorator:
+usually set on an extension type or C method using a decorator:
 
 .. tabs::
 
@@ -543,6 +601,13 @@ usually set on an extension type using a decorator:
             @cython.final
             @cython.cclass
             class Parrot:
+               def describe(self): pass
+
+            @cython.cclass
+            class Lizard:
+
+               @cython.final
+               @cython.cfunc
                def done(self): pass
 
     .. group-tab:: Cython
@@ -553,72 +618,24 @@ usually set on an extension type using a decorator:
 
             @cython.final
             cdef class Parrot:
-               def done(self): pass
+               def describe(self): pass
 
-Trying to create a Python subclass from this type will raise a
-:class:`TypeError` at runtime.  Cython will also prevent subtyping a
-final type inside of the same module, i.e. creating an extension type
-that uses a final type as its base type will fail at compile time.
+
+
+            cdef class Lizard:
+
+
+               @cython.final
+               cdef done(self): pass
+
+Trying to create a Python subclass from a final type or overriding a final method will raise
+a :class:`TypeError` at runtime.  Cython will also prevent subtyping a
+final type or overriding a final method inside of the same module, i.e. creating
+an extension type that uses a final type as its base type will fail at compile time.
 Note, however, that this restriction does not currently propagate to
-other extension modules, so even final extension types can still be
-subtyped at the C level by foreign code.
+other extension modules, so Cython is unable to prevent final extension types
+from being subtyped at the C level by foreign code.
 
-
-C methods
-=========
-
-Extension types can have C methods as well as Python methods. Like C
-functions, C methods are declared using
-
-* :keyword:`cdef` instead of :keyword:`def` or ``@cfunc`` decorator for *C methods*, or
-* :keyword:`cpdef` instead of :keyword:`def` or ``@ccall`` decorator for *hybrid methods*.
-
-C methods are "virtual", and may be overridden in derived
-extension types. In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by Python
-methods when called as C method. This adds a little to their calling overhead
-compared to a :keyword:`cdef`/``@cfunc`` method:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. literalinclude:: ../../examples/userguide/extension_types/pets.py
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/userguide/extension_types/pets.pyx
-
-.. code-block:: text
-
-    # Output
-    p1:
-    This parrot is resting.
-    p2:
-    This parrot is resting.
-    Lovely plumage!
-
-The above example also illustrates that a C method can call an inherited C
-method using the usual Python technique, i.e.::
-
-    Parrot.describe(self)
-
-:keyword:`cdef`/``@ccall`` methods can be declared static by using the ``@staticmethod`` decorator.
-This can be especially useful for constructing classes that take non-Python
-compatible types:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.py
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.pyx
-
-.. note::
-
-    Cython currently does not support decorating :keyword:`cdef`/``@ccall`` methods with ``@classmethod`` decorator.
 
 .. _forward_declaring_extension_types:
 
@@ -1280,11 +1297,13 @@ here only briefly outlines the differences - if you plan on using them
 then please read `the documentation for the standard library module
 <https://docs.python.org/3/library/dataclasses.html>`_.
 
-Dataclasses can be declared using the ``@cython.dataclasses.dataclass`` 
-decorator on a Cython extension type. ``@cython.dataclasses.dataclass``
-can only be applied to extension types (types marked ``cdef`` or created with the 
-``cython.cclass`` decorator) and not to regular classes. If
-you need to define special properties on a field then use ``cython.dataclasses.field``
+Dataclasses can be declared using the ``@dataclasses.dataclass`` 
+decorator on a Cython extension type (types marked ``cdef`` or created with the 
+``cython.cclass`` decorator). Alternatively the ``@cython.dataclasses.dataclass``
+decorator can be applied to any class to both turn it into an extension type and
+a dataclass. If
+you need to define special properties on a field then use ``dataclasses.field``
+(or ``cython.dataclasses.field`` will work too)
 
 .. tabs::
 

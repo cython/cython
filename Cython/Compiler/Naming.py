@@ -5,8 +5,10 @@
 #   Prefixes for generating C names.
 #   Collected here to facilitate ensuring uniqueness.
 #
+from .. import __version__
 
 pyrex_prefix    = "__pyx_"
+cyversion = __version__.replace('.', '_')
 
 
 codewriter_temp_prefix = pyrex_prefix + "t_"
@@ -186,3 +188,13 @@ PYX_NAN          = "__PYX_NAN()"
 
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
+
+# there's a few places where it's useful to iterate over all of these
+used_types_and_macros = [
+    (cyfunction_type_cname, '__Pyx_CyFunction_USED'),
+    (fusedfunction_type_cname, '__Pyx_FusedFunction_USED'),
+    ('__pyx_GeneratorType', '__Pyx_Generator_USED'),
+    ('__pyx_IterableCoroutineType', '__Pyx_IterableCoroutine_USED'),
+    ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
+    ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
+]

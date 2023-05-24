@@ -14,10 +14,10 @@ except ImportError:
 def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'type': 'long int'} = 4) -> list:
     """
     >>> old_dict_syntax([1])
-    ('list object', 'int object', 'long', 'long')
+    ('list object', 'Python object', 'long', 'long')
     [1, 2, 3, 4]
     >>> old_dict_syntax([1], 3)
-    ('list object', 'int object', 'long', 'long')
+    ('list object', 'Python object', 'long', 'long')
     [1, 3, 3, 4]
     >>> old_dict_syntax(123)
     Traceback (most recent call last):
@@ -36,13 +36,13 @@ def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'ty
 def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()) -> list:
     """
     >>> pytypes_def([1])
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 2, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3, 2, 1, [], None)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 2, 1.0, [], None]
     >>> pytypes_def(123)
     Traceback (most recent call last):
@@ -63,13 +63,13 @@ def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None
 cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()):
     """
     >>> pytypes_cpdef([1])
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 2, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3, 2, 1, [], None)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 2, 1.0, [], None]
     >>> pytypes_cpdef(123)
     Traceback (most recent call last):
@@ -99,16 +99,25 @@ cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = 
 def pytypes_cdef(a, b=2, c=3, d=4):
     """
     >>> pytypes_cdef([1])
-    ('list object', 'int object', 'Python object', 'double', 'list object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object')
     [1, 2, 3, 4.0, None]
     >>> pytypes_cdef([1], 3)
-    ('list object', 'int object', 'Python object', 'double', 'list object')
+    ('list object', 'Python object', 'Python object', 'double', 'list object')
     [1, 3, 3, 4.0, None]
     >>> pytypes_cdef(123)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
     """
     return c_pytypes_cdef(a, b, c, d)
+
+
+def pyint(a: int):
+    """
+    >>> large_int = eval('0x'+'F'*64)  # definitely bigger than C int64
+    >>> pyint(large_int) == large_int
+    True
+    """
+    return a
 
 
 def ctypes_def(a: list, b: cython.int = 2, c: cython.long = 3, d: cython.float = 4) -> list:
@@ -138,6 +147,15 @@ def return_tuple_for_carray() -> tuple:
     cdef int[3] x
     x = [1, 2, 3]
     return x
+
+
+def invalid_ctuple_syntax(a: (cython.int, cython.int), b: (int, int)):
+    """
+    >>> invalid_ctuple_syntax([1, 2], [3, 4])
+    [1, 2, 3, 4]
+    """
+    result: (cython.int, cython.int, cython.int, cython.int) = a + b
+    return result
 
 
 MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
@@ -359,6 +377,19 @@ cdef class ClassTurnOffTyping:
         return typeof(self.x), typeof(self.d), typeof(arg)
 
 
+from cython cimport int as cy_i
+
+
+def int_alias(a: cython.int, b: cy_i):
+    """
+    >>> int_alias(1, 2)
+    int
+    int
+    """
+    print(cython.typeof(a))
+    print(cython.typeof(b))
+
+
 _WARNINGS = """
 14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -372,14 +403,17 @@ _WARNINGS = """
 63:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 90:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 90:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-274:44: Unknown type declaration in annotation, ignoring
-302:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+152:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+152:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+157:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+292:44: Unknown type declaration in annotation, ignoring
+320:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # DUPLICATE:
 63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 # BUG:
 63:6: 'pytypes_cpdef' redeclared
-146:0: 'struct_io' redeclared
-181:0: 'struct_convert' redeclared
-200:0: 'exception_default' redeclared
-231:0: 'exception_default_uint' redeclared
+164:0: 'struct_io' redeclared
+199:0: 'struct_convert' redeclared
+218:0: 'exception_default' redeclared
+249:0: 'exception_default_uint' redeclared
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import os
 import shutil
@@ -45,10 +45,12 @@ def find_package_base(path):
         package_path = '%s/%s' % (parent, package_path)
     return base_dir, package_path
 
-
 def cython_compile(path_pattern, options):
-    pool = None
     all_paths = map(os.path.abspath, extended_iglob(path_pattern))
+    _cython_compile_files(all_paths, options)
+
+def _cython_compile_files(all_paths, options):
+    pool = None
     try:
         for path in all_paths:
             if options.build_inplace:
@@ -230,8 +232,15 @@ def parse_args(args):
 def main(args=None):
     options, paths = parse_args(args)
 
+    all_paths = []
     for path in paths:
-        cython_compile(path, options)
+        expanded_path = [os.path.abspath(p) for p in extended_iglob(path)]
+        if not expanded_path:
+            import sys
+            print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
+            sys.exit(1)
+        all_paths.extend(expanded_path)
+    _cython_compile_files(all_paths, options)
 
 
 if __name__ == '__main__':
