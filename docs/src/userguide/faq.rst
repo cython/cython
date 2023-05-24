@@ -365,22 +365,6 @@ For __textual data__, however, you must handle Unicode data input. What you do w
 
 Note that this also accepts subtypes of the Python unicode type. Typing the "text" parameter as "unicode" will not cover this case.
 
-The above is the right thing to do in Py3. However, some (not all, just some) module APIs may become more user friendly in Python 2.x if you additionally allow well defined byte strings. For example, it may make sense to allow plain ASCII strings in some cases, as they are often used for textual data in Python 2.x programs. This could be done as follows:
-
-::
-
-    from python_version cimport PY_MAJOR_VERSION
-
-    def work_with_text_data(text):
-        if isinstance(text, unicode): # most common case first
-            utf8_data = text.encode('UTF-8')
-        elif (PY_MAJOR_VERSION < 3) and isinstance(text, str):
-            text.decode('ASCII') # trial decoding, or however you want to check for plain ASCII data
-            utf8_data = text
-        else:
-            raise ValueError("requires text input, got %s" % type(text))
-        c_handle_data(utf8_data, len(utf8_data))
-
 ----------
 
 How do I use variable args?
@@ -736,47 +720,6 @@ import os
 os.path.expanduser('~')
 ```
 
-----------
-
-How do I access native Python file objects?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**:  See this small example of how to access Python file objects:
-
-::
-
-    #!python
-    # Idiom for accessing Python files.
-    # First, declare the Python macro to access files:
-    cdef extern from "Python.h":
-        ctypedef struct FILE
-        FILE* PyFile_AsFile(object)
-        void  fprintf(FILE* f, char* s, char* s)
-    # Next, enter the builtin file class into the namespace:
-    cdef extern from "fileobject.h":
-        ctypedef class __builtin__.file [object PyFileObject]:
-            pass
-    # Now declare the C function that requires a file:
-    cdef void c_printSomething(FILE* outFile, char* str):
-        fprintf(outFile, "%s", str)
-    # Now create a class or some other definition that uses the function:
-    ctypedef class ExampleUsingFile:
-        def printSomething(self, file outFile, char* str):
-            c_printSomething(PyFile_AsFile(outFile), str)
-
-with simple test:
-
-::
-
-    #!python
-    import sys
-    import file_example
-    x = file_example.ExampleUsingFile()
-    x.printSomething(sys.stdout, "hello world!\n")
-
-**Note**: This does no longer work in Python 3, where file objects have no representation at the C-API level.
-
-
 Explanations
 ============
 
@@ -853,16 +796,6 @@ Pointers are commonly used when passing objects through C callbacks, e.g.
     call_it_from_c(<PyObject*>py_func, <PyObject*>args)
 
 Once again, care must be taken to keep the objects alive as long as any pointers to them are still in use.
-
-----------
-
-Why does ``**`` on int literals not work (as it seems to do in Pyrex)?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: It works as expected in recent versions of Cython.
-
-As of Cython 3.0, the power operator also has the same semantics as
-Python, with respect to complex numbers, see `here <power-operator>`_.
 
 ----------
 
