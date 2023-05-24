@@ -938,23 +938,11 @@ If you wish to cite it, here's the Bibtex:
 
 ----------
 
-What is the relation between Cython and Pyrex? Are the barriers between the two based on technical direction? Differing goals?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+What is the relation between Cython and Pyrex?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Somewhat. Cython is much more open to extensions than Pyrex. Greg usually said that he was still "designing" Pyrex as a language, so he would sometimes reject patches for design reasons that solve practical problems in a practical way, and that therefore find (or found) their way into Cython. Eventually, these features might still make it into Pyrex in one way or another, but that usually means that Greg refactors or rewrites them his own way, which implies that he first has to find the time to do so.
+**Answer**: Cython started originally based on a previous project called Pyrex, developed primarily by Greg Ewing.
 
-Cython can afford to be more agile and advanced even though doing so means that Cython will not always align with future Pyrex versions.  However, both Greg Ewing and the Cython developers make reasonable effort to maintain compatibility.
+Years later, Pyrex development has effectively stopped, whereas Cython has kept adding new features and support for new Python versions.
 
-Today, Cython is an advanced version of Pyrex that has several additions already integrated that never made it into mainline Pyrex, including:
-
-1. Conditional expressions (``a if blah else b``)
-2. List/set/dict comprehensions
-3. Optimized looping (``for x in blah:`` is much faster in Cython)
-4. Compatibility with Python 3 (as well as Python 2.4 or later) without regenerating the C code
-5. Support for the new buffer protocol ([[PEP 3118|http://www.python.org/dev/peps/pep-3118/|PEP 3118]]), featuring efficient access to data structures in [[NumPy|http://numpy.scipy.org/|NumPy]] or [[PIL|http://www.pythonware.com/products/pil/|PIL]]
-
-The intention is to make it for the most part a drop-in replacement for existing Pyrex code, though some changes to that existing code may have to be made. The immediate speed-up is generally worth the switch.
-
-To you as a user this means that if you use Cython today, you can write your code a lot cleaner and simpler now as you can rely on Cython to optimise it for you in a lot of ways that you do not have to care about. But if you use Cython specific syntax features (i.e. syntax elements that are not described in the documentation of Pyrex or Python), you may have to do minor syntactic code changes in the near or far future if you want to go back to a future Pyrex version. In general, however, both Pyrex and Cython try to adhere to the existing Python syntax as close as possible, so these cases should be rare.
-
-In early versions, Cython used to follow a 4-digit versioning scheme that kept the corresponding Pyrex version in the first three digits.  As most of the development in Cython is now completely independent from  what is going on with Pyrex, we have broken with this scheme. Cython versions are now unrelated to Pyrex versions.
+As of 2023, Pyrex is only of historical interest.
