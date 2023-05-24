@@ -1653,14 +1653,16 @@ CYTHON_UNUSED static PyObject *__Pyx_Method_ClassMethod(PyObject *method);  /*pr
 //@requires: PyMethodDescr
 
 static PyObject *__Pyx_Method_ClassMethod(PyObject *method) {
-    if (__Pyx_PyMethodDescr_Check(method))  // cdef classes
+    // cdef classes
+    if (__Pyx_PyMethodDescr_Check(method))
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
         return PyClassMethod_New(method);
 #else
         return PyDescr_NewClassMethod(__Pyx_PyMethodDescr_GetType(method),
                                       ((PyMethodDescrObject *)method)->d_method);
 #endif
-    if (PyMethod_Check(method))  // python classes
+    // python classes
+    if (PyMethod_Check(method))
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     return PyClassMethod_New(method);
 }
