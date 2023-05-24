@@ -96,7 +96,7 @@ jobs:
             allowed_failure: true
             extra_hash: "-allowed_failures"
           - os: ubuntu-20.04
-            python-version: pypy-3.9
+            python-version: pypy-3.9-nightly
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
             allowed_failure: true

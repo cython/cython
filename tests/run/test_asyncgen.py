@@ -46,6 +46,11 @@ def needs_py36_asyncio(f):
     from unittest import skip
     return skip("needs Python 3.6 or later")(f)
 
+def not_pypy(f):
+    if getattr(sys, "pypy_version_info", False):
+        from unittest import skip
+        return skip("cannot run on PyPy due to to finalizer")(f)
+    return f
 
 try:
     from types import coroutine as types_coroutine
@@ -765,6 +770,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         t.cancel()
         self.loop.run_until_complete(asyncio.sleep(0.01))
 
+    @not_pypy
     @needs_py36_asyncio
     def test_async_gen_asyncio_gc_aclose_09(self):
         DONE = 0
