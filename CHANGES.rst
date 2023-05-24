@@ -30,8 +30,8 @@ Features added
   (Github issue :issue:`5346`)
 
 * The normal ``@dataclasses.dataclass`` and ``@functools.total_ordering`` decorators
-  can now be used on extension types.  Using the corresponding ``@cython.*`` decorators
-  with automatically turn a Python class into an extension type (no need for ``@cclass``).
+  can now be used on extension types.  Using the corresponding ``@cython.*`` decorator
+  will automatically turn a Python class into an extension type (no need for ``@cclass``).
   (Github issue :issue:`5292`)
 
 * Multiplying a sequence by a C integer avoids creating and intermediate Python integer.
