@@ -1240,7 +1240,9 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         {{if c_op == '&'}}
         // special case for &-ing arbitrarily large numbers with known single digit operands
         if ((intval & PyLong_MASK) == intval) {
-            long result = intval & (long) __Pyx_PyLong_Digits({{pyval}})[0];
+            // Calling PyLong_CompactValue() requires the PyLong value to be compact, we only need the last digit.
+            long last_digit = (long) __Pyx_PyLong_Digits({{pyval}})[0];
+            long result = intval & (likely(__Pyx_PyLong_IsPos({{pyval}})) ? last_digit : (PyLong_MASK - last_digit + 1));
             return PyLong_FromLong(result);
         }
         {{endif}}
