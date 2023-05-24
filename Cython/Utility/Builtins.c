@@ -261,7 +261,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         if (likely(copy)) {
             #if PY_VERSION_HEX >= 0x030C00A7
             // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
-            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~3;
+            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~_PyLong_SIGN_MASK;
             #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));

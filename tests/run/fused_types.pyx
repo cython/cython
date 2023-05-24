@@ -401,6 +401,37 @@ def test_cython_numeric(cython.numeric arg):
     """
     print cython.typeof(arg), arg
 
+
+cdef fused int_t:
+    int
+
+def test_pylong(int_t i):
+    """
+    >>> import cython
+    >>> try:    long = long # Python 2
+    ... except: long = int  # Python 3
+
+    >>> test_pylong[int](int(0))
+    int
+    >>> test_pylong[cython.int](int(0))
+    int
+    >>> test_pylong(int(0))
+    int
+
+    >>> test_pylong[int](long(0))
+    int
+    >>> test_pylong[cython.int](long(0))
+    int
+    >>> test_pylong(long(0))
+    int
+
+    >>> test_pylong[cython.long](0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    KeyError: ...
+    """
+    print cython.typeof(i)
+
+
 cdef fused ints_t:
     int
     long

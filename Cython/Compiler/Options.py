@@ -182,7 +182,8 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
-    'embedsignature' : False,
+    'embedsignature': False,
+    'embedsignature.format': 'c',
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
@@ -344,6 +345,7 @@ directive_types = {
     'total_ordering': None,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'embedsignature.format': one_of('c', 'clinic', 'python'),
 }
 
 for key, val in _directive_defaults.items():
@@ -389,8 +391,8 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
-    'total_ordering': ('cclass', ),
-    'dataclasses.dataclass' : ('class', 'cclass',),
+    'total_ordering': ('class', 'cclass'),
+    'dataclasses.dataclass' : ('class', 'cclass'),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),

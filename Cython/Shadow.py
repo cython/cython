@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.0.0b2"
+__version__ = "3.0.0b3"
 
 try:
     from __builtin__ import basestring
@@ -119,7 +119,8 @@ exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
 
-overflowcheck.fold = optimize.use_switch = \
+
+embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
