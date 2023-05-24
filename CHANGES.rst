@@ -30,7 +30,7 @@ Features added
   (Github issue :issue:`5346`)
 
 * The normal ``@dataclasses.dataclass`` and ``@functools.total_ordering`` decorators
-  can now be used on extension types.  Using the corresponding ``@cython.*`` deorators
+  can now be used on extension types.  Using the corresponding ``@cython.*`` decorators
   with automatically turn a Python class into an extension type (no need for ``@cclass``).
   (Github issue :issue:`5292`)
 
@@ -44,7 +44,7 @@ Features added
 
 * Some invalid directive usages are now detected and rejected, e.g. using ``@ccall``
   together with ``@cfunc``, and applying ``@cfunc`` to a ``@ufunc``.  Cython also
-  warns now when a directive is applies needlessly.
+  warns now when a directive is applied needlessly.
   (Github issue :issue:`5399` et al.)
 
 * Unicode identifier names now allow all letters defined in CPython 3.12.
