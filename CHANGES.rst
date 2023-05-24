@@ -8,6 +8,11 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* A garbage collection enabled subtype of a non-GC extension type could call into the
+  deallocation function of the super type with GC tracking enabled.  This could lead
+  to crashes during deallocation if GC was triggered on the type at the same time.
+  (Github issue :issue:`5432`)
+
 * Some C compile failures and crashes in CPython 3.12 were resolved.
 
 * ``except + nogil`` was syntactically not allowed.
