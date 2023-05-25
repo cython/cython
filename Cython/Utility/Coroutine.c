@@ -387,7 +387,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     CYTHON_MAYBE_UNUSED_VAR(in_async_gen);
 
     __Pyx_PyThreadState_assign
-    cur_exc = __Pyx_PyErr_Occurred();
+    cur_exc = __Pyx_PyErr_CurrentExceptionType();
     if (likely(!__Pyx_PyErr_GivenExceptionMatches(cur_exc, PyExc_StopIteration))) {
         #ifdef __Pyx_StopAsyncIteration_USED
         if (in_async_gen && unlikely(__Pyx_PyErr_GivenExceptionMatches(cur_exc, __Pyx_PyExc_StopAsyncIteration))) {
