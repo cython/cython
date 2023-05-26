@@ -3216,7 +3216,7 @@ class CFuncType(CType):
             and not (self.nogil and not rhs_type.nogil)
 
     def declaration_code(self, entity_code,
-                         for_display = 0, dll_linkage = None, pyrex = 0, 
+                         for_display = 0, dll_linkage = None, pyrex = 0,
                          skip_c_tag = False, with_calling_convention = 1):
         arg_decl_list = []
         for arg in self.args[:len(self.args)-self.optional_arg_count]:
