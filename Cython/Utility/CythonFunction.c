@@ -536,7 +536,6 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         }
 #else
         char *ch = PyString_AsString(m->func_qualname);
-        PyObject *split=NULL;
         if (!ch) return NULL;
         for (; *ch != '\0'; ++ch) {
             if (*ch=='<') {
