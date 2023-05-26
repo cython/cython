@@ -1279,7 +1279,7 @@ static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr,
         *copy_into = funcptr;
         return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
     } else {
-        // on all other platforms (which is the vast majority, since POSIX require a function pointer is
+        // on all other platforms (which is the vast majority, since POSIX requires a function pointer
         // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
         // Use memcpy to avoid the cast (which standard C prohibits)
         void *copy_into;

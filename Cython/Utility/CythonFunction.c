@@ -567,8 +567,6 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         goto fail;
     }
     Py_INCREF(lookup_func);
-    // this is a bit dubious because the C standard doesn't actually allow
-    // function pointer->void* conversions.
     cfunc_as_obj = __Pyx_c_func_ptr_to_capsule((void (*)(void))cfunc, "CyFunc capsule");
     if (!cfunc_as_obj) {
         goto fail;
