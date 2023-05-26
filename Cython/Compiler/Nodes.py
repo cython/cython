@@ -2276,10 +2276,9 @@ class FuncDefNode(StatNode, BlockNode):
                 # For C, __Pyx_pretend_to_initialize() is sufficient (taking an address
                 # is enough to make returning a variable defined). For C++ this isn't
                 # true, and we genuinely have to make sure a variable is initialized.
-                empty_decl_code = return_type.empty_declaration_code()
                 # C++ doesn't want names of the form '= struct foo()' so
-                # remove the struct
-                empty_decl_code = empty_decl_code.replace("struct ", "").replace("union ", "")
+                # remove the "struct" with skip_c_tag
+                empty_decl_code = return_type.declaration_code("", skip_c_tag=True)
                 init_insertion_point.putln("")
                 init_insertion_point.putln("#ifdef __cplusplus")
                 init_insertion_point.putln("= %s()" % empty_decl_code)

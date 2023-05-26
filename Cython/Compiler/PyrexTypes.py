@@ -446,7 +446,7 @@ class CTypedefType(BaseType):
         return self.typedef_base_type.resolve()
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = self.typedef_name
         else:
@@ -715,7 +715,7 @@ class MemoryViewSliceType(PyrexType):
         return 0
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         # XXX: we put these guards in for now...
         assert not dll_linkage
         from . import MemoryView
@@ -1256,7 +1256,7 @@ class PyObjectType(PyrexType):
         return not src_type.is_ptr or src_type.is_string or src_type.is_pyunicode_ptr
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = "object"
         else:
@@ -1480,7 +1480,7 @@ class BuiltinObjectType(PyObjectType):
         return check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = self.name
         else:
@@ -1598,14 +1598,14 @@ class PyExtensionType(PyObjectType):
         return False
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = self.name
         else:
             if self.typedef_flag:
                 objstruct = self.objstruct_cname
             else:
-                objstruct = "struct %s" % self.objstruct_cname
+                objstruct = "%s%s" % ("" if skip_c_tag else "struct ", self.objstruct_cname)
             base_code = public_decl(objstruct, dll_linkage)
             if deref:
                 assert not entity_code
@@ -1718,7 +1718,8 @@ class PythranExpr(CType):
         self.from_py_function = "from_python<%s>" % (self.pythran_type)
         self.scope = None
 
-    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+    def declaration_code(self, entity_code,
+            for_display=0, dll_linkage=None, pyrex=0, skip_c_tag = False):
         assert not pyrex
         return "%s %s" % (self.cname, entity_code)
 
@@ -1780,12 +1781,14 @@ class CConstOrVolatileType(BaseType):
         return self.declaration_code("", for_display=1)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         cv = self.cv_string()
         if for_display or pyrex:
-            return cv + self.cv_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+            return cv + self.cv_base_type.declaration_code(
+                entity_code, for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
         else:
-            return self.cv_base_type.declaration_code(cv + entity_code, for_display, dll_linkage, pyrex)
+            return self.cv_base_type.declaration_code(
+                cv + entity_code, for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
 
     def specialize(self, values):
         base_type = self.cv_base_type.specialize(values)
@@ -1872,7 +1875,7 @@ class FusedType(CType):
         self.name = name
 
     def declaration_code(self, entity_code, for_display = 0,
-                         dll_linkage = None, pyrex = 0):
+                         dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             return self.name
 
@@ -1908,7 +1911,7 @@ class CVoidType(CType):
         return "<CVoidType>"
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = "void"
         else:
@@ -1924,7 +1927,7 @@ class InvisibleVoidType(CVoidType):
     #   Acts like void, but does not print out a declaration.
     #
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = "[void]"
         else:
@@ -1964,7 +1967,7 @@ class CNumericType(CType):
         return "<CNumericType %s>" % self.sign_and_name()
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         type_name = self.sign_and_name()
         if pyrex or for_display:
             base_code = type_name.replace('PY_LONG_LONG', 'long long')
@@ -2215,7 +2218,7 @@ class CBIntType(CIntType):
         return "%s(%s)" % (utility_code_name, cvalue)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if for_display:
             base_code = 'bool'
         elif pyrex:
@@ -2399,9 +2402,9 @@ class CComplexType(CNumericType):
         return ~hash(self.real_type)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
-            real_code = self.real_type.declaration_code("", for_display, dll_linkage, pyrex)
+            real_code = self.real_type.declaration_code("", for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
             base_code = "%s complex" % real_code
         else:
             base_code = public_decl(self.sign_and_name(), dll_linkage)
@@ -2548,12 +2551,13 @@ class SoftCComplexType(CComplexType):
     def __init__(self):
         super(SoftCComplexType, self).__init__(c_double_type)
 
-    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+    def declaration_code(self, entity_code,
+            for_display=0, dll_linkage=None, pyrex=0, skip_c_tag = False):
         base_result =  super(SoftCComplexType, self).declaration_code(
             entity_code,
             for_display=for_display,
             dll_linkage=dll_linkage,
-            pyrex=pyrex,
+            pyrex=pyrex, skip_c_tag=skip_c_tag
         )
         if for_display:
             return "soft %s" % base_result
@@ -2580,7 +2584,7 @@ class CPyTSSTType(CType):
         return "<Py_tss_t>"
 
     def declaration_code(self, entity_code,
-                         for_display=0, dll_linkage=None, pyrex=0):
+            for_display=0, dll_linkage=None, pyrex=0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = "Py_tss_t"
         else:
@@ -2683,7 +2687,7 @@ class CArrayType(CPointerBaseType):
         return c_ptr_type(self.base_type)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if self.size is not None:
             dimension_code = self.size
         else:
@@ -2692,7 +2696,7 @@ class CArrayType(CPointerBaseType):
             entity_code = "(%s)" % entity_code
         return self.base_type.declaration_code(
             "%s[%s]" % (entity_code, dimension_code),
-            for_display, dll_linkage, pyrex)
+            for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
 
     def as_argument_type(self):
         return c_ptr_type(self.base_type)
@@ -2820,11 +2824,11 @@ class CPtrType(CPointerBaseType):
                 or other_type is error_type)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         #print "CPtrType.declaration_code: pointer to", self.base_type ###
         return self.base_type.declaration_code(
             "*%s" % entity_code,
-            for_display, dll_linkage, pyrex)
+            for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
 
     def assignable_from_resolved_type(self, other_type):
         if other_type is error_type:
@@ -2915,11 +2919,11 @@ class CReferenceType(CReferenceBaseType):
         return "%s &" % self.ref_base_type
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         #print "CReferenceType.declaration_code: pointer to", self.base_type ###
         return self.ref_base_type.declaration_code(
             "&%s" % entity_code,
-            for_display, dll_linkage, pyrex)
+            for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
 
 
 class CFakeReferenceType(CReferenceType):
@@ -2930,7 +2934,7 @@ class CFakeReferenceType(CReferenceType):
         return "%s [&]" % self.ref_base_type
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         #print "CReferenceType.declaration_code: pointer to", self.base_type ###
         return "__Pyx_FakeReference<%s> %s" % (self.ref_base_type.empty_declaration_code(), entity_code)
 
@@ -2943,10 +2947,10 @@ class CppRvalueReferenceType(CReferenceBaseType):
         return "%s &&" % self.ref_base_type
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         return self.ref_base_type.declaration_code(
             "&&%s" % entity_code,
-            for_display, dll_linkage, pyrex)
+            for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
 
 
 class CFuncType(CType):
@@ -3212,12 +3216,12 @@ class CFuncType(CType):
             and not (self.nogil and not rhs_type.nogil)
 
     def declaration_code(self, entity_code,
-                         for_display = 0, dll_linkage = None, pyrex = 0,
-                         with_calling_convention = 1):
+                         for_display = 0, dll_linkage = None, pyrex = 0, 
+                         skip_c_tag = False, with_calling_convention = 1):
         arg_decl_list = []
         for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
-                arg.type.declaration_code("", for_display, pyrex = pyrex))
+                arg.type.declaration_code("", for_display, pyrex = pyrex, skip_c_tag=skip_c_tag))
         if self.is_overridable:
             arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
@@ -3253,7 +3257,7 @@ class CFuncType(CType):
             trailer += " const"
         return self.return_type.declaration_code(
             "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
-            for_display, dll_linkage, pyrex)
+            for_display, dll_linkage, pyrex, skip_c_tag=skip_c_tag)
 
     def function_header_code(self, func_name, arg_code):
         if self.is_const_method:
@@ -3593,8 +3597,8 @@ class CFuncTypeArg(BaseType):
     def __repr__(self):
         return "%s:%s" % (self.name, repr(self.type))
 
-    def declaration_code(self, for_display = 0):
-        return self.type.declaration_code(self.cname, for_display)
+    def declaration_code(self, for_display = 0, skip_c_tag = False):
+        return self.type.declaration_code(self.cname, for_display, skip_c_tag=skip_c_tag)
 
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
@@ -3782,14 +3786,14 @@ class CStructOrUnionType(CType):
             ("", " typedef")[self.typedef_flag])
 
     def declaration_code(self, entity_code,
-                         for_display=0, dll_linkage=None, pyrex=0):
+                         for_display=0, dll_linkage=None, pyrex=0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = self.name
         else:
             if self.typedef_flag:
                 base_code = self.cname
             else:
-                base_code = "%s %s" % (self.kind, self.cname)
+                base_code = "%s %s" % ("" if skip_c_tag else self.kind, self.cname)
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
@@ -4101,12 +4105,12 @@ class CppClassType(CType):
             return {}
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0,
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False,
             template_params = None):
         if template_params is None:
             template_params = self.templates
         if self.templates:
-            template_strings = [param.declaration_code('', for_display, None, pyrex)
+            template_strings = [param.declaration_code('', for_display, None, pyrex, skip_c_tag=skip_c_tag)
                                 for param in template_params
                                 if not is_optional_template_param(param) and not param.is_fused]
             if for_display:
@@ -4237,7 +4241,7 @@ class CppScopedEnumType(CType):
         return self.name
 
     def declaration_code(self, entity_code,
-                        for_display=0, dll_linkage=None, pyrex=0):
+                        for_display=0, dll_linkage=None, pyrex=0, skip_c_tag = False):
         if pyrex or for_display:
             type_name = self.name
         else:
@@ -4316,7 +4320,7 @@ class TemplatePlaceholderType(CType):
         self.optional = optional
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if entity_code:
             return self.name + " " + entity_code
         else:
@@ -4384,7 +4388,7 @@ class CEnumType(CIntLike, CType):
             ("", " typedef")[self.typedef_flag])
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             base_code = self.name
         else:
@@ -4394,7 +4398,7 @@ class CEnumType(CIntLike, CType):
             elif self.typedef_flag:
                 base_code = self.cname
             else:
-                base_code = "enum %s" % self.cname
+                base_code = "%s%s" % ("" if skip_c_tag else "enum ", self.cname)
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
@@ -4469,7 +4473,7 @@ class CTupleType(CType):
         return "(%s)" % ", ".join(str(c) for c in self.components)
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         if pyrex or for_display:
             return "%s %s" % (str(self), entity_code)
         else:
@@ -4550,7 +4554,7 @@ class UnspecifiedType(PyrexType):
     is_unspecified = 1
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         return "<unspecified>"
 
     def same_as_resolved_type(self, other_type):
@@ -4573,7 +4577,7 @@ class ErrorType(PyrexType):
         return True
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, skip_c_tag = False):
         return "<error>"
 
     def same_as_resolved_type(self, other_type):
