@@ -1,6 +1,6 @@
 ########################## function_pickling ############################
 #@substitute: naming
-#requires: TypeConversion.c::CFuncPtrFromPy
+#@merge_at_end: True
 
 cdef extern from *:
     ctypedef void (*__Pyx_generic_func_pointer)()

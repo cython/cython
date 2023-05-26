@@ -1905,8 +1905,8 @@ class ModuleScope(Scope):
                         "cnames_to_index": self.pickeable_cnames_to_indices },
             name = self.name,  # so that the qualname for the functions will be right
         ))
-        # FIXME - this should be handled by "requires" but it doesn't seem to work from
-        # CythonUtilityCode
+        # FIXME - this should be handled by "requires" but using requires from CythonUtilityCode
+        # seems to cause it to be loaded as Cython utility code.
         self.use_utility_code(UtilityCode.load_cached(
             "CFuncPtrFromPy", "TypeConversion.c"))
 

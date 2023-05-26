@@ -126,7 +126,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     utility_code_stats = None
 
 
-    def merge_in(self, tree, scope, stage, merge_scope=False):
+    def merge_in(self, tree, scope, stage, merge_scope=False, merge_at_end=False):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
         # to code generation.
@@ -151,7 +151,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # (for example inline cdef functions)
             tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
 
-        target_stats = self.pxd_stats if stage == "pxd" else self.utility_code_stats
+        target_stats = self.body if merge_at_end else (
+            self.pxd_stats if stage == "pxd" else self.utility_code_stats)
         if isinstance(tree, Nodes.StatListNode):
             target_stats.stats.extend(tree.stats)
         else:
