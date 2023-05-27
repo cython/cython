@@ -532,8 +532,11 @@ class CTypedefType(BaseType):
                     self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntFromPy", "TypeConversion.c",
-                        context={"TYPE": self.empty_declaration_code(),
-                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                        context={
+                            "TYPE": self.empty_declaration_code(),
+                            "FROM_PY_FUNCTION": self.from_py_function,
+                            "IS_ENUM": base_type.is_enum,
+                        }))
                     return True
                 elif base_type.is_float:
                     pass  # XXX implement!
@@ -732,9 +735,9 @@ class MemoryViewSliceType(PyrexType):
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
                     None,
-                    visibility='extern')
+                    visibility='extern',
+                    parent_type=self)
 
-            scope.parent_type = self
             scope.directives = {}
 
             scope.declare_var('_data', c_char_ptr_type, None,
@@ -871,7 +874,7 @@ class MemoryViewSliceType(PyrexType):
         if dst_dtype.is_cv_qualified:
             dst_dtype = dst_dtype.cv_base_type
 
-        if src_dtype != dst_dtype:
+        if not src_dtype.same_as(dst_dtype):
             return False
 
         if src.ndim != dst.ndim:
@@ -1459,6 +1462,9 @@ class BuiltinObjectType(PyObjectType):
         elif type_name == 'int':
             # For backwards compatibility of (Py3) 'x: int' annotations in Py2, we also allow 'long' there.
             type_check = '__Pyx_Py3Int_Check'
+        elif type_name == "memoryview":
+            # captialize doesn't catch the 'V'
+            type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
         if exact and type_name not in ('bool', 'slice', 'Exception'):
@@ -1726,8 +1732,9 @@ class PythranExpr(CType):
         if self.scope is None:
             from . import Symtab
             # FIXME: fake C scope, might be better represented by a struct or C++ class scope
-            self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
-            scope.parent_type = self
+            self.scope = scope = Symtab.CClassScope(
+                '', None, visibility="extern", parent_type=self
+            )
             scope.directives = {}
 
             scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
@@ -1979,8 +1986,8 @@ class CNumericType(CType):
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
-                    visibility="extern")
-            scope.parent_type = self
+                    visibility="extern",
+                    parent_type=self)
             scope.directives = {}
             scope.declare_cfunction(
                     "conjugate",
@@ -2000,7 +2007,7 @@ class CNumericType(CType):
 
     def py_type_name(self):
         if self.rank <= 4:
-            return "(int, long)"
+            return "int"
         return "float"
 
 
@@ -2040,8 +2047,11 @@ class CIntLike(object):
             self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntFromPy", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
-                         "FROM_PY_FUNCTION": self.from_py_function}))
+                context={
+                    "TYPE": self.empty_declaration_code(),
+                    "FROM_PY_FUNCTION": self.from_py_function,
+                    "IS_ENUM": self.is_enum,
+                }))
         return True
 
     @staticmethod
@@ -2245,7 +2255,7 @@ class CPyUCS4IntType(CIntType):
     # is 0..1114111, which is checked when converting from an integer
     # value.
 
-    to_py_function = "PyUnicode_FromOrdinal"
+    to_py_function = "__Pyx_PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
@@ -2269,7 +2279,7 @@ class CPyUnicodeIntType(CIntType):
     # Py_UNICODE is 0..1114111, which is checked when converting from
     # an integer value.
 
-    to_py_function = "PyUnicode_FromOrdinal"
+    to_py_function = "__Pyx_PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
@@ -2434,8 +2444,8 @@ class CComplexType(CNumericType):
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
-                    visibility="extern")
-            scope.parent_type = self
+                    visibility="extern",
+                    parent_type=self)
             scope.directives = {}
             scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
@@ -4464,6 +4474,9 @@ class CTupleType(CType):
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
+        # equivalent_type must be set now because it isn't available at import time
+        from .Builtin import tuple_type
+        self.equivalent_type = tuple_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)

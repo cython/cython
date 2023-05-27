@@ -5,8 +5,8 @@ from __future__ import print_function
 
 import cython
 
+# cython.dataclasses implicitly implies cclass
 @cython.dataclasses.dataclass(order=True, unsafe_hash=True)
-@cython.cclass
 class MyDataclass:
     """
     >>> sorted(list(MyDataclass.__dataclass_fields__.keys()))

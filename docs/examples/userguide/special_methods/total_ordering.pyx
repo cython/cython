@@ -1,6 +1,8 @@
-import cython
+import functools
 
-@cython.total_ordering
+
+
+@functools.total_ordering
 cdef class ExtGe:
     cdef int x
 

@@ -871,7 +871,8 @@ class InterpretCompilerDirectives(CythonTransform):
     def _check_valid_cython_module(self, pos, module_name):
         if not module_name.startswith("cython."):
             return
-        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+        submodule = module_name.split('.', 2)[1]
+        if submodule in self.valid_cython_submodules:
             return
 
         extra = ""
@@ -889,6 +890,15 @@ class InterpretCompilerDirectives(CythonTransform):
             if module_name.startswith("cython." + wrong):
                 extra = "Did you mean 'cython.%s' ?" % correct
                 break
+        if not extra:
+            is_simple_cython_name = submodule in Options.directive_types
+            if not is_simple_cython_name and not submodule.startswith("_"):
+                # Try to find it in the Shadow module (i.e. the pure Python namespace of cython.*).
+                # FIXME: use an internal reference of "cython.*" names instead of Shadow.py
+                from .. import Shadow
+                is_simple_cython_name = hasattr(Shadow, submodule)
+            if is_simple_cython_name:
+                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
             module_name,
@@ -1107,7 +1117,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # for most transforms annotations are left unvisited (because they're unevaluated)
         # however, it is important to pick up compiler directives from them
         if node.expr:
-            self.visitchildren(node.expr)
+            self.visit(node.expr)
         return node
 
     def visit_NewExprNode(self, node):
@@ -1305,6 +1315,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
+        current_opt_dict = dict(self.directives)
+        missing = object()
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1312,8 +1324,14 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if self.directives.get(name, object()) != value:
+                        if current_opt_dict.get(name, missing) != value:
+                            if name == 'cfunc' and 'ufunc' in current_opt_dict:
+                                error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
                             directives.append(directive)
+                            current_opt_dict[name] = value
+                        else:
+                            warning(dec.pos, "Directive does not change previous value (%s%s)" % (
+                                name, '=%r' % value if value is not None else ''))
                         if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
@@ -1321,17 +1339,6 @@ class InterpretCompilerDirectives(CythonTransform):
                         scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
-            for realdec in realdecs:
-                dec_pos = realdec.pos
-                realdec = realdec.decorator
-                if ((realdec.is_name and realdec.name == "dataclass") or
-                        (realdec.is_attribute and realdec.attribute == "dataclass")):
-                    error(dec_pos,
-                          "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
-            # Note - arbitrary C function decorators are caught later in DecoratorTransform
-            raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
@@ -1555,6 +1562,7 @@ class WithTransform(VisitorTransform, SkipDeclarations):
         pos = node.pos
         is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
+        manager = node.manager = ExprNodes.ProxyNode(manager)
         node.enter_call = ExprNodes.SimpleCallNode(
             pos, function=ExprNodes.AttributeNode(
                 pos, obj=ExprNodes.CloneNode(manager),
@@ -2388,7 +2396,7 @@ if VALUE is not None:
 
         self.seen_vars_stack.pop()
 
-        if lenv.directives.get("ufunc"):
+        if "ufunc" in lenv.directives:
             from . import UFuncs
             return UFuncs.convert_to_ufunc(node)
         return node
@@ -2643,6 +2651,9 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     Calculate and store the '__qualname__' and the global
     module name on some nodes.
     """
+    needs_qualname_assignment = False
+    needs_module_assignment = False
+
     def visit_ModuleNode(self, node):
         self.module_name = self.global_scope().qualified_name
         self.qualified_name = []
@@ -2713,13 +2724,55 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
+    def generate_assignment(self, node, name, value):
+        entry = node.scope.lookup_here(name)
+        lhs = ExprNodes.NameNode(
+            node.pos,
+            name = EncodedString(name),
+            entry=entry)
+        rhs = ExprNodes.StringNode(
+            node.pos,
+            value=value.as_utf8_string(),
+            unicode_value=value)
+        node.body.stats.insert(0, Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs=lhs,
+            rhs=rhs,
+        ).analyse_expressions(self.current_env()))
+
     def visit_ClassDefNode(self, node):
+        orig_needs_qualname_assignment = self.needs_qualname_assignment
+        self.needs_qualname_assignment = False
+        orig_needs_module_assignment = self.needs_module_assignment
+        self.needs_module_assignment = False
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
                  self.current_env().lookup_here(node.target.name))  # CClass
         self._append_entry(entry)
         self._super_visit_ClassDefNode(node)
+        if self.needs_qualname_assignment:
+            self.generate_assignment(node, "__qualname__",
+                                     EncodedString(".".join(self.qualified_name)))
+        if self.needs_module_assignment:
+            self.generate_assignment(node, "__module__",
+                                     EncodedString(self.module_name))
         self.qualified_name = orig_qualified_name
+        self.needs_qualname_assignment = orig_needs_qualname_assignment
+        self.needs_module_assignment = orig_needs_module_assignment
+        return node
+
+    def visit_NameNode(self, node):
+        scope = self.current_env()
+        if scope.is_c_class_scope:
+            # unlike for a PyClass scope, these attributes aren't defined in the
+            # dictionary when the class definition is executed, therefore we ask
+            # the compiler to generate an assignment to them at the start of the
+            # body.
+            # NOTE: this doesn't put them in locals()
+            if node.name == "__qualname__":
+                self.needs_qualname_assignment = True
+            elif node.name == "__module__":
+                self.needs_module_assignment = True
         return node
 
 
@@ -2853,6 +2906,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.inline
     @cython.nogil
     """
+    # list of directives that cause conversion to cclass
+    converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
 
     def visit_ModuleNode(self, node):
         self.directives = node.directives
@@ -2883,6 +2938,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
         if 'ccall' in self.directives:
+            if 'cfunc' in self.directives:
+                error(node.pos, "cfunc and ccall directives cannot be combined")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
@@ -2908,7 +2965,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_PyClassDefNode(self, node):
-        if 'cclass' in self.directives:
+        if any(directive in self.directives for directive in self.converts_to_cclass):
             node = node.as_cclass()
             return self.visit(node)
         else:

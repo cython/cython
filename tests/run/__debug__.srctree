@@ -10,7 +10,7 @@ PYTHON -OO debug_test.py
 from distutils.core import setup
 from Cython.Build import cythonize
 
-setup(ext_modules = cythonize('debug_test_cython.pyx'))
+setup(ext_modules = cythonize('*.pyx'))
 
 ######## debug_test.py ########
 
@@ -46,6 +46,23 @@ if debug_test_cython.DBG == optimised:
     raise RuntimeError(
         "CYTHON: unexpected debug value %s, expected %s" % (
         debug_test_cython.DBG, optimised))
+
+try:
+    import plain_debug
+except ValueError:
+    assert DBG
+except IndexError:
+    assert not DBG
+else:
+    assert False
+
+
+######## plain_debug.pyx ########
+
+if __debug__:
+    raise ValueError("DEBUG!")
+else:
+    raise IndexError("NOT DEBUG!")
 
 
 ######## debug_test_cython.pyx ########

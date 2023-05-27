@@ -449,7 +449,10 @@ for Cython to discern that, so watch out with exception masks on IO streams. ::
     cdef int bar() except +MemoryError
 
 This will catch any C++ error and raise a Python MemoryError in its place.
-(Any Python exception is valid here.) ::
+(Any Python exception is valid here.)
+
+Cython also supports using a custom exception handler. This is an advanced feature
+that most users won't need, but for those that do a full example follows::
 
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
@@ -457,7 +460,90 @@ This will catch any C++ error and raise a Python MemoryError in its place.
 If something_dangerous raises a C++ exception then raise_py_error will be
 called, which allows one to do custom C++ to Python error "translations." If
 raise_py_error does not actually raise an exception a RuntimeError will be
-raised.
+raised. This approach may also be used to manage custom Python exceptions
+created using the Python C API. ::
+
+    # raising.pxd
+    cdef extern from "Python.h" nogil:
+        ctypedef struct PyObject
+
+    cdef extern from *:
+        """
+        #include <Python.h>
+        #include <stdexcept>
+        #include <ios>
+
+        PyObject *CustomLogicError;
+
+        void create_custom_exceptions() {
+            CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
+        }
+
+        void custom_exception_handler() {
+            try {
+                if (PyErr_Occurred()) {
+                    ; // let the latest Python exn pass through and ignore the current one
+                } else {
+                    throw;
+                }
+            }  catch (const std::logic_error& exn) {
+                // Add mapping of std::logic_error -> CustomLogicError
+                PyErr_SetString(CustomLogicError, exn.what());
+            } catch (...) {
+                PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
+            }
+        }
+
+        class Raiser {
+            public:
+                Raiser () {}
+                void raise_exception() {
+                    throw std::logic_error("Failure");
+                }
+        };
+        """
+        cdef PyObject* CustomLogicError
+        cdef void create_custom_exceptions()
+        cdef void custom_exception_handler()
+
+        cdef cppclass Raiser:
+            Raiser() noexcept
+            void raise_exception() except +custom_exception_handler
+
+
+    # raising.pyx
+    create_custom_exceptions()
+    PyCustomLogicError = <object> CustomLogicError
+
+
+    cdef class PyRaiser:
+        cdef Raiser c_obj
+
+        def raise_exception(self):
+            self.c_obj.raise_exception()
+
+The above example leverages Cython's ability to include :ref:`verbatim C code
+<verbatim_c>` in pxd files to create a new Python exception type
+``CustomLogicError`` and map it to the standard C++ ``std::logic_error`` using
+the ``custom_exception_handler`` function. There is nothing special about using
+a standard exception class here, ``std::logic_error`` could easily be replaced
+with some new C++ exception type defined in this file. The
+``Raiser::raise_exception`` is marked with ``+custom_exception_handler`` to
+indicate that this function should be called whenever an exception is raised.
+The corresponding Python function ``PyRaiser.raise_exception`` will raise a
+``CustomLogicError`` whenever it is called. Defining ``PyCustomLogicError``
+allows other code to catch this exception, as shown below: ::
+    
+    try:
+        PyRaiser().raise_exception()
+    except PyCustomLogicError:
+        print("Caught the exception")
+
+When defining custom exception handlers it is typically good to also include
+logic to handle all the standard exceptions that Cython typically handles as
+listed in the table above. The code for this standard exception handler can be
+found `here
+<https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
 
 There is also the special form::
 

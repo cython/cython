@@ -1,3 +1,5 @@
+# mode: run
+
 import sys
 IS_PY2 = sys.version_info[0] < 3
 

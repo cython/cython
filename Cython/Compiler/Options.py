@@ -182,7 +182,8 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
-    'embedsignature' : False,
+    'embedsignature': False,
+    'embedsignature.format': 'c',
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
@@ -220,7 +221,6 @@ _directive_defaults = {
     'np_pythran': False,
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
-    'ufunc': False,
     'legacy_implicit_noexcept': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
@@ -328,6 +328,7 @@ directive_types = {
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'ufunc': None,
     'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
@@ -341,9 +342,10 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'total_ordering': bool,
+    'total_ordering': None,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'embedsignature.format': one_of('c', 'clinic', 'python'),
 }
 
 for key, val in _directive_defaults.items():
@@ -389,8 +391,8 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
-    'total_ordering': ('cclass', ),
-    'dataclasses.dataclass' : ('class', 'cclass',),
+    'total_ordering': ('class', 'cclass'),
+    'dataclasses.dataclass' : ('class', 'cclass'),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
@@ -405,7 +407,7 @@ immediate_decorator_directives = {
     'inline', 'exceptval', 'returns',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
-    'auto_pickle', 'internal', 'collection_type',
+    'auto_pickle', 'internal', 'collection_type', 'total_ordering',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
 }

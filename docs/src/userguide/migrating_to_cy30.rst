@@ -176,16 +176,19 @@ More details are given in :ref:`arithmetic_methods`.
 Exception values and ``noexcept``
 =================================
 
-``cdef`` functions that are not ``extern`` now propagate Python
-exceptions by default, where previously they needed to explicitly be
-declated with an :ref:`exception value <error_return_values>` in order
-for them to do so. A new ``noexcept`` modifier can be used to declare
-``cdef`` functions that will not raise exceptions.
+``cdef`` functions that are not ``extern`` now safely propagate Python
+exceptions by default.  Previously, they needed to explicitly be declared
+with an :ref:`exception value <error_return_values>` to prevent them from
+swallowing exceptions.  A new ``noexcept`` modifier can be used to declare
+``cdef`` functions that really will not raise exceptions.
 
 In existing code, you should mainly look out for ``cdef`` functions
 that are declared without an exception value::
 
   cdef int spam(int x):
+      pass
+
+  cdef void silent(int x):
       pass
 
 If you left out the exception value by mistake, i.e., the function
@@ -202,13 +205,27 @@ To prevent that, you must declare the function explicitly as being
   cdef int spam(int x) noexcept:
       pass
 
+  cdef void silent(int x) noexcept:
+      pass
+
 The behaviour for ``cdef`` functions that are also ``extern`` is
 unchanged as ``extern`` functions are less likely to raise Python
-exceptions
+exceptions and rather tend to be plain C functions.  This mitigates
+the effect of this change for code that talks to C libraries.
 
 The behaviour for any ``cdef`` function that is declared with an
 explicit exception value (e.g., ``cdef int spam(int x) except -1``) is
 also unchanged.
+
+There is an easy-to-encounter performance pitfall here with ``nogil`` functions
+with an implicit exception specification of ``except *``.  This can happen
+most commonly when the return type is ``void`` (but in principle applies
+to most non-numeric return types).  In this case, Cython is forced to
+re-acquire the GIL briefly *after each call* to check the exception state.
+To avoid this overhead, either change the signature to ``noexcept`` (if
+you have determined that it's suitable to do so), or to returning an ``int``
+instead to let Cython use the ``int`` as an error flag
+(by default, ``-1`` triggers the exception check).
 
 .. note::
   The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
@@ -247,6 +264,12 @@ When running into an error it is required to add the corresponding operator::
         Example operator++(int)
         Example operator--(int)
 
+Public Declarations in C++
+==========================
+
+Public declarations in C++ mode are exported as C++ API in Cython 3, using ``extern "C++"``.
+This behaviour can be changed by setting the export keyword using the ``CYTHON_EXTERN_C`` macro
+to allow Cython modules to be implemented in C++ but callable from C.
 
 ``**`` power operator
 =====================

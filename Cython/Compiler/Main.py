@@ -168,6 +168,15 @@ class Context(object):
     def _is_init_file(path):
         return os.path.basename(path) in ('__init__.pyx', '__init__.py', '__init__.pxd') if path else False
 
+    @staticmethod
+    def _check_pxd_filename(pos, pxd_pathname, qualified_name):
+        if not pxd_pathname:
+            return
+        pxd_filename = os.path.basename(pxd_pathname)
+        if '.' in qualified_name and qualified_name == os.path.splitext(pxd_filename)[0]:
+            warning(pos, "Dotted filenames ('%s') are deprecated."
+                    " Please use the normal Python package directory layout." % pxd_filename, level=1)
+
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
                     absolute_fallback=True):
         # Finds and returns the module scope corresponding to
@@ -206,6 +215,7 @@ class Context(object):
             scope = relative_to.lookup_submodule(module_name)
             if not scope:
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
+                self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if pxd_pathname:
                     is_package = self._is_init_file(pxd_pathname)
                     scope = relative_to.find_submodule(module_name, as_package=is_package)
@@ -228,6 +238,7 @@ class Context(object):
                 # Only look in sys.path if we are explicitly looking
                 # for a .pxd file.
                 pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=need_pxd)
+                self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if debug_find_module:
                     print("......found %s" % pxd_pathname)
                 if not pxd_pathname and need_pxd:
@@ -527,7 +538,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
-    if options.depfile:
+    if err is None and options.depfile:
         from ..Build.Dependencies import create_dependency_tree
         dependencies = create_dependency_tree(context).all_dependencies(result.main_source_file)
         Utils.write_depfile(result.c_file, result.main_source_file, dependencies)
@@ -690,9 +701,6 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
-            if not include and '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
-                warning(pos, "Dotted filenames ('%s') are deprecated."
-                             " Please use the normal Python package directory layout." % dotted_filename, level=1)
             return path
 
     # search for filename in package structure e.g. <dir>/foo/bar.pxd or <dir>/foo/bar/__init__.pxd

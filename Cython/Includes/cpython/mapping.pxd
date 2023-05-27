@@ -61,4 +61,3 @@ cdef extern from "Python.h":
     # Map the object key to the value v in object o. Returns -1 on
     # failure. This is the equivalent of the Python statement "o[key]
     # = v".
-

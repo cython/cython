@@ -11,4 +11,3 @@ def find(f):
 
 cdef void callback(char *name, void *f):
     (<object>f)(name.decode('utf-8'))
-

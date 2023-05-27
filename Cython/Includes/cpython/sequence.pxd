@@ -132,5 +132,3 @@ cdef extern from "Python.h":
     # gotten by calling PySequence_Size() on o, but
     # PySequence_Fast_GET_SIZE() is faster because it can assume o is
     # a list or tuple.
-
-
