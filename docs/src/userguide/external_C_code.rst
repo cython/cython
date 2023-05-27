@@ -429,6 +429,8 @@ declarations.
     Cython module available to another Cython module – you should use the
     :keyword:`cimport` statement for that. Sharing Declarations Between Cython Modules.
 
+.. _inittab_guide:
+    
 Public Declarations
 ---------------------
 
