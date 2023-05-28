@@ -480,7 +480,7 @@ Memoryview Objects and Cython Arrays
 ====================================
 
 These typed memoryviews can be converted to Python memoryview objects
-(`cython.view.memoryview`).  These Python objects are indexable, slicable and
+(`cython.view.memoryview`).  These Python objects are indexable, sliceable and
 transposable in the same way that the original memoryviews are. They can also be
 converted back to Cython-space memoryviews at any time.
 
@@ -553,7 +553,7 @@ may be assigned directly to a memoryview slice::
 
     cdef int[:, ::1] myslice = my_2d_c_array
 
-The arrays are indexable and slicable from Python space just like memoryview objects, and have the same
+The arrays are indexable and sliceable from Python space just like memoryview objects, and have the same
 attributes as memoryview objects.
 
 CPython array module
