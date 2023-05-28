@@ -21,7 +21,9 @@ For cases where no interaction with external C libraries is required, this is al
 Can Cython generate C code for classes?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Yes, these classes become fully fledged Python classes.
+**Answer**: A plain class becomes a fully-fledged Python class.
+Cython can also generate C classes, where the class data is stored in an
+efficient C structure at the cost of some additional limitations.
 
 ----------
 
@@ -69,8 +71,6 @@ How well is Unicode supported?
 
 **Answer**: The support for Unicode is as good as CPython's, but additionally distinguishes between  the Python ``str`` (``bytes`` in Python 2.7) and ``unicode`` (always Unicode text) string type. Note that there is no equivalent C type available for Unicode strings, but Cython can automatically convert (encode/decode) from and to encoded C/C++ strings (``char*`` / ``std::string``).
 
-There is also native support for the ``Py_UCS4`` C integer type that represents a single unicode character. In fact, Cython will try to infer this type for single character unicode literals, and avoid the creation of a unicode string object for them if possible. This is because many operations work much more efficiently (in plain C) on ``Py_UCS4`` than on unicode objects.
-
 See the `string tutorial <string_tutorial>`_.
 
 
@@ -81,13 +81,6 @@ How do I pickle cdef classes?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Answer**: See `the documentation <auto_pickle>`_.
-
-----------
-
-How do I use a Cython class in a C++ framework?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-**Answer**: TODO
 
 ----------
 
@@ -253,7 +246,8 @@ Note that this has similar restrictions as the normal Python code: it will not c
 How do I implement a single class method in a Cython module?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Cython-defined methods don't bind by default, regardless from where they are referenced. Because of this the following does not work:
+**Answer**: As of Cython 3.0, Cython-defined methods bind by default.
+That means that the following should work:
 
 ::
 
@@ -262,37 +256,6 @@ How do I implement a single class method in a Cython module?
 
     class A(object):
         method = cython_module.optimized_method
-
-``method`` is unbound and trying to call it will result in an error:
-
-::
-
-    #!python
-    >>> a = A()
-    >>> a.method()
-    exceptions.TypeError: optimized_method() takes exactly one argument (0 given)
-
-You have can explicitly create a bound method, either in Python:
-
-::
-
-    #!python
-    import types
-    import cython_module
-
-    class A(object):
-        pass
-
-    A.method = types.MethodType(cython_module.optimized_method, None, A)
-
-or by using the ``cython.binding`` directive to make the method bind automatically, e.g.
-
-::
-
-    cimport cython
-    @cython.binding(True)
-    def optimized_method(self, ...):
-        ...
 
 ----------
 
@@ -370,7 +333,9 @@ Note that this also accepts subtypes of the Python unicode type. Typing the "tex
 How do I use variable args?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: It can't be done cleanly yet, but the code below works:
+**Answer**: For a regular function, just use ``*args`` as in Python.
+
+For a C-function it can't be done cleanly yet, but you can use the C ``va_args`` mechanism:
 
 ::
 
