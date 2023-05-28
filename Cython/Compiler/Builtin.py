@@ -374,6 +374,7 @@ builtin_types_table = [
     ("frozenset", "PyFrozenSet_Type", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
     ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)[0]", []),
+    ("BaseExceptionGroup", "((PyTypeObject*)PyExc_BaseExceptionGroup)[0]", []),
     ("memoryview", "PyMemoryView_Type", [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
@@ -456,9 +457,7 @@ def init_builtin_types():
             objstruct_cname = 'PyByteArrayObject'
         elif name == 'bool':
             objstruct_cname = None
-        elif name == 'Exception':
-            objstruct_cname = "PyBaseExceptionObject"
-        elif name == 'StopAsyncIteration':
+        elif name in ['Exception', 'StopAsyncIteration', 'BaseExceptionGroup']:
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()

@@ -386,3 +386,136 @@ class HasGilNode(AtomicExprNode):
 
     def calculate_result_code(self):
         return "1" if self.has_gil else "0"
+    
+
+class StarExceptHelperNode(Nodes.StatListNode):
+    """
+    Like a stat list node, but also handles some of
+    the temporary variables that its children will need
+    """
+
+    def __init__(self, pos, except_clauses):
+        from . import Builtin, PyrexTypes
+
+        get_exception_type = PyrexTypes.CFuncType(
+            PyrexTypes.py_object_type, [])
+
+        super(StarExceptHelperNode, self).__init__(pos, stats=[])
+
+        self.in_progress_exception_group = ExprNodes.PyTempNode(self.pos, None)
+        self.matched_exception_group = ExprNodes.PyTempNode(self.pos, None)
+        self.exception_list = ExprNodes.TempNode(self.pos, Builtin.list_type)
+
+        for clause in except_clauses:
+            append_to_list = ExprNodes.SimpleCallNode(
+                clause.pos,
+                function=ExprNodes.AttributeNode(
+                    clause.pos, obj=self.exception_list, attribute="append"
+                ),
+                args=[
+                    ExprNodes.PythonCapiCallNode(
+                        clause.pos, function_name="__Pyx_PyErr_GetHandledException",
+                        func_type = get_exception_type
+                )]
+            )
+
+            on_exception_raised_in_body = Nodes.ExceptClauseNode(
+                clause.pos, pattern=[], body=append_to_list, target=None
+            )
+
+            star_except_test_setup = StarExceptTestSetupNode(
+                clause.pos,
+                pattern=clause.pattern,
+                in_progress_exception_group=self.in_progress_exception_group,
+                matched_exception_group=self.matched_exception_group,
+            )
+
+            this_clause_stats = [
+                star_except_test_setup
+            ]
+
+            if_clause = Nodes.IfClauseNode(
+                clause.pos,
+                condition = ExprNodes.PrimaryCmpNode(
+                    clause.pos,
+                    operator = 'is not',
+                    lhs = star_except_test_setup.matched_exception_group,
+                    rhs = ExprNodes.NoneNode(clause.pos)
+                ),
+                body=Nodes.StatListNode(
+                    clause.pos, stats=[]
+                )  # fill in stats later
+            )
+
+            this_clause_stats.append(if_clause)
+
+            if clause.target:
+                assert clause.is_except_as
+                if_clause.body.stats.append(
+                    Nodes.SingleAssignmentNode(
+                        clause.pos, lhs=clause.target, rhs=self.matched_exception_group
+                    )
+                )
+
+                # make sure we clean up the target
+                if_clause.body.stats.append(Nodes.TryFinallyStatNode(
+                    clause.pos,
+                    body=clause.body,
+                    finally_clause=Nodes.StatListNode(
+                        clause.pos,
+                        stats=[
+                            Nodes.DelStatNode(
+                                clause.pos,
+                                args=[ExprNodes.NameNode(
+                                    clause.target.pos, name=clause.target.name)],
+                                    ignore_nonexisting=True)
+                        ]
+                    )
+                ))
+            else:
+                if_clause.body.append(clause.body)
+
+            try_except = Nodes.TryExceptStatNode(
+                clause.pos,
+                body=Nodes.StatListNode(clause.pos, stats=this_clause_stats),
+                except_clauses=[on_exception_raised_in_body]
+            )
+
+            self.stats.append(try_except)
+        
+        #self.stats.append(
+        #    StarExceptHelperTempCleanupNode(self.pos)
+        #)
+
+        self.stats.append(
+            Nodes.IfStatNode(
+                self.pos,
+                if_clauses = [Nodes.IfClauseNode(
+                    self.pos,
+                    condition=self.exception_list,
+                    body=Nodes.StatListNode(
+                        self.pos,
+                        stats=[
+                            Nodes.RaiseStatNode()
+                        ]
+                    )
+                )],
+                else_clause=None
+            )
+        )
+
+
+class StarExceptHelperTempCleanupNode(Nodes.Node):
+    pass
+
+
+class StarExceptTestSetupNode(Nodes.Node):
+    child_attrs = ["pattern"]
+
+def make_except_star_handler_body(pos, except_clauses):
+    # The except* behaviour is fairly complicated, and best encapsulated by
+    # generated nodes rather than having a dedicated node of its own.
+    # The advantage of this is that it can be handled by the existing
+    # flow control structures
+
+    return StarExceptHelperNode(pos, except_clauses=except_clauses)

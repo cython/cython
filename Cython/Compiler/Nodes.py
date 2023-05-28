@@ -6632,6 +6632,7 @@ class DelStatNode(StatNode):
             arg.analyse_target_declaration(env)
 
     def analyse_expressions(self, env):
+        import pdb; pdb.set_trace()
         for i, arg in enumerate(self.args):
             arg = self.args[i] = arg.analyse_target_expression(env, None)
             if arg.type.is_pyobject or (arg.is_name and arg.type.is_memoryviewslice):
@@ -6644,6 +6645,7 @@ class DelStatNode(StatNode):
             elif arg.is_subscript and arg.base.type is Builtin.bytearray_type:
                 pass  # del ba[i]
             else:
+                import pdb; pdb.set_trace()
                 error(arg.pos, "Deletion of non-Python, non-C++ object")
             #arg.release_target_temp(env)
         return self
@@ -8303,6 +8305,69 @@ class ExceptClauseNode(Node):
         if self.target:
             self.target.annotate(code)
         self.body.annotate(code)
+
+
+class ExceptStarHandlerNode(Node):
+    child_attrs = ["clauses"]
+
+    make_list = PyrexTypes.CFuncType(
+        Builtin.list_type, [])
+
+    def post_parse_refactoring(self):
+        # ...
+        from .UtilNodes import LetNode, ResultRefNode
+        from .ExprNodes import PythonCapiCallNode
+        wrap_current_exception_as_exception_group = ResultRefNode(
+            ... # TODO call node
+        )
+        empty_list_node = ResultRefNode(
+            PythonCapiCallNode(
+                self.pos,
+                function_name="PyList_New(0)",
+                function_type=self.make_list
+            )
+        )
+        
+
+    def analyse_declarations(self, env):
+        for clause in self.clauses:
+            clause.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.clauses = [ clause.analyse_expressions(env) for clause in self.clauses ]
+        return self
+
+
+class ExceptStarClauseNode(Node):
+    # Implementation of except* clauses.
+    # Practically we translate this into a standard try/except
+    # with an ExceptStarHandlerNode with ExceptStarClauseNodes
+    # as the body of the normal except clause
+    child_attrs = ["pattern", "target", "body", "exc_value"]
+
+    exc_value = None
+    excinfo_target = None
+    is_except_as = False
+
+    def analyse_declarations(self, env):
+        if self.target:
+            self.target.analyse_target_declaration(env)
+        self.body.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        if self.pattern:
+            # normalise/unpack self.pattern into a list
+            for i, pattern in enumerate(self.pattern):
+                pattern = pattern.analyse_expressions(env)
+                self.pattern[i] = pattern.coerce_to_pyobject(env)
+
+        if self.target:
+            from . import ExprNodes
+            self.exc_value = ExprNodes.ExcValueNode(self.pos)
+            self.target = self.target.analyse_target_expression(env, self.exc_value)
+
+        self.body = self.body.analyse_expressions(env)
+        return self
 
 
 class TryFinallyStatNode(StatNode):

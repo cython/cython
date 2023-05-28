@@ -367,6 +367,9 @@ class PostParse(ScopeTrackingTransform):
                         stats=[del_target]))])
         self.visitchildren(node)
         return node
+    
+    def visit_ExceptStarClauseNode(self, node):
+        return self.visit_ExceptClauseNode(node)
 
     def visit_AssertStatNode(self, node):
         """Extract the exception raising into a RaiseStatNode to simplify GIL handling.

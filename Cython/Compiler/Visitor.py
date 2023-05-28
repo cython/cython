@@ -164,6 +164,7 @@ class TreeVisitor(object):
             print(self.access_path)
             print(self.access_path[-1][0].pos)
             print(self.access_path[-1][0].__dict__)
+        import pdb; pdb.set_trace()
         raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
 
     def visit(self, obj):

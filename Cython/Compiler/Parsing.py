@@ -2043,13 +2043,35 @@ def p_try_statement(s):
     s.next()
     body = p_suite(s)
     except_clauses = []
+    is_except_star = False
     else_clause = None
     if s.sy in ('except', 'else'):
+        # The PEG grammar way would be to try to real all the except clauses
+        # and then try again for except* if that fails. It's quicker just to
+        # work out if the first one is except* then work from there though
+        if s.sy == 'except':
+            saved = (s.sy, s.systring, s.position())
+            s.next()
+            is_except_star = s.sy == '*'
+            s.put_back(*saved)
+        
+        except_clause_parser = p_except_star_clause if is_except_star else p_except_clause
         while s.sy == 'except':
-            except_clauses.append(p_except_clause(s))
+            except_clauses.append(except_clause_parser(s))
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
+
+        if is_except_star:
+            from .UtilNodes import make_except_star_handler_body
+            except_body = make_except_star_handler_body(pos, except_clauses)
+            except_clauses = [
+                Nodes.ExceptClauseNode(
+                    pos,
+                    pattern=[],
+                    body=except_body, target=None)
+            ]
+
         body = Nodes.TryExceptStatNode(pos,
             body = body, except_clauses = except_clauses,
             else_clause = else_clause)
@@ -2064,10 +2086,20 @@ def p_try_statement(s):
     else:
         s.error("Expected 'except' or 'finally'")
 
+
 def p_except_clause(s):
+    return p_except_or_except_star_clause(s, False)
+
+def p_except_star_clause(s):
+    return p_except_or_except_star_clause(s, True)
+
+def p_except_or_except_star_clause(s, is_except_star):
+    # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
     s.next()
+    if is_except_star:
+        s.expect('*')
     exc_type = None
     exc_value = None
     is_except_as = False
@@ -2078,8 +2110,10 @@ def p_except_clause(s):
             exc_type = exc_type.args
         else:
             exc_type = [exc_type]
-        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'
-                           and s.context.language_level == 2):
+        # Don't allow old , syntax at all for except*
+        if not is_except_star and s.sy == ',' or (
+                s.sy == 'IDENT' and s.systring == 'as'
+                and s.context.language_level == 2):
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
@@ -2089,6 +2123,8 @@ def p_except_clause(s):
             name = p_ident(s)
             exc_value = ExprNodes.NameNode(pos2, name = name)
             is_except_as = True
+    elif is_except_star:
+        s.error("Expected exception type after except*")
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value,

@@ -1255,6 +1255,38 @@ class ControlFlowAnalysis(CythonTransform):
             else:
                 self.flow.block = None
         return node
+    
+    def visit_ExceptStarHandlerNode(self, node):
+        # treat as a set of isolated if statements
+        # (so each clause is a separate if statement
+
+        entry_point = self.flow.newblock()
+        parent = self.flow.block
+
+        for clause in node.clauses:
+            self.flow.block = entry_point
+            #parent = self.flow.nextblock(parent)
+
+            if clause.pattern:
+                for pattern in clause.pattern:
+                    self._visit(pattern)
+
+            entry_point = self.flow.newblock(parent=self.flow.block)
+            #
+            if clause.target:
+                self.mark_assignment(clause.target)
+
+            #self.flow.nextblock()
+            self._visit(clause.body)
+            if self.flow.block:
+                self.flow.block.add_child(next_block)
+            parent.add_child(next_block)
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
 
     def visit_RaiseStatNode(self, node):
         self.mark_position(node)
