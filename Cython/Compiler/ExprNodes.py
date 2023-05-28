@@ -3631,7 +3631,7 @@ class JoinedStrNode(ExprNode):
                             max_char_value = '65535'
                             ulength = str(len(node.value))
                         elif max_char >= 65536:
-                            # cleary outside of BMP, and not on a 16-bit Unicode system
+                            # clearly outside of BMP, and not on a 16-bit Unicode system
                             max_char_value = '1114111'
                             ulength = str(len(node.value))
                         else:
