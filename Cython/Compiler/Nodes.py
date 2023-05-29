@@ -8480,6 +8480,7 @@ class StarExceptHelperNode(StatListNode):
         code.putln('#error "Starred exceptions require runtime support so only work on Python 3.11 or later"')
         code.putln("#endif")
         code.put_error_if_neg(self.pos, "(%s = PyList_New(0))" % self.exception_list.result())
+        code.put_gotref(self.exception_list.result(), PyrexTypes.py_object_type)
         code.putln("%s = %s = %s;" % (
             self.original_exception_group.result(),
             self.in_progress_exception_group.result(),
@@ -8505,7 +8506,7 @@ class StarExceptSetExceptionNode(StatNode):
     def generate_execution_code(self, code):
         vars = code.funcstate.exc_vars
         for v in vars:
-            code.put_decref(v, PyrexTypes.py_object_type)
+            code.put_xdecref(v, PyrexTypes.py_object_type)
         code.putln("%s = (PyObject*)Py_TYPE(%s);" % (vars[0], self.exception.result()))
         code.putln("%s = %s;" % (vars[1], self.exception.result()))
         code.putln("%s = PyException_GetTraceback(%s);" % (vars[2], self.exception.result()))
@@ -8540,14 +8541,19 @@ class StarExceptTestSetupNode(StatNode):
         # then it definitely won't match any of the patterns, so skip
         code.put_xdecref_set(self.matched_exception_group.result(),
                         self.matched_exception_group.type, "Py_None")
+        code.put_incref("Py_None", py_object_type)
         code.putln("if (%s == Py_None) {" % self.in_progress_exception_group.result())
         code.put_goto(match_result_found_label)
         code.putln("}")
         for p in self.pattern:
+            code.put_xgiveref(self.in_progress_exception_group.result(), py_object_type)
+            code.put_xgiveref(self.matched_exception_group.result(), py_object_type)
             code.putln(code.error_goto_if("__Pyx_ExceptionGroupMatch(%s, &%s, &%s)" % (
                 p.result_as(py_object_type),
                 self.in_progress_exception_group.result(),
                 self.matched_exception_group.result()), self.pos))
+            code.put_gotref(self.in_progress_exception_group.result(), py_object_type)
+            code.put_gotref(self.matched_exception_group.result(), py_object_type)
             p.generate_disposal_code(code)
             p.free_temps(code)
             code.put("if (%s != Py_None)" % self.matched_exception_group.result())

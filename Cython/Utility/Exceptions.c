@@ -1051,6 +1051,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
     int is_instance;
 
     Py_DECREF(*match); // whatever happens, we'll re-assign it
+    *match = Py_NewRef(Py_None);
 
     if (PyErr_GivenExceptionMatches(*current_exception, match_type)) {
         int is_eg = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
@@ -1073,6 +1074,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
             if (wrapped == NULL) {
                 return -1;
             }
+            Py_DECREF(*match);
             *match = wrapped;
         }
         Py_DECREF(*current_exception);
@@ -1094,6 +1096,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
         assert(PyTuple_CheckExact(pair));
         assert(PyTuple_GET_SIZE(pair) == 2);
 
+        Py_DECREF(*match);
         *match = Py_NewRef(PyTuple_GET_ITEM(pair, 0));
         Py_DECREF(*current_exception);
         *current_exception = Py_NewRef(PyTuple_GET_ITEM(pair, 1));
@@ -1103,7 +1106,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
     }
 
     // No match
-    *match = Py_NewRef(Py_None);
+    // match is None and
     // current_exception remains the same
     return 0;
 }
