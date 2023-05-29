@@ -565,7 +565,10 @@ class CythonCImports(object):
     def __getattr__(self, item):
         if item.startswith('__') and item.endswith('__'):
             raise AttributeError(item)
-        return __import__(item)
+        try:
+            return __import__(item)
+        except ModuleNotFoundError:
+            raise AttributeError(item) from None
 
 
 import math, sys
