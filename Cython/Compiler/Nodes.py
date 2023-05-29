@@ -8400,7 +8400,6 @@ class StarExceptHelperNode(StatListNode):
             this_clause_stats.append(if_statement)
 
             if clause.target:
-                assert clause.is_except_as
                 if_clause.body.stats.append(
                     # Not using a Clone node here skips a bit of reference counting
                     # so is actually desirable
@@ -8481,10 +8480,13 @@ class StarExceptHelperNode(StatListNode):
         code.putln('#error "Starred exceptions require runtime support so only work on Python 3.11 or later"')
         code.putln("#endif")
         code.put_error_if_neg(self.pos, "(%s = PyList_New(0))" % self.exception_list.result())
-        code.putln("%s = %s = PyErr_GetHandledException();" % (
+        code.putln("%s = %s = %s;" % (
             self.original_exception_group.result(),
-            self.in_progress_exception_group.result()
+            self.in_progress_exception_group.result(),
+            code.funcstate.exc_vars[1]
         ))
+        code.put_incref(self.original_exception_group.result(), PyrexTypes.py_object_type)
+        code.put_incref(self.in_progress_exception_group.result(), PyrexTypes.py_object_type)
         super(StarExceptHelperNode, self).generate_execution_code(code)
         for t in temps:
             if t is self.matched_exception_group:
@@ -8530,7 +8532,8 @@ class StarExceptTestSetupNode(StatNode):
 
         for p in self.pattern:
             p.generate_evaluation_code(code)
-            code.putln(code.error_goto_if("__Pyx_ValidateStarCatchPattern(%s)" % p.result(), self.pos))
+            code.putln(code.error_goto_if("__Pyx_ValidateStarCatchPattern(%s)" % 
+                        p.result_as(py_object_type), self.pos))
         match_result_found_label = code.new_label()
 
         # if the in progress exception is None (i.e. it's already been handled, completely),
@@ -8542,9 +8545,11 @@ class StarExceptTestSetupNode(StatNode):
         code.putln("}")
         for p in self.pattern:
             code.putln(code.error_goto_if("__Pyx_ExceptionGroupMatch(%s, &%s, &%s)" % (
-                p.result(),
+                p.result_as(py_object_type),
                 self.in_progress_exception_group.result(),
                 self.matched_exception_group.result()), self.pos))
+            p.generate_disposal_code(code)
+            p.free_temps(code)
             code.put("if (%s != Py_None)" % self.matched_exception_group.result())
             code.put_goto(match_result_found_label)
         code.put_label(match_result_found_label)
