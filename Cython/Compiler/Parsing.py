@@ -2063,8 +2063,7 @@ def p_try_statement(s):
             else_clause = p_suite(s)
 
         if is_except_star:
-            from .UtilNodes import make_except_star_handler_body
-            except_body = make_except_star_handler_body(pos, except_clauses)
+            except_body = Nodes.StarExceptHelperNode(pos, except_clauses=except_clauses)
             except_clauses = [
                 Nodes.ExceptClauseNode(
                     pos,
