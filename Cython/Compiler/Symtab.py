@@ -241,15 +241,6 @@ class Entry(object):
     known_standard_library_import = None
     pytyping_modifiers = None
 
-    def __setattr__(self, attr, value):
-        try:
-            if self.name == "e1" and attr == "type":
-                print("XXX", id(self), value)
-                import pdb; pdb.set_trace()
-        except:
-            pass
-        super().__setattr__(attr, value)
-
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
         self.cname = cname
@@ -261,9 +252,6 @@ class Entry(object):
         self.cf_references = []
         self.inner_entries = []
         self.defining_entry = self
-        if name == "e1":
-            print(type)
-            import pdb; pdb.set_trace()
 
     def __repr__(self):
         return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)

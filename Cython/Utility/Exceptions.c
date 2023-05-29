@@ -1019,3 +1019,97 @@ bad:
     Py_XDECREF(py_frame);
 }
 #endif
+
+/////////////////// ExceptStar.proto /////////////////////////
+
+#ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+#endif
+// _PyExc_PrepReraiseStar
+#include "internal/pycore_pyerrors.h"
+
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
+static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
+
+/////////////////// ExceptStar ///////////////////////////////
+//@substitute: naming
+
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
+    int is_subclass;
+    if (!unlikely(PyExceptionClass_Check(pattern))) {
+        // Note that Cython only asserts and doesn't validate this for regular except clauses
+        PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
+        return -1;
+    }
+    is_subclass = PyObject_IsSubclass(pattern, PyExc_BaseExceptionGroup);
+    if (unlikely(is_subclass)) {
+        if (is_subclass > 0) {
+            PyErr_SetString(PyExc_TypeError, "catching ExceptionGroup with except* is not allowed. Use except instead.");
+        }
+        return -1;
+    }
+    return 0;
+}
+
+// Copied with slight modifications from exception_group_match in ceval.c in CPython
+// The main difference is that I combine the exc_value input argument and rest output argument into one
+static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_exception, PyObject **match) {
+    int is_instance;
+
+    Py_XDECREF(*match); // whatever happens, we'll re-assign it
+
+    if (PyErr_GivenExceptionMatches(*current_exception, match_type)) {
+        int is_eg = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
+        if (!is_eg) {
+            PyObject *wrapped;
+            PyObject *call_args[2];
+
+            if (unlikely(is_eg<0)) return -1;
+
+            /* naked exception - wrap it */
+            call_args[0] = $empty_unicode;
+            call_args[1] = PyTuple_Pack(1, *current_exception);
+            if (call_args[1] == NULL) {
+                return -1;
+            }
+            // We know we have Python 3.11 to be using except* so VectorCall is definitely available
+            wrapped = PyObject_Vectorcall(PyExc_BaseExceptionGroup, call_args, 2, NULL);
+            Py_DECREF(call_args[1]);
+
+            if (wrapped == NULL) {
+                return -1;
+            }
+            *match = wrapped;
+        }
+        Py_DECREF(*current_exception);
+        *current_exception = Py_NewRef(Py_None);
+        return 0;
+    }
+
+    /* current_exception does not match match_type.
+     * Check for partial match if it's an exception group.
+     */
+    is_instance = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
+    if (unlikely(is_instance < 0)) return -1;
+    if (is_instance) {
+        PyObject *pair = PyObject_CallMethod(*current_exception, "split", "(O)",
+                                             match_type);
+
+        if (pair == NULL) return -1;
+
+        assert(PyTuple_CheckExact(pair));
+        assert(PyTuple_GET_SIZE(pair) == 2);
+
+        *match = Py_NewRef(PyTuple_GET_ITEM(pair, 0));
+        Py_DECREF(*current_exception);
+        *current_exception = Py_NewRef(PyTuple_GET_ITEM(pair, 1));
+
+        Py_DECREF(pair);
+        return 0;
+    }
+
+    // No match
+    *match = Py_NewRef(Py_None);
+    // current_exception remains the same
+    return 0;
+}

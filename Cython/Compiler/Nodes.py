@@ -6632,7 +6632,6 @@ class DelStatNode(StatNode):
             arg.analyse_target_declaration(env)
 
     def analyse_expressions(self, env):
-        import pdb; pdb.set_trace()
         for i, arg in enumerate(self.args):
             arg = self.args[i] = arg.analyse_target_expression(env, None)
             if arg.type.is_pyobject or (arg.is_name and arg.type.is_memoryviewslice):
@@ -6645,7 +6644,6 @@ class DelStatNode(StatNode):
             elif arg.is_subscript and arg.base.type is Builtin.bytearray_type:
                 pass  # del ba[i]
             else:
-                import pdb; pdb.set_trace()
                 error(arg.pos, "Deletion of non-Python, non-C++ object")
             #arg.release_target_temp(env)
         return self

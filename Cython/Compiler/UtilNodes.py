@@ -399,26 +399,53 @@ class StarExceptHelperNode(Nodes.StatListNode):
 
         get_exception_type = PyrexTypes.CFuncType(
             PyrexTypes.py_object_type, [])
+        prep_star_type = PyrexTypes.CFuncType(
+            PyrexTypes.py_object_type,
+            [PyrexTypes.CFuncTypeArg("orig", PyrexTypes.py_object_type, None),
+             PyrexTypes.CFuncTypeArg("excs", PyrexTypes.py_object_type, None),]
+        )
+        set_handled_exception_type = PyrexTypes.CFuncType(
+            PyrexTypes.c_void_type,
+            [PyrexTypes.CFuncTypeArg("exc", PyrexTypes.py_object_type, None)]
+        )
 
         super(StarExceptHelperNode, self).__init__(pos, stats=[])
 
         self.in_progress_exception_group = ExprNodes.PyTempNode(self.pos, None)
+        self.original_exception_group = ExprNodes.PyTempNode(self.pos, None)
         self.matched_exception_group = ExprNodes.PyTempNode(self.pos, None)
         self.exception_list = ExprNodes.TempNode(self.pos, Builtin.list_type)
+        self.exception_list.may_be_none = lambda: False
+
+        #get_exception_as_exception_group_call = ExprNodes.PythonCapiCallNode(
+        #    self.pos, function_name="__Pyx_GetExceptionAsExceptionGroup",
+        #    func_type=get_exception_type,
+        #    args=[]
+        #)
+        #self.stats.append(Nodes.SingleAssignmentNode(
+        #    self.pos,
+        #    lhs=self.in_progress_exception_group,
+        #    rhs=get_exception_as_exception_group_call
+        #))
 
         for clause in except_clauses:
-            append_to_list = ExprNodes.SimpleCallNode(
+            append_to_list = Nodes.ExprStatNode(
                 clause.pos,
-                function=ExprNodes.AttributeNode(
-                    clause.pos, obj=self.exception_list, attribute="append"
-                ),
-                args=[
-                    ExprNodes.PythonCapiCallNode(
-                        clause.pos, function_name="__Pyx_PyErr_GetHandledException",
-                        func_type = get_exception_type
-                )]
+                expr=ExprNodes.SimpleCallNode(
+                    clause.pos,
+                    function=ExprNodes.AttributeNode(
+                        clause.pos, obj=self.exception_list, attribute="append"
+                    ),
+                    args=[
+                        # Py3.11 only C API (but that's OK - nothing else works on earlier versions)
+                        ExprNodes.PythonCapiCallNode(
+                            clause.pos, function_name="PyErr_GetHandledException",
+                            func_type=get_exception_type,
+                            args=[]
+                        )
+                    ]
+                )
             )
-
             on_exception_raised_in_body = Nodes.ExceptClauseNode(
                 clause.pos, pattern=[], body=append_to_list, target=None
             )
@@ -438,20 +465,37 @@ class StarExceptHelperNode(Nodes.StatListNode):
                 clause.pos,
                 condition = ExprNodes.PrimaryCmpNode(
                     clause.pos,
-                    operator = 'is not',
-                    lhs = star_except_test_setup.matched_exception_group,
-                    rhs = ExprNodes.NoneNode(clause.pos)
+                    operator='is_not',
+                    operand1=ExprNodes.CloneNode(self.matched_exception_group),
+                    operand2=ExprNodes.NoneNode(clause.pos)
                 ),
                 body=Nodes.StatListNode(
-                    clause.pos, stats=[]
-                )  # fill in stats later
+                    clause.pos, stats=[
+                        # Set the wrapped exception group to be the "handled exception"
+                        Nodes.ExprStatNode(
+                            clause.pos,
+                            expr=ExprNodes.PythonCapiCallNode(
+                                clause.pos, function_name="PyErr_SetHandledException",
+                                func_type=set_handled_exception_type,
+                                args=[ExprNodes.CloneNode(self.matched_exception_group)]
+                            )
+                        )
+                    ]
+                )  # fill in stats fully later
+            )
+            if_statement = Nodes.IfStatNode(
+                clause.pos,
+                if_clauses=[if_clause],
+                else_clause=None
             )
 
-            this_clause_stats.append(if_clause)
+            this_clause_stats.append(if_statement)
 
             if clause.target:
                 assert clause.is_except_as
                 if_clause.body.stats.append(
+                    # Not using a Clone node here skips a bit of reference counting
+                    # so is actually desirable
                     Nodes.SingleAssignmentNode(
                         clause.pos, lhs=clause.target, rhs=self.matched_exception_group
                     )
@@ -478,7 +522,8 @@ class StarExceptHelperNode(Nodes.StatListNode):
             try_except = Nodes.TryExceptStatNode(
                 clause.pos,
                 body=Nodes.StatListNode(clause.pos, stats=this_clause_stats),
-                except_clauses=[on_exception_raised_in_body]
+                except_clauses=[on_exception_raised_in_body],
+                else_clause=None,
             )
 
             self.stats.append(try_except)
@@ -487,16 +532,31 @@ class StarExceptHelperNode(Nodes.StatListNode):
         #    StarExceptHelperTempCleanupNode(self.pos)
         #)
 
+        # unfortunately it doesn't seem possible to do this without
+        # using this internal API (or reimplementing a lot)
+        wrapped_exception = ExprNodes.PythonCapiCallNode(
+            self.pos, function_name="_PyExc_PrepReraiseStar",
+            func_type=prep_star_type,
+            args=[ExprNodes.CloneNode(self.original_exception_group), ExprNodes.CloneNode(self.exception_list)]
+        )
+        
+
         self.stats.append(
             Nodes.IfStatNode(
                 self.pos,
                 if_clauses = [Nodes.IfClauseNode(
                     self.pos,
-                    condition=self.exception_list,
+                    condition=ExprNodes.CloneNode(self.exception_list),
                     body=Nodes.StatListNode(
                         self.pos,
                         stats=[
-                            Nodes.RaiseStatNode()
+                            Nodes.RaiseStatNode(
+                                self.pos,
+                                exc_type=wrapped_exception,
+                                exc_value=None,
+                                exc_tb=None,
+                                cause=None
+                            )
                         ]
                     )
                 )],
@@ -504,13 +564,66 @@ class StarExceptHelperNode(Nodes.StatListNode):
             )
         )
 
+    def generate_execution_code(self, code):
+        temps = [self.in_progress_exception_group, self.original_exception_group, self.matched_exception_group, self.exception_list]
+        for t in temps:
+            t.allocate(code)
+        code.putln("#if PY_VERSION_HEX < 0x030B0000")
+        code.putln('#error "Starred exceptions require runtime support so only work on Python 3.11 or later"')
+        code.putln("#endif")
+        code.put_error_if_neg(self.pos, "(%s = PyList_New(0))" % self.exception_list.result())
+        code.putln("%s = %s = PyErr_GetHandledException();" % (
+            self.original_exception_group.result(),
+            self.in_progress_exception_group.result()
+        ))
+        code.putln("%s = NULL;" % self.matched_exception_group.result())
+        super(StarExceptHelperNode, self).generate_execution_code(code)
+        for t in temps:
+            if t is self.matched_exception_group:
+                code.put_xdecref_clear(t.result(), t.type)
+            else:
+                code.put_decref_clear(t.result(), t.type)
+            t.release(code)
 
-class StarExceptHelperTempCleanupNode(Nodes.Node):
+
+class StarExceptHelperTempCleanupNode(Nodes.StatNode):
     pass
 
 
-class StarExceptTestSetupNode(Nodes.Node):
+class StarExceptTestSetupNode(Nodes.StatNode):
     child_attrs = ["pattern"]
+
+    def analyse_declarations(self, env):
+        for p in self.pattern:
+            p.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.pattern = [ p.analyse_expressions(env) for p in self.pattern ]
+        return self
+    
+    def generate_execution_code(self, code):
+        from . import Code
+        code.globalstate.use_utility_code(
+            Code.UtilityCode.load_cached("ExceptStar", "Exceptions.c")
+        )
+
+        for p in self.pattern:
+            code.putln(code.error_goto_if("__Pyx_ValidateStarCatchPattern(%s)" % p.result(), self.pos))
+        match_result_found_label = code.new_label()
+
+        # if the in progress exception is None (i.e. it's already been handled, completely),
+        # then it definitely won't match any of the patterns, so skip
+        code.putln("if (%s == Py_None) {" % self.in_progress_exception_group.result())
+        code.put_goto(match_result_found_label)
+        code.putln("}")
+        for p in self.pattern:
+            code.putln(code.error_goto_if("__Pyx_ExceptionGroupMatch(%s, &%s, &%s)" % (
+                p.result(),
+                self.in_progress_exception_group.result(),
+                self.matched_exception_group.result()), self.pos))
+            code.put("if (%s != Py_None)" % self.matched_exception_group.result())
+            code.put_goto(match_result_found_label)
+        code.put_label(match_result_found_label)
 
 def make_except_star_handler_body(pos, except_clauses):
     # The except* behaviour is fairly complicated, and best encapsulated by
