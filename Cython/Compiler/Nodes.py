@@ -8341,17 +8341,6 @@ class StarExceptHelperNode(StatListNode):
         self.exception_list = ExprNodes.TempNode(self.pos, Builtin.list_type)
         self.exception_list.may_be_none = lambda: False
 
-        #get_exception_as_exception_group_call = ExprNodes.PythonCapiCallNode(
-        #    self.pos, function_name="__Pyx_GetExceptionAsExceptionGroup",
-        #    func_type=get_exception_type,
-        #    args=[]
-        #)
-        #self.stats.append(Nodes.SingleAssignmentNode(
-        #    self.pos,
-        #    lhs=self.in_progress_exception_group,
-        #    rhs=get_exception_as_exception_group_call
-        #))
-
         for clause in except_clauses:
             append_to_list = ExprStatNode(
                 clause.pos,
@@ -8436,7 +8425,7 @@ class StarExceptHelperNode(StatListNode):
                     )
                 ))
             else:
-                if_clause.body.append(clause.body)
+                if_clause.body.stats.append(clause.body)
 
             try_except = TryExceptStatNode(
                 clause.pos,
@@ -8540,6 +8529,7 @@ class StarExceptTestSetupNode(StatNode):
         )
 
         for p in self.pattern:
+            p.generate_evaluation_code(code)
             code.putln(code.error_goto_if("__Pyx_ValidateStarCatchPattern(%s)" % p.result(), self.pos))
         match_result_found_label = code.new_label()
 
