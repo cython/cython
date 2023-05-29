@@ -1283,6 +1283,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_CurrentExceptionType(), err1, err2)
 
 #define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
+#define __Pyx_PyBaseExceptionGroup_Check(obj) __Pyx_TypeCheck(obj, PyExc_BaseExceptionGroup)
 
 /////////////// FastTypeChecks ///////////////
 //@requires: Exceptions.c::PyThreadStateGet

@@ -8134,6 +8134,7 @@ class ExceptClauseNode(Node):
     #  function_name  string             qualified name of enclosing function
     #  exc_vars       (string * 3)       local exception variables
     #  is_except_as   bool               Py3-style "except ... as xyz"
+    #  add_traceback  bool               Can be used internally to supress traceback
 
     # excinfo_target is never set by the parser, but can be set by a transform
     # in order to extract more extensive information about the exception as a
@@ -8144,6 +8145,7 @@ class ExceptClauseNode(Node):
     exc_value = None
     excinfo_target = None
     is_except_as = False
+    add_traceback = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -8247,7 +8249,8 @@ class ExceptClauseNode(Node):
 
         exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                     for _ in range(3)]
-        code.put_add_traceback(self.function_name)
+        if self.add_traceback:
+            code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
         # exception and stores it in the thread state.

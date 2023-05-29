@@ -1022,12 +1022,6 @@ bad:
 
 /////////////////// ExceptStar.proto /////////////////////////
 
-#ifndef Py_BUILD_CORE
-    #define Py_BUILD_CORE 1
-#endif
-// _PyExc_PrepReraiseStar
-#include "internal/pycore_pyerrors.h"
-
 static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
 static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
 
@@ -1056,7 +1050,7 @@ static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
 static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_exception, PyObject **match) {
     int is_instance;
 
-    Py_XDECREF(*match); // whatever happens, we'll re-assign it
+    Py_DECREF(*match); // whatever happens, we'll re-assign it
 
     if (PyErr_GivenExceptionMatches(*current_exception, match_type)) {
         int is_eg = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
