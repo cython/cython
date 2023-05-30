@@ -489,13 +489,13 @@ How do I automatically generate Cython definition files from C (.h) or C++ (.hpp
 
 **Answer**: Several people have created scripts to parse header files and automatically produce Cython bindings.
 
-### autowrap
+**autowrap**
 
 autowrap automatically generates python extension modules for wrapping C++ libraries based on annotated (commented) cython pxd files. Current features include wrapping of template classes, enums, free functions and static methods as well as converters from Python data types to (many) STL containers and back. Finally, also manually written Cython code can be incorporated for wrapping code.
 
 http://github.com/uweschmitt/autowrap
 
-### python-autopxd
+**python-autopxd**
 
 Automatically generate pxd from C headers. It uses [pycparser](https://github.com/eliben/pycparser) to parse the definitions, so the only requirement beyond python dependencies is a C preprocessor on PATH.
 
@@ -605,85 +605,85 @@ How do I work around the "unable to find vcvarsall.bat" error when using MinGW a
 
 For example, you may be using this in setup.py:
 
-```
-from distutils.core import setup
-from distutils.extension import Extension
-```
+::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
 
 Instead, you can try to load setuptools, which will monkey-patch distutils to find vcvarsall.bat:
 
-```
-try:
-    from setuptools import setup
-    from setuptools import Extension
-except ImportError:
-    from distutils.core import setup
-    from distutils.extension import Extension
-```
+::
+
+    try:
+        from setuptools import setup
+        from setuptools import Extension
+    except ImportError:
+        from distutils.core import setup
+       from distutils.extension import Extension
+
 
 In IPython, you can just import setuptools, like this:
 
-```
-# First cell:
-    import setuptools
-    %load_ext Cython
+::
 
-# Second cell:
-    %%cython -a
-    import cython
-    cimport cython
+    # First cell:
+        import setuptools
+                %load_ext Cython
 
-    cdef int alpha = 255
-    print alpha
-```
+    # Second cell:
+        %%cython -a
+        import cython
+        cimport cython
+
+        cdef int alpha = 255
+        print alpha
 
 If this is unsuccessful, try the following workarounds.
 
 If no python libraries are imported, define the compiler by adding the following statement:
-```
---compiler=mingw32
-```
+::
+
+    --compiler=mingw32
 
 Therefore, the line should read:
-```
-python pyprog.py build_ext --compiler=mingw32 --inplace
-```
+::
+    python pyprog.py build_ext --compiler=mingw32 --inplace
 This, however, does not solve the issue when using the pyximport method (see the tutorial).
 Alternatively, the following patch can be applied.
 
 **NOTE: This is untested.**
 
 Open the file pyximport/pyxbuild.py and add the four lines marked with "+" at the appropriate place.
-```diff
-diff -r 7fbe931e5ab7 pyximport/pyxbuild.py
---- a/pyximport/pyxbuild.py Wed Sep 16 15:50:00 2009 +0200
-+++ b/pyximport/pyxbuild.py Fri Sep 18 12:39:51 2009 -0300
-@@ -55,6 +55,11 @@
-build = dist.get_command_obj('build')
-build.build_base = pyxbuild_dir
+::
 
-+ config_files = dist.find_config_files()
-+ try: config_files.remove('setup.cfg')
-+ except ValueError: pass
-+ dist.parse_config_files(config_files)
-+
-try:
-ok = dist.parse_command_line()
-except DistutilsArgError:
-```
+    diff -r 7fbe931e5ab7 pyximport/pyxbuild.py
+    --- a/pyximport/pyxbuild.py Wed Sep 16 15:50:00 2009 +0200
+    +++ b/pyximport/pyxbuild.py Fri Sep 18 12:39:51 2009 -0300
+    @@ -55,6 +55,11 @@
+    build = dist.get_command_obj('build')
+    build.build_base = pyxbuild_dir
+
+    + config_files = dist.find_config_files()
+    + try: config_files.remove('setup.cfg')
+    + except ValueError: pass
+    + dist.parse_config_files(config_files)
+    +
+    try:
+    ok = dist.parse_command_line()
+    except DistutilsArgError:
 
 Finally, if this does not work, create a file called "pydistutils.cfg" in notepad and give it
 the contents:
-```ini
-[build_ext]
-compiler=mingw32
-```
+::
+    [build_ext]
+    compiler=mingw32
 Save this to the home directory, which can be found by typing at the command
 prompt:
-```python
-import os
-os.path.expanduser('~')
-```
+::
+
+    import os
+    os.path.expanduser('~')
 
 Explanations
 ============
