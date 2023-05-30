@@ -1,2 +1,2 @@
-cdef float cube(float x):
+cdef api float cube(float x):
     return x * x * x
