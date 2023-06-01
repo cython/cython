@@ -1,4 +1,5 @@
-#tag: numpy
+# mode: run
+# tag: numpy, gh5411
 
 import pickle
 import numpy as np
