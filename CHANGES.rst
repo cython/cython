@@ -2,6 +2,29 @@
 Cython Changelog
 ================
 
+3.0.0 beta 4 (2023-0?-??)
+=========================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* The Python implementation of ``cimport cython.cimports…`` could raise an ``ImportError``
+  instead of an ``AttributeError`` when looking up package variable names.
+  Patch by Matti Picus.  (Github issue :issue:`5411`)
+
+* Some C compiler warnings and errors in CPython 3.12 were resolved.
+
+* A compile error when using ``__debug__`` was resolved.
+
+Other changes
+-------------
+
+* The FAQ page was moved from the GitHub Wiki to the regular documentation.
+
+
 3.0.0 beta 3 (2023-05-24)
 =========================
 
