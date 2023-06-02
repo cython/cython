@@ -28,7 +28,7 @@ Contents:
    numpy_pythran
    nogil
    troubleshooting
-   FAQ <faq>
+   faq
 
 Indices and tables
 ------------------
