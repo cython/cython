@@ -595,12 +595,12 @@ Coercion to NumPy
 Memoryview (and array) objects can be coerced to a NumPy ndarray, without having
 to copy the data. You can e.g. do::
 
-    cimport numpy as np
+    cimport numpy as cnp
     import numpy as np
 
-    numpy_array = np.asarray(<np.int32_t[:10, :10]> my_pointer)
+    numpy_array = np.asarray(<cnp.int32_t[:10, :10]> my_pointer)
 
-Of course, you are not restricted to using NumPy's type (such as ``np.int32_t``
+Of course, you are not restricted to using NumPy's type (such as ``cnp.int32_t``
 here), you can use any usable type.
 
 None Slices
