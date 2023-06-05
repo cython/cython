@@ -6,24 +6,27 @@ import numpy as np
 
 # "cimport" is used to import special compile-time information
 # about the numpy module (this is stored in a file numpy.pxd which is
-# currently part of the Cython distribution).
-cimport numpy as np
+# distributed with Numpy).
+# Here we've used the name "cnp" to make it easier to understand what
+# comes from the cimported module and what comes from the imported module,
+# however you can use the same name for both if you wish.
+cimport numpy as cnp
 
 # It's necessary to call "import_array" if you use any part of the
 # numpy PyArray_* API. From Cython 3, accessing attributes like
 # ".shape" on a typed Numpy array use this API. Therefore we recommend
 # always calling "import_array" whenever you "cimport numpy"
-np.import_array()
+cnp.import_array()
 
 # We now need to fix a datatype for our arrays. I've used the variable
 # DTYPE for this, which is assigned to the usual NumPy runtime
 # type info object.
-DTYPE = np.int
+DTYPE = np.int64
 
 # "ctypedef" assigns a corresponding compile-time type to DTYPE_t. For
 # every type in the numpy module there's a corresponding compile-time
 # type with a _t-suffix.
-ctypedef np.int_t DTYPE_t
+ctypedef cnp.int64_t DTYPE_t
 
 # "def" can type its arguments but not have a return type. The type of the
 # arguments for a "def" function is checked at run-time when entering the
@@ -33,7 +36,7 @@ ctypedef np.int_t DTYPE_t
 # this has is to a) insert checks that the function arguments really are
 # NumPy arrays, and b) make some attribute access like f.shape[0] much
 # more efficient. (In this example this doesn't matter though.)
-def naive_convolve(np.ndarray f, np.ndarray g):
+def naive_convolve(cnp.ndarray f, cnp.ndarray g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
     assert f.dtype == DTYPE and g.dtype == DTYPE
@@ -55,7 +58,7 @@ def naive_convolve(np.ndarray f, np.ndarray g):
     cdef int tmid = tmax // 2
     cdef int xmax = vmax + 2 * smid
     cdef int ymax = wmax + 2 * tmid
-    cdef np.ndarray h = np.zeros([xmax, ymax], dtype=DTYPE)
+    cdef cnp.ndarray h = np.zeros([xmax, ymax], dtype=DTYPE)
     cdef int x, y, s, t, v, w
 
     # It is very important to type ALL your variables. You do not get any
