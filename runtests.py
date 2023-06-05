@@ -515,7 +515,7 @@ VER_DEP_MODULES = {
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
     # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
-    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x),
+    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
 
 }
 
