@@ -1713,10 +1713,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # in Py3.4+, call tp_finalize() as early as possible
             code.putln("#if CYTHON_USE_TP_FINALIZE")
             if needs_gc:
-                finalised_check = '!_PyGC_FINALIZED(o)'
+                finalised_check = '!PyObject_GC_IsFinalized(o)'
             else:
                 finalised_check = (
-                    '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
+                    '(!PyType_IS_GC(Py_TYPE(o)) || !PyObject_GC_IsFinalized(o))')
             code.putln(
                 "if (unlikely("
                 "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
