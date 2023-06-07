@@ -15,7 +15,7 @@ Do I need to rename my ``.py`` file to ``.pyx``?
 
 **Answer**: No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
 
-But you can use Cython's :ref:`pure Python mode <pure-mode>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
+But you can use Cython's :ref:`pure Python mode <pure-mode>` to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
 
 For cases where no interaction with external C libraries is required, this is also the recommended way to type your code, since sticking to .py files with regular Python syntax keeps the whole range of debugging, linting, formatting, profiling etc. tools for Python code available for your software development needs, which usually cannot handle the syntax of .pyx files.
 
