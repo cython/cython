@@ -15,7 +15,7 @@ Do I need to rename my ``.py`` file to ``.pyx``?
 
 **Answer**: No. Cython can compile both .py and .pyx files. The difference is that the extended Cython syntax (``cdef …``) is only available in Cython .pyx files and not in Python .py files.
 
-But you can use Cython's `pure Python mode <pure-mode>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
+But you can use Cython's :ref:`pure Python mode <pure-mode>`_ to provide type declarations for the compilation, including Python's PEP-484 syntax for type hints.
 
 For cases where no interaction with external C libraries is required, this is also the recommended way to type your code, since sticking to .py files with regular Python syntax keeps the whole range of debugging, linting, formatting, profiling etc. tools for Python code available for your software development needs, which usually cannot handle the syntax of .pyx files.
 
@@ -40,7 +40,7 @@ Can I call my Python code from C?
 How do I interface numpy arrays using Cython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: Follow the `example <numpy_tutorial>`_.
+**Answer**: Follow the :ref:`example <numpy_tutorial>`.
 
 ----------
 
@@ -96,7 +96,7 @@ C type available for Unicode strings, but Cython can automatically convert
 (encode/decode) from and to encoded C/C++ strings (``char*`` /
 ``std::string``).
 
-See the `string tutorial <string_tutorial>`_.
+See the :ref:`string tutorial <string_tutorial>`.
 
 
 How do I ...?
@@ -105,7 +105,7 @@ How do I ...?
 How do I pickle cdef classes?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: See `the documentation <auto_pickle>`_.
+**Answer**: See :ref:`the documentation <auto_pickle>`.
 
 ----------
 
@@ -213,7 +213,7 @@ that it will count the number of characters up to the first 0 byte. Similarly,
 ``(char*).decode(...)`` is optimised into a C-API call, and applying it to
 sliced ``char*`` values will skip the length counting step.
 
-See the `string tutorial <string_tutorial>`_.
+See the :ref:`string tutorial <string_tutorial>`.
 
 For other Python operations on ``char*``, the generated code may be
 inefficient, as a temporary object may have to get created. If you notice this
@@ -283,7 +283,7 @@ you must write
         global data
         data = malloc(n * sizeof(int))
 
-See http://docs.python.org/tutorial/classes.html#python-scopes-and-name-spaces
+See http://docs.python.org/tutorial/classes.html#python-scopes-and-namespaces
 for more details.
 
 ----------
@@ -336,7 +336,7 @@ That means that the following should work:
 How do I pass string buffers that may contain 0 bytes to Cython?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Answer**: See the `string tutorial <string_tutorial>`_.
+**Answer**: See the :ref:`string tutorial <string_tutorial>`.
 
 You need to use either a Python byte string object or a char*/length pair of
 variables.
@@ -379,7 +379,7 @@ unicode string like this:
 How do I pass a Python string parameter on to a C library?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-See the `string tutorial <string_tutorial>`_.
+See the `string tutorial <string_tutorial>`.
 
 **Answer**: It depends on the semantics of the string. Imagine you have this C function:
 
@@ -467,7 +467,7 @@ The magic is the ``--embed`` option, which embeds a copy of the Python interpret
 main in the generated C.  You'll want to change ``'foobar'`` to reflect the name of
 your script, of course, and ``PYVERSION`` as appropriate.
 
-More details can be found `here <embedding>`_.
+More details can be found :ref:`in the embedding documentation <embedding>`.
 
 ----------
 
