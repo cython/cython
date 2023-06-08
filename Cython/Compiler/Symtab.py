@@ -357,8 +357,6 @@ class Scope(object):
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
-    # scope_predefined_names  list of str   Class variable containing special names defined by
-    #                                      this type of scope (e.g. __builtins__, __qualname__)
 
     is_builtin_scope = 0
     is_py_class_scope = 0
@@ -378,7 +376,6 @@ class Scope(object):
     nogil = 0
     fused_to_specific = None
     return_type = None
-    scope_predefined_names = []
     # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
     in_c_type_context = True
 
@@ -415,8 +412,6 @@ class Scope(object):
         self.buffer_entries = []
         self.lambda_defs = []
         self.id_counters = {}
-        for var_name in self.scope_predefined_names:
-            self.declare_var(EncodedString(var_name), py_object_type, pos=None)
 
     def __deepcopy__(self, memo):
         return self
@@ -1213,7 +1208,7 @@ class BuiltinScope(Scope):
                              objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
         name = EncodedString(name)
         type = type_class(name, cname, objstruct_cname)
-        scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
+        scope = CClassScope(name, outer_scope=None, visibility='extern')
         scope.directives = {}
         if name == 'bool':
             type.is_final_type = True
@@ -1275,10 +1270,6 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
-    scope_predefined_names = [
-        '__builtins__', '__name__', '__file__', '__doc__', '__path__',
-        '__spec__', '__loader__', '__package__', '__cached__',
-    ]
 
     def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
@@ -1307,6 +1298,9 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
+        for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
+                         '__spec__', '__loader__', '__package__', '__cached__']:
+            self.declare_var(EncodedString(var_name), py_object_type, None)
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
@@ -1694,8 +1688,7 @@ class ModuleScope(Scope):
         if not type.scope:
             if defining or implementing:
                 scope = CClassScope(name = name, outer_scope = self,
-                    visibility=visibility,
-                    parent_type=type)
+                    visibility = visibility)
                 scope.directives = self.directives.copy()
                 if base_type and base_type.scope:
                     scope.declare_inherited_c_attributes(base_type.scope)
@@ -2150,8 +2143,6 @@ class ClassScope(Scope):
     #                          declared in the class
     #  doc    string or None   Doc string
 
-    scope_predefined_names = ['__module__', '__qualname__']
-
     def mangle_class_private_name(self, name):
         # a few utilitycode names need to specifically be ignored
         if name and name.lower().startswith("__pyx_"):
@@ -2261,21 +2252,13 @@ class CClassScope(ClassScope):
     defined = False
     implemented = False
 
-    def __init__(self, name, outer_scope, visibility, parent_type):
+    def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
         self.property_entries = []
         self.inherited_var_entries = []
-        self.parent_type = parent_type
-        # Usually parent_type will be an extension type and so the typeptr_cname
-        # can be used to calculate the namespace_cname. Occassionally other types
-        # are used (e.g. numeric/complex types) and in these cases the typeptr
-        # isn't relevant.
-        if ((parent_type.is_builtin_type or parent_type.is_extension_type)
-                and parent_type.typeptr_cname):
-            self.namespace_cname = "(PyObject *)%s" % parent_type.typeptr_cname
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
@@ -2429,6 +2412,7 @@ class CClassScope(ClassScope):
             # xxx: is_pyglobal changes behaviour in so many places that I keep it in for now.
             # is_member should be enough later on
             entry.is_pyglobal = 1
+            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
             return entry
 

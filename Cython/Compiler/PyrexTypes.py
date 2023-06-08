@@ -735,9 +735,9 @@ class MemoryViewSliceType(PyrexType):
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
                     None,
-                    visibility='extern',
-                    parent_type=self)
+                    visibility='extern')
 
+            scope.parent_type = self
             scope.directives = {}
 
             scope.declare_var('_data', c_char_ptr_type, None,
@@ -1732,9 +1732,8 @@ class PythranExpr(CType):
         if self.scope is None:
             from . import Symtab
             # FIXME: fake C scope, might be better represented by a struct or C++ class scope
-            self.scope = scope = Symtab.CClassScope(
-                '', None, visibility="extern", parent_type=self
-            )
+            self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
+            scope.parent_type = self
             scope.directives = {}
 
             scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
@@ -1986,8 +1985,8 @@ class CNumericType(CType):
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
-                    visibility="extern",
-                    parent_type=self)
+                    visibility="extern")
+            scope.parent_type = self
             scope.directives = {}
             scope.declare_cfunction(
                     "conjugate",
@@ -2444,8 +2443,8 @@ class CComplexType(CNumericType):
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
-                    visibility="extern",
-                    parent_type=self)
+                    visibility="extern")
+            scope.parent_type = self
             scope.directives = {}
             scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
