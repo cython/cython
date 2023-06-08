@@ -2456,7 +2456,7 @@ class NameNode(AtomicExprNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
                 may_be_special_name = 0
-                if entry.scope.is_c_class_scope and entry.name in entry.scope.scope_predefined_names:
+                if entry.scope.is_c_class_scope and entry.name in entry.scope.special_class_names:
                     may_be_special_name = 1
                 code.putln(
                     '__Pyx_GetNameInClass(%s, %s, %s, %s); %s' % (

@@ -539,9 +539,6 @@ class Scope(object):
             elif self.is_cpp_class_scope and entries[name].is_inherited:
                 # Likewise ignore inherited classes.
                 pass
-            elif self.is_c_class_scope and name in self.scope_predefined_names:
-                # let these be overridden if a user really wants to
-                pass
             elif visibility == 'extern':
                 # Silenced outside of "cdef extern" blocks, until we have a safe way to
                 # prevent pxd-defined cpdef functions from ending up here.
@@ -2153,7 +2150,12 @@ class ClassScope(Scope):
     #                          declared in the class
     #  doc    string or None   Doc string
 
-    scope_predefined_names = ['__module__', '__qualname__']
+    # These names are available at the class scope. They're only declared
+    # when needed (to make it easier for users to override the names
+    # manually themselves).
+    # For C classes they also require a slightly different lookup mechanism
+    # because they aren't in the dictionary of the class object.
+    special_class_names = ['__module__', '__qualname__']
 
     def mangle_class_private_name(self, name):
         # a few utilitycode names need to specifically be ignored
@@ -2167,6 +2169,11 @@ class ClassScope(Scope):
         Scope.__init__(self, name, outer_scope, outer_scope)
         self.class_name = name
         self.doc = None
+
+    def declare_builtin(self, name, pos):
+        if name in self.special_class_names:
+            return self.declare_var(name, py_object_type, pos)
+        return super(ClassScope, self).declare_builtin(name, pos)
 
     def lookup(self, name):
         entry = Scope.lookup(self, name)
