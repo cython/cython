@@ -1277,7 +1277,7 @@ class ModuleScope(Scope):
     old_style_globals = 0
     scope_predefined_names = [
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
-        '__spec__', '__loader__', '__package__', '__cached__'
+        '__spec__', '__loader__', '__package__', '__cached__',
     ]
 
     def __init__(self, name, parent_module, context, is_package=False):
