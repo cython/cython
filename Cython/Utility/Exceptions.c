@@ -293,6 +293,13 @@ raise_error:
 #else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
+    printf("__Pyx_Raise0 ");
+    PyObject* c=PyException_GetContext(type);
+    if (c) {
+        PyObject_Print(c, stdout, 0);
+    }
+    printf("\n");
+
     PyObject* owned_instance = NULL;
     if (tb == Py_None) {
         tb = 0;
@@ -385,6 +392,9 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     }
 
     PyErr_SetObject(type, value);
+    printf("__Pyx_Raise1 ");
+    PyObject_Print(PyException_GetContext(value), stdout, 0);
+    printf("\n");
 
     if (tb) {
       #if PY_VERSION_HEX >= 0x030C00A6
@@ -1025,6 +1035,16 @@ bad:
 static int __Pyx_ValidateStarCatchPattern(PyObject *pattern); /* proto */
 static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* proto */
 
+#if CYTHON_USE_OWN_PREP_RERAISE_STAR
+// Our implementation, in Cython utility code
+#define __Pyx_PyExc_PrepReraiseStar __Pyx__PyExc_PrepReraiseStar
+#else
+#define __Pyx_PyExc_PrepReraiseStar PyUnstable_Exc_PrepReraiseStar
+(void)__Pyx__PyExc_PrepReraiseStar;  // unused
+#endif
+
+static int __Pyx_RaisePreppedException(PyObject *exc); /* proto */
+
 /////////////////// ExceptStar ///////////////////////////////
 //@substitute: naming
 
@@ -1109,4 +1129,63 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
     // match is None and
     // current_exception remains the same
     return 0;
+}
+
+static int __Pyx_RaisePreppedException(PyObject *exc) {
+#if PY_VERSION_HEX >= 0x030C00A6
+    PyErr_SetRaisedException(exc);
+    return -1;
+#else
+    PyObject *traceback, *type;
+
+    traceback = PyException_GetTraceback(exc);
+    if (!traceback && unlikely(PyErr_Occurred())) goto bad;
+    printf("DWDWDW");
+    if (traceback) PyObject_Print(traceback, stdout, 0);
+    printf("\n");
+
+    type = (PyObject*)Py_TYPE(exc);
+    Py_INCREF(type);
+    Py_INCREF(exc);
+    PyErr_Restore((PyObject*)Py_TYPE(exc), exc, traceback);
+
+    bad:
+    return -1;
+
+    /*// We need to raise this exception while preserving the cause, context, traceback
+    PyObject *cause=NULL, *context=NULL, *traceback=NULL, *suppress_context=NULL;
+    PyObject *raised_tp=NULL, *raised=NULL, *unused_tb;
+
+    cause = PyException_GetCause(exc);
+    if (!cause && unlikely(PyErr_Occurred())) goto cleanup;
+    context = PyException_GetContext(exc);
+    if (!context && unlikely(PyErr_Occurred())) goto cleanup;
+    traceback = PyException_GetTraceback(exc);
+    if (!traceback && unlikely(PyErr_Occurred())) goto cleanup;
+    suppress_context = PyObject_GetAttrString(exc, "__suppress_context__");
+    if (!suppress_context) goto cleanup;
+
+
+    PyErr_SetObject(Py_TYPE(exc), exc);
+    PyErr_Fetch(&raised_tp, &raised, &unused_tb);
+    Py_XDECREF(unused_tb);
+
+
+    PyException_SetCause(raised, cause);
+    cause = NULL; // SetCause steals a reference
+    PyException_SetContext(raised, context);
+    context = NULL; // SetContext steals a reference
+    if (PyObject_SetAttrString(raised, "__suppress_context__", suppress_context)) goto cleanup;
+
+    PyErr_Restore(raised_tp, raised, traceback);
+
+    cleanup:
+    Py_XDECREF(cause);
+    Py_XDECREF(context);
+    Py_XDECREF(traceback);
+    Py_XDECREF(suppress_context);
+    Py_XDECREF(raised);
+    Py_XDECREF(raised_tp);
+    return -1;*/
+#endif
 }

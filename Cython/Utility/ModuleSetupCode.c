@@ -113,6 +113,9 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
+  #endif
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -174,6 +177,9 @@
   #define CYTHON_USE_EXC_INFO_STACK 0
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
+  #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
   #endif
 
 #elif defined(CYTHON_LIMITED_API)
@@ -237,6 +243,9 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
+  #endif
 
 #elif defined(PY_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -285,6 +294,9 @@
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
   #define CYTHON_USE_EXC_INFO_STACK 0
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR 1
+  #endif
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -384,6 +396,11 @@
   #endif
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
+  #endif
+  #ifndef CYTHON_USE_OWN_PREP_RERAISE_STAR
+    // Allow this to be overridden mainly to aid debugging of our internal
+    // implementation
+    #define CYTHON_USE_OWN_PREP_RERAISE_STAR (PY_VERSION_HEX < 0x030C00B2)
   #endif
 #endif
 

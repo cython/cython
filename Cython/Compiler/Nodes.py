@@ -8148,7 +8148,7 @@ class ExceptClauseNode(Node):
     exc_value = None
     excinfo_target = None
     is_except_as = False
-    add_traceback = False
+    add_traceback = True
 
     def analyse_declarations(self, env):
         if self.target:
@@ -8261,8 +8261,10 @@ class ExceptClauseNode(Node):
         exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
-        for var in exc_vars:
-            code.put_gotref(var, py_object_type)
+        for n, var in enumerate(exc_vars):
+            #code.putln('printf("%%p\\n", %s);' % var)
+            put_gotref = code.put_gotref if self.add_traceback or n!=2 else code.put_xgotref
+            put_gotref(var, py_object_type)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -8328,6 +8330,11 @@ class StarExceptHelperNode(StatListNode):
         PyrexTypes.py_object_type,
         [PyrexTypes.CFuncTypeArg("orig", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("excs", PyrexTypes.py_object_type, None),]
+    )
+    raise_prepped_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type,
+        [PyrexTypes.CFuncTypeArg("exc", PyrexTypes.py_object_type, None)],
+        exception_value="-1"
     )
 
     def __init__(self, pos, except_clauses):
@@ -8443,6 +8450,28 @@ class StarExceptHelperNode(StatListNode):
             args=[ExprNodes.CloneNode(self.original_exception_group), ExprNodes.CloneNode(self.exception_list)],
         )
 
+        # Add any unhandled exceptions to the list
+        self.stats.append(
+            ExprStatNode(
+                self.pos,
+                expr=ExprNodes.SimpleCallNode(
+                    self.pos,
+                    function=ExprNodes.AttributeNode(
+                        clause.pos, obj=ExprNodes.CloneNode(self.exception_list), attribute="append"
+                    ),
+                    args=[
+                        ExprNodes.CloneNode(self.in_progress_exception_group)
+                    ]
+                )
+            )
+        )
+
+        raise_prepped_exception = ExprNodes.PythonCapiCallNode(
+            self.pos, function_name="__Pyx_RaisePreppedException",
+            func_type=self.raise_prepped_type,
+            args=[wrapped_exception],
+        )
+
         self.stats.append(
             IfStatNode(
                 self.pos,
@@ -8452,14 +8481,8 @@ class StarExceptHelperNode(StatListNode):
                     body=StatListNode(
                         self.pos,
                         stats=[
-                            RaiseStatNode(
-                                self.pos,
-                                exc_type=wrapped_exception,
-                                exc_value=None,
-                                exc_tb=None,
-                                cause=ExprNodes.NoneNode(self.pos),
-                                add_pos_to_traceback=False,
-                            )
+                            ExprStatNode(
+                                self.pos, expr=raise_prepped_exception)
                         ]
                     )
                 )],
@@ -8512,7 +8535,7 @@ class StarExceptSetExceptionNode(StatNode):
         code.putln("%s = PyException_GetTraceback(%s);" % (vars[2], self.exception.result()))
         for v in vars[:2]:
             code.put_incref(v, PyrexTypes.py_object_type)
-        code.put_gotref(vars[2], PyrexTypes.py_object_type)
+        code.put_xgotref(vars[2], PyrexTypes.py_object_type)
 
 
 class StarExceptTestSetupNode(StatNode):
@@ -8554,11 +8577,18 @@ class StarExceptTestSetupNode(StatNode):
                 self.matched_exception_group.result()), self.pos))
             code.put_gotref(self.in_progress_exception_group.result(), py_object_type)
             code.put_gotref(self.matched_exception_group.result(), py_object_type)
-            p.generate_disposal_code(code)
-            p.free_temps(code)
+            # TODO debugging remove
+            code.putln('printf("AAAAA ");')
+            code.putln('PyObject_Print(%s, stdout, 0);' % self.matched_exception_group.result())
+            code.putln('printf(" ");')
+            code.putln('PyObject_Print(%s, stdout, 0);' % self.in_progress_exception_group.result())
+            code.putln('printf("\\n");')
             code.put("if (%s != Py_None)" % self.matched_exception_group.result())
             code.put_goto(match_result_found_label)
         code.put_label(match_result_found_label)
+        for p in self.pattern:
+            p.generate_disposal_code(code)
+            p.free_temps(code)
 
 
 class TryFinallyStatNode(StatNode):
