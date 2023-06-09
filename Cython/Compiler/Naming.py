@@ -130,6 +130,7 @@ enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
 error_without_exception_cname = pyrex_prefix + "error_without_exception"
+skip_add_traceback_cname = pyrex_prefix + "skip_add_traceback"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 quick_temp_cname = pyrex_prefix + "temp"  # temp variable for quick'n'dirty temping

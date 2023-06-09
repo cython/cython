@@ -741,6 +741,7 @@ class FunctionState(object):
         self.uses_error_indicator = False
 
         self.error_without_exception = False
+        self.has_except_star = False  # except * sometimes requires us not to add_tracebacks
 
     # safety checks
 
@@ -2544,8 +2545,15 @@ class CCodeWriter(object):
             Naming.filename_cname,
         )
 
+        if self.funcstate.has_except_star:
+            self.putln("if (!%s) {" % Naming.skip_add_traceback_cname)
+
         self.funcstate.uses_error_indicator = True
         self.putln('__Pyx_AddTraceback(%s, %s, %s, %s);' % format_tuple)
+
+        if self.funcstate.has_except_star:
+            self.putln("}")
+            self.putln("%s = 0;" % Naming.skip_add_traceback_cname)
 
     def put_unraisable(self, qualified_name, nogil=False):
         """

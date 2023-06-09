@@ -293,13 +293,6 @@ raise_error:
 #else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
-    printf("__Pyx_Raise0 ");
-    PyObject* c=PyException_GetContext(type);
-    if (c) {
-        PyObject_Print(c, stdout, 0);
-    }
-    printf("\n");
-
     PyObject* owned_instance = NULL;
     if (tb == Py_None) {
         tb = 0;
@@ -392,9 +385,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     }
 
     PyErr_SetObject(type, value);
-    printf("__Pyx_Raise1 ");
-    PyObject_Print(PyException_GetContext(value), stdout, 0);
-    printf("\n");
 
     if (tb) {
       #if PY_VERSION_HEX >= 0x030C00A6
@@ -1140,9 +1130,6 @@ static int __Pyx_RaisePreppedException(PyObject *exc) {
 
     traceback = PyException_GetTraceback(exc);
     if (!traceback && unlikely(PyErr_Occurred())) goto bad;
-    printf("DWDWDW");
-    if (traceback) PyObject_Print(traceback, stdout, 0);
-    printf("\n");
 
     type = (PyObject*)Py_TYPE(exc);
     Py_INCREF(type);

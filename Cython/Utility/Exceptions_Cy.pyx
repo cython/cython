@@ -45,8 +45,6 @@ cdef split_into_same_metadata(original, list exceptions):
     cdef list same = []
     cdef list different = []
 
-    print(f"__Pyx_split_into_same_metadata here {original}")
-
     dummy_null = object()
 
     original_notes = get_notes(original, dummy_null)
@@ -55,7 +53,6 @@ cdef split_into_same_metadata(original, list exceptions):
     original_context = __Pyx_Safe_PyException_GetContext(original, dummy_null)
 
     for e in exceptions:
-        print(f"__Pyx_split_into_same_metadata {e}")
         if e is None:
             continue
         if (get_notes(e, dummy_null) is original_notes and
@@ -82,9 +79,7 @@ cdef get_leafs(keep):
 
 @cname("__Pyx_exception_group_projection")
 cdef exception_group_projection(orig, keep):
-    print(f"{keep=}")
     leafs = get_leafs(keep)
-    print(leafs)
 
     # BaseExceptionGroup.split requires an actual Python function - a Cython callable won't do
     func = eval("lambda x: id(x) in leafs", {'leafs': leafs})
@@ -92,9 +87,6 @@ cdef exception_group_projection(orig, keep):
 
 @cname("__Pyx__PyExc_PrepReraiseStar")
 cdef prep_reraise_star(orig, excs):
-    print(f"__Pyx__PyExc_PrepReraiseStar {orig=}, {excs=}")
-    print(f"{orig.__context__=}")
-    print(f"{excs[0].__context__=}")
     cdef list reraised, raised
     if not excs:
         return None
@@ -102,18 +94,11 @@ cdef prep_reraise_star(orig, excs):
         assert len(excs) == 1 or len(excs) == 2 and excs[1] is None
         return excs[0]
     reraised, raised = split_into_same_metadata(orig, excs)
-    print(f"XXXXX {reraised=} {raised=}")
     reraised_eg = exception_group_projection(orig, reraised)
-    print(f"XXXXX2 {reraised_eg=}")
     if not raised:
-        print(f"__Pyx__PyExc_PrepReraiseStar2a {reraised_eg}")
-        print(f"{reraised_eg.__context__=}")
-        print(f"{reraised_eg.__traceback__=}")
         return reraised_eg
     if reraised_eg is not None:
         raised.append(reraised_eg)
     if len(raised) > 1:
-        print(f"__Pyx__PyExc_PrepReraiseStar2b {reraised_eg}")
         return BaseExceptionGroup("", raised)
-    print(f"__Pyx__PyExc_PrepReraiseStar2c {raised[0]}")
     return raised[0]
