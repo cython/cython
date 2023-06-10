@@ -1038,7 +1038,7 @@ static int __Pyx_RaisePreppedException(PyObject *exc); /* proto */
 /////////////////// ExceptStar ///////////////////////////////
 //@substitute: naming
 
-static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
+static int __Pyx_ValidateStarCatchPatternElement(PyObject *pattern) {
     int is_subclass;
     if (!unlikely(PyExceptionClass_Check(pattern))) {
         // Note that Cython only asserts and doesn't validate this for regular except clauses
@@ -1055,6 +1055,21 @@ static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
     return 0;
 }
 
+static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
+    if (PyTuple_Check(pattern)) {
+        int i;
+        for (i=0; i<PyTuple_GET_SIZE(pattern); ++i) {
+            int result;
+            if ((result = __Pyx_ValidateStarCatchPatternElement(PyTuple_GET_ITEM(pattern, i)))) {
+                return result;
+            }
+        }
+        return 0;
+    } else {
+        return __Pyx_ValidateStarCatchPatternElement(pattern);
+    }
+}
+
 // Copied with slight modifications from exception_group_match in ceval.c in CPython
 // The main difference is that I combine the exc_value input argument and rest output argument into one
 static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_exception, PyObject **match) {
@@ -1065,11 +1080,12 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
 
     if (PyErr_GivenExceptionMatches(*current_exception, match_type)) {
         int is_eg = PyObject_IsInstance(*current_exception, PyExc_BaseExceptionGroup);
-        if (!is_eg) {
+        if (is_eg) {
+            if (unlikely(is_eg<0)) return -1;
+            *match = Py_NewRef(*current_exception);
+        } else {
             PyObject *wrapped;
             PyObject *call_args[2];
-
-            if (unlikely(is_eg<0)) return -1;
 
             /* naked exception - wrap it */
             call_args[0] = $empty_unicode;
@@ -1087,6 +1103,7 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
             Py_DECREF(*match);
             *match = wrapped;
         }
+
         Py_DECREF(*current_exception);
         *current_exception = Py_NewRef(Py_None);
         return 0;
@@ -1126,6 +1143,9 @@ static int __Pyx_RaisePreppedException(PyObject *exc) {
     PyErr_SetRaisedException(exc);
     return -1;
 #else
+    // Raise the exception but preserve all original traceback,
+    // avoid setting cause and context, etc.
+
     PyObject *traceback, *type;
 
     traceback = PyException_GetTraceback(exc);
@@ -1138,41 +1158,5 @@ static int __Pyx_RaisePreppedException(PyObject *exc) {
 
     bad:
     return -1;
-
-    /*// We need to raise this exception while preserving the cause, context, traceback
-    PyObject *cause=NULL, *context=NULL, *traceback=NULL, *suppress_context=NULL;
-    PyObject *raised_tp=NULL, *raised=NULL, *unused_tb;
-
-    cause = PyException_GetCause(exc);
-    if (!cause && unlikely(PyErr_Occurred())) goto cleanup;
-    context = PyException_GetContext(exc);
-    if (!context && unlikely(PyErr_Occurred())) goto cleanup;
-    traceback = PyException_GetTraceback(exc);
-    if (!traceback && unlikely(PyErr_Occurred())) goto cleanup;
-    suppress_context = PyObject_GetAttrString(exc, "__suppress_context__");
-    if (!suppress_context) goto cleanup;
-
-
-    PyErr_SetObject(Py_TYPE(exc), exc);
-    PyErr_Fetch(&raised_tp, &raised, &unused_tb);
-    Py_XDECREF(unused_tb);
-
-
-    PyException_SetCause(raised, cause);
-    cause = NULL; // SetCause steals a reference
-    PyException_SetContext(raised, context);
-    context = NULL; // SetContext steals a reference
-    if (PyObject_SetAttrString(raised, "__suppress_context__", suppress_context)) goto cleanup;
-
-    PyErr_Restore(raised_tp, raised, traceback);
-
-    cleanup:
-    Py_XDECREF(cause);
-    Py_XDECREF(context);
-    Py_XDECREF(traceback);
-    Py_XDECREF(suppress_context);
-    Py_XDECREF(raised);
-    Py_XDECREF(raised_tp);
-    return -1;*/
 #endif
 }

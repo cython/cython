@@ -8345,6 +8345,7 @@ class StarExceptHelperNode(StatListNode):
         self.matched_exception_group = ExprNodes.PyTempNode(self.pos, None)
         self.exception_list = ExprNodes.TempNode(self.pos, Builtin.list_type)
         self.exception_list.may_be_none = lambda: False
+        self.internal_exception_set = ExprNodes.PyTempNode(self.pos, None)
 
         for clause in except_clauses:
             append_to_list = ExprStatNode(
@@ -8373,6 +8374,7 @@ class StarExceptHelperNode(StatListNode):
                 pattern=clause.pattern,
                 in_progress_exception_group=self.in_progress_exception_group,
                 matched_exception_group=self.matched_exception_group,
+                internal_exception_set=self.internal_exception_set,
             )
 
             this_clause_stats = [
@@ -8440,49 +8442,15 @@ class StarExceptHelperNode(StatListNode):
 
             self.stats.append(try_except)
 
-        # Add any unhandled exceptions to the list
-        """self.stats.append(
-            ExprStatNode(
-                self.pos,
-                expr=ExprNodes.SimpleCallNode(
-                    self.pos,
-                    function=ExprNodes.AttributeNode(
-                        clause.pos, obj=ExprNodes.CloneNode(self.exception_list), attribute="append"
-                    ),
-                    args=[
-                        ExprNodes.CloneNode(self.in_progress_exception_group)
-                    ]
-                )
-            )
-        )"""
-
         self.stats.append(
             StarExceptPrepAndReraiseNode(
                 self.pos,
                 exception_list=self.exception_list,
                 original_exception_group=self.original_exception_group,
                 in_progress_exception_group=self.in_progress_exception_group,
+                internal_exception_set=self.internal_exception_set
             )
         )
-
-        """IfStatNode(
-                self.pos,
-                if_clauses = [IfClauseNode(
-                    self.pos,
-                    condition=ExprNodes.CloneNode(self.exception_list),
-                    body=StatListNode(
-                        self.pos,
-                        stats=[
-                            StarExceptRaisePreppedNode(
-                                self.pos,
-
-                            ExprStatNode(
-                                self.pos, expr=raise_prepped_exception)
-                        ]
-                    )
-                )],
-                else_clause=None
-            )"""
 
     def analyse_expressions(self, env):
         from .UtilityCode import CythonUtilityCode
@@ -8493,7 +8461,9 @@ class StarExceptHelperNode(StatListNode):
         # generates special code to skip "add_traceback"
         code.funcstate.has_except_star = True
 
-        temps = [self.in_progress_exception_group, self.original_exception_group, self.matched_exception_group, self.exception_list]
+        temps = [self.in_progress_exception_group, self.original_exception_group, 
+                 self.matched_exception_group, self.exception_list,
+                 self.internal_exception_set]
         for t in temps:
             t.allocate(code)
         code.putln("#if PY_VERSION_HEX < 0x030B0000")
@@ -8508,9 +8478,10 @@ class StarExceptHelperNode(StatListNode):
         ))
         code.put_incref(self.original_exception_group.result(), PyrexTypes.py_object_type)
         code.put_incref(self.in_progress_exception_group.result(), PyrexTypes.py_object_type)
+        code.putln("%s = NULL;" % self.internal_exception_set.result())
         super(StarExceptHelperNode, self).generate_execution_code(code)
         for t in temps:
-            if t is self.matched_exception_group:
+            if t is self.matched_exception_group or t is self.internal_exception_set:
                 code.put_xdecref_clear(t.result(), t.type)
             else:
                 code.put_decref_clear(t.result(), t.type)
@@ -8545,28 +8516,59 @@ class StarExceptTestSetupNode(StatNode):
             p.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.pattern = [ p.analyse_expressions(env) for p in self.pattern ]
+        self.pattern = [ 
+            p.analyse_expressions(env).coerce_to_pyobject(env) for p in self.pattern 
+        ]
         return self
+
+    def generate_set_internal_exception_code(self, code):
+        # if we do hit an error, it doesn't override "internal exception set"
+        code.putln("if (!%s) {" % self.internal_exception_set.result())
+        code.putln("#if Py_VERSION_HEX >= 0x030C00A6")
+        code.putln("%s = PyErr_GetRaisedException();" % self.internal_exception_set.result())
+        code.put_incref(self.internal_exception_set.result(), PyrexTypes.py_object_type)
+        code.putln("PyErr_SetRaisedException(%s);" % self.internal_exception_set.result())
+        code.putln("#else")
+        code.putln("PyObject *tp, *tb;")
+        code.putln("PyErr_Fetch(&tp, &%s, &tb);" % self.internal_exception_set.result())
+        code.put_incref(self.internal_exception_set.result(), PyrexTypes.py_object_type)
+        code.putln("PyErr_Restore(tp, %s, tb);" % self.internal_exception_set.result())
+        code.putln("#endif")
+        code.putln("}")
     
     def generate_execution_code(self, code):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ExceptStar", "Exceptions.c")
         )
 
+        match_result_found_label = code.new_label()
+
+        # an exception handling block we can jump into in the event of an error
+        # while validating/matching this exception
+        code.putln("if ((0)) {")
+        code.putln("/* handle exception in validation/matching of the exception group */")
+        set_internal_exception_label = code.new_label()
+        code.use_label(set_internal_exception_label)
+        code.put_label(set_internal_exception_label)
+        self.generate_set_internal_exception_code(code)
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
+
         for p in self.pattern:
             p.generate_evaluation_code(code)
-            code.putln(code.error_goto_if("__Pyx_ValidateStarCatchPattern(%s)" % 
-                        p.result_as(py_object_type), self.pos))
-        match_result_found_label = code.new_label()
+            code.putln("if (__Pyx_ValidateStarCatchPattern(%s)) {" % 
+                        p.result_as(py_object_type))
+            code.put_goto(set_internal_exception_label)
+            code.putln("}")
 
         # if the in progress exception is None (i.e. it's already been handled, completely),
         # then it definitely won't match any of the patterns, so skip
         code.put_xdecref_set(self.matched_exception_group.result(),
                         self.matched_exception_group.type, "Py_None")
         code.put_incref("Py_None", py_object_type)
-        code.putln("if (%s == Py_None) {" % self.in_progress_exception_group.result())
+
+        code.put("if (%s == Py_None) " % self.in_progress_exception_group.result())
         code.put_goto(match_result_found_label)
-        code.putln("}")
 
         exception_test_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         if len(self.pattern) == 1:
@@ -8575,12 +8577,13 @@ class StarExceptTestSetupNode(StatNode):
             code.put_incref(exception_test_temp, py_object_type)
         else:
             tuple_parts = [p.result_as(py_object_type) for p in self.pattern]
-            code.putln("%s = PyTuple_Pack(%s, %s); %s" % (
+            code.putln("%s = PyTuple_Pack(%s, %s);" % (
                 exception_test_temp,
                 len(tuple_parts),
-                ", ".join(tuple_parts),
-                code.error_goto_if_null(exception_test_temp, self.pos)
+                ", ".join(tuple_parts)
             ))
+            code.put("if (unlikely(!%s)) " % exception_test_temp)
+            code.put_goto(set_internal_exception_label)
             code.put_gotref(exception_test_temp, py_object_type)
 
         code.put_xgiveref(self.in_progress_exception_group.result(), py_object_type)
@@ -8595,7 +8598,8 @@ class StarExceptTestSetupNode(StatNode):
         code.put_gotref(self.matched_exception_group.result(), py_object_type)
         code.put_decref_clear(exception_test_temp, py_object_type)
         code.funcstate.release_temp(exception_test_temp)
-        code.putln(code.error_goto_if(group_match_failed_temp, self.pos))
+        code.put("if (unlikely(%s)) " % group_match_failed_temp)
+        code.put_goto(set_internal_exception_label)
         code.funcstate.release_temp(group_match_failed_temp)
         
         code.put_label(match_result_found_label)
@@ -8611,6 +8615,14 @@ class StarExceptPrepAndReraiseNode(StatNode):
         return self
     
     def generate_execution_code(self, code):
+        # If we've had an internal exception while validating/matching one of the star exceptions
+        # this takes precendence
+        code.putln("if (unlikely(%s)) {" % self.internal_exception_set.result())
+        code.putln("__Pyx_RaisePreppedException(%s);" % self.internal_exception_set.result())
+        code.put_decref_clear(self.internal_exception_set.result(), PyrexTypes.py_object_type)
+        code.putln(code.error_goto(None))
+        code.putln("}")
+
         code.putln("if (PyList_GET_SIZE(%s) || %s != Py_None) {" % (
             self.exception_list.py_result(),
             self.in_progress_exception_group.result()))
