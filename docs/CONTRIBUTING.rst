@@ -21,4 +21,4 @@ If you have code that you want to contribute, please make sure that it
 * includes tests in the ``tests/`` directory (see the `Hacker Guide on Testing <https://github.com/cython/cython/wiki/HackerGuide#the-test-suite>`_)
 * comes in form of a pull request
 
-We use `github actions <https://github.com/cython/cython/actions>`_, `travis <https://travis-ci.org/cython/cython>`_ and `appveyor <https://ci.appveyor.com/project/cython/cython>`_ for cross-platform testing, including pull requests.
+We use `github actions <https://github.com/cython/cython/actions>`_ for cross-platform testing, including pull requests.

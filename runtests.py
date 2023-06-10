@@ -71,6 +71,12 @@ except NameError:
 
 WITH_CYTHON = True
 
+try:
+    # Py3.12+ doesn't have distutils any more and requires setuptools to provide it.
+    import setuptools
+except ImportError:
+    pass
+
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
 _to_clean = []
@@ -508,6 +514,8 @@ VER_DEP_MODULES = {
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
+    # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
+    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
 
 }
 

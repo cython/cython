@@ -237,7 +237,7 @@ class UtilityCodeBase(object):
         [definitions]
 
         ##### MyUtility #####
-        #@subsitute: tempita
+        #@substitute: tempita
 
         [requires tempita substitution
          - context can't be specified here though so only

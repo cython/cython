@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.0.0b3"
+__version__ = "3.0.0rc1.dev0"
 
 try:
     from __builtin__ import basestring
@@ -551,7 +551,6 @@ class CythonDotImportedFromElsewhere(object):
         sys.modules['cython.%s' % self.__name__] = mod
         return getattr(mod, attr)
 
-
 class CythonCImports(object):
     """
     Simplistic module mock to make cimports sort-of work in Python code.
@@ -565,7 +564,14 @@ class CythonCImports(object):
     def __getattr__(self, item):
         if item.startswith('__') and item.endswith('__'):
             raise AttributeError(item)
-        return __import__(item)
+        try:
+            return __import__(item)
+        except ImportError:
+            import sys
+            ex = AttributeError(item)
+            if sys.version_info >= (3, 0):
+                ex.__cause__ = None
+            raise ex
 
 
 import math, sys

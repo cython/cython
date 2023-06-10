@@ -144,13 +144,13 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #define __Pyx_PyLong_IsZero(x)  (__Pyx_PyLong_Sign(x) & 1)
   #define __Pyx_PyLong_IsPos(x)  (__Pyx_PyLong_Sign(x) == 0)
   #define __Pyx_PyLong_CompactValueUnsigned(x)  (__Pyx_PyLong_Digits(x)[0])
-  #define __Pyx_PyLong_DigitCount(x)  (((PyLongObject*)x)->long_value.lv_tag >> _PyLong_NON_SIZE_BITS)
+  #define __Pyx_PyLong_DigitCount(x)  ((Py_ssize_t) (((PyLongObject*)x)->long_value.lv_tag >> _PyLong_NON_SIZE_BITS))
   #define __Pyx_PyLong_SignedDigitCount(x)  \
-        ((1 - (Py_ssize_t) __Pyx_PyLong_Sign(x)) * (Py_ssize_t) __Pyx_PyLong_DigitCount(x))
+        ((1 - (Py_ssize_t) __Pyx_PyLong_Sign(x)) * __Pyx_PyLong_DigitCount(x))
 
   #if defined(PyUnstable_Long_IsCompact) && defined(PyUnstable_Long_CompactValue)
-    #define __Pyx_PyLong_IsCompact(x)     PyUnstable_Long_IsCompact(x)
-    #define __Pyx_PyLong_CompactValue(x)  PyUnstable_Long_CompactValue(x)
+    #define __Pyx_PyLong_IsCompact(x)     PyUnstable_Long_IsCompact((PyLongObject*) x)
+    #define __Pyx_PyLong_CompactValue(x)  PyUnstable_Long_CompactValue((PyLongObject*) x)
   #else
     #define __Pyx_PyLong_IsCompact(x)     (((PyLongObject*)x)->long_value.lv_tag < (2 << _PyLong_NON_SIZE_BITS))
     #define __Pyx_PyLong_CompactValue(x)  ((1 - (Py_ssize_t) __Pyx_PyLong_Sign(x)) * (Py_ssize_t) __Pyx_PyLong_Digits(x)[0])

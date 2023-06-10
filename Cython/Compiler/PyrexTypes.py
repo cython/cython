@@ -4072,7 +4072,7 @@ class CppClassType(CType):
             # elements (which may be bit-packed).
             # http://www.cplusplus.com/reference/vector/vector-bool/
             # Here we pretend that the various methods return bool values
-            # (as the actual returned values are coercable to such, and
+            # (as the actual returned values are coercible to such, and
             # we don't support call expressions as lvalues).
             T = values.get(self.templates[0], None)
             if T and not T.is_fused and T.empty_declaration_code() == 'bool':
