@@ -6859,15 +6859,12 @@ class RaiseStatNode(StatNode):
     #
     # set in FlowControl
     #  in_try_block  bool
-    #
-    #  add_pos_to_traceback  bool  can be used internally to hide position in traceback
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
     is_terminator = True
     builtin_exc_name = None
     wrap_tuple_value = False
     in_try_block = False
-    add_pos_to_traceback = True
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -6959,7 +6956,7 @@ class RaiseStatNode(StatNode):
                 obj.generate_disposal_code(code)
                 obj.free_temps(code)
         code.putln(
-            code.error_goto(self.pos if self.add_pos_to_traceback else None))
+            code.error_goto(self.pos))
 
     def generate_function_definitions(self, env, code):
         if self.exc_type is not None:

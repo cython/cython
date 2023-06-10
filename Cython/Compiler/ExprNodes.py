@@ -14675,21 +14675,3 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
-
-
-class BaseExceptionGroupNode(AtomicExprNode):
-    # convenience node to ensure that the parser doesn't have to
-    # look up the name 'BaseExceptionGroup' and worry about what
-    # scope it's found in
-    type = type_type
-
-    def analyse_types(self, env):
-        # Just replace with an appropriately looked up NameNode
-        entry = env.builtin_scope().lookup('BaseExceptionGroup')
-        nn = NameNode(
-            self.pos,
-            name='BaseExceptionGroup',
-            type=entry.type,
-            entry=entry
-        )
-        return nn.analyse_types(env)
