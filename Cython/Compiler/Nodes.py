@@ -8651,36 +8651,6 @@ class StarExceptPrepAndReraiseNode(StatNode):
         code.funcstate.release_temp(to_reraise)
         code.putln("}")
 
-    """
-    prep_star_type = PyrexTypes.CFuncType(
-    PyrexTypes.py_object_type,
-        [PyrexTypes.CFuncTypeArg("orig", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("excs", PyrexTypes.py_object_type, None),]
-    )
-    raise_prepped_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_int_type,
-        [PyrexTypes.CFuncTypeArg("exc", PyrexTypes.py_object_type, None)]
-        exception_value="-1"
-    )
-
-    # unfortunately it doesn't seem possible to do this without
-        # using this internal API (or reimplementing a lot)
-        wrapped_exception = ExprNodes.PythonCapiCallNode(
-            self.pos, function_name="__Pyx_PyExc_PrepReraiseStar",
-            func_type=self.prep_star_type,
-            args=[ExprNodes.CloneNode(self.original_exception_group), ExprNodes.CloneNode(self.exception_list)],
-        )
-
-    # pos is None to avoid adding a traceback
-        raise_prepped_exception = ExprNodes.PythonCapiCallNode(
-            None, function_name="__Pyx_RaisePreppedException",
-            func_type=self.raise_prepped_type,
-            args=[wrapped_exception],
-        )
-    """
-
-
-
 
 class TryFinallyStatNode(StatNode):
     #  try ... finally statement

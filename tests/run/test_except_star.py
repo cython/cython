@@ -1,3 +1,14 @@
+###### COPIED FROM CPython main branch June 2023
+
+# new code
+import cython
+from Cython.TestUtils import py_parse_code
+
+if cython.compiled:
+    def compile(code, name, what):
+        assert what == 'exec'
+        py_parse_code(code)
+
 # This is copied out of "support/testcase" just to avoid a dependency
 # on a module that's rarely installed
 class ExceptionIsLikeMixin:

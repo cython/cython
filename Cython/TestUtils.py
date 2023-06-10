@@ -12,9 +12,10 @@ from functools import partial
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
-from .Compiler.TreeFragment import TreeFragment, strip_common_indent
+from .Compiler.TreeFragment import TreeFragment, strip_common_indent, StringParseContext
 from .Compiler.Visitor import TreeVisitor, VisitorTransform
 from .Compiler import TreePath
+from .Compiler.ParseTreeTransforms import PostParse
 
 
 class NodeTypeWriter(TreeVisitor):
@@ -179,15 +180,9 @@ _strip_c_comments = partial(re.compile(
 
 _strip_cython_code_from_html = partial(re.compile(
     re.sub(r'\s\s+', '', r'''
-    (?:
         <pre class=["'][^"']*cython\s+line[^"']*["']\s*>
         (?:[^<]|<(?!/pre))+
         </pre>
-    )|(?:
-        <style[^>]*>
-        (?:[^<]|<(?!/style))+
-        </style>
-    )
     ''')
 ).sub, '')
 
@@ -253,10 +248,9 @@ class TreeAssertVisitor(VisitorTransform):
                         "Expected path '%s' not found in result tree" % path)
         if 'test_fail_if_path_exists' in directives:
             for path in directives['test_fail_if_path_exists']:
-                first_node = TreePath.find_first(node, path)
-                if first_node is not None:
+                if TreePath.find_first(node, path) is not None:
                     Errors.error(
-                        first_node.pos,
+                        node.pos,
                         "Unexpected path '%s' found in result tree" % path)
         if 'test_assert_c_code_has' in directives:
             self._c_patterns.extend(directives['test_assert_c_code_has'])
@@ -364,3 +358,28 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
         write_file(file_path, content, dedent=dedent, encoding=encoding)
+
+
+def py_parse_code(code):
+    """
+    Compiles code far enough to get errors from the parser and post-parse stage.
+
+    Is useful for checking for syntax errors, however it doesn't generate runable
+    code.
+    """
+    context = StringParseContext("test")
+    class DummyModuleNode(object):
+        child_attrs = []
+    post_parse = PostParse(context)
+    post_parse.visit_ModuleNode(DummyModuleNode())  # just enough to get scope variables set up
+    # all the errors we care about are in the parsing or postparse stage
+    try:
+        with Errors.local_errors() as errors:
+            result = TreeFragment(code, pipeline=[post_parse])
+            result = result.substitute()
+        if errors:
+            raise errors[0]  # compile error, which should get caught
+        else:
+            return result
+    except Errors.CompileError as e:
+        raise SyntaxError(e.message_only)

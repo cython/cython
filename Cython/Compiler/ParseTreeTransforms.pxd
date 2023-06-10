@@ -18,6 +18,7 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef dict specialattribute_handlers
     cdef size_t lambda_counter
     cdef size_t genexpr_counter
+    cdef except_star_validation_tracker
     cdef _visit_assignment_node(self, node, list expr_list)
 
 

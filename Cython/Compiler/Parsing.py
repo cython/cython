@@ -2054,7 +2054,7 @@ def p_try_statement(s):
             s.next()
             is_except_star = s.sy == '*'
             s.put_back(*saved)
-        
+
         except_clause_parser = p_except_star_clause if is_except_star else p_except_clause
         while s.sy == 'except':
             except_clauses.append(except_clause_parser(s))
@@ -2099,6 +2099,8 @@ def p_except_or_except_star_clause(s, is_except_star):
     s.next()
     if is_except_star:
         s.expect('*')
+    elif s.sy == '*':
+        s.error("cannot have both 'except' and 'except*' on the same 'try'")
     exc_type = None
     exc_value = None
     is_except_as = False
