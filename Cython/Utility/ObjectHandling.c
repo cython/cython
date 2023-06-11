@@ -194,11 +194,11 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     // We always do a quick slot check because calling PyIter_Check() is so wasteful.
     iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
     if (likely(iternext)) {
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
         next = iternext(iterator);
         if (likely(next))
             return next;
-        #if PY_VERSION_HEX >= 0x02070000
+        #if PY_VERSION_HEX >= 0x02070000 && CYTHON_COMPILING_IN_CPYTHON
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
         #endif

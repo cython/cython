@@ -18,7 +18,7 @@ memoryview_in_subclasses
 external_ref_reassignment
 run.exttype_dealloc
 
-# bugs in cpyext
+# bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
 run.special_methods_T561_py2
 
@@ -35,4 +35,3 @@ double_dealloc_T796
 run.exceptionrefcount
 run.capiimpl
 run.refcount_in_meth
-
