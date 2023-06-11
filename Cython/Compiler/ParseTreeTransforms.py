@@ -187,6 +187,8 @@ class PostParse(ScopeTrackingTransform):
     if a more pure Abstract Syntax Tree is wanted.
 
     - Some invalid uses of := assignment expressions are detected
+
+    - Validate that return, continue and break aren't in except*
     """
     def __init__(self, context):
         super(PostParse, self).__init__(context)
@@ -397,7 +399,11 @@ class PostParse(ScopeTrackingTransform):
         return self._track_node_for_except_star_validation(node)
 
     def visit_FuncDefNode(self, node):
-        return self._track_node_for_except_star_validation(node)
+        old_validation_tracker = self.except_star_validation_tracker
+        self.except_star_validation_tracker = node
+        node = super(PostParse, self).visit_FuncDefNode(node)
+        self.except_star_validation_tracker = old_validation_tracker
+        return node
 
     def visit_StarExceptHelperNode(self, node):
         return self._track_node_for_except_star_validation(node)
