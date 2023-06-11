@@ -385,7 +385,7 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
-    
+
     def _track_node_for_except_star_validation(self, node):
         old_validation_tracker = self.except_star_validation_tracker
         self.except_star_validation_tracker = node
@@ -395,26 +395,26 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_LoopNode(self, node):
         return self._track_node_for_except_star_validation(node)
-    
+
     def visit_FuncDefNode(self, node):
         return self._track_node_for_except_star_validation(node)
-    
+
     def visit_StarExceptHelperNode(self, node):
         return self._track_node_for_except_star_validation(node)
-    
+
     def _validate_break_return_continue_in_except_star(self, node):
         if isinstance(self.except_star_validation_tracker, Nodes.StarExceptHelperNode):
             # error message copied from Python 3.11
             raise PostParseError(node.pos, "'break', 'continue' and 'return' cannot appear in an except* block")
         self.visitchildren(node)
         return node
-    
+
     def visit_ReturnStatNode(self, node):
         return self._validate_break_return_continue_in_except_star(node)
 
     def visit_BreakStatNode(self, node):
         return self._validate_break_return_continue_in_except_star(node)
-    
+
     def visit_ContinueStatNode(self, node):
         return self._validate_break_return_continue_in_except_star(node)
 

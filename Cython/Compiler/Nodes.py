@@ -8458,7 +8458,7 @@ class StarExceptHelperNode(StatListNode):
         # generates special code to skip "add_traceback"
         code.funcstate.has_except_star = True
 
-        temps = [self.in_progress_exception_group, self.original_exception_group, 
+        temps = [self.in_progress_exception_group, self.original_exception_group,
                  self.matched_exception_group, self.exception_list,
                  self.internal_exception_set]
         for t in temps:
@@ -8513,8 +8513,8 @@ class StarExceptTestSetupNode(StatNode):
             p.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.pattern = [ 
-            p.analyse_expressions(env).coerce_to_pyobject(env) for p in self.pattern 
+        self.pattern = [
+            p.analyse_expressions(env).coerce_to_pyobject(env) for p in self.pattern
         ]
         return self
 
@@ -8532,7 +8532,7 @@ class StarExceptTestSetupNode(StatNode):
         code.putln("PyErr_Restore(tp, %s, tb);" % self.internal_exception_set.result())
         code.putln("#endif")
         code.putln("}")
-    
+
     def generate_execution_code(self, code):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ExceptStar", "Exceptions.c")
@@ -8553,7 +8553,7 @@ class StarExceptTestSetupNode(StatNode):
 
         for p in self.pattern:
             p.generate_evaluation_code(code)
-            code.putln("if (__Pyx_ValidateStarCatchPattern(%s)) {" % 
+            code.putln("if (__Pyx_ValidateStarCatchPattern(%s)) {" %
                         p.result_as(py_object_type))
             code.put_goto(set_internal_exception_label)
             code.putln("}")
@@ -8598,7 +8598,7 @@ class StarExceptTestSetupNode(StatNode):
         code.put("if (unlikely(%s)) " % group_match_failed_temp)
         code.put_goto(set_internal_exception_label)
         code.funcstate.release_temp(group_match_failed_temp)
-        
+
         code.put_label(match_result_found_label)
         for p in self.pattern:
             p.generate_disposal_code(code)
@@ -8610,7 +8610,7 @@ class StarExceptPrepAndReraiseNode(StatNode):
 
     def analyse_expressions(self, env):
         return self
-    
+
     def generate_execution_code(self, code):
         # If we've had an internal exception while validating/matching one of the star exceptions
         # this takes precendence
@@ -8631,7 +8631,7 @@ class StarExceptPrepAndReraiseNode(StatNode):
         code.putln("}")
         to_reraise = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
 
-        # What's slightly unclear here is how to handle exceptions raised during 
+        # What's slightly unclear here is how to handle exceptions raised during
         # PyExc_PrepReraiseStar. Ideally they shouldn't happen of course, but we can't
         # do the "right" thing and add them to the list of exceptions raised in the try-except*
         # and the prep those...

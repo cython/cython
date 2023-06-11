@@ -176,13 +176,6 @@ class MarkParallelAssignments(EnvTransform):
             self.mark_assignment(node.target, object_expr)
         self.visitchildren(node)
         return node
-    
-    def visit_ExceptStarClauseNode(self, node):
-        if node.target is not None:
-            from .Builtin import baseexceptiongroup_type
-            self.mark_assignment(node.target, TypedExprNode(baseexceptiongroup_type))
-        self.visitchildren(node)
-        return node
 
     def visit_FromCImportStatNode(self, node):
         return node  # Can't be assigned to...
