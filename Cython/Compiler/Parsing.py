@@ -2087,12 +2087,12 @@ def p_try_statement(s):
 
 
 def p_except_clause(s):
-    return p_except_or_except_star_clause(s, False)
+    return _p_except_or_except_star_clause(s, False)
 
 def p_except_star_clause(s):
-    return p_except_or_except_star_clause(s, True)
+    return _p_except_or_except_star_clause(s, True)
 
-def p_except_or_except_star_clause(s, is_except_star):
+def _p_except_or_except_star_clause(s, is_except_star):
     # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
