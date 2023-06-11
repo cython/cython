@@ -1030,10 +1030,9 @@ static int __Pyx_ExceptionGroupMatch(PyObject *, PyObject **, PyObject **); /* p
 #define __Pyx_PyExc_PrepReraiseStar __Pyx__PyExc_PrepReraiseStar
 #else
 #define __Pyx_PyExc_PrepReraiseStar PyUnstable_Exc_PrepReraiseStar
-(void)__Pyx__PyExc_PrepReraiseStar;  // unused
 #endif
 
-static int __Pyx_RaisePreppedException(PyObject *exc); /* proto */
+static void __Pyx_RaisePreppedException(PyObject *exc); /* proto */
 
 /////////////////// ExceptStar ///////////////////////////////
 //@substitute: naming
@@ -1138,10 +1137,9 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
     return 0;
 }
 
-static int __Pyx_RaisePreppedException(PyObject *exc) {
+static void __Pyx_RaisePreppedException(PyObject *exc) {
 #if PY_VERSION_HEX >= 0x030C00A6
     PyErr_SetRaisedException(exc);
-    return -1;
 #else
     // Raise the exception but preserve all original traceback,
     // avoid setting cause and context, etc.
@@ -1149,14 +1147,15 @@ static int __Pyx_RaisePreppedException(PyObject *exc) {
     PyObject *traceback, *type;
 
     traceback = PyException_GetTraceback(exc);
-    if (!traceback && unlikely(PyErr_Occurred())) goto bad;
+    if (!traceback && unlikely(PyErr_Occurred())) return;
 
     type = (PyObject*)Py_TYPE(exc);
     Py_INCREF(type);
     Py_INCREF(exc);
     PyErr_Restore((PyObject*)Py_TYPE(exc), exc, traceback);
-
-    bad:
-    return -1;
+#endif
+#if !CYTHON_USE_OWN_PREP_RERAISE_STAR
+    // Just a convenient place to avoid an "unused" warning
+    (void)&__Pyx__PyExc_PrepReraiseStar;
 #endif
 }

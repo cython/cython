@@ -8466,7 +8466,9 @@ class StarExceptHelperNode(StatListNode):
         code.putln("#if PY_VERSION_HEX < 0x030B0000")
         code.putln('#error "Starred exceptions require runtime support so only work on Python 3.11 or later"')
         code.putln("#endif")
-        code.put_error_if_neg(self.pos, "(%s = PyList_New(0))" % self.exception_list.result())
+        code.putln("%s = PyList_New(0); %s" % (
+            self.exception_list.result(),
+            code.error_goto_if_null(self.exception_list.result(), self.pos)))
         code.put_gotref(self.exception_list.result(), PyrexTypes.py_object_type)
         code.putln("%s = %s = %s;" % (
             self.original_exception_group.result(),
