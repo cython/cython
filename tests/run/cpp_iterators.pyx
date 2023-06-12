@@ -277,18 +277,17 @@ cdef extern from *:
     # TODO: support make_shared[const int]
     shared_ptr[const int] make_shared_const_int "std::make_shared<const int>"(int)
 
-def test_iteration_over_shared_const_ptr_set(py_v):
+def test_iteration_over_shared_const_ptr_vector(py_v):
     """
-    >>> test_iteration_over_shared_const_ptr_set[2, 4, 6])
-    6
-    4
+    >>> test_iteration_over_shared_const_ptr_vector([2, 4, 6])
     2
+    4
+    6
     """
-    cdef stdset[shared_ptr[const int]] s
+    cdef vector[shared_ptr[const int]] s
     cdef int i
-    for e in py_v:
-        i = e
-        s.insert(make_shared_const_int(i))
+    for i in py_v:
+        s.push_back(make_shared_const_int(i))
 
     cdef shared_ptr[const int] a
     for a in s:
