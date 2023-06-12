@@ -177,7 +177,9 @@ cdef extern from "<map>" namespace "std" nogil:
         cppclass reverse_iterator:
             reverse_iterator() except +
             reverse_iterator(reverse_iterator&) except +
-            value_type& operator*()
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
+            pair[T, U]& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
             reverse_iterator operator++(int)
@@ -190,7 +192,9 @@ cdef extern from "<map>" namespace "std" nogil:
             const_reverse_iterator() except +
             const_reverse_iterator(reverse_iterator&) except +
             operator=(reverse_iterator&) except +
-            const value_type& operator*()
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
+            const pair[T, U]& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
             const_reverse_iterator operator++(int)
