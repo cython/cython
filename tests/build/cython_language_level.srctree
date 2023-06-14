@@ -1,0 +1,6 @@
+CYTHON -3 foo.pyx
+CYTHON -3 -X always_allow_keywords=true foo.pyx
+
+######## foo.pyx ########
+def join(a: str, b: str) -> str:
+    return f'{a}{b}'
