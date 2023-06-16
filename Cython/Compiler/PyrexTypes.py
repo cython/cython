@@ -4256,7 +4256,7 @@ class EnumMixin(object):
                     "items": tuple(self.values),
                     "underlying_type": underlying_type_str,
                     "module_name": module_name,
-                    "is_flag": True,
+                    "is_flag": not self.is_cpp_enum,
                     },
             outer_module_scope=self.entry.scope,  # ensure that "name" is findable
             compiler_directives = directives,
