@@ -4226,7 +4226,7 @@ class EnumMixin(object):
     Common implementation details for C and C++ enums.
     """
 
-    def create_to_py_utility_code_implementation(self, env):
+    def create_enum_to_py_utility_code(self, env):
         from .UtilityCode import CythonUtilityCode
         self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
         if self.entry.scope != env.global_scope():
@@ -4309,7 +4309,7 @@ class CppScopedEnumType(CType, EnumMixin):
         if self.to_py_function is not None:
             return True
         if self.entry.create_wrapper:
-            self.create_to_py_utility_code_implementation(env)
+            self.create_enum_to_py_utility_code(env)
             return True
         if self.underlying_type.create_to_py_utility_code(env):
             # Using a C++11 lambda here, which is fine since
@@ -4459,7 +4459,7 @@ class CEnumType(CIntLike, CType, EnumMixin):
             return self.to_py_function
         if not self.entry.create_wrapper:
             return super(CEnumType, self).create_to_py_utility_code(env)
-        self.create_to_py_utility_code_implementation(env)
+        self.create_enum_to_py_utility_code(env)
         return True
 
 

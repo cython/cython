@@ -1722,7 +1722,7 @@ class CEnumDefNode(StatNode):
             # we can't see them.
             last_enum_value = 0 if self.visibility != 'extern' else None
             for item in self.items:
-                item.analyse_declarations(scope, self.entry, last_enum_value)
+                item.analyse_enum_declarations(scope, self.entry, last_enum_value)
                 value_entry = item.entry
                 last_enum_value = value_entry.equivalent_enum_value if self.visibility != 'extern' else None
                 if last_enum_value:
@@ -1759,7 +1759,7 @@ class CEnumDefItemNode(StatNode):
 
     child_attrs = ["value"]
 
-    def analyse_declarations(self, env, enum_entry, incremental_enum_value):
+    def analyse_enum_declarations(self, env, enum_entry, incremental_enum_value):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
