@@ -1189,7 +1189,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
             return ('exceptval', (args[0] if args else None, check))
         elif optname in ('nogil', 'gil'):
-            # Special Case: with cython.nogil and with cython.gil can contains expression as argument.
+            # Special Case: 'with cython.nogil' and 'with cython.gil' can contain an expression as argument.
             return optname, args[0]
 
         directivetype = Options.directive_types.get(optname)
