@@ -1627,7 +1627,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if cinit_func_entry:
             if cinit_func_entry.trivial_signature:
-                cinit_args = "o, %s, NULL" % Naming.empty_tuple
+                cinit_args = "o, %s->%s, NULL" % (
+                    Naming.modulestateglobal_cname, Naming.empty_tuple)
             else:
                 cinit_args = "o, a, k"
             needs_error_cleanup = True
@@ -3320,7 +3321,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in rev_entries:
                 if entry.visibility != 'extern':
                     if entry.type.is_pyobject and entry.used:
-                        entry_cname = code.name_in_module_state(entry.cname)
+                        if entry.is_cglobal:
+                            # TODO - eventually these should probably be in the module state too
+                            entry_cname = entry.cname
+                        else:
+                            entry_cname = code.name_in_module_state(entry.cname)
                         code.put_xdecref_clear(
                             entry_cname, entry.type,
                             clear_before_decref=True,
