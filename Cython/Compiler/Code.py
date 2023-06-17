@@ -237,7 +237,7 @@ class UtilityCodeBase(object):
         [definitions]
 
         ##### MyUtility #####
-        #@subsitute: tempita
+        #@substitute: tempita
 
         [requires tempita substitution
          - context can't be specified here though so only
@@ -500,12 +500,12 @@ class UtilityCode(UtilityCodeBase):
         return s % context
 
     def specialize(self, pyrex_type=None, **data):
-        # Dicts aren't hashable...
         name = self.name
         if pyrex_type is not None:
             data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
             name = "%s[%s]" % (name, data['type_name'])
+        # Dicts aren't hashable...
         key = tuple(sorted(data.items()))
         try:
             return self._cache[key]

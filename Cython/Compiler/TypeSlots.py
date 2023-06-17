@@ -254,11 +254,11 @@ class SlotDescriptor(object):
         py3 = self.py3
         guard = None
         if ifdef:
-            guard = ("#if %s" % ifdef)
+            guard = "#if %s" % ifdef
         elif not py3 or py3 == '<RESERVED>':
-            guard = ("#if PY_MAJOR_VERSION < 3")
+            guard = "#if PY_MAJOR_VERSION < 3"
         elif not py2:
-            guard = ("#if PY_MAJOR_VERSION >= 3")
+            guard = "#if PY_MAJOR_VERSION >= 3"
         return guard
 
     def generate_spec(self, scope, code):
@@ -268,6 +268,10 @@ class SlotDescriptor(object):
         if value == "0":
             return
         preprocessor_guard = self.preprocessor_guard_code()
+        if not preprocessor_guard:
+            if self.py3 and self.slot_name.startswith('bf_'):
+                # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
+                preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
         code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
@@ -630,9 +634,6 @@ class SuiteSlot(SlotDescriptor):
                 code.putln("#endif")
 
     def generate_spec(self, scope, code):
-        if self.slot_name == "tp_as_buffer":
-            # Cannot currently support the buffer protocol in the limited C-API.
-            return
         for slot in self.sub_slots:
             slot.generate_spec(scope, code)
 
@@ -1101,7 +1102,7 @@ class SlotTable(object):
             SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
-            EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
+            EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             # PyPy specific extension - only here to avoid C compiler warnings.
             EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000"),

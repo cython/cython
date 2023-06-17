@@ -293,8 +293,12 @@ class FusedCFuncDefNode(StatListNode):
         """
         for specialized_type in normal_types:
             # all_numeric = all_numeric and specialized_type.is_numeric
+            py_type_name = specialized_type.py_type_name()
+            if py_type_name == 'int':
+                # Support Python 2 long
+                py_type_name = '(int, long)'
             pyx_code.context.update(
-                py_type_name=specialized_type.py_type_name(),
+                py_type_name=py_type_name,
                 specialized_type_name=specialized_type.specialization_string,
             )
             pyx_code.put_chunk(
@@ -511,7 +515,7 @@ class FusedCFuncDefNode(StatListNode):
             """
             try:
                 arg_as_memoryview = memoryview(arg)
-            except TypeError:
+            except (ValueError, TypeError):
                 pass
             """)
         with pyx_code.indenter("else:"):
@@ -777,7 +781,7 @@ class FusedCFuncDefNode(StatListNode):
                 for dst_type in dest_sig:
                     found_matches = []
                     found_candidates = []
-                    # Make two seperate lists: One for signature sub-trees
+                    # Make two separate lists: One for signature sub-trees
                     #        with at least one definite match, and another for
                     #        signature sub-trees with only ambiguous matches
                     #        (where `dest_sig[i] is None`).

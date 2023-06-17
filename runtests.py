@@ -71,6 +71,12 @@ except NameError:
 
 WITH_CYTHON = True
 
+try:
+    # Py3.12+ doesn't have distutils any more and requires setuptools to provide it.
+    import setuptools
+except ImportError:
+    pass
+
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
 _to_clean = []
@@ -2755,7 +2761,7 @@ def runtests(options, cmd_args, coverage=None):
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
-    if not COMPILER_HAS_INT128 or not IS_CPYTHON:
+    if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
 
     if options.shard_num > -1:

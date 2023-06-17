@@ -532,8 +532,11 @@ class CTypedefType(BaseType):
                     self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntFromPy", "TypeConversion.c",
-                        context={"TYPE": self.empty_declaration_code(),
-                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                        context={
+                            "TYPE": self.empty_declaration_code(),
+                            "FROM_PY_FUNCTION": self.from_py_function,
+                            "IS_ENUM": base_type.is_enum,
+                        }))
                     return True
                 elif base_type.is_float:
                     pass  # XXX implement!
@@ -732,9 +735,9 @@ class MemoryViewSliceType(PyrexType):
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
                     None,
-                    visibility='extern')
+                    visibility='extern',
+                    parent_type=self)
 
-            scope.parent_type = self
             scope.directives = {}
 
             scope.declare_var('_data', c_char_ptr_type, None,
@@ -1728,8 +1731,9 @@ class PythranExpr(CType):
         if self.scope is None:
             from . import Symtab
             # FIXME: fake C scope, might be better represented by a struct or C++ class scope
-            self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
-            scope.parent_type = self
+            self.scope = scope = Symtab.CClassScope(
+                '', None, visibility="extern", parent_type=self
+            )
             scope.directives = {}
 
             scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
@@ -1981,8 +1985,8 @@ class CNumericType(CType):
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
-                    visibility="extern")
-            scope.parent_type = self
+                    visibility="extern",
+                    parent_type=self)
             scope.directives = {}
             scope.declare_cfunction(
                     "conjugate",
@@ -2002,7 +2006,7 @@ class CNumericType(CType):
 
     def py_type_name(self):
         if self.rank <= 4:
-            return "(int, long)"
+            return "int"
         return "float"
 
 
@@ -2042,8 +2046,11 @@ class CIntLike(object):
             self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntFromPy", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
-                         "FROM_PY_FUNCTION": self.from_py_function}))
+                context={
+                    "TYPE": self.empty_declaration_code(),
+                    "FROM_PY_FUNCTION": self.from_py_function,
+                    "IS_ENUM": self.is_enum,
+                }))
         return True
 
     @staticmethod
@@ -2247,7 +2254,7 @@ class CPyUCS4IntType(CIntType):
     # is 0..1114111, which is checked when converting from an integer
     # value.
 
-    to_py_function = "PyUnicode_FromOrdinal"
+    to_py_function = "__Pyx_PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
@@ -2271,7 +2278,7 @@ class CPyUnicodeIntType(CIntType):
     # Py_UNICODE is 0..1114111, which is checked when converting from
     # an integer value.
 
-    to_py_function = "PyUnicode_FromOrdinal"
+    to_py_function = "__Pyx_PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
@@ -2436,8 +2443,8 @@ class CComplexType(CNumericType):
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
-                    visibility="extern")
-            scope.parent_type = self
+                    visibility="extern",
+                    parent_type=self)
             scope.directives = {}
             scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
@@ -4062,7 +4069,7 @@ class CppClassType(CType):
             # elements (which may be bit-packed).
             # http://www.cplusplus.com/reference/vector/vector-bool/
             # Here we pretend that the various methods return bool values
-            # (as the actual returned values are coercable to such, and
+            # (as the actual returned values are coercible to such, and
             # we don't support call expressions as lvalues).
             T = values.get(self.templates[0], None)
             if T and not T.is_fused and T.empty_declaration_code() == 'bool':

@@ -252,8 +252,10 @@ def process_class_get_fields(node):
         is_classvar = entry.declared_with_pytyping_modifier("typing.ClassVar")
         if name in default_value_assignments:
             assignment = default_value_assignments[name]
-            if (isinstance(assignment, ExprNodes.CallNode)
-                    and assignment.function.as_cython_attribute() == "dataclasses.field"):
+            if (isinstance(assignment, ExprNodes.CallNode) and (
+                    assignment.function.as_cython_attribute() == "dataclasses.field" or
+                    Builtin.exprnode_to_known_standard_library_name(
+                        assignment.function, node.scope) == "dataclasses.field")):
                 # I believe most of this is well-enforced when it's treated as a directive
                 # but it doesn't hurt to make sure
                 valid_general_call = (isinstance(assignment, ExprNodes.GeneralCallNode)
@@ -271,11 +273,6 @@ def process_class_get_fields(node):
                     continue
                 field = Field(node.pos, **keyword_args)
             else:
-                if isinstance(assignment, ExprNodes.CallNode):
-                    func = assignment.function
-                    if ((func.is_name and func.name == "field")
-                            or (func.is_attribute and func.attribute == "field")):
-                        warning(assignment.pos, "Do you mean cython.dataclasses.field instead?", 1)
                 if assignment.type in [Builtin.list_type, Builtin.dict_type, Builtin.set_type]:
                     # The standard library module generates a TypeError at runtime
                     # in this situation.
@@ -480,7 +477,7 @@ def generate_repr_code(code, repr, node, fields):
     The only notable difference here is self.__class__.__qualname__ -> type(self).__name__
     which is because Cython currently supports Python 2.
 
-    However, it also has some guards for recursive repr invokations. In the standard
+    However, it also has some guards for recursive repr invocations. In the standard
     library implementation they're done with a wrapper decorator that captures a set
     (with the set keyed by id and thread). Here we create a set as a thread local
     variable and key only by id.

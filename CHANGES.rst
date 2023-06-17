@@ -2,14 +2,52 @@
 Cython Changelog
 ================
 
-3.0.0 beta 3 (2023-??-??)
+3.0.0 beta 3 (2023-05-24)
 =========================
 
 Features added
 --------------
 
+* Custom buffer slot methods are now supported in the Limited C-API of Python 3.9+.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5422`)
+
 * The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
   ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
+
+* The Python ``int`` handling code was adapted to make use of the new ``PyLong``
+  internals in CPython 3.12.
+  (Github issue :issue:`5353`)
+
+* Conversion of Python ints to C ``int128`` is now always supported, although slow
+  if dedicated C-API support is missing (``_PyLong_AsByteArray()``), specifically in
+  the Limited C-API.
+  (Github issue :issue:`5419`)
+
+* The exception handling code was adapted to CPython 3.12.
+  (Github issue :issue:`5442`)
+
+* The dataclass implementation was adapted to support Python 3.12.
+  (Github issue :issue:`5346`)
+
+* The normal ``@dataclasses.dataclass`` and ``@functools.total_ordering`` decorators
+  can now be used on extension types.  Using the corresponding ``@cython.*`` decorator
+  will automatically turn a Python class into an extension type (no need for ``@cclass``).
+  (Github issue :issue:`5292`)
+
+* Multiplying a sequence by a C integer avoids creating and intermediate Python integer.
+
+* ctuples can now be assigned from arbitrary sequences, not just Python tuples.
+
+* A new directive ``embedsignature.format`` was added to select the format of the
+  docstring embedded signatures between ``python``, ``c`` and argument ``clinic``.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5415`)
+
+* Some invalid directive usages are now detected and rejected, e.g. using ``@ccall``
+  together with ``@cfunc``, and applying ``@cfunc`` to a ``@ufunc``.  Cython also
+  warns now when a directive is applied needlessly.
+  (Github issue :issue:`5399` et al.)
+
+* Unicode identifier names now allow all letters defined in CPython 3.12.
 
 Bugs fixed
 ----------
@@ -23,14 +61,39 @@ Bugs fixed
   which lead to C compile errors.
   Patch by 0dminnimda.  (Github issue :issue:`5356`)
 
-* The dataclass implementation was adapted to support Python 3.12.
-  (Github issue :issue:`5346`)
+* Memoryviews with typedef item types could fail to match the non-typedef item types.
+  Patch by Yue Yang.  (Github issue :issue:`5373`)
+
+* Fused memory views could raise a ``TypeError`` instead of a ``ValueError`` on creation.
+  Patch by Matúš Valo.  (Github issue :issue:`5401`)
+
+* Cython could crash when finding import files with dots in their names.
+  Patch by Matúš Valo.  (Github issue :issue:`5396`)
+
+* Selecting a context manager in parentheses and then calling it directly failed to parse.
+  (Github issue :issue:`5403`)
+
+* ``__qualname__`` and ``__module__`` were not available inside of class bodies.
+  (Github issue :issue:`4447`)
+
+* ``noexcept`` was not automatically applied to function pointer attributes in extern structs.
+  Patch by Matúš Valo.  (Github issue :issue:`5359`)
 
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
 
+* Extension type hierarchies were generated in the wrong order, thus leading to compile issues.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5395`)
+
+* Using the ``--working`` option could lead to sources not being found.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5365`)
+
+* Some C compiler warnings were resolved.
+  Patches by Matt Tyson, Lisandro Dalcin, Philipp Wagner, Matti Picus et al.
+  (Github issues :issue:`5417`, :issue:`5418`, :issue:`5421`, :issue:`5437`, :issue:`5438`, :issue:`5443`)
+
 * Includes all bug-fixes and features from the 0.29 maintenance branch
-  up to the :ref:`0.29.34` release.
+  up to the :ref:`0.29.35` release.
 
 Other changes
 -------------
@@ -38,6 +101,14 @@ Other changes
 * For-loops now release the internal reference to their list/tuple iterable before
   instead of after the ``else:`` clause.  This probably has no practical impact.
   (Github issue :issue:`5347`)
+
+* Simple tuple types like ``(int, int)`` are no longer accepted in Python annotations
+  and require the Python notation instead (e.g. ``tuple[cython.int, cython.int]``).
+  (Github issue :issue:`5397`)
+
+* The code ``except +nogil`` (declaring a C++ exception handler function called ``nogil``)
+  is now rejected because it is almost certainly a typo from ``except + nogil``.
+  (Github issue :issue:`5430`)
 
 
 3.0.0 beta 2 (2023-03-27)
@@ -1406,13 +1477,33 @@ Other changes
 
 .. _0.29.35:
 
-0.29.35 (2023-??-??)
+0.29.35 (2023-05-24)
 ====================
 
 Bugs fixed
 ----------
 
-* Some C compile failures in CPython 3.12 were resolved.
+* A garbage collection enabled subtype of a non-GC extension type could call into the
+  deallocation function of the super type with GC tracking enabled.  This could lead
+  to crashes during deallocation if GC was triggered on the type at the same time.
+  (Github issue :issue:`5432`)
+
+* Some C compile failures and crashes in CPython 3.12 were resolved.
+
+* ``except + nogil`` was syntactically not allowed.
+  ``except +nogil`` (i.e. defining a C++ exception handling function called ``nogil``)
+  is now disallowed to prevent typos.
+  (Github issue :issue:`5430`)
+
+* A C compile failure in PyPy 3.10 was resolved.
+  Patch by Matti Picus.  (Github issue :issue:`5408`)
+
+* Cython modules now use PEP-489 multi-phase init by default in PyPy 3.9 and later.
+  Original patch by Matti Picus.  (Github issue :issue:`5413`)
+
+* API header files generated by different Cython versions can now be included in the
+  same C file.
+  (Github issue :issue:`5383`)
 
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)

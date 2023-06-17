@@ -515,11 +515,11 @@ set_path:
 #ifndef __PYX_HAVE_RT_ImportType_proto_$cyversion
 #define __PYX_HAVE_RT_ImportType_proto_$cyversion
 
-#if __STDC_VERSION__ >= 201112L
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #include <stdalign.h>
 #endif
 
-#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
+#if (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || __cplusplus >= 201103L
 #define __PYX_GET_STRUCT_ALIGNMENT_$cyversion(s) alignof(s)
 #else
 // best guess at what the alignment could be since we can't measure it

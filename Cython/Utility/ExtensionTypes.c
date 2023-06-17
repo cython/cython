@@ -540,34 +540,42 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
             || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
+
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+    {{if not overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || __Pyx_TypeCheck(right, {{type_cname}});
-    }
+            || __Pyx_TypeCheck(right, {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && {{overloads_right}} && !({{overloads_left}})) {
+
+        {{if overloads_right and not overloads_left}}
+        if (maybe_self_is_right) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
             // Don't bother calling it again.
             maybe_self_is_right = 0;
         }
+        {{endif}}
+
         res = {{call_left}};
         if (res != Py_NotImplemented) return res;
         Py_DECREF(res);
     }
-    if (({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+
+    {{if overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
-    }
+            || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_right) {
         return {{call_right}};
     }

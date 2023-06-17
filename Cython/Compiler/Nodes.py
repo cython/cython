@@ -2988,7 +2988,7 @@ class PyArgDeclNode(Node):
 class DecoratorNode(Node):
     # A decorator
     #
-    # decorator    NameNode or CallNode or AttributeNode
+    # decorator    ExprNode
     child_attrs = ['decorator']
 
 
@@ -5267,6 +5267,49 @@ class CClassDefNode(ClassDefNode):
         if self.bases and len(self.bases.args) > 1:
             self.entry.type.multiple_bases = True
 
+    def _handle_cclass_decorators(self, env):
+        extra_directives = {}
+        if not self.decorators:
+            return extra_directives
+
+        from . import ExprNodes
+
+        remaining_decorators = []
+
+        for original_decorator in self.decorators:
+            decorator = original_decorator.decorator
+            # entries aren't set at this point, so unfortunately we can't just do
+            #  decorator.get_known_standard_library_import().
+            # Instead we have to manually look it up
+            decorator_call = None
+            if isinstance(decorator, ExprNodes.CallNode):
+                decorator_call = decorator
+                decorator = decorator.function
+            known_name = Builtin.exprnode_to_known_standard_library_name(decorator, env)
+            if known_name == 'functools.total_ordering':
+                if decorator_call:
+                    error(decorator_call.pos, "total_ordering cannot be called.")
+                extra_directives["total_ordering"] = True
+                continue
+            elif known_name == "dataclasses.dataclass":
+                args = None
+                kwds = {}
+                if decorator_call:
+                    if isinstance(decorator_call, ExprNodes.SimpleCallNode):
+                        args = decorator_call.args
+                    else:
+                        args = decorator_call.positional_args.args
+                        kwds_ = decorator_call.keyword_args
+                        if kwds_:
+                            kwds = kwds_.as_python_dict()
+                extra_directives[known_name] = (args, kwds)
+                continue
+            remaining_decorators.append(original_decorator)
+        if remaining_decorators:
+            error(remaining_decorators[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
+        self.decorators = remaining_decorators
+        return extra_directives
+
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
         #print "...visibility =", self.visibility
@@ -5274,8 +5317,7 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
-        if self.decorators:
-            error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
+        extra_directives = self._handle_cclass_decorators(env)
         self.base_type = None
         # Now that module imports are cached, we need to
         # import the modules for extern classes.
@@ -5364,11 +5406,15 @@ class CClassDefNode(ClassDefNode):
             env.add_imported_entry(self.class_name, self.entry, self.pos)
         self.scope = scope = self.entry.type.scope
         if scope is not None:
-            scope.directives = env.directives
-            if "dataclasses.dataclass" in env.directives:
+            if extra_directives:
+                scope.directives = env.directives.copy()
+                scope.directives.update(extra_directives)
+            else:
+                scope.directives = env.directives
+            if "dataclasses.dataclass" in scope.directives:
                 is_frozen = False
                 # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
-                dataclass_config = env.directives["dataclasses.dataclass"]
+                dataclass_config = scope.directives["dataclasses.dataclass"]
                 if dataclass_config:
                     decorator_kwargs = dataclass_config[1]
                     frozen_flag = decorator_kwargs.get('frozen')
@@ -5569,10 +5615,12 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(Py_bf_getbuffer) && defined(Py_bf_releasebuffer)")
+                code.putln("/* PY_VERSION_HEX >= 0x03090000 || Py_LIMITED_API >= 0x030B0000 */")
                 code.putln("#elif defined(_MSC_VER)")
-                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API < 3.11.\")")
                 code.putln("#else")
-                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API < 3.11.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
