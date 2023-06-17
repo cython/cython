@@ -651,7 +651,7 @@ class CompilationOptions(object):
             import warnings
             warnings.warn("C++ mode forced when in Pythran mode!")
             options['cplus'] = True
-        if directives.get('language_level', None) and 'language_level' not in kw:
+        if 'language_level' not in kw and directives.get('language_level'):
             options['language_level'] = directives['language_level']
         elif not options.get('language_level'):
             options['language_level'] = directive_defaults.get('language_level')
