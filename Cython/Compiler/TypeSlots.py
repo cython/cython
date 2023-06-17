@@ -500,7 +500,10 @@ class ConstructorSlot(InternalMethodSlot):
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
         if base_type.typeptr_cname:
-            src = '%s->%s' % (code.name_in_module_state(base_type.typeptr_cname), self.slot_name)
+            base_typeptr_cname = base_type.typeptr_cname
+            if base_type.is_extension_type:
+                base_typeptr_cname = code.name_in_module_state(base_typeptr_cname)
+            src = '%s->%s' % (base_typeptr_cname, self.slot_name)
         elif base_type.is_extension_type and base_type.typeobj_cname:
             src = '%s.%s' % (code.name_in_module_state(base_type.typeobj_cname), self.slot_name)
         else:
@@ -707,10 +710,13 @@ class BaseClassSlot(SlotDescriptor):
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
         if base_type:
+            base_typeptr_cname = base_type.typeptr_cname
+            if base_type.is_extension_type:
+                base_typeptr_cname = code.name_in_module_state(base_typeptr_cname)
             code.putln("%s->%s = %s;" % (
                 code.name_in_module_state(scope.parent_type.typeptr_cname),
                 self.slot_name,
-                code.name_in_module_state(base_type.typeptr_cname)))
+                base_typeptr_cname))
 
 
 class DictOffsetSlot(SlotDescriptor):

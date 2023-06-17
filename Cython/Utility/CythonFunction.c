@@ -1060,13 +1060,10 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(PyObject *module) {
-    $modulestatetype_cname *mstate;
+    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
 #if CYTHON_USE_TYPE_SPECS
-    mstate = $modulestategetter_cname(module);
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
-    CYTHON_UNUSED_VAR(module);
-    mstate = $modulestateglobal_cname;
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
     if (unlikely(mstate->__pyx_CyFunctionType == NULL)) {
@@ -1592,9 +1589,8 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 
 static int __pyx_FusedFunction_init(PyObject *module) {
-    $modulestatetype_cname *mstate;
+    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
 #if CYTHON_USE_TYPE_SPECS
-    mstate = $modulestategetter_cname(module);
     PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);
     if (unlikely(!bases)) {
         return -1;
@@ -1602,8 +1598,6 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
-    CYTHON_UNUSED_VAR(module);
-    mstate = $modulestateglobal_cname;
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
     __pyx_FusedFunctionType_type.tp_base = mstate->__pyx_CyFunctionType;
     mstate->__pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);

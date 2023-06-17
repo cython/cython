@@ -450,7 +450,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 #define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineType))
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
-#define __Pyx_CoroutineAwait_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_CoroutineAwaitType)
+#define __Pyx_CoroutineAwait_CheckExact(obj) __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CoroutineAwaitType))
 
 #define __Pyx_Coroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(CGLOBAL(__pyx_CoroutineType), body, code, closure, name, qualname, module_name)
@@ -1501,6 +1501,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
 //@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
+//@substitute: naming
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
@@ -1676,7 +1677,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 
 #if PY_VERSION_HEX < 0x030500B1 || defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
-    __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __pyx_CoroutineAwaitType);
+    __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, CGLOBAL(__pyx_CoroutineAwaitType));
     if (unlikely(!await)) return NULL;
     Py_INCREF(coroutine);
     await->coroutine = coroutine;
@@ -1873,11 +1874,11 @@ static int __pyx_Coroutine_init(PyObject *module) {
     $modulestatetype_cname *mstate;
     CYTHON_MAYBE_UNUSED_VAR(module);
     // on Windows, C-API functions can't be used in slots statically
-#if CYTHON_USE_TYPE_SPECS
     mstate = $modulestategetter_cname(module);
+#if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
 #else
-    
+
     __pyx_CoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     mstate->__pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
 #endif
@@ -1890,11 +1891,11 @@ static int __pyx_Coroutine_init(PyObject *module) {
 #endif
 
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
+    mstate->__pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
 #else
-    __pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
+    mstate->__pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
 #endif
-    if (unlikely(!__pyx_CoroutineAwaitType))
+    if (unlikely(!mstate->__pyx_CoroutineAwaitType))
         return -1;
     return 0;
 }
@@ -1916,6 +1917,7 @@ static int __pyx_IterableCoroutine_init(PyObject *module);/*proto*/
 //////////////////// IterableCoroutine ////////////////////
 //@requires: Coroutine
 //@requires: CommonStructures.c::FetchCommonType
+//@substitute: naming
 
 #if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
@@ -2025,13 +2027,10 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 
 
 static int __pyx_IterableCoroutine_init(PyObject *module) {
-    $modulestatetype_cname *mstate;
+    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
 #if CYTHON_USE_TYPE_SPECS
-    mstate = $modulestategetter_cname(module);
     mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
 #else
-    CYTHON_UNUSED_VAR(module);
-    mstate = $modulestategetter_cname(module);
     __pyx_IterableCoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonType(&__pyx_IterableCoroutineType_type);
 #endif
@@ -2177,13 +2176,10 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Generator_init(PyObject *module) {
-    $modulestatetype_cname *mstate;
+    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
 #if CYTHON_USE_TYPE_SPECS
-    mstate = $modulestategetter_cname(module);
     mstate->__pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
 #else
-    CYTHON_UNUSED_VAR(module);
-    mstate = $modulestateglobal_cname;
     // on Windows, C-API functions can't be used in slots statically
     __pyx_GeneratorType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
@@ -2524,6 +2520,7 @@ static PyObject *__Pyx_PyExc_StopAsyncIteration;
 static int __pyx_StopAsyncIteration_init(PyObject *module); /*proto*/
 
 //////////////////// StopAsyncIteration ////////////////////
+//@substitute: naming
 
 #if PY_VERSION_HEX < 0x030500B1
 #if CYTHON_USE_TYPE_SPECS
@@ -2589,17 +2586,15 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
 #endif
 
 static int __pyx_StopAsyncIteration_init(PyObject *module) {
-    $modulestatetype_cname *mstate;
     CYTHON_UNUSED_VAR(module);
-    mstate = $modulestateglobal_cname;
 #if PY_VERSION_HEX >= 0x030500B1
-    mstate->__Pyx_PyExc_StopAsyncIteration = PyExc_StopAsyncIteration;
+    __Pyx_PyExc_StopAsyncIteration = PyExc_StopAsyncIteration;
 #else
     PyObject *builtins = PyEval_GetBuiltins();
     if (likely(builtins)) {
         PyObject *exc = PyMapping_GetItemString(builtins, (char*) "StopAsyncIteration");
         if (exc) {
-            mstate->__Pyx_PyExc_StopAsyncIteration = exc;
+            __Pyx_PyExc_StopAsyncIteration = exc;
             return 0;
         }
     }
@@ -2610,8 +2605,8 @@ static int __pyx_StopAsyncIteration_init(PyObject *module) {
     __Pyx__PyExc_StopAsyncIteration_type.tp_dictoffset = ((PyTypeObject*)PyExc_BaseException)->tp_dictoffset;
     __Pyx__PyExc_StopAsyncIteration_type.tp_base = (PyTypeObject*)PyExc_Exception;
 
-    mstate->__Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
-    if (unlikely(!mstate->__Pyx_PyExc_StopAsyncIteration))
+    __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
+    if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
         return -1;
     if (likely(builtins) && unlikely(PyMapping_SetItemString(builtins, (char*) "StopAsyncIteration", __Pyx_PyExc_StopAsyncIteration) < 0))
         return -1;

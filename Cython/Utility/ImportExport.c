@@ -405,11 +405,7 @@ static int ${import_star}(PyObject* m) {
 #endif
     PyObject *name;
     PyObject *item;
-#if CYTHON_USE_MODULE_STATE
     ${modulestatetype_cname} *mstate = ${modulestategetter_cname}(m);
-#else
-    ${modulestatetype_cname} *mstate = ${modulestateglobal_cname};
-#endif
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;

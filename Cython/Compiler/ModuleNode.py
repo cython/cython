@@ -2819,6 +2819,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestateglobal_cname,
             Naming.modulestateglobal_cname
         ))
+        # Define the getter just to refer back to the global
+        module_state.putln("#define %s(o) %s" % (
+            Naming.modulestategetter_cname,
+            Naming.modulestateglobal_cname))
         module_state.putln("#endif")
         module_state_clear.putln("return 0;")
         module_state_clear.putln("}")
