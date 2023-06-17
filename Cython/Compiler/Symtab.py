@@ -193,7 +193,7 @@ class Entry(object):
     is_anonymous = 0
     is_type = 0
     is_cclass = 0
-    is_cclass_var_entry = False  # Remove when other cglobals are in the module scope 
+    is_cclass_var_entry = False  # Remove when other cglobals are in the module scope
     is_cpp_class = 0
     is_const = 0
     is_property = 0
