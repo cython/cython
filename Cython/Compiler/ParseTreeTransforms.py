@@ -1171,7 +1171,7 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def try_to_parse_directive(self, optname, args, kwds, pos):
         if optname == 'np_pythran' and not self.context.cpp:
-            raise PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
+            return optname, PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
         elif optname == 'exceptval':
             # default: exceptval(None, check=True)
             arg_error = len(args) > 1
@@ -1185,7 +1185,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 else:
                     arg_error = True
             if arg_error:
-                raise PostParseError(
+                return optname, PostParseError(
                     pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
             return ('exceptval', (args[0] if args else None, check))
 
@@ -1194,39 +1194,39 @@ class InterpretCompilerDirectives(CythonTransform):
             return optname, Options.get_directive_defaults()[optname]
         elif directivetype is bool:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
-                raise PostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes one compile-time boolean argument' % optname)
             return (optname, args[0].value)
         elif directivetype is int:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.IntNode):
-                raise PostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes one compile-time integer argument' % optname)
             return (optname, int(args[0].value))
         elif directivetype is str:
             if kwds is not None or len(args) != 1 or not isinstance(
                     args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
-                raise PostParseError(pos,
+                return optname, ostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
         elif directivetype is type:
             if kwds is not None or len(args) != 1:
-                raise PostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes one type argument' % optname)
             return (optname, args[0])
         elif directivetype is dict:
             if len(args) != 0:
-                raise PostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes no prepositional arguments' % optname)
             return optname, kwds.as_python_dict()
         elif directivetype is list:
             if kwds and len(kwds.key_value_pairs) != 0:
-                raise PostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
         elif callable(directivetype):
             if kwds is not None or len(args) != 1 or not isinstance(
                     args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
-                raise PostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, directivetype(optname, str(args[0].value)))
         elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
@@ -1324,6 +1324,8 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
+                        if isinstance(value, PostParseError):
+                            raise value
                         if current_opt_dict.get(name, missing) != value:
                             if name == 'cfunc' and 'ufunc' in current_opt_dict:
                                 error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
@@ -1372,8 +1374,11 @@ class InterpretCompilerDirectives(CythonTransform):
                     name, value = directive
                     if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body)
+                        condition = node.manager.args[0] if isinstance(node.manager, ExprNodes.CallNode) else None
+                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body, condition=condition)
                         return self.visit_Node(node)
+                    elif isinstance(value, PostParseError):
+                        raise value
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
