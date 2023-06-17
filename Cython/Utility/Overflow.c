@@ -64,6 +64,7 @@ static int __Pyx_check_twos_complement(void) {
 #endif
 
 /////////////// Common.init ///////////////
+//@substitute: naming
 
 // FIXME: Propagate the error here instead of just printing it.
 if (unlikely(__Pyx_check_twos_complement())) {
@@ -323,6 +324,7 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 
 /////////////// SizeCheck.init ///////////////
+//@substitute: naming
 
 // FIXME: Propagate the error here instead of just printing it.
 if (unlikely(__Pyx_check_sane_{{NAME}}())) {

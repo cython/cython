@@ -1737,7 +1737,7 @@ class CEnumDefNode(StatNode):
                     code.error_goto_if_null(temp, item.pos)))
                 code.put_gotref(temp, PyrexTypes.py_object_type)
                 code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
-                    Naming.moddict_cname,
+                    code.name_in_module_state(Naming.moddict_cname),
                     item.name,
                     temp,
                     code.error_goto(item.pos)))
@@ -5649,8 +5649,11 @@ class CClassDefNode(ClassDefNode):
                         "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
+                    base_typeptr_cname = type.base_type.typeptr_cname
+                    if type.base_type.is_extension_type:
+                        base_typeptr_cname = code.name_in_module_state(base_typeptr_cname)
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
-                        type.base_type.typeptr_cname))
+                        base_typeptr_cname))
                     code.putln("}")
                     break
                 base_type = base_type.base_type

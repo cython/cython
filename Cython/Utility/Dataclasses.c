@@ -142,7 +142,7 @@ static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds) {
 #if PY_MAJOR_VERSION < 3
     // We're falling back to our full replacement anyway
-    return PyObject_Call(callable, $empty_tuple, kwds);
+    return PyObject_Call(callable, CGLOBAL($empty_tuple), kwds);
 #else
     PyObject *new_kwds=NULL, *result=NULL;
     PyObject *inspect;
@@ -167,7 +167,7 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
     // copy over only those arguments that are in the specification
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, args_list, 0) == -1) goto bad;
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, kwonly_args_list, 1) == -1) goto bad;
-    result = PyObject_Call(callable, $empty_tuple, new_kwds);
+    result = PyObject_Call(callable, CGLOBAL($empty_tuple), new_kwds);
 bad:
     Py_XDECREF(getfullargspec_result);
     Py_XDECREF(args_list);

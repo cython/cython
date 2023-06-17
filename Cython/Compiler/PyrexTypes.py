@@ -2196,7 +2196,7 @@ class CReturnCodeType(CIntType):
         return not format_spec
 
     def convert_to_pystring(self, cvalue, code, format_spec=None):
-        return "__Pyx_NewRef(%s)" % code.globalstate.get_py_string_const(StringEncoding.EncodedString("None")).cname
+        return "__Pyx_NewRef(%s)" % code.get_py_string_const(StringEncoding.EncodedString("None"))
 
 
 class CBIntType(CIntType):
@@ -2216,8 +2216,8 @@ class CBIntType(CIntType):
         utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
         to_pyunicode_utility = TempitaUtilityCode.load_cached(
             "CBIntToPyUnicode", "TypeConversion.c", context={
-                "TRUE_CONST":  code.globalstate.get_py_string_const(StringEncoding.EncodedString("True")).cname,
-                "FALSE_CONST": code.globalstate.get_py_string_const(StringEncoding.EncodedString("False")).cname,
+                "TRUE_CONST":  code.get_py_string_const(StringEncoding.EncodedString("True")),
+                "FALSE_CONST": code.get_py_string_const(StringEncoding.EncodedString("False")),
                 "TO_PY_FUNCTION": utility_code_name,
             })
         code.globalstate.use_utility_code(to_pyunicode_utility)

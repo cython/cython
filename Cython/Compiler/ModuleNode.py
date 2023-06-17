@@ -2303,6 +2303,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         overloads_left = int(bool(get_slot_method_cname(slot.left_slot.method_name)))
         overloads_right = int(bool(get_slot_method_cname(slot.right_slot.method_name)))
+        parent_type_cname = scope.parent_type.typeptr_cname
+        if scope.parent_type.is_extension_type:
+            parent_type_cname = code.name_in_module_state(parent_type_cname)
         code.putln(
             TempitaUtilityCode.load_as_string(
                 "BinopSlot", "ExtensionTypes.c",
@@ -2313,7 +2316,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "overloads_right": overloads_right,
                     "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                     "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
-                    "type_cname": scope.parent_type.typeptr_cname,
+                    "type_cname": parent_type_cname,
                     "slot_type": slot_type,
                     "extra_arg": extra_arg,
                     "extra_arg_decl": extra_arg_decl,
@@ -3792,7 +3795,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         elif type.name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
             ctypename = Code.ctypedef_builtins_map[type.name]
-            code.putln('%s = %s;' % (type.typeptr_cname, ctypename))
+            code.putln('%s = %s;' % (code.name_in_module_state(type.typeptr_cname), ctypename))
             return
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
