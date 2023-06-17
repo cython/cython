@@ -1205,7 +1205,7 @@ class InterpretCompilerDirectives(CythonTransform):
         elif directivetype is str:
             if kwds is not None or len(args) != 1 or not isinstance(
                     args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
-                return optname, ostParseError(pos,
+                return optname, PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
         elif directivetype is type:
