@@ -1188,7 +1188,7 @@ __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
 {
     PyObject *op = __Pyx_CyFunction_Init(
         // __pyx_CyFunctionObject is correct below since that's the cast that we want.
-        PyObject_GC_New(__pyx_CyFunctionObject, __pyx_FusedFunctionType),
+        PyObject_GC_New(__pyx_CyFunctionObject, CGLOBAL(__pyx_FusedFunctionType)),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {

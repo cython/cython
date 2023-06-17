@@ -405,6 +405,11 @@ static int ${import_star}(PyObject* m) {
 #endif
     PyObject *name;
     PyObject *item;
+#if CYTHON_USE_MODULE_STATE
+    ${modulestatetype_cname} *mstate = ${modulestategetter_cname}(m);
+#else
+    ${modulestatetype_cname} *mstate = ${modulestateglobal_cname};
+#endif
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
@@ -417,12 +422,12 @@ static int ${import_star}(PyObject* m) {
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
         s = PyBytes_AS_STRING(utf8_name);
-        if (${import_star_set}(item, name, s) < 0) goto bad;
+        if (${import_star_set}(mstate, item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
 #else
         s = PyString_AsString(name);
         if (!s) goto bad;
-        if (${import_star_set}(item, name, s) < 0) goto bad;
+        if (${import_star_set}(mstate, item, name, s) < 0) goto bad;
 #endif
     }
     ret = 0;
