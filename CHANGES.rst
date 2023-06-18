@@ -23,6 +23,9 @@ Other changes
 -------------
 
 * The FAQ page was moved from the GitHub Wiki to the regular documentation.
+* ``np.long_t`` and ``np.ulong_t`` were removed, synching Cython with upstream
+  NumPy v1.25.0. The aliases were confusing since they could mean different
+  things on different platforms.
 
 
 3.0.0 beta 3 (2023-05-24)
