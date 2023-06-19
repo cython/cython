@@ -1728,7 +1728,7 @@ class CEnumDefNode(StatNode):
                 item.analyse_enum_declarations(scope, self.entry, next_int_enum_value)
                 if is_declared_enum:
                     next_int_enum_value = (
-                        item.entry.equivalent_enum_value or next_int_enum_value) + 1
+                        item.entry.enum_int_value or next_int_enum_value) + 1
 
     def analyse_expressions(self, env):
         return self
@@ -1761,7 +1761,7 @@ class CEnumDefItemNode(StatNode):
 
     child_attrs = ["value"]
 
-    def analyse_enum_declarations(self, env, enum_entry, incremental_enum_value):
+    def analyse_enum_declarations(self, env, enum_entry, incremental_int_value):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
@@ -1780,17 +1780,17 @@ class CEnumDefItemNode(StatNode):
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
 
         # Use the incremental integer value unless we see an explicitly declared value.
-        enum_value = incremental_enum_value
+        enum_value = incremental_int_value
         if self.value:
             if self.value.is_literal:
                 enum_value = int(self.value.value)
             elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
-                enum_value = self.value.entry.equivalent_enum_value
+                enum_value = self.value.entry.enum_int_value
             else:
                 # There is a value but we don't understand its integer value.
                 enum_value = None
         if enum_value is not None:
-            entry.equivalent_enum_value = enum_value
+            entry.enum_int_value = enum_value
 
         enum_entry.enum_values.append(entry)
         if enum_entry.name:

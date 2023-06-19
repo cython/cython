@@ -1257,8 +1257,8 @@ class SwitchTransform(Visitor.EnvTransform):
                 try:
                     value_entry = value.entry
                     if ((value_entry.type.is_enum or value_entry.type.is_cpp_enum)
-                            and value_entry.equivalent_enum_value is not None):
-                        value_for_seen = value_entry.equivalent_enum_value
+                            and value_entry.enum_int_value is not None):
+                        value_for_seen = value_entry.enum_int_value
                     else:
                         value_for_seen = value_entry.cname
                 except AttributeError:
