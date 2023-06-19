@@ -1380,7 +1380,16 @@ class InterpretCompilerDirectives(CythonTransform):
                     name, value = directive
                     if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        condition = node.manager.args[0] if isinstance(node.manager, ExprNodes.CallNode) else None
+                        condition = None
+                        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
+                            if len(node.manager.args) == 1:
+                                condition = node.manager.args[0]
+                            else:
+                                self.context.nonfatal_error(
+                                    PostParseError(node.pos, "Compiler directive %s allows only one non-keyword argument." % name))
+                        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
+                            self.context.nonfatal_error(
+                                PostParseError(node.pos, "Compiler directive %s allows only one non-keyword argument." % name))
                         node = Nodes.GILStatNode(node.pos, state = name, body = node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):

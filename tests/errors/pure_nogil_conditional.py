@@ -51,6 +51,15 @@ def fused_type(x: number_or_object):
 
     return res
 
+def nogil_multiple_arguments(x: cython.int) -> cython.int:
+    res: cython.int = x
+    with cython.nogil(1, 2):
+        res = f_nogil(res)
+
+def nogil_keyworkd_arguments(x: cython.int) -> cython.int:
+    res: cython.int = x
+    with cython.nogil(kw=2):
+        res = f_nogil(res)
 
 _ERRORS = u"""
 22:14: Accessing Python global or builtin not allowed without gil
@@ -67,4 +76,6 @@ _ERRORS = u"""
 37:24: Non-constant condition in a `with nogil(<condition>)` statement
 46:8: Assignment of Python object not allowed without gil
 46:16: Calling gil-requiring function not allowed without gil
+56:9: Compiler directive nogil allows only one non-keyword argument.
+61:9: Compiler directive nogil allows only one non-keyword argument.
 """
