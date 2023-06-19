@@ -4236,7 +4236,7 @@ class EnumMixin(object):
 
         directives = CythonUtilityCode.filter_inherited_directives(
             env.global_scope().directives)
-        if any(value_entry.equivalent_enum_value is None for value_entry in self.entry.enum_values):
+        if any(value_entry.enum_int_value is None for value_entry in self.entry.enum_values):
             # We're at a high risk of making a switch statement with equal values in
             # (because we simply can't tell, and enums are often used like that).
             # So turn off the switch optimization to be safe.
