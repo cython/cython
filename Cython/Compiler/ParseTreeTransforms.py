@@ -1125,7 +1125,7 @@ class InterpretCompilerDirectives(CythonTransform):
         self.visitchildren(node)
         return node
 
-    def try_to_parse_directives(self, node):
+    def try_to_parse_directives(self, node, directives_allowing_expression=()):
         # If node is the contents of an directive (in a with statement or
         # decorator), returns a list of (directivename, value) pairs.
         # Otherwise, returns None
@@ -1143,7 +1143,7 @@ class InterpretCompilerDirectives(CythonTransform):
                             key, value = keyvalue
                             sub_optname = "%s.%s" % (optname, key.value)
                             if Options.directive_types.get(sub_optname):
-                                directives.append(self.try_to_parse_directive(sub_optname, [value], None, keyvalue.pos))
+                                directives.append(self.try_to_parse_directive(sub_optname, [value], None, keyvalue.po, directives_allowing_expression))
                             else:
                                 key_value_pairs.append(keyvalue)
                         if not key_value_pairs:
@@ -1152,7 +1152,7 @@ class InterpretCompilerDirectives(CythonTransform):
                             kwds.key_value_pairs = key_value_pairs
                         if directives and not kwds and not args:
                             return directives
-                    directives.append(self.try_to_parse_directive(optname, args, kwds, node.function.pos))
+                    directives.append(self.try_to_parse_directive(optname, args, kwds, node.function.pos, directives_allowing_expression))
                     return directives
         elif isinstance(node, (ExprNodes.AttributeNode, ExprNodes.NameNode)):
             self.visit(node)
@@ -1161,7 +1161,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 directivetype = Options.directive_types.get(optname)
                 if directivetype is bool:
                     arg = ExprNodes.BoolNode(node.pos, value=True)
-                    return [self.try_to_parse_directive(optname, [arg], None, node.pos)]
+                    return [self.try_to_parse_directive(optname, [arg], None, node.pos, directives_allowing_expression)]
                 elif directivetype is None or directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
                     return [(optname, None)]
                 else:
@@ -1169,71 +1169,77 @@ class InterpretCompilerDirectives(CythonTransform):
                         node.pos, "The '%s' directive should be used as a function call." % optname)
         return None
 
-    def try_to_parse_directive(self, optname, args, kwds, pos):
-        if optname == 'np_pythran' and not self.context.cpp:
-            return optname, PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
-        elif optname == 'exceptval':
-            # default: exceptval(None, check=True)
-            arg_error = len(args) > 1
-            check = True
-            if kwds and kwds.key_value_pairs:
-                kw = kwds.key_value_pairs[0]
-                if (len(kwds.key_value_pairs) == 1 and
-                        kw.key.is_string_literal and kw.key.value == 'check' and
-                        isinstance(kw.value, ExprNodes.BoolNode)):
-                    check = kw.value.value
-                else:
-                    arg_error = True
-            if arg_error:
-                return optname, PostParseError(
-                    pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
-            return ('exceptval', (args[0] if args else None, check))
+    def try_to_parse_directive(self, optname, args, kwds, pos, directives_allowing_expression):
+        try:
+            if optname == 'np_pythran' and not self.context.cpp:
+                raise PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
+            elif optname == 'exceptval':
+                # default: exceptval(None, check=True)
+                arg_error = len(args) > 1
+                check = True
+                if kwds and kwds.key_value_pairs:
+                    kw = kwds.key_value_pairs[0]
+                    if (len(kwds.key_value_pairs) == 1 and
+                            kw.key.is_string_literal and kw.key.value == 'check' and
+                            isinstance(kw.value, ExprNodes.BoolNode)):
+                        check = kw.value.value
+                    else:
+                        arg_error = True
+                if arg_error:
+                    raise PostParseError(
+                        pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
+                return ('exceptval', (args[0] if args else None, check))
 
-        directivetype = Options.directive_types.get(optname)
-        if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
-            return optname, Options.get_directive_defaults()[optname]
-        elif directivetype is bool:
-            if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
-                return optname, PostParseError(pos,
-                    'The %s directive takes one compile-time boolean argument' % optname)
-            return (optname, args[0].value)
-        elif directivetype is int:
-            if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.IntNode):
-                return optname, PostParseError(pos,
-                    'The %s directive takes one compile-time integer argument' % optname)
-            return (optname, int(args[0].value))
-        elif directivetype is str:
-            if kwds is not None or len(args) != 1 or not isinstance(
-                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
-                return optname, PostParseError(pos,
-                    'The %s directive takes one compile-time string argument' % optname)
-            return (optname, str(args[0].value))
-        elif directivetype is type:
-            if kwds is not None or len(args) != 1:
-                return optname, PostParseError(pos,
-                    'The %s directive takes one type argument' % optname)
-            return (optname, args[0])
-        elif directivetype is dict:
-            if len(args) != 0:
-                return optname, PostParseError(pos,
-                    'The %s directive takes no prepositional arguments' % optname)
-            return optname, kwds.as_python_dict()
-        elif directivetype is list:
-            if kwds and len(kwds.key_value_pairs) != 0:
-                return optname, PostParseError(pos,
-                    'The %s directive takes no keyword arguments' % optname)
-            return optname, [ str(arg.value) for arg in args ]
-        elif callable(directivetype):
-            if kwds is not None or len(args) != 1 or not isinstance(
-                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
-                return optname, PostParseError(pos,
-                    'The %s directive takes one compile-time string argument' % optname)
-            return (optname, directivetype(optname, str(args[0].value)))
-        elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
-            # signal to pass things on without processing
-            return (optname, (args, kwds.as_python_dict() if kwds else {}))
-        else:
-            assert False
+            directivetype = Options.directive_types.get(optname)
+            if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
+                return optname, Options.get_directive_defaults()[optname]
+            elif directivetype is bool:
+                if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
+                    raise PostParseError(pos,
+                        'The %s directive takes one compile-time boolean argument' % optname)
+                return (optname, args[0].value)
+            elif directivetype is int:
+                if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.IntNode):
+                    raise PostParseError(pos,
+                        'The %s directive takes one compile-time integer argument' % optname)
+                return (optname, int(args[0].value))
+            elif directivetype is str:
+                if kwds is not None or len(args) != 1 or not isinstance(
+                        args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+                    raise PostParseError(pos,
+                        'The %s directive takes one compile-time string argument' % optname)
+                return (optname, str(args[0].value))
+            elif directivetype is type:
+                if kwds is not None or len(args) != 1:
+                    raise PostParseError(pos,
+                        'The %s directive takes one type argument' % optname)
+                return (optname, args[0])
+            elif directivetype is dict:
+                if len(args) != 0:
+                    raise PostParseError(pos,
+                        'The %s directive takes no prepositional arguments' % optname)
+                return optname, kwds.as_python_dict()
+            elif directivetype is list:
+                if kwds and len(kwds.key_value_pairs) != 0:
+                    raise PostParseError(pos,
+                        'The %s directive takes no keyword arguments' % optname)
+                return optname, [ str(arg.value) for arg in args ]
+            elif callable(directivetype):
+                if kwds is not None or len(args) != 1 or not isinstance(
+                        args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+                    raise PostParseError(pos,
+                        'The %s directive takes one compile-time string argument' % optname)
+                return (optname, directivetype(optname, str(args[0].value)))
+            elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
+                # signal to pass things on without processing
+                return (optname, (args, kwds.as_python_dict() if kwds else {}))
+            else:
+                assert False
+        except PostParseError:
+            if optname in directives_allowing_expression:
+                return optname, None
+            else:
+                raise
 
     def visit_with_directives(self, node, directives, contents_directives):
         # contents_directives may be None
@@ -1365,7 +1371,7 @@ class InterpretCompilerDirectives(CythonTransform):
     # Handle with-statements
     def visit_WithStatNode(self, node):
         directive_dict = {}
-        for directive in self.try_to_parse_directives(node.manager) or []:
+        for directive in self.try_to_parse_directives(node.manager, ('gil', 'nogil')) or []:
             if directive is not None:
                 if node.target is not None:
                     self.context.nonfatal_error(
@@ -1377,8 +1383,6 @@ class InterpretCompilerDirectives(CythonTransform):
                         condition = node.manager.args[0] if isinstance(node.manager, ExprNodes.CallNode) else None
                         node = Nodes.GILStatNode(node.pos, state = name, body = node.body, condition=condition)
                         return self.visit_Node(node)
-                    elif isinstance(value, PostParseError):
-                        raise value
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
