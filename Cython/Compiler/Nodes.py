@@ -1718,15 +1718,17 @@ class CEnumDefNode(StatNode):
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
-            # For extern enums we can't reason about their equivalent int values because
-            # we can't see them.
-            last_enum_value = 0 if self.visibility != 'extern' else None
+
+            # For extern enums, we can't reason about their equivalent int values because
+            # we don't know if their definition is complete.
+            is_declared_enum = self.visibility != 'extern'
+
+            next_int_enum_value = 0 if is_declared_enum else None
             for item in self.items:
-                item.analyse_enum_declarations(scope, self.entry, last_enum_value)
-                value_entry = item.entry
-                last_enum_value = value_entry.equivalent_enum_value if self.visibility != 'extern' else None
-                if last_enum_value:
-                    last_enum_value += 1
+                item.analyse_enum_declarations(scope, self.entry, next_int_enum_value)
+                if is_declared_enum:
+                    next_int_enum_value = (
+                        item.entry.equivalent_enum_value or next_int_enum_value) + 1
 
     def analyse_expressions(self, env):
         return self
@@ -1777,15 +1779,16 @@ class CEnumDefItemNode(StatNode):
             visibility=enum_entry.visibility, api=enum_entry.api,
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
 
-        enum_value = None
+        # Use the incremental integer value unless we see an explicitly declared value.
+        enum_value = incremental_enum_value
         if self.value:
             if self.value.is_literal:
                 enum_value = int(self.value.value)
             elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
                 enum_value = self.value.entry.equivalent_enum_value
-        else:
-            # The value it would have been just by incrementing
-            enum_value = incremental_enum_value
+            else:
+                # There is a value but we don't understand its integer value.
+                enum_value = None
         if enum_value is not None:
             entry.equivalent_enum_value = enum_value
 
