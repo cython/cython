@@ -229,7 +229,7 @@ How do I make a cdef'd class that derives from a builtin Python type such as lis
 
 The only exception are the types bytes ('str' in Python 2) and tuple, which can
 only be subtyped by Python classes (not cdef classes). This is considered a
-[[bug|https://github.com/cython/cython/issues/711|bug]]. However, you can
+`bug <https://github.com/cython/cython/issues/711>`_. However, you can
 safely subtype 'unicode' and 'list' instead.
 
 ----------
@@ -845,8 +845,8 @@ compiler, because some optimisations may involve non-linear overhead.
 
 The distribution size, and the size per module, will probably increase when
 splitting a module because there are some things that Cython has to copy into
-each module. There is a [[feature
-request|https://github.com/cython/cython/issues/2356]] that would mitigate
+each module. There is a
+`feature request <https://github.com/cython/cython/issues/2356>`_ that would mitigate
 this.
 
 C calls between modules are slightly slower than C calls inside of a module,
