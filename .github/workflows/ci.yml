@@ -218,7 +218,7 @@ jobs:
       BACKEND: ${{ matrix.backend }}
       PYTHON_VERSION: ${{ matrix.python-version }}
       MACOSX_DEPLOYMENT_TARGET: 10.15
-      GCC_VERSION: 8
+      GCC_VERSION: 9
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
@@ -232,8 +232,20 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v3
+        if: startsWith(matrix.python-version, '3.')
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Setup Python2 (Linux)
+        if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
+        run: |
+            sudo ln -fs python2 /usr/bin/python
+            sudo apt-get update
+            sudo apt-get install python-setuptools python-dev
+            curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+            sudo python2 get-pip.py
+            ls -l /usr/bin/pip* /usr/local/bin/pip*
+            which pip
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2
