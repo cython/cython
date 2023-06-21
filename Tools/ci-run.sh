@@ -45,7 +45,7 @@ else
 
   echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 
-  echo "Make a soft symlinks to ccache"
+  echo "Set up symlinks to ccache"
   cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
   ln -s ccache /usr/local/bin/g++
