@@ -8256,7 +8256,7 @@ class ExceptClauseNode(Node):
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
         for var in exc_vars:
-            code.put_gotref(var, py_object_type)
+            code.put_xgotref(var, py_object_type)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -8280,8 +8280,9 @@ class ExceptClauseNode(Node):
             code.put_goto(end_label)
 
         for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
-            for var in exc_vars:
-                code.put_decref_clear(var, py_object_type)
+            for i, var in enumerate(exc_vars):
+                # Traceback may be NULL.
+                (code.put_decref_clear if i < 2 else code.put_xdecref_clear)(var, py_object_type)
 
         code.set_loop_labels(old_loop_labels)
 
