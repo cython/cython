@@ -199,6 +199,7 @@ _directive_defaults = {
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'nogil' : False,
+    'gil' : False,
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
@@ -323,6 +324,7 @@ directive_types = {
     'final' : bool,  # final cdef classes and methods
     'collection_type': one_of('sequence'),
     'nogil' : bool,
+    'gil' : bool,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
@@ -358,6 +360,7 @@ directive_scopes = {  # defaults to available everywhere
     'final' : ('cclass', 'function'),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
+    'gil' : ('function', 'with statement'),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
