@@ -1727,8 +1727,8 @@ class CEnumDefNode(StatNode):
             for item in self.items:
                 item.analyse_enum_declarations(scope, self.entry, next_int_enum_value)
                 if is_declared_enum:
-                    next_int_enum_value = (
-                        item.entry.enum_int_value or next_int_enum_value) + 1
+                    next_int_enum_value = 1 + (
+                        item.entry.enum_int_value if item.entry.enum_int_value is not None else next_int_enum_value)
 
     def analyse_expressions(self, env):
         return self

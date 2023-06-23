@@ -113,6 +113,11 @@ cpdef enum CyDefinedHasDuplicates2:
     CY_DUP2_A
     CY_DUP2_B = CY_DUP2_A
 
+cpdef enum CyDefinedHasDuplicates3:
+    CY_DUP3_A = 1
+    CY_DUP3_B = 0
+    CY_DUP3_C  # = 1
+
 
 def test_as_variable_from_cython():
     """
@@ -192,6 +197,15 @@ def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates2 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
     >>> to_from_py_conversion_with_duplicates2(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates3 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates3(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
     True
     """
     return val
