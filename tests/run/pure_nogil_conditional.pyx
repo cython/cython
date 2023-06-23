@@ -8,6 +8,18 @@ except ImportError:
     from io import StringIO
 
 
+def test(int x):
+    """
+    >>> test(0)
+    110
+    """
+    with cython.nogil(True):
+        x = f_nogil(x)
+        with cython.gil(True):
+            x = f_gil(x)
+    return x
+
+
 @cython.nogil
 @cython.cfunc
 def f_nogil(x: cython.int) -> cython.int:
@@ -123,7 +135,7 @@ def test_fused_object(x: int_or_object):
     """
     >>> import cython
     >>> test_fused_object[object]("spam")
-    126
+    456
     >>> test_fused_object["int"](1000)
     1000
     """
@@ -136,6 +148,15 @@ def test_fused_object(x: int_or_object):
         try:
             with cython.nogil(int_or_object is object):
                 try:
+                    with cython.gil(int_or_object is object):
+                        res = f_gil(res)
+                    with cython.gil:
+                        res = f_gil(res)
+                    with cython.gil(False):
+                        res = f_nogil(res)
+
+                    with cython.gil(int_or_object is not object):
+                        res = f_nogil(res)
                     with cython.nogil(False):
                         res = f_nogil(res)
 
@@ -145,6 +166,12 @@ def test_fused_object(x: int_or_object):
 
             with cython.nogil(int_or_object is not object):
                 res = f_gil(res)
+
+            with cython.gil(int_or_object is not object):
+                res = f_gil(res)
+
+                with cython.nogil(int_or_object is object):
+                    res = f_nogil(res)
 
         finally:
             res += 1
@@ -160,7 +187,7 @@ def test_fused_int(x: int_or_object):
     >>> test_fused_int[object]("spam")
     4
     >>> test_fused_int["int"](1000)
-    1122
+    1452
     """
     res: cython.int = 0
 
@@ -170,6 +197,15 @@ def test_fused_int(x: int_or_object):
         try:
             with cython.nogil(int_or_object is cython.int):
                 try:
+                    with cython.gil(int_or_object is int):
+                        res = f_gil(res)
+                    with cython.gil:
+                        res = f_gil(res)
+                    with cython.gil(False):
+                        res = f_nogil(res)
+
+                    with cython.gil(int_or_object is not int):
+                        res = f_nogil(res)
                     with cython.nogil(False):
                         res = f_nogil(res)
 
@@ -179,6 +215,12 @@ def test_fused_int(x: int_or_object):
 
             with cython.nogil(int_or_object is not cython.int):
                 res = f_gil(res)
+
+            with cython.gil(int_or_object is not int):
+                res = f_gil(res)
+
+                with cython.nogil(int_or_object is int):
+                    res = f_nogil(res)
 
         finally:
             res += 1
