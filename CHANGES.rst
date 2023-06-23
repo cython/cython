@@ -11,11 +11,26 @@ Features added
 Bugs fixed
 ----------
 
+* Handling freshly raised exceptions that didn't have a traceback yet could crash.
+  (Github issue :issue:`5495`)
+
+* Reverse iteration in C++ no longer removes the ``const`` qualifier from the item type.
+  Patch by Isuru Fernando.  (Github issue :issue:`5478`)
+
 * The Python implementation of ``cimport cython.cimports…`` could raise an ``ImportError``
   instead of an ``AttributeError`` when looking up package variable names.
   Patch by Matti Picus.  (Github issue :issue:`5411`)
 
+* Passing a language level and directives on the command line lost the language level setting.
+  Patch by Matúš Valo.  (Github issue :issue:`5484`)
+
+* Some typedef declarations for libc function types were fixed.
+  (Github issue :issue:`5498`)
+
 * Some C compiler warnings and errors in CPython 3.12 were resolved.
+
+* The deprecated ``_PyGC_FINALIZED()`` C-API macro is no longer used.
+  Patch by Thomas Caswell and Matúš Valo.  (Github issue :issue:`5481`)
 
 * A compile error when using ``__debug__`` was resolved.
 
@@ -24,9 +39,9 @@ Other changes
 
 * The FAQ page was moved from the GitHub Wiki to the regular documentation.
 
-* ``np.long_t`` and ``np.ulong_t`` were removed, synching Cython with upstream
-  NumPy v1.25.0. The aliases were confusing since they could mean different
-  things on different platforms.
+* ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
+  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  since they could mean different things on different platforms.
 
 
 3.0.0 beta 3 (2023-05-24)
