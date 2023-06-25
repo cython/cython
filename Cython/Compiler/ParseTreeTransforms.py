@@ -1386,10 +1386,10 @@ class InterpretCompilerDirectives(CythonTransform):
                                 condition = node.manager.args[0]
                             else:
                                 self.context.nonfatal_error(
-                                    PostParseError(node.pos, "Compiler directive %s allows only one non-keyword argument." % name))
+                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
                         elif isinstance(node.manager, ExprNodes.GeneralCallNode):
                             self.context.nonfatal_error(
-                                PostParseError(node.pos, "Compiler directive %s allows only one non-keyword argument." % name))
+                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
                         node = Nodes.GILStatNode(node.pos, state = name, body = node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):

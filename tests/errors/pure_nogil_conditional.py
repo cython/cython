@@ -76,6 +76,6 @@ _ERRORS = u"""
 37:24: Non-constant condition in a `with nogil(<condition>)` statement
 46:8: Assignment of Python object not allowed without gil
 46:16: Calling gil-requiring function not allowed without gil
-56:9: Compiler directive nogil allows only one non-keyword argument.
-61:9: Compiler directive nogil allows only one non-keyword argument.
+56:9: Compiler directive nogil accepts one positional argument.
+61:9: Compiler directive nogil accepts one positional argument.
 """
