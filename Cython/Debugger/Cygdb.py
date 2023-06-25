@@ -137,9 +137,6 @@ def main():
     gdb_argv = options.gdb_argv
     no_import = options.no_import
 
-    if path_to_debug_info == '--':
-        no_import = True
-
     logging_level = logging.WARN
     if options.verbosity == 1:
         logging_level = logging.INFO
