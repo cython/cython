@@ -132,34 +132,34 @@ def main():
                       help="Do not automatically point GDB to the same interpreter "
                            "used to generate debugging information")
 
-    parsed = parser.parse_args()
-    path_to_debug_info = parsed.build_dir
-    gdb_argv = parsed.gdb_argv
-    no_import = parsed.no_import
+    options = parser.parse_args()
+    path_to_debug_info = options.build_dir
+    gdb_argv = options.gdb_argv
+    no_import = options.no_import
 
     if path_to_debug_info == '--':
         no_import = True
 
     logging_level = logging.WARN
-    if parsed.verbosity == 1:
+    if options.verbosity == 1:
         logging_level = logging.INFO
-    if parsed.verbosity >= 2:
+    if options.verbosity >= 2:
         logging_level = logging.DEBUG
     logging.basicConfig(level=logging_level)
 
-    skip_interpreter = parsed.skip_interpreter
+    skip_interpreter = options.skip_interpreter
 
-    logger.debug("args = %r", parsed)
+    logger.debug("options = %r", options)
     tempfilename = make_command_file(path_to_debug_info,
                                      no_import=no_import,
                                      skip_interpreter=skip_interpreter)
     logger.info("Launching %s with command file: %s and gdb_argv: %s",
-        parsed.gdb, tempfilename, gdb_argv)
+        options.gdb, tempfilename, gdb_argv)
     with open(tempfilename) as tempfile:
         logger.debug('Command file (%s) contains: """\n%s"""', tempfilename, tempfile.read())
-        logger.info("Spawning %s...", parsed.gdb)
-        p = subprocess.Popen([parsed.gdb, '-command', tempfilename] + gdb_argv)
-        logger.info("Spawned %s (pid %d)", parsed.gdb, p.pid)
+        logger.info("Spawning %s...", options.gdb)
+        p = subprocess.Popen([options.gdb, '-command', tempfilename] + gdb_argv)
+        logger.info("Spawned %s (pid %d)", options.gdb, p.pid)
         while True:
             try:
                 logger.debug("Waiting for gdb (pid %d) to exit...", p.pid)
