@@ -147,7 +147,7 @@ def main():
         logging_level = logging.DEBUG
     logging.basicConfig(level=logging_level)
 
-    skip_interpreter = options.skip_interpreter
+    skip_interpreter = parsed.skip_interpreter
 
     logger.debug("args = %r", parsed)
     tempfilename = make_command_file(path_to_debug_info,
