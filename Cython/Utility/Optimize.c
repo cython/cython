@@ -1175,7 +1175,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         {{elif c_op in '+-'}}
             // adapted from intobject.c in Py2.7:
             // casts in the line below avoid undefined behaviour on overflow
-            x = (long)((unsigned long)a {{c_op}} b);
+            x = (long)((unsigned long)a {{c_op}} (unsigned long)b);
             if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
                 return PyInt_FromLong(x);
             return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
