@@ -1331,8 +1331,6 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if isinstance(value, PostParseError):
-                            raise value
                         if current_opt_dict.get(name, missing) != value:
                             if name == 'cfunc' and 'ufunc' in current_opt_dict:
                                 error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
