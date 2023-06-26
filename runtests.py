@@ -68,7 +68,6 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
-from distutils import ccompiler
 _to_clean = []
 
 @atexit.register
@@ -305,13 +304,14 @@ def get_cc_version(language):
     """
         finds gcc version using Popen
     """
+    cc = ''
     if language == 'cpp':
-        cc = sysconfig.get_config_var('CXX')
-    else:
-        cc = sysconfig.get_config_var('CC')
+        cc = os.environ.get('CXX') or sysconfig.get_config_var('CXX')
     if not cc:
-       cc = ccompiler.get_default_compiler()
-
+        cc = os.environ.get('CC') or sysconfig.get_config_var('CC')
+    if not cc:
+        from distutils import ccompiler
+        cc = ccompiler.get_default_compiler()
     if not cc:
         return ''
 
