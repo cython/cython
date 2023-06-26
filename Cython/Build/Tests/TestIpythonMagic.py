@@ -9,7 +9,6 @@ import os
 import io
 import sys
 from contextlib import contextmanager
-from functools import partial
 from unittest import skipIf
 
 from Cython.Build import IpythonMagic
@@ -27,8 +26,8 @@ else:
         return c
 
 # not using IPython's decorators here because they depend on "nose"
-skip_win32 = partial(skipIf, sys.platform == 'win32', "Skip on Windows")
-skip_py27 = partial(skipIf, sys.version_info[:2] == (2,7), "Disabled in Py2.7")
+skip_win32 = skipIf(sys.platform == 'win32', "Skip on Windows")
+skip_py27 = skipIf(sys.version_info[:2] == (2,7), "Disabled in Py2.7")
 
 try:
     # disable IPython history thread before it gets started to avoid having to clean it up
