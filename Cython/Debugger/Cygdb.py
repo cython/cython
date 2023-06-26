@@ -117,10 +117,8 @@ def main():
     )
     parser.add_argument("gdb_argv", nargs="*",
                         help="arguments to forward to gdb; specified after --")
-    parser.add_argument("--build_dir", default=os.curdir,
+    parser.add_argument("--build-dir", dest="build_dir", default=os.curdir,
                         help="directory containing cython_build/ files")
-    parser.add_argument("--no_import", default=False,
-                        help="whether cygdb should import debug information")
     parser.add_argument("--gdb-executable",
         dest="gdb", default='gdb',
         help="gdb executable to use [default: gdb]")
@@ -135,7 +133,7 @@ def main():
     options = parser.parse_args()
     path_to_debug_info = options.build_dir
     gdb_argv = options.gdb_argv
-    no_import = options.no_import
+    no_import = path_to_debug_info == os.curdir
 
     logging_level = logging.WARN
     if options.verbosity == 1:
