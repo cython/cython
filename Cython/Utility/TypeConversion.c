@@ -601,7 +601,9 @@ static void __Pyx_tuple_{{funcname}}(PyObject * o, {{struct_type_decl}} *result)
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
+    return;
 bad:
+    return;
 }
 
 static void __Pyx_list_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
@@ -610,7 +612,9 @@ static void __Pyx_list_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) 
         {{attr}} = {{component.from_py_function}}(PyList_GET_ITEM(o, {{ix}}));
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
+    return;
 bad:
+    return;
 }
 #endif
 
@@ -637,7 +641,9 @@ static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
     }
+    return;
 bad:
+    return;
 }
 
 static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject * o) {
