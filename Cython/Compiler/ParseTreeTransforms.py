@@ -1391,7 +1391,7 @@ class InterpretCompilerDirectives(CythonTransform):
                         elif isinstance(node.manager, ExprNodes.GeneralCallNode):
                             self.context.nonfatal_error(
                                 PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body, condition=condition)
+                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
