@@ -1077,9 +1077,12 @@ def printbuf_object(object[:] buf, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])  # , writable=False)
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
