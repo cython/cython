@@ -2078,18 +2078,16 @@ class EmbedTest(unittest.TestCase):
 
         try:
             subprocess.check_output([
-                "make",
-                "PYTHON='%s'" % sys.executable,
-                "CYTHON='%s'" % cython,
-                "LIBDIR1='%s'" % libdir,
-                "paths", "test",
-            ])
+                    "make",
+                    "PYTHON='%s'" % sys.executable,
+                    "CYTHON='%s'" % cython,
+                    "LIBDIR1='%s'" % libdir,
+                    "paths", "test",
+                ],
+                stderr=subprocess.STDOUT,
+            )
         except subprocess.CalledProcessError as err:
-            print("Output of EmbedTest:\n%s\nstderr of EmbedTest:\n%s\n" % (
-                err.output.decode().strip(),
-                err.stderr.decode().strip(),
-            ))
-            raise
+            self.fail("EmbedTest failed: " + err.output.decode().strip())
         self.assertTrue(True)  # :)
 
 
