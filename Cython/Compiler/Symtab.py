@@ -165,6 +165,7 @@ class Entry(object):
     #                             or a string of "modulename.something.attribute"
     #                             Used for identifying imports from typing/dataclasses etc
     # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
+    # enum_int_value  None or int  If known, the int that corresponds to this enum value
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -240,6 +241,7 @@ class Entry(object):
     is_cpp_optional = False
     known_standard_library_import = None
     pytyping_modifiers = None
+    enum_int_value = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name

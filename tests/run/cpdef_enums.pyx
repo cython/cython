@@ -89,6 +89,35 @@ cdef enum cdefPyxDocEnum:
     """
     FIVE_AND_SEVEN = 5077
 
+cdef extern from *:
+    """
+    enum ExternHasDuplicates {
+        EX_DUP_A,
+        EX_DUP_B=EX_DUP_A,
+        EX_DUP_C=EX_DUP_A
+    };
+    """
+    # Cython doesn't know about the duplicates though
+    cpdef enum ExternHasDuplicates:
+        EX_DUP_A
+        EX_DUP_B
+        EX_DUP_C
+
+
+cpdef enum CyDefinedHasDuplicates1:
+    CY_DUP1_A
+    CY_DUP1_B = 0
+
+
+cpdef enum CyDefinedHasDuplicates2:
+    CY_DUP2_A
+    CY_DUP2_B = CY_DUP2_A
+
+cpdef enum CyDefinedHasDuplicates3:
+    CY_DUP3_A = 1
+    CY_DUP3_B = 0
+    CY_DUP3_C  # = 1
+
 
 def test_as_variable_from_cython():
     """
@@ -141,6 +170,42 @@ def to_from_py_conversion(PxdEnum val):
     C enums are commonly enough used as flags that it seems reasonable
     to allow it in Cython
     >>> to_from_py_conversion(RANK_1 | RANK_2) == (RANK_1 | RANK_2)
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates1(ExternHasDuplicates val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates1(EX_DUP_A) == ExternHasDuplicates.EX_DUP_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates2(CY_DUP1_A) == CyDefinedHasDuplicates1.CY_DUP1_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates2 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates2(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates3 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates3(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
     True
     """
     return val
