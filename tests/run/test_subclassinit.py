@@ -162,32 +162,44 @@ class Test(unittest.TestCase):
             def __set_name__(self, owner, name):
                 1 / ZERO
 
-        with self.assertRaises(RuntimeError) as cm:
+        with self.assertRaises((RuntimeError, ZeroDivisionError)) as cm:
             class NotGoingToWork:
                 attr = Descriptor()
 
-        exc = cm.exception
-        self.assertRegex(str(exc), r'\bNotGoingToWork\b')
-        self.assertRegex(str(exc), r'\battr\b')
-        self.assertRegex(str(exc), r'\bDescriptor\b')
-        if HAS_NATIVE_SUPPORT:
-            self.assertIsInstance(exc.__cause__, ZeroDivisionError)
+        if sys.version_info >= (3, 12):
+            notes = cm.exception.__notes__
+            self.assertRegex(str(notes), r'\bNotGoingToWork\b')
+            self.assertRegex(str(notes), r'\battr\b')
+            self.assertRegex(str(notes), r'\bDescriptor\b')
+        else:
+            exc = cm.exception
+            self.assertRegex(str(exc), r'\bNotGoingToWork\b')
+            self.assertRegex(str(exc), r'\battr\b')
+            self.assertRegex(str(exc), r'\bDescriptor\b')
+            if HAS_NATIVE_SUPPORT:
+                self.assertIsInstance(exc.__cause__, ZeroDivisionError)
 
     def test_set_name_wrong(self):
         class Descriptor:
             def __set_name__(self):
                 pass
 
-        with self.assertRaises(RuntimeError) as cm:
+        with self.assertRaises((RuntimeError, TypeError)) as cm:
             class NotGoingToWork:
                 attr = Descriptor()
 
-        exc = cm.exception
-        self.assertRegex(str(exc), r'\bNotGoingToWork\b')
-        self.assertRegex(str(exc), r'\battr\b')
-        self.assertRegex(str(exc), r'\bDescriptor\b')
-        if HAS_NATIVE_SUPPORT:
-            self.assertIsInstance(exc.__cause__, TypeError)
+        if sys.version_info >= (3, 12):
+            notes = cm.exception.__notes__
+            self.assertRegex(str(notes), r'\bNotGoingToWork\b')
+            self.assertRegex(str(notes), r'\battr\b')
+            self.assertRegex(str(notes), r'\bDescriptor\b')
+        else:
+            exc = cm.exception
+            self.assertRegex(str(exc), r'\bNotGoingToWork\b')
+            self.assertRegex(str(exc), r'\battr\b')
+            self.assertRegex(str(exc), r'\bDescriptor\b')
+            if HAS_NATIVE_SUPPORT:
+                self.assertIsInstance(exc.__cause__, TypeError)
 
     def test_set_name_lookup(self):
         resolved = []
