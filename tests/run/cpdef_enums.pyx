@@ -193,19 +193,20 @@ def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1 val):
     return val
 
 
-def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates2 val):
+def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> to_from_py_conversion_with_duplicates2(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
+    >>> to_from_py_conversion_with_duplicates3(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
     True
     """
     return val
 
 
-def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates3 val):
+def to_from_py_conversion_with_duplicates4(CyDefinedHasDuplicates3 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> to_from_py_conversion_with_duplicates3(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
+    >>> import sys
+    >>> True if sys.version_info <= (3, 5, 0) else to_from_py_conversion_with_duplicates4(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
     True
     """
     return val
