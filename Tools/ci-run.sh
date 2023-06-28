@@ -31,6 +31,11 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+
+  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
+    # see https://trac.macports.org/ticket/62757
+    unset MACOSX_DEPLOYMENT_TARGET
+  fi
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
