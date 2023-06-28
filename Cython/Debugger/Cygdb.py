@@ -133,7 +133,7 @@ def main():
     options = parser.parse_args()
     path_to_debug_info = options.build_dir
     gdb_argv = options.gdb_argv
-    no_import = path_to_debug_info == None
+    no_import = path_to_debug_info is None
 
     logging_level = logging.WARN
     if options.verbosity == 1:
