@@ -116,9 +116,9 @@ def main():
         description="Cython debugger",
     )
     parser.add_argument("gdb_argv", nargs="*",
-                        help="arguments to forward to gdb; specified after --")
+                        help="Arguments to forward to gdb; specified after --")
     parser.add_argument("--build-dir", dest="build_dir", default=None,
-                        help="directory containing cython_build/ files")
+                        help="Directory containing cython_build/ files")
     parser.add_argument("--gdb-executable",
         dest="gdb", default='gdb',
         help="gdb executable to use [default: gdb]")
