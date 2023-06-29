@@ -307,25 +307,25 @@ jobs:
     env:
       BACKEND: c,cpp
       OS_NAME: ubuntu-20.04
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: "3.10"
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: "3.10"
 
       - name: Run Coverage
         env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: cycoverage_html
           path: coverage-report-html
