@@ -8,8 +8,13 @@ Cython Changelog
 Features added
 --------------
 
+* Assigning a list to a ctuple is slightly faster.
+
 Bugs fixed
 ----------
+
+* Duplicate values in a ``cpdef`` enum could lead to invalid switch statements.
+  (Github issue :issue:`5400`)
 
 * Handling freshly raised exceptions that didn't have a traceback yet could crash.
   (Github issue :issue:`5495`)
@@ -34,10 +39,14 @@ Bugs fixed
 
 * A compile error when using ``__debug__`` was resolved.
 
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.36` release.
+
 Other changes
 -------------
 
-* The FAQ page was moved from the GitHub Wiki to the regular documentation.
+* The FAQ page was moved from the GitHub Wiki to the regular documentation
+  to make it more visible.
 
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
   synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
