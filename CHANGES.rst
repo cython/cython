@@ -1517,6 +1517,28 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.36:
+
+0.29.36 (2023-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* Async generators lost their return value in PyPy.
+  (Github issue :issue:`5465`)
+
+* The outdated C macro ``_PyGC_FINALIZED()`` is no longer used in Py3.9+.
+
+* The deprecated ``Py_OptimizeFlag`` is no longer used in Python 3.9+.
+  (Github issue :issue:`5343`)
+
+* Using the global ``__debug__`` variable but not assertions could lead to compile errors.
+
+* The broken HTML template support was removed from Tempita.
+  (Github issue :issue:`3309`)
+
+
 .. _0.29.35:
 
 0.29.35 (2023-05-24)
