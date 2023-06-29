@@ -643,7 +643,7 @@ def compile_multiple(sources, options):
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
                 if verbose:
-                    sys.stderr.write("Compiling %s\n" % source)
+                    print("Compiling %s\n" % source)
                 result = run_pipeline(source, options,
                                       full_module_name=options.module_name,
                                       context=context)
