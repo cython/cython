@@ -2237,6 +2237,8 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
+                if cname in code.funcstate.cleanup_on_nonerror_path_temps:
+                    continue
                 assure_gil('error')
                 code.put_xdecref(cname, type, have_gil=gil_owned['error'])
 
@@ -2352,6 +2354,12 @@ class FuncDefNode(StatNode, BlockNode):
         if code.label_used(code.return_from_error_cleanup_label):
             align_error_path_gil_to_success_path()
             code.put_label(code.return_from_error_cleanup_label)
+
+        for cname, type in code.funcstate.all_managed_temps():
+            if cname not in code.funcstate.cleanup_on_nonerror_path_temps:
+                continue
+            assure_gil('success')
+            code.put_xdecref(cname, type, have_gil=gil_owned['success'])
 
         for entry in lenv.var_entries:
             if not entry.used or entry.in_closure:

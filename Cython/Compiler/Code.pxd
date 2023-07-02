@@ -50,6 +50,7 @@ cdef class FunctionState:
     cdef public set zombie_temps
     cdef public size_t temp_counter
     cdef public list collect_temps_stack
+    cdef public list cleanup_on_nonerror_path_temps
 
     cdef public object closure_temps
     cdef public bint should_declare_error_indicator

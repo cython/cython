@@ -728,6 +728,7 @@ class FunctionState(object):
         self.zombie_temps = set()  # temps that must not be reused after release
         self.temp_counter = 0
         self.closure_temps = None
+        self.cleanup_on_nonerror_path_temps = []  # list of temps to cleanup even without error
 
         # This is used to collect temporaries, useful to find out which temps
         # need to be privatized in parallel sections
@@ -825,7 +826,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
+    def allocate_temp(self, type, manage_ref, static=False, reusable=True, additional_hashing=None):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -847,6 +848,11 @@ class FunctionState(object):
         if reusable=False, the temp will not be reused after release.
 
         A C string referring to the variable is returned.
+
+        additional_hashing is used to narrow down the pool of available temps
+        further. Normally it is None. But, for example, when allocating memoryview
+        temps it's desirable that indexing from the same entry should go into the
+        same temp (to hopefully avoid reference counting).
         """
         if type.is_cv_qualified and not type.is_reference:
             type = type.cv_base_type
@@ -862,7 +868,7 @@ class FunctionState(object):
             # a decref is needed.
             manage_ref = False
 
-        freelist = self.temps_free.get((type, manage_ref))
+        freelist = self.temps_free.get((type, manage_ref, additional_hashing))
         if reusable and freelist is not None and freelist[0]:
             result = freelist[0].pop()
             freelist[1].remove(result)
@@ -871,10 +877,10 @@ class FunctionState(object):
                 self.temp_counter += 1
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if result not in self.names_taken: break
-            self.temps_allocated.append((result, type, manage_ref, static))
+            self.temps_allocated.append((result, type, additional_hashing, manage_ref, static))
             if not reusable:
                 self.zombie_temps.add(result)
-        self.temps_used_type[result] = (type, manage_ref)
+        self.temps_used_type[result] = (type, manage_ref, additional_hashing)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s allocated (%s)%s */" % (result, type, "" if reusable else " - zombie"))
 
@@ -888,11 +894,11 @@ class FunctionState(object):
         Releases a temporary so that it can be reused by other code needing
         a temp of the same type.
         """
-        type, manage_ref = self.temps_used_type[name]
-        freelist = self.temps_free.get((type, manage_ref))
+        type, manage_ref, additional_hashing = self.temps_used_type[name]
+        freelist = self.temps_free.get((type, manage_ref, additional_hashing))
         if freelist is None:
             freelist = ([], set())  # keep order in list and make lookups in set fast
-            self.temps_free[(type, manage_ref)] = freelist
+            self.temps_free[(type, manage_ref, additional_hashing)] = freelist
         if name in freelist[1]:
             raise RuntimeError("Temp %s freed twice!" % name)
         if name not in self.zombie_temps:
@@ -907,8 +913,8 @@ class FunctionState(object):
         that are currently in use.
         """
         used = []
-        for name, type, manage_ref, static in self.temps_allocated:
-            freelist = self.temps_free.get((type, manage_ref))
+        for name, type, additional_hashing, manage_ref, static in self.temps_allocated:
+            freelist = self.temps_free.get((type, manage_ref, additional_hashing))
             if freelist is None or name not in freelist[1]:
                 used.append((name, type, manage_ref and type.needs_refcounting))
         return used
@@ -926,7 +932,7 @@ class FunctionState(object):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                for cname, type, manage_ref, static in self.temps_allocated
+                for cname, type, additional_hashing, manage_ref, static in self.temps_allocated
                 if manage_ref]
 
     def all_free_managed_temps(self):
@@ -937,7 +943,7 @@ class FunctionState(object):
         """
         return sorted([  # Enforce deterministic order.
             (cname, type)
-            for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
+            for (type, manage_ref, _), freelist in self.temps_free.items() if manage_ref
             for cname in freelist[0]
         ])
 
@@ -2130,7 +2136,7 @@ class CCodeWriter(object):
         self.funcstate.scope.use_entry_utility_code(entry)
 
     def put_temp_declarations(self, func_context):
-        for name, type, manage_ref, static in func_context.temps_allocated:
+        for name, type, additional_hashing, manage_ref, static in func_context.temps_allocated:
             if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
             else:

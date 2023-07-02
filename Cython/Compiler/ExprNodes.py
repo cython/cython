@@ -774,6 +774,10 @@ class ExprNode(Node):
 #        #  Release temporaries used by LHS of an assignment.
 #        self.release_subexpr_temps(env)
 
+    def call_funcstate_allocate_temp(self, code, type):
+        # implemented so it can be overidden in special cases
+        return code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref)
+
     def allocate_temp_result(self, code):
         if self.temp_code:
             raise RuntimeError("Temp allocated multiple times in %r: %r" % (self.__class__.__name__, self.pos))
@@ -784,8 +788,7 @@ class ExprNode(Node):
             elif not (self.result_is_used or type.is_memoryviewslice or self.is_c_result_required()):
                 self.temp_code = None
                 return
-            self.temp_code = code.funcstate.allocate_temp(
-                type, manage_ref=self.use_managed_ref)
+            self.temp_code = self.call_funcstate_allocate_temp(code, type)
         else:
             self.temp_code = None
 
@@ -5057,6 +5060,16 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         return self.result_in_temp()
 
+    def call_funcstate_allocate_temp(self, code, type):
+        if (self.base.is_name or self.base.is_attr) and self.base.entry:
+            # Allocate a unique temp for entry (type, entry). This maximises the chance
+            # that the temp already points to the same memoryview
+            res = code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref,
+                                                additional_hashing=self.base.entry)
+            code.funcstate.cleanup_on_nonerror_path_temps.append(res)
+            return res
+        return super(MemoryViewSliceNode, self).call_funcstate_allocate_temp(code, type)
+
     def calculate_result_code(self):
         """This is called in case this is a no-op slicing node"""
         return self.base.result()
@@ -5107,6 +5120,11 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
+
+    def generate_post_assignment_code(self, code):
+        # special case, because it's worth preserving the contents of temps
+        # between calls to avoid reference counting
+        pass
 
 
 class MemoryCopyNode(ExprNode):

@@ -102,12 +102,20 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
         code.putln("/* memoryview self assignment no-op */")
         return
 
+    if isinstance(rhs, ExprNodes.MemoryViewSliceNode):
+        # Special-case optimize for indexing into memoryviews. In this case we can
+        # choose to skip the reference counting
+        code.putln("if (%s.memview != %s.memview) {" % (lhs_cname, rhs_cname))
+
     if not first_assignment:
         code.put_xdecref(lhs_cname, memviewslicetype,
                          have_gil=have_gil)
-
-    if not rhs.result_in_temp():
-        rhs.make_owned_memoryviewslice(code)
+        
+    if isinstance(rhs, ExprNodes.MemoryViewSliceNode):
+        code.put_incref_memoryviewslice(rhs_cname, rhs.type, have_gil=have_gil)
+        code.putln("}")
+    elif not rhs.result_in_temp():
+        rhs.make_owned_memoryviewslice(code)        
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
 
@@ -266,9 +274,18 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         """
         src = self.cname
 
+        # There's a decent chance that the source and destination memoryviews are the same
+        # in which case we can skip the reference counting for speed
+        code.putln("if (%(dst)s.memview != %(src)s.memview) {" % locals())
+        code.put_xdecref(dst, self.type, have_gil=have_gil)
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
         code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
+        code.putln("} else {")
+        # just copy the data
+        code.putln("%(dst)s.data = %(src)s.data;" % locals())
+        code.putln("}")
+
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         suboffset_dim_temp = []
