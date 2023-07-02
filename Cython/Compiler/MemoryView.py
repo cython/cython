@@ -110,12 +110,12 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
     if not first_assignment:
         code.put_xdecref(lhs_cname, memviewslicetype,
                          have_gil=have_gil)
-        
+
     if isinstance(rhs, ExprNodes.MemoryViewSliceNode):
         code.put_incref_memoryviewslice(rhs_cname, rhs.type, have_gil=have_gil)
         code.putln("}")
     elif not rhs.result_in_temp():
-        rhs.make_owned_memoryviewslice(code)        
+        rhs.make_owned_memoryviewslice(code)
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
 
