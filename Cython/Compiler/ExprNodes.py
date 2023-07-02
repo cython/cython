@@ -5061,11 +5061,22 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         return self.result_in_temp()
 
     def call_funcstate_allocate_temp(self, code, type):
-        if (self.base.is_name or self.base.is_attr) and self.base.entry:
+        from .UtilNodes import ResultRefNode
+        base = self.base
+        # unwrap result-refs to deal with the optimized
+        #  for x in memview:
+        # direct iteration. (It'd still work without this but
+        # it wouldn't preserve the "same temp for same entry" which
+        # should make the speed-up more reliable)
+        if isinstance(base, ResultRefNode):
+            base = base.expression
+        if isinstance(base, NoneCheckNode):
+            base = base.arg
+        if (base.is_name or base.is_attribute) and base.entry:
             # Allocate a unique temp for entry (type, entry). This maximises the chance
             # that the temp already points to the same memoryview
             res = code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref,
-                                                additional_hashing=self.base.entry)
+                                                additional_hashing=base.entry)
             code.funcstate.cleanup_on_nonerror_path_temps.append(res)
             return res
         return super(MemoryViewSliceNode, self).call_funcstate_allocate_temp(code, type)
