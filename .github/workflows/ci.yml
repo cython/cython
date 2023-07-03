@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
@@ -149,14 +149,14 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels-${{ runner.os }}
           path: dist/*.whl
