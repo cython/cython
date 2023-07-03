@@ -39,6 +39,9 @@ Bugs fixed
 
 * A compile error when using ``__debug__`` was resolved.
 
+* ``cython --version`` now prints the version to stdout instead of stderr.
+  (Github issue :issue:`5504`)
+
 * Includes all bug-fixes and features from the 0.29 maintenance branch
   up to the :ref:`0.29.36` release.
 
