@@ -433,6 +433,7 @@ VER_DEP_MODULES = {
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
+        'pyximport',  # 'imp' module was removed
     ]),
 
 }
