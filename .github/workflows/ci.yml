@@ -241,7 +241,7 @@ jobs:
         run: |
             sudo ln -fs python2 /usr/bin/python
             sudo apt-get update
-            sudo apt-get install python-setuptools python-dev
+            sudo apt-get install python-setuptools python2.7 python2.7-dev
             curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
             sudo python2 get-pip.py
             ls -l /usr/bin/pip* /usr/local/bin/pip*
