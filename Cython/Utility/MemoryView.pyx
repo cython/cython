@@ -335,8 +335,6 @@ cdef class memoryview:
     cdef object _size
     cdef object _array_interface
     cdef PyThread_type_lock lock
-    # the following array will contain a single __pyx_atomic int with
-    # suitable alignment
     cdef __pyx_atomic_int_type acquisition_count
     cdef Py_buffer view
     cdef int flags
