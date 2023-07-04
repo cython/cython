@@ -1825,7 +1825,8 @@ class EmbedTest(unittest.TestCase):
                 "paths", "test",
             ])
         except subprocess.CalledProcessError as err:
-            print(err.output.decode())
+            if err.output:
+                print(err.output.decode())
             raise
         self.assertTrue(True)  # :)
 
