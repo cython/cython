@@ -2552,7 +2552,7 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("   %s\n" % test)
 
     if options.with_refnanny:
-        import Cython.Runtime.refnanny as refnanny
+        import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     result_code = 0 if options.exit_ok else not result.wasSuccessful()
