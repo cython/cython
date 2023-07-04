@@ -48,6 +48,7 @@ This code is based on the Py2.3+ import protocol as described in PEP 302.
 """
 
 import glob
+import imp
 import os
 import sys
 from zipimport import zipimporter, ZipImportError
@@ -116,7 +117,6 @@ def handle_special_build(modname, pyxfilename):
         # locs = {}
         # execfile(special_build, globls, locs)
         # ext = locs["make_ext"](modname, pyxfilename)
-        import imp
         mod = imp.load_source("XXXX", special_build, open(special_build))
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
@@ -205,7 +205,6 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
 
 def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
                 build_inplace=False, language_level=None, so_path=None):
-    import imp
     try:
         if so_path is None:
             if is_package:
@@ -254,7 +253,6 @@ class PyxImporter(object):
         # package_path might be a _NamespacePath. Convert that into a list...
         if package_path is not None and not isinstance(package_path, list):
             package_path = list(package_path)
-        import imp
         try:
             fp, pathname, (ext,mode,ty) = imp.find_module(fullname,package_path)
             if fp: fp.close()  # Python should offer a Default-Loader to avoid this double find/open!
