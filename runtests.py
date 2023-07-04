@@ -2334,8 +2334,11 @@ def runtests(options, cmd_args, coverage=None):
             options.with_refnanny = False
 
     if options.with_refnanny:
-        from Cython.Build.Cythonize import main as build_extmodule
-        build_extmodule(['-i', os.path.join("Cython", "Runtime", "refnanny.pyx")])
+        from pyximport.pyxbuild import pyx_to_dll
+        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                             build_in_temp=True,
+                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
+        sys.path.insert(0, os.path.split(libpath)[0])
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if xml_output_dir and options.fork:
