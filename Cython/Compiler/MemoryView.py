@@ -102,9 +102,15 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
         code.putln("/* memoryview self assignment no-op */")
         return
 
-    if isinstance(rhs, ExprNodes.MemoryViewSliceNode):
-        # Special-case optimize for indexing into memoryviews. In this case we can
-        # choose to skip the reference counting
+    has_refcounting = (
+        not first_assignment or 
+        isinstance(rhs, ExprNodes.MemoryViewSliceNode) or
+        not rhs.result_in_temp()
+    )
+
+    if has_refcounting:
+        # skip all reference counting in the fairly likely event that the memoryviews
+        # point at the same thing since it's costly and unnecessary
         code.putln("if (%s.memview != %s.memview) {" % (lhs_cname, rhs_cname))
 
     if not first_assignment:
@@ -113,9 +119,10 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
 
     if isinstance(rhs, ExprNodes.MemoryViewSliceNode):
         code.put_incref_memoryviewslice(rhs_cname, rhs.type, have_gil=have_gil)
-        code.putln("}")
     elif not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
+    if has_refcounting:
+        code.putln("}")
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
 
