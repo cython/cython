@@ -47,14 +47,11 @@ typedef struct {
                         (__STDC_VERSION__ >= 201112L) && \
                         !defined(__STDC_NO_ATOMICS__) && \
                        ATOMIC_INT_LOCK_FREE == 2)
-    // C11 atomics are available.
-    // Require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
-    // alignment trick in MemoryView.pyx if it uses mutexes.
+    // C11 atomics are available and  ATOMIC_INT_LOCK_FREE is definitely on
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type atomic_int
-    // TODO - it might be possible to use a less strict memory ordering here
-    #define __pyx_atomic_incr_aligned(value) atomic_fetch_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value) atomic_fetch_sub(value, 1)
+    #define __pyx_atomic_incr_aligned(value) atomic_fetch_add_explicit(value, 1, memory_order_relaxed)
+    #define __pyx_atomic_decr_aligned(value) atomic_fetch_sub_explicit(value, 1, memory_order_acq_rel)
     #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
         #pragma message ("Using standard C atomics")
     #elif defined(__PYX_DEBUG_ATOMICS)
@@ -65,14 +62,11 @@ typedef struct {
                     /*_MSC_VER 1700 is Visual Studio 2012 */ \
                     (defined(_MSC_VER) && _MSC_VER >= 1700)) && \
                     ATOMIC_INT_LOCK_FREE == 2)
-    // C++11 atomics are available.
-    // Require ATOMIC_INT_LOCK_FREE because I'm nervous about the __pyx_atomic_int[2]
-    // alignment trick in MemoryView.pyx if it uses mutexes.
+    // C++11 atomics are available and ATOMIC_INT_LOCK_FREE is definitely on
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type std::atomic_int
-    // TODO - it might be possible to use a less strict memory ordering here
-    #define __pyx_atomic_incr_aligned(value) std::atomic_fetch_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value) std::atomic_fetch_sub(value, 1)
+    #define __pyx_atomic_incr_aligned(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_relaxed)
+    #define __pyx_atomic_decr_aligned(value) std::atomic_fetch_sub_explicit(value, 1, std::memory_order_acq_rel)
 
     #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
         #pragma message ("Using standard C++ atomics")
@@ -110,8 +104,6 @@ typedef struct {
         #warning "Not using atomics"
     #endif
 #endif
-
-typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 
 #if CYTHON_ATOMICS
     #define __pyx_add_acquisition_count(memview) \
@@ -152,12 +144,11 @@ static int __Pyx_init_memviewslice(
                 int memview_is_new_reference);
 
 static CYTHON_INLINE int __pyx_add_acquisition_count_locked(
-    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+    __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
 static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
-    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+    __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
 
-#define __pyx_get_slice_count_pointer(memview) (memview->acquisition_count_aligned_p)
-#define __pyx_get_slice_count(memview) (*__pyx_get_slice_count_pointer(memview))
+#define __pyx_get_slice_count_pointer(memview) (&memview->acquisition_count)
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
 #define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
@@ -509,7 +500,7 @@ static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
 }
 
 static CYTHON_INLINE int
-__pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+__pyx_add_acquisition_count_locked(__pyx_atomic_int_type *acquisition_count,
                                    PyThread_type_lock lock)
 {
     int result;
@@ -520,7 +511,7 @@ __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 }
 
 static CYTHON_INLINE int
-__pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+__pyx_sub_acquisition_count_locked(__pyx_atomic_int_type *acquisition_count,
                                    PyThread_type_lock lock)
 {
     int result;
@@ -554,7 +545,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
             }
         } else {
             __pyx_fatalerror("Acquisition count is %d (line %d)",
-                             __pyx_get_slice_count(memview), lineno);
+                             old_acquisition_count+1, lineno);
         }
     }
 }
@@ -586,7 +577,7 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
         }
     } else {
         __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
+                         old_acquisition_count-1, lineno);
     }
 }
 
