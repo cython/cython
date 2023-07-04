@@ -10,7 +10,7 @@ include "../buffers/mockbuffers.pxi"
 # This test is designed to pick up concurrency errors in memoryview reference counting.
 # It won't be 100% reliable, but hopefully does enough memoryview reference counting in
 # parallel that we should see errors if it isn't thread-safe.
-# It has been verified to crash if the atomic reference counting is replace with non-atomic counting
+# It has been verified to crash if the atomic reference counting is replaced with non-atomic counting.
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
