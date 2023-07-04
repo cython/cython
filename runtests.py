@@ -2087,7 +2087,9 @@ class EmbedTest(unittest.TestCase):
                 stderr=subprocess.STDOUT,
             )
         except subprocess.CalledProcessError as err:
-            self.fail("EmbedTest failed: " + err.output.decode().strip())
+            if err.output:
+                self.fail("EmbedTest failed: " + err.output.decode().strip())
+            raise
         self.assertTrue(True)  # :)
 
 
