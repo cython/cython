@@ -1392,6 +1392,7 @@ class ModuleScope(Scope):
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
+        is_relative_import = relative_level > 0
         relative_to = None
         absolute_fallback = False
         if relative_level is not None and relative_level > 0:
@@ -1415,7 +1416,7 @@ class ModuleScope(Scope):
 
         module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
+            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
     def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,

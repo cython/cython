@@ -178,7 +178,7 @@ class Context(object):
                     " Please use the normal Python package directory layout." % pxd_filename, level=1)
 
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
-                    absolute_fallback=True):
+                    absolute_fallback=True, relative_import=False):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
@@ -214,11 +214,14 @@ class Context(object):
                 print("...trying relative import")
             scope = relative_to.lookup_submodule(module_name)
             if not scope:
-                pxd_pathname = self.find_pxd_file(qualified_name, pos)
+                pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=not relative_import)
                 self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if pxd_pathname:
                     is_package = self._is_init_file(pxd_pathname)
                     scope = relative_to.find_submodule(module_name, as_package=is_package)
+        if not scope and relative_import:
+            error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))
+            return None
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")

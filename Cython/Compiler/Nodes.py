@@ -8863,6 +8863,8 @@ class FromCImportStatNode(StatNode):
                 error(self.pos, "relative cimport from non-package directory is not allowed")
                 return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
+        if not module_scope:
+            return
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
         for pos, name, as_name in self.imported_names:
@@ -8875,7 +8877,9 @@ class FromCImportStatNode(StatNode):
                     entry.used = 1
                 else:
                     submodule_scope = env.context.find_module(
-                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False, relative_import=self.relative_level > 0)
+                    if not submodule_scope:
+                        continue
                     if submodule_scope.parent_module is module_scope:
                         env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:
