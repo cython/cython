@@ -601,7 +601,11 @@ class GetAndReleaseBufferUtilityCode(object):
                         if x.name == u"__getbuffer__": get = x.func_cname
                         elif x.name == u"__releasebuffer__": release = x.func_cname
                     if get:
-                        types.append((t.typeptr_cname, get, release))
+                        # it's slightly hard to use the normal mechanism for formatting
+                        # the module state cname here. But it's going away with when we
+                        # drop Python 2 anyway.
+                        typeptr_cname = "%s->%s" % (Naming.modulestateglobal_cname, t.typeptr_cname)
+                        types.append((typeptr_cname, get, release))
 
         find_buffer_types(env)
 
