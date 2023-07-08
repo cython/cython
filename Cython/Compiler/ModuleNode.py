@@ -3212,6 +3212,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.cfunc_name, Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
                 code.putln("static int %s(%s *%s) {" % (
                     self.cfunc_name, Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
+                code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.modulestatevalue_cname)
                 code.put_declare_refcount_context()
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))

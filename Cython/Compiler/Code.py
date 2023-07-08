@@ -1235,12 +1235,14 @@ class GlobalState(object):
             # modulestate argument is currently unused
             w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(%s *%s) {" % (
                 Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
+            w.putln("CYTHON_UNUSED_VAR(%s);" % Naming.modulestatevalue_cname)
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(%s *%s) {" % (
             Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
+        w.putln("CYTHON_UNUSED_VAR(%s);" % Naming.modulestatevalue_cname)
         w.put_declare_refcount_context()
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
@@ -1254,6 +1256,7 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s *%s) {" %
             (Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
+        w.putln("CYTHON_UNUSED_VAR(%s);" % Naming.modulestatevalue_cname)
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1263,6 +1266,7 @@ class GlobalState(object):
             w.putln("")
             w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(%s *%s) {" %
                 (Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
+            w.putln("CYTHON_UNUSED_VAR(%s);" % Naming.modulestatevalue_cname)
 
         code = self.parts['utility_code_proto']
         code.putln("")
