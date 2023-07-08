@@ -47,8 +47,8 @@ _WARNINGS = """
 37:20: Unknown type declaration 'stdint.bar' in annotation, ignoring
 
 # Spurious warnings from utility code - not part of the core test
-25:10: 'cpdef_method' redeclared
-36:10: 'cpdef_cname_method' redeclared
+26:10: 'cpdef_method' redeclared
+37:10: 'cpdef_cname_method' redeclared
 980:29: Ambiguous exception value, same as default return value: 0
 1021:46: Ambiguous exception value, same as default return value: 0
 1111:29: Ambiguous exception value, same as default return value: 0
