@@ -5647,7 +5647,7 @@ class CClassDefNode(ClassDefNode):
                         "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
-                    base_typeptr_cname = code.type_ptr_cname_in_module_state(type.base_type)
+                    base_typeptr_cname = code.typeptr_cname_in_module_state(type.base_type)
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
                         base_typeptr_cname))
                     code.putln("}")
