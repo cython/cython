@@ -5576,7 +5576,7 @@ class CClassDefNode(ClassDefNode):
                 tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                 code.putln("%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
                     tuple_temp,
-                    scope.parent_type.base_type.typeptr_cname,
+                    code.typeptr_cname_in_module_state(scope.parent_type.base_type),
                     code.error_goto_if_null(tuple_temp, entry.pos),
                 ))
                 code.put_gotref(tuple_temp, py_object_type)

@@ -1595,7 +1595,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     if (unlikely(!bases)) {
         return -1;
     }
-    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
+    mstate->__pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
