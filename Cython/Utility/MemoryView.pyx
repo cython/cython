@@ -265,7 +265,7 @@ cdef int _allocate_buffer(array self) except -1:
 
 
 @cname("__pyx_array_new")
-cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *c_mode, char *buf):
+cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const char *c_mode, char *buf):
     cdef array result
     cdef str mode = "fortran" if c_mode[0] == b'f' else "c"  # this often comes from a constant C string.
 

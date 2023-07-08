@@ -567,6 +567,18 @@
 // #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
 // #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
 
+#if PY_MAJOR_VERSION < 3
+#define __PYX_CAST_TO_CHAR_PTR_ON_PY2(arg) (char *)arg
+#else
+#define __PYX_CAST_TO_CHAR_PTR_ON_PY2(arg) arg
+#endif
+#if PY_VERSION_HEX < 0x03070000
+// Python 3.7 started using const char* for PyGetSetDef etc
+#define __PYX_CAST_TO_CHAR_PTR_ON_PY36(arg) (char *)arg
+#else
+#define __PYX_CAST_TO_CHAR_PTR_ON_PY36(arg) arg
+#endif
+
 
 /////////////// CInitCode ///////////////
 

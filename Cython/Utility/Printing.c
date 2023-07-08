@@ -20,7 +20,7 @@ Py_CLEAR($print_function_kwargs);
 
 #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
-    PyObject *f = PySys_GetObject((char *)"stdout");
+    PyObject *f = PySys_GetObject("stdout");
     if (!f) {
         PyErr_SetString(PyExc_RuntimeError, "lost sys.stdout");
     }

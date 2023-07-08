@@ -645,7 +645,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
         }
     }
 
-    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, (char *) mode, NULL);
+    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, mode, NULL);
     if (unlikely(!array_obj)) {
         goto fail;
     }

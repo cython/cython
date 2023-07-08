@@ -1661,9 +1661,9 @@ class GlobalState(object):
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
-                function = 'PyLong_FromString((char *)"%s", 0, 0)'
+                function = 'PyLong_FromString(__PYX_CAST_TO_CHAR_PTR_ON_PY2("%s"), 0, 0)'
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString((char *)"%s", 0, 0)'
+                function = 'PyInt_FromString(__PYX_CAST_TO_CHAR_PTR_ON_PY2("%s"), 0, 0)'
             elif len(value.lstrip('-')) > 4:
                 function = "PyInt_FromLong(%sL)"
             else:

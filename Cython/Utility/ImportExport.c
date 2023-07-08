@@ -645,7 +645,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
         void *p;
     } tmp;
 
-    d = PyObject_GetAttrString(module, (char *)"$api_name");
+    d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
     cobj = PyDict_GetItemString(d, funcname);
@@ -688,14 +688,14 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         void *p;
     } tmp;
 
-    d = PyObject_GetAttrString($module_cname, (char *)"$api_name");
+    d = PyObject_GetAttrString($module_cname, "$api_name");
     if (!d) {
         PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
         Py_INCREF(d);
-        if (PyModule_AddObject($module_cname, (char *)"$api_name", d) < 0)
+        if (PyModule_AddObject($module_cname, "$api_name", d) < 0)
             goto bad;
     }
     tmp.fp = f;
@@ -727,7 +727,7 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     PyObject *d = 0;
     PyObject *cobj = 0;
 
-    d = PyObject_GetAttrString(module, (char *)"$api_name");
+    d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
     cobj = PyDict_GetItemString(d, name);

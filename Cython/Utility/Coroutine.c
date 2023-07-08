@@ -1161,7 +1161,7 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
     PyObject *val = NULL;
     PyObject *tb = NULL;
 
-    if (unlikely(!PyArg_UnpackTuple(args, (char *)"throw", 1, 3, &typ, &val, &tb)))
+    if (unlikely(!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb)))
         return NULL;
 
     return __Pyx__Coroutine_Throw(self, typ, val, tb, args, 1);
@@ -1293,7 +1293,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
             PyErr_WriteUnraisable(self);
 #else
         {PyObject *msg;
-        char *cmsg;
+        char *cmsg;  // TODO - make this const char* when we drop Python 2
         #if CYTHON_COMPILING_IN_PYPY
         msg = NULL;
         cmsg = (char*) "coroutine was never awaited";
@@ -1568,11 +1568,11 @@ static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self
 
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
-     (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration."))},
     {"throw", (PyCFunction) __Pyx_CoroutineAwait_Throw, METH_VARARGS,
-     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration."))},
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS,
-     (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("close() -> raise GeneratorExit inside coroutine."))},
 // only needed with type-specs or version<3.6, but included in all versions for clarity
 // #if PY_VERSION_HEX < 0x03060000 || CYTHON_USE_TYPE_SPECS
     {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
@@ -1718,37 +1718,37 @@ static PyObject *__Pyx_Coroutine_compare(PyObject *obj, PyObject *other, int op)
 
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
-     (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration."))},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
-     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration."))},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS,
-     (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("close() -> raise GeneratorExit inside coroutine."))},
 #if PY_VERSION_HEX < 0x030500B1
     {"__await__", (PyCFunction) __Pyx_Coroutine_await_method, METH_NOARGS,
-     (char*) PyDoc_STR("__await__() -> return an iterator to be used in await expression.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("__await__() -> return an iterator to be used in await expression."))},
 #endif
     {0, 0, 0, 0}
 };
 
 static PyMemberDef __pyx_Coroutine_memberlist[] = {
-    {(char *) "cr_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
-    {(char*) "cr_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
-     (char*) PyDoc_STR("object being awaited, or None")},
-    {(char*) "cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
-    {(char *) "__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_running"), T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_await"), T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("object being awaited, or None"))},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_code"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__module__"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
 #if CYTHON_USE_TYPE_SPECS
-    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__weaklistoffset__"), T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
 #endif
     {0, 0, 0, 0, 0}
 };
 
 static PyGetSetDef __pyx_Coroutine_getsets[] = {
-    {(char *) "__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
-     (char*) PyDoc_STR("name of the coroutine"), 0},
-    {(char *) "__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
-     (char*) PyDoc_STR("qualified name of the coroutine"), 0},
-    {(char *) "cr_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
-     (char*) PyDoc_STR("Frame of the coroutine"), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__name__"), (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("name of the coroutine")), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__qualname__"), (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("qualified name of the coroutine")), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_frame"), (getter)__Pyx_Coroutine_get_frame, NULL,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("Frame of the coroutine")), 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -2042,33 +2042,33 @@ static int __pyx_IterableCoroutine_init(PyObject *module) {
 
 static PyMethodDef __pyx_Generator_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
-     (char*) PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration."))},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
-     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration."))},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS,
-     (char*) PyDoc_STR("close() -> raise GeneratorExit inside generator.")},
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("close() -> raise GeneratorExit inside generator."))},
     {0, 0, 0, 0}
 };
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
-    {(char *) "gi_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
-    {(char*) "gi_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
-     (char*) PyDoc_STR("object being iterated by 'yield from', or None")},
-    {(char*) "gi_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
-    {(char *) "__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_running"), T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_yieldfrom"), T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("object being iterated by 'yield from', or None"))},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_code"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__module__"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
 #if CYTHON_USE_TYPE_SPECS
-    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__weaklistoffset__"), T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
 #endif
     {0, 0, 0, 0, 0}
 };
 
 static PyGetSetDef __pyx_Generator_getsets[] = {
-    {(char *) "__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
-     (char*) PyDoc_STR("name of the generator"), 0},
-    {(char *) "__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
-     (char*) PyDoc_STR("qualified name of the generator"), 0},
-    {(char *) "gi_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
-     (char*) PyDoc_STR("Frame of the generator"), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__name__"), (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("name of the generator")), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__qualname__"), (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("qualified name of the generator")), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_frame"), (getter)__Pyx_Coroutine_get_frame, NULL,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("Frame of the generator")), 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -2585,7 +2585,8 @@ static int __pyx_StopAsyncIteration_init(PyObject *module) {
 #else
     PyObject *builtins = PyEval_GetBuiltins();
     if (likely(builtins)) {
-        PyObject *exc = PyMapping_GetItemString(builtins, (char*) "StopAsyncIteration");
+        // Actual cutoff for char* cast is 3.4
+        PyObject *exc = PyMapping_GetItemString(builtins, __PYX_CAST_TO_CHAR_PTR_ON_PY2("StopAsyncIteration"));
         if (exc) {
             __Pyx_PyExc_StopAsyncIteration = exc;
             return 0;
@@ -2601,7 +2602,8 @@ static int __pyx_StopAsyncIteration_init(PyObject *module) {
     __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
     if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
         return -1;
-    if (likely(builtins) && unlikely(PyMapping_SetItemString(builtins, (char*) "StopAsyncIteration", __Pyx_PyExc_StopAsyncIteration) < 0))
+    // Actual cutoff for char* cast is 3.4
+    if (likely(builtins) && unlikely(PyMapping_SetItemString(builtins, __PYX_CAST_TO_CHAR_PTR_ON_PY2("StopAsyncIteration"), __Pyx_PyExc_StopAsyncIteration) < 0))
         return -1;
 #endif
     return 0;

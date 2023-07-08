@@ -11232,7 +11232,7 @@ class CythonArrayNode(ExprNode):
         code.put_gotref(format_temp, py_object_type)
 
         buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
-        code.putln('%s = Py_BuildValue((char*) "(" %s ")", %s); %s' % (
+        code.putln('%s = Py_BuildValue("(" %s ")", %s); %s' % (
             shapes_temp,
             buildvalue_fmt,
             ", ".join(shapes),
@@ -11240,7 +11240,7 @@ class CythonArrayNode(ExprNode):
         ))
         code.put_gotref(shapes_temp, py_object_type)
 
-        code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AS_STRING(%s), (char *) "%s", (char *) %s); %s' % (
+        code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AS_STRING(%s), "%s", (char *) %s); %s' % (
             self.result(),
             shapes_temp, itemsize, format_temp, self.mode, self.operand.result(),
             code.error_goto_if_null(self.result(), self.pos),

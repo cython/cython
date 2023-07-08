@@ -5,7 +5,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 /////////////// FetchSharedCythonModule ////////////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
-    PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
+    PyObject *abi_module = PyImport_AddModule(__PYX_ABI_MODULE_NAME);
     if (unlikely(!abi_module)) return NULL;
     Py_INCREF(abi_module);
     return abi_module;

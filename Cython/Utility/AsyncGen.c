@@ -318,10 +318,10 @@ __Pyx_async_gen_self_method(PyObject *g, PyObject *arg) {
 
 
 static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
-    {(char*) "__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
-     (char*) PyDoc_STR("name of the async generator"), 0},
-    {(char*) "__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
-     (char*) PyDoc_STR("qualified name of the async generator"), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__name__"), (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("name of the async generator")), 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__qualname__"), (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("qualified name of the async generator")), 0},
     //REMOVED: {(char*) "ag_await", (getter)coro_get_cr_await, NULL,
     //REMOVED:  (char*) PyDoc_STR("object being awaited on, or None")},
     {0, 0, 0, 0, 0} /* Sentinel */
@@ -329,14 +329,14 @@ static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
 
 static PyMemberDef __Pyx_async_gen_memberlist[] = {
     //REMOVED: {(char*) "ag_frame",   T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_frame),   READONLY},
-    {(char*) "ag_running", T_BOOL,   offsetof(__pyx_PyAsyncGenObject, ag_running_async), READONLY, NULL},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("ag_running"), T_BOOL,   offsetof(__pyx_PyAsyncGenObject, ag_running_async), READONLY, NULL},
     //REMOVED: {(char*) "ag_code",    T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_code),    READONLY},
     //ADDED: "ag_await"
-    {(char*) "ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
-     (char*) PyDoc_STR("object being awaited on, or None")},
-    {(char *) "__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("ag_await"), T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("object being awaited on, or None"))},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__module__"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
 #if CYTHON_USE_TYPE_SPECS
-    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__weaklistoffset__"), T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
 #endif
     {0, 0, 0, 0, 0}      /* Sentinel */
 };

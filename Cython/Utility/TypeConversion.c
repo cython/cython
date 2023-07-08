@@ -248,7 +248,7 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
 
     sys = PyImport_ImportModule("sys");
     if (!sys) goto bad;
-    default_encoding = PyObject_CallMethod(sys, (char*) (const char*) "getdefaultencoding", NULL);
+    default_encoding = PyObject_CallMethod(sys, __PYX_CAST_TO_CHAR_PTR_ON_PY2("getdefaultencoding"), NULL);
     Py_DECREF(sys);
     if (!default_encoding) goto bad;
     default_encoding_c = PyBytes_AsString(default_encoding);

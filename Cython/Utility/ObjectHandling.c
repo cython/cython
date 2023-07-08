@@ -2415,7 +2415,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
 
     if (unlikely(!call))
         return PyObject_Call(func, arg, kw);
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
         return NULL;
     result = (*call)(func, arg, kw);
     Py_LeaveRecursiveCall();
@@ -2444,7 +2444,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
     cfunc = PyCFunction_GET_FUNCTION(func);
     self = PyCFunction_GET_SELF(func);
 
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
         return NULL;
     result = cfunc(self, arg);
     Py_LeaveRecursiveCall();
@@ -2578,7 +2578,7 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
     assert(kwargs == NULL || PyDict_Check(kwargs));
     nk = kwargs ? PyDict_Size(kwargs) : 0;
 
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object"))) {
+    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object"))) {
         return NULL;
     }
 

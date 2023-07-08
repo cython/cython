@@ -2684,7 +2684,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                    '{__PYX_CAST_TO_CHAR_PTR_ON_PY36(%s), %s, %s, __PYX_CAST_TO_CHAR_PTR_ON_PY36(%s), 0},' % (
                         entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
@@ -3585,7 +3585,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
         code.put_incref(Naming.builtins_cname, py_object_type, nanny=False)
         code.putln(
-            '%s = PyImport_AddModule((char *) "cython_runtime"); %s' % (
+            '%s = PyImport_AddModule("cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
