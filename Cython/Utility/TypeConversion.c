@@ -205,7 +205,7 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
         char ascii_chars[128];
         int c;
         for (c = 0; c < 128; c++) {
-            ascii_chars[c] = c;
+            ascii_chars[c] = (char) c;
         }
         __Pyx_sys_getdefaultencoding_not_ascii = 1;
         ascii_chars_u = PyUnicode_DecodeASCII(ascii_chars, 128, NULL);
@@ -595,24 +595,30 @@ static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject *);
 /////////////// FromPyCTupleUtility ///////////////
 
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-static {{struct_type_decl}} __Pyx_tuple_{{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result;
-
+static void __Pyx_tuple_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "result.f%s" % ix}}
+        {{py:attr = "result->f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
-
-    return result;
+    return;
 bad:
-    return result;
+    return;
+}
+
+static void __Pyx_list_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
+    {{for ix, component in enumerate(components):}}
+        {{py:attr = "result->f%s" % ix}}
+        {{attr}} = {{component.from_py_function}}(PyList_GET_ITEM(o, {{ix}}));
+        if ({{component.error_condition(attr)}}) goto bad;
+    {{endfor}}
+    return;
+bad:
+    return;
 }
 #endif
 
-static {{struct_type_decl}} __Pyx_seq_{{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result;
-
+static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
         __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
@@ -628,27 +634,33 @@ static {{struct_type_decl}} __Pyx_seq_{{funcname}}(PyObject * o) {
     {
         PyObject *item;
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "result.f%s" % ix}}
+        {{py:attr = "result->f%s" % ix}}
         item = PySequence_ITEM(o, {{ix}});  if (unlikely(!item)) goto bad;
         {{attr}} = {{component.from_py_function}}(item);
         Py_DECREF(item);
         if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
     }
-
-    return result;
+    return;
 bad:
-    return result;
+    return;
 }
 
 static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject * o) {
+    {{struct_type_decl}} result;
+
     #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     if (likely(PyTuple_Check(o) && PyTuple_GET_SIZE(o) == {{size}})) {
-        return __Pyx_tuple_{{funcname}}(o);
-    }
+        __Pyx_tuple_{{funcname}}(o, &result);
+    } else if (likely(PyList_Check(o) && PyList_GET_SIZE(o) == {{size}})) {
+        __Pyx_list_{{funcname}}(o, &result);
+    } else
     #endif
+    {
+        __Pyx_seq_{{funcname}}(o, &result);
+    }
 
-    return __Pyx_seq_{{funcname}}(o);
+    return result;
 }
 
 

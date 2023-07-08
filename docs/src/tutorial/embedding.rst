@@ -121,7 +121,7 @@ If your module imports anything (and possibly even if it doesn't) then it'll nee
 the Python path set so it knows where to look for modules. Unlikely the standalone
 interpreter, embedded Python doesn't set this up automatically.
 
-``PySys_SetPath(...)`` is the easiest way of doing this (just after ``Py_Initialize()`
+``PySys_SetPath(...)`` is the easiest way of doing this (just after ``Py_Initialize()``
 ideally). You could also use ``PySys_GetObject("path")`` and then append to the
 list that it returns.
 
