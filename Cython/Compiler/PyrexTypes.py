@@ -4935,6 +4935,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                     cname = func.cname + "<%s>" % ",".join([t.empty_declaration_code() for t in type_list]),
                     type = func_type.specialize(deductions),
                     pos = func.pos)
+                specialization.scope = func.scope
                 candidates.append((specialization, specialization.type))
         else:
             candidates.append((func, func_type))
