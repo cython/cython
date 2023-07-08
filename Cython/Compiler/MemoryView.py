@@ -104,7 +104,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
 
     has_skippable_refcounting = (
         not first_assignment and (
-            isinstance(rhs, ExprNodes.MemoryViewSliceNode) or
+            not rhs.clear_memoryview_temps_after_use or
             not rhs.result_in_temp())
     )
 
@@ -117,7 +117,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
         code.put_xdecref(lhs_cname, memviewslicetype,
                          have_gil=have_gil)
 
-    if isinstance(rhs, ExprNodes.MemoryViewSliceNode):
+    if not rhs.clear_memoryview_temps_after_use:
         code.put_incref_memoryviewslice(rhs_cname, rhs.type, have_gil=have_gil)
     elif not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)

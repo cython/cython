@@ -346,6 +346,8 @@ class ExprNode(Node):
     result_is_used = True
     is_numpy_attribute = False
     generator_arg_tag = None
+    clear_memoryview_temps_after_use = True  # allow a gradual change to the
+        # potentially more efficient reference counting behaviour for memoryviewslices
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -4970,6 +4972,7 @@ class MemoryViewIndexNode(BufferIndexNode):
 class MemoryViewSliceNode(MemoryViewIndexNode):
 
     is_memview_slice = True
+    clear_memoryview_temps_after_use = False
 
     # No-op slicing operation, this node will be replaced
     is_ellipsis_noop = False
@@ -5062,12 +5065,15 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
     def call_funcstate_allocate_temp(self, code, type):
         from .UtilNodes import ResultRefNode
-        base = self.base
+        # make the type distinct from the "normal" memoryview type
+
+        type = type.make_dont_clear_temps_type()
         # unwrap result-refs to deal with the optimized
         #  for x in memview:
         # direct iteration. (It'd still work without this but
         # it wouldn't preserve the "same temp for same entry" which
         # should make the speed-up more reliable)
+        base = self.base
         if isinstance(base, ResultRefNode):
             base = base.expression
         if isinstance(base, NoneCheckNode):
@@ -5075,9 +5081,9 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         if (base.is_name or base.is_attribute) and base.entry:
             # Allocate a unique temp for entry (type, entry). This maximises the chance
             # that the temp already points to the same memoryview
+            assert type.is_memoryviewslice
             res = code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref,
                                                 additional_hashing=base.entry)
-            code.funcstate.cleanup_on_nonerror_path_temps.append(res)
             return res
         return super(MemoryViewSliceNode, self).call_funcstate_allocate_temp(code, type)
 

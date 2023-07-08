@@ -629,6 +629,12 @@ class MemoryViewSliceType(PyrexType):
         # memoryview and pyobject code could be generated in the same way.
         # However, memoryviews are sufficiently specialized that this doesn't
         # seem practical. Implement a limited version of it for now
+    clear_temps_after_use = True  # There's good optimization reasons not to clear
+        # memoryview temps when we're done with them (mainly that they're often
+        # reassigned to the same thing, and we can avoid refcounting in that case).
+        # However, switching all uses in one go is a big task. Therefore create
+        # a separate type to use for uncleared temps, so that they can be kept
+        # separate.
     scope = None
 
     # These are special cased in Defnode
@@ -690,6 +696,11 @@ class MemoryViewSliceType(PyrexType):
         if not self.dtype.is_fused:
             self.dtype_name = Buffer.mangle_dtype_name(self.dtype)
 
+    def make_dont_clear_temps_type(self):
+        new_type = copy.copy(self)
+        new_type.clear_temps_after_use = False
+        return new_type
+
     def __hash__(self):
         return hash(self.__class__) ^ hash(self.dtype) ^ hash(tuple(self.axes))
 
@@ -707,7 +718,8 @@ class MemoryViewSliceType(PyrexType):
         return ((other_type.is_memoryviewslice and
             #self.writable_needed == other_type.writable_needed and  # FIXME: should be only uni-directional
             self.dtype.same_as(other_type.dtype) and
-            self.axes == other_type.axes) or
+            self.axes == other_type.axes and
+            self.clear_temps_after_use == other_type.clear_temps_after_use) or
             other_type is error_type)
 
     def needs_nonecheck(self):

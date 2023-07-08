@@ -887,6 +887,9 @@ class FunctionState(object):
         if self.collect_temps_stack:
             self.collect_temps_stack[-1].add((result, type))
 
+        if type.is_memoryviewslice and type.clear_temps_after_use:
+            self.cleanup_on_nonerror_path_temps.append(result)
+
         return result
 
     def release_temp(self, name):
