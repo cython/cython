@@ -10,7 +10,7 @@ cdef extern from *:
     cdef object __pyx_test_dep(object)
     ctypedef struct PyObject
 
-@cname("__pyx_TestClass")
+@cname('__pyx_TestClass')
 cdef class TestClass(object):
     cdef public int value
 
