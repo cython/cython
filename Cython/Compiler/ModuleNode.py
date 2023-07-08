@@ -1538,9 +1538,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
+            base_type_typeptr_cname = base_type.typeptr_cname
+            if not base_type.is_builtin_type:
+                base_type_typeptr_cname = code.name_in_module_state(base_type_typeptr_cname)
             if tp_new is None:
                 tp_new = "__Pyx_PyType_GetSlot(%s, tp_new, newfunc)" % (
-                    code.name_in_module_state(base_type.typeptr_cname))
+                    base_type_typeptr_cname)
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
         else:
             code.putln("PyObject *o;")
@@ -1749,7 +1752,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                    clear_before_decref=True, have_gil=True)
 
         if base_type:
-            base_cname = code.name_in_module_state(base_type.typeptr_cname)
+            base_cname = base_type.typeptr_cname
+            if not base_type.is_builtin_type:
+                base_cname = code.name_in_module_state(base_cname)
             if needs_gc:
                 # The base class deallocator probably expects this to be tracked,
                 # so undo the untracking above.
@@ -2033,7 +2038,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_guarded_basetype_call(
             self, base_type, substructure, slot, args, code):
         if base_type:
-            base_tpname = base_type.typeptr_cname
+            base_tpname = code.typeptr_cname_in_module_state(base_type)
             if substructure:
                 code.putln(
                     "if (%s->%s && %s->%s->%s)" % (

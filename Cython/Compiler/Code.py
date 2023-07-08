@@ -2030,6 +2030,18 @@ class CCodeWriter(object):
             # TODO - more choices depending on the type of env
 
         return "%s->%s" % (modulestate_name, cname)
+    
+    def namespace_cname_in_module_state(self, scope):
+        if scope.is_py_class_scope:
+            return scope.namespace_cname
+        else:
+            return self.name_in_module_state(scope.namespace_cname)
+
+    def typeptr_cname_in_module_state(self, type):
+        if type.is_extension_type:
+            return self.name_in_module_state(type.typeptr_cname)
+        else:
+            return type.typeptr_cname
 
     # code generation
 

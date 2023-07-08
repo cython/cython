@@ -2431,9 +2431,7 @@ class FuncDefNode(StatNode, BlockNode):
         if arg.type.typeobj_is_available():
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ArgTypeTest", "FunctionArguments.c"))
-            typeptr_cname = arg.type.typeptr_cname
-            if arg.type.is_extension_type:
-                typeptr_cname = code.name_in_module_state(typeptr_cname)
+            typeptr_cname = code.typeptr_cname_in_module_state(arg.type)
             arg_code = "((PyObject *)%s)" % arg.entry.cname
             code.putln(
                 'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, %s, %s))) %s' % (
@@ -5649,9 +5647,7 @@ class CClassDefNode(ClassDefNode):
                         "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
-                    base_typeptr_cname = type.base_type.typeptr_cname
-                    if type.base_type.is_extension_type:
-                        base_typeptr_cname = code.name_in_module_state(base_typeptr_cname)
+                    base_typeptr_cname = code.type_ptr_cname_in_module_state(type.base_type)
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
                         base_typeptr_cname))
                     code.putln("}")
