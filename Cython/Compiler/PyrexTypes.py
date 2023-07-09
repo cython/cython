@@ -2464,7 +2464,7 @@ class CComplexType(CNumericType):
             'long double': '_Lcomplex',
             'double': '_Dcomplex',
             'float': '_Fcomplex',
-        }.get(self.specialization_name())
+        }.get(self.real_type.specialization_name())
         return {
             'type': self.empty_declaration_code(),
             'type_name': self.specialization_name(),
