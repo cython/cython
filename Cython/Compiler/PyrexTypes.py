@@ -2234,6 +2234,9 @@ class CBIntType(CIntType):
             base_code = public_decl('int', dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
+    def specialization_name(self):
+        return "bint"
+
     def __repr__(self):
         return "<CNumericType bint>"
 
