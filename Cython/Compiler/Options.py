@@ -323,8 +323,8 @@ directive_types = {
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
     'collection_type': one_of('sequence'),
-    'nogil' : bool,
-    'gil' : bool,
+    'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
