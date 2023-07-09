@@ -368,14 +368,14 @@ def get_cc_version(language):
     """
         finds gcc version using Popen
     """
+    cc = ''
     if language == 'cpp':
-        cc = sysconfig.get_config_var('CXX')
-    else:
-        cc = sysconfig.get_config_var('CC')
+        cc = os.environ.get('CXX') or sysconfig.get_config_var('CXX')
+    if not cc:
+        cc = os.environ.get('CC') or sysconfig.get_config_var('CC')
     if not cc:
         from distutils import ccompiler
         cc = ccompiler.get_default_compiler()
-
     if not cc:
         return ''
 
@@ -454,7 +454,7 @@ EXT_EXTRAS = {
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:py3only':  exclude_extension_in_pyver((2, 7)),
-    'tag:cppexecpolicies': require_gcc("9.1")
+    'tag:cppexecpolicies': require_gcc("9.1"),
 }
 
 
@@ -757,8 +757,8 @@ class TestBuilder(object):
                 suite.addTest(
                     self.handle_directory(path, filename))
         if (sys.platform not in ['win32'] and self.add_embedded_test
-                # the embedding test is currently broken in Py3.8+, except on Linux.
-                and (sys.version_info < (3, 8) or sys.platform != 'darwin')):
+                # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
+                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -2078,14 +2078,17 @@ class EmbedTest(unittest.TestCase):
 
         try:
             subprocess.check_output([
-                "make",
-                "PYTHON='%s'" % sys.executable,
-                "CYTHON='%s'" % cython,
-                "LIBDIR1='%s'" % libdir,
-                "paths", "test",
-            ])
+                    "make",
+                    "PYTHON='%s'" % sys.executable,
+                    "CYTHON='%s'" % cython,
+                    "LIBDIR1='%s'" % libdir,
+                    "paths", "test",
+                ],
+                stderr=subprocess.STDOUT,
+            )
         except subprocess.CalledProcessError as err:
-            print(err.output.decode())
+            if err.output:
+                self.fail("EmbedTest failed: " + err.output.decode().strip())
             raise
         self.assertTrue(True)  # :)
 

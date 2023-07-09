@@ -10,11 +10,9 @@ def simple_convert(*o):
 
     >>> simple_convert(1)
     Traceback (most recent call last):
-    ...
     TypeError: Expected a sequence of size 2, got size 1
     >>> simple_convert(1, 2, 3)
     Traceback (most recent call last):
-    ...
     TypeError: Expected a sequence of size 2, got size 3
     """
     cdef (int, double) xy = o
@@ -28,14 +26,30 @@ def convert_from_list(*o):
 
     >>> convert_from_list(1)
     Traceback (most recent call last):
-    ...
     TypeError: Expected a sequence of size 2, got size 1
     >>> convert_from_list(1, 2, 3)
     Traceback (most recent call last):
-    ...
     TypeError: Expected a sequence of size 2, got size 3
     """
     cdef object values = list(o)
+    cdef (int, double) xy = values
+    return xy
+
+
+def convert_from_deque(*o):
+    """
+    >>> convert_from_deque(1, 2)
+    (1, 2.0)
+
+    >>> convert_from_deque(1)
+    Traceback (most recent call last):
+    TypeError: Expected a sequence of size 2, got size 1
+    >>> convert_from_deque(1, 2, 3)
+    Traceback (most recent call last):
+    TypeError: Expected a sequence of size 2, got size 3
+    """
+    from collections import deque
+    cdef object values = deque(o)
     cdef (int, double) xy = values
     return xy
 

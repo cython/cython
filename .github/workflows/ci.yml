@@ -96,7 +96,7 @@ jobs:
             extra_hash: "-all"
           # Linting
           - os: ubuntu-20.04
-            python-version: 3.7
+            python-version: 3.9
             backend: "c,cpp"
             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"
@@ -232,14 +232,26 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v3
+        if: startsWith(matrix.python-version, '3.')
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Setup Python2 (Linux)
+        if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
+        run: |
+            sudo ln -fs python2 /usr/bin/python
+            sudo apt-get update
+            sudo apt-get install python-setuptools python2.7 python2.7-dev
+            curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+            sudo python2 get-pip.py
+            ls -l /usr/bin/pip* /usr/local/bin/pip*
+            which pip
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
-          key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', '.github/**/ci-run.sh') }}
+          key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Run CI
@@ -295,25 +307,25 @@ jobs:
     env:
       BACKEND: c,cpp
       OS_NAME: ubuntu-20.04
-      PYTHON_VERSION: 3.9
+      PYTHON_VERSION: "3.10"
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: "3.10"
 
       - name: Run Coverage
         env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: cycoverage_html
           path: coverage-report-html

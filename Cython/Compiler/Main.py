@@ -773,7 +773,7 @@ def main(command_line = 0):
 
     if options.show_version:
         from .. import __version__
-        sys.stderr.write("Cython version %s\n" % __version__)
+        print("Cython version %s" % __version__)
     if options.working_path!="":
         os.chdir(options.working_path)
     try:

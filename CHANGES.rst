@@ -8,25 +8,61 @@ Cython Changelog
 Features added
 --------------
 
+* Assigning a list to a ctuple is slightly faster.
+
 Bugs fixed
 ----------
+
+* The reference counting of memory views involved useless overhead.
+  (Github issue :issue:`5510`)
+
+* Duplicate values in a ``cpdef`` enum could lead to invalid switch statements.
+  (Github issue :issue:`5400`)
+
+* Handling freshly raised exceptions that didn't have a traceback yet could crash.
+  (Github issue :issue:`5495`)
+
+* Reverse iteration in C++ no longer removes the ``const`` qualifier from the item type.
+  Patch by Isuru Fernando.  (Github issue :issue:`5478`)
+
+* C++ containers of item type ``bint`` could conflict with those of item type ``int``.
+  (Github issue :issue:`5516`)
+
+* With MSVC, Cython no longer enables C-Complex support by accident (which is not supported there).
+  (Github issue :issue:`5512`)
 
 * The Python implementation of ``cimport cython.cimports…`` could raise an ``ImportError``
   instead of an ``AttributeError`` when looking up package variable names.
   Patch by Matti Picus.  (Github issue :issue:`5411`)
 
+* Passing a language level and directives on the command line lost the language level setting.
+  Patch by Matúš Valo.  (Github issue :issue:`5484`)
+
+* Some typedef declarations for libc function types were fixed.
+  (Github issue :issue:`5498`)
+
 * Some C compiler warnings and errors in CPython 3.12 were resolved.
 
+* The deprecated ``_PyGC_FINALIZED()`` C-API macro is no longer used.
+  Patch by Thomas Caswell and Matúš Valo.  (Github issue :issue:`5481`)
+
 * A compile error when using ``__debug__`` was resolved.
+
+* ``cython --version`` now prints the version to stdout instead of stderr.
+  (Github issue :issue:`5504`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.36` release.
 
 Other changes
 -------------
 
-* The FAQ page was moved from the GitHub Wiki to the regular documentation.
+* The FAQ page was moved from the GitHub Wiki to the regular documentation
+  to make it more visible.
 
-* ``np.long_t`` and ``np.ulong_t`` were removed, synching Cython with upstream
-  NumPy v1.25.0. The aliases were confusing since they could mean different
-  things on different platforms.
+* ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
+  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  since they could mean different things on different platforms.
 
 
 3.0.0 beta 3 (2023-05-24)
@@ -1500,6 +1536,28 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.36:
+
+0.29.36 (2023-07-04)
+====================
+
+Bugs fixed
+----------
+
+* Async generators lost their return value in PyPy.
+  (Github issue :issue:`5465`)
+
+* The outdated C macro ``_PyGC_FINALIZED()`` is no longer used in Py3.9+.
+
+* The deprecated ``Py_OptimizeFlag`` is no longer used in Python 3.9+.
+  (Github issue :issue:`5343`)
+
+* Using the global ``__debug__`` variable but not assertions could lead to compile errors.
+
+* The broken HTML template support was removed from Tempita.
+  (Github issue :issue:`3309`)
 
 
 .. _0.29.35:
