@@ -12,3 +12,10 @@
 
 #endif
 #endif
+#if (defined(__cplusplus) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) \
+  || defined(_MSC_VER))
+
+// All these should be able to support CComplex  at this stage
+// (along MSVC won't define _Complex_I)
+#define CYTHON_CCOMPLEX 1
+#endif

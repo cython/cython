@@ -2459,6 +2459,12 @@ class CComplexType(CNumericType):
         return True
 
     def _utility_code_context(self):
+        # MSVC has helpfully decided to ignore the C standard
+        msvc_name = {
+            'long double': '_Lcomplex',
+            'double': '_Dcomplex',
+            'float': '_Fcomplex',
+        }.get(self.specialization_name())
         return {
             'type': self.empty_declaration_code(),
             'type_name': self.specialization_name(),
@@ -2467,7 +2473,8 @@ class CComplexType(CNumericType):
             'm': self.math_h_modifier,
             'is_float': int(self.real_type.is_float),
             'is_extern_float_typedef': int(
-                self.real_type.is_float and self.real_type.is_typedef and self.real_type.typedef_is_external)
+                self.real_type.is_float and self.real_type.is_typedef and self.real_type.typedef_is_external),
+            'msvc_name': msvc_name,
         }
 
     def create_declaration_utility_code(self, env):

@@ -87,6 +87,9 @@
 #if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
   #ifdef __cplusplus
     typedef ::std::complex< {{real_type}} > {{type_name}};
+  #elif defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    // work around msvc's ignorance of the standard
+    typedef {{msvc_name}} {{type_name}};
   #else
     typedef {{real_type}} _Complex {{type_name}};
   #endif
