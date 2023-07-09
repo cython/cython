@@ -15,6 +15,9 @@
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus
     #include <complex>
+  #elif defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    #include <complex.h>
+    #include <tgmath.h>  // get the generic macros
   #else
     #include <complex.h>
   #endif
@@ -31,6 +34,10 @@
   #ifdef __cplusplus
     #define __Pyx_CREAL(z) ((z).real())
     #define __Pyx_CIMAG(z) ((z).imag())
+  #elif defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    // Work around microsoft lack of standard support
+    #define __Pyx_CREAL(z) creal(z)
+    #define __Pyx_CIMAG(z) cimag(z)
   #else
     #define __Pyx_CREAL(z) (__real__(z))
     #define __Pyx_CIMAG(z) (__imag__(z))
@@ -106,6 +113,12 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
     static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}} x, {{real_type}} y) {
       return ::std::complex< {{real_type}} >(x, y);
     }
+  #elif defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    // More "microsoft hasn't heard of the C standard" nonsense
+    static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}} x, {{real_type}} y) {
+      {{type}} z = {x, y};
+      return z;
+    }
   #else
     static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}} x, {{real_type}} y) {
       return x + y*({{type}})_Complex_I;
@@ -150,7 +163,10 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic.proto ///////////////
 
-#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
+// Note that for MSVC C we fall back to our own implementations because they don't implement
+// the standard complex (but we still use their complex type if CYTHON_CCOMPLEX is defined)
+#if (CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus) && \
+        !(defined(_MSC_VER) && !defined(__INTEL_COMPILER) && !__cplusplus))
     #define __Pyx_c_eq{{func_suffix}}(a, b)   ((a)==(b))
     #define __Pyx_c_sum{{func_suffix}}(a, b)  ((a)+(b))
     #define __Pyx_c_diff{{func_suffix}}(a, b) ((a)-(b))
@@ -189,7 +205,8 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
 
 /////////////// Arithmetic ///////////////
 
-#if CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus)
+#if (CYTHON_CCOMPLEX && ({{is_float}}) && (!{{is_extern_float_typedef}} || __cplusplus) && \
+        !(defined(_MSC_VER) && !defined(__INTEL_COMPILER) && !__cplusplus))
 #else
     static CYTHON_INLINE int __Pyx_c_eq{{func_suffix}}({{type}} a, {{type}} b) {
        return (a.real == b.real) && (a.imag == b.imag);
