@@ -3260,7 +3260,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
                 code.get_py_string_const(
-                    EncodedString(decode_filename(module_path))).cname,
+                    EncodedString(decode_filename(module_path))),
                 code.error_goto(self.pos)))
             code.putln("}")
 
@@ -3272,7 +3272,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     temp,
                     code.get_py_string_const(
                         EncodedString(decode_filename(
-                            os.path.dirname(module_path)))).cname,
+                            os.path.dirname(module_path)))),
                     code.error_goto_if_null(temp, self.pos)))
                 code.put_gotref(temp, py_object_type)
                 code.putln(
@@ -3291,7 +3291,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(code.error_goto_if_neg(
                 '__Pyx_SetPackagePathFromImportLib(%s)' % (
                     code.get_py_string_const(
-                        EncodedString(self.full_module_name)).cname),
+                        EncodedString(self.full_module_name))),
                 self.pos))
             code.putln("}")
 
