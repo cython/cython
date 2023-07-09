@@ -3257,9 +3257,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if module_path:
             code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
+            import pdb; pdb.set_trace()
             code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
-                code.globalstate.get_py_string_const(
+                code.get_py_string_const(
                     EncodedString(decode_filename(module_path))).cname,
                 code.error_goto(self.pos)))
             code.putln("}")
@@ -3270,7 +3271,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 temp = code.funcstate.allocate_temp(py_object_type, True)
                 code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
                     temp,
-                    code.globalstate.get_py_string_const(
+                    code.get_py_string_const(
                         EncodedString(decode_filename(
                             os.path.dirname(module_path)))).cname,
                     code.error_goto_if_null(temp, self.pos)))
@@ -3290,7 +3291,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "SetPackagePathFromImportLib", "ImportExport.c"))
             code.putln(code.error_goto_if_neg(
                 '__Pyx_SetPackagePathFromImportLib(%s)' % (
-                    code.globalstate.get_py_string_const(
+                    code.get_py_string_const(
                         EncodedString(self.full_module_name)).cname),
                 self.pos))
             code.putln("}")
