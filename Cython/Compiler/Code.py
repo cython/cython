@@ -1881,6 +1881,8 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
+        if s.find("__pyx_mstate->__pyx_ptype_1a_A1 = __Pyx_ImportType_3_0_0rc1_dev0") != -1:
+            import pdb; pdb.set_trace()
         if '\n' in s:
             self._write_lines(s)
         else:
