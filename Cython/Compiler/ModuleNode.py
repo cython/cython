@@ -429,7 +429,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     % (Naming.cyversion, entry.name.as_c_string_literal(), cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
-                    self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
+                    self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;", is_api=True)
             h_code.putln("Py_DECREF(module); module = 0;")
             h_code.putln("return 0;")
             h_code.putln("bad:")
@@ -3257,7 +3257,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if module_path:
             code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
-            import pdb; pdb.set_trace()
             code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
                 code.get_py_string_const(
@@ -3789,7 +3788,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
-    def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None):
+    def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None, is_api=False):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
@@ -3817,9 +3816,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put('%s->%s = __Pyx_ImportType_%s(%s, %s,' % (
-            Naming.modulestatevalue_cname,
-            type.typeptr_cname,
+        typeptr_cname = type.typeptr_cname
+        if not is_api:
+            typeptr_cname = "%s->%s" % (Naming.modulestatevalue_cname, typeptr_cname)
+        code.put('%s = __Pyx_ImportType_%s(%s, %s,' % (
+            typeptr_cname,
             Naming.cyversion,
             module,
             module_name))
@@ -3864,8 +3865,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put('__Pyx_ImportType_CheckSize_%s_%s);' % (
             check_size.title(), Naming.cyversion))
 
-        code.putln(' if (!%s->%s) %s' % (
-            Naming.modulestatevalue_cname, type.typeptr_cname, error_code))
+        code.putln(' if (!%s) %s' % (
+            typeptr_cname, error_code))
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
