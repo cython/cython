@@ -1332,7 +1332,7 @@ class InterpretCompilerDirectives(CythonTransform):
                                 args = value[0]
                                 if kwds or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
                                     raise PostParseError(dec.pos, 'The %s directive takes one compile-time boolean argument' % name)
-                                directive = (name, value[0][0].value)
+                                directive = (name, args[0].value)
                         if current_opt_dict.get(name, missing) != value:
                             if name == 'cfunc' and 'ufunc' in current_opt_dict:
                                 error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
