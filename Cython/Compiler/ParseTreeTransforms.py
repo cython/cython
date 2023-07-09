@@ -1143,8 +1143,7 @@ class InterpretCompilerDirectives(CythonTransform):
                             key, value = keyvalue
                             sub_optname = "%s.%s" % (optname, key.value)
                             if Options.directive_types.get(sub_optname):
-                                directives.append(
-                                    self.try_to_parse_directive(sub_optname, [value], None, keyvalue.pos))
+                                directives.append(self.try_to_parse_directive(sub_optname, [value], None, keyvalue.pos))
                             else:
                                 key_value_pairs.append(keyvalue)
                         if not key_value_pairs:
