@@ -13,6 +13,9 @@ Features added
 Bugs fixed
 ----------
 
+* The reference counting of memory views involved useless overhead.
+  (Github issue :issue:`5510`)
+
 * Duplicate values in a ``cpdef`` enum could lead to invalid switch statements.
   (Github issue :issue:`5400`)
 
@@ -21,6 +24,12 @@ Bugs fixed
 
 * Reverse iteration in C++ no longer removes the ``const`` qualifier from the item type.
   Patch by Isuru Fernando.  (Github issue :issue:`5478`)
+
+* C++ containers of item type ``bint`` could conflict with those of item type ``int``.
+  (Github issue :issue:`5516`)
+
+* With MSVC, Cython no longer enables C-Complex support by accident (which is not supported there).
+  (Github issue :issue:`5512`)
 
 * The Python implementation of ``cimport cython.cimports…`` could raise an ``ImportError``
   instead of an ``AttributeError`` when looking up package variable names.
