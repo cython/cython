@@ -1325,11 +1325,10 @@ class InterpretCompilerDirectives(CythonTransform):
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
                         if name in ('gil', 'nogil', 'with_gil'):
-                            if not value:
+                            if value is None:
                                 value = True
                             else:
-                                kwds = value[1]
-                                args = value[0]
+                                args, kwds = value
                                 if kwds or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
                                     raise PostParseError(dec.pos, 'The %s directive takes one compile-time boolean argument' % name)
                                 value = args[0].value
