@@ -110,14 +110,14 @@ within a well defined context.
 Passing byte strings
 --------------------
 
-We have dummy C functions declared in
-a file called :file:`c_func.pyx` that we are going to reuse throughout this tutorial:
+We have dummy C functions declared that we are going to reuse throughout this tutorial:
 
 
 .. tabs::
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/string/c_func.py
+            :caption: c_func.py
 
         .. include::
             ../cimport-warning
@@ -125,6 +125,7 @@ a file called :file:`c_func.pyx` that we are going to reuse throughout this tuto
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/tutorial/string/c_func.pyx
+            :caption: c_func.pyx
 
 
 We make a corresponding :file:`c_func.pxd` to be able to cimport those functions:
