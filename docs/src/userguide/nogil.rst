@@ -112,7 +112,7 @@ GIL is acquired immediately then calling it.
 
             @cython.with_gil
             @cython.cfunc
-            def some_func -> cython.int
+            def some_func() -> cython.int
                 ...
 
             with cython.nogil:
