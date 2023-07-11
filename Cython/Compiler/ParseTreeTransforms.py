@@ -1324,6 +1324,16 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
+                        if name == 'gil' or name == 'nogil':
+                            if not value:
+                                value = True
+                            else:
+                                kwds = value[1]
+                                args = value[0]
+                                if kwds or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
+                                    raise PostParseError(dec.pos, 'The %s directive takes one compile-time boolean argument' % name)
+                                value = args[0].value
+                            directive = (name, value)
                         if current_opt_dict.get(name, missing) != value:
                             if name == 'cfunc' and 'ufunc' in current_opt_dict:
                                 error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
@@ -1372,7 +1382,17 @@ class InterpretCompilerDirectives(CythonTransform):
                     name, value = directive
                     if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body)
+                        condition = None
+                        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
+                            if len(node.manager.args) == 1:
+                                condition = node.manager.args[0]
+                            else:
+                                self.context.nonfatal_error(
+                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+                        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
+                            self.context.nonfatal_error(
+                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value

@@ -493,8 +493,6 @@ Conditional GIL Acquiring / Releasing
 Acquiring and releasing the GIL can be controlled by a condition
 which is known at compile time (see :ref:`gil_conditional`).
 
-.. Note:: Pure python mode currently does not support Conditional GIL Acquiring / Releasing. See Github issue :issue:`5113`.
-
 This is most useful when combined with fused types.
 A fused type function may have to handle both cython native types
 (e.g. cython.int or cython.double) and python types (e.g. object or bytes).
@@ -502,7 +500,15 @@ Conditional Acquiring / Releasing the GIL provides a method for running
 the same piece of code either with the GIL released (for cython native types)
 and with the GIL held (for python types):
 
-.. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/fusedtypes/conditional_gil.pyx
 
 __signatures__
 ==============
