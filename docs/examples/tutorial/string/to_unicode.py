@@ -1,6 +1,6 @@
 from cython.cimports.cpython.version import PY_MAJOR_VERSION
 
-# @cython.cfunc  # https://github.com/cython/cython/issues/2529
+@cython.cfunc
 def _text(s) -> unicode:
     if type(s) is unicode:
         # Fast path for most common case(s).
