@@ -1324,7 +1324,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if name in ('gil', 'nogil', 'with_gil'):
+                        if name in ('nogil', 'with_gil'):
                             if value is None:
                                 value = True
                             else:
