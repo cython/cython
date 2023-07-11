@@ -1,2 +1,4 @@
 jupyter
-line_profiler
+pytest  # needed by IPython/Jupyter integration tests
+line_profiler<4  # currently 4 appears to collect no profiling info
+setuptools<60

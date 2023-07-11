@@ -43,11 +43,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 
 //////////////////// InitStrings.proto ////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
-#else
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
-#endif
 
 //////////////////// InitStrings ////////////////////
 
@@ -73,7 +69,6 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
 }
 #endif
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
@@ -96,7 +91,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     }
     return 0;
 }
-#endif
 
 //////////////////// BytesContains.proto ////////////////////
 
@@ -366,7 +360,7 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
             return (equals == Py_EQ);
         } else {
             int result;
-#if CYTHON_USE_UNICODE_INTERNALS
+#if CYTHON_USE_UNICODE_INTERNALS && (PY_VERSION_HEX < 0x030B0000)
             Py_hash_t hash1, hash2;
             hash1 = ((PyBytesObject*)s1)->ob_shash;
             hash2 = ((PyBytesObject*)s2)->ob_shash;
@@ -1012,7 +1006,7 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
                 padding = PyUnicode_FromOrdinal(padding_char);
                 if (likely(padding) && uoffset > prepend_sign + 1) {
                     PyObject *tmp;
-                    PyObject *repeat = PyInt_FromSize_t(uoffset - prepend_sign);
+                    PyObject *repeat = PyInt_FromSsize_t(uoffset - prepend_sign);
                     if (unlikely(!repeat)) goto done_or_error;
                     tmp = PyNumber_Multiply(padding, repeat);
                     Py_DECREF(repeat);
@@ -1067,11 +1061,11 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
     } else
 #endif
 #if CYTHON_USE_PYLONG_INTERNALS
-    if (likely(PyLong_CheckExact(value)) && likely(Py_SIZE(value) == 1 || Py_SIZE(value) == 0)) {
-        if (Py_SIZE(value) == 0) {
+    if (likely(PyLong_CheckExact(value)) && likely(__Pyx_PyLong_IsCompact(value))) {
+        if (__Pyx_PyLong_IsZero(value)) {
             ival = 0;
         } else {
-            ival = ((PyLongObject*)value)->ob_digit[0];
+            ival = __Pyx_PyLong_CompactValue(value);
             if (unlikely(ival > 255)) goto bad_range;
         }
     } else

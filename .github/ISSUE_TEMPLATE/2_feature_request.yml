@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest an idea for this project
+title: "[ENH] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **PLEASE READ THIS FIRST:**
+        - DO NOT use the bug and feature tracker for general questions and support requests.
+        Use the [`cython-users`](https://groups.google.com/g/cython-users) mailing list instead.
+        It has a wider audience, so you get more and better answers.
+        - Did you search for SIMILAR ISSUES already?
+        Please do, it helps to save us precious time that we otherwise could not invest into development.
+        - Did you try the LATEST MASTER BRANCH or pre-release?
+        It might already have what you want to report.
+        Specifically, the legacy stable 0.29.x release series receives only important low-risk bug fixes.
+        Also see the [Changelog](https://github.com/cython/cython/blob/master/CHANGES.rst) regarding recent changes
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Is your feature request related to a problem? Please describe."
+      description: "A clear and concise description of what the problem is."
+      value: |
+        In my code, I would like to do [...]
+        ```cython
+        # add use case related code here
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Describe the solution you'd like."
+      description: "A clear and concise description of what you want to happen, including code examples if applicable."
+      placeholder: add a proposed code/syntax example here
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Describe alternatives you've considered."
+      description: "A clear and concise description of any alternative solutions or features you've considered."
+      placeholder: "add alternative code/syntax proposals here"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional context"
+      description: "Add any other context about the feature request here."

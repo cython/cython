@@ -2,12 +2,22 @@
 # tag: cpp, werror, no-cpp-locals
 
 from libcpp.deque cimport deque
+from libcpp.list cimport list as stdlist
+from libcpp.map cimport map as stdmap
+from libcpp.set cimport set as stdset
+from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr, make_shared
 from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_iterators_simple.h":
     cdef cppclass DoublePointerIter:
         DoublePointerIter(double* start, int len)
+        double* begin()
+        double* end()
+    cdef cppclass DoublePointerIterDefaultConstructible:
+        DoublePointerIterDefaultConstructible()
+        DoublePointerIterDefaultConstructible(double* start, int len)
         double* begin()
         double* end()
 
@@ -98,6 +108,35 @@ def test_custom():
     finally:
         del iter
 
+def test_custom_deref():
+    """
+    >>> test_custom_deref()
+    [1.0, 2.0, 3.0]
+    """
+    cdef double* values = [1, 2, 3]
+    cdef DoublePointerIter* iter
+    try:
+        iter = new DoublePointerIter(values, 3)
+        return [x for x in deref(iter)]
+    finally:
+        del iter
+
+def test_custom_genexp():
+    """
+    >>> test_custom_genexp()
+    [1.0, 2.0, 3.0]
+    """
+    def to_list(g):  # function to hide the intent to avoid inlined-generator expression optimization
+        return list(g)
+    cdef double* values = [1, 2, 3]
+    cdef DoublePointerIterDefaultConstructible* iter
+    try:
+        iter = new DoublePointerIterDefaultConstructible(values, 3)
+        # TODO: Only needs to copy once - currently copies twice
+        return to_list(x for x in iter[0])
+    finally:
+        del iter
+
 def test_iteration_over_heap_vector(L):
     """
     >>> test_iteration_over_heap_vector([1,2])
@@ -177,3 +216,163 @@ def test_iteration_from_function_call():
         print(i)
     for i in make_vec3():
         print(i)
+
+def test_const_iterator_calculations(py_v):
+    """
+    >>> print(test_const_iterator_calculations([1, 2, 3]))
+    [3, 3, 3, 3, True, True, False, False]
+    """
+    cdef deque[int] dint
+    for i in py_v:
+        dint.push_back(i)
+    cdef deque[int].iterator first = dint.begin()
+    cdef deque[int].iterator last = dint.end()
+    cdef deque[int].const_iterator cfirst = first
+    cdef deque[int].const_iterator clast = last
+
+    return [
+        last - first,
+        last - cfirst,
+        clast - first,
+        clast - cfirst,
+        first == cfirst,
+        last == clast,
+        first == clast,
+        last == cfirst
+    ]
+
+cdef extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
+    cdef cppclass HasIterableAttribute:
+        vector[int] vec
+        HasIterableAttribute()
+        HasIterableAttribute(vector[int])
+
+cdef HasIterableAttribute get_object_with_iterable_attribute():
+    return HasIterableAttribute()
+
+def test_iteration_over_attribute_of_call():
+    """
+    >>> test_iteration_over_attribute_of_call()
+    1
+    2
+    3
+    42
+    43
+    44
+    1
+    2
+    3
+    """
+    for i in HasIterableAttribute().vec:
+        print(i)
+    cdef vector[int] vec
+    for i in range(42, 45):
+        vec.push_back(i)
+    for i in HasIterableAttribute(vec).vec:
+        print(i)
+    for i in get_object_with_iterable_attribute().vec:
+        print(i)
+
+cdef extern from *:
+    # TODO: support make_shared[const int]
+    shared_ptr[const int] make_shared_const_int "std::make_shared<const int>"(int)
+
+def test_iteration_over_shared_const_ptr_vector(py_v):
+    """
+    >>> test_iteration_over_shared_const_ptr_vector([2, 4, 6])
+    2
+    4
+    6
+    """
+    cdef vector[shared_ptr[const int]] s
+    cdef int i
+    for i in py_v:
+        s.push_back(make_shared_const_int(i))
+
+    cdef shared_ptr[const int] a
+    for a in s:
+        print(deref(a))
+
+def test_iteration_over_reversed_list(py_v):
+    """
+    >>> test_iteration_over_reversed_list([2, 4, 6])
+    6
+    4
+    2
+    """
+    cdef stdlist[int] lint
+    for e in py_v:
+        lint.push_back(e)
+    for e in reversed(lint):
+        print(e)
+
+def test_iteration_over_reversed_map(py_v):
+    """
+    >>> test_iteration_over_reversed_map([(1, 10), (2, 20), (3, 30)])
+    3 30
+    2 20
+    1 10
+    """
+    cdef stdmap[int, int] m
+    for k, v in py_v:
+        m[k] = v
+    for k, v in reversed(m):
+        print("%s %s" % (k, v))
+
+def test_iteration_over_reversed_set(py_v):
+    """
+    >>> test_iteration_over_reversed_set([1, 2, 3])
+    3
+    2
+    1
+    """
+    cdef stdset[int] s
+    for e in py_v:
+        s.insert(e)
+    for e in reversed(s):
+        print(e)
+
+def test_iteration_over_reversed_string():
+    """
+    >>> test_iteration_over_reversed_string()
+    n
+    o
+    h
+    t
+    y
+    c
+    """
+    cdef string cppstr = "cython"
+    for c in reversed(cppstr):
+        print(chr(c))
+
+def test_iteration_over_reversed_vector(py_v):
+    """
+    >>> test_iteration_over_reversed_vector([1, 2, 3])
+    3
+    2
+    1
+    """
+    cdef vector[int] vint
+    for e in py_v:
+        vint.push_back(e)
+    for e in reversed(vint):
+        print(e)
+
+def test_non_built_in_reversed_function(py_v):
+    """
+    >>> test_non_built_in_reversed_function([1, 3, 5])
+    Non-built-in reversed called.
+    5
+    3
+    1
+    """
+    def reversed(arg):
+        print("Non-built-in reversed called.")
+        return arg[::-1]
+
+    cdef vector[int] vint
+    for e in py_v:
+        vint.push_back(e)
+    for e in reversed(vint):
+        print(e)

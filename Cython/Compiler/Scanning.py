@@ -13,11 +13,12 @@ cython.declare(make_lexicon=object, lexicon=object,
 import os
 import platform
 from unicodedata import normalize
+from contextlib import contextmanager
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
-from .Errors import error, warning
+from .Errors import error, warning, hold_errors, release_errors, CompileError
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
 
@@ -300,6 +301,8 @@ class PyrexScanner(Scanner):
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
+    #  put_back_on_failure  list or None  If set, this records states so the tentatively_scan
+    #                                       contextmanager can restore it
 
     def __init__(self, file, filename, parent_scanner=None,
                  scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
@@ -307,10 +310,11 @@ class PyrexScanner(Scanner):
 
         if filename.is_python_file():
             self.in_python_file = True
-            self.keywords = set(py_reserved_words)
+            keywords = py_reserved_words
         else:
             self.in_python_file = False
-            self.keywords = set(pyx_reserved_words)
+            keywords = pyx_reserved_words
+        self.keywords = {keyword: keyword for keyword in keywords}
 
         self.async_enabled = 0
 
@@ -337,6 +341,8 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
+
+        self.put_back_on_failure = None
 
         self.begin('INDENT')
         self.sy = ''
@@ -391,7 +397,7 @@ class PyrexScanner(Scanner):
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
-        self.error("Unclosed string literal")
+        self.error_at_scanpos("Unclosed string literal")
 
     def indentation_action(self, text):
         self.begin('')
@@ -407,9 +413,9 @@ class PyrexScanner(Scanner):
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
                 if self.indentation_char != c:
-                    self.error("Mixed use of tabs and spaces")
+                    self.error_at_scanpos("Mixed use of tabs and spaces")
             if text.replace(c, "") != "":
-                self.error("Mixed use of tabs and spaces")
+                self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
         current_level = self.current_level()
         new_level = len(text)
@@ -427,7 +433,7 @@ class PyrexScanner(Scanner):
                 self.produce('DEDENT', '')
             #print "...current level now", self.current_level() ###
             if new_level != self.current_level():
-                self.error("Inconsistent indentation")
+                self.error_at_scanpos("Inconsistent indentation")
 
     def eof_action(self, text):
         while len(self.indentation_stack) > 1:
@@ -439,17 +445,19 @@ class PyrexScanner(Scanner):
         try:
             sy, systring = self.read()
         except UnrecognizedInput:
-            self.error("Unrecognized character")
+            self.error_at_scanpos("Unrecognized character")
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
-                    self.keywords.discard('print')
+                    self.keywords.pop('print', None)
                 elif systring == u'exec' and self.context.language_level >= 3:
-                    self.keywords.discard('exec')
+                    self.keywords.pop('exec', None)
                 else:
-                    sy = systring
+                    sy = self.keywords[systring]  # intern
             systring = self.context.intern_ustring(systring)
+        if self.put_back_on_failure is not None:
+            self.put_back_on_failure.append((sy, systring, self.position()))
         self.sy = sy
         self.systring = systring
         if False:  # debug_scanner:
@@ -462,20 +470,20 @@ class PyrexScanner(Scanner):
 
     def peek(self):
         saved = self.sy, self.systring
+        saved_pos = self.position()
         self.next()
         next = self.sy, self.systring
-        self.unread(*next)
+        self.unread(self.sy, self.systring, self.position())
         self.sy, self.systring = saved
+        self.last_token_position_tuple = saved_pos
         return next
 
-    def put_back(self, sy, systring):
-        self.unread(self.sy, self.systring)
+    def put_back(self, sy, systring, pos):
+        self.unread(self.sy, self.systring, self.last_token_position_tuple)
         self.sy = sy
         self.systring = systring
+        self.last_token_position_tuple = pos
 
-    def unread(self, token, value):
-        # This method should be added to Plex
-        self.queue.insert(0, (token, value))
 
     def error(self, message, pos=None, fatal=True):
         if pos is None:
@@ -484,6 +492,12 @@ class PyrexScanner(Scanner):
             error(pos, "Possible inconsistent indentation")
         err = error(pos, message)
         if fatal: raise err
+
+    def error_at_scanpos(self, message):
+        # Like error(fatal=True), but gets the current scanning position rather than
+        # the position of the last token read.
+        pos = self.get_current_scan_pos()
+        self.error(message, pos, True)
 
     def expect(self, what, message=None):
         if self.sy == what:
@@ -527,14 +541,41 @@ class PyrexScanner(Scanner):
     def enter_async(self):
         self.async_enabled += 1
         if self.async_enabled == 1:
-            self.keywords.add('async')
-            self.keywords.add('await')
+            self.keywords['async'] = 'async'
+            self.keywords['await'] = 'await'
 
     def exit_async(self):
         assert self.async_enabled > 0
         self.async_enabled -= 1
         if not self.async_enabled:
-            self.keywords.discard('await')
-            self.keywords.discard('async')
+            del self.keywords['await']
+            del self.keywords['async']
             if self.sy in ('async', 'await'):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
+
+@contextmanager
+@cython.locals(scanner=Scanner)
+def tentatively_scan(scanner):
+    errors = hold_errors()
+    try:
+        put_back_on_failure = scanner.put_back_on_failure
+        scanner.put_back_on_failure = []
+        initial_state = (scanner.sy, scanner.systring, scanner.position())
+        try:
+            yield errors
+        except CompileError as e:
+            pass
+        finally:
+            if errors:
+                if scanner.put_back_on_failure:
+                    for put_back in reversed(scanner.put_back_on_failure[:-1]):
+                        scanner.put_back(*put_back)
+                    # we need to restore the initial state too
+                    scanner.put_back(*initial_state)
+            elif put_back_on_failure is not None:
+                # the outer "tentatively_scan" block that we're in might still
+                # want to undo this block
+                put_back_on_failure.extend(scanner.put_back_on_failure)
+            scanner.put_back_on_failure = put_back_on_failure
+    finally:
+        release_errors(ignore=True)

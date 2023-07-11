@@ -38,6 +38,12 @@
   #include "compile.h"
   #include "frameobject.h"
   #include "traceback.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
 
   #if CYTHON_PROFILE_REUSE_FRAME
     #define CYTHON_FRAME_MODIFIER static
@@ -55,15 +61,21 @@
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
+
 #if PY_VERSION_HEX >= 0x030b00a2
+  #if PY_VERSION_HEX >= 0x030C00b1
+  #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
+     ((!(check_tracing) || !(tstate)->tracing) && \
+         (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
+  #else
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
      (unlikely((tstate)->cframe->use_tracing) && \
          (!(check_tracing) || !(tstate)->tracing) && \
          (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
+  #endif
 
-  #define __Pyx_EnterTracing(tstate) PyThreadState_EnterTracing(tstate)
-
-  #define __Pyx_LeaveTracing(tstate) PyThreadState_LeaveTracing(tstate)
+  #define __Pyx_EnterTracing(tstate)  PyThreadState_EnterTracing(tstate)
+  #define __Pyx_LeaveTracing(tstate)  PyThreadState_LeaveTracing(tstate)
 
 #elif PY_VERSION_HEX >= 0x030a00b1
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \

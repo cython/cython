@@ -21,6 +21,6 @@ def use_del():
 _ERRORS = """
 8:10: typeid operator only allowed in c++
 8:23: typeid operator only allowed in c++
-14:20: Operation only allowed in c++
+14:16: Operation only allowed in c++
 19:4: Operation only allowed in c++
 """
