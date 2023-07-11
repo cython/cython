@@ -2,11 +2,17 @@
 Cython Changelog
 ================
 
-3.0.0 rc 1 (2023-0?-??)
+3.0.0 rc 1 (2023-07-12)
 =======================
 
 Features added
 --------------
+
+* ``with gil`` and ``with nogil(flag)`` now accept their flag argument also in Python code.
+  Patch by Matúš Valo.  (Github issue :issue:`5113`)
+
+* A new decorator ``@cython.with_gil`` is available in Python code to match the ``with gil``
+  function declaration in Cython syntax.
 
 * Assigning a list to a ctuple is slightly faster.
 
@@ -47,6 +53,8 @@ Bugs fixed
   Patch by Thomas Caswell and Matúš Valo.  (Github issue :issue:`5481`)
 
 * A compile error when using ``__debug__`` was resolved.
+
+* A module loading problem with ``cython.inline()`` on Windows was resolved.
 
 * ``cython --version`` now prints the version to stdout instead of stderr.
   (Github issue :issue:`5504`)
