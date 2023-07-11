@@ -3086,6 +3086,7 @@ class DefNode(FuncDefNode):
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
         exception_value, exception_check = except_val or (None, False)
+        nogil = nogil or with_gil
 
         if cfunc is None:
             cfunc_args = []

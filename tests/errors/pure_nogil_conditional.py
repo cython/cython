@@ -61,6 +61,13 @@ def nogil_keyworkd_arguments(x: cython.int) -> cython.int:
     with cython.nogil(kw=2):
         res = f_nogil(res)
 
+
+@cython.gil(True)
+@cython.cfunc
+def wrong_decorator() -> cython.int:
+    return 0
+
+
 _ERRORS = u"""
 22:14: Accessing Python global or builtin not allowed without gil
 22:19: Calling gil-requiring function not allowed without gil
@@ -78,4 +85,5 @@ _ERRORS = u"""
 46:16: Calling gil-requiring function not allowed without gil
 56:9: Compiler directive nogil accepts one positional argument.
 61:9: Compiler directive nogil accepts one positional argument.
+65:0: The gil compiler directive is not allowed in function scope
 """

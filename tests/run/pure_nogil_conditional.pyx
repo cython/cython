@@ -1,4 +1,5 @@
 # mode: run
+# tag: pure, nogil
 
 import cython
 
@@ -8,7 +9,7 @@ except ImportError:
     from io import StringIO
 
 
-def test(int x):
+def test(x: cython.int):
     """
     >>> test(0)
     110
@@ -32,6 +33,22 @@ def f_gil(x):
     y = 0
     y = x + 100
     return y
+
+
+@cython.with_gil
+@cython.cfunc
+def f_with_gil(x: cython.int) -> cython.int:
+    return x + len([1, 2] * x)
+
+
+def test_with_gil(x: cython.int):
+    """
+    >>> test_with_gil(3)
+    9
+    """
+    with cython.nogil:
+        result = f_with_gil(x)
+    return result
 
 
 @cython.nogil

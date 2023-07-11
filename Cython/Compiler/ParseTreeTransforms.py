@@ -1324,7 +1324,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if name == 'gil' or name == 'nogil':
+                        if name in ('gil', 'nogil', 'with_gil'):
                             if not value:
                                 value = True
                             else:
@@ -2947,6 +2947,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if 'inline' in self.directives:
             modifiers.append('inline')
         nogil = self.directives.get('nogil')
+        with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
@@ -2960,6 +2961,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if 'ccall' in self.directives:
             if 'cfunc' in self.directives:
                 error(node.pos, "cfunc and ccall directives cannot be combined")
+            if with_gil:
+                error(node.pos, "ccall functions cannot be declared 'with_gil'")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
@@ -2969,7 +2972,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "cfunc directive is not allowed here")
             else:
                 node = node.as_cfunction(
-                    overridable=False, modifiers=modifiers, nogil=nogil,
+                    overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
                     returns=return_type_node, except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
@@ -2977,6 +2980,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if nogil:
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
+        if with_gil:
+            error(node.pos, "Python functions cannot be declared 'with_gil'")
         self.visitchildren(node)
         return node
 

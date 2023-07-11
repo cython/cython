@@ -200,6 +200,7 @@ _directive_defaults = {
     'callspec' : "",
     'nogil' : False,
     'gil' : False,
+    'with_gil' : False,
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
@@ -325,6 +326,7 @@ directive_types = {
     'collection_type': one_of('sequence'),
     'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
@@ -360,7 +362,8 @@ directive_scopes = {  # defaults to available everywhere
     'final' : ('cclass', 'function'),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
-    'gil' : ('function', 'with statement'),
+    'gil' : ('with statement'),
+    'with_gil' : ('function',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -402,12 +405,12 @@ directive_scopes = {  # defaults to available everywhere
 }
 
 
-# a list of directives that (when used as a decorator) are only applied to
+# A list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
     'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
     # function signature directives
-    'inline', 'exceptval', 'returns',
+    'inline', 'exceptval', 'returns', 'nogil', 'with_gil',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
     'auto_pickle', 'internal', 'collection_type', 'total_ordering',
