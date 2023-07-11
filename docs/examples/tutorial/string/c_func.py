@@ -2,7 +2,7 @@ from cython.cimports.libc.stdlib import malloc
 from cython.cimports.libc.string import strcpy, strlen
 
 hello_world = cython.declare(cython.p_char, 'hello world')
-n = cython.declare(Py_ssize_t, strlen(hello_world))
+n = cython.declare(cython.Py_ssize_t, strlen(hello_world))
 
 
 # this function is defined as a cdef function in the .pxd file, no need for @cython.cfunc
@@ -19,7 +19,7 @@ def c_call_returning_a_c_string() -> cython.p_char:
 
 # this function is defined as a cdef function in the .pxd file, no need for @cython.cfunc
 def get_a_c_string(c_string_ptr: cython.pp_char,
-                   length: cython.pointer(Py_ssize_t)) -> cython.void:
+                   length: cython.pointer(cython.Py_ssize_t)) -> cython.void:
     c_string_ptr[0] = cython.cast(cython.p_char, malloc(
         (n + 1) * cython.sizeof(cython.char)))
 
