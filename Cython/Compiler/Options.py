@@ -410,7 +410,7 @@ directive_scopes = {  # defaults to available everywhere
 immediate_decorator_directives = {
     'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
     # function signature directives
-    'inline', 'exceptval', 'returns', 'nogil', 'with_gil',
+    'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
     'auto_pickle', 'internal', 'collection_type', 'total_ordering',
