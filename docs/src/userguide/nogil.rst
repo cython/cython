@@ -102,7 +102,7 @@ too much since there is a cost to waiting for and acquiring the GIL, and because
 blocks cannot run in parallel since all executions require the same lock.
 
 A function may be marked as ``with gil`` or decorated with ``@cython.with_gil``  to ensure that the
-GIL is acquired immediately then calling it.
+GIL is acquired immediately when calling it.
 
 .. tabs::
 
@@ -119,7 +119,7 @@ GIL is acquired immediately then calling it.
                 ...          # some code that runs without the GIL
                 some_func()  # calling some_func() automatically acquire the GIL
                 ...          # some code that runs without the GIL
-            some_func()      # GIL is already held hence nothing happen
+            some_func()      # GIL is already held hence the function is called without acquiring the GIL
 
     .. group-tab:: Cython
 
