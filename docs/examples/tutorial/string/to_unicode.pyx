@@ -2,7 +2,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 
 cdef unicode _text(s):
-    if type(s) is unicode:
+    if type(s) == unicode:
         # Fast path for most common case(s).
         return <unicode>s
 
