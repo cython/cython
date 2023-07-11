@@ -217,6 +217,7 @@ class _nogil(object):
 
 nogil = _nogil()
 gil = _nogil()
+with_gil = _nogil()  # Actually not a context manager, but compilation will give the right error.
 del _nogil
 
 
