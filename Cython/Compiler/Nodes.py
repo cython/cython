@@ -31,7 +31,7 @@ from . import Future
 from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
-from ..Utils import add_metaclass
+from ..Utils import add_metaclass, str_to_number
 
 
 if sys.version_info[0] >= 3:
@@ -1783,7 +1783,7 @@ class CEnumDefItemNode(StatNode):
         enum_value = incremental_int_value
         if self.value:
             if self.value.is_literal:
-                enum_value = int(self.value.value)
+                enum_value = str_to_number(self.value.value)
             elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
                 enum_value = self.value.entry.enum_int_value
             else:
