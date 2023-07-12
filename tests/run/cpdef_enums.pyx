@@ -89,6 +89,35 @@ cdef enum cdefPyxDocEnum:
     """
     FIVE_AND_SEVEN = 5077
 
+cdef extern from *:
+    """
+    enum ExternHasDuplicates {
+        EX_DUP_A,
+        EX_DUP_B=EX_DUP_A,
+        EX_DUP_C=EX_DUP_A
+    };
+    """
+    # Cython doesn't know about the duplicates though
+    cpdef enum ExternHasDuplicates:
+        EX_DUP_A
+        EX_DUP_B
+        EX_DUP_C
+
+
+cpdef enum CyDefinedHasDuplicates1:
+    CY_DUP1_A
+    CY_DUP1_B = 0x00000000
+
+
+cpdef enum CyDefinedHasDuplicates2:
+    CY_DUP2_A
+    CY_DUP2_B = CY_DUP2_A
+
+cpdef enum CyDefinedHasDuplicates3:
+    CY_DUP3_A = 1
+    CY_DUP3_B = 0
+    CY_DUP3_C  # = 1
+
 
 def test_as_variable_from_cython():
     """
@@ -146,15 +175,55 @@ def to_from_py_conversion(PxdEnum val):
     return val
 
 
+def to_from_py_conversion_with_duplicates1(ExternHasDuplicates val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates1(EX_DUP_A) == ExternHasDuplicates.EX_DUP_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates2(CY_DUP1_A) == CyDefinedHasDuplicates1.CY_DUP1_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates3(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates4(CyDefinedHasDuplicates3 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> import sys
+    >>> True if sys.version_info < (3, 6, 0) else to_from_py_conversion_with_duplicates4(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
+    True
+    """
+    return val
+
+
 def test_pickle():
     """
     >>> from pickle import loads, dumps
     >>> import sys
 
-    Pickling enums won't work without the enum module, so disable the test
-    (now requires  3.6 for IntFlag)
-    >>> if sys.version_info < (3, 6):
+    Pickling enums won't work without the enum module, so disable the test in Py<3.6.
+    (requires 3.6 for IntFlag)
+    Python 3.11.4 has a bug that breaks pickling: https://github.com/python/cpython/issues/105332
+
+    >>> if sys.version_info < (3, 6) or sys.version_info[:3] == (3,11,4):
     ...     loads = dumps = lambda x: x
+
     >>> loads(dumps(PyxEnum.TWO)) == PyxEnum.TWO
     True
     >>> loads(dumps(PxdEnum.RANK_2)) == PxdEnum.RANK_2

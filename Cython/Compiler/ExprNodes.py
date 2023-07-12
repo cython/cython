@@ -3268,32 +3268,6 @@ class CppIteratorNode(ExprNode):
         ExprNode.free_temps(self, code)
 
 
-def remove_const(item_type):
-    """
-    Removes the constness of a given type and its underlying templates
-    if any.
-
-    This is to solve the compilation error when the temporary variable used to
-    store the result of an iterator cannot be changed due to its constness.
-    For example, the value_type of std::map, which will also be the type of
-    the temporarry variable, is std::pair<const Key, T>. This means the first
-    component of the variable cannot be reused to store the result of each
-    iteration, which leads to a compilation error.
-    """
-    if item_type.is_const:
-        item_type = item_type.cv_base_type
-    if item_type.is_typedef:
-        item_type = remove_const(item_type.typedef_base_type)
-    if item_type.is_cpp_class and item_type.templates:
-        templates = [remove_const(t) if t.is_const else t for t in item_type.templates]
-        template_type = item_type.template_type
-        item_type = PyrexTypes.CppClassType(
-            template_type.name, template_type.scope,
-            template_type.cname, template_type.base_classes,
-            templates, template_type)
-    return item_type
-
-
 class NextNode(AtomicExprNode):
     #  Used as part of for statement implementation.
     #  Implements result = next(iterator)
@@ -3336,7 +3310,6 @@ class NextNode(AtomicExprNode):
 
     def analyse_types(self, env):
         self.type = self.infer_type(env, self.iterator.type)
-        self.type = remove_const(self.type)
         self.is_temp = 1
         return self
 

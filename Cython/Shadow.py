@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.0.0rc1.dev0"
+__version__ = "3.0.0.dev0"
 
 try:
     from __builtin__ import basestring
@@ -217,6 +217,7 @@ class _nogil(object):
 
 nogil = _nogil()
 gil = _nogil()
+with_gil = _nogil()  # Actually not a context manager, but compilation will give the right error.
 del _nogil
 
 

@@ -230,6 +230,7 @@ def cython_inline(code, get_type=unsafe_type,
             build_extension = _get_build_extension()
             cython_inline.so_ext = build_extension.get_ext_filename('')
 
+        lib_dir = os.path.abspath(lib_dir)
         module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
         if not os.path.exists(lib_dir):
@@ -287,7 +288,11 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = load_dynamic(module_name, module_path)
+        if sys.platform == 'win32' and sys.version_info >= (3, 8):
+            with os.add_dll_directory(os.path.abspath(lib_dir)):
+                module = load_dynamic(module_name, module_path)
+        else:
+            module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]

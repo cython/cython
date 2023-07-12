@@ -86,7 +86,7 @@ essentially disables all type-inference. Therefore it doesn't know the type of `
 Writing into extension types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``AttributeError``s can also happen when writing into a ``cdef class``, commonly in ``__init__``::
+``AttributeErrors`` can also happen when writing into a ``cdef class``, commonly in ``__init__``::
 
     cdef class Company:
         def __init__(self, staff):

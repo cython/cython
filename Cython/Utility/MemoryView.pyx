@@ -76,7 +76,7 @@ cdef extern from *:
         pass
 
 cdef extern from *:
-    ctypedef int __pyx_atomic_int
+    ctypedef int __pyx_atomic_int_type
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  __Pyx_memviewslice *from_mvs,
                                  char *mode, int ndim,
@@ -317,21 +317,6 @@ cdef indirect_contiguous = Enum("<contiguous and indirect>")
 # 'follow' is implied when the first or last axis is ::1
 
 
-@cname('__pyx_align_pointer')
-cdef void *align_pointer(void *memory, size_t alignment) noexcept nogil:
-    "Align pointer memory on a given boundary"
-    cdef Py_intptr_t aligned_p = <Py_intptr_t> memory
-    cdef size_t offset
-
-    with cython.cdivision(True):
-        offset = aligned_p % alignment
-
-    if offset > 0:
-        aligned_p += alignment - offset
-
-    return <void *> aligned_p
-
-
 # pre-allocate thread locks for reuse
 ## note that this could be implemented in a more beautiful way in "normal" Cython,
 ## but this code gets merged into the user module and not everything works there.
@@ -350,10 +335,7 @@ cdef class memoryview:
     cdef object _size
     cdef object _array_interface
     cdef PyThread_type_lock lock
-    # the following array will contain a single __pyx_atomic int with
-    # suitable alignment
-    cdef __pyx_atomic_int acquisition_count[2]
-    cdef __pyx_atomic_int *acquisition_count_aligned_p
+    cdef __pyx_atomic_int_type acquisition_count
     cdef Py_buffer view
     cdef int flags
     cdef bint dtype_is_object
@@ -383,8 +365,7 @@ cdef class memoryview:
         else:
             self.dtype_is_object = dtype_is_object
 
-        self.acquisition_count_aligned_p = <__pyx_atomic_int *> align_pointer(
-                  <void *> &self.acquisition_count[0], sizeof(__pyx_atomic_int))
+        assert <Py_intptr_t><void*>(&self.acquisition_count) % sizeof(__pyx_atomic_int_type) == 0
         self.typeinfo = NULL
 
     def __dealloc__(memoryview self):

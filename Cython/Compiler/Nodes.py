@@ -31,7 +31,7 @@ from . import Future
 from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
-from ..Utils import add_metaclass
+from ..Utils import add_metaclass, str_to_number
 
 
 if sys.version_info[0] >= 3:
@@ -1718,8 +1718,17 @@ class CEnumDefNode(StatNode):
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
+
+            # For extern enums, we can't reason about their equivalent int values because
+            # we don't know if their definition is complete.
+            is_declared_enum = self.visibility != 'extern'
+
+            next_int_enum_value = 0 if is_declared_enum else None
             for item in self.items:
-                item.analyse_declarations(scope, self.entry)
+                item.analyse_enum_declarations(scope, self.entry, next_int_enum_value)
+                if is_declared_enum:
+                    next_int_enum_value = 1 + (
+                        item.entry.enum_int_value if item.entry.enum_int_value is not None else next_int_enum_value)
 
     def analyse_expressions(self, env):
         return self
@@ -1752,7 +1761,7 @@ class CEnumDefItemNode(StatNode):
 
     child_attrs = ["value"]
 
-    def analyse_declarations(self, env, enum_entry):
+    def analyse_enum_declarations(self, env, enum_entry, incremental_int_value):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
@@ -1764,11 +1773,25 @@ class CEnumDefItemNode(StatNode):
         else:
             cname = self.cname
 
-        entry = env.declare_const(
+        self.entry = entry = env.declare_const(
             self.name, enum_entry.type,
             self.value, self.pos, cname=cname,
             visibility=enum_entry.visibility, api=enum_entry.api,
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
+
+        # Use the incremental integer value unless we see an explicitly declared value.
+        enum_value = incremental_int_value
+        if self.value:
+            if self.value.is_literal:
+                enum_value = str_to_number(self.value.value)
+            elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
+                enum_value = self.value.entry.enum_int_value
+            else:
+                # There is a value but we don't understand its integer value.
+                enum_value = None
+        if enum_value is not None:
+            entry.enum_int_value = enum_value
+
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
             enum_entry.type.values.append(entry.name)
@@ -3068,6 +3091,7 @@ class DefNode(FuncDefNode):
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
         exception_value, exception_check = except_val or (None, False)
+        nogil = nogil or with_gil
 
         if cfunc is None:
             cfunc_args = []
@@ -8263,13 +8287,8 @@ class ExceptClauseNode(Node):
         exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
-        for n, var in enumerate(exc_vars):
-            if n == 2 and (not self.add_traceback or code.funcstate.has_except_star):
-                # we may not have got a traceback
-                put_gotref = code.put_xgotref
-            else:
-                put_gotref = code.put_gotref
-            put_gotref(var, py_object_type)
+        for var in exc_vars:
+            code.put_xgotref(var, py_object_type)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -8293,8 +8312,9 @@ class ExceptClauseNode(Node):
             code.put_goto(end_label)
 
         for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
-            for var in exc_vars:
-                code.put_decref_clear(var, py_object_type)
+            for i, var in enumerate(exc_vars):
+                # Traceback may be NULL.
+                (code.put_decref_clear if i < 2 else code.put_xdecref_clear)(var, py_object_type)
 
         code.set_loop_labels(old_loop_labels)
 
