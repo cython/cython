@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+3.0.0 (2023-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Parser crash on hex/oct enum values.
+  (Github issue :issue:`5524`)
+
+
 3.0.0 rc 1 (2023-07-12)
 =======================
 
