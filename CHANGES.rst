@@ -2,14 +2,122 @@
 Cython Changelog
 ================
 
-3.0.0 (2023-0?-??)
-==================
+3.0.0 unified release notes
+===========================
+
+Cython 3.0.0 has been a very large effort that cleaned up many old warts,
+introduced many new features, and introduces a couple of intentional
+behaviour changes, even though the goal remained to stay compatible as
+much as possible with Cython 0.29.x. For details, see the `migration guide`_.
+
+.. _`migration guide`: https://cython.readthedocs.io/en/latest/src/userguide/migrating_to_cy30.html
+
+As the development was spread out over several years, a lot of things have
+happened in the meantime. Many crucial bugfixes and some features were
+backported to 0.29.x and are not strictly speaking "new" in Cyton 3.0.0.
+We mark affected lines below with †.
+
+Major themes in 3.0.0
+=====================
+
+Compatibility with Python
+-------------------------
+
+Since Cython 3.0.0 started development, CPython 3.8-3.11 were released.
+All these are supported in Cython, including experimental support for the
+in-development CPython 3.12. On the other end of the spectrum, support for
+Python 2.6 was dropped.
+
+Cython interacts very closely with the C-API of Python, which is where most
+of the adaptation work happens. Independently, Cython strives to be able to
+parse newer Python constructs for use with its `pure python`_ mode, which
+has been a focus. In short, this allows to compile a wider range of Python
+code into optimized C code.
+
+.. _`pure python`: https://cython.readthedocs.io/en/latest/src/tutorial/pure.html
+
+Implemented PEPs:
+
+* `PEP-3131`_: Supporting Non-ASCII Identifiers
+* `PEP-479`_: `generator_stop` (enabled by default for `language_level=3`)
+* `PEP-487`_: Simpler customisation of class creation
+* `PEP-563`_: Postponed Evaluation of Annotations
+* `PEP-570`_: Positional-Only Parameters
+* `PEP-572`_: Assignment Expressions (a.k.a. the walrus operator `:=`)
+* `PEP-590`_: Vectorcall protocol
+* `PEP-614`_: Relaxing Grammar Restrictions On Decorators
+
+Typing support in the sense of `PEP-484`_ and `PEP-560`_ was also improved.
+
+.. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
+.. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+.. _`PEP-484`: https://www.python.org/dev/peps/pep-0484
+.. _`PEP-487`: https://www.python.org/dev/peps/pep-0487
+.. _`PEP-560`: https://www.python.org/dev/peps/pep-0560
+.. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
+.. _`PEP-570`: https://www.python.org/dev/peps/pep-0570
+.. _`PEP-572`: https://www.python.org/dev/peps/pep-0572
+.. _`PEP-590`: https://www.python.org/dev/peps/pep-0590
+.. _`PEP-614`: https://www.python.org/dev/peps/pep-0614
+
+Cython 3.0.0 also aligns many semantics with Python 3, in particular:
+[TODO: more precise]
+* division
+* power operator
+* print
+* classes
+* types
+* subscripting
+
+Furthermore, pure python mode gain many new features to be able to control
+most things that were usually only available in C. Examples:
+[TODO: improve]
+* with gil / nogil
+* etc.
+
+Also: Something about the limited API.
+
+Interaction with numpy
+----------------------
+
+[various]
+
+Exception handling
+------------------
+
+Cython 3.0.0 overhauled the exception handling by doing [XYZ]
+
+Compatibility with C
+--------------------
+
+[Various]
+
+Compatibility with C++
+----------------------
+
+[Lots]
+
+Commandline Interface
+---------------------
+
+[Various]
+
+Build integration
+-----------------
+
+[Various]
+
+Other changes
+-------------
+
+[Various]
 
 Bugs fixed
 ----------
 
 * Parser crash on hex/oct enum values.
   (Github issue :issue:`5524`)
+* ...
 
 
 3.0.0 rc 1 (2023-07-12)
@@ -1547,13 +1655,6 @@ Other changes
 
 * Support for Python 2.6 was removed.
 
-.. _`PEP-560`: https://www.python.org/dev/peps/pep-0560
-.. _`PEP-570`: https://www.python.org/dev/peps/pep-0570
-.. _`PEP-487`: https://www.python.org/dev/peps/pep-0487
-.. _`PEP-590`: https://www.python.org/dev/peps/pep-0590
-.. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
-.. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
-.. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 3.0.0 (2023-0?-??)
 ==================
