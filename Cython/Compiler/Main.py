@@ -774,6 +774,10 @@ def main(command_line = 0):
     if options.show_version:
         from .. import __version__
         print("Cython version %s" % __version__)
+        # For legacy reasons, we also write the version to stderr.
+        # New tools should expect it in stdout, but existing ones still pipe from stderr.
+        if not sys.stderr.isatty():
+            sys.stderr.write("Cython version %s\n" % __version__)
     if options.working_path!="":
         os.chdir(options.working_path)
     try:
