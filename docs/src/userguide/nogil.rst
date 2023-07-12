@@ -117,9 +117,9 @@ GIL is acquired immediately when calling it.
 
             with cython.nogil:
                 ...          # some code that runs without the GIL
-                some_func()  # calling some_func() automatically acquire the GIL
+                some_func()  # some_func() will internally acquire the GIL
                 ...          # some code that runs without the GIL
-            some_func()      # GIL is already held hence the function is called without acquiring the GIL
+            some_func()      # GIL is already held hence the function does not need to acquire the GIL
 
     .. group-tab:: Cython
 
@@ -130,9 +130,9 @@ GIL is acquired immediately when calling it.
 
             with nogil:
                 ...          # some code that runs without the GIL
-                some_func()  # calling some_func() automatically acquire the GIL
+                some_func()  # some_func() will internally acquire the GIL
                 ...          # some code that runs without the GIL
-            some_func()      # GIL is already held hence nothing happen
+            some_func()      # GIL is already held hence the function does not need to acquire the GIL
 
 Conditionally acquiring the GIL
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
