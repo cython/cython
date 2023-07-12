@@ -11,6 +11,9 @@ Bugs fixed
 * Parser crash on hex/oct enum values.
   (Github issue :issue:`5524`)
 
+* ``cython --version`` now prints the version to both stdout and stderr (unless that is a TTY).
+  (Github issue :issue:`5504`)
+
 
 3.0.0 rc 1 (2023-07-12)
 =======================
