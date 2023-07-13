@@ -250,7 +250,43 @@ Related fixes
 Compatibility with C
 --------------------
 
-[Various]
+[const/volatile/complex/atomic/etc.]
+
+Related fixes
+^^^^^^^^^^^^^
+
+* The ``volatile`` C modifier is supported in Cython code.
+  Patch by Jeroen Demeyer.  (Github issue :issue:`1667`)
+
+* ``const`` can be used together with fused types.
+  Patch by Thomas Vincent.  (Github issue :issue:`1772`)
+
+* Constant integer expressions that used a negative exponent were evaluated
+  as integer 0 instead of the expected float value.
+  Patch by Kryštof Pilnáček.  (Github issue :issue:`2133`)
+
+* C11 ``complex.h`` is now properly detected.
+  (Github issue :issue:`2513`)
+
+* Standard C/C++ atomic operations are now used for memory views, if available.
+  (Github issue :issue:`4925`)
+
+* ``const`` types could not be returned from functions.
+  Patch by Mike Graham.  (Github issue :issue:`5135`)
+
+* The module state struct was not initialised in correct C (before C23), leading to
+  compile errors on Windows.
+  Patch by yudonglin.  (Github issue :issue:`5169`)
+
+* Structs that contained an array field resulted in incorrect C code.  Their initialisation
+  now uses ``memcpy()``.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5178`)
+
+* With MSVC, Cython no longer enables C-Complex support by accident (which is not supported there).
+  (Github issue :issue:`5512`)
+
+* The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
+  ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
 
 Compatibility with C++
 ----------------------
@@ -442,9 +478,6 @@ Bugs fixed
 * Duplicate values in a ``cpdef`` enum could lead to invalid switch statements.
   (Github issue :issue:`5400`)
 
-* With MSVC, Cython no longer enables C-Complex support by accident (which is not supported there).
-  (Github issue :issue:`5512`)
-
 * The Python implementation of ``cimport cython.cimports…`` could raise an ``ImportError``
   instead of an ``AttributeError`` when looking up package variable names.
   Patch by Matti Picus.  (Github issue :issue:`5411`)
@@ -482,9 +515,6 @@ Other changes
 
 Features added
 --------------
-
-* The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
-  ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
 
 * The normal ``@dataclasses.dataclass`` and ``@functools.total_ordering`` decorators
   can now be used on extension types.  Using the corresponding ``@cython.*`` decorator
@@ -653,12 +683,6 @@ Features added
 * C arrays can be initialised inside of nogil functions.
   Patch by Matúš Valo.  (Github issue :issue:`1662`)
 
-* Standard C/C++ atomic operations are now used for memory views, if available.
-  (Github issue :issue:`4925`)
-
-* C11 ``complex.h`` is now properly detected.
-  (Github issue :issue:`2513`)
-
 * ``cythonize --help`` now also prints information about the supported environment variables.
   Patch by Matúš Valo.  (Github issue :issue:`1711`)
 
@@ -700,19 +724,8 @@ Bugs fixed
   being considered mutable.
   Patch by Max Bachmann.  (Github issue :issue:`5023`)
 
-* ``const`` types could not be returned from functions.
-  Patch by Mike Graham.  (Github issue :issue:`5135`)
-
 * ``cdef public`` functions declared in .pxd files could use an incorrectly mangled C name.
   Patch by EpigeneMax.  (Github issue :issue:`2940`)
-
-* The module state struct was not initialised in correct C (before C23), leading to
-  compile errors on Windows.
-  Patch by yudonglin.  (Github issue :issue:`5169`)
-
-* Structs that contained an array field resulted in incorrect C code.  Their initialisation
-  now uses ``memcpy()``.
-  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5178`)
 
 * Nesting fused types in other fused types could fail to specialise the inner type.
   (Github issue :issue:`4725`)
@@ -1455,14 +1468,8 @@ Features added
   constants, e.g. fused type checks.
   Patch by Noam Hershtig.  (Github issue :issue:`2579`)
 
-* ``const`` can be used together with fused types.
-  Patch by Thomas Vincent.  (Github issue :issue:`1772`)
-
 * Reimports of already imported modules are substantially faster.
   (Github issue :issue:`2854`)
-
-* The ``volatile`` C modifier is supported in Cython code.
-  Patch by Jeroen Demeyer.  (Github issue :issue:`1667`)
 
 * ``@cython.trashcan(True)`` can be used on an extension type to enable the
   CPython :ref:`trashcan`. This allows deallocating deeply recursive objects
@@ -1568,10 +1575,6 @@ Bugs fixed
 * The first function line number of functions with decorators pointed to the
   signature line and not the first decorator line, as in Python.
   Patch by Felix Kohlgrüber.  (Github issue :issue:`2536`)
-
-* Constant integer expressions that used a negative exponent were evaluated
-  as integer 0 instead of the expected float value.
-  Patch by Kryštof Pilnáček.  (Github issue :issue:`2133`)
 
 * The ``cython.declare()`` and ``cython.cast()`` functions could fail in pure mode.
   Patch by Dmitry Shesterkin.  (Github issue :issue:`3244`)
