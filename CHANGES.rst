@@ -325,6 +325,9 @@ Related fixes
   previous, unsafe behaviour.  This directive will eventually be removed in a later release.
   Patch by Matúš Valo.  (Github issue :issue:`5094`)
 
+* ``noexcept`` was not automatically applied to function pointer attributes in extern structs.
+  Patch by Matúš Valo.  (Github issue :issue:`5359`)
+
 * The code ``except +nogil`` (declaring a C++ exception handler function called ``nogil``)
   is now rejected because it is almost certainly a typo from ``except + nogil``.
   (Github issue :issue:`5430`)
@@ -442,6 +445,9 @@ Related fixes
 * Conversion from Python dict to C++ map now supports arbitrary Python mappings,
   not just dicts.
 
+* ``std::move()`` is now also called for temps during ``yield``.
+  Patch by Yu Feng.  (Github issue :issue:`4154`)
+
 * A new directive ``cpp_locals`` was added that allows local C++ variables to
   be lazily initialised (without default constructor), thus making them behave
   more like Python variables.
@@ -453,6 +459,9 @@ Related fixes
 
 * Code optimisations were not applied to methods of Cython implemented C++ classes.
   Patch by David Woods.  (Github issue :issue:`4212`)
+
+* Conversion from Python dicts to ``std::map`` was broken.
+  Patch by David Woods and Mikkel Skofelt.  (Github issues :issue:`4228`, :issue:`4231`)
 
 * Several issues with the new ``cpp_locals`` directive were resolved and
   its test coverage improved.
@@ -634,9 +643,6 @@ Bugs fixed
 
 * ``__qualname__`` and ``__module__`` were not available inside of class bodies.
   (Github issue :issue:`4447`)
-
-* ``noexcept`` was not automatically applied to function pointer attributes in extern structs.
-  Patch by Matúš Valo.  (Github issue :issue:`5359`)
 
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
@@ -1095,9 +1101,6 @@ Bugs fixed
 * The dispatch code for binary operators to special methods could run into infinite recursion.
   Patch by David Woods.  (Github issue :issue:`4172`)
 
-* Conversion from Python dicts to ``std::map`` was broken.
-  Patch by David Woods and Mikkel Skofelt.  (Github issues :issue:`4231`, :issue:`4228`)
-
 * Attribute annotations in Python classes are now ignored, because they are
   just Python objects in a dict (as opposed to the fields of extension types).
   Patch by David Woods.  (Github issues :issue:`4196`, :issue:`4198`)
@@ -1146,9 +1149,6 @@ Features added
 
 * Self-documenting f-strings (``=``) were implemented.
   Patch by davfsa.  (Github issue :issue:`3796`)
-
-* ``std::move()`` is now also called for temps during ``yield``.
-  Patch by Yu Feng.  (Github issue :issue:`4154`)
 
 * ``asyncio.iscoroutinefunction()`` now recognises coroutine functions
   also when compiled by Cython.
