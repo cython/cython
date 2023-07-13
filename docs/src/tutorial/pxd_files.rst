@@ -19,15 +19,8 @@ using the ``cimport`` keyword.
 2.  They can contain functions which are well suited for inlining by
     the C compiler. Such functions should be marked ``inline``, example:
 
-    .. tabs::
-
-        .. group-tab:: Pure Python
-
-            .. literalinclude:: ../../examples/tutorial/pxd_files/inline.py
-
-        .. group-tab:: Cython
-
-            .. literalinclude:: ../../examples/tutorial/pxd_files/inline.pyx
+    .. literalinclude:: ../../examples/tutorial/pxd_files/inline.pxd
+        :caption: inline.pxd
 
 3.  When accompanying an equally named ``.pyx`` / ``.py`` file, they
     provide a Cython interface to the Cython module so that other
