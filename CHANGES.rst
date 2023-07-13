@@ -255,7 +255,146 @@ Compatibility with C
 Compatibility with C++
 ----------------------
 
-[Lots]
+[Text about forwarding references, ``cpp_locals``, ``std::move``]
+
+Related fixes
+^^^^^^^^^^^^^
+
+* Nested ``cppclass`` definitions are supported.
+  Patch by samaingw.  (Github issue :issue:`1218`)
+
+* ``cdef public`` functions used an incorrect linkage declaration in C++.
+  Patch by Maximilien Colange.  (Github issue :issue:`1839`)
+
+* Overloaded C++ static methods were lost.
+  Patch by Ashwin Srinath.  (Github :issue:`1851`)
+
+* Direct assignments to C++ references are now allowed.
+  Patch by David Woods.  (Github issue :issue:`1863`)
+
+* Templating C++ classes with memory view types lead to buggy code and is now rejected.
+  Patch by David Woods.  (Github issue :issue:`3085`)
+
+* C++ ``typeid()`` failed for fused types.
+  Patch by David Woods.  (Github issue :issue:`3203`)
+
+* The destructor is now called for fields in C++ structs.
+  Patch by David Woods.  (Github issue :issue:`3226`)
+
+* ``std::move()`` is now used in C++ mode for internal temp variables to
+  make them work without copying values.
+  Patch by David Woods.  (Github issues :issue:`3253`, :issue:`1612`)
+
+* The C++ ``typeid()`` function was allowed in C mode.
+  Patch by Celelibi.  (Github issue :issue:`3637`)
+
+* The construct ``for x in cpp_function_call()`` failed to compile.
+  Patch by David Woods.  (Github issue :issue:`3663`)
+
+* C++ references failed to compile when used as Python object indexes.
+  Patch by David Woods.  (Github issue :issue:`3754`)
+
+* A compile failure for C++ enums in Py3.4 / MSVC was resolved.
+  Patch by Ashwin Srinath.  (Github issue :issue:`3782`)
+
+* C++17 execution policies are supported in ``libcpp.algorithm``.
+  Patch by Ashwin Srinath.  (Github issue :issue:`3790`)
+
+* C++ iteration more safely stores the iterable in temporary variables.
+  Patch by Xavier.  (Github issue :issue:`3828`)
+
+* Cython compiled functions always provided a ``__self__`` attribute,
+  regardless of being used as a method or not.
+  Patch by David Woods.  (Github issue :issue:`4036`)
+
+* Nested C++ types were not usable through ctypedefs.
+  Patch by Vadim Pushtaev.  (Github issue :issue:`4039`)
+
+* Some C++ STL methods did not propagate exceptions.
+  Patch by Max Bachmann.  (Github issue :issue:`4079`)
+
+* More declarations for C++ string methods were added.
+
+* Converting C++ containers to Python lists uses less memory allocations.
+  Patch by Max Bachmann.  (Github issue :issue:`4081`)
+
+* Conversion from Python dict to C++ map now supports arbitrary Python mappings,
+  not just dicts.
+
+* A new directive ``cpp_locals`` was added that allows local C++ variables to
+  be lazily initialised (without default constructor), thus making them behave
+  more like Python variables.
+  Patch by David Woods.  (Github issue :issue:`4160`)
+
+* Generated utility code for C++ conversions no longer depends on several user
+  definable directives that may make it behave incorrectly.
+  Patch by David Woods.  (Github issue :issue:`4206`)
+
+* Code optimisations were not applied to methods of Cython implemented C++ classes.
+  Patch by David Woods.  (Github issue :issue:`4212`)
+
+* Several issues with the new ``cpp_locals`` directive were resolved and
+  its test coverage improved.
+  Patch by David Woods.  (Github issues :issue:`4265`, :issue:`4266`)
+
+* Declarations for ``libcpp.algorithms``, ``libcpp.set`` and ``libcpp.unordered_set``
+  were extended.
+  Patch by David Woods.  (Github issues :issue:`4271`, :issue:`4273`)
+
+* ``prange`` loops generated incorrect code when ``cpp_locals`` is enabled.
+  Patch by David Woods.  (Github issue :issue:`4354`)
+
+* C++ post-increment/-decrement operators were not correctly looked up on declared C++
+  classes, thus allowing Cython declarations to be missing for them and incorrect C++
+  code to be generated.
+  Patch by Max Bachmann.  (Github issue :issue:`4536`)
+
+* ``cpp_locals`` no longer have to be "assignable".
+  (Github issue :issue:`4558`)
+
+* C++ references did not work on fused types.
+  (Github issue :issue:`4717`)
+
+* Several C++ library declarations were added and fixed.
+  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov, GalaxySnail, Max Bachmann.
+  (Github issues :issue:`4408`, :issue:`4419`, :issue:`4410`, :issue:`4395`,
+  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`, :issue:`4522`,
+  :issue:`2171`, :issue:`4531`)
+
+* Some C++ and CPython library declarations were extended and fixed.
+  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion, Wenjun Si.
+  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`,
+  :issue:`4751`, :issue:`4818`, :issue:`4762`, :issue:`4910`)
+
+* Some C/C++ warnings were resolved.
+  Patches by Max Bachmann, Alexander Shadchin, at al.
+  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
+
+* Declarations were added for the C++ bit operations, some other parts of C++20 and CPython APIs.
+  Patches by Jonathan Helgert, Dobatymo, William Ayd and Max Bachmann.
+  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`, :issue:`5257`)
+
+* ``reversed()`` can now be used together with C++ iteration.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5002`)
+
+* Fully qualified C++ names prefixed by a cimported module name could fail to compile.
+  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5229`)
+
+* Cython generated C++ code accidentally used C++11 features in some cases.
+  (Github issue :issue:`5316`)
+
+* Some C++ warnings regarding ``const`` usage in internally generated utility code were resolved.
+  Patch by Max Bachmann.  (Github issue :issue:`5301`)
+
+* C++ declarations for ``<cmath>``, ``<numbers>`` and ``std::any`` were added.
+  Patches by Jonathan Helgert and Maximilien Colange.
+  (Github issues :issue:`5262`, :issue:`5309`, :issue:`5314`)
+
+* Reverse iteration in C++ no longer removes the ``const`` qualifier from the item type.
+  Patch by Isuru Fernando.  (Github issue :issue:`5478`)
+
+* C++ containers of item type ``bint`` could conflict with those of item type ``int``.
+  (Github issue :issue:`5516`)
 
 Commandline Interface
 ---------------------
@@ -302,12 +441,6 @@ Bugs fixed
 
 * Duplicate values in a ``cpdef`` enum could lead to invalid switch statements.
   (Github issue :issue:`5400`)
-
-* Reverse iteration in C++ no longer removes the ``const`` qualifier from the item type.
-  Patch by Isuru Fernando.  (Github issue :issue:`5478`)
-
-* C++ containers of item type ``bint`` could conflict with those of item type ``int``.
-  (Github issue :issue:`5516`)
 
 * With MSVC, Cython no longer enables C-Complex support by accident (which is not supported there).
   (Github issue :issue:`5512`)
@@ -437,10 +570,6 @@ Other changes
 Features added
 --------------
 
-* C++ declarations for ``<cmath>``, ``<numbers>`` and ``std::any`` were added.
-  Patches by Jonathan Helgert and Maximilien Colange.
-  (Github issues :issue:`5262`, :issue:`5309`, :issue:`5314`)
-
 Bugs fixed
 ----------
 
@@ -462,15 +591,6 @@ Bugs fixed
 
 * ``cimport_from_pyx`` could miss some declarations.
   Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5318`)
-
-* Fully qualified C++ names prefixed by a cimported module name could fail to compile.
-  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5229`)
-
-* Cython generated C++ code accidentally used C++11 features in some cases.
-  (Github issue :issue:`5316`)
-
-* Some C++ warnings regarding ``const`` usage in internally generated utility code were resolved.
-  Patch by Max Bachmann.  (Github issue :issue:`5301`)
 
 * With ``language_level=2``, imports of modules in packages could return the wrong module in Python 3.
   (Github issue :issue:`5308`)
@@ -533,27 +653,14 @@ Features added
 * C arrays can be initialised inside of nogil functions.
   Patch by Matúš Valo.  (Github issue :issue:`1662`)
 
-* ``reversed()`` can now be used together with C++ iteration.
-  Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5002`)
-
 * Standard C/C++ atomic operations are now used for memory views, if available.
   (Github issue :issue:`4925`)
 
 * C11 ``complex.h`` is now properly detected.
   (Github issue :issue:`2513`)
 
-* Nested ``cppclass`` definitions are supported.
-  Patch by samaingw.  (Github issue :issue:`1218`)
-
-* ``cpp_locals`` no longer have to be "assignable".
-  (Github issue :issue:`4558`)
-
 * ``cythonize --help`` now also prints information about the supported environment variables.
   Patch by Matúš Valo.  (Github issue :issue:`1711`)
-
-* Declarations were added for the C++ bit operations, some other parts of C++20 and CPython APIs.
-  Patches by Jonathan Helgert, Dobatymo, William Ayd and Max Bachmann.
-  (Github issues :issue:`4962`, :issue:`5101`, :issue:`5157`, :issue:`5163`, :issue:`5257`)
 
 Bugs fixed
 ----------
@@ -598,20 +705,6 @@ Bugs fixed
 
 * ``cdef public`` functions declared in .pxd files could use an incorrectly mangled C name.
   Patch by EpigeneMax.  (Github issue :issue:`2940`)
-
-* ``cdef public`` functions used an incorrect linkage declaration in C++.
-  Patch by Maximilien Colange.  (Github issue :issue:`1839`)
-
-* C++ post-increment/-decrement operators were not correctly looked up on declared C++
-  classes, thus allowing Cython declarations to be missing for them and incorrect C++
-  code to be generated.
-  Patch by Max Bachmann.  (Github issue :issue:`4536`)
-
-* C++ iteration more safely stores the iterable in temporary variables.
-  Patch by Xavier.  (Github issue :issue:`3828`)
-
-* C++ references did not work on fused types.
-  (Github issue :issue:`4717`)
 
 * The module state struct was not initialised in correct C (before C23), leading to
   compile errors on Windows.
@@ -669,10 +762,6 @@ Bugs fixed
 * ``setup.cfg`` was missing from the source distribution.
   (Github issue :issue:`5199`)
 
-* Some C/C++ warnings were resolved.
-  Patches by Max Bachmann, Alexander Shadchin, at al.
-  (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
-
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
 
@@ -720,11 +809,6 @@ Features added
 
 * Cython avoids raising ``StopIteration`` in ``__next__`` methods when possible.
   Patch by David Woods.  (Github issue :issue:`3447`)
-
-* Some C++ and CPython library declarations were extended and fixed.
-  Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion, Wenjun Si.
-  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`,
-  :issue:`4751`, :issue:`4818`, :issue:`4762`, :issue:`4910`)
 
 * The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
   to generate ``.dep`` dependency files for the compilation unit.  This can be used
@@ -854,12 +938,6 @@ Features added
 * ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
   Original patch by ax487.  (Github issue :issue:`3612`)
 
-* Conversion from Python dict to C++ map now supports arbitrary Python mappings,
-  not just dicts.
-
-* Direct assignments to C++ references are now allowed.
-  Patch by David Woods.  (Github issue :issue:`1863`)
-
 * An initial set of adaptations for GraalVM Python was implemented.  Note that
   this does not imply any general support for this target or that your code
   will work at all in this environment.  But testing should be possible now.
@@ -893,9 +971,6 @@ Bugs fixed
 * Fused typed default arguments generated incorrect code.
   Patch by David Woods.  (Github issue :issue:`4413`)
 
-* ``prange`` loops generated incorrect code when ``cpp_locals`` is enabled.
-  Patch by David Woods.  (Github issue :issue:`4354`)
-
 * Decorators on inner functions were not evaluated in the right scope.
   Patch by David Woods.  (Github issue :issue:`4367`)
 
@@ -920,15 +995,6 @@ Bugs fixed
 
 * Default values for memory views arguments were not properly supported.
   Patch by Corentin Cadiou.  (Github issue :issue:`4313`)
-
-* Templating C++ classes with memory view types lead to buggy code and is now rejected.
-  Patch by David Woods.  (Github issue :issue:`3085`)
-
-* Several C++ library declarations were added and fixed.
-  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov, GalaxySnail, Max Bachmann.
-  (Github issues :issue:`4408`, :issue:`4419`, :issue:`4410`, :issue:`4395`,
-  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`, :issue:`4522`,
-  :issue:`2171`, :issue:`4531`)
 
 * Some compiler problems and warnings were resolved.
   Patches by David Woods, 0dminnimda, Nicolas Pauss and others.
@@ -966,24 +1032,12 @@ Other changes
 Features added
 --------------
 
-* Declarations for ``libcpp.algorithms``, ``libcpp.set`` and ``libcpp.unordered_set``
-  were extended.
-  Patch by David Woods.  (Github issues :issue:`4271`, :issue:`4273`)
-
 * ``cygdb`` has a new option ``--skip-interpreter`` that allows using a different
   Python runtime than the one used to generate the debugging information.
   Patch by Alessandro Molina.  (Github issue :issue:`4186`)
 
 Bugs fixed
 ----------
-
-* Several issues with the new ``cpp_locals`` directive were resolved and
-  its test coverage improved.
-  Patch by David Woods.  (Github issues :issue:`4266`, :issue:`4265`)
-
-* Generated utility code for C++ conversions no longer depends on several user
-  definable directives that may make it behave incorrectly.
-  Patch by David Woods.  (Github issue :issue:`4206`)
 
 * A reference counting bug in the new ``@cython.total_ordering`` decorator was fixed.
 
@@ -1007,14 +1061,6 @@ Features added
   implement all comparison operators, similar to ``functools.total_ordering``.
   Patch by Spencer Brown.  (Github issue :issue:`2090`)
 
-* A new directive ``cpp_locals`` was added that allows local C++ variables to
-  be lazily initialised (without default constructor), thus making them behave
-  more like Python variables.
-  Patch by David Woods.  (Github issue :issue:`4160`)
-
-* C++17 execution policies are supported in ``libcpp.algorithm``.
-  Patch by Ashwin Srinath.  (Github issue :issue:`3790`)
-
 * New C feature flags: ``CYTHON_USE_MODULE_STATE``, ``CYTHON_USE_TYPE_SPECS``
   Both are currently considered experimental.
   (Github issue :issue:`3611`)
@@ -1027,9 +1073,6 @@ Bugs fixed
 
 * The dispatch code for binary operators to special methods could run into infinite recursion.
   Patch by David Woods.  (Github issue :issue:`4172`)
-
-* Code optimisations were not applied to methods of Cython implemented C++ classes.
-  Patch by David Woods.  (Github issue :issue:`4212`)
 
 * Conversion from Python dicts to ``std::map`` was broken.
   Patch by David Woods and Mikkel Skofelt.  (Github issues :issue:`4231`, :issue:`4228`)
@@ -1087,9 +1130,6 @@ Features added
 * Self-documenting f-strings (``=``) were implemented.
   Patch by davfsa.  (Github issue :issue:`3796`)
 
-* The destructor is now called for fields in C++ structs.
-  Patch by David Woods.  (Github issue :issue:`3226`)
-
 * ``std::move()`` is now also called for temps during ``yield``.
   Patch by Yu Feng.  (Github issue :issue:`4154`)
 
@@ -1101,9 +1141,6 @@ Features added
   Patch by Egor Dranischnikow.  (Github issue :issue:`3751`)
 
 * ``float(…)`` is optimised for string arguments (str/bytes/bytearray).
-
-* Converting C++ containers to Python lists uses less memory allocations.
-  Patch by Max Bachmann.  (Github issue :issue:`4081`)
 
 * Docstrings of ``cpdef`` enums are now copied to the enum class.
   Patch by matham.  (Github issue :issue:`3805`)
@@ -1128,8 +1165,6 @@ Features added
 
 * "Declaration after use" is now an error for variables.
   Patch by David Woods.  (Github issue :issue:`3976`)
-
-* More declarations for C++ string methods were added.
 
 * Cython now detects when existing output files were not previously generated
   by itself and refuses to overwrite them.  It is a common mistake to name
@@ -1161,16 +1196,6 @@ Bugs fixed
 * Literal list assignments to pointer variables declared in PEP-526
   notation failed to compile.
 
-* Nested C++ types were not usable through ctypedefs.
-  Patch by Vadim Pushtaev.  (Github issue :issue:`4039`)
-
-* Overloaded C++ static methods were lost.
-  Patch by Ashwin Srinath.  (Github :issue:`1851`)
-
-* Cython compiled functions always provided a ``__self__`` attribute,
-  regardless of being used as a method or not.
-  Patch by David Woods.  (Github issue :issue:`4036`)
-
 * Calls to ``.__class__()`` of a known extension type failed.
   Patch by David Woods.  (Github issue :issue:`3954`)
 
@@ -1189,12 +1214,6 @@ Bugs fixed
 
 * Some C compiler warninge were resolved.
   Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :issue:`4162`)
-
-* A compile failure for C++ enums in Py3.4 / MSVC was resolved.
-  Patch by Ashwin Srinath.  (Github issue :issue:`3782`)
-
-* Some C++ STL methods did not propagate exceptions.
-  Patch by Max Bachmann.  (Github issue :issue:`4079`)
 
 * An unsupported C-API call in PyPy was fixed.
   Patch by Max Bachmann.  (Github issue :issue:`4055`)
@@ -1262,15 +1281,6 @@ Features added
 
 Bugs fixed
 ----------
-
-* The construct ``for x in cpp_function_call()`` failed to compile.
-  Patch by David Woods.  (Github issue :issue:`3663`)
-
-* C++ references failed to compile when used as Python object indexes.
-  Patch by David Woods.  (Github issue :issue:`3754`)
-
-* The C++ ``typeid()`` function was allowed in C mode.
-  Patch by Celelibi.  (Github issue :issue:`3637`)
 
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue :issue:`3736`)
@@ -1395,10 +1405,6 @@ Bugs fixed
 Features added
 --------------
 
-* ``std::move()`` is now used in C++ mode for internal temp variables to
-  make them work without copying values.
-  Patch by David Woods.  (Github issues :issue:`3253`, :issue:`1612`)
-
 * Conditional blocks in Python code that depend on ``cython.compiled`` are
   eliminated at an earlier stage, which gives more freedom in writing
   replacement Python code.
@@ -1417,9 +1423,6 @@ Bugs fixed
   are now new-style (type) classes also in Py2.  Previously, they were created
   as old-style (non-type) classes.
   (Github issue :issue:`3530`)
-
-* C++ ``typeid()`` failed for fused types.
-  Patch by David Woods.  (Github issue :issue:`3203`)
 
 * ``__arg`` argument names in methods were not mangled with the class name.
   Patch by David Woods.  (Github issue :issue:`1382`)
