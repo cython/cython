@@ -36,18 +36,20 @@ code into optimized C code.
 
 .. _`pure python`: https://cython.readthedocs.io/en/latest/src/tutorial/pure.html
 
-Implemented PEPs:
+Implemented PEPs
+^^^^^^^^^^^^^^^^
 
-* `PEP-3131`_: Supporting Non-ASCII Identifiers
-* `PEP-479`_: `generator_stop` (enabled by default for `language_level=3`)
-* `PEP-487`_: Simpler customisation of class creation
-* `PEP-563`_: Postponed Evaluation of Annotations
-* `PEP-570`_: Positional-Only Parameters
-* `PEP-572`_: Assignment Expressions (a.k.a. the walrus operator `:=`)
-* `PEP-590`_: Vectorcall protocol
-* `PEP-614`_: Relaxing Grammar Restrictions On Decorators
+* `PEP-3131`_: Supporting Non-ASCII Identifiers (Github issue :issue:`2601`)
+* `PEP-479`_: `generator_stop` (enabled by default for `language_level=3`) (Github issue :issue:`2580`)
+* `PEP-487`_: Simpler customisation of class creation (Github issue :issue:`2781`)
+* `PEP-563`_: Postponed Evaluation of Annotations (Github issue :issue:`3285`)
+* `PEP-570`_: Positional-Only Parameters (Github issue :issue:`2915`)
+* `PEP-572`_: Assignment Expressions (a.k.a. the walrus operator `:=`) (Github issue :issue:`2636`)
+* `PEP-590`_: Vectorcall protocol (Github issue :issue:`2263`)
+* `PEP-614`_: Relaxing Grammar Restrictions On Decorators (Github issue :issue:`4570`)
 
-Typing support in the sense of `PEP-484`_ and `PEP-560`_ was also improved.
+Typing support in the sense of `PEP-484`_ (Github issues :issue:`3949`, :issue:`4243`)
+and `PEP-560`_ (Github issues :issue:`2753`, :issue:`3537`, :issue:`3764`) was also improved.
 
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
@@ -60,6 +62,9 @@ Typing support in the sense of `PEP-484`_ and `PEP-560`_ was also improved.
 .. _`PEP-590`: https://www.python.org/dev/peps/pep-0590
 .. _`PEP-614`: https://www.python.org/dev/peps/pep-0614
 
+Improved fidelity to Python semantics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Cython 3.0.0 also aligns many semantics with Python 3, in particular:
 [TODO: more precise]
 * division
@@ -69,13 +74,89 @@ Cython 3.0.0 also aligns many semantics with Python 3, in particular:
 * types
 * subscripting
 
-Furthermore, pure python mode gain many new features to be able to control
+Improvements in Pure Python mode
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pure python mode gained many new features to be able to control
 most things that were usually only available in C. Examples:
 [TODO: improve]
 * with gil / nogil
 * etc.
 
-Also: Something about the limited API.
+Initial support for Limited API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+[Text about the status of support for Limited API]
+
+* Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
+  available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
+  support is currently in an early stage and many features do not yet work.
+  You currently still have to define ``Py_LIMITED_API`` externally in order
+  to restrict the API usage.  This will change when the feature stabilises.
+  Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
+  :issue:`3311`, :issue:`3501`)
+
+* Limited API support was improved.
+  Patches by Matthias Braun.  (Github issues :issue:`3693`, :issue:`3707`)
+
+* ``_Py_TPFLAGS_HAVE_VECTORCALL`` was always set on extension types when using the limited API.
+  Patch by David Woods.  (Github issue :issue:`4453`)
+
+* Limited API C preprocessor warning is compatible with MSVC. Patch by
+  Victor Molina Garcia.  (Github issue :issue:`4826`)
+
+* The embedding code no longer calls deprecated C-API functions but uses the new ``PyConfig``
+  API instead on CPython versions that support it (3.8+).
+  Patch by Alexander Shadchin.  (Github issue :issue:`4895`)
+
+* Some C code issue were resolved for the Limited API target.
+  (Github issues :issue:`5264`, :issue:`5265`, :issue:`5266`)
+
+* Conversion of Python ints to C ``int128`` is now always supported, although slow
+  if dedicated C-API support is missing (``_PyLong_AsByteArray()``), specifically in
+  the Limited C-API.
+  (Github issue :issue:`5419`)
+
+* Custom buffer slot methods are now supported in the Limited C-API of Python 3.9+.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5422`)
+
+Related fixes
+^^^^^^^^^^^^^
+
+* Unicode module names and imports are supported.
+  Patch by David Woods.  (Github issue :issue:`3119`)
+
+* ``PyEval_InitThreads()`` is no longer used in Py3.7+ where it is a no-op.
+
+* The ``Tempita`` module no longer contains HTML processing capabilities, which
+  were found to be broken in Python 3.8 and later.
+  Patch by Marcel Stimberg.  (Github issue :issue:`3309`)
+
+* The generated C code failed to compile in CPython 3.11a4 and later.
+  (Github issue :issue:`4500`)
+
+* The runtime size check for imported ``PyVarObject`` types was improved
+  to reduce false positives and adapt to Python 3.11.
+  Patch by David Woods.  (Github issues :issue:`4827`, :issue:`4894`)
+
+* ``cpdef`` enums no longer use ``OrderedDict`` but ``dict`` in Python 3.6 and later.
+  Patch by GalaxySnail.  (Github issue :issue:`5180`)
+
+* Several problems with CPython 3.12 were resolved.
+  (Github issue :issue:`5238`)
+
+* Very long Python integer constants could exceed the maximum C name length of MSVC.
+  Patch by 0dminnimda.  (Github issue :issue:`5290`)
+
+* The exception handling code was adapted to CPython 3.12.
+  (Github issue :issue:`5442`)
+
+* The dataclass implementation was adapted to support Python 3.12.
+  (Github issue :issue:`5346`)
+
+* The Python ``int`` handling code was adapted to make use of the new ``PyLong``
+  internals in CPython 3.12.
+  (Github issue :issue:`5353`)
 
 Interaction with numpy
 ----------------------
@@ -197,26 +278,8 @@ Other changes
 Features added
 --------------
 
-* Custom buffer slot methods are now supported in the Limited C-API of Python 3.9+.
-  Patch by Lisandro Dalcin.  (Github issue :issue:`5422`)
-
 * The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
   ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
-
-* The Python ``int`` handling code was adapted to make use of the new ``PyLong``
-  internals in CPython 3.12.
-  (Github issue :issue:`5353`)
-
-* Conversion of Python ints to C ``int128`` is now always supported, although slow
-  if dedicated C-API support is missing (``_PyLong_AsByteArray()``), specifically in
-  the Limited C-API.
-  (Github issue :issue:`5419`)
-
-* The exception handling code was adapted to CPython 3.12.
-  (Github issue :issue:`5442`)
-
-* The dataclass implementation was adapted to support Python 3.12.
-  (Github issue :issue:`5346`)
 
 * The normal ``@dataclasses.dataclass`` and ``@functools.total_ordering`` decorators
   can now be used on extension types.  Using the corresponding ``@cython.*`` decorator
@@ -332,9 +395,6 @@ Bugs fixed
 * Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
   (Github issue :issue:`5328`)
 
-* Very long Python integer constants could exceed the maximum C name length of MSVC.
-  Patch by 0dminnimda.  (Github issue :issue:`5290`)
-
 * ``cimport_from_pyx`` could miss some declarations.
   Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5318`)
 
@@ -361,9 +421,6 @@ Bugs fixed
 
 * Some issues with ``depfile`` generation were resolved.
   Patches by Eli Schwartz.  (Github issues :issue:`5279`, :issue:`5291`)
-
-* Some C code issue were resolved for the Limited API target.
-  (Github issues :issue:`5264`, :issue:`5265`, :issue:`5266`)
 
 * The C code shown in the annotated HTML output could lack the last C code line(s).
 
@@ -418,10 +475,6 @@ Features added
   both Python and C semantics of enums.
   (Github issue :issue:`2732`)
 
-* `PEP-614 <https://peps.python.org/pep-0614/>`_:
-  decorators can now be arbitrary Python expressions.
-  (Github issue :issue:`4570`)
-
 * ``cpdef`` enums can now be pickled.
   (Github issue :issue:`5120`)
 
@@ -470,9 +523,6 @@ Bugs fixed
 
 * ``int(Py_UCS4)`` returned the code point instead of the parsed digit value.
   (Github issue :issue:`5216`)
-
-* Several problems with CPython 3.12 were resolved.
-  (Github issue :issue:`5238`)
 
 * The C ``float`` type was not inferred on assignments.
   (Github issue :issue:`5234`)
@@ -541,9 +591,6 @@ Bugs fixed
 * Some issues with Cython ``@dataclass`` arguments, hashing, inheritance and ``repr()``
   were resolved.  (Github issues :issue:`4956`, :issue:`5046`)
 
-* ``cpdef`` enums no longer use ``OrderedDict`` but ``dict`` in Python 3.6 and later.
-  Patch by GalaxySnail.  (Github issue :issue:`5180`)
-
 * Larger numbers of extension types with multiple subclasses could take very long to compile.
   Patch by Scott Wolchok.  (Github issue :issue:`5139`)
 
@@ -577,10 +624,6 @@ Bugs fixed
   Patches by Max Bachmann, Alexander Shadchin, at al.
   (Github issues :issue:`5004`, :issue:`5005`, :issue:`5019`, :issue:`5029`, :issue:`5096`)
 
-* The embedding code no longer calls deprecated C-API functions but uses the new ``PyConfig``
-  API instead on CPython versions that support it (3.8+).
-  Patch by Alexander Shadchin.  (Github issue :issue:`4895`)
-
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
 
@@ -606,10 +649,6 @@ Other changes
 * Wheels now include a compiled parser again, which increases their size a little
   but gives about a 10% speed-up when running Cython.
 
-* The ``Tempita`` module no longer contains HTML processing capabilities, which
-  were found to be broken in Python 3.8 and later.
-  Patch by Marcel Stimberg.  (Github issue :issue:`3309`)
-
 * The Emacs Cython mode file ``cython-mode.el`` is now maintained in a separate repo:
   https://github.com/cython/emacs-cython-mode
 
@@ -626,10 +665,6 @@ Features added
   compile time dataclass generation capabilities to ``cdef`` classes (extension types).
   Patch by David Woods.  (Github issue :issue:`2903`).  ``kw_only`` dataclasses
   added by Yury Sokov.  (Github issue :issue:`4794`)
-
-* Named expressions (PEP 572) aka. assignment expressions (aka. the walrus operator
-  ``:=``) were implemented.
-  Patch by David Woods.  (Github issue :issue:`2636`)
 
 * Context managers can be written in parentheses.
   Patch by David Woods.  (Github issue :issue:`4814`)
@@ -708,9 +743,6 @@ Bugs fixed
 * ``pyximport`` failed for long filenames on Windows.
   Patch by Matti Picus.  (Github issue :issue:`4630`)
 
-* The generated C code failed to compile in CPython 3.11a4 and later.
-  (Github issue :issue:`4500`)
-
 * A case of undefined C behaviour was resolved in the list slicing code.
   Patch by Richard Barnes.  (Github issue :issue:`4734`)
 
@@ -723,18 +755,11 @@ Bugs fixed
   compatible exception specifications.  Patches by David Woods.
   (Github issues :issue:`4770`, :issue:`4689`)
 
-* The runtime size check for imported ``PyVarObject`` types was improved
-  to reduce false positives and adapt to Python 3.11.
-  Patch by David Woods.  (Github issues :issue:`4827`, :issue:`4894`)
-
 * The generated modules no longer import NumPy internally when using
   fused types but no memoryviews.
   Patch by David Woods.  (Github issue :issue:`4935`)
 
 * Improve compatibility with forthcoming CPython 3.12 release.
-
-* Limited API C preprocessor warning is compatible with MSVC. Patch by
-  Victor Molina Garcia.  (Github issue :issue:`4826`)
 
 * Some C compiler warnings were fixed.
   Patch by mwtian.  (Github issue :issue:`4831`)
@@ -883,9 +908,6 @@ Bugs fixed
 * An endless loop in ``cython-mode.el`` was resolved.
   Patch by Johannes Mueller.  (Github issue :issue:`3218`)
 
-* ``_Py_TPFLAGS_HAVE_VECTORCALL`` was always set on extension types when using the limited API.
-  Patch by David Woods.  (Github issue :issue:`4453`)
-
 * Some compatibility issues with PyPy were resolved.
   Patches by Max Bachmann, Matti Picus.
   (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issue:`4509`, :issue:`4517`)
@@ -974,9 +996,6 @@ Bugs fixed
 * Code optimisations were not applied to methods of Cython implemented C++ classes.
   Patch by David Woods.  (Github issue :issue:`4212`)
 
-* The special ``cython`` module was not always detected in PEP-484 type annotations.
-  Patch by David Woods.  (Github issue :issue:`4243`)
-
 * Conversion from Python dicts to ``std::map`` was broken.
   Patch by David Woods and Mikkel Skofelt.  (Github issues :issue:`4231`, :issue:`4228`)
 
@@ -1029,12 +1048,6 @@ Features added
   imported module name with ``cython.cimports.``, e.g.
   ``from cython.cimports.libc.math import sin``.
   (GIthub issue :issue:`4190`)
-
-* ``__class_getitem__`` (`PEP-560`_) is supported for cdef classes.
-  Patch by Kmol Yuan.  (Github issue :issue:`3764`)
-
-* ``__mro_entries__`` (`PEP-560`_) is supported for Python classes.
-  Patch by David Woods.  (Github issue :issue:`3537`)
 
 * ``cython.array`` supports simple, non-strided views.
   (Github issue :issue:`3775`)
@@ -1160,9 +1173,6 @@ Bugs fixed
 * The Cython ``CodeWriter`` mishandled no-argument ``return`` statements.
   Patch by Tao He.  (Github issue :issue:`3795`)
 
-* ``complex`` wasn't supported in PEP-484 type annotations.
-  Patch by David Woods.  (Github issue :issue:`3949`)
-
 * Default arguments of methods were not exposed for introspection.
   Patch by Vladimir Matveev.  (Github issue :issue:`4061`)
 
@@ -1217,9 +1227,6 @@ Features added
   Patch by Brock Mendel.  (Github issue :issue:`3616`)
 
 * Type inference now understands that ``a, *b = x`` assigns a list to ``b``.
-
-* Limited API support was improved.
-  Patches by Matthias Braun.  (Github issues :issue:`3693`, :issue:`3707`)
 
 * The Cython ``CodeWriter`` can now handle more syntax constructs.
   Patch by Tao He.  (Github issue :issue:`3514`)
@@ -1333,8 +1340,6 @@ Bugs fixed
   could generate invalid C code.
   (Github issue :issue:`3558`)
 
-* ``PyEval_InitThreads()`` is no longer used in Py3.7+ where it is a no-op.
-
 * Parallel builds of Cython itself (``setup.py build_ext -j N``) failed on Windows.
 
 Other changes
@@ -1374,12 +1379,6 @@ Features added
 * ``std::move()`` is now used in C++ mode for internal temp variables to
   make them work without copying values.
   Patch by David Woods.  (Github issues :issue:`3253`, :issue:`1612`)
-
-* ``__class_getitem__`` is supported for types on item access (`PEP-560`_).
-  Patch by msg555.  (Github issue :issue:`2753`)
-
-* The simplified Py3.6 customisation of class creation is implemented (`PEP-487`_).
-  (Github issue :issue:`2781`)
 
 * Conditional blocks in Python code that depend on ``cython.compiled`` are
   eliminated at an earlier stage, which gives more freedom in writing
@@ -1430,26 +1429,6 @@ Bugs fixed
 Features added
 --------------
 
-* Cython functions now use the `PEP-590`_ vectorcall protocol in Py3.7+.
-  Patch by Jeroen Demeyer.  (Github issue :issue:`2263`)
-
-* Unicode identifiers are supported in Cython code (`PEP-3131`_).
-  Patch by David Woods.  (Github issue :issue:`2601`)
-
-* Unicode module names and imports are supported.
-  Patch by David Woods.  (Github issue :issue:`3119`)
-
-* Annotations are no longer parsed, keeping them as strings following `PEP-563`_.
-  Patch by David Woods.  (Github issue :issue:`3285`)
-
-* Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
-  available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
-  support is currently in an early stage and many features do not yet work.
-  You currently still have to define ``Py_LIMITED_API`` externally in order
-  to restrict the API usage.  This will change when the feature stabilises.
-  Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
-  :issue:`3311`, :issue:`3501`)
-
 * The dispatch to fused functions is now linear in the number of arguments,
   which makes it much faster, often 2x or more, and several times faster for
   larger fused types with many specialisations.
@@ -1464,9 +1443,6 @@ Features added
 
 * Reimports of already imported modules are substantially faster.
   (Github issue :issue:`2854`)
-
-* Positional-only arguments are supported in Python functions (`PEP-570`_).
-  Patch by Josh Tobin.  (Github issue :issue:`2915`)
 
 * The ``volatile`` C modifier is supported in Cython code.
   Patch by Jeroen Demeyer.  (Github issue :issue:`1667`)
@@ -1517,9 +1493,6 @@ Features added
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue :issue:`2748`)
-
-* `PEP-479`_ (``generator_stop``) is now enabled by default with language level 3.
-  (Github issue :issue:`2580`)
 
 * The ``cython.view.array`` type supports inheritance.
   Patch by David Woods.  (Github issue :issue:`3413`)
@@ -1652,8 +1625,6 @@ Other changes
 
 * Binary Linux wheels now follow the manylinux2010 standard.
   Patch by Alexey Stepanov.  (Github issue :issue:`3355`)
-
-* Support for Python 2.6 was removed.
 
 
 3.0.0 (2023-0?-??)
