@@ -62,64 +62,6 @@ and `PEP-560`_ (Github issues :issue:`2753`, :issue:`3537`, :issue:`3764`) was a
 .. _`PEP-590`: https://www.python.org/dev/peps/pep-0590
 .. _`PEP-614`: https://www.python.org/dev/peps/pep-0614
 
-Improved fidelity to Python semantics
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Cython 3.0.0 also aligns many semantics with Python 3, in particular:
-[TODO: more precise]
-* division
-* power operator
-* print
-* classes
-* types
-* subscripting
-
-Improvements in Pure Python mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Pure python mode gained many new features to be able to control
-most things that were usually only available in C. Examples:
-[TODO: improve]
-* with gil / nogil
-* etc.
-
-Initial support for Limited API
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-[Text about the status of support for Limited API]
-
-* Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
-  available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
-  support is currently in an early stage and many features do not yet work.
-  You currently still have to define ``Py_LIMITED_API`` externally in order
-  to restrict the API usage.  This will change when the feature stabilises.
-  Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
-  :issue:`3311`, :issue:`3501`)
-
-* Limited API support was improved.
-  Patches by Matthias Braun.  (Github issues :issue:`3693`, :issue:`3707`)
-
-* ``_Py_TPFLAGS_HAVE_VECTORCALL`` was always set on extension types when using the limited API.
-  Patch by David Woods.  (Github issue :issue:`4453`)
-
-* Limited API C preprocessor warning is compatible with MSVC. Patch by
-  Victor Molina Garcia.  (Github issue :issue:`4826`)
-
-* The embedding code no longer calls deprecated C-API functions but uses the new ``PyConfig``
-  API instead on CPython versions that support it (3.8+).
-  Patch by Alexander Shadchin.  (Github issue :issue:`4895`)
-
-* Some C code issue were resolved for the Limited API target.
-  (Github issues :issue:`5264`, :issue:`5265`, :issue:`5266`)
-
-* Conversion of Python ints to C ``int128`` is now always supported, although slow
-  if dedicated C-API support is missing (``_PyLong_AsByteArray()``), specifically in
-  the Limited C-API.
-  (Github issue :issue:`5419`)
-
-* Custom buffer slot methods are now supported in the Limited C-API of Python 3.9+.
-  Patch by Lisandro Dalcin.  (Github issue :issue:`5422`)
-
 Related fixes
 ^^^^^^^^^^^^^
 
@@ -158,6 +100,66 @@ Related fixes
   internals in CPython 3.12.
   (Github issue :issue:`5353`)
 
+Initial support for Limited API
+-------------------------------
+
+[Text about the status of support for Limited API]
+
+Related fixes
+^^^^^^^^^^^^^
+
+* Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
+  available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
+  support is currently in an early stage and many features do not yet work.
+  You currently still have to define ``Py_LIMITED_API`` externally in order
+  to restrict the API usage.  This will change when the feature stabilises.
+  Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
+  :issue:`3311`, :issue:`3501`)
+
+* Limited API support was improved.
+  Patches by Matthias Braun.  (Github issues :issue:`3693`, :issue:`3707`)
+
+* ``_Py_TPFLAGS_HAVE_VECTORCALL`` was always set on extension types when using the limited API.
+  Patch by David Woods.  (Github issue :issue:`4453`)
+
+* Limited API C preprocessor warning is compatible with MSVC. Patch by
+  Victor Molina Garcia.  (Github issue :issue:`4826`)
+
+* The embedding code no longer calls deprecated C-API functions but uses the new ``PyConfig``
+  API instead on CPython versions that support it (3.8+).
+  Patch by Alexander Shadchin.  (Github issue :issue:`4895`)
+
+* Some C code issue were resolved for the Limited API target.
+  (Github issues :issue:`5264`, :issue:`5265`, :issue:`5266`)
+
+* Conversion of Python ints to C ``int128`` is now always supported, although slow
+  if dedicated C-API support is missing (``_PyLong_AsByteArray()``), specifically in
+  the Limited C-API.
+  (Github issue :issue:`5419`)
+
+* Custom buffer slot methods are now supported in the Limited C-API of Python 3.9+.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`5422`)
+
+Improved fidelity to Python semantics
+-------------------------------------
+
+Cython 3.0.0 also aligns many semantics with Python 3, in particular:
+[TODO: more precise]
+* division
+* power operator
+* print
+* classes
+* types
+* subscripting
+
+Improvements in Pure Python mode
+--------------------------------
+
+Pure python mode gained many new features to be able to control
+most things that were usually only available in C. Examples:
+[TODO: improve]
+* with gil / nogil
+* etc.
 
 Code generation changes
 -----------------------
