@@ -158,6 +158,22 @@ Related fixes
   internals in CPython 3.12.
   (Github issue :issue:`5353`)
 
+
+Code generation changes
+-----------------------
+
+[cdef dataclasses, total_ordering, numpy ufunc]
+
+Related fixes
+^^^^^^^^^^^^^
+
+* A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
+  applies the calculation function to an entire memoryview.
+  (Github issue :issue:`4758`)
+
+* Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
+  (Github issue :issue:`5328`)
+
 Interaction with numpy
 ----------------------
 
@@ -197,13 +213,6 @@ Related fixes
 * The generated modules no longer import NumPy internally when using
   fused types but no memoryviews.
   Patch by David Woods.  (Github issue :issue:`4935`)
-
-* A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
-  applies the calculation function to an entire memoryview.
-  (Github issue :issue:`4758`)
-
-* Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
-  (Github issue :issue:`5328`)
 
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
   synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
