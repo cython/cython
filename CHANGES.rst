@@ -166,7 +166,40 @@ Interaction with numpy
 Exception handling
 ------------------
 
-Cython 3.0.0 overhauled the exception handling by doing [XYZ]
+Cython-implemented C functions now propagate exceptions by default, rather than
+swallowing them in non-object returning function if the user forgot to add an
+``except`` declaration to the signature.  This was a long-standing source of bugs,
+but can require adding the ``noexcept`` declaration to existing functions if
+exception propagation is really undesired.
+(Github issue :issue:`4280`)
+
+To ease the transition for this break in behaviour, it is possible to set
+``legacy_implicit_noexcept=True``.
+
+Related fixes
+^^^^^^^^^^^^^
+
+* The exception handling annotation ``except +*`` was broken.
+  Patch by David Woods.  (Github issues :issue:`3065`, :issue:`3066`)
+
+* Exceptions within for-loops that run over memoryviews could lead to a ref-counting error.
+  Patch by David Woods.  (Github issue :issue:`4662`)
+
+* Improve conversion between function pointers with non-identical but
+  compatible exception specifications.  Patches by David Woods.
+  (Github issues :issue:`4770`, :issue:`4689`)
+
+* To opt out of the new, safer exception handling behaviour, legacy code can set the new
+  directive ``legacy_implicit_noexcept=True`` for a transition period to keep the
+  previous, unsafe behaviour.  This directive will eventually be removed in a later release.
+  Patch by Matúš Valo.  (Github issue :issue:`5094`)
+
+* The code ``except +nogil`` (declaring a C++ exception handler function called ``nogil``)
+  is now rejected because it is almost certainly a typo from ``except + nogil``.
+  (Github issue :issue:`5430`)
+
+* Handling freshly raised exceptions that didn't have a traceback yet could crash.
+  (Github issue :issue:`5495`)
 
 Compatibility with C
 --------------------
@@ -223,9 +256,6 @@ Bugs fixed
 
 * Duplicate values in a ``cpdef`` enum could lead to invalid switch statements.
   (Github issue :issue:`5400`)
-
-* Handling freshly raised exceptions that didn't have a traceback yet could crash.
-  (Github issue :issue:`5495`)
 
 * Reverse iteration in C++ no longer removes the ``const`` qualifier from the item type.
   Patch by Isuru Fernando.  (Github issue :issue:`5478`)
@@ -358,10 +388,6 @@ Other changes
   and require the Python notation instead (e.g. ``tuple[cython.int, cython.int]``).
   (Github issue :issue:`5397`)
 
-* The code ``except +nogil`` (declaring a C++ exception handler function called ``nogil``)
-  is now rejected because it is almost certainly a typo from ``except + nogil``.
-  (Github issue :issue:`5430`)
-
 
 3.0.0 beta 2 (2023-03-27)
 =========================
@@ -430,18 +456,6 @@ Bugs fixed
 
 Features added
 --------------
-
-* Cython implemented C functions now propagate exceptions by default, rather than
-  swallowing them in non-object returning function if the user forgot to add an
-  ``except`` declaration to the signature.  This was a long-standing source of bugs,
-  but can require adding the ``noexcept`` declaration to existing functions if
-  exception propagation is really undesired.
-  (Github issue :issue:`4280`)
-
-* To opt out of the new, safer exception handling behaviour, legacy code can set the new
-  directive ``legacy_implicit_noexcept=True`` for a transition period to keep the
-  previous, unsafe behaviour.  This directive will eventually be removed in a later release.
-  Patch by Matúš Valo.  (Github issue :issue:`5094`)
 
 * A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
   applies the calculation function to an entire memoryview.
@@ -713,9 +727,6 @@ Bugs fixed
 * Decorators like ``@cfunc`` and ``@ccall`` could leak into nested functions and classes.
   Patch by David Woods.  (Github issue :issue:`4092`)
 
-* Exceptions within for-loops that run over memoryviews could lead to a ref-counting error.
-  Patch by David Woods.  (Github issue :issue:`4662`)
-
 * Using memoryview arguments in closures of inner functions could lead to ref-counting errors.
   Patch by David Woods.  (Github issue :issue:`4798`)
 
@@ -750,10 +761,6 @@ Bugs fixed
 
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:`4329`)
-
-* Improve conversion between function pointers with non-identical but
-  compatible exception specifications.  Patches by David Woods.
-  (Github issues :issue:`4770`, :issue:`4689`)
 
 * The generated modules no longer import NumPy internally when using
   fused types but no memoryviews.
@@ -998,9 +1005,6 @@ Bugs fixed
 
 * Conversion from Python dicts to ``std::map`` was broken.
   Patch by David Woods and Mikkel Skofelt.  (Github issues :issue:`4231`, :issue:`4228`)
-
-* The exception handling annotation ``except +*`` was broken.
-  Patch by David Woods.  (Github issues :issue:`3065`, :issue:`3066`)
 
 * Attribute annotations in Python classes are now ignored, because they are
   just Python objects in a dict (as opposed to the fields of extension types).
