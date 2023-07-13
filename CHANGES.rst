@@ -499,8 +499,6 @@ Bugs fixed
 * Some typedef declarations for libc function types were fixed.
   (Github issue :issue:`5498`)
 
-* Some C compiler warnings and errors in CPython 3.12 were resolved.
-
 * The deprecated ``_PyGC_FINALIZED()`` C-API macro is no longer used.
   Patch by Thomas Caswell and Matúš Valo.  (Github issue :issue:`5481`)
 
@@ -510,9 +508,6 @@ Bugs fixed
 
 * ``cython --version`` now prints the version to stdout instead of stderr.
   (Github issue :issue:`5504`)
-
-* Includes all bug-fixes and features from the 0.29 maintenance branch
-  up to the :ref:`0.29.36` release.
 
 Other changes
 -------------
@@ -545,19 +540,11 @@ Features added
   warns now when a directive is applied needlessly.
   (Github issue :issue:`5399` et al.)
 
-* Unicode identifier names now allow all letters defined in CPython 3.12.
-
 Bugs fixed
 ----------
 
-* Some C compile failures in CPython 3.12.0a6/a7 were resolved.
-
 * Cascaded comparisons between integer constants and Python types could fail to compile.
   (Github issue :issue:`5354`)
-
-* The internal macro ``__PYX_IS_UNSIGNED`` was accidentally duplicated in beta 2
-  which lead to C compile errors.
-  Patch by 0dminnimda.  (Github issue :issue:`5356`)
 
 * Memoryviews with typedef item types could fail to match the non-typedef item types.
   Patch by Yue Yang.  (Github issue :issue:`5373`)
@@ -590,9 +577,6 @@ Bugs fixed
   Patches by Matt Tyson, Lisandro Dalcin, Philipp Wagner, Matti Picus et al.
   (Github issues :issue:`5417`, :issue:`5418`, :issue:`5421`, :issue:`5437`, :issue:`5438`, :issue:`5443`)
 
-* Includes all bug-fixes and features from the 0.29 maintenance branch
-  up to the :ref:`0.29.35` release.
-
 Other changes
 -------------
 
@@ -613,15 +597,6 @@ Features added
 
 Bugs fixed
 ----------
-
-* Unintended internal exception handling lead to a visible performance regression
-  for ``nogil`` memoryview code in 3.0.0b1.
-  (Github issue :issue:`5324`)
-
-* ``None`` default arguments for arguments with fused memoryview types could select a different
-  implementation in 3.0 than in 0.29.x.  The selection behaviour is generally considered
-  suboptimal but was at least reverted to the old behaviour for now.
-  (Github issue :issue:`5297`)
 
 * The new complex vs. floating point behaviour of the ``**`` power operator accidentally
   added a dependency on the GIL, which was really only required on failures.
@@ -704,11 +679,6 @@ Bugs fixed
   on creation, as Python does, and not later on start, as they did previously.
   (Github issue :issue:`1159`)
 
-* Type annotations for Python ``int`` rejected ``long`` under Py2 in the alpha-11 release.
-  They are now ignored again (as always before) when ``language_level=2``, and accept
-  both ``int`` and ``long`` in Py2 (and only ``int`` in Py3) otherwise.
-  (Github issue :issue:`4944`)
-
 * Calling bound classmethods of builtin types could fail trying to call the unbound method.
   (Github issue :issue:`5051`)
 
@@ -777,9 +747,6 @@ Bugs fixed
 
 * Extended glob paths with ``/**/`` and ``\**\`` for finding source files failed on Windows.
 
-* Annotated HTML generation was missing newlines in 3.0.0a11.
-  (Github issue :issue:`4945`)
-
 * Some parser issues were resolved.
   (Github issue :issue:`4992`)
 
@@ -788,9 +755,6 @@ Bugs fixed
 
 * Intel C compilers could complain about unsupported gcc pragmas.
   Patch by Ralf Gommers.  (Github issue :issue:`5052`)
-
-* Includes all bug-fixes and features from the 0.29 maintenance branch
-  up to the :ref:`0.29.33` release.
 
 Other changes
 -------------
@@ -876,10 +840,6 @@ Bugs fixed
 * Several optimised string methods failed to accept ``None`` as arguments to their options.
   Test patch by Kirill Smelkov.  (Github issue :issue:`4737`)
 
-* A regression in 3.0.0a10 was resolved that prevented property setter methods from
-  having the same name as their value argument.
-  Patch by David Woods.  (Github issue :issue:`4836`)
-
 * Typedefs for the ``bint`` type did not always behave like ``bint``.
   Patch by Nathan Manville and 0dminnimda.  (Github issue :issue:`4660`)
 
@@ -905,16 +865,11 @@ Bugs fixed
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:`4329`)
 
-* Improve compatibility with forthcoming CPython 3.12 release.
-
 * Some C compiler warnings were fixed.
   Patch by mwtian.  (Github issue :issue:`4831`)
 
 * The parser allowed some invalid spellings of ``...``.
   Patch by 0dminnimda.  (Github issue :issue:`4868`)
-
-* Includes all bug-fixes and features from the 0.29 maintenance branch
-  up to the :ref:`0.29.32` release.
 
 Other changes
 -------------
@@ -1040,8 +995,6 @@ Bugs fixed
 * A compiler crash when running Cython thread-parallel from distutils was resolved.
   (Github issue :issue:`4503`)
 
-* Includes all bug-fixes from the :ref:`0.29.26` release.
-
 Other changes
 -------------
 
@@ -1064,8 +1017,6 @@ Bugs fixed
 ----------
 
 * A reference counting bug in the new ``@cython.total_ordering`` decorator was fixed.
-
-* Includes all bug-fixes from the :ref:`0.29.24` release.
 
 Other changes
 -------------
@@ -1252,12 +1203,8 @@ Bugs fixed
   be exposed in ``.pxd``  files.
   (Github issue :issue:`4106`)
 
-* The profiling/tracing code was adapted to work with Python 3.10b1.
-
 * The internal CPython macro ``Py_ISSPACE()`` is no longer used.
   Original patch by Andrew Jones.  (Github issue :issue:`4111`)
-
-* Includes all bug-fixes from the :ref:`0.29.23` release.
 
 
 3.0.0 alpha 6 (2020-07-31)
@@ -1309,8 +1256,6 @@ Bugs fixed
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue :issue:`3736`)
 
-* Includes all bug-fixes from the :ref:`0.29.21` release.
-
 Other changes
 -------------
 
@@ -1340,16 +1285,6 @@ Bugs fixed
 * Several issues with arithmetic overflow handling were resolved, including
   undefined behaviour in C.
   Patch by Sam Sneddon.  (Github issue :issue:`3588`)
-
-* The improved GIL handling in ``nogil`` functions introduced in 3.0a3
-  could fail to acquire the GIL in some cases on function exit.
-  (Github issue :issue:`3590` etc.)
-
-* A reference leak when processing keyword arguments in Py2 was resolved,
-  that appeared in 3.0a1.
-  (Github issue :issue:`3578`)
-
-* Includes all bug-fixes from the :ref:`0.29.18` release.
 
 
 3.0.0 alpha 4 (2020-05-05)
@@ -1389,10 +1324,6 @@ Bugs fixed
   additional command line arguments leaked into the regular command.
   Patch by Kamekameha.  (Github issue :issue:`2209`)
 
-* The improved GIL handling in ``nogil`` functions introduced in 3.0a3
-  could generate invalid C code.
-  (Github issue :issue:`3558`)
-
 * Parallel builds of Cython itself (``setup.py build_ext -j N``) failed on Windows.
 
 Other changes
@@ -1416,11 +1347,6 @@ Features added
   globals, since double-underscore names are not uncommon in C.  Unmangled Python
   names are also still found as a legacy fallback but produce a warning.
   Patch by David Woods.  (Github issue :issue:`3548`)
-
-Bugs fixed
-----------
-
-* Includes all bug-fixes from the :ref:`0.29.17` release.
 
 
 3.0.0 alpha 2 (2020-04-23)
