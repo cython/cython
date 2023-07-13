@@ -65,6 +65,27 @@ and `PEP-560`_ (Github issues :issue:`2753`, :issue:`3537`, :issue:`3764`) was a
 Related fixes
 ^^^^^^^^^^^^^
 
+* Generator expressions and comprehensions now look up their outer-most iterable
+  on creation, as Python does, and not later on start, as they did previously.
+  (Github issue :issue:`1159`)
+
+* C-API declarations for context variables in Python 3.7 were added.
+  Original patch by Zolisa Bleki.  (Github issue :issue:`2281`)
+
+* ``@cython.trashcan(True)`` can be used on an extension type to enable the
+  CPython :ref:`trashcan`. This allows deallocating deeply recursive objects
+  without overflowing the stack. Patch by Jeroen Demeyer.  (Github issue :issue:`2842`)
+
+* The long deprecated include files ``python_*``, ``stdio``, ``stdlib`` and
+  ``stl`` in ``Cython/Includes/Deprecated/`` were removed.  Use the ``libc.*``
+  and ``cpython.*`` pxd modules instead.
+  Patch by Jeroen Demeyer.  (Github issue :issue:`2904`)
+
+* ``PyMem_[Raw]Calloc()`` was added to the ``cpython.mem`` declarations.
+  Note that the ``Raw`` versions are no longer #defined by Cython.  The previous
+  macros were not considered safe.
+  Patch by William Schwartz and David Woods.  (Github issue :issue:`3047`)
+
 * Unicode module names and imports are supported.
   Patch by David Woods.  (Github issue :issue:`3119`)
 
@@ -74,12 +95,56 @@ Related fixes
   were found to be broken in Python 3.8 and later.
   Patch by Marcel Stimberg.  (Github issue :issue:`3309`)
 
+* Cython avoids raising ``StopIteration`` in ``__next__`` methods when possible.
+  Patch by David Woods.  (Github issue :issue:`3447`)
+
+* ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
+  Original patch by ax487.  (Github issue :issue:`3612`)
+
+* A low-level inline function ``total_seconds(timedelta)`` was added to
+  ``cpython.datetime`` to bypass the Python method call.  Note that this function
+  is not guaranteed to give exactly the same results for very large time intervals.
+  Patch by Brock Mendel.  (Github issue :issue:`3616`)
+
+* A new module ``cpython.time`` was added with some low-level alternatives to
+  Python's ``time`` module.
+  Patch by Brock Mendel.  (Github issue :issue:`3767`)
+
+* Python's ``memoryview`` is now a known builtin type with optimised properties.
+  (Github issue :issue:`3798`)
+
+* The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
+  Patch by John Kirkham.  (Github issue :issue:`3811`)
+
+* C-API declarations for ``cpython.fileobject`` were added.
+  Patch by Zackery Spytz.  (Github issue :issue:`3906`)
+
+* The signature of ``PyFloat_FromString()`` in ``cpython.float`` was changed
+  to match the signature in Py3.  It still has an automatic fallback for Py2.
+  (Github issue :issue:`3909`)
+
+* The internal CPython macro ``Py_ISSPACE()`` is no longer used.
+  Original patch by Andrew Jones.  (Github issue :issue:`4111`)
+
+* More C-API declarations for ``cpython.datetime``  were added.
+  Patch by Bluenix2.  (Github issue :issue:`4128`)
+
 * The generated C code failed to compile in CPython 3.11a4 and later.
   (Github issue :issue:`4500`)
+
+* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
+  Patch by Matúš Valo.  (Github issue :issue:`4640`)
+
+* Context managers can be written in parentheses.
+  Patch by David Woods.  (Github issue :issue:`4814`)
 
 * The runtime size check for imported ``PyVarObject`` types was improved
   to reduce false positives and adapt to Python 3.11.
   Patch by David Woods.  (Github issues :issue:`4827`, :issue:`4894`)
+
+* The special methods ``__matmul__``, ``__truediv__``, ``__floordiv__`` failed to type
+  their ``self`` argument.
+  (Github issue :issue:`5067`)
 
 * ``cpdef`` enums no longer use ``OrderedDict`` but ``dict`` in Python 3.6 and later.
   Patch by GalaxySnail.  (Github issue :issue:`5180`)
@@ -99,6 +164,15 @@ Related fixes
 * The Python ``int`` handling code was adapted to make use of the new ``PyLong``
   internals in CPython 3.12.
   (Github issue :issue:`5353`)
+
+* The type ``cython.Py_hash_t`` is available in Python mode.
+
+* The names of Cython's internal types (functions, generator, coroutine, etc.)
+  are now qualified with the module name of the internal Cython module that is
+  used for sharing them across Cython implemented modules, for example
+  ``_cython_3_0a5.coroutine``.  This was done to avoid making them look like
+  homeless builtins, to help with debugging, and in order to avoid a CPython
+  warning according to https://bugs.python.org/issue20204
 
 Initial support for Limited API
 -------------------------------
@@ -647,9 +721,6 @@ Features added
   better supported.
   (Github issue :issue:`5058`)
 
-* Python's ``memoryview`` is now a known builtin type with optimised properties.
-  (Github issue :issue:`3798`)
-
 * The call-time dispatch for fused memoryview types is less slow.
   (Github issue :issue:`5073`)
 
@@ -674,10 +745,6 @@ Features added
 
 Bugs fixed
 ----------
-
-* Generator expressions and comprehensions now look up their outer-most iterable
-  on creation, as Python does, and not later on start, as they did previously.
-  (Github issue :issue:`1159`)
 
 * Calling bound classmethods of builtin types could fail trying to call the unbound method.
   (Github issue :issue:`5051`)
@@ -711,10 +778,6 @@ Bugs fixed
 * Nesting fused types in other fused types could fail to specialise the inner type.
   (Github issue :issue:`4725`)
 
-* The special methods ``__matmul__``, ``__truediv__``, ``__floordiv__`` failed to type
-  their ``self`` argument.
-  (Github issue :issue:`5067`)
-
 * Coverage analysis failed in projects with a separate source subdirectory.
   Patch by Sviatoslav Sydorenko and Ruben Vorderman.  (Github issue :issue:`3636`)
 
@@ -732,9 +795,6 @@ Bugs fixed
 
 * Relative imports failed in compiled ``__init__.py`` package modules.
   Patch by Matúš Valo.  (Github issue :issue:`3442`)
-
-* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
-  Patch by Matúš Valo.  (Github issue :issue:`4640`)
 
 * The ``cython`` and ``cythonize`` commands ignored non-existing input files without error.
   Patch by Matúš Valo.  (Github issue :issue:`4629`)
@@ -791,12 +851,6 @@ Features added
   compile time dataclass generation capabilities to ``cdef`` classes (extension types).
   Patch by David Woods.  (Github issue :issue:`2903`).  ``kw_only`` dataclasses
   added by Yury Sokov.  (Github issue :issue:`4794`)
-
-* Context managers can be written in parentheses.
-  Patch by David Woods.  (Github issue :issue:`4814`)
-
-* Cython avoids raising ``StopIteration`` in ``__next__`` methods when possible.
-  Patch by David Woods.  (Github issue :issue:`3447`)
 
 * The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
   to generate ``.dep`` dependency files for the compilation unit.  This can be used
@@ -914,18 +968,10 @@ Features added
 * ``pyximport`` now uses ``cythonize()`` internally.
   Patch by Matúš Valo.  (Github issue :issue:`2304`)
 
-* ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
-  Original patch by ax487.  (Github issue :issue:`3612`)
-
 * An initial set of adaptations for GraalVM Python was implemented.  Note that
   this does not imply any general support for this target or that your code
   will work at all in this environment.  But testing should be possible now.
   Patch by David Woods.  (Github issue :issue:`4328`)
-
-* ``PyMem_[Raw]Calloc()`` was added to the ``cpython.mem`` declarations.
-  Note that the ``Raw`` versions are no longer #defined by Cython.  The previous
-  macros were not considered safe.
-  Patch by William Schwartz and David Woods.  (Github issue :issue:`3047`)
 
 Bugs fixed
 ----------
@@ -1062,10 +1108,6 @@ Bugs fixed
 * Python modules were not automatically recompiled when only their ``.pxd`` file changed.
   Patch by Golden Rockefeller.  (Github issue :issue:`1428`)
 
-* The signature of ``PyFloat_FromString()`` in ``cpython.float`` was changed
-  to match the signature in Py3.  It still has an automatic fallback for Py2.
-  (Github issue :issue:`3909`)
-
 * A compile error on MSVC was resolved.
   Patch by David Woods.  (Github issue :issue:`4202`)
 
@@ -1119,24 +1161,6 @@ Features added
 
 * Docstrings of ``cpdef`` enums are now copied to the enum class.
   Patch by matham.  (Github issue :issue:`3805`)
-
-* The type ``cython.Py_hash_t`` is available in Python mode.
-
-* C-API declarations for ``cpython.fileobject`` were added.
-  Patch by Zackery Spytz.  (Github issue :issue:`3906`)
-
-* C-API declarations for context variables in Python 3.7 were added.
-  Original patch by Zolisa Bleki.  (Github issue :issue:`2281`)
-
-* More C-API declarations for ``cpython.datetime``  were added.
-  Patch by Bluenix2.  (Github issue :issue:`4128`)
-
-* A new module ``cpython.time`` was added with some low-level alternatives to
-  Python's ``time`` module.
-  Patch by Brock Mendel.  (Github issue :issue:`3767`)
-
-* The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
-  Patch by John Kirkham.  (Github issue :issue:`3811`)
 
 * "Declaration after use" is now an error for variables.
   Patch by David Woods.  (Github issue :issue:`3976`)
@@ -1203,9 +1227,6 @@ Bugs fixed
   be exposed in ``.pxd``  files.
   (Github issue :issue:`4106`)
 
-* The internal CPython macro ``Py_ISSPACE()`` is no longer used.
-  Original patch by Andrew Jones.  (Github issue :issue:`4111`)
-
 
 3.0.0 alpha 6 (2020-07-31)
 ==========================
@@ -1240,11 +1261,6 @@ Features added
   return types when no ``@exceptval()`` is defined.
   (Github issues :issue:`3625`, :issue:`3664`)
 
-* A low-level inline function ``total_seconds(timedelta)`` was added to
-  ``cpython.datetime`` to bypass the Python method call.  Note that this function
-  is not guaranteed to give exactly the same results for very large time intervals.
-  Patch by Brock Mendel.  (Github issue :issue:`3616`)
-
 * Type inference now understands that ``a, *b = x`` assigns a list to ``b``.
 
 * The Cython ``CodeWriter`` can now handle more syntax constructs.
@@ -1258,13 +1274,6 @@ Bugs fixed
 
 Other changes
 -------------
-
-* The names of Cython's internal types (functions, generator, coroutine, etc.)
-  are now qualified with the module name of the internal Cython module that is
-  used for sharing them across Cython implemented modules, for example
-  ``_cython_3_0a5.coroutine``.  This was done to avoid making them look like
-  homeless builtins, to help with debugging, and in order to avoid a CPython
-  warning according to https://bugs.python.org/issue20204
 
 3.0.0 alpha 5 (2020-05-19)
 ==========================
@@ -1408,10 +1417,6 @@ Features added
 * Reimports of already imported modules are substantially faster.
   (Github issue :issue:`2854`)
 
-* ``@cython.trashcan(True)`` can be used on an extension type to enable the
-  CPython :ref:`trashcan`. This allows deallocating deeply recursive objects
-  without overflowing the stack. Patch by Jeroen Demeyer.  (Github issue :issue:`2842`)
-
 * Inlined properties can be defined for external extension types.
   Patch by Matti Picus. (Github issue :issue:`2640`, redone later in :issue:`3571`)
 
@@ -1554,11 +1559,6 @@ Other changes
 * Source file fingerprinting now uses SHA-1 instead of MD5 since the latter
   tends to be slower and less widely supported these days.
   (Github issue :issue:`2790`)
-
-* The long deprecated include files ``python_*``, ``stdio``, ``stdlib`` and
-  ``stl`` in ``Cython/Includes/Deprecated/`` were removed.  Use the ``libc.*``
-  and ``cpython.*`` pxd modules instead.
-  Patch by Jeroen Demeyer.  (Github issue :issue:`2904`)
 
 * The search order for include files was changed. Previously it was
   ``include_directories``, ``Cython/Includes``, ``sys.path``. Now it is
