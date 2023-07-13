@@ -161,7 +161,53 @@ Related fixes
 Interaction with numpy
 ----------------------
 
-[various]
+[Numpy now ships its own declarations, Cython does not use deprecated API anymore, ...]
+
+Related fixes
+^^^^^^^^^^^^^
+
+* Deprecated NumPy API usages were removed from ``numpy.pxd``.
+  Patch by Matti Picus.  (Github issue :issue:`3365`)
+
+* ``cython.inline()`` now sets the ``NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION``
+  C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
+  warnings about deprecated NumPy C-API usage.
+
+* ``numpy.import_array()`` is automatically called if ``numpy`` has been cimported
+  and it has not been called in the module code.  This is intended as a hidden
+  fail-safe so user code should continue to call ``numpy.import_array``.
+  Patch by David Woods.  (Github issue :issue:`3524`)
+
+* The outdated getbuffer/releasebuffer implementations in the NumPy
+  declarations were removed so that buffers declared as ``ndarray``
+  now use the normal implementation in NumPy.
+
+* Several macros/functions declared in the NumPy API are now usable without
+  holding the GIL.
+
+* The ``numpy`` declarations were updated.
+  Patch by Brock Mendel.  (Github issue :issue:`3630`)
+
+* ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
+  Patch by Serge Guelton.  (Github issue :issue:`3762`)
+
+* A C-level compatibility issue with recent NumPy versions was resolved.
+  Patch by David Woods.  (Github issue :issue:`4396`)
+
+* The generated modules no longer import NumPy internally when using
+  fused types but no memoryviews.
+  Patch by David Woods.  (Github issue :issue:`4935`)
+
+* A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
+  applies the calculation function to an entire memoryview.
+  (Github issue :issue:`4758`)
+
+* Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
+  (Github issue :issue:`5328`)
+
+* ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
+  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  since they could mean different things on different platforms.
 
 Exception handling
 ------------------
@@ -297,10 +343,6 @@ Other changes
 * The FAQ page was moved from the GitHub Wiki to the regular documentation
   to make it more visible.
 
-* ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
-  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
-  since they could mean different things on different platforms.
-
 
 3.0.0 beta 3 (2023-05-24)
 =========================
@@ -418,9 +460,6 @@ Bugs fixed
 * ``from cython cimport … as …`` could lead to imported names not being found in annotations.
   Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5235`)
 
-* Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
-  (Github issue :issue:`5328`)
-
 * ``cimport_from_pyx`` could miss some declarations.
   Patch by Chia-Hsiang Cheng.  (Github issue :issue:`5318`)
 
@@ -456,10 +495,6 @@ Bugs fixed
 
 Features added
 --------------
-
-* A new function decorator ``@cython.ufunc`` automatically generates a (NumPy) ufunc that
-  applies the calculation function to an entire memoryview.
-  (Github issue :issue:`4758`)
 
 * The ``**`` power operator now behaves more like in Python by returning the correct complex
   result if required by math.  A new ``cpow`` directive was added to turn on the previous
@@ -762,10 +797,6 @@ Bugs fixed
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:`4329`)
 
-* The generated modules no longer import NumPy internally when using
-  fused types but no memoryviews.
-  Patch by David Woods.  (Github issue :issue:`4935`)
-
 * Improve compatibility with forthcoming CPython 3.12 release.
 
 * Some C compiler warnings were fixed.
@@ -864,9 +895,6 @@ Bugs fixed
 
 * ``prange`` loops generated incorrect code when ``cpp_locals`` is enabled.
   Patch by David Woods.  (Github issue :issue:`4354`)
-
-* A C-level compatibility issue with recent NumPy versions was resolved.
-  Patch by David Woods.  (Github issue :issue:`4396`)
 
 * Decorators on inner functions were not evaluated in the right scope.
   Patch by David Woods.  (Github issue :issue:`4367`)
@@ -1124,9 +1152,6 @@ Bugs fixed
 * Modules with unicode names failed to build on Windows.
   Patch by David Woods.  (Github issue :issue:`4125`)
 
-* ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
-  Patch by Serge Guelton.  (Github issue :issue:`3762`)
-
 * Casting to ctuples is now allowed.
   Patch by David Woods.  (Github issue :issue:`3808`)
 
@@ -1255,9 +1280,6 @@ Bugs fixed
 Other changes
 -------------
 
-* The ``numpy`` declarations were updated.
-  Patch by Brock Mendel.  (Github issue :issue:`3630`)
-
 * The names of Cython's internal types (functions, generator, coroutine, etc.)
   are now qualified with the module name of the internal Cython module that is
   used for sharing them across Cython implemented modules, for example
@@ -1274,9 +1296,6 @@ Features added
 * ``.pxd`` files can now be :ref:`versioned <versioning>` by adding an
   extension like "``.cython-30.pxd``" to prevent older Cython versions (than
   3.0 in this case) from picking them up.  (Github issue :issue:`3577`)
-
-* Several macros/functions declared in the NumPy API are now usable without
-  holding the GIL.
 
 * `libc.math` was extended to include all C99 function declarations.
   Patch by Dean Scarff.  (Github issue :issue:`3570`)
@@ -1295,10 +1314,6 @@ Bugs fixed
 * A reference leak when processing keyword arguments in Py2 was resolved,
   that appeared in 3.0a1.
   (Github issue :issue:`3578`)
-
-* The outdated getbuffer/releasebuffer implementations in the NumPy
-  declarations were removed so that buffers declared as ``ndarray``
-  now use the normal implementation in NumPy.
 
 * Includes all bug-fixes from the :ref:`0.29.18` release.
 
@@ -1388,11 +1403,6 @@ Features added
   eliminated at an earlier stage, which gives more freedom in writing
   replacement Python code.
   Patch by David Woods.  (Github issue :issue:`3507`)
-
-* ``numpy.import_array()`` is automatically called if ``numpy`` has been cimported
-  and it has not been called in the module code.  This is intended as a hidden
-  fail-safe so user code should continue to call ``numpy.import_array``.
-  Patch by David Woods.  (Github issue :issue:`3524`)
 
 * The Cython AST code serialiser class ``CodeWriter`` in ``Cython.CodeWriter``
   supports more syntax nodes.
@@ -1487,13 +1497,6 @@ Features added
   and Zackery Spytz.
   (Github issues :issue:`3468`, :issue:`3332`, :issue:`3202`, :issue:`3188`,
   :issue:`3179`, :issue:`2891`, :issue:`2826`, :issue:`2713`)
-
-* Deprecated NumPy API usages were removed from ``numpy.pxd``.
-  Patch by Matti Picus.  (Github issue :issue:`3365`)
-
-* ``cython.inline()`` now sets the ``NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION``
-  C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
-  warnings about deprecated NumPy C-API usage.
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue :issue:`2748`)
