@@ -1770,7 +1770,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if base_type.scope.needs_gc():
                         code.putln("PyObject_GC_Track(o);")
                 else:
+                    code.putln("#if PY_MAJOR_VERSION < 3")
+                    # Py2 lacks guarantees that the type pointer is still valid if we dealloc the object
+                    # at system exit time.  Thus, we need an extra NULL check.
+                    code.putln("if (!(%s) || PyType_IS_GC(%s)) PyObject_GC_Track(o);" % (base_cname, base_cname))
+                    code.putln("#else")
                     code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
+                    code.putln("#endif")
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
