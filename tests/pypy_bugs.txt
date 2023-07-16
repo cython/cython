@@ -58,6 +58,8 @@ run.py35_pep492_interop
 # gc issue?
 external_ref_reassignment
 run.exttype_dealloc
+# even if gc.collect is added, order is changed
+memoryview.parallel_refcounting_stress_test
 
 # bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
