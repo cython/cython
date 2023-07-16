@@ -68,9 +68,7 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     return 0;
 }
 #endif
-#if PY_VERSION_HEX >= 0x030D0000
-  #include "internal/pycore_unicodeobject.h"
-#endif
+
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
@@ -927,7 +925,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
         if (!CYTHON_PEP393_ENABLED || ukind == result_ukind) {
             memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));
         } else {
-            #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030300F0 || defined(_PyUnicode_FastCopyCharacters)
+            #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030300F0 && PY_VERSION_HEX < 0x030D0000 || defined(_PyUnicode_FastCopyCharacters)
             _PyUnicode_FastCopyCharacters(result_uval, char_pos, uval, 0, ulength);
             #else
             Py_ssize_t j;

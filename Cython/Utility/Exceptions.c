@@ -17,17 +17,11 @@ __Pyx_init_assertions_enabled();
   #define __pyx_assertions_enabled() (1)
 #elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY  ||  defined(Py_LIMITED_API)
   #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6 && PY_VERSION_HEX < 0x030D0000
   // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
   // Py_OptimizeFlag is deprecated in Py3.12+
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
-#if PY_VERSION_HEX >= 0x030D0000
-  #ifndef Py_BUILD_CORE
-    #define Py_BUILD_CORE 1
-  #endif
-  #include "internal/pycore_interp.h"
-#endif
 
   #undef __Pyx_init_assertions_enabled
   static void __Pyx_init_assertions_enabled(void) {
