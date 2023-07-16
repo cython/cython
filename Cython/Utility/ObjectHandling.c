@@ -2498,6 +2498,9 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 #endif
   #define __Pxy_PyFrame_Initialize_Offsets()
   #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
+#if PY_VERSION_HEX >= 0x030D0000
+  #include "internal/pycore_unicodeobject.h"
+#endif
 #else
   // Initialised by module init code.
   static size_t __pyx_pyframe_localsplus_offset = 0;

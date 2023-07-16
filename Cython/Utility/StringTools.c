@@ -68,7 +68,9 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     return 0;
 }
 #endif
-
+#if PY_VERSION_HEX >= 0x030D0000
+  #include "internal/pycore_unicodeobject.h"
+#endif
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
