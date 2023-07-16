@@ -3033,30 +3033,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     }
     new_len = left_len + right_len;
 
-    if (__Pyx_unicode_modifiable(left)
-            && PyUnicode_CheckExact(right)
-            && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
-            // Don't resize for ascii += latin1. Convert ascii to latin1 requires
-            //   to change the structure size, but characters are stored just after
-            //   the structure, and so it requires to move all characters which is
-            //   not so different than duplicating the string.
-            && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
+    return __Pyx_PyUnicode_Concat(left, right);
 
-        __Pyx_GIVEREF(*p_left);
-        if (unlikely(PyUnicode_Resize(p_left, new_len) != 0)) {
-            // on failure PyUnicode_Resize does not deallocate the the input
-            // so left will remain unchanged - simply undo the giveref
-            __Pyx_GOTREF(*p_left);
-            return NULL;
-        }
-        __Pyx_INCREF(*p_left);
-
-        // copy 'right' into the newly allocated area of 'left'
-        _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
-        return *p_left;
-    } else {
-        return __Pyx_PyUnicode_Concat(left, right);
-    }
   }
 #endif
 
