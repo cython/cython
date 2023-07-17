@@ -1610,14 +1610,27 @@ Other changes
   Patch by Alexey Stepanov.  (Github issue :issue:`3355`)
 
 
-3.0.0 (2023-0?-??)
+3.0.0 (2023-07-17)
 ==================
+
+Bugs fixed
+----------
+
+* A crash in Python 2.7 was fixed when cleaning up extension type instances
+  at program end.
+
+
+3.0.0 rc 2 (2023-07-13)
+=======================
 
 Bugs fixed
 ----------
 
 * Parser crash on hex/oct enum values.
   (Github issue :issue:`5524`)
+
+* ``cython --version`` now prints the version to both stdout and stderr (unless that is a TTY).
+  (Github issue :issue:`5504`)
 
 
 3.0.0 rc 1 (2023-07-12)
