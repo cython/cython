@@ -576,6 +576,29 @@ Other changes
 
 [Various]
 
+
+Deprecations
+------------
+
+[text?]
+
+Related fixes
+^^^^^^^^^^^^^
+
+* Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
+  Use the normal Python package directory layout instead.
+  (Github issue :issue:`2686`)
+
+* The compile-time ``DEF`` and ``IF`` statements are deprecated and generate a warning.
+  They should be replaced with normal constants, code generation or C macros.
+  (Github issue :issue:`4310`)
+
+* C-style array declarations (``cdef int a[4]``) are now (silently) deprecated in
+  favour of the Java-style ``cdef int[4] a`` form.  The latter was always available
+  and the Python type declaration syntax already used it exclusively (``a: int[4]``).
+  Patch by Matúš Valo.  (Github issue :issue:`5248`)
+
+
 Bugs fixed
 ----------
 
@@ -865,11 +888,6 @@ Other changes
   modifier is not needed here and a plain ``cimport`` of the name will do.
   (Github issue :issue:`4904`)
 
-* C-style array declarations (``cdef int a[4]``) are now (silently) deprecated in
-  favour of the Java-style ``cdef int[4] a`` form.  The latter was always available
-  and the Python type declaration syntax already used it exclusively (``a: int[4]``).
-  Patch by Matúš Valo.  (Github issue :issue:`5248`)
-
 * The wheel building process was migrated to use the ``cibuildwheel`` tool.
   Patch by Thomas Li.  (Github issue :issue:`4736`)
 
@@ -982,10 +1000,6 @@ Other changes
   Also, the ``annotation_typing`` directive can now be enabled and disabled more finely
   within the module.
   (Github issues :issue:`3883`, :issue:`2696`, :issue:`4669`, :issue:`4606`, :issue:`4886`)
-
-* The compile-time ``DEF`` and ``IF`` statements are deprecated and generate a warning.
-  They should be replaced with normal constants, code generation or C macros.
-  (Github issue :issue:`4310`)
 
 * Reusing an extension type attribute name as a method name is now an error.
   Patch by 0dminnimda.  (Github issue :issue:`4661`)
@@ -1603,10 +1617,6 @@ Other changes
 
 * The command line parser was rewritten and modernised using ``argparse``.
   Patch by Egor Dranischnikow.  (Github issue :issue:`2952`, :issue:`3001`)
-
-* Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
-  Use the normal Python package directory layout instead.
-  (Github issue :issue:`2686`)
 
 * Binary Linux wheels now follow the manylinux2010 standard.
   Patch by Alexey Stepanov.  (Github issue :issue:`3355`)
