@@ -177,7 +177,25 @@ Related fixes
 Initial support for Limited API
 -------------------------------
 
-[Text about the status of support for Limited API]
+CPython provides a stable, limited subset of its C-API as the so-called Limited API.
+This C-API comes with the guarantee of a stable ABI, meaning that extensions modules
+that were compiled for one version of CPython can also be imported in later versions
+without recompilation.
+
+There is initial support for this in Cython.  By defining the ``CYTHON_LIMITED_API``
+macro, Cython cuts down its C-API usage and tries to adhere to the Limited C-API.
+By also defining the CPython macro ``Py_LIMITED_API`` to a specific CPython
+compatibility version, you can additionally restrict the C-API during the C compilation,
+thus enforcing the forward compatibility of the extension module, probably at the cost
+of a bit of performance.
+
+Note that "initial support" in Cython really means that setting the ``Py_LIMITED_API``
+macro may not work for your specific code.  There are limitations in the Limited C-API
+that are difficult for Cython to generate C code for, so some advanced Python features
+(like async code) may not lead to C code that cannot adhere to the Limited C-API, or
+where Cython simply does not know yet how to adhere to it.  Basically, if you get your
+code to compile with both macros set, and it passes your test suite, then it should be
+possible to import the extension module also in later CPython versions.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -218,7 +236,7 @@ Improved fidelity to Python semantics
 -------------------------------------
 
 Cython 3.0.0 also aligns many semantics with Python 3, in particular:
-[TODO: more precise]
+
 * division
 * power operator
 * print
@@ -226,19 +244,24 @@ Cython 3.0.0 also aligns many semantics with Python 3, in particular:
 * types
 * subscripting
 
+
 Improvements in Pure Python mode
 --------------------------------
 
-Pure python mode gained many new features to be able to control
-most things that were usually only available in C. Examples:
-[TODO: improve]
-* with gil / nogil
-* etc.
+Pure python mode gained many new features and was generally overhauled to make
+it as capable as the 
+
 
 Code generation changes
 -----------------------
 
-[cdef dataclasses, total_ordering, numpy ufunc]
+Cython has gained several major new features that speed up both the development
+and the code. Dataclasses have gained an extension type equivalent that implements
+the dataclass features in C code.  Similarly, the ``@functools.total_ordering``
+decorator to an extension type will implement the comparison functions in C.
+
+FInally, NumPy ufuncs can be generated from simple computation functions with the
+new ``@cython.ufunc`` decorator.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -250,10 +273,16 @@ Related fixes
 * Generated NumPy ufuncs could crash for large arrays due to incorrect GIL handling.
   (Github issue :issue:`5328`)
 
+
 Interaction with numpy
 ----------------------
 
-[Numpy now ships its own declarations, Cython does not use deprecated API anymore, ...]
+The NumPy declarations (``cimport numpy``) were moved over to the NumPy project in order
+to allow version specific changes on their side.
+
+One effect is that Cython does not use deprecated NumPy C-APIs any more.  Thus, you
+can define the respective NumPy C macro to get rid of the compatibility warning at
+C compile time.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -293,6 +322,7 @@ Related fixes
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
   synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
   since they could mean different things on different platforms.
+
 
 Exception handling
 ------------------
@@ -335,10 +365,11 @@ Related fixes
 * Handling freshly raised exceptions that didn't have a traceback yet could crash.
   (Github issue :issue:`5495`)
 
+
 Compatibility with C
 --------------------
 
-[const/volatile/complex/atomic/etc.]
+The support for C features like ``const`` or ``volatile`` was substantially improved.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -376,10 +407,12 @@ Related fixes
 * The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
   ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
 
+
 Compatibility with C++
 ----------------------
 
-[Text about forwarding references, ``cpp_locals``, ``std::move``]
+Many C++ features like forwarding references or ``std::move`` are now supported or even used
+internally, if possible.
 
 Related fixes
 ^^^^^^^^^^^^^
