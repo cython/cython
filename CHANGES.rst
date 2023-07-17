@@ -571,11 +571,6 @@ Build integration
 
 [Various]
 
-Other changes
--------------
-
-[Various]
-
 
 Deprecations
 ------------
@@ -599,12 +594,37 @@ Related fixes
   Patch by Matúš Valo.  (Github issue :issue:`5248`)
 
 
+Other changes
+-------------
+
+[Various]
+
+
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+vvv    TO DISTRIBUTE TO PROPER SECTIONS ABOVE    vvv
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+3.0.0 (2023-07-17)
+==================
+
+Bugs fixed
+----------
+
+* A crash in Python 2.7 was fixed when cleaning up extension type instances
+  at program end.
+
+
+3.0.0 rc 2 (2023-07-13)
+=======================
+
 Bugs fixed
 ----------
 
 * Parser crash on hex/oct enum values.
   (Github issue :issue:`5524`)
-* ...
+
+* ``cython --version`` now prints the version to both stdout and stderr (unless that is a TTY).
+  (Github issue :issue:`5504`)
 
 
 3.0.0 rc 1 (2023-07-12)
@@ -1620,6 +1640,11 @@ Other changes
 
 * Binary Linux wheels now follow the manylinux2010 standard.
   Patch by Alexey Stepanov.  (Github issue :issue:`3355`)
+
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^    TO DISTRIBUTE TO PROPER SECTIONS ABOVE    ^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 3.0.0 (2023-07-17)
@@ -3297,7 +3322,7 @@ Bugs fixed
 
 * Fixed error when calculating complex powers of negative numbers.
   (Github issue :issue:`5014`)
-  
+
 * Corrected a small mis-formatting of exception messages on Python 2.
   (Github issue :issue:`5018`)
 
@@ -3312,13 +3337,13 @@ Bugs fixed
 
 Other changes
 -------------
-  
+
 * The undocumented, untested and apparently useless syntax
   ``from somemodule cimport class/struct/union somename`` was deprecated
   in anticipation of its removal in Cython 3.  The type
   modifier is not needed here and a plain ``cimport`` of the name will do.
   (Github issue :issue:`4905`)
-  
+
 * Properly disable generation of descriptor docstrings on PyPy since they cause crashes.
   It was previously disabled, but only accidentally via a typo.
   Patch by Matti Picus.  (Github issue :issue:`5083`)
