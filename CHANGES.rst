@@ -19,8 +19,8 @@ backported to 0.29.x and are not strictly speaking "new" in Cyton 3.0.0.
 Major themes in 3.0.0
 =====================
 
-Compatibility with Python
--------------------------
+Compatibility with CPython
+--------------------------
 
 Since Cython 3.0.0 started development, CPython 3.8-3.11 were released.
 All these are supported in Cython, including experimental support for the
@@ -172,6 +172,35 @@ Related fixes
   ``_cython_3_0a5.coroutine``.  This was done to avoid making them look like
   homeless builtins, to help with debugging, and in order to avoid a CPython
   warning according to https://bugs.python.org/issue20204
+
+
+Compatibility with other Python implementations
+-----------------------------------------------
+
+Cython tries to support other Python implementations, largely on a best-effort
+basis. The most advanced support exists for PyPy, which is tested in our CI
+and considered supported.
+
+Related fixes
+^^^^^^^^^^^^^
+
+* An unsupported C-API call in PyPy was fixed.
+  Patch by Max Bachmann.  (Github issue :issue:`4055`)
+
+* A C compiler warning in PyPy3 regarding ``PyEval_EvalCode()`` was resolved.
+
+* Support for the now unsupported Pyston V1 was removed in favour of Pyston V2.
+  Patch by Marius Wachtler.  (Github issue :issue:`4211`)
+
+* An initial set of adaptations for GraalVM Python was implemented.  Note that
+  this does not imply any general support for this target or that your code
+  will work at all in this environment.  But testing should be possible now.
+  Patch by David Woods.  (Github issue :issue:`4328`)
+
+* Some compatibility issues with PyPy were resolved.
+  Patches by Max Bachmann, Matti Picus.
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issue:`4509`, :issue:`4517`)
+
 
 Initial support for Limited API
 -------------------------------
@@ -1129,11 +1158,6 @@ Other changes
 Features added
 --------------
 
-* An initial set of adaptations for GraalVM Python was implemented.  Note that
-  this does not imply any general support for this target or that your code
-  will work at all in this environment.  But testing should be possible now.
-  Patch by David Woods.  (Github issue :issue:`4328`)
-
 Bugs fixed
 ----------
 
@@ -1195,10 +1219,6 @@ Bugs fixed
 * An endless loop in ``cython-mode.el`` was resolved.
   Patch by Johannes Mueller.  (Github issue :issue:`3218`)
 
-* Some compatibility issues with PyPy were resolved.
-  Patches by Max Bachmann, Matti Picus.
-  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issue:`4509`, :issue:`4517`)
-
 Other changes
 -------------
 
@@ -1256,8 +1276,6 @@ Bugs fixed
 * A compile error on MSVC was resolved.
   Patch by David Woods.  (Github issue :issue:`4202`)
 
-* A C compiler warning in PyPy3 regarding ``PyEval_EvalCode()`` was resolved.
-
 * Directives starting with ``optimization.*`` in pure Python mode were incorrectly named.
   It should have been ``optimize.*``.
   Patch by David Woods.  (Github issue :issue:`4258`)
@@ -1267,9 +1285,6 @@ Other changes
 
 * Variables can no longer be declared with ``cpdef``.
   Patch by David Woods.  (Github issue :issue:`887`)
-
-* Support for the now unsupported Pyston V1 was removed in favour of Pyston V2.
-  Patch by Marius Wachtler.  (Github issue :issue:`4211`)
 
 
 3.0.0 alpha 7 (2021-05-24)
@@ -1339,9 +1354,6 @@ Bugs fixed
 
 * A reference leak on import failures was resolved.
   Patch by Max Bachmann.  (Github issue :issue:`4056`)
-
-* An unsupported C-API call in PyPy was fixed.
-  Patch by Max Bachmann.  (Github issue :issue:`4055`)
 
 * The Cython ``CodeWriter`` mishandled no-argument ``return`` statements.
   Patch by Tao He.  (Github issue :issue:`3795`)
