@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import cython
 
+# Don't add FrozenSet to this list - it's necessary for one of the tests
+# that it isn't a module global name
 from typing import Dict, List, TypeVar, Optional, Generic, Tuple
 
 try:
@@ -267,18 +269,24 @@ def test_use_typing_attributes_as_non_annotations():
     x1 = typing.Tuple
     x2 = typing.Tuple[int]
     y1 = typing.Optional
-    y2 = typing.Optional[typing.Dict]
+    # It's important for the test that FrozenSet isn't available in the module namespace,
+    # since one bug would have looked it up there rather than as an attribute of typing
+    y2 = typing.Optional[typing.FrozenSet]
     z1 = Optional
     z2 = Optional[Dict]
     # The result of printing "Optional[type]" is slightly version-dependent
     # so accept both possible forms
-    allowed_optional_strings = [
+    allowed_optional_frozenset_strings = [
+        "typing.Union[typing.FrozenSet, NoneType]",
+        "typing.Optional[typing.FrozenSet]"
+    ]
+    allowed_optional_dict_strings = [
         "typing.Union[typing.Dict, NoneType]",
         "typing.Optional[typing.Dict]"
     ]
     print(x1, x2)
-    print(y1, str(y2) in allowed_optional_strings)
-    print(z1, str(z2) in allowed_optional_strings)
+    print(y1, str(y2) in allowed_optional_frozenset_strings)
+    print(z1, str(z2) in allowed_optional_dict_strings)
 
 def test_optional_ctuple(x: typing.Optional[tuple[float]]):
     """
