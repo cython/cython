@@ -678,9 +678,17 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+
+            if dtype.is_cv_qualified:
+                # roughly speaking, remove "const" from struct_type
+                struct_type = dtype.cv_base_type.empty_declaration_code()
+            else:
+                struct_type = dtype.empty_declaration_code()
+
             for f, typeinfo in zip(fields, types):
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
-                           (typeinfo, f.name, dtype.empty_declaration_code(), f.cname), safe=True)
+                               (typeinfo, f.name, struct_type, f.cname), safe=True)
+
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:
@@ -691,10 +699,10 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         flags = "0"
         is_unsigned = "0"
         if dtype is PyrexTypes.c_char_type:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "'H'"
         elif dtype.is_int:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "%s ? 'U' : 'I'" % is_unsigned
         elif complex_possible or dtype.is_complex:
             typegroup = "'C'"

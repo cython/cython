@@ -5,12 +5,13 @@
 #endif
 
 #if PY_MAJOR_VERSION < 3
-int %(main_method)s(int argc, char** argv) {
+int %(main_method)s(int argc, char** argv)
 #elif defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
-int %(wmain_method)s(int argc, wchar_t **argv) {
+int %(wmain_method)s(int argc, wchar_t **argv)
 #else
-static int __Pyx_main(int argc, wchar_t **argv) {
+static int __Pyx_main(int argc, wchar_t **argv)
 #endif
+{
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP
@@ -22,8 +23,10 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     m = fpgetmask();
     fpsetmask(m & ~FP_X_OFL);
 #endif
+#if PY_VERSION_HEX < 0x03080000
     if (argc && argv)
         Py_SetProgramName(argv[0]);
+#endif
 
     #if PY_MAJOR_VERSION < 3
     if (PyImport_AppendInittab("%(module_name)s", init%(module_name)s) < 0) return 1;
@@ -31,9 +34,42 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     if (PyImport_AppendInittab("%(module_name)s", PyInit_%(module_name)s) < 0) return 1;
     #endif
 
+#if PY_VERSION_HEX < 0x03080000
     Py_Initialize();
     if (argc && argv)
         PySys_SetArgv(argc, argv);
+#else
+    {
+        PyStatus status;
+
+        PyConfig config;
+        PyConfig_InitPythonConfig(&config);
+        // Disable parsing command line arguments
+        config.parse_argv = 0;
+
+        if (argc && argv) {
+            status = PyConfig_SetString(&config, &config.program_name, argv[0]);
+            if (PyStatus_Exception(status)) {
+                PyConfig_Clear(&config);
+                return 1;
+            }
+
+            status = PyConfig_SetArgv(&config, argc, argv);
+            if (PyStatus_Exception(status)) {
+                PyConfig_Clear(&config);
+                return 1;
+            }
+        }
+
+        status = Py_InitializeFromConfig(&config);
+        if (PyStatus_Exception(status)) {
+            PyConfig_Clear(&config);
+            return 1;
+        }
+
+        PyConfig_Clear(&config);
+    }
+#endif
 
     { /* init module '%(module_name)s' as '__main__' */
       PyObject* m = NULL;

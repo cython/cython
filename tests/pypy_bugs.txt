@@ -2,21 +2,15 @@
 # either in PyPy, PyPy's cpyext, or Cython under PyPy,
 # which will be skipped in the normal testing run.
 
-# See https://foss.heptapod.net/pypy/pypy/-/issues/3375
-float_division
-specialfloat
-
-broken_exception
 bufaccess
 memoryview.memoryview$
-sequential_parallel
 
-yield_from_pep380
-memoryview_inplace_division
-
-run.unicodemethods
+# looks like a doctest issue? It's failing to match output that looks
+# identical to my eye
+#run.unicodemethods
+# multiphase import not supported
 run.unicode_imports
-run.test_genericclass
+
 run.tp_new
 run.test_fstring
 run.test_exceptions
@@ -26,12 +20,10 @@ run.special_method_docstrings
 run.slice_ptr
 compile.min_async
 run.cython_includes
-run.pyarray
 run.test_unicode
 run.__getattribute__
 run.__getattribute_subclasses__
 run.__debug__
-run.array_cimport
 run.builtin_abs
 run.builtincomplex
 run.cdef_multiple_inheritance_errors
@@ -54,28 +46,21 @@ run.coverage_api
 run.coverage_nogil
 
 # very little coroutine-related seems to work
+# For PyPy3.9+, missing support for _PyErr_StackItem in PyGenObject,
+# PyAsyncGenObject and PyCoroObject, which prevents supporting yields
+# from an exception handler
 run.test_asyncgen
 run.test_coroutines_pep492
-run.async_iter_pep492
 run.embedsignatures
-run.py35_asyncio_async_def
 run.asyncio_generators
+run.py35_pep492_interop
 
 # gc issue?
 external_ref_reassignment
 run.exttype_dealloc
+# even if gc.collect is added, order is changed
+memoryview.parallel_refcounting_stress_test
 
-# bugs in cpyext
+# bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
 run.special_methods_T561_py2
-
-# looks to be fixed in PyPy 7.3.0
-# TODO - remove when Travis updates
-run.py_unicode_strings
-run.unicodeliterals
-run.unicode_identifiers
-run.unicode_identifiers_import
-errors.unicode_identifiers_e4
-run.tracebacks
-run.fstring
-run.unicode_identifiers_normalization

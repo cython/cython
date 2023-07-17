@@ -10,10 +10,8 @@
 from __future__ import unicode_literals
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
 cimport cython
-
-__test__ = {}
 
 import sys
 #import re
@@ -27,8 +25,7 @@ if getattr(sys, 'pypy_version_info', None) is not None:
 def testcase(func):
     for e in exclude:
         if e(func.__name__):
-            return func
-    __test__[func.__name__] = func.__doc__
+            func.__doc__ = ""  # disable the test
     return func
 
 
@@ -974,9 +971,12 @@ def printbuf_object(object[object] buf, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
@@ -1006,6 +1006,46 @@ def assign_to_object(object[object] buf, int idx, obj):
     >>> decref(b)
     """
     buf[idx] = obj
+
+@testcase
+def check_object_nulled_1d(MockBuffer[object, ndim=1] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a])
+    >>> check_object_nulled_1d(A, 0, a)
+    >>> check_object_nulled_1d(A, 1, a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], strides=(2,))
+    >>> check_object_nulled_1d(A, 0, a)  # only 0 due to stride
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef PyObject **data = <PyObject **>buf.buffer
+    Py_CLEAR(data[idx])
+    res = buf[idx]  # takes None
+    buf[idx] = obj
+    return res
+
+@testcase
+def check_object_nulled_2d(MockBuffer[object, ndim=2] buf, int idx1, int idx2, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a = object()
+    >>> rc1 = get_refcount(a)
+    >>> A = ObjectMockBuffer(None, [a, a, a, a], shape=(2, 2))
+    >>> check_object_nulled_2d(A, 0, 0, a)
+    >>> check_object_nulled_2d(A, 1, 1, a)
+    >>> get_refcount(a) == rc1
+    True
+    """
+    cdef PyObject **data = <PyObject **>buf.buffer
+    Py_CLEAR(data[idx1 + 2*idx2])
+    res = buf[idx1, idx2]  # takes None
+    buf[idx1, idx2] = obj
+    return res
 
 @testcase
 def assign_temporary_to_object(object[object] buf):

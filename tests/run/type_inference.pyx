@@ -242,7 +242,7 @@ def c_functions():
     >>> c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 def builtin_functions():
@@ -531,13 +531,19 @@ def safe_only():
     cdef int c_int = 1
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
+    # float can be inferred
+    cdef float fl = 5.0
+    from_fl = fl
+    assert typeof(from_fl) == "float", typeof(from_fl)
+
+
 @infer_types(None)
 def safe_c_functions():
     """
     >>> safe_c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 @infer_types(None)
@@ -789,3 +795,16 @@ def test_bound_methods():
   default_arg = o.default_arg
   assert default_arg(2) == 12, default_arg(2)
   assert default_arg(2, 3) == 15, default_arg(2, 2)
+
+def test_builtin_max():
+    """
+    # builtin max is slightly complicated because it gets transformed to EvalWithTempExprNode
+    # See https://github.com/cython/cython/issues/4155
+    >>> test_builtin_max()
+    """
+    class C:
+        a = 2
+        def get_max(self):
+            a = max(self.a, self.a)
+            assert typeof(a) == "Python object", typeof(a)
+    C().get_max()

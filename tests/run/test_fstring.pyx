@@ -10,10 +10,14 @@ import unittest
 
 import sys
 IS_PY2 = sys.version_info[0] < 3
+if IS_PY2:
+    # Define `ascii` as `repr` for Python2 as it functions
+    # the same way in that version.
+    ascii = repr
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
-from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack, held_errors
+from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
 
 def cy_eval(s, **kwargs):
     return cython_inline('return ' + s, force=True, **kwargs)
@@ -39,7 +43,7 @@ class TestCase(CythonTest):
                 else:
                     assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %r" % str
                 finally:
-                    release_errors(ignore=True)
+                    init_thread()  # reset error status
             else:
                 try:
                     cython_inline(str, quiet=True)
@@ -48,8 +52,7 @@ class TestCase(CythonTest):
                 else:
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
-                    if error_stack:
-                        release_errors(ignore=True)
+                    init_thread()  # reset error status
 
     if IS_PY2:
         def assertEqual(self, first, second, msg=None):
@@ -57,9 +60,9 @@ class TestCase(CythonTest):
             if first != second and isinstance(first, unicode):
                 stripped_first = first.replace(u"u'", u"'").replace(u'u"', u'"')
                 if stripped_first == second:
-                    first = stripped_first
-                elif u'\\' in stripped_first and stripped_first.decode('unicode_escape') == second:
-                    first = stripped_first.decode('unicode_escape')
+                    first = second
+                elif u'\\' in stripped_first and stripped_first.encode('utf8').decode('unicode_escape') == second:
+                    first = second
             super(TestCase, self).assertEqual(first, second, msg)
 
     def test__format__lookup(self):
@@ -1122,8 +1125,7 @@ non-important content
         self.assertEqual(cy_eval('f"\\\n"'), '')
         self.assertEqual(cy_eval('f"\\\r"'), '')
 
-    """
-    def __test_debug_conversion(self):
+    def test_debug_conversion(self):
         x = 'A string'
         self.assertEqual(f'{x=}', 'x=' + repr(x))
         self.assertEqual(f'{x =}', 'x =' + repr(x))
@@ -1147,7 +1149,8 @@ non-important content
         self.assertEqual(f'{tenπ=:.2f}', 'tenπ=31.40')
 
         # Also test with Unicode in non-identifiers.
-        self.assertEqual(f'{"Σ"=}', '"Σ"=\'Σ\'')
+        if not IS_PY2:  # unicode representation looks different right now - not sure if that's a good thing
+            self.assertEqual(f'{"Σ"=}', '"Σ"=\'Σ\'')
 
         # Make sure nested fstrings still work.
         self.assertEqual(f'{f"{3.1415=:.1f}":*^20}', '*****3.1415=3.1*****')
@@ -1155,7 +1158,8 @@ non-important content
         # Make sure text before and after an expression with = works
         # correctly.
         pi = 'π'
-        self.assertEqual(f'alpha α {pi=} ω omega', "alpha α pi='π' ω omega")
+        if not IS_PY2:  # unicode representation looks different right now - not sure if that's a good thing
+            self.assertEqual(f'alpha α {pi=} ω omega', u"alpha α pi='π' ω omega")
 
         # Check multi-line expressions.
         self.assertEqual(f'''{
@@ -1226,7 +1230,7 @@ non-important content
         # the tabs to spaces just to shut up patchcheck.
         #self.assertEqual(f'X{x =}Y', 'Xx\t='+repr(x)+'Y')
         #self.assertEqual(f'X{x =       }Y', 'Xx\t=\t'+repr(x)+'Y')
-    """
+
 
     def test_walrus(self):
         x = 20
@@ -1234,11 +1238,9 @@ non-important content
         # spec of '=10'.
         self.assertEqual(f'{x:=10}', '        20')
 
-        """
         # This is an assignment expression, which requires parens.
         self.assertEqual(f'{(x:=10)}', '10')
         self.assertEqual(x, 10)
-        """
 
     def test_invalid_syntax_error_message(self):
         # with self.assertRaisesRegex(SyntaxError, "f-string: invalid syntax"):

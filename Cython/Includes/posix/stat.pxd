@@ -1,5 +1,9 @@
+# https://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/stat.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html
+
 from posix.types cimport (blkcnt_t, blksize_t, dev_t, gid_t, ino_t, mode_t,
                           nlink_t, off_t, time_t, uid_t)
+from posix.time cimport timespec
 
 
 cdef extern from "<sys/stat.h>" nogil:
@@ -14,9 +18,14 @@ cdef extern from "<sys/stat.h>" nogil:
         off_t   st_size
         blksize_t st_blksize
         blkcnt_t st_blocks
+        # POSIX.1-2001
         time_t  st_atime
         time_t  st_mtime
         time_t  st_ctime
+        # POSIX.1-2008
+        timespec st_atim
+        timespec st_mtim
+        timespec st_ctim
 
         # st_birthtime exists on *BSD and OS X.
         # Under Linux, defining it here does not hurt. Compilation under Linux
@@ -25,12 +34,24 @@ cdef extern from "<sys/stat.h>" nogil:
 
 # POSIX prescribes including both <sys/stat.h> and <unistd.h> for these
 cdef extern from "<unistd.h>" nogil:
-    int fchmod(int, mode_t)
     int chmod(const char *, mode_t)
+    int fchmod(int, mode_t)
+    int fchmodat(int, const char *, mode_t, int flags)
 
-    int fstat(int, struct_stat *)
-    int lstat(const char *, struct_stat *)
     int stat(const char *, struct_stat *)
+    int lstat(const char *, struct_stat *)
+    int fstat(int, struct_stat *)
+    int fstatat(int, const char *, struct_stat *, int flags)
+
+    int mkdir(const char *, mode_t)
+    int mkdirat(int, const char *, mode_t)
+    int mkfifo(const char *, mode_t)
+    int mkfifoat(int, const char *, mode_t)
+    int mknod(const char *, mode_t, dev_t)
+    int mknodat(int, const char *, mode_t, dev_t)
+
+    int futimens(int, const timespec *)
+    int utimensat(int, const char *, const timespec *, int flags)
 
     # Macros for st_mode
     mode_t S_ISREG(mode_t)
@@ -69,3 +90,9 @@ cdef extern from "<unistd.h>" nogil:
     mode_t S_IROTH
     mode_t S_IWOTH
     mode_t S_IXOTH
+
+    # test file types
+    bint S_TYPEISMQ(struct_stat *buf)
+    bint S_TYPEISSEM(struct_stat *buf)
+    bint S_TYPEISSHM(struct_stat *buf)
+    bint S_TYPEISTMO(struct_stat *buf)

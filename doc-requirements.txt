@@ -1,0 +1,5 @@
+sphinx==4.5.0
+sphinx-issues==3.0.1
+sphinx-tabs==3.4.0
+Jinja2==3.0.3
+jupyter

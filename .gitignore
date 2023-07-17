@@ -1,4 +1,5 @@
 *.pyc
+*.pyd
 *.pyo
 __pycache__
 *.so
@@ -9,21 +10,26 @@ __pycache__
 .*cache*/
 *venv*/
 
-Cython/Compiler/*.c
-Cython/Plex/*.c
-Cython/Runtime/refnanny.c
-Cython/Tempita/*.c
-Cython/*.c
-Cython/*.html
-Cython/*/*.html
+/Cython/Build/*.c
+/Cython/Compiler/*.c
+/Cython/Debugger/*.c
+/Cython/Distutils/*.c
+/Cython/Parser/*.c
+/Cython/Plex/*.c
+/Cython/Runtime/refnanny.c
+/Cython/Tempita/*.c
+/Cython/*.c
+/Cython/*.html
+/Cython/*/*.html
 
-Tools/*.elc
-Demos/*.html
-Demos/*/*.html
+/Tools/*.elc
+/Demos/*.html
+/Demos/*/*.html
 
 /TEST_TMP/
 /build/
 /cython_build/
+cython_debug/
 /wheelhouse*/
 !tests/build/
 /dist/
@@ -42,6 +48,7 @@ callgrind.out.*
 
 .ipynb_checkpoints
 docs/build
+docs/_build
 
 tags
 TAGS
@@ -55,3 +62,6 @@ MANIFEST
 
 # Komodo EDIT/IDE project files
 /*.komodoproject
+
+# Visual Studio Code files
+.vscode

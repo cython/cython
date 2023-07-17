@@ -11,7 +11,7 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can be :term:`dynamically allocated<Dynamic allocation>` with ``new`` and ``del`` keywords.
+* C++ objects can be :term:`dynamically allocated<Dynamic allocation or Heap allocation>` with ``new`` and ``del`` keywords.
 * C++ objects can be :term:`stack-allocated<Stack allocation>`.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
@@ -136,6 +136,9 @@ a "default" constructor::
     def func():
         cdef Foo foo
         ...
+        
+See the section on the :ref:`cpp_locals directive` for a way
+to avoid requiring a nullary/default constructor.
 
 Note that, like C++, if the class has only one constructor and it
 is a nullary one, it's not necessary to declare it.
@@ -162,7 +165,9 @@ attribute access, you could just implement some properties:
 
 Cython initializes C++ class attributes of a cdef class using the nullary constructor.
 If the class you're wrapping does not have a nullary constructor, you must store a pointer
-to the wrapped class and manually allocate and deallocate it.
+to the wrapped class and manually allocate and deallocate it.  Alternatively, the
+:ref:`cpp_locals directive` avoids the need for the pointer and only initializes the
+C++ class attribute when it is assigned to.
 A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
 which are guaranteed to be called exactly once upon creation and deletion of the Python
 instance.
@@ -305,6 +310,7 @@ the template parameter list following the function name:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_templates.pyx
 
+.. _stl_types:
 
 Standard library
 -----------------
@@ -331,24 +337,35 @@ arguments) or by an explicit cast, e.g.:
 
 The following coercions are available:
 
-+------------------+----------------+-----------------+
-| Python type =>   | *C++ type*     | => Python type  |
-+==================+================+=================+
-| bytes            | std::string    | bytes           |
-+------------------+----------------+-----------------+
-| iterable         | std::vector    | list            |
-+------------------+----------------+-----------------+
-| iterable         | std::list      | list            |
-+------------------+----------------+-----------------+
-| iterable         | std::set       | set             |
-+------------------+----------------+-----------------+
-| iterable (len 2) | std::pair      | tuple (len 2)   |
-+------------------+----------------+-----------------+
++------------------+------------------------+-----------------+
+| Python type =>   | *C++ type*             | => Python type  |
++==================+========================+=================+
+| bytes            | std::string            | bytes           |
++------------------+------------------------+-----------------+
+| iterable         | std::vector            | list            |
++------------------+------------------------+-----------------+
+| iterable         | std::list              | list            |
++------------------+------------------------+-----------------+
+| iterable         | std::set               | set             |
++------------------+------------------------+-----------------+
+| iterable         | std::unordered_set     | set             |
++------------------+------------------------+-----------------+
+| mapping          | std::map               | dict            |
++------------------+------------------------+-----------------+
+| mapping          | std::unordered_map     | dict            |
++------------------+------------------------+-----------------+
+| iterable (len 2) | std::pair              | tuple (len 2)   |
++------------------+------------------------+-----------------+
+| complex          | std::complex           | complex         |
++------------------+------------------------+-----------------+
 
 All conversions create a new container and copy the data into it.
 The items in the containers are converted to a corresponding type
 automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
+
+Be aware that the conversions do have some pitfalls, which are
+detailed in :ref:`the troubleshooting section <automatic_conversion_pitfalls>`.
 
 Iteration over stl containers (or indeed any class with ``begin()`` and
 ``end()`` methods returning an object supporting incrementing, dereferencing,
@@ -432,7 +449,10 @@ for Cython to discern that, so watch out with exception masks on IO streams. ::
     cdef int bar() except +MemoryError
 
 This will catch any C++ error and raise a Python MemoryError in its place.
-(Any Python exception is valid here.) ::
+(Any Python exception is valid here.)
+
+Cython also supports using a custom exception handler. This is an advanced feature
+that most users won't need, but for those that do a full example follows::
 
     cdef int raise_py_error()
     cdef int something_dangerous() except +raise_py_error
@@ -440,7 +460,90 @@ This will catch any C++ error and raise a Python MemoryError in its place.
 If something_dangerous raises a C++ exception then raise_py_error will be
 called, which allows one to do custom C++ to Python error "translations." If
 raise_py_error does not actually raise an exception a RuntimeError will be
-raised.
+raised. This approach may also be used to manage custom Python exceptions
+created using the Python C API. ::
+
+    # raising.pxd
+    cdef extern from "Python.h" nogil:
+        ctypedef struct PyObject
+
+    cdef extern from *:
+        """
+        #include <Python.h>
+        #include <stdexcept>
+        #include <ios>
+
+        PyObject *CustomLogicError;
+
+        void create_custom_exceptions() {
+            CustomLogicError = PyErr_NewException("raiser.CustomLogicError", NULL, NULL);
+        }
+
+        void custom_exception_handler() {
+            try {
+                if (PyErr_Occurred()) {
+                    ; // let the latest Python exn pass through and ignore the current one
+                } else {
+                    throw;
+                }
+            }  catch (const std::logic_error& exn) {
+                // Add mapping of std::logic_error -> CustomLogicError
+                PyErr_SetString(CustomLogicError, exn.what());
+            } catch (...) {
+                PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
+            }
+        }
+
+        class Raiser {
+            public:
+                Raiser () {}
+                void raise_exception() {
+                    throw std::logic_error("Failure");
+                }
+        };
+        """
+        cdef PyObject* CustomLogicError
+        cdef void create_custom_exceptions()
+        cdef void custom_exception_handler()
+
+        cdef cppclass Raiser:
+            Raiser() noexcept
+            void raise_exception() except +custom_exception_handler
+
+
+    # raising.pyx
+    create_custom_exceptions()
+    PyCustomLogicError = <object> CustomLogicError
+
+
+    cdef class PyRaiser:
+        cdef Raiser c_obj
+
+        def raise_exception(self):
+            self.c_obj.raise_exception()
+
+The above example leverages Cython's ability to include :ref:`verbatim C code
+<verbatim_c>` in pxd files to create a new Python exception type
+``CustomLogicError`` and map it to the standard C++ ``std::logic_error`` using
+the ``custom_exception_handler`` function. There is nothing special about using
+a standard exception class here, ``std::logic_error`` could easily be replaced
+with some new C++ exception type defined in this file. The
+``Raiser::raise_exception`` is marked with ``+custom_exception_handler`` to
+indicate that this function should be called whenever an exception is raised.
+The corresponding Python function ``PyRaiser.raise_exception`` will raise a
+``CustomLogicError`` whenever it is called. Defining ``PyCustomLogicError``
+allows other code to catch this exception, as shown below: ::
+    
+    try:
+        PyRaiser().raise_exception()
+    except PyCustomLogicError:
+        print("Caught the exception")
+
+When defining custom exception handlers it is typically good to also include
+logic to handle all the standard exceptions that Cython typically handles as
+listed in the table above. The code for this standard exception handler can be
+found `here
+<https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
 
 There is also the special form::
 
@@ -454,7 +557,7 @@ Static member method
 
 If the Rectangle class has a static member:
 
-.. sourcecode:: c++
+.. code-block:: c++
 
     namespace shapes {
         class Rectangle {
@@ -620,6 +723,44 @@ To compile manually (e.g. using ``make``), the ``cython`` command-line
 utility can be used to generate a C++ ``.cpp`` file, and then compile it
 into a python extension.  C++ mode for the ``cython`` command is turned
 on with the ``--cplus`` option.
+
+.. _cpp_locals directive:
+
+``cpp_locals`` directive
+========================
+
+The ``cpp_locals`` compiler directive is an experimental feature that makes
+C++ variables behave like normal Python object variables.  With this
+directive they are only initialized at their first assignment, and thus
+they no longer require a nullary constructor to be stack-allocated.  Trying to
+access an uninitialized C++ variable will generate an ``UnboundLocalError``
+(or similar) in the same way as a Python variable would.  For example::
+
+    def function(dont_write):
+        cdef SomeCppClass c  # not initialized
+        if dont_write:
+            return c.some_cpp_function()  # UnboundLocalError
+        else:
+            c = SomeCppClass(...)  # initialized
+            return c.some_cpp_function()  # OK
+            
+Additionally, the directive avoids initializing temporary C++ objects before
+they are assigned, for cases where Cython needs to use such objects in its
+own code-generation (often for return values of functions that can throw
+exceptions).
+
+For extra speed, the ``initializedcheck`` directive disables the check for an
+unbound-local.  With this directive on, accessing a variable that has not
+been initialized will trigger undefined behaviour, and it is entirely the user's
+responsibility to avoid such access.
+
+The ``cpp_locals`` directive is currently implemented using ``std::optional``
+and thus requires a C++17 compatible compiler. Defining
+``CYTHON_USE_BOOST_OPTIONAL`` (as define for the C++ compiler) uses ``boost::optional``
+instead (but is even more experimental and untested).  The directive may
+come with a memory and performance cost due to the need to store and check 
+a boolean that tracks if a variable is initialized, but the C++ compiler should
+be able to eliminate the check in most cases.
 
 
 Caveats and Limitations

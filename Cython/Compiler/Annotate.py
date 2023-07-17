@@ -49,8 +49,8 @@ class AnnotationCCodeWriter(CCodeWriter):
     def create_new(self, create_from, buffer, copy_formatting):
         return AnnotationCCodeWriter(create_from, buffer, copy_formatting)
 
-    def write(self, s):
-        CCodeWriter.write(self, s)
+    def _write_to_buffer(self, s):
+        self.buffer.write(s)
         self.annotation_buffer.write(s)
 
     def mark_pos(self, pos, trace=True):
@@ -73,7 +73,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         """css template will later allow to choose a colormap"""
         css = [self._css_template]
         for i in range(255):
-            color = u"FFFF%02x" % int(255/(1+i/10.0))
+            color = u"FFFF%02x" % int(255.0 // (1.0 + i/10.0))
             css.append('.cython.score-%d {background-color: #%s;}' % (i, color))
         try:
             from pygments.formatters import HtmlFormatter
@@ -87,7 +87,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         body.cython { font-family: courier; font-size: 12; }
 
         .cython.tag  {  }
-        .cython.line { margin: 0em }
+        .cython.line { color: #000000; margin: 0em }
         .cython.code { font-size: 9; color: #444444; display: none; margin: 0px 0px 0px 8px; border-left: 8px none; }
 
         .cython.line .run { background-color: #B0FFB0; }

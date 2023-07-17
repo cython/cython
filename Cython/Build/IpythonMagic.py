@@ -46,7 +46,6 @@ Parts of this code were taken from Cython.inline.
 
 from __future__ import absolute_import, print_function
 
-import imp
 import io
 import os
 import re
@@ -58,11 +57,6 @@ import textwrap
 
 IO_ENCODING = sys.getfilesystemencoding()
 IS_PY2 = sys.version_info[0] < 3
-
-try:
-    from importlib import reload
-except ImportError:   # Python 2 had a builtin function
-    pass
 
 import hashlib
 from distutils.core import Distribution, Extension
@@ -80,8 +74,9 @@ from IPython.utils.text import dedent
 
 from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
-from .Inline import cython_inline
+from .Inline import cython_inline, load_dynamic
 from .Dependencies import cythonize
+from ..Utils import captured_fd, print_captured
 
 
 PGO_CONFIG = {
@@ -342,14 +337,26 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
+        def print_compiler_output(stdout, stderr, where):
+            # On windows, errors are printed to stdout, we redirect both to sys.stderr.
+            print_captured(stdout, where, u"Content of stdout:\n")
+            print_captured(stderr, where, u"Content of stderr:\n")
+
+        get_stderr = get_stdout = None
         try:
-            self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
-                                  quiet=args.quiet)
-        except distutils.errors.CompileError:
-            # Build failed and printed error message
+            with captured_fd(1) as get_stdout:
+                with captured_fd(2) as get_stderr:
+                    self._build_extension(
+                        extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
+        except (distutils.errors.CompileError, distutils.errors.LinkError):
+            # Build failed, print error message from compiler/linker
+            print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
             return None
 
-        module = imp.load_dynamic(module_name, module_path)
+        # Build seems ok, but we might still want to show any warnings that occurred
+        print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
+
+        module = load_dynamic(module_name, module_path)
         self._import_all(module)
 
         if args.annotate:
@@ -412,7 +419,7 @@ class CythonMagics(Magics):
 
         # import and execute module code to generate profile
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
-        imp.load_dynamic(pgo_module_name, so_module_path)
+        load_dynamic(pgo_module_name, so_module_path)
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')

@@ -1,17 +1,9 @@
-/////////////// PyIdentifierFromString.proto ///////////////
-
-#if !defined(__Pyx_PyIdentifier_FromString)
-#if PY_MAJOR_VERSION < 3
-  #define __Pyx_PyIdentifier_FromString(s) PyString_FromString(s)
-#else
-  #define __Pyx_PyIdentifier_FromString(s) PyUnicode_FromString(s)
-#endif
-#endif
-
-
 /////////////// ImportDottedModule.proto ///////////////
 
 static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple); /*proto*/
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple); /*proto*/
+#endif
 
 /////////////// ImportDottedModule ///////////////
 //@requires: Import
@@ -71,9 +63,36 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 }
 #endif
 
-static PyObject *__Pyx__ImportDottedModule(PyObject *name, CYTHON_UNUSED PyObject *parts_tuple) {
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
+    Py_ssize_t i, nparts;
+    nparts = PyTuple_GET_SIZE(parts_tuple);
+    for (i=1; i < nparts && module; i++) {
+        PyObject *part, *submodule;
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+        part = PyTuple_GET_ITEM(parts_tuple, i);
+#else
+        part = PySequence_ITEM(parts_tuple, i);
+#endif
+        submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
+        // We stop if the attribute isn't found, i.e. if submodule is NULL here.
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+        Py_DECREF(part);
+#endif
+        Py_DECREF(module);
+        module = submodule;
+    }
+    if (unlikely(!module)) {
+        return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
+    }
+    return module;
+}
+#endif
+
+static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
     PyObject *module, *from_list, *star = PYIDENT("*");
+    CYTHON_UNUSED_VAR(parts_tuple);
     from_list = PyList_New(1);
     if (unlikely(!from_list))
         return NULL;
@@ -83,7 +102,6 @@ static PyObject *__Pyx__ImportDottedModule(PyObject *name, CYTHON_UNUSED PyObjec
     Py_DECREF(from_list);
     return module;
 #else
-    Py_ssize_t i, nparts;
     PyObject *imported_module;
     PyObject *module = __Pyx_Import(name, NULL, 0);
     if (!parts_tuple || unlikely(!module))
@@ -96,25 +114,7 @@ static PyObject *__Pyx__ImportDottedModule(PyObject *name, CYTHON_UNUSED PyObjec
         return imported_module;
     }
     PyErr_Clear();
-
-    nparts = PyTuple_GET_SIZE(parts_tuple);
-    for (i=1; i < nparts && module; i++) {
-        PyObject *part, *submodule;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        part = PyTuple_GET_ITEM(parts_tuple, i);
-#else
-        part = PySequence_ITEM(parts_tuple, i);
-#endif
-        submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_DECREF(part);
-#endif
-        Py_DECREF(module);
-        module = submodule;
-    }
-    if (likely(module))
-        return module;
-    return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
+    return __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
 #endif
 }
 
@@ -146,6 +146,43 @@ static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple)
 #endif
 
     return __Pyx__ImportDottedModule(name, parts_tuple);
+}
+
+
+/////////////// ImportDottedModuleRelFirst.proto ///////////////
+
+static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple); /*proto*/
+
+/////////////// ImportDottedModuleRelFirst ///////////////
+//@requires: ImportDottedModule
+//@requires: Import
+
+static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple) {
+    PyObject *module;
+    PyObject *from_list = NULL;
+#if PY_MAJOR_VERSION < 3
+    PyObject *star = PYIDENT("*");
+    from_list = PyList_New(1);
+    if (unlikely(!from_list))
+        return NULL;
+    Py_INCREF(star);
+    PyList_SET_ITEM(from_list, 0, star);
+#endif
+    module = __Pyx_Import(name, from_list, -1);
+    Py_XDECREF(from_list);
+    if (module) {
+        #if PY_MAJOR_VERSION >= 3
+        if (parts_tuple) {
+            module = __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
+        }
+        #endif
+        return module;
+    }
+    if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
+        return NULL;
+    PyErr_Clear();
+    // try absolute import
+    return __Pyx_ImportDottedModule(name, parts_tuple);
 }
 
 
@@ -237,6 +274,39 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
     PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
     if (unlikely(!value) && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        // 'name' may refer to a (sub-)module which has not finished initialization
+        // yet, and may not be assigned as an attribute to its parent, so try
+        // finding it by full name.
+        const char* module_name_str = 0;
+        PyObject* module_name = 0;
+        PyObject* module_dot = 0;
+        PyObject* full_name = 0;
+        PyErr_Clear();
+        module_name_str = PyModule_GetName(module);
+        if (unlikely(!module_name_str)) { goto modbad; }
+        module_name = PyUnicode_FromString(module_name_str);
+        if (unlikely(!module_name)) { goto modbad; }
+        module_dot = PyUnicode_Concat(module_name, PYUNICODE("."));
+        if (unlikely(!module_dot)) { goto modbad; }
+        full_name = PyUnicode_Concat(module_dot, name);
+        if (unlikely(!full_name)) { goto modbad; }
+        #if PY_VERSION_HEX < 0x030700A1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400)
+        {
+            PyObject *modules = PyImport_GetModuleDict();
+            if (unlikely(!modules))
+                goto modbad;
+            value = PyObject_GetItem(modules, full_name);
+        }
+        #else
+        value = PyImport_GetModule(full_name);
+        #endif
+
+      modbad:
+        Py_XDECREF(full_name);
+        Py_XDECREF(module_dot);
+        Py_XDECREF(module_name);
+    }
+    if (unlikely(!value)) {
         PyErr_Format(PyExc_ImportError,
         #if PY_MAJOR_VERSION < 3
             "cannot import name %.230s", PyString_AS_STRING(name));
@@ -371,9 +441,9 @@ bad:
 
 // PY_VERSION_HEX >= 0x03030000
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
-static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name);
+static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name);
 #else
-#define __Pyx_SetPackagePathFromImportLib(a, b) 0
+#define __Pyx_SetPackagePathFromImportLib(a) 0
 #endif
 
 /////////////// SetPackagePathFromImportLib ///////////////
@@ -382,32 +452,21 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 
 // PY_VERSION_HEX >= 0x03030000
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
-static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
-    PyObject *importlib, *loader, *osmod, *ossep, *parts, *package_path;
-    PyObject *path = NULL, *file_path = NULL;
+static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
+    PyObject *importlib, *osmod, *ossep, *parts, *package_path;
+    PyObject *file_path = NULL;
     int result;
-    if (parent_package_name) {
-        PyObject *package = PyImport_ImportModule(parent_package_name);
-        if (unlikely(!package))
-            goto bad;
-        path = PyObject_GetAttrString(package, "__path__");
-        Py_DECREF(package);
-        if (unlikely(!path) || unlikely(path == Py_None))
-            goto bad;
-    } else {
-        path = Py_None; Py_INCREF(Py_None);
-    }
-    // package_path = [importlib.find_loader(module_name, path).path.rsplit(os.sep, 1)[0]]
-    importlib = PyImport_ImportModule("importlib");
+    PyObject *spec;
+    // package_path = [importlib.util.find_spec(module_name).origin.rsplit(os.sep, 1)[0]]
+    importlib = PyImport_ImportModule("importlib.util");
     if (unlikely(!importlib))
         goto bad;
-    loader = PyObject_CallMethod(importlib, "find_loader", "(OO)", module_name, path);
+    spec = PyObject_CallMethod(importlib, "find_spec", "(O)", module_name);
     Py_DECREF(importlib);
-    Py_DECREF(path); path = NULL;
-    if (unlikely(!loader))
+    if (unlikely(!spec))
         goto bad;
-    file_path = PyObject_GetAttrString(loader, "path");
-    Py_DECREF(loader);
+    file_path = PyObject_GetAttrString(spec, "origin");
+    Py_DECREF(spec);
     if (unlikely(!file_path))
         goto bad;
 
@@ -434,7 +493,6 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 
 bad:
     PyErr_WriteUnraisable(module_name);
-    Py_XDECREF(path);
     Py_XDECREF(file_path);
 
     // set an empty path list on failure
@@ -452,32 +510,47 @@ set_path:
 
 
 /////////////// TypeImport.proto ///////////////
+//@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportType_proto
-#define __PYX_HAVE_RT_ImportType_proto
+#ifndef __PYX_HAVE_RT_ImportType_proto_$cyversion
+#define __PYX_HAVE_RT_ImportType_proto_$cyversion
 
-enum __Pyx_ImportType_CheckSize {
-   __Pyx_ImportType_CheckSize_Error = 0,
-   __Pyx_ImportType_CheckSize_Warn = 1,
-   __Pyx_ImportType_CheckSize_Ignore = 2
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#include <stdalign.h>
+#endif
+
+#if (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || __cplusplus >= 201103L
+#define __PYX_GET_STRUCT_ALIGNMENT_$cyversion(s) alignof(s)
+#else
+// best guess at what the alignment could be since we can't measure it
+#define __PYX_GET_STRUCT_ALIGNMENT_$cyversion(s) sizeof(void*)
+#endif
+
+enum __Pyx_ImportType_CheckSize_$cyversion {
+   __Pyx_ImportType_CheckSize_Error_$cyversion = 0,
+   __Pyx_ImportType_CheckSize_Warn_$cyversion = 1,
+   __Pyx_ImportType_CheckSize_Ignore_$cyversion = 2
 };
 
-static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, enum __Pyx_ImportType_CheckSize check_size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size);  /*proto*/
 
 #endif
 
 /////////////// TypeImport ///////////////
+//@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportType
-#define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name, const char *class_name,
-    size_t size, enum __Pyx_ImportType_CheckSize check_size)
+#ifndef __PYX_HAVE_RT_ImportType_$cyversion
+#define __PYX_HAVE_RT_ImportType_$cyversion
+static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *module_name, const char *class_name,
+    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
 {
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;
+    Py_ssize_t itemsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *py_basicsize;
+    PyObject *py_itemsize;
 #endif
 
     result = PyObject_GetAttrString(module, class_name);
@@ -491,6 +564,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     }
 #if !CYTHON_COMPILING_IN_LIMITED_API
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
+    itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
     if (!py_basicsize)
@@ -500,22 +574,45 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     py_basicsize = 0;
     if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
         goto bad;
+    py_itemsize = PyObject_GetAttrString(result, "__itemsize__");
+    if (!py_itemsize)
+        goto bad;
+    itemsize = PyLong_AsSsize_t(py_itemsize);
+    Py_DECREF(py_itemsize);
+    py_itemsize = 0;
+    if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        goto bad;
 #endif
-    if ((size_t)basicsize < size) {
+    if (itemsize) {
+        // If itemsize is smaller than the alignment the struct can end up with some extra
+        // padding at the end. In this case we need to work out the maximum size that
+        // the padding could be when calculating the range of valid struct sizes.
+        if (size % alignment) {
+            // if this is true we've probably calculated the alignment wrongly
+            // (most likely because alignof isn't available)
+            alignment = size % alignment;
+        }
+        if (itemsize < (Py_ssize_t)alignment)
+            itemsize = (Py_ssize_t)alignment;
+    }
+    if ((size_t)(basicsize + itemsize) < size) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize);
+            module_name, class_name, size, basicsize+itemsize);
         goto bad;
     }
-    if (check_size == __Pyx_ImportType_CheckSize_Error && (size_t)basicsize != size) {
+    // varobjects almost have structs  between basicsize and basicsize + itemsize
+    // but the struct isn't always one of the two limiting values
+    if (check_size == __Pyx_ImportType_CheckSize_Error_$cyversion &&
+            ((size_t)basicsize > size || (size_t)(basicsize + itemsize) < size)) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize);
+            "Expected %zd from C header, got %zd-%zd from PyObject",
+            module_name, class_name, size, basicsize, basicsize+itemsize);
         goto bad;
     }
-    else if (check_size == __Pyx_ImportType_CheckSize_Warn && (size_t)basicsize > size) {
+    else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
@@ -531,15 +628,16 @@ bad:
 #endif
 
 /////////////// FunctionImport.proto ///////////////
+//@substitute: naming
 
-static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
+static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
 
 /////////////// FunctionImport ///////////////
 //@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportFunction
-#define __PYX_HAVE_RT_ImportFunction
-static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
+#ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
+#define __PYX_HAVE_RT_ImportFunction_$cyversion
+static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
     union {
@@ -616,15 +714,16 @@ bad:
 }
 
 /////////////// VoidPtrImport.proto ///////////////
+//@substitute: naming
 
-static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
+static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
 
 /////////////// VoidPtrImport ///////////////
 //@substitute: naming
 
-#ifndef __PYX_HAVE_RT_ImportVoidPtr
-#define __PYX_HAVE_RT_ImportVoidPtr
-static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, const char *sig) {
+#ifndef __PYX_HAVE_RT_ImportVoidPtr_$cyversion
+#define __PYX_HAVE_RT_ImportVoidPtr_$cyversion
+static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, void **p, const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
 
@@ -693,22 +792,18 @@ bad:
 
 /////////////// SetVTable.proto ///////////////
 
-static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
+static int __Pyx_SetVtable(PyTypeObject* typeptr , void* vtable); /*proto*/
 
 /////////////// SetVTable ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static int __Pyx_SetVtable(PyObject *type, void *vtable) {
-#else
-static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
-#endif
+static int __Pyx_SetVtable(PyTypeObject *type, void *vtable) {
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
-    if (!ob)
+    if (unlikely(!ob))
         goto bad;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    if (PyObject_SetAttr(type, PYIDENT("__pyx_vtable__"), ob) < 0)
+    if (unlikely(PyObject_SetAttr((PyObject *) type, PYIDENT("__pyx_vtable__"), ob) < 0))
 #else
-    if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
+    if (unlikely(PyDict_SetItem(type->tp_dict, PYIDENT("__pyx_vtable__"), ob) < 0))
 #endif
         goto bad;
     Py_DECREF(ob);
@@ -748,10 +843,14 @@ bad:
 /////////////// MergeVTables.proto ///////////////
 //@requires: GetVTable
 
+// TODO: find a way to make this work with the Limited API!
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
+#endif
 
 /////////////// MergeVTables ///////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i;
     void** base_vtables;
@@ -767,7 +866,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
             base = base->tp_base;
         }
     }
-    base_vtables = (void**) malloc(sizeof(void*) * (base_depth + 1));
+    base_vtables = (void**) malloc(sizeof(void*) * (size_t)(base_depth + 1));
     base_vtables[0] = unknown;
     // Could do MRO resolution of individual methods in the future, assuming
     // compatible vtables, but for now simply require a common vtable base.
@@ -808,6 +907,7 @@ bad:
     free(base_vtables);
     return -1;
 }
+#endif
 
 
 /////////////// ImportNumPyArray.proto ///////////////

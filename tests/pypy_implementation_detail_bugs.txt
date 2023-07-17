@@ -10,6 +10,7 @@ double_dealloc_T796
 run.exceptionrefcount
 run.capiimpl
 run.refcount_in_meth
+sequential_parallel
 # Ideally just disable the reference-counting tests on PyPy?
 run.fused_types
 run.generator_frame_cycle
@@ -41,5 +42,11 @@ memoryview.memoryview_pep484_typing
 run.cpp_classes
 run.cpp_classes_def
 
-# missing pypy feature?
-matrix_multiplier
+# relies on cimport array (which has a different structure in PyPy)
+memoryview_inplace_division
+run.pyarray
+run.array_cimport
+
+# relies on deprecated unicode APIs that will be removed in python3.12
+# exposing the underlying unicode buffer in PyPy is not thread-safe
+run.py_unicode_strings

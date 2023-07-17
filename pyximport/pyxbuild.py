@@ -10,7 +10,7 @@ from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
 try:
-    from Cython.Distutils.old_build_ext import old_build_ext as build_ext
+    from Cython.Distutils.build_ext import build_ext
     HAS_CYTHON = True
 except ImportError:
     HAS_CYTHON = False
@@ -53,7 +53,10 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         quiet = "--verbose"
     else:
         quiet = "--quiet"
-    args = [quiet, "build_ext"]
+    if build_in_temp:
+        args = [quiet, "build_ext", '--cython-c-in-temp']
+    else:
+        args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
     if inplace and package_base_dir:
@@ -65,8 +68,6 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
             elif 'set_initial_path' not in ext.cython_directives:
                 ext.cython_directives['set_initial_path'] = 'SOURCEFILE'
 
-    if HAS_CYTHON and build_in_temp:
-        args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
     sargs.update({
         "script_name": None,

@@ -23,6 +23,9 @@ EXAMPLE:
 >>> b.getvalue().split()
 ['second', 'alpha', 'beta', 'gamma']
 
+>>> try: from cStringIO import StringIO
+... except ImportError: from io import StringIO
+
 >>> i = StringIOTree()
 >>> d.insert(i)
 >>> _= i.write('inserted\n')
@@ -39,7 +42,6 @@ try:
     from cStringIO import StringIO
 except ImportError:
     from io import StringIO
-import sys
 
 
 class StringIOTree(object):
@@ -55,10 +57,22 @@ class StringIOTree(object):
         self.write = stream.write
         self.markers = []
 
+    def empty(self):
+        if self.stream.tell():
+            return False
+        return all([child.empty() for child in self.prepended_children]) if self.prepended_children else True
+
     def getvalue(self):
-        content = [x.getvalue() for x in self.prepended_children]
-        content.append(self.stream.getvalue())
+        content = []
+        self._collect_in(content)
         return "".join(content)
+
+    def _collect_in(self, target_list):
+        for x in self.prepended_children:
+            x._collect_in(target_list)
+        stream_content = self.stream.getvalue()
+        if stream_content:
+            target_list.append(stream_content)
 
     def copyto(self, target):
         """Potentially cheaper than getvalue as no string concatenation
@@ -78,6 +92,12 @@ class StringIOTree(object):
             self.markers = []
             self.stream = StringIO()
             self.write = self.stream.write
+
+    def reset(self):
+        self.prepended_children = []
+        self.markers = []
+        self.stream = StringIO()
+        self.write = self.stream.write
 
     def insert(self, iotree):
         """
@@ -108,6 +128,7 @@ class StringIOTree(object):
         children = self.prepended_children
         return [m for c in children for m in c.allmarkers()] + self.markers
 
+    """
     # Print the result of allmarkers in a nice human-readable form. Use it only for debugging.
     # Prints e.g.
     # /path/to/source.pyx:
@@ -147,4 +168,7 @@ class StringIOTree(object):
                         reprstr += "-" + str(c_linenos[i]) + " "
                     i += 1
                 reprstr += "\n"
+
+        import sys
         sys.stdout.write(reprstr)
+    """

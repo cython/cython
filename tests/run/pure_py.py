@@ -1,3 +1,5 @@
+# mode: run
+
 import sys
 IS_PY2 = sys.version_info[0] < 3
 
@@ -33,17 +35,18 @@ def test_sizeof():
 def test_declare(n):
     """
     >>> test_declare(100)
-    (100, 100)
+    (100, 100, 100)
     >>> test_declare(100.5)
-    (100, 100)
+    (100, 100, 100)
     """
     x = cython.declare(cython.int)
     y = cython.declare(cython.int, n)
+    z = cython.declare(int, n)  # C int
     if cython.compiled:
         cython.declare(xx=cython.int, yy=cython.long)
         i = cython.sizeof(xx)
     ptr = cython.declare(cython.p_int, cython.address(y))
-    return y, ptr[0]
+    return y, z, ptr[0]
 
 
 @cython.locals(x=cython.double, n=cython.int)
@@ -140,16 +143,22 @@ def test_with_nogil(nogil, should_raise=False):
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])
+MyStruct3 = cython.typedef(MyStruct[3])
 
 def test_struct(n, x):
     """
     >>> test_struct(389, 1.64493)
-    (389, 1.64493)
+    (389, 1.64493, False)
     """
-    a = cython.declare(MyStruct2)
+    a = cython.declare(MyStruct3)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
     a[1] = MyStruct(is_integral=False, data={'x': x})
-    return a[0].data.n, a[1].data.x
+    if sys.version_info >= (3, 6):
+        # dict is ordered => struct creation via keyword arguments above was deterministic!
+        a[2] = MyStruct(False, MyUnion(x=x))
+    else:
+        a[2] = MyStruct(is_integral=False, data=MyUnion(x=x))
+    return a[0].data.n, a[1].data.x, a[2].is_integral
 
 import cython as cy
 from cython import declare, cast, locals, address, typedef, p_void, compiled
@@ -311,6 +320,25 @@ def test_cdef_nogil(x):
         result += cdef_nogil_true(x)
     result += cdef_nogil_false(x)
     return result
+
+
+@cython.cfunc
+@cython.inline
+def has_inner_func(x):
+    # the inner function must remain a Python function
+    # (and inline must not be applied to it)
+    @cython.test_fail_if_path_exists("//CFuncDefNode")
+    def inner():
+        return x
+    return inner
+
+
+def test_has_inner_func():
+    """
+    >>> test_has_inner_func()
+    1
+    """
+    return has_inner_func(1)()
 
 
 @cython.locals(counts=cython.int[10], digit=cython.int)
@@ -523,18 +551,18 @@ def empty_declare():
     ]
 
     r2.is_integral = True
-    assert( r2.is_integral == True )
+    assert r2.is_integral == True
 
     r3.x = 12.3
-    assert( r3.x == 12.3 )
+    assert r3.x == 12.3
 
     #It generates a correct C code, but raises an exception when interpreted
     if cython.compiled:
         r4[0].is_integral = True
-        assert( r4[0].is_integral == True )
+        assert r4[0].is_integral == True
 
     r5[0] = 42
-    assert ( r5[0] == 42 )
+    assert r5[0] == 42
 
     return [i for i, x in enumerate(res) if not x]
 

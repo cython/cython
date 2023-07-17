@@ -11,9 +11,11 @@ from distutils.command.build_ext import build_ext
 
 import Cython
 from ..Compiler.Main import Context
-from ..Compiler.Options import default_options
+from ..Compiler.Options import (default_options, CompilationOptions,
+    get_directive_defaults)
 
-from ..Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, EnvTransform
+from ..Compiler.Visitor import CythonTransform, EnvTransform
+from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
@@ -40,18 +42,19 @@ if sys.version_info < (3, 5):
     def load_dynamic(name, module_path):
         return imp.load_dynamic(name, module_path)
 else:
-    import importlib.util as _importlib_util
-    def load_dynamic(name, module_path):
-        spec = _importlib_util.spec_from_file_location(name, module_path)
-        module = _importlib_util.module_from_spec(spec)
-        # sys.modules[name] = module
+    import importlib.util
+    from importlib.machinery import ExtensionFileLoader
+
+    def load_dynamic(name, path):
+        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+        module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
-        CythonTransform.__init__(self, None)
+        super(EnvTransform, self).__init__(context=None)
         self.unbound = set()
     def visit_NameNode(self, node):
         if not self.current_env().lookup(node.name):
@@ -66,7 +69,8 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
 def unbound_symbols(code, context=None):
     code = to_unicode(code)
     if context is None:
-        context = Context([], default_options)
+        context = Context([], get_directive_defaults(),
+                          options=CompilationOptions(default_options))
     from ..Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
     tree = parse_from_strings('(tree fragment)', code)
     for phase in Pipeline.create_pipeline(context, 'pyx'):
@@ -127,7 +131,11 @@ def _get_build_extension():
 
 @cached_function
 def _create_context(cython_include_dirs):
-    return Context(list(cython_include_dirs), default_options)
+    return Context(
+        list(cython_include_dirs),
+        get_directive_defaults(),
+        options=CompilationOptions(default_options)
+    )
 
 
 _cython_inline_cache = {}
@@ -222,6 +230,7 @@ def cython_inline(code, get_type=unsafe_type,
             build_extension = _get_build_extension()
             cython_inline.so_ext = build_extension.get_ext_filename('')
 
+        lib_dir = os.path.abspath(lib_dir)
         module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
         if not os.path.exists(lib_dir):
@@ -279,7 +288,11 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = load_dynamic(module_name, module_path)
+        if sys.platform == 'win32' and sys.version_info >= (3, 8):
+            with os.add_dll_directory(os.path.abspath(lib_dir)):
+                module = load_dynamic(module_name, module_path)
+        else:
+            module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]

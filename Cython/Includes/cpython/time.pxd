@@ -5,7 +5,7 @@ Cython implementation of (parts of) the standard library time module.
 from libc.stdint cimport int64_t
 from cpython.exc cimport PyErr_SetFromErrno
 
-cdef extern from "pytime.h":
+cdef extern from "Python.h":
     ctypedef int64_t _PyTime_t
     _PyTime_t _PyTime_GetSystemClock() nogil
     double _PyTime_AsSecondsDouble(_PyTime_t t) nogil
@@ -30,7 +30,7 @@ cdef inline int _raise_from_errno() except -1 with gil:
     return <int> -1  # Let the C compiler know that this function always raises.
 
 
-cdef inline tm localtime() nogil except *:
+cdef inline tm localtime() except * nogil:
     """
     Analogue to the stdlib time.localtime.  The returned struct
     has some entries that the stdlib version does not: tm_gmtoff, tm_zone

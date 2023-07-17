@@ -1,6 +1,4 @@
 jupyter
-line_profiler
-# transitive dependency of jupyter (17.0+ lacks wheels for Py3.4)
-pyzmq<17
-pyrsistent<0.16
-qtconsole<5
+pytest  # needed by IPython/Jupyter integration tests
+line_profiler<4  # currently 4 appears to collect no profiling info
+setuptools<60

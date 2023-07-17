@@ -211,6 +211,9 @@ cdef class Iterable:
         self.i += 1
         return self.i
 
+def has_getrefcount():
+    import sys
+    return hasattr(sys, "getrefcount")
 
 def test_with_for():
     """
@@ -223,8 +226,9 @@ def test_with_for():
 
     manager = Manager(I)
     iterable = Iterable()
-    mrefs_before = sys.getrefcount(manager)
-    irefs_before = sys.getrefcount(iterable)
+    if has_getrefcount():
+        mrefs_before = sys.getrefcount(manager)
+        irefs_before = sys.getrefcount(iterable)
 
     async def main():
         async with manager:
@@ -235,8 +239,9 @@ def test_with_for():
     run_async(main())
     print(I[0])
 
-    assert sys.getrefcount(manager) == mrefs_before
-    assert sys.getrefcount(iterable) == irefs_before
+    if has_getrefcount():
+        assert sys.getrefcount(manager) == mrefs_before
+        assert sys.getrefcount(iterable) == irefs_before
 
     ##############
 

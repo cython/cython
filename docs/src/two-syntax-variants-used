@@ -1,0 +1,22 @@
+.. note::
+
+    This page uses two different syntax variants:
+
+    * Cython specific ``cdef`` syntax, which was designed to make type declarations
+      concise and easily readable from a C/C++ perspective.
+
+    * Pure Python syntax which allows static Cython type declarations in
+      :ref:`pure Python code <pep484_type_annotations>`,
+      following `PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ type hints
+      and `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_ variable annotations.
+
+      To make use of C data types in Python syntax, you need to import the special
+      ``cython`` module in the Python module that you want to compile, e.g.
+
+      .. code-block:: python
+
+          import cython
+          
+      If you use the pure Python syntax we strongly recommend you use a recent
+      Cython 3 release, since significant improvements have been made here
+      compared to the 0.29.x releases.

@@ -195,16 +195,6 @@ class IterationTransform(Visitor.EnvTransform):
             annotation = iterable.entry.annotation.expr
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
-            # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
-            if annotation.is_name:
-                if annotation.entry and annotation.entry.qualified_name == 'typing.Dict':
-                    annotation_type = Builtin.dict_type
-                elif annotation.name == 'Dict':
-                    annotation_type = Builtin.dict_type
-                if annotation.entry and annotation.entry.qualified_name in ('typing.Set', 'typing.FrozenSet'):
-                    annotation_type = Builtin.set_type
-                elif annotation.name in ('Set', 'FrozenSet'):
-                    annotation_type = Builtin.set_type
 
         if Builtin.dict_type in (iterable.type, annotation_type):
             # like iterating over dict.keys()
@@ -291,7 +281,7 @@ class IterationTransform(Visitor.EnvTransform):
                 return self._transform_reversed_iteration(node, iterable)
 
         # range() iteration?
-        if Options.convert_range and arg_count >= 1 and (
+        if Options.convert_range and 1 <= arg_count <= 3 and (
                 iterable.self is None and
                 function.is_name and function.name in ('range', 'xrange') and
                 function.entry and function.entry.is_builtin):
@@ -328,16 +318,6 @@ class IterationTransform(Visitor.EnvTransform):
             return node
 
         return self._optimise_for_loop(node, arg, reversed=True)
-
-    PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_char_ptr_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
-
-    PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_ssize_t_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
 
     def _transform_indexable_iteration(self, node, slice_node, is_mutable, reversed=False):
         """In principle can handle any iterable that Cython has a len() for and knows how to index"""
@@ -424,6 +404,16 @@ class IterationTransform(Visitor.EnvTransform):
                 ).analyse_expressions(env)
         body.stats.insert(1, node.body)
         return ret
+
+    PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_char_ptr_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
+            ])
+
+    PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
+            ])
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
@@ -1236,7 +1226,7 @@ class SwitchTransform(Visitor.EnvTransform):
             # integers on iteration, whereas Py2 returns 1-char byte
             # strings
             characters = string_literal.value
-            characters = list(set([ characters[i:i+1] for i in range(len(characters)) ]))
+            characters = list({ characters[i:i+1] for i in range(len(characters)) })
             characters.sort()
             return [ ExprNodes.CharNode(string_literal.pos, value=charval,
                                         constant_result=charval)
@@ -1248,7 +1238,8 @@ class SwitchTransform(Visitor.EnvTransform):
             return self.NO_MATCH
         elif common_var is not None and not is_common_value(var, common_var):
             return self.NO_MATCH
-        elif not (var.type.is_int or var.type.is_enum) or sum([not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
+        elif not (var.type.is_int or var.type.is_enum) or any(
+                [not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
             return self.NO_MATCH
         return not_in, var, conditions
 
@@ -1264,11 +1255,17 @@ class SwitchTransform(Visitor.EnvTransform):
                 # this isn't completely safe as we don't know the
                 # final C value, but this is about the best we can do
                 try:
-                    if value.entry.cname in seen:
-                        return True
+                    value_entry = value.entry
+                    if ((value_entry.type.is_enum or value_entry.type.is_cpp_enum)
+                            and value_entry.enum_int_value is not None):
+                        value_for_seen = value_entry.enum_int_value
+                    else:
+                        value_for_seen = value_entry.cname
                 except AttributeError:
                     return True  # play safe
-                seen.add(value.entry.cname)
+                if value_for_seen in seen:
+                    return True
+                seen.add(value_for_seen)
         return False
 
     def visit_IfStatNode(self, node):
@@ -1437,6 +1434,10 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects
+            return node
+
+        if any([arg.is_starred for arg in args]):
+            # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
         lhs = UtilNodes.ResultRefNode(node.operand1)
@@ -2110,7 +2111,8 @@ class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
             return node
         inlined = ExprNodes.InlinedDefNodeCallNode(
             node.pos, function_name=function_name,
-            function=function, args=node.args)
+            function=function, args=node.args,
+            generator_arg_tag=node.generator_arg_tag)
         if inlined.can_be_inlined():
             return self.replace(node, inlined)
         return node
@@ -2303,6 +2305,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if func_arg.type.is_int or node.type.is_int:
                 if func_arg.type == node.type:
                     return func_arg
+                elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+                    # need to parse (<Py_UCS4>'1') as digit 1
+                    return self._pyucs4_to_number(node, function.name, func_arg)
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(node.pos, operand=func_arg, type=node.type)
             elif func_arg.type.is_float and node.type.is_numeric:
@@ -2323,10 +2328,37 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if func_arg.type.is_float or node.type.is_float:
                 if func_arg.type == node.type:
                     return func_arg
+                elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+                    # need to parse (<Py_UCS4>'1') as digit 1
+                    return self._pyucs4_to_number(node, function.name, func_arg)
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(
                         node.pos, operand=func_arg, type=node.type)
         return node
+
+    pyucs4_int_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
+        ],
+        exception_value="-1")
+
+    pyucs4_double_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
+        ],
+        exception_value="-1.0")
+
+    def _pyucs4_to_number(self, node, py_type_name, func_arg):
+        assert py_type_name in ("int", "float")
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_int_from_UCS4" if py_type_name == "int" else "__Pyx_double_from_UCS4",
+            func_type=self.pyucs4_int_func_type if py_type_name == "int" else self.pyucs4_double_func_type,
+            args=[func_arg],
+            py_name=py_type_name,
+            is_temp=node.is_temp,
+            result_is_used=node.result_is_used,
+            utility_code=UtilityCode.load_cached("int_pyucs4" if py_type_name == "int" else "float_pyucs4", "Builtins.c"),
+        ).coerce_to(node.type, self.current_env())
 
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
         if not expected:  # None or 0
@@ -2626,6 +2658,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_arg = func_arg.arg
         if func_arg.type is PyrexTypes.c_double_type:
             return func_arg
+        elif func_arg.type in (PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type):
+            # need to parse (<Py_UCS4>'1') as digit 1
+            return self._pyucs4_to_number(node, function.name, func_arg)
         elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
             return ExprNodes.TypecastNode(
                 node.pos, operand=func_arg, type=node.type)
@@ -2713,6 +2748,40 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # coerce back to Python object as that's the result we are expecting
             return operand.coerce_to_pyobject(self.current_env())
 
+    PyMemoryView_FromObject_func_type = PyrexTypes.CFuncType(
+        Builtin.memoryview_type, [
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None)
+            ])
+
+    PyMemoryView_FromBuffer_func_type = PyrexTypes.CFuncType(
+        Builtin.memoryview_type, [
+            PyrexTypes.CFuncTypeArg("value", Builtin.py_buffer_type, None)
+            ])
+
+    def _handle_simple_function_memoryview(self, node, function, pos_args):
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('memoryview', node, pos_args, '1')
+            return node
+        else:
+            if pos_args[0].type.is_pyobject:
+                return ExprNodes.PythonCapiCallNode(
+                    node.pos, "PyMemoryView_FromObject",
+                    self.PyMemoryView_FromObject_func_type,
+                    args = [pos_args[0]],
+                    is_temp = node.is_temp,
+                    py_name = "memoryview")
+            elif pos_args[0].type.is_ptr and pos_args[0].base_type is Builtin.py_buffer_type:
+                # TODO - this currently doesn't work because the buffer fails a
+                # "can coerce to python object" test earlier. But it'd be nice to support
+                return ExprNodes.PythonCapiCallNode(
+                    node.pos, "PyMemoryView_FromBuffer",
+                    self.PyMemoryView_FromBuffer_func_type,
+                    args = [pos_args[0]],
+                    is_temp = node.is_temp,
+                    py_name = "memoryview")
+        return node
+
+
     ### builtin functions
 
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
@@ -2750,7 +2819,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         Builtin.dict_type:       "PyDict_Size",
     }.get
 
-    _ext_types_with_pysize = set(["cpython.array.array"])
+    _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
@@ -2864,6 +2933,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     builtin_type = None
             if builtin_type is not None:
                 type_check_function = entry.type.type_check_function(exact=False)
+                if type_check_function == '__Pyx_Py3Int_Check' and builtin_type is Builtin.int_type:
+                    # isinstance(x, int) should really test for 'int' in Py2, not 'int | long'
+                    type_check_function = "PyInt_Check"
                 if type_check_function in tests:
                     continue
                 tests.append(type_check_function)
@@ -3011,6 +3083,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp
             )
 
+    def _handle_any_slot__class__(self, node, function, args,
+                                is_unbound_method, kwargs=None):
+        # The purpose of this function is to handle calls to instance.__class__() so that
+        # it doesn't get handled by the __Pyx_CallUnboundCMethod0 mechanism.
+        # TODO: optimizations of the instance.__class__() call might be possible in future.
+        return node
+
     ### methods of builtin types
 
     PyObject_Append_func_type = PyrexTypes.CFuncType(
@@ -3024,7 +3103,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """Optimistic optimisation as X.append() is almost always
         referring to a list.
         """
-        if len(args) != 2 or node.result_is_used:
+        if len(args) != 2 or node.result_is_used or node.function.entry:
             return node
 
         return ExprNodes.PythonCapiCallNode(
@@ -3428,6 +3507,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         Optimise math operators for (likely) float or small integer operations.
         """
+        if getattr(node, "special_bool_cmp_function", None):
+            return node  # already optimized
+
         if len(args) != 2:
             return node
 
@@ -3438,66 +3520,15 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         else:
             return node
 
-        # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
-        # Prefer constants on RHS as they allows better size control for some operators.
-        num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
-        if isinstance(args[1], num_nodes):
-            if args[0].type is not PyrexTypes.py_object_type:
-                return node
-            numval = args[1]
-            arg_order = 'ObjC'
-        elif isinstance(args[0], num_nodes):
-            if args[1].type is not PyrexTypes.py_object_type:
-                return node
-            numval = args[0]
-            arg_order = 'CObj'
-        else:
+        result = optimise_numeric_binop(operator, node, ret_type, args[0], args[1])
+        if not result:
             return node
-
-        if not numval.has_constant_result():
-            return node
-
-        is_float = isinstance(numval, ExprNodes.FloatNode)
-        num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
-        if is_float:
-            if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
-                return node
-        elif operator == 'Divide':
-            # mixed old-/new-style division is not currently optimised for integers
-            return node
-        elif abs(numval.constant_result) > 2**30:
-            # Cut off at an integer border that is still safe for all operations.
-            return node
-
-        if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
-            if args[1].constant_result == 0:
-                # Don't optimise division by 0. :)
-                return node
-
-        args = list(args)
-        args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
-            numval.pos, value=numval.value, constant_result=numval.constant_result,
-            type=num_type))
-        inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
-        args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
-        if is_float or operator not in ('Eq', 'Ne'):
-            # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
-            zerodivision_check = arg_order == 'CObj' and (
-                not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
-            args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
-
-        utility_code = TempitaUtilityCode.load_cached(
-            "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
-            "Optimize.c",
-            context=dict(op=operator, order=arg_order, ret_type=ret_type))
+        func_cname, utility_code, extra_args, num_type = result
+        args = list(args)+extra_args
 
         call_node = self._substitute_method_call(
             node, function,
-            "__Pyx_Py%s_%s%s%s" % (
-                'Float' if is_float else 'Int',
-                '' if ret_type.is_pyobject else 'Bool',
-                operator,
-                arg_order),
+            func_cname,
             self.Pyx_BinopInt_func_types[(num_type, ret_type)],
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
             may_return_none=True,
@@ -3618,6 +3649,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         if len(args) < 2:
             args.append(ExprNodes.NullNode(node.pos))
+        else:
+            self._inject_null_for_none(args, 1)
         self._inject_int_default_argument(
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "-1")
 
@@ -4133,13 +4166,35 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 format_args=[attr_name])
         return self_arg
 
+    obj_to_obj_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
+        ])
+
+    def _inject_null_for_none(self, args, index):
+        if len(args) <= index:
+            return
+        arg = args[index]
+        args[index] = ExprNodes.NullNode(arg.pos) if arg.is_none else ExprNodes.PythonCapiCallNode(
+            arg.pos, "__Pyx_NoneAsNull",
+            self.obj_to_obj_func_type,
+            args=[arg.coerce_to_simple(self.current_env())],
+            is_temp=0,
+        )
+
     def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
+        # Python usually allows passing None for range bounds,
+        # so we treat that as requesting the default.
         assert len(args) >= arg_index
-        if len(args) == arg_index:
+        if len(args) == arg_index or args[arg_index].is_none:
             args.append(ExprNodes.IntNode(node.pos, value=str(default_value),
                                           type=type, constant_result=default_value))
         else:
-            args[arg_index] = args[arg_index].coerce_to(type, self.current_env())
+            arg = args[arg_index].coerce_to(type, self.current_env())
+            if isinstance(arg, ExprNodes.CoerceFromPyTypeNode):
+                # Add a runtime check for None and map it to the default value.
+                arg.special_none_cvalue = str(default_value)
+            args[arg_index] = arg
 
     def _inject_bint_default_argument(self, node, args, arg_index, default_value):
         assert len(args) >= arg_index
@@ -4149,6 +4204,75 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                                            constant_result=default_value))
         else:
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
+
+
+def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
+    """
+    Optimise math operators for (likely) float or small integer operations.
+    """
+    # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
+    # Prefer constants on RHS as they allows better size control for some operators.
+    num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
+    if isinstance(arg1, num_nodes):
+        if arg0.type is not PyrexTypes.py_object_type:
+            return None
+        numval = arg1
+        arg_order = 'ObjC'
+    elif isinstance(arg0, num_nodes):
+        if arg1.type is not PyrexTypes.py_object_type:
+            return None
+        numval = arg0
+        arg_order = 'CObj'
+    else:
+        return None
+
+    if not numval.has_constant_result():
+        return None
+
+    # is_float is an instance check rather that numval.type.is_float because
+    # it will often be a Python float type rather than a C float type
+    is_float = isinstance(numval, ExprNodes.FloatNode)
+    num_type = PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type
+    if is_float:
+        if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
+            return None
+    elif operator == 'Divide':
+        # mixed old-/new-style division is not currently optimised for integers
+        return None
+    elif abs(numval.constant_result) > 2**30:
+        # Cut off at an integer border that is still safe for all operations.
+        return None
+
+    if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
+        if arg1.constant_result == 0:
+            # Don't optimise division by 0. :)
+            return None
+
+    extra_args = []
+
+    extra_args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
+        numval.pos, value=numval.value, constant_result=numval.constant_result,
+        type=num_type))
+    inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
+    extra_args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
+    if is_float or operator not in ('Eq', 'Ne'):
+        # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
+        zerodivision_check = arg_order == 'CObj' and (
+            not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
+        extra_args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
+
+    utility_code = TempitaUtilityCode.load_cached(
+        "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
+        "Optimize.c",
+        context=dict(op=operator, order=arg_order, ret_type=ret_type))
+
+    func_cname = "__Pyx_Py%s_%s%s%s" % (
+        'Float' if is_float else 'Int',
+        '' if ret_type.is_pyobject else 'Bool',
+        operator,
+        arg_order)
+
+    return func_cname, utility_code, extra_args, num_type
 
 
 unicode_tailmatch_utility_code = UtilityCode.load_cached('unicode_tailmatch', 'StringTools.c')
@@ -4425,6 +4549,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 string_node.unicode_value = encoded_string(
                     string_node.unicode_value * multiplier,
                     string_node.unicode_value.encoding)
+            build_string = encoded_string if string_node.value.is_unicode else bytes_literal
         elif isinstance(string_node, ExprNodes.UnicodeNode):
             if string_node.bytes_value is not None:
                 string_node.bytes_value = bytes_literal(
@@ -4432,9 +4557,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value.encoding)
         else:
             assert False, "unknown string node type: %s" % type(string_node)
-        string_node.constant_result = string_node.value = build_string(
+        string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
+        # follow constant-folding and use unicode_value in preference
+        if isinstance(string_node, ExprNodes.StringNode) and string_node.unicode_value is not None:
+            string_node.constant_result = string_node.unicode_value
+        else:
+            string_node.constant_result = string_node.value
         return string_node
 
     def _calculate_constant_seq(self, node, sequence_node, factor):

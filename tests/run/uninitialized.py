@@ -5,10 +5,10 @@ def conditional(cond):
     """
     >>> conditional(True)
     []
-    >>> conditional(False)
+    >>> conditional(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     if cond:
         a = []
@@ -18,10 +18,10 @@ def inside_loop(iter):
     """
     >>> inside_loop([1,2,3])
     3
-    >>> inside_loop([])
+    >>> inside_loop([])  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'i' referenced before assignment
+    UnboundLocalError: ...local variable 'i'...
     """
     for i in iter:
         pass
@@ -31,10 +31,10 @@ def try_except(cond):
     """
     >>> try_except(True)
     []
-    >>> try_except(False)
+    >>> try_except(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     try:
         if cond:
@@ -47,10 +47,10 @@ def try_finally(cond):
     """
     >>> try_finally(True)
     []
-    >>> try_finally(False)
+    >>> try_finally(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     try:
         if cond:
@@ -63,10 +63,10 @@ def deleted(cond):
     """
     >>> deleted(False)
     {}
-    >>> deleted(True)
+    >>> deleted(True)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     a = {}
     if cond:
@@ -76,10 +76,10 @@ def deleted(cond):
 def test_nested(cond):
     """
     >>> test_nested(True)
-    >>> test_nested(False)
+    >>> test_nested(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     if cond:
         def a():
@@ -90,10 +90,10 @@ def test_outer(cond):
     """
     >>> test_outer(True)
     {}
-    >>> test_outer(False)
+    >>> test_outer(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     if cond:
         a = {}
@@ -105,10 +105,10 @@ def test_inner(cond):
     """
     >>> test_inner(True)
     {}
-    >>> test_inner(False)
+    >>> test_inner(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    NameError: free variable 'a' referenced before assignment in enclosing scope
+    NameError: ...free variable 'a' ... in enclosing scope
     """
     if cond:
         a = {}
@@ -120,10 +120,10 @@ def test_class(cond):
     """
     >>> test_class(True)
     1
-    >>> test_class(False)
+    >>> test_class(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'A' referenced before assignment
+    UnboundLocalError: ...local variable 'A'...
     """
     if cond:
         class A:
@@ -135,10 +135,10 @@ def test_try_except_regression(c):
     """
     >>> test_try_except_regression(True)
     (123,)
-    >>> test_try_except_regression(False)
+    >>> test_try_except_regression(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     if c:
         a = (123,)
@@ -152,10 +152,10 @@ def test_try_finally_regression(c):
     """
     >>> test_try_finally_regression(True)
     (123,)
-    >>> test_try_finally_regression(False)
+    >>> test_try_finally_regression(False)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    UnboundLocalError: ...local variable 'a'...
     """
     if c:
         a = (123,)
@@ -169,10 +169,10 @@ def test_expression_calculation_order_bug(a):
     """
     >>> test_expression_calculation_order_bug(False)
     []
-    >>> test_expression_calculation_order_bug(True)
+    >>> test_expression_calculation_order_bug(True)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'b' referenced before assignment
+    UnboundLocalError: ...local variable 'b'...
     """
     if not a:
         b = []

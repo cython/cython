@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import os
 import shutil
@@ -45,10 +45,12 @@ def find_package_base(path):
         package_path = '%s/%s' % (parent, package_path)
     return base_dir, package_path
 
-
 def cython_compile(path_pattern, options):
-    pool = None
     all_paths = map(os.path.abspath, extended_iglob(path_pattern))
+    _cython_compile_files(all_paths, options)
+
+def _cython_compile_files(all_paths, options):
+    pool = None
     try:
         for path in all_paths:
             if options.build_inplace:
@@ -74,6 +76,7 @@ def cython_compile(path_pattern, options):
                 compile_time_env=options.compile_time_env,
                 force=options.force,
                 quiet=options.quiet,
+                depfile=options.depfile,
                 **options.options)
 
             if ext_modules and options.build:
@@ -120,10 +123,18 @@ def run_distutils(args):
 
 
 def create_args_parser():
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter
     from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""\
+Environment variables:
+  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless
+        of modification times and changes.
+  Environment variables accepted by setuptools are supported to configure the C compiler and build:
+  https://setuptools.pypa.io/en/latest/userguide/ext_modules.html#compiler-and-linker-options"""
+    )
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='directives', default={}, type=str,
@@ -171,6 +182,7 @@ def create_args_parser():
                       help='compile as much as possible, ignore compilation failures')
     parser.add_argument('--no-docstrings', dest='no_docstrings', action='store_true', default=None,
                       help='strip docstrings')
+    parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
     parser.add_argument('sources', nargs='*')
     return parser
 
@@ -220,8 +232,15 @@ def parse_args(args):
 def main(args=None):
     options, paths = parse_args(args)
 
+    all_paths = []
     for path in paths:
-        cython_compile(path, options)
+        expanded_path = [os.path.abspath(p) for p in extended_iglob(path)]
+        if not expanded_path:
+            import sys
+            print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
+            sys.exit(1)
+        all_paths.extend(expanded_path)
+    _cython_compile_files(all_paths, options)
 
 
 if __name__ == '__main__':
