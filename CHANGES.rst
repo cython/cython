@@ -1042,8 +1042,6 @@ Features added
 * A new decorator ``@cython.with_gil`` is available in Python code to match the ``with gil``
   function declaration in Cython syntax.
 
-* Assigning a list to a ctuple is slightly faster.
-
 Bugs fixed
 ----------
 
@@ -1289,8 +1287,6 @@ Bugs fixed
 * ``pyximport`` failed for long filenames on Windows.
   Patch by Matti Picus.  (Github issue :issue:`4630`)
 
-* Using the Limited API could report incorrect line numbers in tracebacks.
-
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:`4329`)
 
@@ -1500,8 +1496,6 @@ Bugs fixed
 Features added
 --------------
 
-* Some internal memoryview functions were tuned to reduce object overhead.
-
 Bugs fixed
 ----------
 
@@ -1559,8 +1553,6 @@ Bugs fixed
 
 * Decoding an empty bytes/char* slice with large bounds could crash.
   Patch by Sam Sneddon.  (Github issue :issue:`3534`)
-
-* Several C compiler warnings were fixed.
 
 
 3.0.0 alpha 1 (2020-04-12)
