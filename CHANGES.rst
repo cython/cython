@@ -248,7 +248,10 @@ Improvements in Pure Python mode
 --------------------------------
 
 Pure python mode gained many new features and was generally overhauled to make
-it as capable as the 
+it as capable as the Cython syntax.  Except for using external C/C++ libraries,
+it should now be possible to express all Cython code and use all features in
+regular Python syntax.  The very few remaining exceptions or bugs are noted in
+the documentation.
 
 
 Code generation changes
