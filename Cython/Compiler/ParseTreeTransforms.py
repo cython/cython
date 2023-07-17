@@ -3795,7 +3795,7 @@ class TransformBuiltinMethods(EnvTransform):
         if not isinstance(current_def_node, Nodes.FuncDefNode):
             return node
 
-        # go up the stack, find the first class node and the first function
+        # Go up the stack, find the first class node and its direct method (i.e. function).
         fdef_node = class_node = generator_node = None
         for stack_node, stack_scope in reversed(self.env_stack):
             if isinstance(stack_node, Nodes.ClassDefNode):
@@ -3842,6 +3842,7 @@ class TransformBuiltinMethods(EnvTransform):
 
             assign_node.analyse_declarations(fdef_scope)
 
+            assert fdef_node not in self.def_node_body_insertions
             self.def_node_body_insertions[fdef_node] = assign_node
 
         return node
