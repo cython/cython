@@ -259,7 +259,7 @@ and the code. Dataclasses have gained an extension type equivalent that implemen
 the dataclass features in C code.  Similarly, the ``@functools.total_ordering``
 decorator to an extension type will implement the comparison functions in C.
 
-FInally, NumPy ufuncs can be generated from simple computation functions with the
+Finally, NumPy ufuncs can be generated from simple computation functions with the
 new ``@cython.ufunc`` decorator.
 
 Related fixes
