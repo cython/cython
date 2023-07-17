@@ -373,6 +373,8 @@ Compatibility with C
 
 The support for C features like ``const`` or ``volatile`` was substantially improved.
 
+[something about CYTHON_EXTERN_C?]
+
 Related fixes
 ^^^^^^^^^^^^^
 
@@ -389,8 +391,36 @@ Related fixes
 * C11 ``complex.h`` is now properly detected.
   (Github issue :issue:`2513`)
 
+* A C compiler warning about enum value casting was resolved in GCC.
+  (Github issue :issue:`2749`)
+
+* A C compiler cast warning was resolved.
+  Patch by Michael Buesch.  (Github issue :issue:`2775`)
+
+* Temporary buffer indexing variables were not released and could show up in
+  C compiler warnings, e.g. in generators.
+  Patch by David Woods.  (Github issues :issue:`3430`, :issue:`3522`)
+
 * `libc.math` was extended to include all C99 function declarations.
   Patch by Dean Scarff.  (Github issue :issue:`3570`)
+
+* The C property feature has been rewritten and now requires C property methods
+  to be declared ``inline`` (:issue:`3571`).
+
+* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
+  only acquired if the ``AssertionError`` is really raised, which means that the
+  evaluation of the asserted condition only allows C expressions.
+
+* Cython generates C compiler branch hints for unlikely user defined if-clauses
+  in more cases, when they end up raising exceptions unconditionally. This now
+  includes exceptions being raised in ``nogil``/``with gil`` sections.
+
+* Several issues with arithmetic overflow handling were resolved, including
+  undefined behaviour in C.
+  Patch by Sam Sneddon.  (Github issue :issue:`3588`)
+
+* A C compiler warning about unused code was resolved.
+  (Github issue :issue:`3763`)
 
 * New C feature flags: ``CYTHON_USE_MODULE_STATE``, ``CYTHON_USE_TYPE_SPECS``
   Both are currently considered experimental.
@@ -399,8 +429,14 @@ Related fixes
 * ``[...] * N`` is optimised for C integer multipliers ``N``.
   (Github issue :issue:`3922`)
 
+* Some C compiler warninge were resolved.
+  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :issue:`4162`)
+
 * Standard C/C++ atomic operations are now used for memory views, if available.
   (Github issue :issue:`4925`)
+
+* Intel C compilers could complain about unsupported gcc pragmas.
+  Patch by Ralf Gommers.  (Github issue :issue:`5052`)
 
 * ``const`` types could not be returned from functions.
   Patch by Mike Graham.  (Github issue :issue:`5135`)
@@ -978,9 +1014,6 @@ Bugs fixed
 * ``setup.cfg`` was missing from the source distribution.
   (Github issue :issue:`5199`)
 
-* Intel C compilers could complain about unsupported gcc pragmas.
-  Patch by Ralf Gommers.  (Github issue :issue:`5052`)
-
 Other changes
 -------------
 
@@ -1307,15 +1340,6 @@ Bugs fixed
 * A reference leak on import failures was resolved.
   Patch by Max Bachmann.  (Github issue :issue:`4056`)
 
-* A C compiler warning about unused code was resolved.
-  (Github issue :issue:`3763`)
-
-* A C compiler warning about enum value casting was resolved in GCC.
-  (Github issue :issue:`2749`)
-
-* Some C compiler warninge were resolved.
-  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :issue:`4162`)
-
 * An unsupported C-API call in PyPy was fixed.
   Patch by Max Bachmann.  (Github issue :issue:`4055`)
 
@@ -1386,10 +1410,6 @@ Features added
 Bugs fixed
 ----------
 
-* Several issues with arithmetic overflow handling were resolved, including
-  undefined behaviour in C.
-  Patch by Sam Sneddon.  (Github issue :issue:`3588`)
-
 
 3.0.0 alpha 4 (2020-05-05)
 ==========================
@@ -1399,14 +1419,6 @@ Features added
 
 * The ``print`` statement (not the ``print()`` function) is allowed in
   ``nogil`` code without an explicit ``with gil`` section.
-
-* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
-  only acquired if the ``AssertionError`` is really raised, which means that the
-  evaluation of the asserted condition only allows C expressions.
-
-* Cython generates C compiler branch hints for unlikely user defined if-clauses
-  in more cases, when they end up raising exceptions unconditionally. This now
-  includes exceptions being raised in ``nogil``/``with gil`` sections.
 
 * Some internal memoryview functions were tuned to reduce object overhead.
 
@@ -1426,9 +1438,6 @@ Bugs fixed
 
 Other changes
 -------------
-
-* The C property feature has been rewritten and now requires C property methods
-  to be declared ``inline`` (:issue:`3571`).
 
 
 3.0.0 alpha 3 (2020-04-27)
@@ -1480,10 +1489,6 @@ Bugs fixed
 
 * Decoding an empty bytes/char* slice with large bounds could crash.
   Patch by Sam Sneddon.  (Github issue :issue:`3534`)
-
-* Temporary buffer indexing variables were not released and could show up in
-  C compiler warnings, e.g. in generators.
-  Patch by David Woods.  (Github issues :issue:`3430`, :issue:`3522`)
 
 * Several C compiler warnings were fixed.
 
@@ -1619,9 +1624,6 @@ Bugs fixed
 
 * Compiling package ``__init__`` files could fail under Windows due to an
   undefined export symbol.  (Github issue :issue:`2968`)
-
-* A C compiler cast warning was resolved.
-  Patch by Michael Buesch.  (Github issue :issue:`2775`)
 
 * Binding staticmethods of Cython functions were not behaving like Python methods.
   Patch by Jeroen Demeyer.  (Github issue :issue:`3106`, :issue:`3102`)
