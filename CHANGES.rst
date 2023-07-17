@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+3.0.0 (2023-07-17)
+==================
+
+Bugs fixed
+----------
+
+* A crash in Python 2.7 was fixed when cleaning up extension type instances
+  at program end.
+
+
 3.0.0 rc 2 (2023-07-13)
 =======================
 
