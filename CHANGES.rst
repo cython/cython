@@ -1068,9 +1068,6 @@ Bugs fixed
 
 * A module loading problem with ``cython.inline()`` on Windows was resolved.
 
-Other changes
--------------
-
 
 3.0.0 beta 3 (2023-05-24)
 =========================
@@ -1131,9 +1128,6 @@ Other changes
 
 3.0.0 beta 2 (2023-03-27)
 =========================
-
-Features added
---------------
 
 Bugs fixed
 ----------
@@ -1236,9 +1230,6 @@ Bugs fixed
 * Some parser issues were resolved.
   (Github issue :issue:`4992`)
 
-Other changes
--------------
-
 
 3.0.0 alpha 11 (2022-07-31)
 ===========================
@@ -1290,15 +1281,9 @@ Bugs fixed
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:`4329`)
 
-Other changes
--------------
-
 
 3.0.0 alpha 10 (2022-01-06)
 ===========================
-
-Features added
---------------
 
 Bugs fixed
 ----------
@@ -1346,23 +1331,14 @@ Bugs fixed
 * A name collision when including multiple generated API header files was resolved.
   Patch by David Woods.  (Github issue :issue:`4308`)
 
-Other changes
--------------
-
 
 3.0.0 alpha 9 (2021-07-21)
 ==========================
-
-Features added
---------------
 
 Bugs fixed
 ----------
 
 * A reference counting bug in the new ``@cython.total_ordering`` decorator was fixed.
-
-Other changes
--------------
 
 
 3.0.0 alpha 8 (2021-07-02)
@@ -1384,9 +1360,6 @@ Bugs fixed
 * Directives starting with ``optimization.*`` in pure Python mode were incorrectly named.
   It should have been ``optimize.*``.
   Patch by David Woods.  (Github issue :issue:`4258`)
-
-Other changes
--------------
 
 
 3.0.0 alpha 7 (2021-05-24)
@@ -1474,27 +1447,9 @@ Features added
 * The Cython ``CodeWriter`` can now handle more syntax constructs.
   Patch by Tao He.  (Github issue :issue:`3514`)
 
-Bugs fixed
-----------
-
-Other changes
--------------
-
-3.0.0 alpha 5 (2020-05-19)
-==========================
-
-Features added
---------------
-
-Bugs fixed
-----------
-
 
 3.0.0 alpha 4 (2020-05-05)
 ==========================
-
-Features added
---------------
 
 Bugs fixed
 ----------
@@ -1509,9 +1464,6 @@ Bugs fixed
 
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue :issue:`1407`)
-
-Other changes
--------------
 
 
 3.0.0 alpha 3 (2020-04-27)
@@ -1655,9 +1607,6 @@ Bugs fixed
 
 * Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
   Patch by David Woods.  (Github issue :issue:`3406`)
-
-Other changes
--------------
 
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
