@@ -14,7 +14,7 @@ much as possible with Cython 0.29.x. For details, see the `migration guide`_.
 
 As the development was spread out over several years, a lot of things have
 happened in the meantime. Many crucial bugfixes and some features were
-backported to 0.29.x and are not strictly speaking "new" in Cyton 3.0.0.
+backported to 0.29.x and are not strictly speaking "new" in Cython 3.0.0.
 
 Major themes in 3.0.0
 =====================
