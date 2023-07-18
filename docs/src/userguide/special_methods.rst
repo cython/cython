@@ -3,6 +3,9 @@
 Special Methods of Extension Types
 ===================================
 
+.. include::
+    ../two-syntax-variants-used
+
 This page describes the special methods currently supported by Cython extension
 types. A complete list of all the special methods appears in the table at the
 bottom. Some of these methods behave differently from their Python
@@ -12,7 +15,8 @@ mention.
 .. Note::
 
     Everything said on this page applies only to extension types, defined
-    with the :keyword:`cdef` class statement. It doesn't apply to classes defined with the
+    with the :keyword:`cdef` class statement or decorated using ``@cclass`` decorator.
+    It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
 
 .. _declaration:
@@ -20,7 +24,7 @@ mention.
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
-:keyword:`cdef`. This does not impact their performance--Python uses different
+:keyword:`cdef`/``@cfunc``. This does not impact their performance--Python uses different
 calling conventions to invoke these special methods.
 
 .. _docstrings:
@@ -34,66 +38,84 @@ won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
 seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
 data structure to put such docstrings.)
 
+
 .. _initialisation_methods:
 
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
-There are two methods concerned with initialising the object.
+There are two methods concerned with initialising the object, the normal Python
+:meth:`__init__` method and a special :meth:`__cinit__` method where basic
+C level initialisation can be performed.
 
-The :meth:`__cinit__` method is where you should perform basic C-level
-initialisation of the object, including allocation of any C data structures
-that your object will own. You need to be careful what you do in the
-:meth:`__cinit__` method, because the object may not yet be a fully valid Python
-object when it is called. Therefore, you should be careful invoking any Python
-operations which might touch the object; in particular, its methods and anything
-that could be overridden by subtypes (and thus depend on their subtype state being
-initialised already).
+The main difference between the two is when they are called.
+The :meth:`__cinit__` method is guaranteed to be called as part of the object
+allocation, but before the object is fully initialised.  Specifically, methods
+and object attributes that belong to subclasses or that were overridden by
+subclasses may not have been initialised at all yet and must not be used by
+:meth:`__cinit__` in a base class.  Note that the object allocation in Python
+clears all fields and sets them to zero (or ``NULL``).  Cython additionally
+takes responsibility of setting all object attributes to ``None``, but again,
+this may not yet have been done for the attributes defined or overridden by
+subclasses.  If your object needs anything more than this basic attribute
+clearing in order to get into a correct and safe state, :meth:`__cinit__`
+may be a good place to do it.
 
-By the time your :meth:`__cinit__` method is called, memory has been allocated for the
-object and any C attributes it has have been initialised to 0 or null. (Any
-Python attributes have also been initialised to None, but you probably
-shouldn't rely on that.) Your :meth:`__cinit__` method is guaranteed to be called
-exactly once.
+The :meth:`__init__` method, on the other hand, works exactly like in Python.
+It is called after allocation and basic initialisation of the object, including
+the complete inheritance chain.
+By the time :meth:`__init__` is called, the object is a fully valid Python object
+and all operations are safe.  Any initialisation which cannot safely be done in
+the :meth:`__cinit__` method should be done in the :meth:`__init__` method.
+However, as in Python, it is the responsibility of the subclasses to call up the
+hierarchy and make sure that the :meth:`__init__` methods in the base class are
+called correctly.  If a subclass forgets (or refuses) to call the :meth:`__init__`
+method of one of its base classes, that method will not be called.
+Also, if the object gets created by calling directly its :meth:`__new__` method [#]_
+(as opposed to calling the class itself), then none of the :meth:`__init__`
+methods will be called.
+
+The :meth:`__cinit__` method is where you should perform basic safety C-level
+initialisation of the object, possibly including allocation of any C data
+structures that your object will own.  In contrast to :meth:`__init__`,
+your :meth:`__cinit__` method is guaranteed to be called exactly once.
 
 If your extension type has a base type, any existing :meth:`__cinit__` methods in
 the base type hierarchy are automatically called before your :meth:`__cinit__`
 method.  You cannot explicitly call the inherited :meth:`__cinit__` methods, and the
 base types are free to choose whether they implement :meth:`__cinit__` at all.
 If you need to pass a modified argument list to the base type, you will have to do
-the relevant part of the initialisation in the :meth:`__init__` method instead, where
-the normal rules for calling inherited methods apply.
-
-Any initialisation which cannot safely be done in the :meth:`__cinit__` method should
-be done in the :meth:`__init__` method. By the time :meth:`__init__` is called, the object is
-a fully valid Python object and all operations are safe. Under some
-circumstances it is possible for :meth:`__init__` to be called more than once or not
-to be called at all, so your other methods should be designed to be robust in
-such situations.
+the relevant part of the initialisation in the :meth:`__init__` method instead,
+where the normal rules for calling inherited methods apply.
 
 Any arguments passed to the constructor will be passed to both the
-:meth:`__cinit__` method and the :meth:`__init__` method. If you anticipate
-subclassing your extension type in Python, you may find it useful to give the
-:meth:`__cinit__` method `*` and `**` arguments so that it can accept and
-ignore extra arguments. Otherwise, any Python subclass which has an
-:meth:`__init__` with a different signature will have to override
-:meth:`__new__` [#]_ as well as :meth:`__init__`, which the writer of a Python
-class wouldn't expect to have to do.  Alternatively, as a convenience, if you declare
-your :meth:`__cinit__`` method to take no arguments (other than self) it
-will simply ignore any extra arguments passed to the constructor without
-complaining about the signature mismatch.
+:meth:`__cinit__` method and the :meth:`__init__` method.  If you anticipate
+subclassing your extension type, you may find it useful to give the
+:meth:`__cinit__` method ``*`` and ``**`` arguments so that it can accept and
+ignore arbitrary extra arguments, since the arguments that are passed through
+the hierarchy during allocation cannot be changed by subclasses.
+Alternatively, as a convenience, if you declare your :meth:`__cinit__` method
+to take no arguments (other than self) it will simply ignore any extra arguments
+passed to the constructor without complaining about the signature mismatch.
 
 ..  Note::
 
     All constructor arguments will be passed as Python objects.
     This implies that non-convertible C types such as pointers or C++ objects
-    cannot be passed into the constructor from Cython code.  If this is needed,
-    use a factory function instead that handles the object initialisation.
-    It often helps to directly call ``__new__()`` in this function to bypass the
-    call to the ``__init__()`` constructor.
+    cannot be passed into the constructor, neither from Python nor from Cython code.
+    If this is needed, use a factory function or method instead that handles the
+    object initialisation.
+    It often helps to directly call the :meth:`__new__` method in this function to
+    explicitly bypass the call to the :meth:`__init__` constructor.
 
     See :ref:`existing-pointers-instantiation` for an example.
 
+..  Note::
+
+    Implementing a :meth:`__cinit__` method currently excludes the type from
+    :ref:`auto-pickling <auto_pickle>`.
+
 .. [#] https://docs.python.org/reference/datamodel.html#object.__new__
+
 
 .. _finalization_method:
 
@@ -201,25 +223,22 @@ Depending on the application, one way or the other may be better:
 
   These constants can be cimported from the ``cpython.object`` module.
 
-* Use the ``@cython.total_ordering`` decorator, which is a low-level
-  re-implementation of the `functools.total_ordering
-  <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
-  decorator specifically for ``cdef`` classes.  (Normal Python classes can use
-  the original ``functools`` decorator.)
+* If you use the `functools.total_ordering<https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
+  decorator on an extension type/``cdef`` class, Cython replaces it with a low-level reimplementation
+  designed specifically for extension types.  (On a normal Python classes, the ``functools`` 
+  decorator continues to work as before.)  As a shortcut you can also use ``cython.total_ordering``, which
+  applies the same re-implementation but also transforms the class to an extension type if it
+  isn't already.
 
-  .. code-block:: cython
+.. tabs::
 
-    @cython.total_ordering
-    cdef class ExtGe:
-        cdef int x
+    .. group-tab:: Pure Python
 
-        def __ge__(self, other):
-            if not isinstance(other, ExtGe):
-                return NotImplemented
-            return self.x >= (<ExtGe>other).x
+        .. literalinclude:: ../../examples/userguide/special_methods/total_ordering.py
 
-        def __eq__(self, other):
-            return isinstance(other, ExtGe) and self.x == (<ExtGe>other).x
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/special_methods/total_ordering.pyx
 
 
 .. _the__next__method:
@@ -360,6 +379,8 @@ used the bidirectional C slot signature for the regular methods, thus making the
 first argument ambiguous (not 'self' typed).
 Since Cython 3.0, the operator calls are passed to the respective special methods.
 See the section on :ref:`Arithmetic methods <arithmetic_methods>` above.
+Cython 0.x also did not support the 2 argument version of ``__pow__`` and 
+``__rpow__``, or the 3 argument version of ``__ipow__``.
 
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
@@ -404,7 +425,7 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __imod__ 	        | self, x 	                        | object      | `%=` operator                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __ipow__ 	        | self, y, z                            | object      | `**=` operator                                      |
+| __ipow__ 	        | self, y, [z]                          | object      | `**=` operator (3-arg form only on Python >= 3.8)   |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __ilshift__ 	        | self, x 	                        | object      | `<<=` operator                                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

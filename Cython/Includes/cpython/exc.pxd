@@ -88,6 +88,11 @@ cdef extern from "Python.h":
     # needs to handle exceptions or by code that needs to save and
     # restore the error indicator temporarily.
 
+    PyObject* PyErr_GetHandledException()
+    void PyErr_SetHandledException(PyObject* exc)
+    PyObject* PyErr_GetRaisedException()
+    void PyErr_SetRaisedException(PyObject* exc)
+
     void PyErr_Restore(PyObject* type, PyObject* value, PyObject* traceback)
     # Set the error indicator from the three objects. If the error
     # indicator is already set, it is cleared first. If the objects
@@ -236,6 +241,8 @@ cdef extern from "Python.h":
     # KeyboardInterrupt will be raised. It may be called without
     # holding the interpreter lock.
 
+    int PyErr_SetInterruptEx(int signum)
+
     object PyErr_NewException(char *name, object base, object dict)
     # Return value: New reference.
     # This utility function creates and returns a new exception
@@ -254,4 +261,3 @@ cdef extern from "Python.h":
     # identifies the context in which the unraisable exception
     # occurred. The repr of obj will be printed in the warning
     # message.
-

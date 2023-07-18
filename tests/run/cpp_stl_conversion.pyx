@@ -83,6 +83,23 @@ def test_c_string_convert(char *c_string):
         s = c_string
     return s
 
+def test_bint_vector(o):
+    """
+    https://github.com/cython/cython/issues/5516
+    Creating the "bint" specialization used to mess up the
+    "int" specialization.
+
+    >>> test_bint_vector([False, True])
+    [False, True]
+    >>> test_bint_vector(py_xrange(0,5))
+    [False, True, True, True, True]
+    >>> test_bint_vector(["", "hello"])
+    [False, True]
+    """
+
+    cdef vector[bint] v = o
+    return v
+
 def test_int_vector(o):
     """
     >>> test_int_vector([1, 2, 3])
@@ -270,7 +287,7 @@ cpdef enum Color:
 def test_enum_map(o):
     """
     >>> test_enum_map({RED: GREEN})
-    {0: 1}
+    {<Color.RED: 0>: <Color.GREEN: 1>}
     """
     cdef map[Color, Color] m = o
     return m

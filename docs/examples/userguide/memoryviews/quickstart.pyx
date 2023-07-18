@@ -6,7 +6,7 @@ narr = np.arange(27, dtype=np.dtype("i")).reshape((3, 3, 3))
 cdef int [:, :, :] narr_view = narr
 
 # Memoryview on a C array
-cdef int carr[3][3][3]
+cdef int[3][3][3] carr
 cdef int [:, :, :] carr_view = carr
 
 # Memoryview on a Cython array

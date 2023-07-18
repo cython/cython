@@ -54,8 +54,6 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 /////////////// BufferFormatStructs.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
-#define IS_UNSIGNED(type) (((type) -1) > 0)
-
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
@@ -323,7 +321,7 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
     case 'P': return "a pointer";
     case 's': case 'p': return "a string";
     case 0: return "end";
-    default: return "unparseable format string";
+    default: return "unparsable format string";
   }
 }
 

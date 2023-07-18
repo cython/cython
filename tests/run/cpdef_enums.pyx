@@ -1,4 +1,6 @@
 """
+>>> import sys
+
 >>> ONE, TEN, HUNDRED
 (1, 10, 100)
 >>> THOUSAND        # doctest: +ELLIPSIS
@@ -41,8 +43,10 @@ NameError: ...name 'RANK_3' is not defined
 
 >>> set(PyxEnum) == {TWO, THREE, FIVE}
 True
->>> str(PyxEnum.TWO).split(".")[-1]  # Py3.10 changed the output here
+>>> str(PyxEnum.TWO).split(".")[-1]  if sys.version_info < (3,11) else  "TWO" # Py3.10/11 changed the output here
 'TWO'
+>>> str(PyxEnum.TWO)  if sys.version_info >= (3,11) else  "2" # Py3.10/11 changed the output here
+'2'
 >>> PyxEnum.TWO + PyxEnum.THREE == PyxEnum.FIVE
 True
 >>> PyxEnum(2) is PyxEnum["TWO"] is PyxEnum.TWO
@@ -84,6 +88,35 @@ cdef enum cdefPyxDocEnum:
     """the heart is.
     """
     FIVE_AND_SEVEN = 5077
+
+cdef extern from *:
+    """
+    enum ExternHasDuplicates {
+        EX_DUP_A,
+        EX_DUP_B=EX_DUP_A,
+        EX_DUP_C=EX_DUP_A
+    };
+    """
+    # Cython doesn't know about the duplicates though
+    cpdef enum ExternHasDuplicates:
+        EX_DUP_A
+        EX_DUP_B
+        EX_DUP_C
+
+
+cpdef enum CyDefinedHasDuplicates1:
+    CY_DUP1_A
+    CY_DUP1_B = 0x00000000
+
+
+cpdef enum CyDefinedHasDuplicates2:
+    CY_DUP2_A
+    CY_DUP2_B = CY_DUP2_A
+
+cpdef enum CyDefinedHasDuplicates3:
+    CY_DUP3_A = 1
+    CY_DUP3_B = 0
+    CY_DUP3_C  # = 1
 
 
 def test_as_variable_from_cython():
@@ -127,3 +160,86 @@ def check_docs():
     'Home is where...'
     """
     pass
+
+
+def to_from_py_conversion(PxdEnum val):
+    """
+    >>> to_from_py_conversion(RANK_1) is PxdEnum.RANK_1
+    True
+
+    C enums are commonly enough used as flags that it seems reasonable
+    to allow it in Cython
+    >>> to_from_py_conversion(RANK_1 | RANK_2) == (RANK_1 | RANK_2)
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates1(ExternHasDuplicates val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates1(EX_DUP_A) == ExternHasDuplicates.EX_DUP_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates2(CyDefinedHasDuplicates1 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates2(CY_DUP1_A) == CyDefinedHasDuplicates1.CY_DUP1_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> to_from_py_conversion_with_duplicates3(CY_DUP2_A) == CyDefinedHasDuplicates2.CY_DUP2_A
+    True
+    """
+    return val
+
+
+def to_from_py_conversion_with_duplicates4(CyDefinedHasDuplicates3 val):
+    """
+    Mainly a compile-time test - we can't optimize to a switch here
+    >>> import sys
+    >>> True if sys.version_info < (3, 6, 0) else to_from_py_conversion_with_duplicates4(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
+    True
+    """
+    return val
+
+
+def test_pickle():
+    """
+    >>> from pickle import loads, dumps
+    >>> import sys
+
+    Pickling enums won't work without the enum module, so disable the test in Py<3.6.
+    (requires 3.6 for IntFlag)
+    Python 3.11.4 has a bug that breaks pickling: https://github.com/python/cpython/issues/105332
+
+    >>> if sys.version_info < (3, 6) or sys.version_info[:3] == (3,11,4):
+    ...     loads = dumps = lambda x: x
+
+    >>> loads(dumps(PyxEnum.TWO)) == PyxEnum.TWO
+    True
+    >>> loads(dumps(PxdEnum.RANK_2)) == PxdEnum.RANK_2
+    True
+    """
+    pass
+
+def test_as_default_value(PxdEnum val=PxdEnum.RANK_1):
+    """
+    In order to work, this requires the utility code to be evaluated
+    before the function definition
+    >>> test_as_default_value()
+    True
+    >>> test_as_default_value(PxdEnum.RANK_2)
+    False
+    >>> test_as_default_value.__defaults__[0] == PxdEnum.RANK_1
+    True
+    """
+    return val == PxdEnum.RANK_1

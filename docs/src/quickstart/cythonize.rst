@@ -143,7 +143,9 @@ Lines that translate to C code have a plus (``+``) in front
 and can be clicked to show the generated code.
 
 This report is invaluable when optimizing a function for speed,
-and for determining when to :ref:`release the GIL <nogil>`:
+and for determining when it is possible to :ref:`release the GIL <nogil>`
+(be aware that releasing the GIL is only useful under limited
+circumstances, see :ref:`cython_and_gil` for more details):
 in general, a ``nogil`` block may contain only "white" code.
 
 .. tabs::

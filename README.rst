@@ -1,15 +1,13 @@
 Welcome to Cython!
 ==================
 
-Cython is a language that makes writing C extensions for
-Python as easy as Python itself.  Cython is based on
-Pyrex, but supports more cutting edge functionality and
-optimizations.
+Cython is a Python compiler that makes writing C extensions for
+Python as easy as Python itself.  Cython is based on Pyrex,
+but supports more cutting edge functionality and optimizations.
 
-The Cython language is very close to the Python language, but Cython
-additionally supports calling C functions and declaring C types on variables
-and class attributes.  This allows the compiler to generate very efficient C
-code from Cython code.
+Cython translates Python code to C/C++ code, but additionally supports calling
+C functions and declaring C types on variables and class attributes.
+This allows the compiler to generate very efficient C code from Cython code.
 
 This makes Cython the ideal language for wrapping external C libraries, and
 for fast C modules that speed up the execution of Python code.
@@ -19,7 +17,8 @@ for fast C modules that speed up the execution of Python code.
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
-You can **support the Cython project** via
+Cython has `about 30 million downloads <https://pypistats.org/packages/cython>`_
+per month on PyPI.  You can **support the Cython project** via
 `Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
 `Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
 
@@ -102,7 +101,9 @@ Similar projects that have a relevance today include:
 
   * Pros: highly language compliant, reasonable performance gains,
     support for static application linking (similar to
-    `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_)
+    `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
+    but with the ability to bundle library dependencies into a self-contained
+    executable)
   * Cons: no support for low-level optimisations and typing
 
 In comparison to the above, Cython provides

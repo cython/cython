@@ -32,22 +32,22 @@ run a Python session to test both the Python version (imported from
 
     In [1]: import numpy as np
     In [2]: import convolve_py
-    In [3]: convolve_py.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
-    ...     np.array([[1],[2],[1]], dtype=np.int))
+    In [3]: convolve_py.naive_convolve(np.array([[1, 1, 1]], dtype=np.int64),
+    ...     np.array([[1],[2],[1]], dtype=np.int64))
     Out [3]:
     array([[1, 1, 1],
         [2, 2, 2],
         [1, 1, 1]])
     In [4]: import convolve1
-    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
-    ...     np.array([[1],[2],[1]], dtype=np.int))
+    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int64),
+    ...     np.array([[1],[2],[1]], dtype=np.int64))
     Out [4]:
     array([[1, 1, 1],
         [2, 2, 2],
         [1, 1, 1]])
     In [11]: N = 100
-    In [12]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
-    In [13]: g = np.arange(81, dtype=np.int).reshape((9, 9))
+    In [12]: f = np.arange(N*N, dtype=np.int64).reshape((N,N))
+    In [13]: g = np.arange(81, dtype=np.int64).reshape((9, 9))
     In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
     2 loops, best of 3: 1.86 s per loop
     In [20]: %timeit -n2 -r3 convolve1.naive_convolve(f, g)
@@ -91,9 +91,9 @@ not provided then one-dimensional is assumed).
 These are the needed changes::
 
     ...
-    def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
+    def naive_convolve(cnp.ndarray[DTYPE_t, ndim=2] f, cnp.ndarray[DTYPE_t, ndim=2] g):
     ...
-    cdef np.ndarray[DTYPE_t, ndim=2] h = ...
+    cdef cnp.ndarray[DTYPE_t, ndim=2] h = ...
 
 Usage:
 
@@ -127,7 +127,7 @@ The array lookups are still slowed down by two factors:
         cimport cython
         @cython.boundscheck(False) # turn off bounds-checking for entire function
         @cython.wraparound(False)  # turn off negative index wrapping for entire function
-        def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
+        def naive_convolve(cnp.ndarray[DTYPE_t, ndim=2] f, cnp.ndarray[DTYPE_t, ndim=2] g):
         ...
 
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
@@ -148,8 +148,8 @@ two examples with larger N:
     In [11]: %timeit -n3 -r100 convolve4.naive_convolve(f, g)
     3 loops, best of 100: 5.97 ms per loop
     In [12]: N = 1000
-    In [13]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
-    In [14]: g = np.arange(81, dtype=np.int).reshape((9, 9))
+    In [13]: f = np.arange(N*N, dtype=np.int64).reshape((N,N))
+    In [14]: g = np.arange(81, dtype=np.int64).reshape((9, 9))
     In [17]: %timeit -n1 -r10 convolve3.naive_convolve(f, g)
     1 loops, best of 10: 1.16 s per loop
     In [18]: %timeit -n1 -r10 convolve4.naive_convolve(f, g)
@@ -187,12 +187,12 @@ It would be possible to do::
 
     def naive_convolve(object[DTYPE_t, ndim=2] f, ...):
 
-i.e. use :obj:`object` rather than :obj:`np.ndarray`. Under Python 3.0 this
+i.e. use :obj:`object` rather than :obj:`cnp.ndarray`. Under Python 3.0 this
 can allow your algorithm to work with any libraries supporting the buffer
 interface; and support for e.g. the Python Imaging Library may easily be added
 if someone is interested also under Python 2.x.
 
 There is some speed penalty to this though (as one makes more assumptions
-compile-time if the type is set to :obj:`np.ndarray`, specifically it is
+compile-time if the type is set to :obj:`cnp.ndarray`, specifically it is
 assumed that the data is stored in pure strided mode and not in indirect
 mode).
