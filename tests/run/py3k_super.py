@@ -139,10 +139,10 @@ class D:
     >>> obj = D()
     >>> obj.method(1)
     1
-    >>> obj.method(0)
+    >>> obj.method(0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable '__class__' referenced before assignment
+    UnboundLocalError: ... '__class__' ...
     """
     def method(self, x):
         if x: __class__ = x
