@@ -1077,7 +1077,11 @@ class ExprNode(Node):
         return src
 
     def fail_assignment(self, dst_type):
-        error(self.pos, "Cannot assign type '%s' to '%s'" % (self.type, dst_type))
+        extra_diagnostics = dst_type.assignment_failure_extra_info(self.type)
+        if extra_diagnostics:
+            extra_diagnostics = ". " + extra_diagnostics
+        error(self.pos, "Cannot assign type '%s' to '%s'%s" % (
+            self.type, dst_type, extra_diagnostics))
 
     def check_for_coercion_error(self, dst_type, env, fail=False, default=None):
         if fail and not default:
