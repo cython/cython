@@ -7340,11 +7340,6 @@ class AttributeNode(ExprNode):
         # returns 0.
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
-            entry = module_scope.lookup_here(self.attribute)
-            if entry and not entry.known_standard_library_import and (
-                    entry.is_cglobal or entry.is_cfunction
-                    or entry.is_type or entry.is_const):
-                return self.as_name_node(env, entry, target)
             if self.is_cimported_module_without_shadow(env):
                 # TODO: search for submodule
                 error(self.pos, "cimported module has no attribute '%s'" % self.attribute)
