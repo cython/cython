@@ -11,11 +11,11 @@ PYTHON run.py
 
 ##################### setup.py ################################
 
-from Cython.Build.Dependencies import cythonize
+from Cython.Build import cythonize
 from setuptools import setup
 
 setup(
-    ext_modules = cythonize("**/*.pyx"),
+    ext_modules = cythonize(["limited.pyx"]),
 )
 
 ##################### run.py ##################################
