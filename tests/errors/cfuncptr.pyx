@@ -41,14 +41,14 @@ def fail_struct_pointer():
 
 
 _ERRORS = """
-13:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -2'
-14:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -1'
-15:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except? -1'
-29:13: Cannot assign type 'int (int) except *' to 'int (*)(int) noexcept'
-30:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except -1'
-31:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except? -1'
-40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'
-40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'
-40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'
-40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'
+13:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -2'. Exception specifications are incompatible.
+14:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except -1'. Exception specifications are incompatible.
+15:13: Cannot assign type 'int (int) except? -2' to 'int (*)(int) except? -1'. Exception specifications are incompatible.
+29:13: Cannot assign type 'int (int) except *' to 'int (*)(int) noexcept'. Exception specifications are incompatible. Suggest adding 'noexcept' to type 'int (int) except *'.
+30:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except -1'. Exception specifications are incompatible.
+31:13: Cannot assign type 'int (int) except *' to 'int (*)(int) except? -1'. Exception specifications are incompatible.
+40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'. Exception specifications are incompatible. Suggest adding 'noexcept' to type 'int (int) except? -1 nogil'.
+40:32: Cannot assign type 'int (*)(int) except? -1 nogil' to 'int (*)(int) noexcept nogil'. Exception specifications are incompatible. Suggest adding 'noexcept' to type 'int (int) except? -1 nogil'.
+40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'. Exception specifications are incompatible. Suggest adding 'noexcept' to type 'void (int) except * nogil'.
+40:37: Cannot assign type 'void (*)(int) except * nogil' to 'void (*)(int) noexcept nogil'. Exception specifications are incompatible. Suggest adding 'noexcept' to type 'void (int) except * nogil'.
 """

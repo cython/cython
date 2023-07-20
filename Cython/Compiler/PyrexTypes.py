@@ -2876,7 +2876,7 @@ class CPtrType(CPointerBaseType):
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = "Exception specifications are incompatible."
-                if not self.base_type.exception_check:
+                if not self.base_type.exception_check and not self.base_type.exception_value:
                     msg += " Suggest adding 'noexcept' to type '{}'.".format(src_type)
                 return msg
         return super(CPtrType, self).assignment_failure_extra_info(src_type)
