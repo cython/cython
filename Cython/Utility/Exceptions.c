@@ -907,12 +907,66 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #if CYTHON_COMPILING_IN_LIMITED_API
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
+    PyObject *code_object = NULL, *py_py_line = NULL, *py_funcname = NULL, *dict = NULL;
+    PyObject *replace = NULL, *inspect = NULL, *frame = NULL;
+    PyObject *exc_type, *exc_value, *exc_traceback;
+    int success = 0;
     if (c_line) {
         // Avoid "unused" warning as long as we don't use this.
         (void) $cfilenm_cname;
         (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
-    _PyTraceback_Add(funcname, filename, py_line);
+
+    // DW - this is a horrendous hack, but I'm quite proud of it. Essentially
+    // we need to generate a frame with the right line number/filename/funcname.
+    // We do this by compiling a small bit of code that uses inspect to get a
+    // frame, and then customizing the details of the code to match.
+    // We then run the code object and use the generated frame to set the traceback.
+
+    PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
+
+    code_object = Py_CompileString("inspect.currentframe()", filename, Py_eval_input);
+    if (unlikely(!code_object)) goto bad;
+    py_py_line = PyLong_FromLong(py_line);
+    if (unlikely(!py_py_line)) goto bad;
+    py_funcname = PyUnicode_FromString(funcname);
+    if (unlikely(!py_funcname)) goto bad;
+    dict = PyDict_New();
+    if (unlikely(!dict)) goto bad;
+    if (unlikely(PyDict_SetItemString(dict, "co_firstlineno", py_py_line))) goto bad;
+    if (unlikely(PyDict_SetItemString(dict, "co_name", py_funcname))) goto bad;
+    replace = PyObject_GetAttrString(code_object, "replace");
+    if (unlikely(!replace)) goto bad;
+    Py_DECREF(code_object);
+    code_object = PyObject_Call(replace, $empty_tuple, dict);
+    if (unlikely(!code_object)) goto bad;
+
+    inspect = PyImport_ImportModule("inspect");
+    if (unlikely(!inspect)) goto bad;
+    // reuse dict as globals (nothing conflicts, and it saves an allocation)
+    if (unlikely(PyDict_SetItemString(dict, "inspect", inspect))) goto bad;
+
+    frame = PyEval_EvalCode(code_object, dict, dict);
+    if (unlikely(!frame) || frame == Py_None) goto bad;
+    success = 1;
+
+  bad:
+    PyErr_Restore(exc_type, exc_value, exc_traceback);
+    Py_XDECREF(code_object);
+    Py_XDECREF(py_py_line);
+    Py_XDECREF(py_funcname);
+    Py_XDECREF(dict);
+    Py_XDECREF(replace);
+    Py_XDECREF(inspect);
+
+    if (success) {
+        // Unfortunately an easy way to check the type of frame isn't in the
+        // limited API. The check for against None should cover the most
+        // likely wrong answer though.
+        PyTraceBack_Here((PyFrameObject*)frame);
+    }
+
+    Py_XDECREF(frame);
 }
 #else
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(

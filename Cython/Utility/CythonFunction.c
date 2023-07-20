@@ -1,6 +1,7 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
 
+#if !(CYTHON_COMPILING_IN_LIMITED_API && defined(Py_LIMITED_API))
 #define __Pyx_CyFunction_USED
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
@@ -103,6 +104,8 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 #endif
 #endif
 
+#endif
+
 //////////////////// CythonFunctionShared ////////////////////
 //@substitute: naming
 //@requires: CommonStructures.c::FetchCommonType
@@ -111,6 +114,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 
+#if !(CYTHON_COMPILING_IN_LIMITED_API && defined(Py_LIMITED_API))
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
 #if PY_VERSION_HEX < 0x030900B1
     __Pyx_Py_XDECREF_SET(
@@ -294,10 +298,10 @@ __Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
     op->defaults_kwdict = PyTuple_GET_ITEM(res, 1);
     Py_INCREF(op->defaults_kwdict);
     #else
-    op->defaults_tuple = PySequence_ITEM(res, 0);
+    op->defaults_tuple = __Pyx_PySequence_ITEM(res, 0);
     if (unlikely(!op->defaults_tuple)) result = -1;
     else {
-        op->defaults_kwdict = PySequence_ITEM(res, 1);
+        op->defaults_kwdict = __Pyx_PySequence_ITEM(res, 1);
         if (unlikely(!op->defaults_kwdict)) result = -1;
     }
     #endif
@@ -1101,18 +1105,26 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
     Py_INCREF(dict);
 }
 
+#endif
+
 
 //////////////////// CythonFunction.proto ////////////////////
 
+#if !(CYTHON_COMPILING_IN_LIMITED_API && defined(Py_LIMITED_API))
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       int flags, PyObject* qualname,
                                       PyObject *closure,
                                       PyObject *module, PyObject *globals,
                                       PyObject* code);
+#else
+// Not a hugely nice error message, but should fail
+#define __Pyx_CyFunction_New(...) "CyFunctions are not currently supported in the limited API. For now, turn off the cython.binding directive on all functions"
+#endif
 
 //////////////////// CythonFunction ////////////////////
 //@requires: CythonFunctionShared
 
+#if !(CYTHON_COMPILING_IN_LIMITED_API && defined(Py_LIMITED_API))
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
@@ -1124,7 +1136,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qual
     }
     return op;
 }
-
+#endif
 
 //////////////////// CyFunctionClassCell.proto ////////////////////
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj);/*proto*/

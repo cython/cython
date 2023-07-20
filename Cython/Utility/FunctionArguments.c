@@ -242,8 +242,8 @@ static int __Pyx_ParseOptionalKeywords(
 
     while (1) {
         if (kwds_is_tuple) {
-            if (pos >= PyTuple_GET_SIZE(kwds)) break;
-            key = PyTuple_GET_ITEM(kwds, pos);
+            if (pos >= __Pyx_PyTuple_GET_SIZE(kwds)) break;
+            key = __Pyx_PyTuple_GET_ITEM(kwds, pos);
             value = kwvalues[pos];
             pos++;
         }
@@ -414,7 +414,7 @@ bad:
 // (because it's an old version of CPython or it's not CPython at all),
 // then the ..._FASTCALL macros simply alias ..._VARARGS
 
-#define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
+#define __Pyx_Arg_VARARGS(args, i) __Pyx_PyTuple_GET_ITEM(args, i)
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
 #define __Pyx_KwValues_VARARGS(args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)

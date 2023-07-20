@@ -2255,7 +2255,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **arg
     if (unlikely(!argstuple)) return NULL;
     for (i = 0; i < nargs; i++) {
         Py_INCREF(args[i]);
-        PyTuple_SET_ITEM(argstuple, (Py_ssize_t)i, args[i]);
+        __Pyx_PyTuple_SET_ITEM(argstuple, (Py_ssize_t)i, args[i]);
     }
     result = __Pyx_PyObject_Call(func, argstuple, kwargs);
     Py_DECREF(argstuple);
@@ -2927,7 +2927,22 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 
 /////////////// PyMethodNew.proto ///////////////
 
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ) {
+    PyObject *typesModule=NULL, *methodType=NULL, *result=NULL;
+    CYTHON_UNUSED_VAR(typ);
+    if (!self)
+        return __Pyx_NewRef(func);
+    typesModule = PyImport_ImportModule("types");
+    if (!typesModule) return NULL;
+    methodType = PyObject_GetAttrString(typesModule, "MethodType");
+    Py_DECREF(typesModule);
+    if (!methodType) return NULL;
+    result = PyObject_CallFunctionObjArgs(methodType, func, self);
+    Py_DECREF(methodType);
+    return result;
+}
+#elif PY_MAJOR_VERSION >= 3
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
 static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ) {
@@ -3123,7 +3138,8 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
                                                PYIDENT("__name__"));
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
-        Py_XSETREF(name, __Pyx_NewRef(PYIDENT("?")));
+        Py_XDECREF(name);
+        name = __Pyx_NewRef(PYIDENT("?"));
     }
     return name;
 }

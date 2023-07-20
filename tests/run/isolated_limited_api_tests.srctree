@@ -1,0 +1,48 @@
+# mode: run
+
+# This is a bare minimum test to test compilation of the limited
+# API with the Py_LIMITED_API macro defined, with an example that's
+# known and working. It should be dropped once the limited API is
+# better tested
+
+PYTHON setup.py build_ext --inplace
+PYTHON run.py
+
+
+##################### setup.py ################################
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup
+
+setup(
+    ext_modules = cythonize("**/*.pyx"),
+)
+
+##################### run.py ##################################
+
+import limited
+
+limited.fib(11)
+try:
+    limited.raises()
+except RuntimeError:
+    pass
+
+
+##################### limited.pyx #############################
+
+# distutils: extra_compile_args = -DCYTHON_LIMITED_API=1 -DPy_LIMITED_API=0x030700f0
+
+import cython
+
+@cython.binding(False)
+def fib(int n):
+    cdef int a, b
+    a, b = 0, 1
+    while b < n:
+        a, b = b, a + b
+    return b
+
+@cython.binding(False)
+def raises():
+    raise RuntimeError()

@@ -3849,7 +3849,7 @@ class DefNodeWrapper(FuncDefNode):
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
+            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = __Pyx_PyTuple_GET_SIZE(%s);" % (
                         Naming.nargs_cname, Naming.args_cname)
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")

@@ -506,6 +506,7 @@ VER_DEP_MODULES = {
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
                                          'run.test_dataclasses',
+                                         'run.isolated_limited_api_tests',
                                          ]),
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),

@@ -53,6 +53,10 @@
   #define Py_HUGE_VAL HUGE_VAL
 #endif
 
+// For the limited API it often makes sense to use Py_LIMITED_API rather than PY_VERSION_HEX
+// when doing version checks.
+#define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
+
 #if defined(GRAALVM_PYTHON)
   /* For very preliminary testing purposes. Most variables are set the same as PyPy.
      The existence of this section does not imply that anything works or is even tested */
@@ -178,6 +182,10 @@
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
+  #ifdef Py_LIMITED_API
+    #undef __PYX_LIMITED_VERSION_HEX
+    #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
+  #endif
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 1
@@ -641,12 +649,19 @@ class __Pyx_FakeReference {
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
-#if PY_VERSION_HEX >= 0x030B00A1
+#if CYTHON_COMPILING_IN_LIMITED_API
+    static CYTHON_INLINE PyObject* __Pyx__PyCode_New() {
+        // Don't know how to do this reliably right now... improve!
+        Py_RETURN_NONE;
+    }
+    // Defining a macro ignores the args so we don't have to define CO_OPTIMIZED etc. in limited API
+    #define __Pyx_PyCode_New(...) __Pyx__PyCode_New()
+#elif PY_VERSION_HEX >= 0x030B00A1
     static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
                                                     PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                                     PyObject *fv, PyObject *cell, PyObject* fn,
                                                     PyObject *name, int fline, PyObject *lnos) {
-        // TODO - currently written to be simple and work in limited API etc.
+        // TODO - currently written to be simple.
         // A more optimized version would be good
         PyObject *kwds=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
         PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
@@ -842,9 +857,19 @@ class __Pyx_FakeReference {
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)
+  // assume that these are safe and skip error checking
+  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
+  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GetItem(o, i)
+  // Note that this doesn't leak a reference to whatever's at o[i]
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
 #else
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
+  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
+  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GET_ITEM(o, i)
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SET_ITEM(o, i, v)
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
