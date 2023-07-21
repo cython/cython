@@ -857,19 +857,9 @@ class __Pyx_FakeReference {
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)
-  // assume that these are safe and skip error checking
-  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
-  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GetItem(o, i)
-  // Note that this doesn't leak a reference to whatever's at o[i]
-  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
-  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
 #else
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
-  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
-  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GET_ITEM(o, i)
-  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SET_ITEM(o, i, v)
-  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -1187,9 +1177,22 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
+  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
+  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GET_ITEM(o, i)
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SET_ITEM(o, i, v)
 #else
   // NOTE: might fail with exception => check for -1
   #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
+  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
+  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GetItem(o, i)
+  // Note that this doesn't leak a reference to whatever's at o[i]
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
+#else
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
