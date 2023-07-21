@@ -2938,7 +2938,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
     methodType = PyObject_GetAttrString(typesModule, "MethodType");
     Py_DECREF(typesModule);
     if (!methodType) return NULL;
-    result = PyObject_CallFunctionObjArgs(methodType, func, self);
+    result = PyObject_CallFunctionObjArgs(methodType, func, self, NULL);
     Py_DECREF(methodType);
     return result;
 }
