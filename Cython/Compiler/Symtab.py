@@ -1392,7 +1392,7 @@ class ModuleScope(Scope):
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
-        is_relative_import = relative_level > 0
+        is_relative_import = relative_level is not None and relative_level > 0
         relative_to = None
         absolute_fallback = False
         if relative_level is not None and relative_level > 0:
