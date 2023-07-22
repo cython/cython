@@ -966,7 +966,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         PyTraceBack_Here(
 #if PY_VERSION_HEX < 0x03090000
             // Earlier version didn't expose PyFrameObject
-            (struct frame_*)
+            (struct _frame*)
 #else
             (PyFrameObject*)
 #endif
