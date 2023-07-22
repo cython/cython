@@ -3902,6 +3902,7 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('%s = __Pyx_KwValues_%s(%s, %s);' % (
             Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
 
+        needs_values_cleanup = False
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
@@ -3915,6 +3916,7 @@ class DefNodeWrapper(FuncDefNode):
 
         else:
             self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code, decl_code)
+            needs_values_cleanup = True
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
@@ -3925,7 +3927,7 @@ class DefNodeWrapper(FuncDefNode):
             # CYTHON_AVOID_BORROWED_REFERENCES
             code.put_goto(our_error_label)
             code.put_label(our_error_label)
-            if self.signature_has_nongeneric_args():
+            if needs_values_cleanup:
                 self.generate_argument_values_cleanup_code(code)
 
             if has_star_or_kw_args:
