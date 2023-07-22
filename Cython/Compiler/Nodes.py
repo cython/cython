@@ -3706,7 +3706,7 @@ class DefNodeWrapper(FuncDefNode):
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
 
-        self.generate_argument_parsing_code(lenv, code)
+        self.generate_argument_parsing_code(lenv, code, tempvardecl_code)
         self.generate_argument_type_tests(code)
         self.generate_function_body(code)
 
@@ -3847,10 +3847,10 @@ class DefNodeWrapper(FuncDefNode):
             if entry.is_arg:
                 code.put_var_declaration(entry)
 
-        # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
+        # Create nargs, but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = __Pyx_PyTuple_GET_SIZE(%s);" % (
-                        Naming.nargs_cname, Naming.args_cname)
+            # error handling for this is checked after the declarations
+            nargs_code = "CYTHON_UNUSED Py_ssize_t %s;" % Naming.nargs_cname
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
                 code.putln(nargs_code)
@@ -3859,12 +3859,9 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln(nargs_code)
 
         # Array containing the values of keyword arguments when using METH_FASTCALL.
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
-        code.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
-            Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
+        code.putln('CYTHON_UNUSED PyObject *const *%s;' % Naming.kwvalues_cname)
 
-    def generate_argument_parsing_code(self, env, code):
+    def generate_argument_parsing_code(self, env, code, decl_code):
         # Generate fast equivalent of PyArg_ParseTuple call for
         # generic arguments, if any, including args/kwargs
         old_error_label = code.new_error_label()
@@ -3880,6 +3877,31 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.type.create_from_py_utility_code(env):
                     pass  # will fail later
 
+        # Assign nargs variable as len(args).
+        if self.signature_has_generic_args():
+            nargs_code = [
+                "#if CYTHON_ASSUME_SAFE_MACROS",
+                "%s = PyTuple_GET_SIZE(%s);" % (
+                        Naming.nargs_cname, Naming.args_cname),
+                "#else",
+                "%s = PyTuple_Size(%s);" % (
+                        Naming.nargs_cname, Naming.args_cname),
+                code.error_goto_if_neg(Naming.nargs_cname, self.pos),
+                "#endif",
+            ]
+            if self.signature.use_fastcall:
+                code.putln("#if !CYTHON_METH_FASTCALL")
+                for line in nargs_code:
+                    code.putln(line)
+                code.putln("#endif")
+            else:
+                for line in nargs_code:
+                    code.putln(line)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
+        code.putln('%s = __Pyx_KwValues_%s(%s, %s);' % (
+            Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
+
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
@@ -3892,13 +3914,15 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_stararg_copy_code(code)
 
         else:
-            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code)
+            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code, decl_code)
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
             if not code.label_used(end_label):
                 code.put_goto(end_label)
             code.put_label(our_error_label)
+            self.generate_argument_values_cleanup_code(code)
+
             if has_star_or_kw_args:
                 self.generate_arg_decref(self.star_arg, code)
                 if self.starstar_arg:
@@ -4006,7 +4030,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
 
-    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
+    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code, decl_code):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
 
@@ -4065,7 +4089,7 @@ class DefNodeWrapper(FuncDefNode):
         # C-typed default arguments are handled at conversion time,
         # so their array value is NULL in the end if no argument
         # was passed for them.
-        self.generate_argument_values_setup_code(all_args, code)
+        self.generate_argument_values_setup_code(all_args, code, decl_code)
 
         # If all args are positional-only, we can raise an error
         # straight away if we receive a non-empty kw-dict.
@@ -4180,6 +4204,7 @@ class DefNodeWrapper(FuncDefNode):
         # live in the values[] array.
         for i, arg in enumerate(all_args):
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
+        self.generate_argument_values_cleanup_code(code)
 
         code.putln('}')  # end of the whole argument unpacking block
 
@@ -4251,11 +4276,12 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('}')
                 code.put_var_gotref(self.star_arg.entry)
 
-    def generate_argument_values_setup_code(self, args, code):
+    def generate_argument_values_setup_code(self, args, code, decl_code):
         max_args = len(args)
-        # the 'values' array collects borrowed references to arguments
-        # before doing any type coercion etc.
-        code.putln("PyObject* values[%d] = {%s};" % (
+        # the 'values' array collects references to arguments
+        # before doing any type coercion etc.. Whether they are borrowed or not
+        # depends on the compilation options.
+        decl_code.putln("PyObject* values[%d] = {%s};" % (
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
@@ -4263,12 +4289,19 @@ class DefNodeWrapper(FuncDefNode):
                 self.target.defaults_struct, Naming.dynamic_args_cname,
                 self.target.defaults_struct, Naming.self_cname))
 
-        # assign borrowed Python default values to the values array,
+        # assign (usually borrowed) Python default values to the values array,
         # so that they can be overwritten by received arguments below
         for i, arg in enumerate(args):
             if arg.default and arg.type.is_pyobject:
                 default_value = arg.calculate_default_value_code(code)
-                code.putln('values[%d] = %s;' % (i, arg.type.as_pyobject(default_value)))
+                code.putln('values[%d] = __Pyx_Arg_NEWREF(%s);' % (i, arg.type.as_pyobject(default_value)))
+
+    def generate_argument_values_cleanup_code(self, code):
+        # The 'values' array may not be borrowed depending on the compilation options.
+        # This cleans it up in the case it isn't borrowed
+        code.putln("for (Py_ssize_t i=0; i<(Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++i) {")
+        code.putln("__Pyx_Arg_XDECREF_%s(values[i]);" % self.signature.fastvar)
+        code.putln("}")
 
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
                                         has_fixed_positional_count,

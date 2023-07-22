@@ -241,15 +241,43 @@ static int __Pyx_ParseOptionalKeywords(
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
 
     while (1) {
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_XDECREF(key); key=0;
+        Py_XDECREF(value); value=0;
+#endif
         if (kwds_is_tuple) {
-            if (pos >= __Pyx_PyTuple_GET_SIZE(kwds)) break;
-            key = __Pyx_PyTuple_GET_ITEM(kwds, pos);
+            Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS
+            size = PyTuple_GET_SIZE(kwds);
+#else
+            size = PyTuple_Size(kwds);
+            if (size < 0) goto bad;
+#endif
+            if (pos >= size) break;
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+            key = PyTuple_GET_ITEM(kwds, pos);
+#elif !CYTHON_AVOID_BORROWED_REFS
+            key = PyTuple_GetItem(kwds, pos);
+#else
+            key = __Pyx_PySequence_ITEM(kwds, pos);
+#endif
+#if !CYTHON_ASSUME_SAFE_MACROS
+            if (!key) goto bad;
+#endif
             value = kwvalues[pos];
+#if !CYTHON_AVOID_BORROWED_REFS
+            Py_INCREF(value);
+#endif
             pos++;
         }
         else
         {
             if (!PyDict_Next(kwds, &pos, &key, &value)) break;
+#if !CYTHON_AVOID_BORROWED_REFS
+            // It's unfortunately hard to avoid borrowed references with PyDict_Next
+            Py_INCREF(key);
+            Py_INCREF(value);
+#endif
         }
 
         name = first_kw_arg;
@@ -326,6 +354,10 @@ static int __Pyx_ParseOptionalKeywords(
             goto invalid_keyword;
         }
     }
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(key);
+    Py_XDECREF(value);
+#endif
     return 0;
 arg_passed_twice:
     __Pyx_RaiseDoubleKeywordsError(function_name, key);
@@ -345,6 +377,10 @@ invalid_keyword:
         function_name, key);
     #endif
 bad:
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(key);
+    Py_XDECREF(value);
+#endif
     return -1;
 }
 
@@ -414,7 +450,20 @@ bad:
 // (because it's an old version of CPython or it's not CPython at all),
 // then the ..._FASTCALL macros simply alias ..._VARARGS
 
-#define __Pyx_Arg_VARARGS(args, i) __Pyx_PyTuple_GET_ITEM(args, i)
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
+#elif !CYTHON_AVOID_BORROWED_REFS
+    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GetItem(args, i)
+#else
+    #define __Pyx_Arg_VARARGS(args, i) PySequence_GetItem(args, i)
+#endif
+#if !CYTHON_AVOID_BORROWED_REFS
+    #define __Pyx_Arg_NEWREF(arg) // no-op
+    #define __Pyx_Arg_XDECREF_VARARGS(arg) // no-op - arg is borrowed
+#else
+    #define __Pyx_Arg_NEWREF(arg) __Pyx_NewRef(arg)
+    #define __Pyx_Arg_XDECREF_VARARGS(arg) Py_XDECREF(arg)
+#endif
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
 #define __Pyx_KwValues_VARARGS(args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
@@ -425,12 +474,14 @@ bad:
     #define __Pyx_KwValues_FASTCALL(args, nargs) ((args) + (nargs))
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)
+    #define __Pyx_Arg_XDECREF_FASTCALL(arg)  // no-op - arg was returned from array
 #else
     #define __Pyx_Arg_FASTCALL __Pyx_Arg_VARARGS
     #define __Pyx_NumKwargs_FASTCALL __Pyx_NumKwargs_VARARGS
     #define __Pyx_KwValues_FASTCALL __Pyx_KwValues_VARARGS
     #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS
     #define __Pyx_KwargsAsDict_FASTCALL __Pyx_KwargsAsDict_VARARGS
+    #define __Pyx_Arg_XDECREF_FASTCALL(arg) __Pyx_Arg_XDECREF_VARARGS(arg)
 #endif
 
 #if CYTHON_COMPILING_IN_CPYTHON

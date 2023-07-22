@@ -1177,14 +1177,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
-  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
-  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GET_ITEM(o, i)
-  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SET_ITEM(o, i, v)
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) (PyTuple_SET_ITEM(o, i, v), 0)
 #else
   // NOTE: might fail with exception => check for -1
   #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
-  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
-  #define __Pyx_PyTuple_GET_ITEM(o, i) PyTuple_GetItem(o, i)
   // Note that this doesn't leak a reference to whatever's at o[i]
   #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
 #endif
