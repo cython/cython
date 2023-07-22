@@ -1118,7 +1118,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject* code);
 #else
 // Not a hugely nice error message, but should fail
-#define __Pyx_CyFunction_New(...) "CyFunctions are not currently supported in the limited API. For now, turn off the cython.binding directive on all functions"
+#define __Pyx_CyFunction_New(...) ERROR("CyFunctions are not currently supported in the limited API. For now, turn off the cython.binding directive on all functions")
 #endif
 
 //////////////////// CythonFunction ////////////////////
