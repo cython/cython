@@ -458,7 +458,7 @@ bad:
     #define __Pyx_Arg_VARARGS(args, i) PySequence_GetItem(args, i)
 #endif
 #if !CYTHON_AVOID_BORROWED_REFS
-    #define __Pyx_Arg_NEWREF(arg) // no-op
+    #define __Pyx_Arg_NEWREF(arg) arg // no-op
     #define __Pyx_Arg_XDECREF_VARARGS(arg) // no-op - arg is borrowed
 #else
     #define __Pyx_Arg_NEWREF(arg) __Pyx_NewRef(arg)
