@@ -822,7 +822,7 @@ class __Pyx_FakeReference {
 #endif
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
-#if PY_VERSION_HEX < 0x030900B1
+#if __PYX_LIMITED_VERSION_HEX < 0x030900B1
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
   typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
@@ -1165,6 +1165,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #else
   // NOTE: might fail with exception => check for -1
   #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
+#else
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
