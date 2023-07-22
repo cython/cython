@@ -11,8 +11,8 @@ PYTHON run.py
 
 ##################### setup.py ################################
 
-from Cython.Build import cythonize
 from setuptools import setup
+from Cython.Build import cythonize
 
 setup(
     ext_modules = cythonize("limited.pyx"),
