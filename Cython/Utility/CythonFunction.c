@@ -577,6 +577,8 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
     if (unlikely(op == NULL))
         return NULL;
 #if CYTHON_COMPILING_IN_LIMITED_API
+    // Note that we end up with a circular reference to op. This isn't
+    // a disaster, but in an ideal world it'd be nice to avoid it.
     op->func = PyCFunction_NewEx(ml, (PyObject*)op, module);
     if (unlikely(!op->func)) return NULL;
 #endif
@@ -854,15 +856,13 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
 static CYTHON_INLINE PyObject *__Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
     PyObject *self, *result;
 #if CYTHON_COMPILING_IN_LIMITED_API
+    // PyCFunction_GetSelf returns a borrowed reference
     self = PyCFunction_GetSelf(((__pyx_CyFunctionObject*)func)->func);
     if (unlikely(!self) && PyErr_Occurred()) return NULL;
 #else
     self = ((PyCFunctionObject*)func)->m_self;
 #endif
     result = __Pyx_CyFunction_CallMethod(func, self, arg, kw);
-#if CYTHON_COMPILING_IN_LIMITED_API
-    Py_DECREF(self);
-#endif
     return result;
 }
 
