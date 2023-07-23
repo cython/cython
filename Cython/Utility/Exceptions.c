@@ -941,6 +941,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     code_object = PyObject_Call(replace, $empty_tuple, dict);
     if (unlikely(!code_object)) goto bad;
 
+    // Note that getframe is borrowed
     getframe = PySys_GetObject("_getframe");
     if (unlikely(!getframe)) goto bad;
     // reuse dict as globals (nothing conflicts, and it saves an allocation)
@@ -957,7 +958,6 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     Py_XDECREF(py_funcname);
     Py_XDECREF(dict);
     Py_XDECREF(replace);
-    Py_XDECREF(getframe);
 
     if (success) {
         // Unfortunately an easy way to check the type of frame isn't in the
