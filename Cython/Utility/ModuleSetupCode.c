@@ -237,7 +237,7 @@
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 1
   #ifndef CYTHON_USE_TP_FINALIZE
-    #define CYTHON_USE_TP_FINALIZE 1
+    #define CYTHON_USE_TP_FINALIZE 0
   #endif
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
@@ -1080,10 +1080,15 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
   #define __Pyx_PyType_HasFeature(type, feature)  ((__Pyx_PyType_GetFlags(type) & (feature)) != 0)
   #define __Pyx_PyObject_GetIterNextFunc(obj)  (Py_TYPE(obj)->tp_iternext)
+  #define __Pyx_PyType_GetDict(tp) (((PyTypeObject *)tp)->tp_dict)
+  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyDict_SetItem(tp->tp_dict, k, v)
 #else
   #define __Pyx_PyType_GetFlags(tp)   (PyType_GetFlags((PyTypeObject *)tp))
   #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
   #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
+  // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+  // a little hacky, but it does work...
+  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyObject_GenericSetAttr(tp, k, v)
 #endif
 
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
@@ -1239,17 +1244,23 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #if CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
   #define __Pyx_PyTuple_SET_ITEM(o, i, v) (PyTuple_SET_ITEM(o, i, v), (0))
+  #define __Pyx_PyList_SET_ITEM(o, i, v) (PyList_SET_ITEM(o, i, v), (0))
+  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
+  #define __Pyx_PyList_GET_SIZE(o) PyList_GET_SIZE(o)
+  #define __Pyx_PySet_GET_SIZE(o) PySet_GET_SIZE(o)
+  #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_GET_SIZE(o)
+  #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_GET_SIZE(o)
 #else
   // NOTE: might fail with exception => check for -1
   #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
   // Note that this doesn't leak a reference to whatever's at o[i]
   #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
-#endif
-
-#if CYTHON_COMPILING_IN_LIMITED_API
-  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
-#else
-  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
+  #define __Pyx_PyList_SET_ITEM(o, i, v) PyList_SetItem(o, i, v)
+  #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
+  #define __Pyx_PyList_GET_SIZE(o) PyList_Size(o)
+  #define __Pyx_PySet_GET_SIZE(o) PySet_Size(o)
+  #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_Size(o)
+  #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
 #endif
 
 #if PY_MAJOR_VERSION >= 3

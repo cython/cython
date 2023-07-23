@@ -1823,7 +1823,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("%s[%s++] = %s;" % (
                     freelist_name, freecount_name, type.cast_code("o")))
                 code.putln("} else {")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS")
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
+            code.putln("#else")
+            code.putln("{")
+            code.putln("freefunc tp_free = PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+            code.putln("if (tp_free) tp_free(o);")
+            code.putln("}")
+            code.putln("#endif")
             if freelist_size:
                 code.putln("}")
 

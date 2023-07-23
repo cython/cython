@@ -112,10 +112,21 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     // tp_dictoffset (i.e. there is no __dict__ attribute in the object
     // structure), we need to check that none of the base classes sets
     // it either.
-    Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
+    Py_ssize_t i, n;
+#if CYTHON_ASSUME_SAFE_MACROS
+    n = PyTuple_GET_SIZE(bases);
+#else
+    n = PyTuple_Size(bases);
+    if (n < 0) return -1;
+#endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
+#if CYTHON_ASSUME_SAFE_MACROS
         PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+#else
+        PyObject *b0 = PyTuple_GetItem(bases, i);
+        if (!b0) return -1;
+#endif
         PyTypeObject *b;
 #if PY_MAJOR_VERSION < 3
         /* Disallow old-style classes */
@@ -135,7 +146,20 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             __Pyx_DECREF_TypeName(b_name);
             return -1;
         }
-        if (dictoffset == 0 && b->tp_dictoffset)
+#if !CYTHON_USE_TYPE_SLOTS
+        if (dictoffset == 0) {
+            PyErr_Format(PyExc_TypeError,
+                "extention type '%s.200s': "
+                "unable to validate whether bases have a __dict__ "
+                "when CYTHON_USE_TYPE_SLOTS is off "
+                "(likely because you are building in the limited API). "
+                "Therefore, all extension types with multiple bases "
+                "must add 'cdef dict __dict__' in this compilation mode",
+                type_name);
+            return -1;
+        }
+#else
+        if (dictoffset == 0 && b->tp_dictoffset))
         {
             __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
             PyErr_Format(PyExc_TypeError,
@@ -147,6 +171,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             __Pyx_DECREF_TypeName(b_name);
             return -1;
         }
+#endif
     }
     return 0;
 }
