@@ -3045,7 +3045,11 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
         __Pyx_INCREF(*p_left);
 
         // copy 'right' into the newly allocated area of 'left'
+        #if PY_VERSION_HEX >= 0x030D0000
+        if (unlikely(PyUnicode_CopyCharacters(*p_left, left_len, right, 0, right_len) < 0)) return NULL;
+        #else
         _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
+        #endif
         return *p_left;
     } else {
         return __Pyx_PyUnicode_Concat(left, right);
