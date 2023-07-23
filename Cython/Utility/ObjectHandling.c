@@ -859,10 +859,21 @@ static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bas
 /////////////// CalculateMetaclass ///////////////
 
 static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases) {
-    Py_ssize_t i, nbases = PyTuple_GET_SIZE(bases);
+    Py_ssize_t i, nbases;
+#if CYTHON_ASSUME_SAFE_MACROS
+    nbases = PyTuple_GET_SIZE(bases);
+#else
+    nbases = PyTuple_Size(bases);
+    if (nbases < 0) return NULL;
+#endif
     for (i=0; i < nbases; i++) {
         PyTypeObject *tmptype;
+#if CYTHON_ASSUME_SAFE_MACROS
         PyObject *tmp = PyTuple_GET_ITEM(bases, i);
+#else
+        PyObject *tmp = PyTuple_GetItem(bases, i);
+        if (!tmp) return NULL;
+#endif
         tmptype = Py_TYPE(tmp);
 #if PY_MAJOR_VERSION < 3
         if (tmptype == &PyClass_Type)

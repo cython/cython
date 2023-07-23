@@ -28,6 +28,8 @@ try:
 except RuntimeError:
     pass
 
+limited.C()
+
 
 ##################### limited.pyx #############################
 
@@ -46,3 +48,6 @@ def fib(int n):
 @cython.binding(False)
 def raises():
     raise RuntimeError()
+
+class C:
+    pass
