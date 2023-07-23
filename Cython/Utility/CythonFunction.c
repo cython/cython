@@ -752,7 +752,7 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 
 static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
     // originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *f = ((__pyx_CyFunctionObject*)func)->func;
     PyObject *py_name = NULL;
     PyCFunction meth;
