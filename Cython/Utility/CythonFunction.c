@@ -28,17 +28,17 @@
 
 
 typedef struct {
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject_HEAD;
+    // We can't "inherit" from func, but we can use it as a data store
+    PyObject *func;
+#else
 #if PY_VERSION_HEX < 0x030900B1
     PyCFunctionObject func;
 #else
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
 #endif
-#else
-    PyObject_HEAD;
-    // We can't "inherit" from func, but we can use it as a data store
-    PyObject *func;
 #endif
 #if CYTHON_BACKPORT_VECTORCALL
     __pyx_vectorcallfunc func_vectorcall;
@@ -135,7 +135,10 @@ __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
 {
     CYTHON_UNUSED_VAR(closure);
     if (unlikely(op->func_doc == NULL)) {
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
+        op->func_doc = PyObject_GetAttrString(op->func, "__doc__");
+        if (unlikely(!op->func_doc)) return NULL;
+#else
         if (((PyCFunctionObject*)op)->m_ml->ml_doc) {
 #if PY_MAJOR_VERSION >= 3
             op->func_doc = PyUnicode_FromString(((PyCFunctionObject*)op)->m_ml->ml_doc);
@@ -148,10 +151,7 @@ __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
             Py_INCREF(Py_None);
             return Py_None;
         }
-#else // CYTHON_COMPILING_IN_LIMITED_API
-        op->func_doc = PyObject_GetAttrString(op->func, "__doc__");
-        if (unlikely(!op->func_doc)) return NULL;
-#endif
+#endif   /* CYTHON_COMPILING_IN_LIMITED_API */
     }
     Py_INCREF(op->func_doc);
     return op->func_doc;
@@ -175,15 +175,15 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
 {
     CYTHON_UNUSED_VAR(context);
     if (unlikely(op->func_name == NULL)) {
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
+        op->func_name = PyObject_GetAttrString(op->func, "__name__");
+#else
 #if PY_MAJOR_VERSION >= 3
         op->func_name = PyUnicode_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
 #else
         op->func_name = PyString_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
 #endif
-#else // CYTHON_COMPILING_IN_LIMITED_API
-        op->func_name = PyObject_GetAttrString(op->func, "__name__");
-#endif
+#endif  /* CYTHON_COMPILING_IN_LIMITED_API */
         if (unlikely(op->func_name == NULL))
             return NULL;
     }
@@ -601,9 +601,9 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
     Py_INCREF(qualname);
     op->func_qualname = qualname;
     op->func_doc = NULL;
-#if PY_VERSION_HEX < 0x030900B1
+#if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     op->func_classobj = NULL;
-#elif !CYTHON_COMPILING_IN_LIMITED_API
+#else
     ((PyCMethodObject*)op)->mm_class = NULL;
 #endif
     op->func_globals = globals;
@@ -651,10 +651,10 @@ static int
 __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
 {
     Py_CLEAR(m->func_closure);
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    Py_CLEAR(((PyCFunctionObject*)m)->m_module);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
     Py_CLEAR(m->func);
+#else
+    Py_CLEAR(((PyCFunctionObject*)m)->m_module);
 #endif
     Py_CLEAR(m->func_dict);
     Py_CLEAR(m->func_name);
@@ -709,10 +709,10 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg)
 {
     Py_VISIT(m->func_closure);
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    Py_VISIT(((PyCFunctionObject*)m)->m_module);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
     Py_VISIT(m->func);
+#else
+    Py_VISIT(((PyCFunctionObject*)m)->m_module);
 #endif
     Py_VISIT(m->func_dict);
     Py_VISIT(m->func_name);
@@ -753,10 +753,6 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
     // originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
 #if !CYTHON_COMPILING_IN_LIMITED_API
-    PyCFunctionObject* f = (PyCFunctionObject*)func;
-    PyCFunction meth = f->m_ml->ml_meth;
-    int flags = f->m_ml->ml_flags;
-#else
     PyObject *f = ((__pyx_CyFunctionObject*)func)->func;
     PyObject *py_name = NULL;
     PyCFunction meth;
@@ -765,6 +761,10 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
     if (unlikely(!meth)) return NULL;
     flags = PyCFunction_GetFlags(f);
     if (unlikely(flags < 0)) return NULL;
+#else
+    PyCFunctionObject* f = (PyCFunctionObject*)func;
+    PyCFunction meth = f->m_ml->ml_meth;
+    int flags = f->m_ml->ml_flags;
 #endif
 
     Py_ssize_t size;
@@ -786,17 +786,17 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
 #endif
             if (likely(size == 0))
                 return (*meth)(self, NULL);
-#if !CYTHON_COMPILING_IN_LIMITED_API
-            PyErr_Format(PyExc_TypeError,
-                "%.200s() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
-                f->m_ml->ml_name, size);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
             py_name = __Pyx_CyFunction_get_name((__pyx_CyFunctionObject*)func, NULL);
             if (!py_name) return NULL;
             PyErr_Format(PyExc_TypeError,
                 "%.200S() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
                 py_name, size);
             Py_DECREF(py_name);
+#else
+            PyErr_Format(PyExc_TypeError,
+                "%.200s() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
+                f->m_ml->ml_name, size);
 #endif
             return NULL;
         }
@@ -822,17 +822,17 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
                 #endif
                 return result;
             }
-#if !CYTHON_COMPILING_IN_LIMITED_API
-            PyErr_Format(PyExc_TypeError,
-                "%.200s() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
-                f->m_ml->ml_name, size);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
             py_name = __Pyx_CyFunction_get_name((__pyx_CyFunctionObject*)func, NULL);
             if (!py_name) return NULL;
             PyErr_Format(PyExc_TypeError,
                 "%.200S() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
                 py_name, size);
             Py_DECREF(py_name);
+#else
+            PyErr_Format(PyExc_TypeError,
+                "%.200s() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
+                f->m_ml->ml_name, size);
 #endif
 
             return NULL;
@@ -842,26 +842,26 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         PyErr_SetString(PyExc_SystemError, "Bad call flags for CyFunction");
         return NULL;
     }
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
-                 f->m_ml->ml_name);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
     py_name = __Pyx_CyFunction_get_name((__pyx_CyFunctionObject*)func, NULL);
     if (!py_name) return NULL;
     PyErr_Format(PyExc_TypeError, "%.200S() takes no keyword arguments",
                  py_name);
     Py_DECREF(py_name);
+#else
+    PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
+                 f->m_ml->ml_name);
 #endif
     return NULL;
 }
 
 static CYTHON_INLINE PyObject *__Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
     PyObject *self, *result;
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    self = ((PyCFunctionObject*)func)->m_self;
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
     self = PyCFunction_GetSelf(((__pyx_CyFunctionObject*)func)->func);
     if (unlikely(!self) && PyErr_Occurred()) return NULL;
+#else
+    self = ((PyCFunctionObject*)func)->m_self;
 #endif
     result = __Pyx_CyFunction_CallMethod(func, self, arg, kw);
 #if CYTHON_COMPILING_IN_LIMITED_API
