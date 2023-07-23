@@ -792,7 +792,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
         from .. import __version__
-        code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
+        code.putln('#if CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
+        # The limited API makes some significant changes to data structures, so we don't
+        # want to shared implementation compiled with and without the limited API.
+        code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME "limited"')
+        code.putln('#else')
+        code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME ""')
+        code.putln('#endif')
+        code.putln('#define CYTHON_ABI "%s" __PYX_EXTRA_ABI_MODULE_NAME' %
+                   __version__.replace('.', '_'))
         code.putln('#define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI')
         code.putln('#define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."')
         code.putln('#define CYTHON_HEX_VERSION %s' % build_hex_version(__version__))
