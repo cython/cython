@@ -10,7 +10,7 @@
  */
 #ifdef NPY_FEATURE_VERSION /* This is a public define that makes us reasonably confident it's "real" Numpy */
 // NO_IMPORT_ARRAY is Numpy's mechanism for indicating that import_array is handled elsewhere
-#ifndef(NO_IMPORT_ARRAY) /* https://numpy.org/doc/stable/reference/c-api/array.html#c.NO_IMPORT_ARRAY  */
+#ifndef NO_IMPORT_ARRAY /* https://numpy.org/doc/stable/reference/c-api/array.html#c.NO_IMPORT_ARRAY  */
 if (unlikely(_import_array() == -1)) {
     PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import "
     "(auto-generated because you didn't call 'numpy.import_array()' after cimporting numpy; "
