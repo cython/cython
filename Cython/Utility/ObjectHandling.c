@@ -2317,11 +2317,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #endif
 
     #if CYTHON_VECTORCALL
-    #if PY_VERSION_HEX >= 0x030D0000
     vectorcallfunc f = PyVectorcall_Function(func);
-    #else
-    vectorcallfunc f = _PyVectorcall_Function(func);
-    #endif
     if (f) {
         return f(func, args, (size_t)nargs, kwargs);
     }
@@ -3030,8 +3026,34 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     }
     new_len = left_len + right_len;
 
-    return __Pyx_PyUnicode_Concat(left, right);
+    if (__Pyx_unicode_modifiable(left)
+            && PyUnicode_CheckExact(right)
+            && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
+            // Don't resize for ascii += latin1. Convert ascii to latin1 requires
+            //   to change the structure size, but characters are stored just after
+            //   the structure, and so it requires to move all characters which is
+            //   not so different than duplicating the string.
+            && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
 
+        __Pyx_GIVEREF(*p_left);
+        if (unlikely(PyUnicode_Resize(p_left, new_len) != 0)) {
+            // on failure PyUnicode_Resize does not deallocate the the input
+            // so left will remain unchanged - simply undo the giveref
+            __Pyx_GOTREF(*p_left);
+            return NULL;
+        }
+        __Pyx_INCREF(*p_left);
+
+        // copy 'right' into the newly allocated area of 'left'
+        #if PY_VERSION_HEX >= 0x030D0000
+        if (unlikely(PyUnicode_CopyCharacters(*p_left, left_len, right, 0, right_len) < 0)) return NULL;
+        #else
+        _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
+        #endif
+        return *p_left;
+    } else {
+        return __Pyx_PyUnicode_Concat(left, right);
+    }
   }
 #endif
 

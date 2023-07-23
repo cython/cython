@@ -219,13 +219,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
             // Avoid C compiler warning if strchr() evaluates to false at compile time.
             if ((1) && (strchr(__Pyx_MODULE_NAME, '.'))) {
                 /* try package relative import first */
-                #if CYTHON_COMPILING_IN_LIMITED_API
-                module = PyImport_ImportModuleLevelObject(
-                    name, empty_dict, empty_dict, from_list, 1);
-                #else
                 module = PyImport_ImportModuleLevelObject(
                     name, $moddict_cname, empty_dict, from_list, 1);
-                #endif
                 if (unlikely(!module)) {
                     if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                         goto bad;
@@ -244,13 +239,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                 name, $moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
-            #if CYTHON_COMPILING_IN_LIMITED_API
-            module = PyImport_ImportModuleLevelObject(
-                name, empty_dict, empty_dict, from_list, level);
-            #else
             module = PyImport_ImportModuleLevelObject(
                 name, $moddict_cname, empty_dict, from_list, level);
-            #endif
             #endif
         }
     }
