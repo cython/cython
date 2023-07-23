@@ -581,8 +581,8 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
     if (unlikely(!op->func)) return NULL;
 #endif
     op->flags = flags;
-#if !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_CyFunction_weakreflist(op) = NULL;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     cf->m_ml = ml;
     cf->m_self = (PyObject *) op;
 #endif
