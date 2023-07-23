@@ -32,13 +32,11 @@ typedef struct {
     PyObject_HEAD;
     // We can't "inherit" from func, but we can use it as a data store
     PyObject *func;
-#else
-#if PY_VERSION_HEX < 0x030900B1
+#elif PY_VERSION_HEX < 0x030900B1
     PyCFunctionObject func;
 #else
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
-#endif
 #endif
 #if CYTHON_BACKPORT_VECTORCALL
     __pyx_vectorcallfunc func_vectorcall;
@@ -177,12 +175,10 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
     if (unlikely(op->func_name == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
         op->func_name = PyObject_GetAttrString(op->func, "__name__");
-#else
-#if PY_MAJOR_VERSION >= 3
+#elif PY_MAJOR_VERSION >= 3
         op->func_name = PyUnicode_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
 #else
         op->func_name = PyString_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
-#endif
 #endif  /* CYTHON_COMPILING_IN_LIMITED_API */
         if (unlikely(op->func_name == NULL))
             return NULL;
