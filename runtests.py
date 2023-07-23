@@ -763,7 +763,7 @@ class TestBuilder(object):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
-                suite.addTest(unittest.makeSuite(EmbedTest))
+                suite.addTest(unittest.TestLoader().loadTestsFromTestCase(EmbedTest))
         return suite
 
     def handle_directory(self, path, context):
@@ -1750,6 +1750,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         """Run tests from unittest.TestCase-derived classes."""
         valid_types = (unittest.TestSuite, unittest.TestCase)
         suite = unittest.TestSuite()
+        load_tests = unittest.TestLoader().loadTestsFromTestCase
         for cls in classes:
             if isinstance(cls, str):
                 if cls in sys.modules:
@@ -1759,7 +1760,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             elif isinstance(cls, valid_types):
                 suite.addTest(cls)
             else:
-                suite.addTest(unittest.makeSuite(cls))
+                suite.addTest(load_tests(cls))
         with self.stats.time(self.name, self.language, 'run'):
             suite.run(result)
 

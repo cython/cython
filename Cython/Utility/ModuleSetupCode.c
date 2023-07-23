@@ -1197,6 +1197,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
+#else
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
+#endif
+
 #if PY_MAJOR_VERSION >= 3
   #define PyIntObject                  PyLongObject
   #define PyInt_Type                   PyLong_Type

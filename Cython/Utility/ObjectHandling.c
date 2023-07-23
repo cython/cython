@@ -2329,7 +2329,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #endif
 
     #if CYTHON_VECTORCALL
+    #if Py_VERSION_HEX < 0x03090000
     vectorcallfunc f = _PyVectorcall_Function(func);
+    #else
+    vectorcallfunc f = PyVectorcall_Function(func);
+    #endif
     if (f) {
         return f(func, args, (size_t)nargs, kwargs);
     }
@@ -3072,7 +3076,11 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
         __Pyx_INCREF(*p_left);
 
         // copy 'right' into the newly allocated area of 'left'
+        #if PY_VERSION_HEX >= 0x030D0000
+        if (unlikely(PyUnicode_CopyCharacters(*p_left, left_len, right, 0, right_len) < 0)) return NULL;
+        #else
         _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
+        #endif
         return *p_left;
     } else {
         return __Pyx_PyUnicode_Concat(left, right);
