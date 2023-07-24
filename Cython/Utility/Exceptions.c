@@ -961,16 +961,12 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 
     if (success) {
         // Unfortunately an easy way to check the type of frame isn't in the
-        // limited API. The check for against None should cover the most
+        // limited API. The check against None should cover the most
         // likely wrong answer though.
         PyTraceBack_Here(
-#if PY_VERSION_HEX < 0x03090000
-            // Earlier version didn't expose PyFrameObject
-            (struct _frame*)
-#else
-            (PyFrameObject*)
-#endif
-            frame);
+            // Python < 0x03090000 didn't expose PyFrameObject
+            // but they all expose struct _frame as an opaque type
+            (struct _frame*)frame);
     }
 
     Py_XDECREF(frame);

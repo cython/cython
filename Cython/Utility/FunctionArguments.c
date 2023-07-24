@@ -241,10 +241,10 @@ static int __Pyx_ParseOptionalKeywords(
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
 
     while (1) {
-#if CYTHON_AVOID_BORROWED_REFS
+        // clean up key and value when the loop is "continued"
         Py_XDECREF(key); key=0;
         Py_XDECREF(value); value=0;
-#endif
+
         if (kwds_is_tuple) {
             Py_ssize_t size;
 #if CYTHON_ASSUME_SAFE_MACROS
@@ -254,30 +254,27 @@ static int __Pyx_ParseOptionalKeywords(
             if (size < 0) goto bad;
 #endif
             if (pos >= size) break;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-            key = PyTuple_GET_ITEM(kwds, pos);
-#elif !CYTHON_AVOID_BORROWED_REFS
-            key = PyTuple_GetItem(kwds, pos);
-#else
+#if CYTHON_AVOID_BORROWED_REFS
             key = __Pyx_PySequence_ITEM(kwds, pos);
-#endif
-#if !CYTHON_ASSUME_SAFE_MACROS
             if (!key) goto bad;
+#elif CYTHON_ASSUME_SAFE_MACROS
+            key = PyTuple_GET_ITEM(kwds, pos);
+            Py_INCREF(key);
+#else  /* !AVOID_BORROWED_REFS && ASSUME_SAFE_MACROS */
+            key = PyTuple_GetItem(kwds, pos);
+            if (!key) goto bad;
+            Py_INCREF(key);
 #endif
             value = kwvalues[pos];
-#if !CYTHON_AVOID_BORROWED_REFS
             Py_INCREF(value);
-#endif
             pos++;
         }
         else
         {
             if (!PyDict_Next(kwds, &pos, &key, &value)) break;
-#if !CYTHON_AVOID_BORROWED_REFS
-            // It's unfortunately hard to avoid borrowed references with PyDict_Next
+            // It's unfortunately hard to avoid borrowed references (briefly) with PyDict_Next
             Py_INCREF(key);
             Py_INCREF(value);
-#endif
         }
 
         name = first_kw_arg;
@@ -354,10 +351,8 @@ static int __Pyx_ParseOptionalKeywords(
             goto invalid_keyword;
         }
     }
-#if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(key);
     Py_XDECREF(value);
-#endif
     return 0;
 arg_passed_twice:
     __Pyx_RaiseDoubleKeywordsError(function_name, key);
@@ -377,10 +372,8 @@ invalid_keyword:
         function_name, key);
     #endif
 bad:
-#if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(key);
     Py_XDECREF(value);
-#endif
     return -1;
 }
 
@@ -457,12 +450,12 @@ bad:
 #else
     #define __Pyx_Arg_VARARGS(args, i) PySequence_GetItem(args, i)
 #endif
-#if !CYTHON_AVOID_BORROWED_REFS
-    #define __Pyx_Arg_NEWREF(arg) arg // no-op
-    #define __Pyx_Arg_XDECREF_VARARGS(arg) // no-op - arg is borrowed
-#else
+#if CYTHON_AVOID_BORROWED_REFS
     #define __Pyx_Arg_NEWREF(arg) __Pyx_NewRef(arg)
     #define __Pyx_Arg_XDECREF_VARARGS(arg) Py_XDECREF(arg)
+#else
+    #define __Pyx_Arg_NEWREF(arg) arg // no-op
+    #define __Pyx_Arg_XDECREF_VARARGS(arg) // no-op - arg is borrowed
 #endif
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
 #define __Pyx_KwValues_VARARGS(args, nargs) NULL

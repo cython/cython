@@ -3879,24 +3879,18 @@ class DefNodeWrapper(FuncDefNode):
 
         # Assign nargs variable as len(args).
         if self.signature_has_generic_args():
-            nargs_code = [
-                "#if CYTHON_ASSUME_SAFE_MACROS",
-                "%s = PyTuple_GET_SIZE(%s);" % (
-                        Naming.nargs_cname, Naming.args_cname),
-                "#else",
-                "%s = PyTuple_Size(%s);" % (
-                        Naming.nargs_cname, Naming.args_cname),
-                code.error_goto_if_neg(Naming.nargs_cname, self.pos),
-                "#endif",
-            ]
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
-                for line in nargs_code:
-                    code.putln(line)
+            code.putln("#if CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("%s = PyTuple_GET_SIZE(%s);" % (
+                Naming.nargs_cname, Naming.args_cname))
+            code.putln("#else")
+            code.putln("%s = PyTuple_Size(%s);" % (
+                Naming.nargs_cname, Naming.args_cname))
+            code.putln(code.error_goto_if_neg(Naming.nargs_cname, self.pos))
+            code.putln("#endif")
+            if self.signature.use_fastcall:
                 code.putln("#endif")
-            else:
-                for line in nargs_code:
-                    code.putln(line)
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
         code.putln('%s = __Pyx_KwValues_%s(%s, %s);' % (

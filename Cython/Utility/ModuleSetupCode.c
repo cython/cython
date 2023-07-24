@@ -650,24 +650,24 @@ class __Pyx_FakeReference {
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
 #if CYTHON_COMPILING_IN_LIMITED_API
-    static CYTHON_INLINE PyObject* __Pyx__PyCode_New() {
-        // Don't know how to do this reliably right now... improve!
-        Py_RETURN_NONE;
-    }
-    // Defining a macro ignores the args so we don't have to define CO_OPTIMIZED etc. in limited API
-    #define __Pyx_PyCode_New(...) __Pyx__PyCode_New()
-#elif PY_VERSION_HEX >= 0x030B00A1
     static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
                                                     PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                                     PyObject *fv, PyObject *cell, PyObject* fn,
                                                     PyObject *name, int fline, PyObject *lnos) {
-        // TODO - currently written to be simple.
-        // A more optimized version would be good
+        // Backout option for generating a code object.
+        // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
+        //  1. Python call of the code type with a long list of positional args.
+        //  2. Generate a code object by compiling some trivial code, and customize.
+        // We use the second because it's less sensitive to changes in the code type
+        // constructor with version.
         PyObject *kwds=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
         PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
+        PyObject *py_fline=NULL;
         const char *fn_cstr=NULL;
-        const char *name_cstr=NULL;
         PyCodeObject *co=NULL, *result=NULL;
+        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        PyObject *fn_bytes = NULL;
+        #endif
         PyObject *type, *value, *traceback;
 
         // we must be able to call this while an exception is happening - thus clear then restore the state
@@ -686,6 +686,8 @@ class __Pyx_FakeReference {
         if (PyDict_SetItemString(kwds, "co_stacksize", stacksize) != 0) goto end;
         if (!(flags=PyLong_FromLong(f))) goto end;
         if (PyDict_SetItemString(kwds, "co_flags", flags) != 0) goto end;
+        if (!(py_fline=PyLong_FromLong(fline))) goto end;
+        if (PyDict_SetItemString(kwds, "co_firstlineno", py_fline) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_code", code) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_consts", c) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_names", n) != 0) goto end;
@@ -693,16 +695,22 @@ class __Pyx_FakeReference {
         if (PyDict_SetItemString(kwds, "co_freevars", fv) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_cellvars", cell) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_linetable", lnos) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_name", name) != 0) goto end;
 
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
         if (!(fn_cstr=PyUnicode_AsUTF8AndSize(fn, NULL))) goto end;
-        if (!(name_cstr=PyUnicode_AsUTF8AndSize(name, NULL))) goto end;
-        if (!(co = PyCode_NewEmpty(fn_cstr, name_cstr, fline))) goto end;
+        #else
+        if (!(fn_bytes = PyUnicode_AsUTF8String(fn))) goto end;
+        if (!(fn_cstr = PyBytes_AsString(fn_bytes))) goto end;
+        #endif
+
+        if (!(co = (PyCodeObject*)Py_CompileString("pass", fn_cstr, Py_single_input))) goto end;
 
         if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto end;
         // unfortunately, __pyx_empty_tuple isn't available here
         if (!(empty = PyTuple_New(0))) goto end;
 
-        result = (PyCodeObject*) PyObject_Call(replace, empty, kwds);
+        result = (PyCodeObject*)PyObject_Call(replace, empty, kwds);
 
     end:
         Py_XDECREF((PyObject*) co);
@@ -714,13 +722,51 @@ class __Pyx_FakeReference {
         Py_XDECREF(stacksize);
         Py_XDECREF(replace);
         Py_XDECREF(empty);
+        Py_XDECREF(py_fline);
+        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        Py_XDECREF(fn_bytes);
+        #endif
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
         return result;
     }
-#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
 
+    // Cython uses these constants but they are not available in the limited API.
+    // (it'd be nice if there was a more robust way of looking these up)
+    #ifndef CO_OPTIMIZED
+    #define CO_OPTIMIZED 0x0001
+    #endif
+    #ifndef CO_NEWLOCALS
+    #define CO_NEWLOCALS 0x0002
+    #endif
+    #ifndef CO_VARARGS
+    #define CO_VARARGS 0x0004
+    #endif
+    #ifndef CO_VARKEYWORDS
+    #define CO_VARKEYWORDS 0x0008
+    #endif
+    #ifndef CO_ASYNC_GENERATOR
+    #define CO_ASYNC_GENERATOR 0x0200
+    #endif
+    #ifndef CO_GENERATOR
+    #define CO_GENERATOR 0x0020
+    #endif
+    #ifndef CO_COROUTINE
+    #define CO_COROUTINE 0x0080
+    #endif
+#elif Py_VERSION_HEX >= 0x030C0000
+    // As 3.12, but use PyUnstable_Code_NewWithPosOnlyArgs name
+    #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+            PyUnstable_Code_NewWithPosOnlyArgs( \
+                a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos, \
+                Py_None)
+#elif Py_VERSION_HEX >= 0x030B0000
+    // As earlier versions, but just pass Py_None as exception_table
+    #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+            PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos, \
+                Py_None)
+#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
   #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #else
