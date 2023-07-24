@@ -666,6 +666,7 @@ class __Pyx_FakeReference {
         PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
         PyObject *py_fline=NULL;
         const char *fn_cstr=NULL;
+        const char *line_no_argname=NULL;
         PyObject *co=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
         PyObject *fn_bytes = NULL;
@@ -696,7 +697,23 @@ class __Pyx_FakeReference {
         if (PyDict_SetItemString(kwds, "co_varnames", v) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_freevars", fv) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_cellvars", cell) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_linetable", lnos) != 0) goto end;
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+        line_no_argname = "co_linetable";
+        #else
+        // We need to check the runtime Python version. This appears to only be
+        // available as an awkward string comparison. (Not future proof to Python 10...)
+        {
+            const char *versionStr = Py_GetVersion();
+            if (versionStr[0] <= '3' && versionStr[1] == '.' &&
+                 // If the 3rd character is a digit, we know we have 3.10 or greater
+                 (versionStr[3] < '0' || versionStr[3] > '9')) {
+                line_no_argname = "co_lnotab";
+            } else {
+                line_no_argname = "co_linetable";
+            }
+        }
+        #endif
+        if (PyDict_SetItemString(kwds, line_no_argname, lnos) != 0) goto end;
         if (PyDict_SetItemString(kwds, "co_name", name) != 0) goto end;
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
