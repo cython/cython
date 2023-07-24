@@ -650,7 +650,9 @@ class __Pyx_FakeReference {
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
 #if CYTHON_COMPILING_IN_LIMITED_API
-    static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
+    // Note that the limited API doesn't know about PyCodeObject, so the type of this
+    // is PyObject (unlike for the main API)
+    static CYTHON_INLINE PyObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
                                                     PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                                     PyObject *fv, PyObject *cell, PyObject* fn,
                                                     PyObject *name, int fline, PyObject *lnos) {
@@ -664,7 +666,7 @@ class __Pyx_FakeReference {
         PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
         PyObject *py_fline=NULL;
         const char *fn_cstr=NULL;
-        PyCodeObject *co=NULL, *result=NULL;
+        PyObject *co=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
         PyObject *fn_bytes = NULL;
         #endif
@@ -704,13 +706,13 @@ class __Pyx_FakeReference {
         if (!(fn_cstr = PyBytes_AsString(fn_bytes))) goto end;
         #endif
 
-        if (!(co = (PyCodeObject*)Py_CompileString("pass", fn_cstr, Py_single_input))) goto end;
+        if (!(co = Py_CompileString("pass", fn_cstr, Py_single_input))) goto end;
 
         if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto end;
         // unfortunately, __pyx_empty_tuple isn't available here
         if (!(empty = PyTuple_New(0))) goto end;
 
-        result = (PyCodeObject*)PyObject_Call(replace, empty, kwds);
+        result = PyObject_Call(replace, empty, kwds);
 
     end:
         Py_XDECREF((PyObject*) co);
