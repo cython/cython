@@ -151,9 +151,6 @@ Related fixes
 * Several problems with CPython 3.12 were resolved.
   (Github issue :issue:`5238`)
 
-* Very long Python integer constants could exceed the maximum C name length of MSVC.
-  Patch by 0dminnimda.  (Github issue :issue:`5290`)
-
 * The exception handling code was adapted to CPython 3.12.
   (Github issue :issue:`5442`)
 
@@ -211,19 +208,25 @@ that were compiled for one version of CPython can also be imported in later vers
 without recompilation.
 
 There is initial support for this in Cython.  By defining the ``CYTHON_LIMITED_API``
-macro, Cython cuts down its C-API usage and tries to adhere to the Limited C-API.
-By also defining the CPython macro ``Py_LIMITED_API`` to a specific CPython
-compatibility version, you can additionally restrict the C-API during the C compilation,
-thus enforcing the forward compatibility of the extension module, probably at the cost
-of a bit of performance.
+macro, Cython cuts down its C-API usage and tries to adhere to the Limited C-API,
+probably at the cost of a bit of performance.
+In order to get full benefit from the limited API you will also need to define the 
+CPython macro ``Py_LIMITED_API`` to a specific CPython compatibility version,
+which additionally restricts the C-API during the C compilation,
+thus enforcing the forward compatibility of the extension module.
 
 Note that "initial support" in Cython really means that setting the ``Py_LIMITED_API``
-macro may not work for your specific code.  There are limitations in the Limited C-API
+macro will almost certainly not yet work for your specific code.
+There are limitations in the Limited C-API
 that are difficult for Cython to generate C code for, so some advanced Python features
 (like async code) may not lead to C code that cannot adhere to the Limited C-API, or
 where Cython simply does not know yet how to adhere to it.  Basically, if you get your
 code to compile with both macros set, and it passes your test suite, then it should be
 possible to import the extension module also in later CPython versions.
+
+The experimental feature flags ``CYTHON_USE_MODULE_STATE`` and
+``CYTHON_USE_TYPE_SPECS`` enable some individual aspects of the Limited API
+implementation independently.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -259,6 +262,11 @@ Related fixes
 
 * Custom buffer slot methods are now supported in the Limited C-API of Python 3.9+.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5422`)
+  
+* New C feature flags: ``CYTHON_USE_MODULE_STATE``, ``CYTHON_USE_TYPE_SPECS``
+  Both are currently considered experimental.
+  (Github issue :issue:`3611`)
+
 
 Improved fidelity to Python semantics
 -------------------------------------
@@ -267,16 +275,18 @@ The default language level was changed to ``3str``, i.e. Python 3 semantics,
 but with ``str`` literals (also in Python 2.7).  This is a backwards incompatible
 change from the previous default of Python 2 semantics.  The previous behaviour
 is available through the directive ``language_level=2``.
-(Github issue :issue:`2565`)
+(Github issue :issue:`2565`).  This covers changes such as using the
+``print``-function instead of the ``print``-statement, and integer-integer
+division giving a floating point answer. Most of these changes were available
+in earlier versions of Cython but are now the default.
 
-Cython 3.0.0 also aligns many semantics with Python 3, in particular:
+Cython 3.0.0 also aligns its own language semantics more closely with Python, in particular:
 
-* division
-* power operator
-* print
-* classes
-* types
-* subscripting
+* the power operator has changed to give a result matching what Python does rather than
+  keeping the same types as the input (as in C),
+* operator overloading of ``cdef classes`` behaves much more like Python classes,
+* Cython's behaviour when using type annotations aligns more closely with their
+  standard use in Python.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -435,6 +445,9 @@ Related fixes
 
 * Function signatures containing a type like `tuple[()]` could not be printed.
   Patch by Lisandro Dalcin.  (Github issue :issue:`5355`)
+  
+* ``[...] * N`` is optimised for C integer multipliers ``N``.
+  (Github issue :issue:`3922`)
 
 
 Improvements in Pure Python mode
@@ -559,6 +572,10 @@ Related fixes
 
 * Handling freshly raised exceptions that didn't have a traceback yet could crash.
   (Github issue :issue:`5495`)
+  
+* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
+  only acquired if the ``AssertionError`` is really raised, which means that the
+  evaluation of the asserted condition only allows C expressions.
 
 
 Compatibility with C
@@ -566,7 +583,7 @@ Compatibility with C
 
 The support for C features like ``const`` or ``volatile`` was substantially improved.
 
-[something about CYTHON_EXTERN_C?]
+The generated code has been cleared up to reduce the number of C compiler warnings emitted.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -600,10 +617,6 @@ Related fixes
 * The C property feature has been rewritten and now requires C property methods
   to be declared ``inline`` (:issue:`3571`).
 
-* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
-  only acquired if the ``AssertionError`` is really raised, which means that the
-  evaluation of the asserted condition only allows C expressions.
-
 * Cython generates C compiler branch hints for unlikely user defined if-clauses
   in more cases, when they end up raising exceptions unconditionally. This now
   includes exceptions being raised in ``nogil``/``with gil`` sections.
@@ -614,13 +627,6 @@ Related fixes
 
 * A C compiler warning about unused code was resolved.
   (Github issue :issue:`3763`)
-
-* New C feature flags: ``CYTHON_USE_MODULE_STATE``, ``CYTHON_USE_TYPE_SPECS``
-  Both are currently considered experimental.
-  (Github issue :issue:`3611`)
-
-* ``[...] * N`` is optimised for C integer multipliers ``N``.
-  (Github issue :issue:`3922`)
 
 * Some C compiler warninge were resolved.
   Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :issue:`4162`)
@@ -651,12 +657,12 @@ Related fixes
 * With MSVC, Cython no longer enables C-Complex support by accident (which is not supported there).
   (Github issue :issue:`5512`)
 
-* The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
-  ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
-
 * Some C compiler warnings were resolved.
   Patches by Matt Tyson, Lisandro Dalcin, Philipp Wagner, Matti Picus et al.
   (Github issues :issue:`5417`, :issue:`5418`, :issue:`5421`, :issue:`5437`, :issue:`5438`, :issue:`5443`)
+  
+* Very long Python integer constants could exceed the maximum C name length of MSVC.
+  Patch by 0dminnimda.  (Github issue :issue:`5290`)
 
 
 Compatibility with C++
@@ -664,6 +670,12 @@ Compatibility with C++
 
 Many C++ features like forwarding references or ``std::move`` are now supported or even used
 internally, if possible.
+
+Cython's wrapping of the C++ standard library has been extended.
+
+A new `cpp_locals`` directive enables C++ local variables to initialized when assigned to
+rather than at the start of the function, making them behave more like Python variables,
+and also removing the requirement for them to be default constructible.
 
 Related fixes
 ^^^^^^^^^^^^^
@@ -809,20 +821,18 @@ Related fixes
 
 * C++ containers of item type ``bint`` could conflict with those of item type ``int``.
   (Github issue :issue:`5516`)
+  
+* The ``extern "C"`` and ``extern "C++"`` markers that Cython generates for
+  ``public`` functions can now be controlled by setting the C macro ``CYTHON_EXTERN_C``.
 
 Commandline Interface
 ---------------------
 
-[cythonize, depfile, cygdb etc.]
+A number of new options were added to the ``cython`` and ``cythonize``
+commands.
 
 Related fixes
 ^^^^^^^^^^^^^
-
-* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
-  to generate ``.dep`` dependency files for the compilation unit.  This can be used
-  by external build tools to track these dependencies.
-  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
-  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
 
 * ``cythonize --help`` now also prints information about the supported environment variables.
   Patch by Matúš Valo.  (Github issue :issue:`1711`)
@@ -863,10 +873,22 @@ Related fixes
 Build integration
 -----------------
 
-[Various]
+Cython has made a number of improvements both to how it compiles itself
+and how it integrates with external build tools.  Most notably Cython
+has been moving to use ``setuptools`` instead of the deprecated/removed
+``distutils`` where possible.
+
+The new ``--depfile`` option generates dependency files to help integrate
+Cython with other build tools.
 
 Related fixes
 ^^^^^^^^^^^^^
+
+* The ``cythonize`` and ``cython`` commands have a new option ``-M`` / ``--depfile``
+  to generate ``.dep`` dependency files for the compilation unit.  This can be used
+  by external build tools to track these dependencies.
+  The ``cythonize`` option was already available in Cython :ref:`0.29.27`.
+  Patches by Evgeni Burovski and Eli Schwartz.  (Github issue :issue:`1214`)
 
 * Python modules were not automatically recompiled when only their ``.pxd`` file changed.
   Patch by Golden Rockefeller.  (Github issue :issue:`1428`)
@@ -928,7 +950,9 @@ Related fixes
 Deprecations
 ------------
 
-[text?]
+Some older features of Cython have been deprecated. Most notable are the
+compile time ``DEF`` and ``IF`` statements, although we emphasise that
+they will remain until a good alternative exists for all their use-cases.
 
 Related fixes
 ^^^^^^^^^^^^^
