@@ -479,6 +479,16 @@
 # endif
 #endif
 
+#ifndef CYTHON_USE_CPP11_FEATURES
+  // msvc doesn't set __cplusplus to a useful value
+  #if defined(__cplusplus) && ( \
+    __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600))
+    #define CYTHON_USE_CPP11_FEATURES 1
+  #else
+    #define CYTHON_USE_CPP11_FEATURES 0
+  #endif
+#endif
+
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
 #ifdef _MSC_VER

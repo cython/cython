@@ -1,7 +1,7 @@
 # mode: run
-# tag: cpp, werror, cpp11, no-cpp-locals
+# tag: cpp, werror, cpp14, no-cpp-locals
 
-from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast
+from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast, make_unique
 from libcpp cimport nullptr
 
 cdef extern from "cpp_smart_ptr_helper.h":
@@ -9,6 +9,9 @@ cdef extern from "cpp_smart_ptr_helper.h":
         CountAllocDealloc(int*, int*)
 
     cdef cppclass FreePtr[T]:
+        pass
+
+    cdef cppclass RaiseOnConstruct:
         pass
 
 
@@ -44,6 +47,16 @@ def test_unique_ptr():
     assert x_ptr3.get() != nullptr;
     x_ptr3.reset()
     assert x_ptr3.get() == nullptr;
+
+    # Test that make_unique works
+    cdef unique_ptr[int] x_ptr4
+    x_ptr4 = make_unique[int](5)
+    assert(x_ptr4) != nullptr
+    cdef unique_ptr[RaiseOnConstruct] x_ptr5
+    try:
+        x_ptr5 = make_unique[RaiseOnConstruct]()
+    except RuntimeError:
+        pass  # good - this is what we expect
 
 
 def test_const_shared_ptr():

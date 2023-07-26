@@ -61,8 +61,7 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 
 ////////////// MoveIfSupported.proto //////////////////
 
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
-  // move should be defined for these versions of MSVC, but __cplusplus isn't set usefully
+#if CYTHON_USE_CPP11_FEATURES
   #include <utility>
   #define __PYX_STD_MOVE_IF_SUPPORTED(x) std::move(x)
 #else
