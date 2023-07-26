@@ -5959,7 +5959,6 @@ class CallNode(ExprNode):
             self.function.set_cname(type.empty_declaration_code())
             self.analyse_c_function_call(env)
             self.type = type
-            self.analysed = True
             return True
 
     def is_lvalue(self):
@@ -6037,11 +6036,11 @@ class SimpleCallNode(CallNode):
         return self.args, None
 
     def analyse_types(self, env):
-        if self.analyse_as_type_constructor(env):
-            return self
         if self.analysed:
             return self
         self.analysed = True
+        if self.analyse_as_type_constructor(env):
+            return self
         self.function.is_called = 1
         self.function = self.function.analyse_types(env)
         function = self.function
