@@ -5959,6 +5959,7 @@ class CallNode(ExprNode):
             self.function.set_cname(type.empty_declaration_code())
             self.analyse_c_function_call(env)
             self.type = type
+            self.analysed = True
             return True
 
     def is_lvalue(self):
