@@ -61,7 +61,7 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 
 ////////////// MoveIfSupported.proto //////////////////
 
-#if CYTHON_USE_CPP11_FEATURES
+#if CYTHON_USE_CPP_STD_MOVE
   #include <utility>
   #define __PYX_STD_MOVE_IF_SUPPORTED(x) std::move(x)
 #else

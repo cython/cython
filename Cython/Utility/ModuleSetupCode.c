@@ -479,13 +479,13 @@
 # endif
 #endif
 
-#ifndef CYTHON_USE_CPP11_FEATURES
+#ifndef CYTHON_USE_CPP_STD_MOVE
   // msvc doesn't set __cplusplus to a useful value
   #if defined(__cplusplus) && ( \
     __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600))
-    #define CYTHON_USE_CPP11_FEATURES 1
+    #define CYTHON_USE_CPP_STD_MOVE 1
   #else
-    #define CYTHON_USE_CPP11_FEATURES 0
+    #define CYTHON_USE_CPP_STD_MOVE 0
   #endif
 #endif
 
