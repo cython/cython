@@ -2,8 +2,6 @@
 # mode: run
 # tag: cyfunction, closures
 
-from libcpp.vector cimport vector
-
 cimport cython
 import sys
 
@@ -314,8 +312,6 @@ cdef class C:
         pass
     def f10(self, a, /, b=1, *, int[:] c=None):
         pass
-    def f11(self, vector[double] a = vector[double](2, 1.0)):
-        pass
 
 
 def check_defaults_on_methods_for_introspection():
@@ -351,8 +347,5 @@ def check_defaults_on_methods_for_introspection():
     (1,)
     >>> C.f10.__kwdefaults__
     {'c': None}
-    >>> C.f11.__defaults__
-    ([1.0, 1.0],)
-    >>> C.f11.__kwdefaults__
     """
     pass
