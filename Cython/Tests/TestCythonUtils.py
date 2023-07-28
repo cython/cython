@@ -2,7 +2,9 @@ import unittest
 
 from Cython.Utils import (
     _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
-    build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager)
+    build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager,
+    print_version,
+)
 
 METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
@@ -126,3 +128,21 @@ class TestCythonUtils(unittest.TestCase):
                 self.assertEqual(call_args, ((1, 2), {'y': 4}))
                 raise StopIteration("STOP")
             assert states == ["enter", "exit"]
+
+    def test_print_version(self):
+        orig_stderr = sys.stderr
+        orig_stdout = sys.stdout
+        stderr = sys.stderr = StringIO()
+        stdout = sys.stdout = StringIO()
+        try:
+            print_version()
+        finally:
+            sys.stdout = orig_stdout
+            sys.stderr = orig_stderr
+
+        stdout = stdout.getvalue()
+        stderr = stderr.getvalue()
+
+        from ... import __version__ as version
+        self.assertIn(version, stdout)
+        self.assertFalse(stderr)
