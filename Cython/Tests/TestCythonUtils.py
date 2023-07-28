@@ -1,4 +1,5 @@
 import unittest
+import sys
 
 from Cython.Utils import (
     _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
