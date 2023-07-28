@@ -2170,6 +2170,9 @@ class FuncDefNode(StatNode, BlockNode):
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.cf_is_reassigned and not entry.in_closure:
+                if entry.type.is_memoryviewslice:
+                    code.put_var_incref_memoryviewslice(entry,
+                                        have_gil=code.funcstate.gil_owned)
                 if entry.xdecref_cleanup:
                     code.put_var_xincref(entry)
                 else:
@@ -2357,10 +2360,9 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
 
-            if entry.type.is_pyobject:
+            if entry.type.needs_refcounting:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-            if entry.type.needs_refcounting:
                 assure_gil('success')
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
@@ -3729,13 +3731,12 @@ class DefNodeWrapper(FuncDefNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        for entry in lenv.var_entries:
-            if entry.is_arg:
-                # mainly captures the star/starstar args
-                if entry.xdecref_cleanup:
-                    code.put_var_xdecref(entry)
+        for arg in [self.star_arg, self.starstar_arg]:
+            if arg and arg.entry.is_arg:
+                if arg.entry.xdecref_cleanup:
+                    code.put_var_xdecref(arg.entry)
                 else:
-                    code.put_var_decref(entry)
+                    code.put_var_decref(arg.entry)
         for arg in self.args:
             if not arg.type.is_pyobject:
                 # This captures anything that's been converted from a PyObject.
