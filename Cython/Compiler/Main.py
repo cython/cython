@@ -666,10 +666,11 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, basestring) and not options.timestamps:
-        return compile_single(source, options, full_module_name)
-    else:
-        return compile_multiple(source, options)
+    if isinstance(source, basestring):
+        if not options.timestamps:
+            return compile_single(source, options, full_module_name)
+        source = [source]
+    return compile_multiple(source, options)
 
 
 @Utils.cached_function
