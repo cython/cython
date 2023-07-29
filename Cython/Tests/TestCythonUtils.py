@@ -1,6 +1,9 @@
-import unittest
 import sys
-from io import StringIO
+import unittest
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO  # doesn't accept 'str' in Py2
 
 from Cython.Utils import (
     _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
@@ -145,6 +148,6 @@ class TestCythonUtils(unittest.TestCase):
         stdout = stdout.getvalue()
         stderr = stderr.getvalue()
 
-        from ... import __version__ as version
+        from .. import __version__ as version
         self.assertIn(version, stdout)
         self.assertFalse(stderr)
