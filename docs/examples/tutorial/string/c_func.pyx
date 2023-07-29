@@ -2,7 +2,7 @@ from libc.stdlib cimport malloc
 from libc.string cimport strcpy, strlen
 
 cdef char* hello_world = 'hello world'
-cdef Py_ssize_t n = strlen(hello_world)
+cdef size_t n = strlen(hello_world)
 
 
 cdef char* c_call_returning_a_c_string():
