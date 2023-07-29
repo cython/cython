@@ -376,3 +376,34 @@ def test_non_built_in_reversed_function(py_v):
         vint.push_back(e)
     for e in reversed(vint):
         print(e)
+
+
+# Not strictly a C++ iterator test, but an issue with generator
+# expressions and iteration from c++ const attributes so in this
+# file as a related issue.  Mainly a test that it compiles.
+# GH-5558
+cdef extern from *:
+    """
+    struct ConstNumberHolder {
+        const int num;
+
+        explicit ConstNumberHolder(int num) :
+            num(num)
+        {}
+    };
+    """
+    cppclass ConstNumberHolder:
+        ConstNumberHolder(int num)
+
+        const int num
+
+def test_iteration_from_const_member(int num):
+    """
+    >>> test_iteration_from_const_member(5)
+    (0, 1, 2, 3, 4)
+    """
+    num_holder = new ConstNumberHolder(num)
+    try:
+        return tuple(i for i in range(num_holder.num))
+    finally:
+        del num_holder

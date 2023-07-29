@@ -1720,14 +1720,20 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
                 cname = EncodedString(Naming.genexpr_arg_prefix + Symtab.punycodify_name(str(name_source)))
                 name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
                 type = node.type
-                if type.is_reference and not type.is_fake_reference:
-                    # It isn't obvious whether the right thing to do would be to capture by reference or by
-                    # value (C++ itself doesn't know either for lambda functions and forces a choice).
-                    # However, capture by reference involves converting to FakeReference which would require
-                    # re-analysing AttributeNodes. Therefore I've picked capture-by-value out of convenience
-                    # TODO - could probably be optimized by making the arg a reference but the closure not
-                    # (see https://github.com/cython/cython/issues/2468)
-                    type = type.ref_base_type
+                while ((type.is_reference and not type.is_fake_reference) or
+                        type.is_cv_qualified):
+                    if type.is_cv_qualified:
+                        # strip away cv types - they shouldn't be applied to the
+                        # function argument or to the closure struct.
+                        type = type.cv_base_type
+                    else:
+                        # It isn't obvious whether the right thing to do would be to capture by reference or by
+                        # value (C++ itself doesn't know either for lambda functions and forces a choice).
+                        # However, capture by reference involves converting to FakeReference which would require
+                        # re-analysing AttributeNodes. Therefore I've picked capture-by-value out of convenience
+                        # TODO - could probably be optimized by making the arg a reference but the closure not
+                        # (see https://github.com/cython/cython/issues/2468)
+                        type = type.ref_base_type
 
                 name_decl.type = type
                 new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
