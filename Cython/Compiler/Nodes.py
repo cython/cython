@@ -3731,14 +3731,15 @@ class DefNodeWrapper(FuncDefNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        for arg in [self.star_arg, self.starstar_arg]:
-            if arg and arg.entry.is_arg:
-                if arg.entry.xdecref_cleanup:
-                    code.put_var_xdecref(arg.entry)
+        for entry in lenv.var_entries:
+            if entry.is_arg:
+                if entry.xdecref_cleanup:
+                    code.put_var_xdecref(entry)
                 else:
-                    code.put_var_decref(arg.entry)
+                    code.put_var_decref(entry)
+        var_entries_set = set(lenv.var_entries)
         for arg in self.args:
-            if not arg.type.is_pyobject:
+            if not arg.type.is_pyobject and arg.entry not in var_entries_set:
                 # This captures anything that's been converted from a PyObject.
                 # Primarily memoryviews at the moment
                 if arg.entry.xdecref_cleanup:
