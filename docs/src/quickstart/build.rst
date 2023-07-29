@@ -53,11 +53,6 @@ To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
-Note that egg installations (zipped ``.egg`` files under ``site-packages/``) with setuptools
-may not work correctly with ``cimport`` for ``pxd`` files when you try to use them from a
-dependent package.  Also, binary modules cannot be loaded from egg files and instead get
-extracted automatically into temp directories on import, which counters the egg file advantages.
-To avoid egg archives, include ``zip_safe=False`` in the arguments to ``setup()``.
 
 .. _jupyter-notebook:
 
