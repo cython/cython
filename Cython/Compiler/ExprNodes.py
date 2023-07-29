@@ -6291,6 +6291,12 @@ class SimpleCallNode(CallNode):
             if needs_cpp_exception_conversion(func_type):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
+        if (func_type.exception_value is not None or
+                func_type.exception_check and func_type.exception_check != '+'):
+            if env.nogil:
+                # need to generate refnanny for testing because of exception check
+                env.has_with_gil_block = True
+
         self.overflowcheck = env.directives['overflowcheck']
 
     def calculate_result_code(self):

@@ -98,5 +98,40 @@ def test_parallel_catch():
 '''
 
 
+cdef void parallel_exception_checked_function(int* ptr, int id) except * nogil:
+    # requires the GIL after each call
+    ptr[0] = id;
+
+cdef void parallel_call_exception_checked_function_impl(int* arr, int num_threads) nogil:
+    # Inside a nogil function, parallel can't be sure that the GIL has been released.
+    # Therefore Cython must release the GIL itself.
+    # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL
+    # (since if any other thread has finished, it will be holding the GIL).
+    #
+    # An equivalent test with prange is in "sequential_parallel.pyx"
+    with cython.parallel.parallel(num_threads=num_threads):
+        parallel_exception_checked_function(arr+threadid(), threadid())
+
+
+def test_parallel_call_exception_checked_function():
+    """
+    test_parallel_call_exception_checked_function()
+    """
+    cdef int maxthreads = openmp.omp_get_max_threads()
+    cdef int *buf = <int *> malloc(sizeof(int) * maxthreads)
+
+    if buf == NULL:
+        raise MemoryError
+
+    try:
+        # Note we *don't* release the GIL here
+        parallel_call_exception_checked_function_impl(buf, maxthreads)
+
+        for i in range(maxthreads):
+            assert buf[i] == i
+    finally:
+        free(buf)
+
+
 OPENMP_PARALLEL = True
 include "sequential_parallel.pyx"

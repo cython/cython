@@ -3514,6 +3514,7 @@ class GilCheck(VisitorTransform):
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
         self.nogil_declarator_only = False
+        self.current_gilstat_node_knows_gil_state = False
         return super(GilCheck, self).__call__(root)
 
     def _visit_scoped_children(self, node, gil_state):
@@ -3575,13 +3576,23 @@ class GilCheck(VisitorTransform):
             # which is wrapped in a StatListNode. Just unpack that.
             node.finally_clause, = node.finally_clause.stats
 
+        nogil_declarator_only = self.nogil_declarator_only
+        self.nogil_declarator_only = False
+        current_gilstat_node_knows_gil_state = self.current_gilstat_node_knows_gil_state
+        self.current_gilstat_node_knows_gil_state = node.scope_gil_state_known
         self._visit_scoped_children(node, is_nogil)
+        self.nogil_declarator_only = nogil_declarator_only
+        self.current_gilstat_node_knows_gil_state = current_gilstat_node_knows_gil_state
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil:
-            node.nogil = False
+        if node.nogil or self.nogil_declarator_only:
+            node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            if not node_was_nogil and self.nogil_declarator_only:
+                # We're in a "nogil" function, but that doesn't prove we
+                # didn't have the gil
+                node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
         if not self.nogil:
@@ -3598,6 +3609,12 @@ class GilCheck(VisitorTransform):
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
             return None
+        if self.nogil_declarator_only:
+            # We're in a "nogil" function but that doesn't prove we didn't
+            # have the gil, so release it
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            node.scope_gil_state_known = False
+            return self.visit_GILStatNode(node)
 
         if node.nogil_check:
             # It does not currently implement this, but test for it anyway to
@@ -3620,7 +3637,7 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_GILExitNode(self, node):
-        if self.nogil_declarator_only:
+        if not self.current_gilstat_node_knows_gil_state:
             node.scope_gil_state_known = False
         self.visitchildren(node)
         return node

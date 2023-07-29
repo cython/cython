@@ -816,3 +816,36 @@ def test_inner_private():
     assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
 
     print('ok')
+
+cdef void prange_exception_checked_function(int* ptr, int id) except * nogil:
+    # requires the GIL after each call
+    ptr[0] = id;
+
+cdef void prange_call_exception_checked_function_impl(int* arr, int N) nogil:
+    # Inside a nogil function, prange can't be sure the GIL has been released.
+    # Therefore Cython must release the GIL itself.
+    # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL
+    # (since if any other thread has finished, it will be holding the GIL).
+    #
+    # An equivalent test with prange is in "sequential_parallel.pyx"
+    cdef int i
+    for i in prange(N, num_threads=4, schedule='static', chunksize=1):
+        prange_exception_checked_function(arr+i, i)
+
+def test_prange_call_exception_checked_function():
+    """
+    >>> test_prange_call_exception_checked_function()
+    """
+
+    cdef int N = 10000
+    cdef int* buf = <int*>malloc(sizeof(int)*N)
+    if buf == NULL:
+        raise MemoryError
+    try:
+        # Don't release the GIL
+        prange_call_exception_checked_function_impl(buf, N)
+
+        for i in range(N):
+            assert buf[i] == i
+    finally:
+        free(buf)
