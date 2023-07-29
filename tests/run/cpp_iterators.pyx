@@ -399,11 +399,11 @@ cdef extern from *:
 
 def test_iteration_from_const_member(int num):
     """
-    >>> test_iteration_from_const_member(5)
+    >>> tuple(test_iteration_from_const_member(5))
     (0, 1, 2, 3, 4)
     """
     num_holder = new ConstNumberHolder(num)
     try:
-        return tuple(i for i in range(num_holder.num))
+        return (i for i in range(num_holder.num))
     finally:
         del num_holder
