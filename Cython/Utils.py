@@ -665,9 +665,8 @@ def write_depfile(target, source, dependencies):
 
 
 def print_version():
-    from . import __version__
-    print("Cython version %s" % __version__)
+    print("Cython version %s" % cython_version)
     # For legacy reasons, we also write the version to stderr.
     # New tools should expect it in stdout, but existing ones still pipe from stderr, or from both.
     if not sys.stderr.isatty() and os.fstat(1) != os.fstat(2):
-        sys.stderr.write("Cython version %s\n" % __version__)
+        sys.stderr.write("Cython version %s\n" % cython_version)
