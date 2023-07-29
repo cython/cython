@@ -668,5 +668,10 @@ def print_version():
     print("Cython version %s" % cython_version)
     # For legacy reasons, we also write the version to stderr.
     # New tools should expect it in stdout, but existing ones still pipe from stderr, or from both.
-    if not sys.stderr.isatty() and os.fstat(1) != os.fstat(2):
-        sys.stderr.write("Cython version %s\n" % cython_version)
+    if sys.stderr.isatty() or sys.stdout == sys.stderr:
+        return
+    if os.fstat(1) == os.fstat(2):
+        # This is somewhat unsafe since sys.stdout/err might not really be linked to streams 1/2.
+        # However, in most *relevant* cases, where Cython is run as an external tool, they are linked.
+        return
+    sys.stderr.write("Cython version %s\n" % cython_version)
