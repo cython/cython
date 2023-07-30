@@ -187,7 +187,7 @@ enable OpenMP.  For gcc this can be done as follows in a ``setup.py``:
 
         .. literalinclude:: ../../examples/userguide/parallelism/setup_pyx.py
 
-For the Microsoft Visual C++ compiler, the correct flag is ``'/openmp'`` instead of ``'-fopenmp'`` for the ``'extra_compile_args'`` option, nor should you pass the argument ``'/openmp'`` or ``'-fopenmp'`` to the ``'extra_link_args'`` option to prevent an unnecessary warning.
+For the Microsoft Visual C++ compiler, the correct flag is ``'/openmp'`` instead of ``'-fopenmp'`` for the ``'extra_compile_args'`` option, and you should not pass either of the arguments ``'/openmp'`` or ``'-fopenmp'`` to the ``'extra_link_args'`` option to prevent an unnecessary warning.
 
 
 Breaking out of loops
