@@ -119,108 +119,35 @@ Related changes
   at program end.
 
 
-
-
-
-Compatibility with CPython and the Python C API
+Compatibility with other Python implementations
 -----------------------------------------------
 
-Since Cython 3.0.0 started development, CPython 3.8-3.11 were released.
-All these are supported in Cython, including experimental support for the
-in-development CPython 3.12. On the other end of the spectrum, support for
-Python 2.6 was dropped.
-
-Cython interacts very closely with the C-API of Python, which is where most
-of the adaptation work happens.
-
+Cython tries to support other Python implementations, largely on a best-effort
+basis. The most advanced support exists for PyPy, which is tested in our CI
+and considered supported.
 
 Related changes
 ^^^^^^^^^^^^^^^
 
-* The long deprecated include files ``python_*``, ``stdio``, ``stdlib`` and
-  ``stl`` in ``Cython/Includes/Deprecated/`` were removed.  Use the ``libc.*``
-  and ``cpython.*`` pxd modules instead.
-  Patch by Jeroen Demeyer.  (Github issue :issue:`2904`)
+* An unsupported C-API call in PyPy was fixed.
+  Patch by Max Bachmann.  (Github issue :issue:`4055`)
 
-* The ``Py_hash_t`` type failed to accept arbitrary "index" values.
-  (Github issue :issue:`2752`)
+* Support for the now unsupported Pyston V1 was removed in favour of Pyston V2.
+  Patch by Marius Wachtler.  (Github issue :issue:`4211`)
 
-* ``@cython.trashcan(True)`` can be used on an extension type to enable the
-  CPython :ref:`trashcan`. This allows deallocating deeply recursive objects
-  without overflowing the stack. Patch by Jeroen Demeyer.  (Github issue :issue:`2842`)
+* A C compiler warning in PyPy3 regarding ``PyEval_EvalCode()`` was resolved.
 
-* ``PyEval_InitThreads()`` is no longer used in Py3.7+ where it is a no-op.
+* Some compatibility issues with PyPy were resolved.
+  Patches by Max Bachmann, Matti Picus.
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issue:`4509`, :issue:`4517`)
 
-* A low-level inline function ``total_seconds(timedelta)`` was added to
-  ``cpython.datetime`` to bypass the Python method call.  Note that this function
-  is not guaranteed to give exactly the same results for very large time intervals.
-  Patch by Brock Mendel.  (Github issue :issue:`3616`)
+* An initial set of adaptations for GraalVM Python was implemented.  Note that
+  this does not imply any general support for this target or that your code
+  will work at all in this environment.  But testing should be possible now.
+  Patch by David Woods.  (Github issue :issue:`4328`)
 
-* The internal CPython macro ``Py_ISSPACE()`` is no longer used.
-  Original patch by Andrew Jones.  (Github issue :issue:`4111`)
-
-* The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
-  Patch by John Kirkham.  (Github issue :issue:`3811`)
-
-* A new module ``cpython.time`` was added with some low-level alternatives to
-  Python's ``time`` module.
-  Patch by Brock Mendel.  (Github issue :issue:`3767`)
-
-* More C-API declarations for ``cpython.datetime``  were added.
-  Patch by Bluenix2.  (Github issue :issue:`4128`)
-
-* C-API declarations for context variables in Python 3.7 were added.
-  Original patch by Zolisa Bleki.  (Github issue :issue:`2281`)
-
-* C-API declarations for ``cpython.fileobject`` were added.
-  Patch by Zackery Spytz.  (Github issue :issue:`3906`)
-
-* The signature of ``PyFloat_FromString()`` in ``cpython.float`` was changed
-  to match the signature in Py3.  It still has an automatic fallback for Py2.
-  (Github issue :issue:`3909`)
-
-* ``PyMem_[Raw]Calloc()`` was added to the ``cpython.mem`` declarations.
-  Note that the ``Raw`` versions are no longer #defined by Cython.  The previous
-  macros were not considered safe.
-  Patch by William Schwartz and David Woods.  (Github issue :issue:`3047`)
-
-* The runtime size check for imported ``PyVarObject`` types was improved
-  to reduce false positives and adapt to Python 3.11.
-  Patch by David Woods.  (Github issues :issue:`4827`, :issue:`4894`)
-
-* The generated C code failed to compile in CPython 3.11a4 and later.
-  (Github issue :issue:`4500`)
-
-* ``pyximport`` no longer uses the deprecated ``imp`` module.
-  Patch by Matúš Valo.  (Github issue :issue:`4560`)
-
-* Improvements to ``PyTypeObject`` definitions in pxd wrapping of libpython.
-  Patch by John Kirkham. (Github issue :issue:`4699`)
-
-* Some old usages of the deprecated Python ``imp`` module were replaced with ``importlib``.
-  Patch by Matúš Valo.  (Github issue :issue:`4640`)
-
-* ``cpdef`` enums no longer use ``OrderedDict`` but ``dict`` in Python 3.6 and later.
-  Patch by GalaxySnail.  (Github issue :issue:`5180`)
-
-* Several problems with CPython 3.12 were resolved.
-  (Github issue :issue:`5238`)
-
-* The exception handling code was adapted to CPython 3.12.
-  (Github issue :issue:`5442`)
-
-* The Python ``int`` handling code was adapted to make use of the new ``PyLong``
-  internals in CPython 3.12.
-  (Github issue :issue:`5353`)
-  
-* A compile error when using ``__debug__`` was resolved.
-  
-* The deprecated ``_PyGC_FINALIZED()`` C-API macro is no longer used.
-  Patch by Thomas Caswell and Matúš Valo.  (Github issue :issue:`5481`)
-  
-* A crash in Python 2.7 was fixed when cleaning up extension type instances
-  at program end.
-
+* A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
+  (Github issue :issue:`4329`)
 
 
 Initial support for Limited API
