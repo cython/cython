@@ -306,8 +306,8 @@ Related changes
   (Github issue :issue:`2963`)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
-and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
-return a signed ``Py_ssize_t``, like other usages of ``len()``.
+  and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
+  return a signed ``Py_ssize_t``, like other usages of ``len()``.
 
 * The unicode methods ``.upper()``, ``.lower()`` and ``.title()`` were
   incorrectly optimised for single character input values and only returned
