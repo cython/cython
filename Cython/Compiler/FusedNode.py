@@ -889,8 +889,11 @@ class FusedCFuncDefNode(StatListNode):
         for arg in self.node.args:
             if arg.default:
                 arg.default = arg.default.analyse_expressions(env)
-                # coerce the argument to temp since CloneNode really requires a temp
-                defaults.append(ProxyNode(arg.default.coerce_to_temp(env)))
+                if arg.default.is_literal:
+                    defaults.append(copy.copy(arg.default))
+                else:
+                    # coerce the argument to temp since CloneNode really requires a temp
+                    defaults.append(ProxyNode(arg.default.coerce_to_temp(env)))
             else:
                 defaults.append(None)
 
@@ -900,7 +903,10 @@ class FusedCFuncDefNode(StatListNode):
                 # the dispatcher specifically doesn't want its defaults overriding
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
-                        arg.default = CloneNode(default).analyse_expressions(env).coerce_to(arg.type, env)
+                        if default.is_literal:
+                            arg.default = default
+                        else:
+                            arg.default = CloneNode(default).analyse_expressions(env).coerce_to(arg.type, env)
 
         if self.py_func:
             args = [CloneNode(default) for default in defaults if default]
