@@ -236,6 +236,7 @@ jobs:
         id: compilation-cache
         with:
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
+          path: ./
 
       
       - name: Cache used?
