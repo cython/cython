@@ -232,15 +232,11 @@ jobs:
             which pip
 
       - name: Compilation Cache
-        uses: actions/cache@v3
-        id: compilation-cache
+        uses: hendrikmuhs/ccache-action@v1.2.9
         with:
+          variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
-          path: ./
-
-      
-      - name: Cache used?
-        run: echo ${{ steps.compilation-cache.outputs.cache-hit }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
