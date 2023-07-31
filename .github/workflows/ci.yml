@@ -166,6 +166,10 @@ jobs:
             extra_hash: "-stackless"
           # Pypy
           - os: ubuntu-20.04
+            python-version: pypy-2.7
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-20.04
             python-version: pypy-3.9-v7.3.12
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
@@ -221,7 +225,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Setup Python2 (Linux)
-        if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
+        if: (matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')) || startsWith(matrix.python-version, 'pypy-2')
         run: |
             sudo ln -fs python2 /usr/bin/python
             sudo apt-get update
