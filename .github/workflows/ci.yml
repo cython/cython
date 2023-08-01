@@ -220,12 +220,12 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v3
-        if: startsWith(matrix.python-version, '3.') || startsWith(matrix.python-version, 'pypy-3')
+        if: startsWith(matrix.python-version, '3.') || startsWith(matrix.python-version, 'pypy')
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Setup Python2 (Linux)
-        if: (matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')) || startsWith(matrix.python-version, 'pypy-2')
+        if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
         run: |
             sudo ln -fs python2 /usr/bin/python
             sudo apt-get update
