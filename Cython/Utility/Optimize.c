@@ -1158,7 +1158,13 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
     {{endif}}
 
     #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_CheckExact({{pyval}}))) {
+    if (unlikely((b & (b - 1)) == 0)) {
+        if (c_op in '%') {
+            x = b & (b-1) ? a % b : a & (b-1);
+            return PyInt_FromLong(x);
+        }
+    }
+    elif (likely(PyInt_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         {{if c_op in '+-%' or op == 'FloorDivide'}}
         long x;
