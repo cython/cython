@@ -12863,7 +12863,7 @@ class CondExprNode(ExprNode):
         self.test.generate_evaluation_code(code)
         cond_val = self.test.result()
         if not cond_val.startswith("(") or not cond_val.endswith(")"):
-            cond_val = "(" + cond_val + ")"
+            cond_val = "(%s)" % cond_val
         code.putln("if %s {" % cond_val)
         self.eval_and_get(code, self.true_val)
         code.putln("} else {")
