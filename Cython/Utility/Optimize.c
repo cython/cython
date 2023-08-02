@@ -1181,7 +1181,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
             return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif c_op == '%'}}
             // see CMath.c :: ModInt utility code
-            if ((b & (b - 1)) == 0) {
+            if (unlikely((b & (b - 1)) == 0)) {
                 x = b & (b-1) ? a % b : a & (b-1);
             }
             else {
