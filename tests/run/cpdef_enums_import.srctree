@@ -28,12 +28,22 @@ cpdef enum NamedEnumType:
 
 cpdef foo()
 
+######## enums_without_pyx.pxd #####
+
+cpdef enum EnumTypeNotInPyx:
+    AnotherEnumValue = 500
+
 ######## no_enums.pyx ########
 
 from enums cimport *
+from enums_without_pyx cimport *
 
 def get_named_enum_value():
     return NamedEnumType.NamedEnumValue
+
+def get_named_without_pyx():
+    # This'll generate a warning but return a c int
+    return EnumTypeNotInPyx.AnotherEnumValue
 
 ######## import_enums_test.py ########
 
@@ -51,3 +61,6 @@ assert 'FOO' not in dir(no_enums)
 assert 'foo' not in dir(no_enums)
 
 assert no_enums.get_named_enum_value() == NamedEnumType.NamedEnumValue
+# In this case the enum isn't accessible from Python (by design)
+# but the conversion to Python goes through a reasonable fallback
+assert no_enums.get_named_without_pyx() == 500

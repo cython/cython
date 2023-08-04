@@ -7,6 +7,7 @@ from libcpp.map cimport map as stdmap
 from libcpp.set cimport set as stdset
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr, make_shared
 from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_iterators_simple.h":
@@ -271,6 +272,26 @@ def test_iteration_over_attribute_of_call():
         print(i)
     for i in get_object_with_iterable_attribute().vec:
         print(i)
+
+cdef extern from *:
+    # TODO: support make_shared[const int]
+    shared_ptr[const int] make_shared_const_int "std::make_shared<const int>"(int)
+
+def test_iteration_over_shared_const_ptr_vector(py_v):
+    """
+    >>> test_iteration_over_shared_const_ptr_vector([2, 4, 6])
+    2
+    4
+    6
+    """
+    cdef vector[shared_ptr[const int]] s
+    cdef int i
+    for i in py_v:
+        s.push_back(make_shared_const_int(i))
+
+    cdef shared_ptr[const int] a
+    for a in s:
+        print(deref(a))
 
 def test_iteration_over_reversed_list(py_v):
     """

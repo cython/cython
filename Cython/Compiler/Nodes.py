@@ -31,7 +31,7 @@ from . import Future
 from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
-from ..Utils import add_metaclass
+from ..Utils import add_metaclass, str_to_number
 
 
 if sys.version_info[0] >= 3:
@@ -888,6 +888,7 @@ class CArgDeclNode(Node):
     is_self_arg = 0
     is_type_arg = 0
     is_generic = 1
+    is_special_method_optional = False
     kw_only = 0
     pos_only = 0
     not_none = 0
@@ -1096,6 +1097,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         entry.is_type and entry.type.is_cpp_class
                     ):
                         scope = entry.type.scope
+                    elif entry and entry.as_module:
+                        scope = entry.as_module
                     else:
                         scope = None
                         break
@@ -1715,8 +1718,17 @@ class CEnumDefNode(StatNode):
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
+
+            # For extern enums, we can't reason about their equivalent int values because
+            # we don't know if their definition is complete.
+            is_declared_enum = self.visibility != 'extern'
+
+            next_int_enum_value = 0 if is_declared_enum else None
             for item in self.items:
-                item.analyse_declarations(scope, self.entry)
+                item.analyse_enum_declarations(scope, self.entry, next_int_enum_value)
+                if is_declared_enum:
+                    next_int_enum_value = 1 + (
+                        item.entry.enum_int_value if item.entry.enum_int_value is not None else next_int_enum_value)
 
     def analyse_expressions(self, env):
         return self
@@ -1749,7 +1761,7 @@ class CEnumDefItemNode(StatNode):
 
     child_attrs = ["value"]
 
-    def analyse_declarations(self, env, enum_entry):
+    def analyse_enum_declarations(self, env, enum_entry, incremental_int_value):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
@@ -1761,11 +1773,25 @@ class CEnumDefItemNode(StatNode):
         else:
             cname = self.cname
 
-        entry = env.declare_const(
+        self.entry = entry = env.declare_const(
             self.name, enum_entry.type,
             self.value, self.pos, cname=cname,
             visibility=enum_entry.visibility, api=enum_entry.api,
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
+
+        # Use the incremental integer value unless we see an explicitly declared value.
+        enum_value = incremental_int_value
+        if self.value:
+            if self.value.is_literal:
+                enum_value = str_to_number(self.value.value)
+            elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
+                enum_value = self.value.entry.enum_int_value
+            else:
+                # There is a value but we don't understand its integer value.
+                enum_value = None
+        if enum_value is not None:
+            entry.enum_int_value = enum_value
+
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
             enum_entry.type.values.append(entry.name)
@@ -1853,6 +1879,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if arg.is_generic:
                     arg.default = arg.default.analyse_types(env)
                     arg.default = arg.default.coerce_to(arg.type, env)
+                elif arg.is_special_method_optional:
+                    if not arg.default.is_none:
+                        error(arg.pos, "This argument cannot have a non-None default value")
+                        arg.default = None
                 else:
                     error(arg.pos, "This argument cannot have a default value")
                     arg.default = None
@@ -2978,7 +3008,7 @@ class PyArgDeclNode(Node):
 class DecoratorNode(Node):
     # A decorator
     #
-    # decorator    NameNode or CallNode or AttributeNode
+    # decorator    ExprNode
     child_attrs = ['decorator']
 
 
@@ -3056,6 +3086,7 @@ class DefNode(FuncDefNode):
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
         exception_value, exception_check = except_val or (None, False)
+        nogil = nogil or with_gil
 
         if cfunc is None:
             cfunc_args = []
@@ -3269,7 +3300,8 @@ class DefNode(FuncDefNode):
                         self.entry.signature = TypeSlots.ibinaryfunc
 
         sig = self.entry.signature
-        nfixed = sig.num_fixed_args()
+        nfixed = sig.max_num_fixed_args()
+        min_nfixed = sig.min_num_fixed_args()
         if (sig is TypeSlots.pymethod_signature and nfixed == 1
                and len(self.args) == 0 and self.star_arg):
             # this is the only case where a diverging number of
@@ -3277,10 +3309,10 @@ class DefNode(FuncDefNode):
             # 'self' parameter as in method(*args)
             sig = self.entry.signature = TypeSlots.pyfunction_signature  # self is not 'really' used
             self.self_in_stararg = 1
-            nfixed = 0
+            nfixed = min_nfixed = 0
 
         if self.is_staticmethod and env.is_c_class_scope:
-            nfixed = 0
+            nfixed = min_nfixed = 0
             self.self_in_stararg = True  # FIXME: why for staticmethods?
 
             self.entry.signature = sig = copy.copy(sig)
@@ -3295,6 +3327,8 @@ class DefNode(FuncDefNode):
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
+            if i >= min_nfixed:
+                arg.is_special_method_optional = True
             if sig.is_self_arg(i) and not self.is_staticmethod:
                 if self.is_classmethod:
                     arg.is_type_arg = 1
@@ -3311,7 +3345,7 @@ class DefNode(FuncDefNode):
                     else:
                         arg.needs_conversion = 1
 
-        if nfixed > len(self.args):
+        if min_nfixed > len(self.args):
             self.bad_signature()
             return
         elif nfixed < len(self.args):
@@ -3348,9 +3382,11 @@ class DefNode(FuncDefNode):
 
     def bad_signature(self):
         sig = self.entry.signature
-        expected_str = "%d" % sig.num_fixed_args()
+        expected_str = "%d" % sig.min_num_fixed_args()
         if sig.has_generic_args:
             expected_str += " or more"
+        elif sig.optional_object_arg_count:
+            expected_str += " to %d" % sig.max_num_fixed_args()
         name = self.name
         if name.startswith("__") and name.endswith("__"):
             desc = "Special method"
@@ -3737,8 +3773,6 @@ class DefNodeWrapper(FuncDefNode):
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             varargs_args = "PyObject *%s, PyObject *%s" % (
                     Naming.args_cname, Naming.kwds_cname)
@@ -3750,6 +3784,9 @@ class DefNodeWrapper(FuncDefNode):
                         fastcall_args, varargs_args))
             else:
                 arg_code_list.append(varargs_args)
+        if entry.is_special:
+            for n in range(len(self.args), sig.max_num_fixed_args()):
+                arg_code_list.append("CYTHON_UNUSED PyObject *unused_arg_%s" % n)
         arg_code = ", ".join(arg_code_list)
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
@@ -3923,15 +3960,11 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname, self.error_value()))
             code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
-            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
-            if allow_null:
-                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
-            else:
-                code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
-                code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-                code.put_var_gotref(self.starstar_arg.entry)
-            self.starstar_arg.entry.xdecref_cleanup = allow_null
+            code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                self.starstar_arg.entry.cname, self.error_value()))
+            code.put_var_gotref(self.starstar_arg.entry)
+            self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
 
         if self.self_in_stararg and not self.target.is_staticmethod:
@@ -4521,6 +4554,36 @@ class DefNodeWrapper(FuncDefNode):
                                           arg.type.is_buffer or
                                           arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
+        if self.target.entry.is_special:
+            for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
+                # for special functions with optional args (e.g. power which can
+                # take 2 or 3 args), unused args are None since this is what the
+                # compilers sets
+                if self.target.entry.name == "__ipow__":
+                    # Bug in Python < 3.8 - __ipow__ is used as a binary function
+                    # and attempts to access the third argument will always fail
+                    code.putln("#if PY_VERSION_HEX >= 0x03080000")
+                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, '
+                    '"%s() takes %s arguments but %s were given");' % (
+                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln("}")
+                if self.target.entry.name == "__ipow__":
+                    code.putln("#endif /*PY_VERSION_HEX >= 0x03080000*/")
+            if self.target.entry.name == "__ipow__" and len(self.args) != 2:
+                # It's basically impossible to safely support it:
+                # Class().__ipow__(1) is guaranteed to crash.
+                # Therefore, raise an error.
+                # Use "if" instead of "#if" to avoid warnings about unused variables
+                code.putln("if ((PY_VERSION_HEX < 0x03080000)) {")
+                code.putln(
+                    'PyErr_SetString(PyExc_NotImplementedError, '
+                    '"3-argument %s cannot be used in Python<3.8");' % (
+                        self.target.entry.qualified_name))
+                code.putln("%s;" % code.error_goto(self.pos))
+                code.putln('}')
 
     def error_value(self):
         return self.signature.error_value
@@ -5225,6 +5288,49 @@ class CClassDefNode(ClassDefNode):
         if self.bases and len(self.bases.args) > 1:
             self.entry.type.multiple_bases = True
 
+    def _handle_cclass_decorators(self, env):
+        extra_directives = {}
+        if not self.decorators:
+            return extra_directives
+
+        from . import ExprNodes
+
+        remaining_decorators = []
+
+        for original_decorator in self.decorators:
+            decorator = original_decorator.decorator
+            # entries aren't set at this point, so unfortunately we can't just do
+            #  decorator.get_known_standard_library_import().
+            # Instead we have to manually look it up
+            decorator_call = None
+            if isinstance(decorator, ExprNodes.CallNode):
+                decorator_call = decorator
+                decorator = decorator.function
+            known_name = Builtin.exprnode_to_known_standard_library_name(decorator, env)
+            if known_name == 'functools.total_ordering':
+                if decorator_call:
+                    error(decorator_call.pos, "total_ordering cannot be called.")
+                extra_directives["total_ordering"] = True
+                continue
+            elif known_name == "dataclasses.dataclass":
+                args = None
+                kwds = {}
+                if decorator_call:
+                    if isinstance(decorator_call, ExprNodes.SimpleCallNode):
+                        args = decorator_call.args
+                    else:
+                        args = decorator_call.positional_args.args
+                        kwds_ = decorator_call.keyword_args
+                        if kwds_:
+                            kwds = kwds_.as_python_dict()
+                extra_directives[known_name] = (args, kwds)
+                continue
+            remaining_decorators.append(original_decorator)
+        if remaining_decorators:
+            error(remaining_decorators[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
+        self.decorators = remaining_decorators
+        return extra_directives
+
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
         #print "...visibility =", self.visibility
@@ -5232,8 +5338,7 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
-        if self.decorators:
-            error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
+        extra_directives = self._handle_cclass_decorators(env)
         self.base_type = None
         # Now that module imports are cached, we need to
         # import the modules for extern classes.
@@ -5322,11 +5427,15 @@ class CClassDefNode(ClassDefNode):
             env.add_imported_entry(self.class_name, self.entry, self.pos)
         self.scope = scope = self.entry.type.scope
         if scope is not None:
-            scope.directives = env.directives
-            if "dataclasses.dataclass" in env.directives:
+            if extra_directives:
+                scope.directives = env.directives.copy()
+                scope.directives.update(extra_directives)
+            else:
+                scope.directives = env.directives
+            if "dataclasses.dataclass" in scope.directives:
                 is_frozen = False
                 # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
-                dataclass_config = env.directives["dataclasses.dataclass"]
+                dataclass_config = scope.directives["dataclasses.dataclass"]
                 if dataclass_config:
                     decorator_kwargs = dataclass_config[1]
                     frozen_flag = decorator_kwargs.get('frozen')
@@ -5527,10 +5636,12 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(Py_bf_getbuffer) && defined(Py_bf_releasebuffer)")
+                code.putln("/* PY_VERSION_HEX >= 0x03090000 || Py_LIMITED_API >= 0x030B0000 */")
                 code.putln("#elif defined(_MSC_VER)")
-                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API < 3.11.\")")
                 code.putln("#else")
-                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API < 3.11.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
@@ -6939,8 +7050,10 @@ class AssertStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c"))
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
-        code.putln("if (unlikely(!Py_OptimizeFlag)) {")
+        code.putln("if (unlikely(__pyx_assertions_enabled())) {")
         code.mark_pos(self.pos)
         self.condition.generate_evaluation_code(code)
         code.putln(
@@ -7416,34 +7529,33 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
         code.putln("}")
-        break_label = code.break_label
+
+        # clean up before we enter the 'else:' branch
+        self.iterator.generate_disposal_code(code)
+
+        else_label = code.new_label("for_else") if self.else_clause else None
+        end_label = code.new_label("for_end")
+        label_intercepts = code.label_interceptor(
+            [code.break_label],
+            [end_label],
+            skip_to_label=else_label or end_label,
+            pos=self.pos,
+        )
+
+        code.mark_pos(self.pos)
+        for _ in label_intercepts:
+            self.iterator.generate_disposal_code(code)
+
         code.set_loop_labels(old_loop_labels)
+        self.iterator.free_temps(code)
 
         if self.else_clause:
-            # in nested loops, the 'else' block can contain a
-            # 'continue' statement for the outer loop, but we may need
-            # to generate cleanup code before taking that path, so we
-            # intercept it here
-            orig_continue_label = code.continue_label
-            code.continue_label = code.new_label('outer_continue')
-
             code.putln("/*else*/ {")
+            code.put_label(else_label)
             self.else_clause.generate_execution_code(code)
             code.putln("}")
 
-            if code.label_used(code.continue_label):
-                code.put_goto(break_label)
-                code.mark_pos(self.pos)
-                code.put_label(code.continue_label)
-                self.iterator.generate_disposal_code(code)
-                code.put_goto(orig_continue_label)
-            code.set_loop_labels(old_loop_labels)
-
-        code.mark_pos(self.pos)
-        if code.label_used(break_label):
-            code.put_label(break_label)
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
+        code.put_label(end_label)
 
     def generate_function_definitions(self, env, code):
         self.target.generate_function_definitions(env, code)
@@ -7989,19 +8101,17 @@ class TryExceptStatNode(StatNode):
             if not self.has_default_clause:
                 code.put_goto(except_error_label)
 
-        for exit_label, old_label in [(except_error_label, old_error_label),
-                                      (try_break_label, old_break_label),
-                                      (try_continue_label, old_continue_label),
-                                      (try_return_label, old_return_label),
-                                      (except_return_label, old_return_label)]:
-            if code.label_used(exit_label):
-                if not normal_case_terminates and not code.label_used(try_end_label):
-                    code.put_goto(try_end_label)
-                code.put_label(exit_label)
-                code.mark_pos(self.pos, trace=False)
-                if can_raise:
-                    restore_saved_exception()
-                code.put_goto(old_label)
+        label_intercepts = code.label_interceptor(
+            [except_error_label, try_break_label, try_continue_label, try_return_label, except_return_label],
+            [old_error_label, old_break_label, old_continue_label, old_return_label, old_return_label],
+            skip_to_label=try_end_label if not normal_case_terminates and not code.label_used(try_end_label) else None,
+            pos=self.pos,
+            trace=False,
+        )
+
+        for _ in label_intercepts:
+            if can_raise:
+                restore_saved_exception()
 
         if code.label_used(except_end_label):
             if not normal_case_terminates and not code.label_used(try_end_label):
@@ -8170,7 +8280,7 @@ class ExceptClauseNode(Node):
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
         for var in exc_vars:
-            code.put_gotref(var, py_object_type)
+            code.put_xgotref(var, py_object_type)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -8179,9 +8289,7 @@ class ExceptClauseNode(Node):
             for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
 
-        old_break_label, old_continue_label = code.break_label, code.continue_label
-        code.break_label = code.new_label('except_break')
-        code.continue_label = code.new_label('except_continue')
+        old_loop_labels = code.new_loop_labels("except_")
 
         old_exc_vars = code.funcstate.exc_vars
         code.funcstate.exc_vars = exc_vars
@@ -8195,15 +8303,12 @@ class ExceptClauseNode(Node):
                 code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
-        for new_label, old_label in [(code.break_label, old_break_label),
-                                     (code.continue_label, old_continue_label)]:
-            if code.label_used(new_label):
-                code.put_label(new_label)
-                for var in exc_vars:
-                    code.put_decref_clear(var, py_object_type)
-                code.put_goto(old_label)
-        code.break_label = old_break_label
-        code.continue_label = old_continue_label
+        for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
+            for i, var in enumerate(exc_vars):
+                # Traceback may be NULL.
+                (code.put_decref_clear if i < 2 else code.put_xdecref_clear)(var, py_object_type)
+
+        code.set_loop_labels(old_loop_labels)
 
         for temp in exc_vars:
             code.funcstate.release_temp(temp)
@@ -8359,12 +8464,8 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.release_temp(exc_filename_cname)
                 code.put_goto(old_error_label)
 
-            for new_label, old_label in zip(code.get_all_labels(), finally_old_labels):
-                if not code.label_used(new_label):
-                    continue
-                code.put_label(new_label)
+            for _ in code.label_interceptor(code.get_all_labels(), finally_old_labels):
                 self.put_error_cleaner(code, exc_vars)
-                code.put_goto(old_label)
 
             for cname in exc_vars:
                 code.funcstate.release_temp(cname)
@@ -8374,6 +8475,7 @@ class TryFinallyStatNode(StatNode):
         return_label = code.return_label
         exc_vars = ()
 
+        # TODO: use code.label_interceptor()?
         for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
             if not code.label_used(new_label):
                 continue

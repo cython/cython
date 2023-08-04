@@ -1,5 +1,6 @@
 # mode: run
 # tag: condexpr
+# ticket: 5197
 
 cimport cython
 
@@ -67,3 +68,48 @@ def test_cfunc_ptrs(double x, bint round_down):
     3.0
     """
     return (math.floor if round_down else math.ceil)(x)
+
+
+def performance_gh5197(patternsList):
+    """
+    >>> performance_gh5197([])  # do not actually run anything, just see that things work at all
+    """
+    # Coercing the types in nested conditional expressions used to slow down exponentially.
+    # See https://github.com/cython/cython/issues/5197
+    import re
+    matched=[]
+    for _ in range(len(patternsList)):
+        try:
+            matched.append(patternsList[_].split('|')[-1].split('/')[-1] + 'pattr1' if re.search('^SomeString.*EndIng$')\
+                else patternsList[_].split('|a')[-1].split('/a')[-1] + 'pattr2' if re.search('^SomeOtherString.?Number.*EndIng$')\
+                    else patternsList[_].split('|a')[-1].split('/a')[-1] + 'pattr2' if re.search('^SomeOtherString.?Number.*EndIng$')\
+                        else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                            else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                    else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                        else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                            else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                    else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                        else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                            else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                    else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                        else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                            else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                    else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                        else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                            else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                    else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        # else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        #     else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        #         else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        #             else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        #                 else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        #                     else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                        #                         else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
+                                                                                                                                    else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1]  )
+        except Exception as e:
+            matched.append('Error at Indx:%s-%s' %(_, patternsList[_]))

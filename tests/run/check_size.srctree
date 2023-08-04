@@ -198,7 +198,7 @@ try:
 except ValueError as e:
     assert str(e).startswith('check_size.Foo size changed')
 
-# Warining since check_size.Foo's tp_basicsize is larger than what is needed
+# Warning since check_size.Foo's tp_basicsize is larger than what is needed
 # for FooStructSmall. There is "spare", accessing FooStructSmall's fields will
 # never access invalid memory. This can happen, for instance, when using old
 # headers with a newer runtime, or when using an old _check_size{2,3} with a newer

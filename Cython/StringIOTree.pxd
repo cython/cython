@@ -9,6 +9,7 @@ cdef class StringIOTree:
     cdef public object write
     cdef public list markers
 
+    cpdef bint empty(self)
     @cython.locals(x=StringIOTree)
     cpdef getvalue(self)
     @cython.locals(x=StringIOTree)

@@ -287,3 +287,13 @@ cdef class BytearraySubtype(bytearray):
     """
     def _append(self, x):
         self.append(x)
+
+def fromhex(bytearray b):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> fromhex(bytearray(b""))
+    """
+    if IS_PY3:
+        assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'
+    # method doesn't exist on Py2!

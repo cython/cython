@@ -13,6 +13,16 @@ Glossary
       `allocated dynamically/heap allocated <https://en.wikipedia.org/wiki/C_dynamic_memory_allocation>`_.
       Its lifetime is until the user deletes it explicitly (with ``free`` in C or ``del`` in C++).
       This can happen in a different function than the allocation.
+      
+   Global Interpreter Lock or GIL
+      A lock inside the Python interpreter to ensure that only one Python thread is run at once.
+      This lock is purely to ensure that race conditions do not corrupt internal Python state.
+      Python objects cannot be manipulated unless the GIL is held.
+      It is most relevant to Cython when writing code that should be run in parallel. If you are
+      not aiming to write parallel code then there is usually no benefit to releasing the GIL in
+      Cython. You should not use the GIL as a general locking mechanism in your code since many 
+      operations on Python objects can lead to it being released and to control being passed to 
+      another thread. Also see the `CPython project's glossary entry <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
 
    pointer
       A **pointer** is a variable that stores the address of another variable

@@ -480,7 +480,7 @@ Memoryview Objects and Cython Arrays
 ====================================
 
 These typed memoryviews can be converted to Python memoryview objects
-(`cython.view.memoryview`).  These Python objects are indexable, slicable and
+(`cython.view.memoryview`).  These Python objects are indexable, sliceable and
 transposable in the same way that the original memoryviews are. They can also be
 converted back to Cython-space memoryviews at any time.
 
@@ -553,7 +553,7 @@ may be assigned directly to a memoryview slice::
 
     cdef int[:, ::1] myslice = my_2d_c_array
 
-The arrays are indexable and slicable from Python space just like memoryview objects, and have the same
+The arrays are indexable and sliceable from Python space just like memoryview objects, and have the same
 attributes as memoryview objects.
 
 CPython array module
@@ -595,12 +595,12 @@ Coercion to NumPy
 Memoryview (and array) objects can be coerced to a NumPy ndarray, without having
 to copy the data. You can e.g. do::
 
-    cimport numpy as np
+    cimport numpy as cnp
     import numpy as np
 
-    numpy_array = np.asarray(<np.int32_t[:10, :10]> my_pointer)
+    numpy_array = np.asarray(<cnp.int32_t[:10, :10]> my_pointer)
 
-Of course, you are not restricted to using NumPy's type (such as ``np.int32_t``
+Of course, you are not restricted to using NumPy's type (such as ``cnp.int32_t``
 here), you can use any usable type.
 
 None Slices

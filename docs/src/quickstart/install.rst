@@ -46,22 +46,32 @@ The simplest way of installing Cython is by using ``pip``::
 
   pip install Cython
 
+On platforms that are covered by one of the binary wheel packages provided on PyPI,
+this will install an accelerated wheel which contains some Cython compiled modules.
+Other platforms will use pure Python wheels that install quickly but run somewhat
+slower, which is still well adapted for one-time builds e.g. in CI build servers.
+
+For installations on systems where Cython is executed a lot, it is worth checking that
+the installation uses a binary module, or otherwise to build a binary wheel locally.
 
 The newest Cython release can always be downloaded from
 https://cython.org/.  Unpack the tarball or zip file, enter the
 directory, and then run::
 
-  python setup.py install
+  pip install .
 
 
-For one-time builds, e.g. for CI/testing, on platforms that are not covered
-by one of the wheel packages provided on PyPI, it is substantially faster
-than a full source build to install an uncompiled (slower) version of Cython
-with
+For one-time installations from a Cython source checkout, it is substantially
+faster than a full binary build to just install the uncompiled (slower) version
+of Cython with something like
 
 ::
 
-    pip install Cython --install-option="--no-cython-compile"
+    pip install .  --install-option="--no-cython-compile"
+
+    or
+
+    NO_CYTHON_COMPILE=true  pip install .
 
 
 .. [Anaconda] https://docs.anaconda.com/anaconda/

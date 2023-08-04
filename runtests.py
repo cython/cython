@@ -71,6 +71,12 @@ except NameError:
 
 WITH_CYTHON = True
 
+try:
+    # Py3.12+ doesn't have distutils any more and requires setuptools to provide it.
+    import setuptools
+except ImportError:
+    pass
+
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
 _to_clean = []
@@ -362,14 +368,14 @@ def get_cc_version(language):
     """
         finds gcc version using Popen
     """
+    cc = ''
     if language == 'cpp':
-        cc = sysconfig.get_config_var('CXX')
-    else:
-        cc = sysconfig.get_config_var('CC')
+        cc = os.environ.get('CXX') or sysconfig.get_config_var('CXX')
+    if not cc:
+        cc = os.environ.get('CC') or sysconfig.get_config_var('CC')
     if not cc:
         from distutils import ccompiler
         cc = ccompiler.get_default_compiler()
-
     if not cc:
         return ''
 
@@ -448,7 +454,7 @@ EXT_EXTRAS = {
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:py3only':  exclude_extension_in_pyver((2, 7)),
-    'tag:cppexecpolicies': require_gcc("9.1")
+    'tag:cppexecpolicies': require_gcc("9.1"),
 }
 
 
@@ -466,6 +472,8 @@ VER_DEP_MODULES = {
                                            'run.different_package_names',
                                            'run.unicode_imports',  # encoding problems on appveyor in Py2
                                            'run.reimport_failure',  # reimports don't do anything in Py2
+                                           'run.cpp_stl_cmath_cpp17',
+                                           'run.cpp_stl_cmath_cpp20'
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
@@ -499,9 +507,16 @@ VER_DEP_MODULES = {
                                          'run.pep557_dataclasses',  # dataclasses module
                                          'run.test_dataclasses',
                                          ]),
-    (3,11,999): (operator.gt, lambda x: x in ['run.py_unicode_strings',
+    (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
-    
+    (3,11,999): (operator.gt, lambda x: x in [
+        'run.py_unicode_strings',  # Py_UNICODE was removed
+        'compile.pylong',  # PyLongObject changed its structure
+        'run.longintrepr',  # PyLongObject changed its structure
+    ]),
+    # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
+    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
+
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -742,12 +757,12 @@ class TestBuilder(object):
                 suite.addTest(
                     self.handle_directory(path, filename))
         if (sys.platform not in ['win32'] and self.add_embedded_test
-                # the embedding test is currently broken in Py3.8+, except on Linux.
-                and (sys.version_info < (3, 8) or sys.platform != 'darwin')):
+                # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
+                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
-                suite.addTest(unittest.makeSuite(EmbedTest))
+                suite.addTest(unittest.TestLoader().loadTestsFromTestCase(EmbedTest))
         return suite
 
     def handle_directory(self, path, context):
@@ -1314,6 +1329,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 except CompileError as exc:
                     error = str(exc)
             stderr = get_stderr()
+            if stderr and b"Command line warning D9025" in stderr:
+                # Manually suppress annoying MSVC warnings about overridden CLI arguments.
+                stderr = b''.join([
+                    line for line in stderr.splitlines(keepends=True)
+                    if b"Command line warning D9025" not in line
+                ])
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
@@ -1728,6 +1749,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         """Run tests from unittest.TestCase-derived classes."""
         valid_types = (unittest.TestSuite, unittest.TestCase)
         suite = unittest.TestSuite()
+        load_tests = unittest.TestLoader().loadTestsFromTestCase
         for cls in classes:
             if isinstance(cls, str):
                 if cls in sys.modules:
@@ -1737,7 +1759,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             elif isinstance(cls, valid_types):
                 suite.addTest(cls)
             else:
-                suite.addTest(unittest.makeSuite(cls))
+                suite.addTest(load_tests(cls))
         with self.stats.time(self.name, self.language, 'run'):
             suite.run(result)
 
@@ -1792,17 +1814,51 @@ class TestCodeFormat(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def runTest(self):
+        source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
+
         import pycodestyle
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
             config_file = os.path.join(os.path.dirname(__file__), "setup.cfg")
+        total_errors = 0
+
+        # checks for .py files
         paths = []
-        for codedir in ['Cython', 'Demos', 'docs', 'pyximport', 'tests']:
+        for codedir in source_dirs:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
-        self.assertEqual(result.total_errors, 0, "Found code style errors.")
+        total_errors += result.total_errors
+
+        # checks for non-Python source files
+        paths = []
+        for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            # whitespace
+            "W1", "W2", "W3",
+            # indentation
+            "E101", "E111",
+        ])
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        """
+        # checks for non-Python test files
+        paths = []
+        for codedir in ['tests']:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(select=[
+            # whitespace
+            "W1", "W2", "W3",
+        ])
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+        """
+
+        self.assertEqual(total_errors, 0, "Found code style errors.")
 
 
 include_debugger = IS_CPYTHON
@@ -2023,14 +2079,17 @@ class EmbedTest(unittest.TestCase):
 
         try:
             subprocess.check_output([
-                "make",
-                "PYTHON='%s'" % sys.executable,
-                "CYTHON='%s'" % cython,
-                "LIBDIR1='%s'" % libdir,
-                "paths", "test",
-            ])
+                    "make",
+                    "PYTHON='%s'" % sys.executable,
+                    "CYTHON='%s'" % cython,
+                    "LIBDIR1='%s'" % libdir,
+                    "paths", "test",
+                ],
+                stderr=subprocess.STDOUT,
+            )
         except subprocess.CalledProcessError as err:
-            print(err.output.decode())
+            if err.output:
+                self.fail("EmbedTest failed: " + err.output.decode().strip())
             raise
         self.assertTrue(True)  # :)
 
@@ -2533,7 +2592,7 @@ def time_stamper_thread(interval=10):
             write('\n#### %s\n' % now())
 
     thread = threading.Thread(target=time_stamper, name='time_stamper')
-    thread.setDaemon(True)  # Py2 ...
+    thread.daemon = True
     thread.start()
     try:
         yield
@@ -2708,7 +2767,7 @@ def runtests(options, cmd_args, coverage=None):
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
-    if not COMPILER_HAS_INT128 or not IS_CPYTHON:
+    if not COMPILER_HAS_INT128:
         exclude_selectors += [RegExSelector('int128')]
 
     if options.shard_num > -1:

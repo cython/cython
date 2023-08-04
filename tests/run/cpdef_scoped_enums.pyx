@@ -40,3 +40,41 @@ def test_enum_doc():
     True
     """
     pass
+
+
+def to_from_py_conversion(Enum1 val):
+    """
+    >>> to_from_py_conversion(Enum1.Item1) is Enum1.Item1
+    True
+
+    Scoped enums should not be used as flags, and therefore attempts to set them
+    with arbitrary values should fail
+    >>> to_from_py_conversion(500)
+    Traceback (most recent call last):
+    ...
+    ValueError: 500 is not a valid Enum1
+
+    # Note that the ability to bitwise-or together the two numbers is inherited
+    from the Python enum (so not in Cython's remit to prevent)
+    >>> to_from_py_conversion(Enum1.Item1 | Enum1.Item2)
+    Traceback (most recent call last):
+    ...
+    ValueError: 3 is not a valid Enum1
+    """
+    return val
+
+
+def test_pickle():
+    """
+    >>> from pickle import loads, dumps
+    >>> import sys
+
+    Pickling enums won't work without the enum module, so disable the test
+    >>> if sys.version_info < (3, 4):
+    ...     loads = dumps = lambda x: x
+    >>> loads(dumps(Enum1.Item2)) == Enum1.Item2
+    True
+    >>> loads(dumps(Enum2.Item4)) == Enum2.Item4
+    True
+    """
+    pass

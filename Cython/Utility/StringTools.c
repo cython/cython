@@ -925,7 +925,9 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
         if (!CYTHON_PEP393_ENABLED || ukind == result_ukind) {
             memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));
         } else {
-            #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030300F0 || defined(_PyUnicode_FastCopyCharacters)
+            #if PY_VERSION_HEX >= 0x030D0000
+            if (unlikely(PyUnicode_CopyCharacters(result_uval, char_pos, uval, 0, ulength) < 0)) goto bad;
+            #elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030300F0 || defined(_PyUnicode_FastCopyCharacters)
             _PyUnicode_FastCopyCharacters(result_uval, char_pos, uval, 0, ulength);
             #else
             Py_ssize_t j;
@@ -1061,11 +1063,11 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
     } else
 #endif
 #if CYTHON_USE_PYLONG_INTERNALS
-    if (likely(PyLong_CheckExact(value)) && likely(Py_SIZE(value) == 1 || Py_SIZE(value) == 0)) {
-        if (Py_SIZE(value) == 0) {
+    if (likely(PyLong_CheckExact(value)) && likely(__Pyx_PyLong_IsCompact(value))) {
+        if (__Pyx_PyLong_IsZero(value)) {
             ival = 0;
         } else {
-            ival = ((PyLongObject*)value)->ob_digit[0];
+            ival = __Pyx_PyLong_CompactValue(value);
             if (unlikely(ival > 255)) goto bad_range;
         }
     } else

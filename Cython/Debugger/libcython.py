@@ -1115,7 +1115,7 @@ class CyPrint(CythonCommand):
         if name in global_python_dict:
             value = global_python_dict[name].get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             print('%s = %s' % (name, value))
-            #This also would work, but beacause the output of cy exec is not captured in gdb.execute, TestPrint would fail
+            #This also would work, but because the output of cy exec is not captured in gdb.execute, TestPrint would fail
             #self.cy.exec_.invoke("print('"+name+"','=', type(" + name + "), "+name+", flush=True )", from_tty)
         elif name in module_globals:
             cname = module_globals[name].cname

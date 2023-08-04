@@ -6,21 +6,19 @@ GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
-  echo "Skipping compiler setup"
+  echo "Skipping compiler setup: Code style run"
 elif [[ $OSTYPE == "linux-gnu"* ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
-  sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
+  sudo apt install -y -q gdb python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
-  sudo /usr/sbin/update-ccache-symlinks
-  echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
@@ -33,8 +31,33 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+
+  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
+    # see https://trac.macports.org/ticket/62757
+    unset MACOSX_DEPLOYMENT_TARGET
+  fi
 else
-  echo "No setup specified for $OSTYPE"
+  echo "Skipping compiler setup: No setup specified for $OSTYPE"
+fi
+
+if [[ $COVERAGE == "1" ]]; then
+  echo "Skip setting up compilation caches"
+elif [[ $OSTYPE == "msys" ]]; then
+  echo "Set up sccache"
+  echo "TODO: Make a soft symlink to sccache"
+else
+  echo "Set up ccache"
+
+  echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
+
+  echo "Set up symlinks to ccache"
+  cp ccache /usr/local/bin/
+  ln -s ccache /usr/local/bin/gcc
+  ln -s ccache /usr/local/bin/g++
+  ln -s ccache /usr/local/bin/cc
+  ln -s ccache /usr/local/bin/c++
+  ln -s ccache /usr/local/bin/clang
+  ln -s ccache /usr/local/bin/clang++
 fi
 
 # Set up miniconda
@@ -52,14 +75,17 @@ echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
 echo "Python $PYTHON_SYS_VERSION"
+
 if [[ $CC ]]; then
   which ${CC%% *}
   ${CC%% *} --version
 fi
+
 if [[ $CXX ]]; then
   which ${CXX%% *}
   ${CXX%% *} --version
 fi
+
 echo "===================="
 
 # Install python requirements
@@ -125,7 +151,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
 else
-  CFLAGS="-O0 -ggdb -Wall -Wextra"
+  CFLAGS="-O0 -ggdb -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
 fi
 # Trying to cover debug assertions in the CI without adding
 # extra jobs. Therefore, odd-numbered minor versions of Python
@@ -155,8 +181,11 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
+  # It looks like parallel build may be causing occasional link failures on Windows
+  # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
+  # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
+    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) and not sys.platform.startswith("win") else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
@@ -205,6 +234,6 @@ python runtests.py \
 
 EXIT_CODE=$?
 
-ccache -s 2>/dev/null || true
+ccache -s -v -v 2>/dev/null || true
 
 exit $EXIT_CODE

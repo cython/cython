@@ -180,9 +180,15 @@ _strip_c_comments = partial(re.compile(
 
 _strip_cython_code_from_html = partial(re.compile(
     re.sub(r'\s\s+', '', r'''
+    (?:
         <pre class=["'][^"']*cython\s+line[^"']*["']\s*>
         (?:[^<]|<(?!/pre))+
         </pre>
+    )|(?:
+        <style[^>]*>
+        (?:[^<]|<(?!/style))+
+        </style>
+    )
     ''')
 ).sub, '')
 
@@ -248,9 +254,10 @@ class TreeAssertVisitor(VisitorTransform):
                         "Expected path '%s' not found in result tree" % path)
         if 'test_fail_if_path_exists' in directives:
             for path in directives['test_fail_if_path_exists']:
-                if TreePath.find_first(node, path) is not None:
+                first_node = TreePath.find_first(node, path)
+                if first_node is not None:
                     Errors.error(
-                        node.pos,
+                        first_node.pos,
                         "Unexpected path '%s' found in result tree" % path)
         if 'test_assert_c_code_has' in directives:
             self._c_patterns.extend(directives['test_assert_c_code_has'])
@@ -353,7 +360,7 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
     try:
         other_time = os.path.getmtime(newer_than)
     except OSError:
-        # Support writing a fresh file (which is always newer than a non-existant one)
+        # Support writing a fresh file (which is always newer than a non-existent one)
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):

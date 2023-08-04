@@ -682,9 +682,12 @@ def printbuf_object(object[:] mslice, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
@@ -1240,3 +1243,18 @@ match arr:
         assert globs['res']
 
     return isinstance(<object>a, Sequence)
+
+
+ctypedef int aliasT
+def test_assignment_typedef():
+    """
+    >>> test_assignment_typedef()
+    1
+    2
+    """
+    cdef int[2] x
+    cdef aliasT[:] y
+    x[:] = [1, 2]
+    y = x
+    for v in y:
+        print(v)

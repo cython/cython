@@ -158,12 +158,16 @@
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS (PY_MAJOR_VERSION >= 3)
   #endif
-  #undef CYTHON_PEP489_MULTI_PHASE_INIT
-  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #if PY_VERSION_HEX < 0x03090000
+    #undef CYTHON_PEP489_MULTI_PHASE_INIT
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #elif !defined(CYTHON_PEP489_MULTI_PHASE_INIT)
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
+  #endif
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
   #undef CYTHON_USE_TP_FINALIZE
-  #define CYTHON_USE_TP_FINALIZE 0
+  #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1 && PYPY_VERSION_NUM >= 0x07030C00)
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -335,7 +339,8 @@
   #endif
   #ifndef CYTHON_FAST_GIL
     // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
-    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
+    // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
+    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000 && PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_METH_FASTCALL
     // CPython 3.6 introduced METH_FASTCALL but with slightly different
@@ -368,7 +373,8 @@
     #undef CYTHON_USE_DICT_VERSIONS
     #define CYTHON_USE_DICT_VERSIONS 0
   #elif !defined(CYTHON_USE_DICT_VERSIONS)
-    #define CYTHON_USE_DICT_VERSIONS 1
+    // Python 3.12a5 deprecated "ma_version_tag"
+    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
   #endif
   #if PY_VERSION_HEX < 0x030700A3
     #undef CYTHON_USE_EXC_INFO_STACK
@@ -473,6 +479,16 @@
 # endif
 #endif
 
+#ifndef CYTHON_USE_CPP_STD_MOVE
+  // msvc doesn't set __cplusplus to a useful value
+  #if defined(__cplusplus) && ( \
+    __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600))
+    #define CYTHON_USE_CPP_STD_MOVE 1
+  #else
+    #define CYTHON_USE_CPP_STD_MOVE 0
+  #endif
+#endif
+
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
 #ifdef _MSC_VER
@@ -541,6 +557,27 @@
   #endif
 #endif
 
+#ifdef __cplusplus
+  template <typename T>
+  struct __PYX_IS_UNSIGNED_IMPL {static const bool value = T(0) < T(-1);};
+  #define __PYX_IS_UNSIGNED(type) (__PYX_IS_UNSIGNED_IMPL<type>::value)
+#else
+  #define __PYX_IS_UNSIGNED(type) (((type)-1) > 0)
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY == 1
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000)
+#else
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000)
+#endif
+// reinterpret
+
+// TODO: refactor existing code to use those macros
+#define __PYX_REINTERPRET_FUNCION(func_pointer, other_pointer) ((func_pointer)(void(*)(void))(other_pointer))
+// #define __PYX_REINTERPRET_POINTER(pointer_type, pointer) ((pointer_type)(void *)(pointer))
+// #define __PYX_RUNTIME_REINTERPRET(type, var) (*(type *)(&var))
+
+
 /////////////// CInitCode ///////////////
 
 // inline attribute
@@ -594,18 +631,14 @@ class __Pyx_FakeReference {
     // TODO(robertwb): Delegate all operators (or auto-generate unwrapping code where needed).
     template<typename U> bool operator ==(const U& other) const { return *ptr == other; }
     template<typename U> bool operator !=(const U& other) const { return *ptr != other; }
-    template<typename U=T> bool operator==(const __Pyx_FakeReference<U>& other) const { return *ptr == *other.ptr; }
-    template<typename U=T> bool operator!=(const __Pyx_FakeReference<U>& other) const { return *ptr != *other.ptr; }
+    template<typename U> bool operator==(const __Pyx_FakeReference<U>& other) const { return *ptr == *other.ptr; }
+    template<typename U> bool operator!=(const __Pyx_FakeReference<U>& other) const { return *ptr != *other.ptr; }
   private:
     T *ptr;
 };
 
 
 /////////////// PythonCompatibility ///////////////
-
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define Py_OptimizeFlag 0
-#endif
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
@@ -626,10 +659,10 @@ class __Pyx_FakeReference {
         // TODO - currently written to be simple and work in limited API etc.
         // A more optimized version would be good
         PyObject *kwds=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
-        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *call_result=NULL, *empty=NULL;
+        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
         const char *fn_cstr=NULL;
         const char *name_cstr=NULL;
-        PyCodeObject* co=NULL;
+        PyCodeObject *co=NULL, *result=NULL;
         PyObject *type, *value, *traceback;
 
         // we must be able to call this while an exception is happening - thus clear then restore the state
@@ -660,20 +693,14 @@ class __Pyx_FakeReference {
         if (!(name_cstr=PyUnicode_AsUTF8AndSize(name, NULL))) goto end;
         if (!(co = PyCode_NewEmpty(fn_cstr, name_cstr, fline))) goto end;
 
-        if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto cleanup_code_too;
-        if (!(empty = PyTuple_New(0))) goto cleanup_code_too; // unfortunately __pyx_empty_tuple isn't available here
-        if (!(call_result = PyObject_Call(replace, empty, kwds))) goto cleanup_code_too;
+        if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto end;
+        // unfortunately, __pyx_empty_tuple isn't available here
+        if (!(empty = PyTuple_New(0))) goto end;
 
-        Py_XDECREF((PyObject*)co);
-        co = (PyCodeObject*)call_result;
-        call_result = NULL;
+        result = (PyCodeObject*) PyObject_Call(replace, empty, kwds);
 
-        if (0) {
-            cleanup_code_too:
-            Py_XDECREF((PyObject*)co);
-            co = NULL;
-        }
-        end:
+    end:
+        Py_XDECREF((PyObject*) co);
         Py_XDECREF(kwds);
         Py_XDECREF(argcount);
         Py_XDECREF(posonlyargcount);
@@ -681,12 +708,11 @@ class __Pyx_FakeReference {
         Py_XDECREF(nlocals);
         Py_XDECREF(stacksize);
         Py_XDECREF(replace);
-        Py_XDECREF(call_result);
         Py_XDECREF(empty);
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
-        return co;
+        return result;
     }
 #elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
 
@@ -726,6 +752,12 @@ class __Pyx_FakeReference {
 #endif
 #define __Pyx_NoneAsNull(obj)  (__Pyx_Py_IsNone(obj) ? NULL : (obj))
 
+#if PY_VERSION_HEX >= 0x030900F0 && !CYTHON_COMPILING_IN_PYPY
+  #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
+#else
+  #define __Pyx_PyObject_GC_IsFinalized(o) _PyGC_FINALIZED(o)
+#endif
+
 #ifndef CO_COROUTINE
   #define CO_COROUTINE 0x80
 #endif
@@ -744,6 +776,12 @@ class __Pyx_FakeReference {
 #endif
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
+#endif
+#ifndef Py_TPFLAGS_SEQUENCE
+  #define Py_TPFLAGS_SEQUENCE 0
+#endif
+#ifndef Py_TPFLAGS_MAPPING
+  #define Py_TPFLAGS_MAPPING 0
 #endif
 
 #ifndef METH_STACKLESS
@@ -794,7 +832,7 @@ class __Pyx_FakeReference {
 #endif
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
-#if PY_VERSION_HEX < 0x030900B1
+#if __PYX_LIMITED_VERSION_HEX < 0x030900B1
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
   typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
@@ -1000,7 +1038,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_READY(op)       (0)
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetLength(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111)
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111U)
   #define __Pyx_PyUnicode_KIND(u)         ((void)u, (0))
   // __Pyx_PyUnicode_DATA() and __Pyx_PyUnicode_READ() must go together, e.g. for iteration.
   #define __Pyx_PyUnicode_DATA(u)         ((void*)u)
@@ -1025,7 +1063,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_KIND(u)         ((int)PyUnicode_KIND(u))
   #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
   #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
+  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, (Py_UCS4) ch)
   #if PY_VERSION_HEX >= 0x030C0000
     #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_LENGTH(u))
   #else
@@ -1045,12 +1083,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_READY(op)       (0)
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_SIZE(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AS_UNICODE(u)[i]))
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(Py_UNICODE) == 2) ? 65535 : 1114111)
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(Py_UNICODE) == 2) ? 65535U : 1114111U)
   #define __Pyx_PyUnicode_KIND(u)         ((int)sizeof(Py_UNICODE))
   #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AS_UNICODE(u))
   // (void)(k) => avoid unused variable warning due to macro:
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((Py_UNICODE*)d)[i] = ch)
+  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((Py_UNICODE*)d)[i] = (Py_UNICODE) ch)
   #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_SIZE(u))
 #endif
 
@@ -1137,6 +1175,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #else
   // NOTE: might fail with exception => check for -1
   #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
+#else
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -1258,7 +1302,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #define __Pyx_PyErr_GivenExceptionMatches(err, type) PyErr_GivenExceptionMatches(err, type)
 #define __Pyx_PyErr_GivenExceptionMatches2(err, type1, type2) (PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2))
 #endif
-#define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_Occurred(), err1, err2)
+#define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_CurrentExceptionType(), err1, err2)
 
 #define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
 
@@ -1977,7 +2021,7 @@ static void __Pyx_FastGilFuncInit(void);
 
 #ifdef WITH_THREAD
   #ifndef CYTHON_THREAD_LOCAL
-    #if __STDC_VERSION__ >= 201112
+    #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112
       #define CYTHON_THREAD_LOCAL _Thread_local
     #elif defined(__GNUC__)
       #define CYTHON_THREAD_LOCAL __thread
@@ -2115,7 +2159,7 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// UtilityCodePragmas /////////////////////////
 
-#if _MSC_VER
+#ifdef _MSC_VER
 #pragma warning( push )
 /* Warning 4127: conditional expression is constant
  * Cython uses constant conditional expressions to allow in inline functions to be optimized at
@@ -2126,6 +2170,6 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// UtilityCodePragmasEnd //////////////////////
 
-#if _MSV_VER
+#ifdef _MSC_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif

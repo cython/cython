@@ -173,8 +173,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if self.context_types:
             # inject types into module scope
             def scope_transform(module_node):
+                dummy_entry = object()
                 for name, type in self.context_types.items():
+                    # Restore the old type entry after declaring the type.
+                    # We need to access types in the scope, but this shouldn't alter the entry
+                    # that is visible from everywhere else
+                    old_type_entry = getattr(type, "entry", dummy_entry)
                     entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    if old_type_entry is not dummy_entry:
+                        type.entry = old_type_entry
                     entry.in_cinclude = True
                 return module_node
 

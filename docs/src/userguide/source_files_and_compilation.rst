@@ -225,12 +225,6 @@ in one line)::
 Note that when using setuptools, you should import it before Cython, otherwise,
 both might disagree about the class to use here.
 
-Note also that if you use setuptools instead of :mod:`distutils`, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
-
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
 .pyx or .pxd source file using a special comment block at the start of the file::
@@ -447,12 +441,6 @@ e.g.::
 
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
-
-Remember that if you use setuptools instead of distutils, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
 
 
 .. _integrating_multiple_modules:
@@ -853,6 +841,25 @@ Cython code.  Here is the list of currently supported directives:
     classes. Tools like IPython and epydoc can thus display the
     signature, which cannot otherwise be retrieved after
     compilation.  Default is False.
+
+``embedsignature.format`` (``c`` / ``python`` / ``clinic``)
+    If set to ``c``, Cython will generate signatures preserving
+    C type declarations and Python type annotations.
+    If set to ``python``, Cython will do a best attempt to use
+    pure-Python type annotations in embedded signatures. For arguments
+    without Python type annotations, the C type is mapped to the
+    closest Python type equivalent (e.g., C ``short`` is mapped to
+    Python ``int`` type and C ``double`` is mapped to Python ``float``
+    type).  The specific output and type mapping are experimental and
+    may change over time.
+    The ``clinic`` format generates signatures that are compatible
+    with those understood by CPython's Argument Clinic tool. The
+    CPython runtime strips these signatures from docstrings and
+    translates them into a ``__text_signature__`` attribute. This is
+    mainly useful when using ``binding=False``, since the Cython
+    functions generated with ``binding=True`` do not have (nor need)
+    a ``__text_signature__`` attribute.
+    Default is ``c``.
 
 ``cdivision`` (True / False)
     If set to False, Cython will adjust the remainder and quotient

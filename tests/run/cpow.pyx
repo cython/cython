@@ -192,6 +192,70 @@ def pow_int_int_non_negative(int a, unsigned int b):
     print(cython.typeof(c1))
     print(cython.typeof(c2))
 
+
+ctypedef double f64
+
+def pythagoras_with_typedef(double a, double b):
+    # see https://github.com/cython/cython/issues/5203
+    """
+    >>> rc = pythagoras_with_typedef(2.0, 2.0)
+    >>> pyresult = 1.0 / (2 * 2.0 ** 2) ** 0.5
+    >>> pyresult - 0.001 < rc < pyresult + 0.001  or  (rc, pyresult)
+    True
+    """
+    cdef f64 result = a * a + b * b
+    result = 1.0 / result ** 0.5
+    return result
+
+
+@cython.cpow(False)
+def power_coercion_in_nogil_1(double a, double b):
+    """
+    >>> power_coercion_in_nogil_1(2., 2.)
+    4.0
+    >>> power_coercion_in_nogil_1(-1., 0.5)
+    Traceback (most recent call last):
+    ...
+    TypeError: Cannot convert 'complex' with non-zero imaginary component to 'double' (this most likely comes from the '**' operator; use 'cython.cpow(True)' to return 'nan' instead of a complex number).
+    """
+    cdef double c
+    with nogil:
+        c = a**b
+    return c
+
+
+cdef double nogil_fun(double x) nogil:
+    return x
+
+def power_coercion_in_nogil_2(double a, double b):
+    """
+    >>> power_coercion_in_nogil_2(2., 2.)
+    4.0
+    >>> power_coercion_in_nogil_2(-1., 0.5)
+    Traceback (most recent call last):
+    ...
+    TypeError: Cannot convert 'complex' with non-zero imaginary component to 'double' (this most likely comes from the '**' operator; use 'cython.cpow(True)' to return 'nan' instead of a complex number).
+    """
+    c = a**b
+    with nogil:
+        d = nogil_fun(c)
+    return d
+
+
+def power_coercion_in_nogil_3(double a, double b, double c):
+    """
+    >>> power_coercion_in_nogil_3(2., 2., 1.0)
+    0.25
+    >>> power_coercion_in_nogil_3(-1., 0.5, 1.0)
+    Traceback (most recent call last):
+    ...
+    TypeError: Cannot convert 'complex' with non-zero imaginary component to 'double' (this most likely comes from the '**' operator; use 'cython.cpow(True)' to return 'nan' instead of a complex number).
+    """
+    with nogil:
+        c /= a**b
+    return c
+
+
 _WARNINGS = """
 63:21: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.
 64:32: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.

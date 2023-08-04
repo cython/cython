@@ -1,5 +1,5 @@
 # mode: run
-# ticket: t1772
+# ticket: 1772
 
 cimport cython
 from cython.view cimport array
@@ -324,7 +324,17 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     double[:] double[:] 5.0 6.0
     >>> test_fused_memslice_dtype[cython.float](get_array(4, 'f'))
     float[:] float[:] 5.0 6.0
+
+    # None should evaluate to *something* (currently the first
+    # in the list, but this shouldn't be a hard requirement)
+    >>> test_fused_memslice_dtype(None)
+    float[:]
+    >>> test_fused_memslice_dtype[cython.double](None)
+    double[:]
     """
+    if array is None:
+        print(cython.typeof(array))
+        return
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
@@ -390,6 +400,37 @@ def test_cython_numeric(cython.numeric arg):
     double complex (10+1j)
     """
     print cython.typeof(arg), arg
+
+
+cdef fused int_t:
+    int
+
+def test_pylong(int_t i):
+    """
+    >>> import cython
+    >>> try:    long = long # Python 2
+    ... except: long = int  # Python 3
+
+    >>> test_pylong[int](int(0))
+    int
+    >>> test_pylong[cython.int](int(0))
+    int
+    >>> test_pylong(int(0))
+    int
+
+    >>> test_pylong[int](long(0))
+    int
+    >>> test_pylong[cython.int](long(0))
+    int
+    >>> test_pylong(long(0))
+    int
+
+    >>> test_pylong[cython.long](0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    KeyError: ...
+    """
+    print cython.typeof(i)
+
 
 cdef fused ints_t:
     int
@@ -555,3 +596,32 @@ def test_fused_func_pointer_multilevel():
     """
     print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[double, int]))
     print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[float, int]))
+
+cdef null_default(cython.floating x, cython.floating *x_minus_1_out=NULL):
+    # On C++ a void* can't be assigned to a regular pointer, therefore setting up
+    # needs to avoid going through a void* temp
+    if x_minus_1_out:
+        x_minus_1_out[0] = x-1
+    return x
+
+def test_null_default():
+    """
+    >>> test_null_default()
+    2.0 1.0
+    2.0
+    2.0 1.0
+    2.0
+    """
+    cdef double xd = 2.
+    cdef double xd_minus_1
+    result = null_default(xd, &xd_minus_1)
+    print result, xd_minus_1
+    result = null_default(xd)
+    print result
+
+    cdef float xf = 2.
+    cdef float xf_minus_1
+    result = null_default(xf, &xf_minus_1)
+    print result, xf_minus_1
+    result = null_default(xf)
+    print result

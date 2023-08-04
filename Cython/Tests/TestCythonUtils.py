@@ -1,8 +1,15 @@
+import sys
 import unittest
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO  # doesn't accept 'str' in Py2
 
 from Cython.Utils import (
     _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
-    build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager)
+    build_hex_version, cached_method, clear_method_caches, try_finally_contextmanager,
+    print_version,
+)
 
 METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
@@ -126,3 +133,38 @@ class TestCythonUtils(unittest.TestCase):
                 self.assertEqual(call_args, ((1, 2), {'y': 4}))
                 raise StopIteration("STOP")
             assert states == ["enter", "exit"]
+
+    def test_print_version(self):
+        orig_stderr = sys.stderr
+        orig_stdout = sys.stdout
+        stderr = sys.stderr = StringIO()
+        stdout = sys.stdout = StringIO()
+        try:
+            print_version()
+        finally:
+            sys.stdout = orig_stdout
+            sys.stderr = orig_stderr
+
+        stdout = stdout.getvalue()
+        stderr = stderr.getvalue()
+
+        from .. import __version__ as version
+        self.assertIn(version, stdout)
+        if stderr:  # Depends on os.fstat(1/2).
+            self.assertIn(version, stderr)
+
+    def test_print_version_stdouterr(self):
+        orig_stderr = sys.stderr
+        orig_stdout = sys.stdout
+        stdout = sys.stdout = sys.stderr = StringIO()  # same!
+        try:
+            print_version()
+        finally:
+            sys.stdout = orig_stdout
+            sys.stderr = orig_stderr
+
+        stdout = stdout.getvalue()
+
+        from .. import __version__ as version
+        self.assertIn(version, stdout)
+        self.assertEqual(stdout.count(version), 1)
