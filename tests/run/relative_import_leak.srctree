@@ -1,0 +1,33 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+import sys
+from contextlib import redirect_stderr
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+from io import StringIO
+
+sys.path.append('other')
+sys.stderr = temp_stderr = StringIO()
+try:
+    setup(
+        ext_modules = cythonize("**/*.pyx"),
+        )
+except:
+    assert "pkg/aa.pyx:1:0: 'pkg/bb.pxd' not found" in temp_stderr.getvalue()
+else:
+    assert False, "The module was imported even when it should not be importable"
+finally:
+    temp_stderr.close()
+    sys.stderr = sys.__stderr__
+
+######## pkg/__init__.py ########
+
+######## pkg/aa.pyx ########
+from . cimport bb
+
+######## other/pkg/__init__.py ########
+
+######## other/pkg/bb.pxd ########
+ctypedef unsigned long ULong
