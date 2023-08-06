@@ -173,6 +173,20 @@ class FusedCFuncDefNode(StatListNode):
                           env.is_c_class_scope or
                           entry.is_cmethod)
 
+            exception_value_node = copied_node.cfunc_declarator.exception_value
+            if (exception_value_node and
+                    isinstance(exception_value_node, ExprNodes.ConstNode) and
+                    exception_value_node.value is PyrexTypes.fused_type_exception_value_placeholder):
+                # Specialize the exception value
+                exception_value = ExprNodes.ConstNode(
+                    exception_value_node.pos, value=type.exception_value,
+                    type=type.return_type)
+                exception_value = exception_value.analyse_types(env).coerce_to(
+                            type.return_type, env).analyse_const_expression(env)
+                # difficult to get this behaviour to work during "specialize"
+                type.exception_value = exception_value.get_constant_c_result_code()
+                copied_node.cfunc_declarator.exception_value = exception_value
+
             if self.node.cfunc_declarator.optional_arg_count:
                 self.node.cfunc_declarator.declare_optional_arg_struct(
                                            type, env, fused_cname=cname)
