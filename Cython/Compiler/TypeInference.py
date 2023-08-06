@@ -538,10 +538,7 @@ def find_spanning_type(type1, type2):
     return result_type
 
 def simply_type(result_type):
-    if result_type.is_reference:
-        result_type = result_type.ref_base_type
-    if result_type.is_cv_qualified:
-        result_type = result_type.cv_base_type
+    result_type = PyrexTypes.remove_cv_ref(result_type, dont_remove_fakeref=False)
     if result_type.is_array:
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type

@@ -5370,3 +5370,16 @@ def cap_length(s, max_prefix=63, max_len=1024):
         return s
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
+
+def remove_cv_ref(tp, dont_remove_fakeref=True):
+    # named by analogy with c++ std::remove_cv_ref
+    last_tp = None
+    # The while-loop is probably unnecessary, but I'm not confident
+    # of the order or how careful we are prevent nesting.
+    while tp != last_tp:
+        last_tp = tp
+        if tp.is_cv_qualified:
+            tp = tp.cv_base_type
+        if tp.is_reference and not (dont_remove_fakeref and tp.is_fake_reference):
+            tp = tp.ref_base_type
+    return tp
