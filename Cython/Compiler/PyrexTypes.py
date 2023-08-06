@@ -2812,6 +2812,7 @@ class CPtrType(CPointerBaseType):
 
     is_ptr = 1
     default_value = "0"
+    exception_value = "NULL"
 
     def __hash__(self):
         return hash(self.base_type) + 27  # arbitrarily chosen offset
