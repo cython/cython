@@ -2,6 +2,7 @@ PYTHON setup.py build_ext --inplace
 
 ######## setup.py ########
 
+import os
 import sys
 from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
@@ -17,7 +18,7 @@ try:
         ext_modules = cythonize("**/*.pyx"),
         )
 except:
-    assert "pkg/aa.pyx:1:0: 'pkg/bb.pxd' not found" in temp_stderr.getvalue()
+    assert "pkg" + os.sep + "aa.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found" in temp_stderr.getvalue()
 else:
     assert False, "The module was imported even when it should not be importable"
 finally:
