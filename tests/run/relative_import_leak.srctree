@@ -4,6 +4,8 @@ PYTHON setup.py build_ext --inplace
 
 import os
 import sys
+from contextlib import contextmanager
+from Cython.Compiler.Errors import CompileError
 from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 if sys.version_info[0] < 3:
@@ -11,24 +13,55 @@ if sys.version_info[0] < 3:
 else:
     from io import StringIO
 
-sys.path.append('other')
-sys.stderr = temp_stderr = StringIO()
-try:
+@contextmanager
+def assert_stderr(expected_error):
+    sys.path.append('other')
+    sys.stderr = temp_stderr = StringIO()
+    try:
+        yield
+    except CompileError:
+        assert expected_error in temp_stderr.getvalue(), '"%s" not found in stderr' % expected_error
+    else:
+        assert False, 'The module was imported even when it should not be importable'
+    finally:
+        temp_stderr.close()
+        sys.stderr = sys.__stderr__
+
+with assert_stderr('pkg' + os.sep + "aa.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
     setup(
-        ext_modules = cythonize("**/*.pyx"),
+        ext_modules = cythonize('pkg/aa.pyx'),
         )
-except:
-    assert "pkg" + os.sep + "aa.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found" in temp_stderr.getvalue()
-else:
-    assert False, "The module was imported even when it should not be importable"
-finally:
-    temp_stderr.close()
-    sys.stderr = sys.__stderr__
+
+with assert_stderr('pkg' + os.sep + "ab.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+    setup(
+        ext_modules = cythonize('pkg/ab.pyx'),
+        )
+
+with assert_stderr('pkg' + os.sep + 'pkg2' + os.sep + "ac.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+    setup(
+        ext_modules = cythonize('pkg/pkg2/ac.pyx'),
+        )
+
+with assert_stderr('pkg' + os.sep + 'pkg2' + os.sep + "ad.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+    setup(
+        ext_modules = cythonize('pkg/pkg2/ad.pyx'),
+        )
 
 ######## pkg/__init__.py ########
 
 ######## pkg/aa.pyx ########
 from . cimport bb
+
+######## pkg/ab.pyx ########
+from .bb cimport ULong
+
+######## pkg/pkg2/__init__.py ########
+
+######## pkg/pkg2/ac.pyx ########
+from .. cimport bb
+
+######## pkg/pkg2/ad.pyx ########
+from ..bb cimport ULong
 
 ######## other/pkg/__init__.py ########
 
