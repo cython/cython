@@ -3,10 +3,12 @@ PYTHON setup.py build_ext --inplace
 ######## setup.py ########
 
 import sys
-from contextlib import redirect_stderr
 from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
-from io import StringIO
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
 
 sys.path.append('other')
 sys.stderr = temp_stderr = StringIO()
