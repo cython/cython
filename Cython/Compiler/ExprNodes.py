@@ -1436,7 +1436,11 @@ class IntNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
-            plain_integer_string = str(Utils.str_to_number(self.value))
+            # (In hex if sufficiently large to cope with Python's string-to-int limitations.
+            #  We use quite a small value of "sufficiently large")
+            value = Utils.str_to_number(self.value)
+            formatter = hex if value > sys.maxsize else str
+            plain_integer_string = formatter(value)
             self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()

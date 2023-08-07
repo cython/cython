@@ -4475,7 +4475,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                                  len(getattr(operand2, 'longness', '')))]
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned=unsigned, longness=longness,
-                                         value=str(int(node.constant_result)),
+                                         value=hex(int(node.constant_result)),
                                          constant_result=int(node.constant_result))
             # IntNode is smart about the type it chooses, so we just
             # make sure we were not smarter this time
