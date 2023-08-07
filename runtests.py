@@ -473,7 +473,10 @@ VER_DEP_MODULES = {
                                            'run.unicode_imports',  # encoding problems on appveyor in Py2
                                            'run.reimport_failure',  # reimports don't do anything in Py2
                                            'run.cpp_stl_cmath_cpp17',
-                                           'run.cpp_stl_cmath_cpp20'
+                                           'run.cpp_stl_cmath_cpp20',
+                                           'run.large_integer_T5290',  # Py2 adds an L at the end of
+                                                                # names with 'hex' so there's a slight
+                                                                # mismatch in variable names.
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
