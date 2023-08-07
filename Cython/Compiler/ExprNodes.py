@@ -1439,7 +1439,7 @@ class IntNode(ConstNode):
             # (In hex if sufficiently large to cope with Python's string-to-int limitations.
             #  We use quite a small value of "sufficiently large")
             value = Utils.str_to_number(self.value)
-            formatter = hex if value > sys.maxsize else str
+            formatter = hex if value > (2**64) else str
             plain_integer_string = formatter(value)
             self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
