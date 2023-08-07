@@ -439,7 +439,11 @@ def str_to_number(value):
         literal_type = value[1]  # 0'o' - 0'b' - 0'x'
         if literal_type in 'xX':
             # hex notation ('0x1AF')
-            value = int(value[2:], 16)
+            if value[-1] in 'lL':
+                # Python-2 complication
+                value = int(value[2:-1], 16)
+            else:
+                value = int(value[2:], 16)
         elif literal_type in 'oO':
             # Py3 octal notation ('0o136')
             value = int(value[2:], 8)
