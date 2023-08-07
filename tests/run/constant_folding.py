@@ -494,12 +494,14 @@ def cascaded_cmp_with_partial_constants_and_false_end(a, b, c):
     '//PrimaryCmpNode',
     '//PrimaryCmpNode//IntNode',
     '//PrimaryCmpNode//IntNode[@value = "0"]',
-    '//PrimaryCmpNode//IntNode[@value = "4294967296"]',
+    '//PrimaryCmpNode//IntNode[@value = "0x100000000"]',
 )
 @cython.test_fail_if_path_exists(
     '//PrimaryCmpNode//IntBinopNode',
     '//PrimaryCmpNode//IntNode[@value = "1"]',
+    '//PrimaryCmpNode//IntNode[@value = "0x1"]',
     '//PrimaryCmpNode//IntNode[@value = "32"]',
+    '//PrimaryCmpNode//IntNode[@value = "0x20"]',
 )
 def const_in_binop(v):
     """
