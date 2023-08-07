@@ -659,6 +659,7 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
     ctx->is_valid_array = 1;
     ctx->new_count = 1;
     *tsp = ++ts;
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
