@@ -1370,7 +1370,7 @@ class IntNode(ConstNode):
     @property
     def hex_value(self):
         return Utils.strip_l_py2(hex(Utils.str_to_number(self.value)))
-    
+
     @property
     def base_10_value(self):
         return str(Utils.str_to_number(self.value))
