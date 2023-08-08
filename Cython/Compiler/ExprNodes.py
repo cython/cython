@@ -1441,6 +1441,9 @@ class IntNode(ConstNode):
             value = Utils.str_to_number(self.value)
             formatter = hex if value > (2**64) else str
             plain_integer_string = formatter(value)
+            if plain_integer_string[-1] in 'lL':
+                # Python 2 fix...
+                plain_integer_string = plain_integer_string[:-1]
             self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()

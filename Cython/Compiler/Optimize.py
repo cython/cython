@@ -4473,9 +4473,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                        getattr(operand2, 'unsigned', '')
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
+            value = hex(int(node.constant_result))
+            if value[-1] in 'lL':
+                # Python 2 fix
+                value = value[:-1]
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned=unsigned, longness=longness,
-                                         value=hex(int(node.constant_result)),
+                                         value=value,
                                          constant_result=int(node.constant_result))
             # IntNode is smart about the type it chooses, so we just
             # make sure we were not smarter this time
