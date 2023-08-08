@@ -740,10 +740,16 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     #   however that is hard to do with the current implementation so it lives here
                     #   for now.
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
-                        from .ExprNodes import ConstNode
-                        self.exception_value = ConstNode(
-                            self.pos, value=return_type.exception_value, type=return_type)
                         fused_exception_value = return_type.exception_value is PyrexTypes.fused_type_exception_value_placeholder
+                        if not fused_exception_value:
+                            from .ExprNodes import ConstNode
+                            self.exception_value = ConstNode(
+                                self.pos, value=return_type.exception_value, type=return_type)
+                        else:
+                            from .UtilNodes import SpecializableExceptionValueNode
+                            self.exception_value = SpecializableExceptionValueNode(
+                                self.pos, value=return_type.exception_value, type=return_type)
+                        
             if self.exception_value:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)

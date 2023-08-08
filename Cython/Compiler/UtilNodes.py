@@ -386,3 +386,18 @@ class HasGilNode(AtomicExprNode):
 
     def calculate_result_code(self):
         return "1" if self.has_gil else "0"
+
+
+class SpecializableExceptionValueNode(AtomicExprNode):
+    """
+    Used as a temporary exception_value for a fused function
+    """
+    def analyse_types(self, env):
+        return self
+
+    def specialize(self, fused_to_specific, env):
+        specialized_return_type = fused_to_specific[self.type]
+        if specialized_return_type.exception_value is not None:
+            return ExprNodes.ConstNode(
+                self.pos, value=specialized_return_type.exception_value, type=specialized_return_type
+            ).analyse_const_expression(env)

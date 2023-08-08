@@ -3,7 +3,8 @@ from __future__ import absolute_import
 import copy
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
-               ParseTreeTransforms, StringEncoding, Errors)
+               ParseTreeTransforms, StringEncoding, Errors,
+               UtilNodes)
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
@@ -174,18 +175,20 @@ class FusedCFuncDefNode(StatListNode):
                           entry.is_cmethod)
 
             exception_value_node = copied_node.cfunc_declarator.exception_value
+            import pdb; pdb.set_trace()
             if (exception_value_node and
-                    isinstance(exception_value_node, ExprNodes.ConstNode) and
-                    exception_value_node.value is PyrexTypes.fused_type_exception_value_placeholder):
-                # Specialize the exception value
-                exception_value = ExprNodes.ConstNode(
-                    exception_value_node.pos, value=type.exception_value,
-                    type=type.return_type)
-                exception_value = exception_value.analyse_types(env).coerce_to(
-                            type.return_type, env).analyse_const_expression(env)
-                # difficult to get this behaviour to work during "specialize"
-                type.exception_value = exception_value.get_constant_c_result_code()
-                copied_node.cfunc_declarator.exception_value = exception_value
+                    isinstance(exception_value_node, UtilNodes.SpecializableExceptionValueNode)):
+                # Reset the declarator exception value and re-analyse to get the correct
+                # exception value for the specialized function.
+                exception_value_node = exception_value_node.specialize(fused_to_specific, env)
+                copied_node.cfunc_declarator.exception_value = exception_value_node
+                if exception_value_node is not None:
+                    exc_value = exception_value_node.get_constant_c_result_code()
+                else:
+                    exc_value = None
+                # may have been updated
+                entry.type = type = copied_node.type = type.update(
+                    exception_value=exc_value)
 
             if self.node.cfunc_declarator.optional_arg_count:
                 self.node.cfunc_declarator.declare_optional_arg_struct(
