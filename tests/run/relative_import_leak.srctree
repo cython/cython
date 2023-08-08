@@ -27,24 +27,30 @@ def assert_stderr(expected_error):
         temp_stderr.close()
         sys.stderr = sys.__stderr__
 
-with assert_stderr('pkg' + os.sep + "aa.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+pxd_file = os.path.join('pkg', 'bb.pxd')
+
+pyx_file = os.path.join('pkg', 'aa.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
     setup(
-        ext_modules = cythonize('pkg/aa.pyx'),
+        ext_modules = cythonize(pyx_file),
         )
 
-with assert_stderr('pkg' + os.sep + "ab.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+pyx_file = os.path.join('pkg', 'ab.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
     setup(
-        ext_modules = cythonize('pkg/ab.pyx'),
+        ext_modules = cythonize(pyx_file),
         )
 
-with assert_stderr('pkg' + os.sep + 'pkg2' + os.sep + "ac.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+pyx_file = os.path.join('pkg', 'pkg2', 'ac.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
     setup(
-        ext_modules = cythonize('pkg/pkg2/ac.pyx'),
+        ext_modules = cythonize(pyx_file),
         )
 
-with assert_stderr('pkg' + os.sep + 'pkg2' + os.sep + "ad.pyx:1:0: 'pkg" + os.sep + "bb.pxd' not found"):
+pyx_file = os.path.join('pkg', 'pkg2', 'ad.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
     setup(
-        ext_modules = cythonize('pkg/pkg2/ad.pyx'),
+        ext_modules = cythonize(pyx_file),
         )
 
 ######## pkg/__init__.py ########
