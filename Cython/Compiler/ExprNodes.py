@@ -1365,6 +1365,16 @@ class IntNode(ConstNode):
     longness = ""
     is_c_literal = None  # unknown
 
+    # hex_value and base_10_value are designed only to simplify
+    # writing tests to get a consistent representation of value
+    @property
+    def hex_value(self):
+        return Utils.strip_l_py2(hex(Utils.str_to_number(self.value)))
+    
+    @property
+    def base_10_value(self):
+        return str(Utils.str_to_number(self.value))
+
     def __init__(self, pos, **kwds):
         ExprNode.__init__(self, pos, **kwds)
         if 'type' not in kwds:
@@ -1437,9 +1447,10 @@ class IntNode(ConstNode):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
             # (In hex if sufficiently large to cope with Python's string-to-int limitations.
-            #  We use quite a small value of "sufficiently large")
+            #  We use quite a small value of "sufficiently large" - 10**13 is picked as
+            #  the approximate point where hex strings become shorter)
             value = Utils.str_to_number(self.value)
-            formatter = hex if value > (2**64) else str
+            formatter = hex if value > (10**13) else str
             plain_integer_string = formatter(value)
             if plain_integer_string[-1] in 'lL':
                 # Python 2 fix...

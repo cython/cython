@@ -32,6 +32,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string
 from .Errors import error, warning
 from .ParseTreeTransforms import SkipDeclarations
+from .. import Utils
 
 try:
     from __builtin__ import reduce
@@ -4474,9 +4475,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
             value = hex(int(node.constant_result))
-            if value[-1] in 'lL':
-                # Python 2 fix
-                value = value[:-1]
+            value = Utils.strip_l_py2(value)
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned=unsigned, longness=longness,
                                          value=value,
