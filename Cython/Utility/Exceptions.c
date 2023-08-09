@@ -10,12 +10,39 @@
 __Pyx_init_assertions_enabled();
 
 /////////////// AssertionsEnabled.proto ///////////////
+//@substitute: naming
 
 #define __Pyx_init_assertions_enabled()
 
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
   #define __pyx_assertions_enabled() (1)
-#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY  ||  defined(Py_LIMITED_API)
+#elif CYTHON_COMPILING_IN_LIMITED_API
+  static int __pyx_assertions_enabled_flag;
+  #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
+
+  #undef __Pyx_init_assertions_enabled
+  static void __Pyx_init_assertions_enabled(void) {
+    PyObject *builtins, *debug, *debug_str;
+    int flag;
+    builtins = PyEval_GetBuiltins();
+    if (!builtins) goto bad;
+    debug_str = PyUnicode_FromStringAndSize("__debug__", 9);
+    if (!debug_str) goto bad;
+    debug = PyObject_GetItem(builtins, debug_str);
+    Py_DECREF(debug_str);
+    if (!debug) goto bad;
+    flag = PyObject_IsTrue(debug);
+    Py_DECREF(debug);
+    if (flag == -1) goto bad;
+    __pyx_assertions_enabled_flag = flag;
+    return;
+  bad:
+    __pyx_assertions_enabled_flag = 1;
+    if (PyErr_Occurred()) {
+      PyErr_WriteUnraisable($module_cname);
+    }
+  }
+#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY
   #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
 #elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
   // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
