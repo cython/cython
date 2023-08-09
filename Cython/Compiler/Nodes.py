@@ -8878,7 +8878,7 @@ class FromCImportStatNode(StatNode):
                 else:
                     is_relative_import = self.relative_level is not None and self.relative_level > 0
                     submodule_scope = env.context.find_module(
-                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False, relative_import=is_relative_import)
+                        name, from_module=module_scope, pos=self.pos, absolute_fallback=False, relative_import=is_relative_import)
                     if not submodule_scope:
                         continue
                     if submodule_scope.parent_module is module_scope:

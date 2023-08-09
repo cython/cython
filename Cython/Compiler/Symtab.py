@@ -1393,30 +1393,30 @@ class ModuleScope(Scope):
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
         is_relative_import = relative_level is not None and relative_level > 0
-        relative_to = None
+        from_module = None
         absolute_fallback = False
         if relative_level is not None and relative_level > 0:
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
-            relative_to = self
+            from_module = self
 
             top_level = 1 if self.is_package else 0
-            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            # * top_level == 1 when file is __init__.pyx, current package (from_module) is the current module
             #   i.e. dot in `from . import ...` points to the current package
-            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            # * top_level == 0 when file is regular module, current package (from_module) is parent module
             #   i.e. dot in `from . import ...` points to the package where module is placed
-            while relative_level > top_level and relative_to:
-                relative_to = relative_to.parent_module
+            while relative_level > top_level and from_module:
+                from_module = from_module.parent_module
                 relative_level -= 1
 
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
-            relative_to = self.parent_module
+            from_module = self.parent_module
             absolute_fallback = True
 
         module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
+            module_name, from_module=from_module, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
     def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
