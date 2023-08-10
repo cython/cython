@@ -938,9 +938,9 @@ def skip_c(tags):
     # dictionary so we check before looping.
     if 'distutils' in tags:
         for option in tags['distutils']:
-            splitted = option.split('=')
-            if len(splitted) == 2:
-                argument, value = splitted
+            split = option.split('=')
+            if len(split) == 2:
+                argument, value = split
                 if argument.strip() == 'language' and value.strip() == 'c++':
                     return True
     return False
