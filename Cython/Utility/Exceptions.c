@@ -7,21 +7,20 @@
 
 
 /////////////// AssertionsEnabled.init ///////////////
-__Pyx_init_assertions_enabled();
+
+if (likely(__Pyx_init_assertions_enabled() == 0)); else
 
 /////////////// AssertionsEnabled.proto ///////////////
-//@substitute: naming
-
-#define __Pyx_init_assertions_enabled()
 
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define __pyx_assertions_enabled() (1)
-#elif CYTHON_COMPILING_IN_LIMITED_API
+  #define __Pyx_init_assertions_enabled()  (0)
+  #define __pyx_assertions_enabled()  (1)
+#elif CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
+  // Py_OptimizeFlag is deprecated in Py3.12+ and not available in the Limited API.
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
 
-  #undef __Pyx_init_assertions_enabled
-  static void __Pyx_init_assertions_enabled(void) {
+  static int __Pyx_init_assertions_enabled(void) {
     PyObject *builtins, *debug, *debug_str;
     int flag;
     builtins = PyEval_GetBuiltins();
@@ -35,27 +34,15 @@ __Pyx_init_assertions_enabled();
     Py_DECREF(debug);
     if (flag == -1) goto bad;
     __pyx_assertions_enabled_flag = flag;
-    return;
+    return 0;
   bad:
     __pyx_assertions_enabled_flag = 1;
-    if (PyErr_Occurred()) {
-      PyErr_WriteUnraisable($module_cname);
-    }
-  }
-#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY
-  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
-  // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
-  // Py_OptimizeFlag is deprecated in Py3.12+
-  static int __pyx_assertions_enabled_flag;
-  #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
-
-  #undef __Pyx_init_assertions_enabled
-  static void __Pyx_init_assertions_enabled(void) {
-    __pyx_assertions_enabled_flag = ! _PyInterpreterState_GetConfig(__Pyx_PyThreadState_Current->interp)->optimization_level;
+    // We (rarely) may not have an exception set, but the calling code will call PyErr_Occurred() either way.
+    return -1;
   }
 #else
-  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
+  #define __Pyx_init_assertions_enabled()  (0)
+  #define __pyx_assertions_enabled()  (!Py_OptimizeFlag)
 #endif
 
 
