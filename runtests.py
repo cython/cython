@@ -2096,8 +2096,7 @@ class EmbedTest(unittest.TestCase):
 
 def load_listfile(filename):
     # just re-use the FileListExclude implementation
-    fle = FileListExcluder(filename)
-    return list(fle.excludes)
+    return list(FileListExcluder(filename))
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
