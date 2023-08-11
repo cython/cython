@@ -666,10 +666,11 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, basestring) and not options.timestamps:
-        return compile_single(source, options, full_module_name)
-    else:
-        return compile_multiple(source, options)
+    if isinstance(source, basestring):
+        if not options.timestamps:
+            return compile_single(source, options, full_module_name)
+        source = [source]
+    return compile_multiple(source, options)
 
 
 @Utils.cached_function
@@ -772,14 +773,11 @@ def main(command_line = 0):
         sources = args
 
     if options.show_version:
-        from .. import __version__
-        print("Cython version %s" % __version__)
-        # For legacy reasons, we also write the version to stderr.
-        # New tools should expect it in stdout, but existing ones still pipe from stderr.
-        if not sys.stderr.isatty():
-            sys.stderr.write("Cython version %s\n" % __version__)
+        print_version()
+
     if options.working_path!="":
         os.chdir(options.working_path)
+
     try:
         result = compile(sources, options)
         if result.num_errors > 0:

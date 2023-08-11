@@ -225,12 +225,6 @@ in one line)::
 Note that when using setuptools, you should import it before Cython, otherwise,
 both might disagree about the class to use here.
 
-Note also that if you use setuptools instead of :mod:`distutils`, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
-
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
 .pyx or .pxd source file using a special comment block at the start of the file::
@@ -447,12 +441,6 @@ e.g.::
 
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
-
-Remember that if you use setuptools instead of distutils, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
 
 
 .. _integrating_multiple_modules:

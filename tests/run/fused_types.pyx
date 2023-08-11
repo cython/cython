@@ -596,3 +596,32 @@ def test_fused_func_pointer_multilevel():
     """
     print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[double, int]))
     print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[float, int]))
+
+cdef null_default(cython.floating x, cython.floating *x_minus_1_out=NULL):
+    # On C++ a void* can't be assigned to a regular pointer, therefore setting up
+    # needs to avoid going through a void* temp
+    if x_minus_1_out:
+        x_minus_1_out[0] = x-1
+    return x
+
+def test_null_default():
+    """
+    >>> test_null_default()
+    2.0 1.0
+    2.0
+    2.0 1.0
+    2.0
+    """
+    cdef double xd = 2.
+    cdef double xd_minus_1
+    result = null_default(xd, &xd_minus_1)
+    print result, xd_minus_1
+    result = null_default(xd)
+    print result
+
+    cdef float xf = 2.
+    cdef float xf_minus_1
+    result = null_default(xf, &xf_minus_1)
+    print result, xf_minus_1
+    result = null_default(xf)
+    print result

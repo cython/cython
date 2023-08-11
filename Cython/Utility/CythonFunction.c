@@ -308,7 +308,7 @@ __Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
     op->defaults_tuple = __Pyx_PySequence_ITEM(res, 0);
     if (unlikely(!op->defaults_tuple)) result = -1;
     else {
-        op->defaults_tuple = __Pyx_PySequence_ITEM(res, 0);
+        op->defaults_kwdict = __Pyx_PySequence_ITEM(res, 1);
         if (unlikely(!op->defaults_kwdict)) result = -1;
     }
     #endif
