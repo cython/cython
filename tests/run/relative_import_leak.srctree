@@ -24,8 +24,8 @@ def assert_stderr(expected_error):
     else:
         assert False, 'The module was imported even when it should not be importable'
     finally:
-        temp_stderr.close()
         sys.stderr = sys.__stderr__
+        temp_stderr.close()
 
 pxd_file = os.path.join('pkg', 'bb.pxd')
 
