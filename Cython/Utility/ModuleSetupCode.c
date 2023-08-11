@@ -662,89 +662,61 @@ class __Pyx_FakeReference {
         //  2. Generate a code object by compiling some trivial code, and customize.
         // We use the second because it's less sensitive to changes in the code type
         // constructor with version.
-        PyObject *kwds=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
-        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *empty=NULL;
-        PyObject *py_fline=NULL;
-        const char *fn_cstr=NULL;
-        const char *line_no_argname=NULL;
-        PyObject *co=NULL, *result=NULL;
-        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
-        PyObject *fn_bytes = NULL;
-        #endif
+        PyObject *exception_table = NULL;
+        PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
+        PyObject *version_info; // borrowed
+        PyObject *py_minor_version = NULL;
+        long minor_version = 0;
         PyObject *type, *value, *traceback;
 
         // we must be able to call this while an exception is happening - thus clear then restore the state
         PyErr_Fetch(&type, &value, &traceback);
 
-        if (!(kwds=PyDict_New())) goto end;
-        if (!(argcount=PyLong_FromLong(a))) goto end;
-        if (PyDict_SetItemString(kwds, "co_argcount", argcount) != 0) goto end;
-        if (!(posonlyargcount=PyLong_FromLong(p))) goto end;
-        if (PyDict_SetItemString(kwds, "co_posonlyargcount", posonlyargcount) != 0) goto end;
-        if (!(kwonlyargcount=PyLong_FromLong(k))) goto end;
-        if (PyDict_SetItemString(kwds, "co_kwonlyargcount", kwonlyargcount) != 0) goto end;
-        if (!(nlocals=PyLong_FromLong(l))) goto end;
-        if (PyDict_SetItemString(kwds, "co_nlocals", nlocals) != 0) goto end;
-        if (!(stacksize=PyLong_FromLong(s))) goto end;
-        if (PyDict_SetItemString(kwds, "co_stacksize", stacksize) != 0) goto end;
-        if (!(flags=PyLong_FromLong(f))) goto end;
-        if (PyDict_SetItemString(kwds, "co_flags", flags) != 0) goto end;
-        if (!(py_fline=PyLong_FromLong(fline))) goto end;
-        if (PyDict_SetItemString(kwds, "co_firstlineno", py_fline) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_code", code) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_consts", c) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_names", n) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_varnames", v) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_freevars", fv) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_cellvars", cell) != 0) goto end;
-        #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-        line_no_argname = "co_linetable";
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        minorVersion = 11; // we don't yet need to distinguish between versions > 11
+        // Note that from 3.13, when we do we can use Py_Version 
         #else
-        // We need to check the runtime Python version. This appears to only be
-        // available as an awkward string comparison. (Not future proof to Python 10...)
-        {
-            const char *versionStr = Py_GetVersion();
-            if (versionStr[0] <= '3' && versionStr[1] == '.' &&
-                 // If the 3rd character is a digit, we know we have 3.10 or greater
-                 (versionStr[3] < '0' || versionStr[3] > '9')) {
-                line_no_argname = "co_lnotab";
-            } else {
-                line_no_argname = "co_linetable";
-            }
+        if (!(version_info = PySys_GetObject("version_info"))) goto end;
+        if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
+        minor_version = PyLong_AsLong(py_minor_version);
+        if (minor_version == -1 && PyErr_Occurred()) goto end;
+        #endif
+
+        if (!(types_module = PyImport_ImportModule("types"))) goto end;
+        if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
+
+        if (minor_version <= 7) {
+            // 3.7:
+            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
+            //        constants, names, varnames, filename, name, firstlineno,
+            //        lnotab[, freevars[, cellvars]])
+            (void)p;
+            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
+                          c, n, v, fn, name, fline, lnos, fv, cell);
+        } else if (minor_version <= 10) {
+            // 3.8, 3.9, 3.10
+            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
+            //    flags, codestring, constants, names, varnames, filename, name,
+            //    firstlineno, lnotab[, freevars[, cellvars]])
+            // 3.10 switches lnotab for linetable, but is otherwise the same
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
+                          c, n, v, fn, name, fline, lnos, fv, cell);
+        } else {    
+            // 3.11, 3.12
+            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
+            //    flags, codestring, constants, names, varnames, filename, name, 
+            //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
+            // We use name and qualname for simplicity
+            if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
+                          c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
         }
-        #endif
-        if (PyDict_SetItemString(kwds, line_no_argname, lnos) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "co_name", name) != 0) goto end;
-
-        #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-        if (!(fn_cstr=PyUnicode_AsUTF8AndSize(fn, NULL))) goto end;
-        #else
-        if (!(fn_bytes = PyUnicode_AsUTF8String(fn))) goto end;
-        if (!(fn_cstr = PyBytes_AsString(fn_bytes))) goto end;
-        #endif
-
-        if (!(co = Py_CompileString("pass", fn_cstr, Py_single_input))) goto end;
-
-        if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto end;
-        // unfortunately, __pyx_empty_tuple isn't available here
-        if (!(empty = PyTuple_New(0))) goto end;
-
-        result = PyObject_Call(replace, empty, kwds);
 
     end:
-        Py_XDECREF((PyObject*) co);
-        Py_XDECREF(kwds);
-        Py_XDECREF(argcount);
-        Py_XDECREF(posonlyargcount);
-        Py_XDECREF(kwonlyargcount);
-        Py_XDECREF(nlocals);
-        Py_XDECREF(stacksize);
-        Py_XDECREF(replace);
-        Py_XDECREF(empty);
-        Py_XDECREF(py_fline);
-        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
-        Py_XDECREF(fn_bytes);
-        #endif
+        Py_XDECREF(code_type);
+        Py_XDECREF(exception_table);
+        Py_XDECREF(types_module);
+        Py_XDECREF(py_minor_version);
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
