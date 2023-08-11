@@ -905,6 +905,47 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject *scratch_dict, 
+                                                       PyObject *firstlineno, PyObject *name) {
+    PyObject *replace = NULL;
+    if (unlikely(PyDict_SetItemString(scratch_dict, "co_firstlineno", firstlineno))) return NULL;
+    if (unlikely(PyDict_SetItemString(scratch_dict, "co_name", name))) return NULL;
+
+    replace = PyObject_GetAttrString(code, "replace");
+    if (likely(replace)) {
+        PyObject *result;
+        result = PyObject_Call(replace, $empty_tuple, scratch_dict);
+        Py_DECREF(replace);
+        return result;
+    }
+
+    #if __PYX_LIMITED_VERSION_HEX < 0x030780000
+    // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
+    // In this we take a lazy interpretted route (without regard to performance
+    // since it's fairly old and this is mostly just to get something working)
+    PyErr_Clear();
+    {
+        PyObject *compiled = NULL, *result = NULL;
+        if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
+        if (unlikely(PyDict_SetItemString(scratch_dict, "type", (PyObject*)(&PyType_Type)))) return NULL;
+        compiled = Py_CompileString(
+            "out = type(code)(\n"
+            "  code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize,\n"
+            "  code.co_flags, code.co_code, code.co_consts, code.co_names,\n"
+            "  code.co_varnames, code.co_filename, co_name, co_firstlineno,\n"
+            "  code.co_lnotab)\n", "<dummy>", Py_file_input);
+        if (!compiled) return NULL;
+        result = PyEval_EvalCode(compiled, scratch_dict, scratch_dict);
+        Py_DECREF(compiled);
+        if (!result) PyErr_Print();
+        Py_DECREF(result);
+        result = PyDict_GetItemString(scratch_dict, "out");
+        if (result) Py_INCREF(result);
+        return result;
+    }
+    #endif
+}
+
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     PyObject *code_object = NULL, *py_py_line = NULL, *py_funcname = NULL, *dict = NULL;
@@ -933,12 +974,11 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     if (unlikely(!py_funcname)) goto bad;
     dict = PyDict_New();
     if (unlikely(!dict)) goto bad;
-    if (unlikely(PyDict_SetItemString(dict, "co_firstlineno", py_py_line))) goto bad;
-    if (unlikely(PyDict_SetItemString(dict, "co_name", py_funcname))) goto bad;
-    replace = PyObject_GetAttrString(code_object, "replace");
-    if (unlikely(!replace)) goto bad;
-    Py_DECREF(code_object);
-    code_object = PyObject_Call(replace, $empty_tuple, dict);
+    {
+        PyObject *old_code_object = code_object;
+        code_object = __Pyx_PyCode_Replace_For_AddTraceback(code_object, dict, py_py_line, py_funcname);
+        Py_DECREF(old_code_object);
+    }
     if (unlikely(!code_object)) goto bad;
 
     // Note that getframe is borrowed
