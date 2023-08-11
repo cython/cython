@@ -242,8 +242,8 @@ static int __Pyx_ParseOptionalKeywords(
 
     while (1) {
         // clean up key and value when the loop is "continued"
-        Py_XDECREF(key); key=0;
-        Py_XDECREF(value); value=0;
+        Py_XDECREF(key); key = NULL;
+        Py_XDECREF(value); value = NULL;
 
         if (kwds_is_tuple) {
             Py_ssize_t size;
@@ -254,36 +254,49 @@ static int __Pyx_ParseOptionalKeywords(
             if (size < 0) goto bad;
 #endif
             if (pos >= size) break;
+
 #if CYTHON_AVOID_BORROWED_REFS
+            // Get an owned reference to key.
             key = __Pyx_PySequence_ITEM(kwds, pos);
             if (!key) goto bad;
 #elif CYTHON_ASSUME_SAFE_MACROS
             key = PyTuple_GET_ITEM(kwds, pos);
-            Py_INCREF(key);
-#else  /* !AVOID_BORROWED_REFS && ASSUME_SAFE_MACROS */
+#else
             key = PyTuple_GetItem(kwds, pos);
             if (!key) goto bad;
-            Py_INCREF(key);
 #endif
+
             value = kwvalues[pos];
-            Py_INCREF(value);
             pos++;
         }
         else
         {
             if (!PyDict_Next(kwds, &pos, &key, &value)) break;
             // It's unfortunately hard to avoid borrowed references (briefly) with PyDict_Next
+#if CYTHON_AVOID_BORROWED_REFS
+            // Own the reference to match the behaviour above.
             Py_INCREF(key);
-            Py_INCREF(value);
+#endif
         }
 
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
         if (*name) {
             values[name-argnames] = value;
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(key);
+#endif
+            key = NULL;
+            value = NULL;
             continue;
         }
 
+        // Now make sure we own both references since we're doing non-trivial Python operations.
+#if !CYTHON_AVOID_BORROWED_REFS
+        Py_INCREF(key);
+#endif
+        Py_INCREF(value);
+        
         name = first_kw_arg;
         #if PY_MAJOR_VERSION < 3
         if (likely(PyString_Check(key))) {
@@ -443,12 +456,13 @@ bad:
 // (because it's an old version of CPython or it's not CPython at all),
 // then the ..._FASTCALL macros simply alias ..._VARARGS
 
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
-#elif !CYTHON_AVOID_BORROWED_REFS
-    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GetItem(args, i)
-#else
+#if CYTHON_AVOID_BORROWED_REFS
+    // This is the only case where we request an owned reference.
     #define __Pyx_Arg_VARARGS(args, i) PySequence_GetItem(args, i)
+#elif CYTHON_ASSUME_SAFE_MACROS
+    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
+#else
+    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GetItem(args, i)
 #endif
 #if CYTHON_AVOID_BORROWED_REFS
     #define __Pyx_Arg_NEWREF(arg) __Pyx_NewRef(arg)
