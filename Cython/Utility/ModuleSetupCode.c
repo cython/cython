@@ -673,7 +673,7 @@ class __Pyx_FakeReference {
         PyErr_Fetch(&type, &value, &traceback);
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
-        minorVersion = 11; // we don't yet need to distinguish between versions > 11
+        minor_version = 11; // we don't yet need to distinguish between versions > 11
         // Note that from 3.13, when we do we can use Py_Version 
         #else
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
