@@ -4395,7 +4395,7 @@ class DefNodeWrapper(FuncDefNode):
                 else:
                     code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) {' % (
                         i, self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('__Pyx_Arg_NewRef_%s(values[%d]);' % (self.signature.fastvar, i))
+                    code.putln('(void)__Pyx_Arg_NewRef_%s(values[%d]);' % (self.signature.fastvar, i))
                     code.putln('kw_args--;')
                     code.putln('}')
                     code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
