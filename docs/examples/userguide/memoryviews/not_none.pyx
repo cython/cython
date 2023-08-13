@@ -9,3 +9,6 @@ def process_buffer(int[:,:] input_view not None,
 
    # process 'input_view' into 'output_view'
    return output_view
+
+
+process_buffer(None, None)
