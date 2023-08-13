@@ -1,13 +1,12 @@
-PYTHON setup.py build_ext --inplace
+PYTHON test_relative_import_leak.py
 
-######## setup.py ########
+######## test_relative_import_leak.py ########
 
 import os
 import sys
 from contextlib import contextmanager
 from Cython.Compiler.Errors import CompileError
 from Cython.Build.Dependencies import cythonize
-from distutils.core import setup
 if sys.version_info[0] < 3:
     from StringIO import StringIO
 else:
@@ -31,27 +30,19 @@ pxd_file = os.path.join('pkg', 'bb.pxd')
 
 pyx_file = os.path.join('pkg', 'aa.pyx')
 with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
-    setup(
-        ext_modules = cythonize(pyx_file),
-        )
+    cythonize(pyx_file)
 
 pyx_file = os.path.join('pkg', 'ab.pyx')
 with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
-    setup(
-        ext_modules = cythonize(pyx_file),
-        )
+    cythonize(pyx_file)
 
 pyx_file = os.path.join('pkg', 'pkg2', 'ac.pyx')
 with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
-    setup(
-        ext_modules = cythonize(pyx_file),
-        )
+    cythonize(pyx_file)
 
 pyx_file = os.path.join('pkg', 'pkg2', 'ad.pyx')
 with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
-    setup(
-        ext_modules = cythonize(pyx_file),
-        )
+    cythonize(pyx_file)
 
 ######## pkg/__init__.py ########
 
