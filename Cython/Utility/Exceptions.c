@@ -9,6 +9,7 @@
 /////////////// AssertionsEnabled.init ///////////////
 
 if (likely(__Pyx_init_assertions_enabled() == 0)); else
+// error propagation code is appended automatically
 
 /////////////// AssertionsEnabled.proto ///////////////
 
