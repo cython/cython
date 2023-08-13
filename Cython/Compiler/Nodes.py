@@ -3595,6 +3595,7 @@ class DefNodeWrapper(FuncDefNode):
 
     defnode = None
     target = None  # Target DefNode
+    needs_values_cleanup = False
 
     def __init__(self, *args, **kwargs):
         FuncDefNode.__init__(self, *args, **kwargs)
@@ -3745,6 +3746,7 @@ class DefNodeWrapper(FuncDefNode):
                 else:
                     code.put_var_decref(arg.entry)
 
+        self.generate_argument_values_cleanup_code(code)
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -3896,7 +3898,6 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('%s = __Pyx_KwValues_%s(%s, %s);' % (
             Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
 
-        needs_values_cleanup = False
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
@@ -3910,7 +3911,7 @@ class DefNodeWrapper(FuncDefNode):
 
         else:
             self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code, decl_code)
-            needs_values_cleanup = True
+            self.needs_values_cleanup = True
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
@@ -3921,8 +3922,7 @@ class DefNodeWrapper(FuncDefNode):
             # CYTHON_AVOID_BORROWED_REFERENCES
             code.put_goto(our_error_label)
             code.put_label(our_error_label)
-            if needs_values_cleanup:
-                self.generate_argument_values_cleanup_code(code)
+            self.generate_argument_values_cleanup_code(code)
 
             if has_star_or_kw_args:
                 self.generate_arg_decref(self.star_arg, code)
@@ -4205,7 +4205,6 @@ class DefNodeWrapper(FuncDefNode):
         # live in the values[] array.
         for i, arg in enumerate(all_args):
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
-        self.generate_argument_values_cleanup_code(code)
 
         code.putln('}')  # end of the whole argument unpacking block
 
@@ -4295,9 +4294,12 @@ class DefNodeWrapper(FuncDefNode):
         for i, arg in enumerate(args):
             if arg.default and arg.type.is_pyobject:
                 default_value = arg.calculate_default_value_code(code)
-                code.putln('values[%d] = __Pyx_Arg_NEWREF(%s);' % (i, arg.type.as_pyobject(default_value)))
+                code.putln('values[%d] = __Pyx_Arg_NewRef_%s(%s);' % (
+                    i, self.signature.fastvar, arg.type.as_pyobject(default_value)))
 
     def generate_argument_values_cleanup_code(self, code):
+        if not self.needs_values_cleanup:
+            return
         # The 'values' array may not be borrowed depending on the compilation options.
         # This cleans it up in the case it isn't borrowed
         code.putln("for (Py_ssize_t i=0; i<(Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++i) {")
@@ -4386,12 +4388,16 @@ class DefNodeWrapper(FuncDefNode):
                     # don't overwrite default argument
                     code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, %s);' % (
                         self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
+                    code.putln('if (value) { values[%d] = __Pyx_Arg_NewRef_%s(value); kw_args--; }' % (
+                        i, self.signature.fastvar))
                     code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
                     code.putln('}')
                 else:
-                    code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) kw_args--;' % (
+                    code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) {' % (
                         i, self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
+                    code.putln('__Pyx_Arg_NewRef_%s(values[%d]);' % (self.signature.fastvar, i))
+                    code.putln('kw_args--;')
+                    code.putln('}')
                     code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
                     if i < min_positional_args:
                         if i == 0:
@@ -4518,7 +4524,8 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.kwvalues_cname,
                 Naming.pykwdlist_cname,
                 posonly_correction))
-            code.putln('if (value) { values[index] = value; kw_args--; }')
+            code.putln('if (value) { values[index] = __Pyx_Arg_NewRef_%s(value); kw_args--; }' %
+                       self.signature.fastvar)
             code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
             if len(optional_args) > 1:
                 code.putln('}')

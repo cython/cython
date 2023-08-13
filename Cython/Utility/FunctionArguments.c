@@ -465,10 +465,10 @@ bad:
     #define __Pyx_Arg_VARARGS(args, i) PyTuple_GetItem(args, i)
 #endif
 #if CYTHON_AVOID_BORROWED_REFS
-    #define __Pyx_Arg_NEWREF(arg) __Pyx_NewRef(arg)
+    #define __Pyx_Arg_NewRef_VARARGS(arg) __Pyx_NewRef(arg)
     #define __Pyx_Arg_XDECREF_VARARGS(arg) Py_XDECREF(arg)
 #else
-    #define __Pyx_Arg_NEWREF(arg) arg // no-op
+    #define __Pyx_Arg_NewRef_VARARGS(arg) arg // no-op
     #define __Pyx_Arg_XDECREF_VARARGS(arg) // no-op - arg is borrowed
 #endif
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
@@ -481,6 +481,8 @@ bad:
     #define __Pyx_KwValues_FASTCALL(args, nargs) ((args) + (nargs))
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)
+    #define __Pyx_Arg_NewRef_FASTCALL(arg) arg // no-op, __Pyx_Arg_FASTCALL is direct and this needs
+                                               // to have the same reference counting
     #define __Pyx_Arg_XDECREF_FASTCALL(arg)  // no-op - arg was returned from array
 #else
     #define __Pyx_Arg_FASTCALL __Pyx_Arg_VARARGS
@@ -488,6 +490,7 @@ bad:
     #define __Pyx_KwValues_FASTCALL __Pyx_KwValues_VARARGS
     #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS
     #define __Pyx_KwargsAsDict_FASTCALL __Pyx_KwargsAsDict_VARARGS
+    #define __Pyx_Arg_NewRef_FASTCALL(arg) __Pyx_Arg_NewRef_VARARGS(arg)
     #define __Pyx_Arg_XDECREF_FASTCALL(arg) __Pyx_Arg_XDECREF_VARARGS(arg)
 #endif
 
