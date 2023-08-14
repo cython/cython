@@ -977,10 +977,11 @@ class CArgDeclNode(Node):
                 annotation.pos, type=arg_type, is_arg=True)
 
         if arg_type:
+            supports_optional = arg_type.is_pyobject or arg_type.is_buffer or arg_type.is_memoryviewslice
             if "typing.Optional" in modifiers:
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
-                if arg_type and not arg_type.is_pyobject:
+                if arg_type and not supports_optional:
                     # We probably already reported this as "cannot be applied to non-Python type".
                     # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
                     pass
@@ -989,14 +990,14 @@ class CArgDeclNode(Node):
             elif arg_type is py_object_type:
                 # exclude ": object" from the None check - None is a generic object.
                 self.or_none = True
-            elif self.default and self.default.is_none and (arg_type.is_pyobject or arg_type.equivalent_type):
+            elif self.default and self.default.is_none and (supports_optional or arg_type.equivalent_type):
                 # "x: ... = None"  =>  implicitly allow 'None'
-                if not arg_type.is_pyobject:
+                if not supports_optional:
                     arg_type = arg_type.equivalent_type
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
-            elif arg_type.is_pyobject and not self.or_none:
+            elif supports_optional and not self.or_none:
                 self.not_none = True
 
         return arg_type
@@ -1226,11 +1227,15 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        require_python_types = base_type.python_type_constructor_name in (
-            'typing.Optional',
-            'dataclasses.ClassVar',
-        )
-        in_c_type_context = env.in_c_type_context and not require_python_types
+
+        required_types = {
+            'typing.Optional': lambda t: t.is_pyobject or t.is_buffer or t.is_memoryviewslice,
+            'dataclasses.ClassVar': lambda t: t.is_pyobject,
+        }
+
+        check_require_types = required_types.get(base_type.python_type_constructor_name, None)
+
+        in_c_type_context = env.in_c_type_context and check_require_types is not None
 
         template_types = []
         for template_node in self.positional_args:
@@ -1242,11 +1247,11 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not ttype.is_pyobject:
+            elif check_require_types and not check_require_types(ttype):
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
                     ttype = ttype.equivalent_type
                 else:
-                    error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
+                    error(template_node.pos, "%s[...] cannot be applied to type %s" % (
                         base_type.python_type_constructor_name,
                         ttype,
                     ))
