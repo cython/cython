@@ -773,7 +773,7 @@ Related changes
   Patch by David Woods.  (Github issue :issue:`4935`)
 
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
-  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  syncing Cython with upstream NumPy v1.25.0.  The aliases were confusing
   since they could mean different things on different platforms.
 
 
@@ -1599,7 +1599,7 @@ Other changes
   to make it more visible.
 
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
-  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  syncing Cython with upstream NumPy v1.25.0.  The aliases were confusing
   since they could mean different things on different platforms.
 
 
@@ -3140,7 +3140,7 @@ Bugs fixed
 Bugs fixed
 ----------
 
-* A refence leak of the for-loop list/tuple iterable was resolved if the for-loop's
+* A reference leak of the for-loop list/tuple iterable was resolved if the for-loop's
   ``else:`` branch executes a ``break`` for an outer loop.
   (Github issue :issue:`5347`)
 
