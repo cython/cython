@@ -149,7 +149,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #if !CYTHON_USE_TYPE_SLOTS
         if (dictoffset == 0) {
             PyErr_Format(PyExc_TypeError,
-                "extention type '%s.200s': "
+                "extension type '%s.200s': "
                 "unable to validate whether bases have a __dict__ "
                 "when CYTHON_USE_TYPE_SLOTS is off "
                 "(likely because you are building in the limited API). "
