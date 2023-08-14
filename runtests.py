@@ -246,19 +246,19 @@ def update_linetrace_extension(ext):
 
 
 def update_numpy_extension(ext, set_api17_macro=True):
-    import numpy
-    from numpy.distutils.misc_util import get_info
+    import numpy as np
+    # Add paths for npyrandom and npymath libraries:
+    lib_path = [
+        os.path.abspath(os.path.join(np.get_include(), '..', '..', 'random', 'lib')),
+        os.path.abspath(os.path.join(np.get_include(), '..', 'lib'))
+    ]
+    ext.library_dirs += lib_path
 
-    ext.include_dirs.append(numpy.get_include())
+    ext.include_dirs.append(np.get_include())
 
-    if set_api17_macro and getattr(numpy, '__version__', '') not in ('1.19.0', '1.19.1'):
+    if set_api17_macro and getattr(np, '__version__', '') not in ('1.19.0', '1.19.1'):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
-
-    # We need the npymath library for numpy.math.
-    # This is typically a static-only library.
-    for attr, value in get_info('npymath').items():
-        getattr(ext, attr).extend(value)
-
+    del np
 
 def update_gdb_extension(ext, _has_gdb=[None]):
     # We should probably also check for Python support.
