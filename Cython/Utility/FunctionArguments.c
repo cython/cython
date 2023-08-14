@@ -284,6 +284,7 @@ static int __Pyx_ParseOptionalKeywords(
         if (*name) {
             values[name-argnames] = value;
 #if CYTHON_AVOID_BORROWED_REFS
+            Py_INCREF(value); // transfer ownership of value to values
             Py_DECREF(key);
 #endif
             key = NULL;
@@ -304,6 +305,9 @@ static int __Pyx_ParseOptionalKeywords(
                 if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
                         && _PyString_Eq(**name, key)) {
                     values[name-argnames] = value;
+#if CYTHON_AVOID_BORROWED_REFS
+                    value = NULL;  // ownership transfered to values
+#endif
                     break;
                 }
                 name++;
@@ -335,6 +339,9 @@ static int __Pyx_ParseOptionalKeywords(
                 if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
                 if (cmp == 0) {
                     values[name-argnames] = value;
+#if CYTHON_AVOID_BORROWED_REFS
+                    value = NULL; // ownership transferred to values
+#endif
                     break;
                 }
                 name++;
