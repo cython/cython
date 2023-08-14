@@ -14,7 +14,7 @@ except ImportError:  # Py3
     import builtins
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError
+from .Errors import warning, error, InternalError, performance_hint
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -931,6 +931,17 @@ class Scope(object):
             var_entry.scope = entry.scope
             entry.as_variable = var_entry
         type.entry = entry
+        if (type.exception_check and type.exception_value is None and type.nogil and
+                not pos[0].is_utility_code and
+                defining  # don't warn about external functions here - the user likely can't do anything
+            ):
+            msg = (
+                "Exception check on '%s' will always require the GIL to be acquired. Possible solutions:"
+                "\n\t1. Declare the function as 'noexcept' if you're sure the function should not raise exceptions."
+             ) % name
+            if type.return_type.is_void:
+                msg += "\n\t2. Return a dummy integer for Cython to use as an exception flag."
+            performance_hint(pos, msg)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,

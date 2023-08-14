@@ -25,7 +25,7 @@ import operator
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
-    CannotSpecialize)
+    CannotSpecialize, performance_hint)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -4918,7 +4918,7 @@ class MemoryViewIndexNode(BufferIndexNode):
 
             elif index.type.is_int or index.type.is_pyobject:
                 if index.type.is_pyobject and not self.warned_untyped_idx:
-                    warning(index.pos, "Index should be typed for more efficient access", level=2)
+                    performance_hint(index.pos, "Index should be typed for more efficient access")
                     MemoryViewIndexNode.warned_untyped_idx = True
 
                 self.is_memview_index = True
@@ -6436,6 +6436,16 @@ class SimpleCallNode(CallNode):
                     exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
                 if exc_check:
                     if nogil:
+                        if not exc_checks:
+                            msg = (
+                                "Exception check always requires the GIL to be reacquired. "
+                                "Possible solutions:\n"
+                                "\t1. Declare the function as 'noexcept' if you control the definition and "
+                                "you're sure you don't want the function to raise exceptions.\n"
+                            )                            
+                            if self.type.is_void:
+                                msg += "\t2. Use an 'int' return type on the function to allow an error code to be returned."
+                            performance_hint(self.pos, msg)
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
