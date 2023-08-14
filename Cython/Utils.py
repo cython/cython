@@ -439,7 +439,7 @@ def str_to_number(value):
         literal_type = value[1]  # 0'o' - 0'b' - 0'x'
         if literal_type in 'xX':
             # hex notation ('0x1AF')
-            value = strip_l_py2(value)
+            value = strip_py2_long_suffix(value)
             value = int(value[2:], 16)
         elif literal_type in 'oO':
             # Py3 octal notation ('0o136')
@@ -455,7 +455,7 @@ def str_to_number(value):
     return -value if is_neg else value
 
 
-def strip_l_py2(value_str):
+def strip_py2_long_suffix(value_str):
     """
     Python 2 likes to append 'L' to stringified numbers
     which in then can't process when converting them to numbers.

@@ -1369,7 +1369,7 @@ class IntNode(ConstNode):
     # writing tests to get a consistent representation of value
     @property
     def hex_value(self):
-        return Utils.strip_l_py2(hex(Utils.str_to_number(self.value)))
+        return Utils.strip_py2_long_suffix(hex(Utils.str_to_number(self.value)))
 
     @property
     def base_10_value(self):
@@ -1452,9 +1452,7 @@ class IntNode(ConstNode):
             value = Utils.str_to_number(self.value)
             formatter = hex if value > (10**13) else str
             plain_integer_string = formatter(value)
-            if plain_integer_string[-1] in 'lL':
-                # Python 2 fix...
-                plain_integer_string = plain_integer_string[:-1]
+            plain_integer_string = Utils.strip_py2_long_suffix(plain_integer_string)
             self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()

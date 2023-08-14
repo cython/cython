@@ -4475,7 +4475,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
             value = hex(int(node.constant_result))
-            value = Utils.strip_l_py2(value)
+            value = Utils.strip_py2_long_suffix(value)
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned=unsigned, longness=longness,
                                          value=value,
