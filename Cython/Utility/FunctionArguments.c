@@ -172,7 +172,7 @@ static int __Pyx_CheckKeywordStrings(
 #if PY_VERSION_HEX < 0x03090000
         // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
         // names are strings (see https://bugs.python.org/issue37540)
-        for (pos = 0; pos < kw_size; pos++) {
+        for (pos = 0; pos < kwsize; pos++) {
 #if CYTHON_ASSUME_SAFE_MACROS
             key = PyTuple_GET_ITEM(kw, pos);
 #else
