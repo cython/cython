@@ -306,7 +306,7 @@ static int __Pyx_ParseOptionalKeywords(
                         && _PyString_Eq(**name, key)) {
                     values[name-argnames] = value;
 #if CYTHON_AVOID_BORROWED_REFS
-                    value = NULL;  // ownership transfered to values
+                    value = NULL;  // ownership transferred to values
 #endif
                     break;
                 }

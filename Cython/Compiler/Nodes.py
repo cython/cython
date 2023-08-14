@@ -3917,7 +3917,7 @@ class DefNodeWrapper(FuncDefNode):
         if code.label_used(our_error_label):
             if not code.label_used(end_label):
                 code.put_goto(end_label)
-            # This goto is just to surpress a warning that our_error_label is unused
+            # This goto is just to suppress a warning that our_error_label is unused
             # since it's quite likely that the only use is guarded by
             # CYTHON_AVOID_BORROWED_REFERENCES
             code.put_goto(our_error_label)
