@@ -159,7 +159,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             return -1;
         }
 #else
-        if (dictoffset == 0 && b->tp_dictoffset))
+        if (dictoffset == 0 && b->tp_dictoffset)
         {
             __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
             PyErr_Format(PyExc_TypeError,
