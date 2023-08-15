@@ -29,7 +29,7 @@
 
 typedef struct {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject_HEAD;
+    PyObject_HEAD
     // We can't "inherit" from func, but we can use it as a data store
     PyObject *func;
 #elif PY_VERSION_HEX < 0x030900B1
