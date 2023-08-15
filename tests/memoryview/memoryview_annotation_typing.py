@@ -5,8 +5,19 @@
 from __future__ import annotations  # object[:] cannot be evaluated
 
 import cython
+import typing
 import numpy
 
+
+def slice_optional(m: typing.Optional[cython.double[:]]):
+    """
+    >>> slice_optional(None)
+    1
+    """
+    if m is None:
+        return 1
+    else:
+        return 2
 
 def one_dim(a: cython.double[:]):
     """
