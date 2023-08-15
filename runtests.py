@@ -253,7 +253,10 @@ def update_numpy_extension(ext, set_api17_macro=True):
         os.path.abspath(os.path.join(np.get_include(), '..', 'lib'))
     ]
     ext.library_dirs += lib_path
-    ext.libraries += ["npymath", "m"]
+    if sys.platform == "win32":
+        ext.libraries += ["npymath"]
+    else:
+        ext.libraries += ["npymath", "m"]
     ext.include_dirs.append(np.get_include())
 
     if set_api17_macro and getattr(np, '__version__', '') not in ('1.19.0', '1.19.1'):
