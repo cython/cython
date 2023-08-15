@@ -1829,7 +1829,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
-            code.putln("#if CYTHON_USE_TYPE_SLOTS")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+            # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
             code.putln("#else")
             code.putln("{")
@@ -3413,7 +3414,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
-                code.putln("#if !CYTHON_USE_TYPE_SLOTS")
+                code.putln("#if !CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY")
+                # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
                 code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
                 code.putln("if (tp_free) tp_free(o);")
                 code.putln("#else")
