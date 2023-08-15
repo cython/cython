@@ -1833,7 +1833,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
             code.putln("#else")
             code.putln("{")
-            code.putln("freefunc tp_free = PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
             code.putln("if (tp_free) tp_free(o);")
             code.putln("}")
             code.putln("#endif")
@@ -3414,7 +3414,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
                 code.putln("#if !CYTHON_USE_TYPE_SLOTS")
-                code.putln("freefunc tp_free = PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
                 code.putln("if (tp_free) tp_free(o);")
                 code.putln("#else")
                 code.putln("(*Py_TYPE(o)->tp_free)(o);")
