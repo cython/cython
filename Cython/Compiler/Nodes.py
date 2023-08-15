@@ -1235,7 +1235,7 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         check_require_types = required_types.get(base_type.python_type_constructor_name, None)
 
-        in_c_type_context = env.in_c_type_context and check_require_types is not None
+        in_c_type_context = env.in_c_type_context and check_require_types is None
 
         template_types = []
         for template_node in self.positional_args:
