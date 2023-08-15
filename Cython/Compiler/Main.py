@@ -773,7 +773,7 @@ def main(command_line = 0):
         sources = args
 
     if options.show_version:
-        print_version()
+        Utils.print_version()
 
     if options.working_path!="":
         os.chdir(options.working_path)
