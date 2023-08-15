@@ -37,6 +37,7 @@ import re
 import sys
 import os
 import tokenize
+from functools import wraps
 from io import StringIO
 
 from ._looper import looper
@@ -46,6 +47,27 @@ __all__ = ['TemplateError', 'Template', 'sub', 'bunch']
 
 in_re = re.compile(r'\s+in\s+')
 var_re = re.compile(r'^[a-z_][a-z0-9_]*$', re.I)
+
+
+def deprecate_delimeters_kwarg(func):
+    """A helper to deprecate delimeters kwarg.
+
+    Introduced on top of 3.0.0.  When removing, remove also provided
+    deprecation shim property.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if 'delimeters' in kwargs:
+            import warnings
+            warnings.warn(
+                "'delimeters' kwarg is being deprecated in favor of correctly"
+                " spelled 'delimiters'. Please adjust your code.",
+                DeprecationWarning
+            )
+            kwargs = kwargs.copy()
+            kwargs['delimiters'] = kwargs.pop('delimeters')  # kwarg match
+        return func(*args, **kwargs)
+    return wrapper
 
 
 class TemplateError(Exception):
@@ -93,6 +115,7 @@ class Template(object):
     default_encoding = 'utf8'
     default_inherit = None
 
+    @deprecate_delimeters_kwarg
     def __init__(self, content, name=None, namespace=None, stacklevel=None,
                  get_template=None, default_inherit=None, line_offset=0,
                  delimiters=None):
@@ -137,6 +160,10 @@ class Template(object):
         self.get_template = get_template
         if default_inherit is not None:
             self.default_inherit = default_inherit
+
+    # deprecation shim, remove along with deprecate_delimeters_kwarg
+    def delimeters(self):  # kwarg match
+        return self.delimiters
 
     def from_filename(cls, filename, namespace=None, encoding=None,
                       default_inherit=None, get_template=get_file_template):
@@ -366,6 +393,7 @@ class Template(object):
         return msg
 
 
+@deprecate_delimeters_kwarg
 def sub(content, delimiters=None, **kw):
     name = kw.get('__name')
     tmpl = Template(content, name=name, delimiters=delimiters)
@@ -536,6 +564,7 @@ del _Empty
 ############################################################
 
 
+@deprecate_delimeters_kwarg
 def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
     """
     Lex a string into chunks:
@@ -673,6 +702,7 @@ def find_position(string, index, last_index, last_pos):
     return (last_pos[0] + lines, column)
 
 
+@deprecate_delimeters_kwarg
 def parse(s, name=None, line_offset=0, delimiters=None):
     r"""
     Parses a string into a kind of AST
