@@ -95,20 +95,20 @@ class Template(object):
 
     def __init__(self, content, name=None, namespace=None, stacklevel=None,
                  get_template=None, default_inherit=None, line_offset=0,
-                 delimeters=None):
+                 delimiters=None):
         self.content = content
 
-        # set delimeters
-        if delimeters is None:
-            delimeters = (self.default_namespace['start_braces'],
+        # set delimiters
+        if delimiters is None:
+            delimiters = (self.default_namespace['start_braces'],
                           self.default_namespace['end_braces'])
         else:
-            #assert len(delimeters) == 2 and all([isinstance(delimiter, basestring)
-            #                                     for delimiter in delimeters])
+            #assert len(delimiters) == 2 and all([isinstance(delimiter, basestring)
+            #                                     for delimiter in delimiters])
             self.default_namespace = self.__class__.default_namespace.copy()
-            self.default_namespace['start_braces'] = delimeters[0]
-            self.default_namespace['end_braces'] = delimeters[1]
-        self.delimeters = delimeters
+            self.default_namespace['start_braces'] = delimiters[0]
+            self.default_namespace['end_braces'] = delimiters[1]
+        self.delimiters = delimiters
 
         self._unicode = is_unicode(content)
         if name is None and stacklevel is not None:
@@ -130,7 +130,7 @@ class Template(object):
                 if lineno:
                     name += ':%s' % lineno
         self.name = name
-        self._parsed = parse(content, name=name, line_offset=line_offset, delimeters=self.delimeters)
+        self._parsed = parse(content, name=name, line_offset=line_offset, delimiters=self.delimiters)
         if namespace is None:
             namespace = {}
         self.namespace = namespace
@@ -366,9 +366,9 @@ class Template(object):
         return msg
 
 
-def sub(content, delimeters=None, **kw):
+def sub(content, delimiters=None, **kw):
     name = kw.get('__name')
-    tmpl = Template(content, name=name, delimeters=delimeters)
+    tmpl = Template(content, name=name, delimiters=delimiters)
     return tmpl.substitute(kw)
 
 
@@ -536,7 +536,7 @@ del _Empty
 ############################################################
 
 
-def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
+def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
     """
     Lex a string into chunks:
 
@@ -558,28 +558,28 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
         TemplateError: {{ inside expression at line 1 column 10
 
     """
-    if delimeters is None:
-        delimeters = ( Template.default_namespace['start_braces'],
+    if delimiters is None:
+        delimiters = ( Template.default_namespace['start_braces'],
                        Template.default_namespace['end_braces'] )
     in_expr = False
     chunks = []
     last = 0
     last_pos = (line_offset + 1, 1)
 
-    token_re = re.compile(r'%s|%s' % (re.escape(delimeters[0]),
-                                      re.escape(delimeters[1])))
+    token_re = re.compile(r'%s|%s' % (re.escape(delimiters[0]),
+                                      re.escape(delimiters[1])))
     for match in token_re.finditer(s):
         expr = match.group(0)
         pos = find_position(s, match.end(), last, last_pos)
-        if expr == delimeters[0] and in_expr:
-            raise TemplateError('%s inside expression' % delimeters[0],
+        if expr == delimiters[0] and in_expr:
+            raise TemplateError('%s inside expression' % delimiters[0],
                                 position=pos,
                                 name=name)
-        elif expr == delimeters[1] and not in_expr:
-            raise TemplateError('%s outside expression' % delimeters[1],
+        elif expr == delimiters[1] and not in_expr:
+            raise TemplateError('%s outside expression' % delimiters[1],
                                 position=pos,
                                 name=name)
-        if expr == delimeters[0]:
+        if expr == delimiters[0]:
             part = s[last:match.start()]
             if part:
                 chunks.append(part)
@@ -590,7 +590,7 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
         last = match.end()
         last_pos = pos
     if in_expr:
-        raise TemplateError('No %s to finish last expression' % delimeters[1],
+        raise TemplateError('No %s to finish last expression' % delimiters[1],
                             name=name, position=last_pos)
     part = s[last:]
     if part:
@@ -673,7 +673,7 @@ def find_position(string, index, last_index, last_pos):
     return (last_pos[0] + lines, column)
 
 
-def parse(s, name=None, line_offset=0, delimeters=None):
+def parse(s, name=None, line_offset=0, delimiters=None):
     r"""
     Parses a string into a kind of AST
 
@@ -723,10 +723,10 @@ def parse(s, name=None, line_offset=0, delimeters=None):
             ...
         TemplateError: Multi-line py blocks must start with a newline at line 1 column 3
     """
-    if delimeters is None:
-        delimeters = ( Template.default_namespace['start_braces'],
+    if delimiters is None:
+        delimiters = ( Template.default_namespace['start_braces'],
                        Template.default_namespace['end_braces'] )
-    tokens = lex(s, name=name, line_offset=line_offset, delimeters=delimeters)
+    tokens = lex(s, name=name, line_offset=line_offset, delimiters=delimiters)
     result = []
     while tokens:
         next_chunk, tokens = parse_expr(tokens, name)
