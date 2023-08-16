@@ -12,16 +12,6 @@ except ImportError:
 import numpy
 
 
-def slice_optional(m: typing.Optional[cython.double[:]]):
-    """
-    >>> slice_optional(None)
-    1
-    """
-    if m is None:
-        return 1
-    else:
-        return 2
-
 def one_dim(a: cython.double[:]):
     """
     >>> a = numpy.ones((10,), numpy.double)
@@ -50,6 +40,20 @@ def two_dim(a: cython.double[:,:]):
     """
     a[0,0] *= 3
     return a[0,0], a[0,1], a.ndim
+
+
+def slice_optional(m: typing.Optional[cython.double[:]]):
+    """
+    >>> slice_optional(None)
+    1
+    >>> a = numpy.ones((10,), numpy.double)
+    >>> slice_optional(a)
+    2
+    """
+    if m is None:
+        return 1
+    else:
+        return 2
 
 
 @cython.nogil
