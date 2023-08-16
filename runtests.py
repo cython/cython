@@ -1289,7 +1289,8 @@ class CythonCompileTestCase(unittest.TestCase):
             if 'distutils' in self.tags:
                 from Cython.Build.Dependencies import DistutilsInfo
                 from Cython.Utils import open_source_file
-                pyx_path = os.path.join(self.test_directory, self.module + ".pyx")
+                pyx_path = self.find_module_source_file(
+                    os.path.join(self.test_directory, self.module + ".pyx"))
                 with open_source_file(pyx_path) as f:
                     DistutilsInfo(f).apply(extension)
 
