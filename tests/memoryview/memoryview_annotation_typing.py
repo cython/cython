@@ -5,7 +5,10 @@
 from __future__ import annotations  # object[:] cannot be evaluated
 
 import cython
-import typing
+try:
+    import typing
+except ImportError:
+    pass  # Workaround for python 2.7
 import numpy
 
 
