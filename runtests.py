@@ -2096,7 +2096,7 @@ class EmbedTest(unittest.TestCase):
 
 
 def load_listfile(filename):
-    # just re-use the FileListExclude implementation
+    # just reuse the FileListExclude implementation
     return list(FileListExcluder(filename))
 
 class MissingDependencyExcluder(object):
