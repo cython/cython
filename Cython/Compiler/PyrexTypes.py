@@ -335,6 +335,10 @@ class PyrexType(BaseType):
         return (self.is_int or self.is_float or self.is_complex or self.is_pyobject or
                 self.is_extension_type or self.is_ptr)
 
+    def is_optional_type(self):
+        """Returns True if type can be used with typing.Optional[]."""
+        return (self.is_pyobject or self.is_buffer or self.is_memoryviewslice)
+
     def struct_nesting_depth(self):
         # Returns the number levels of nested structs. This is
         # used for constructing a stack for walking the run-time
