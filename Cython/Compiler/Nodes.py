@@ -980,7 +980,7 @@ class CArgDeclNode(Node):
             if "typing.Optional" in modifiers:
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
-                if arg_type and not arg_type.is_optional_type():
+                if arg_type and not arg_type.can_be_optional():
                     # We probably already reported this as "cannot be applied to non-Python type".
                     # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
                     pass
@@ -989,14 +989,14 @@ class CArgDeclNode(Node):
             elif arg_type is py_object_type:
                 # exclude ": object" from the None check - None is a generic object.
                 self.or_none = True
-            elif self.default and self.default.is_none and (arg_type.is_optional_type() or arg_type.equivalent_type):
+            elif self.default and self.default.is_none and (arg_type.can_be_optional() or arg_type.equivalent_type):
                 # "x: ... = None"  =>  implicitly allow 'None'
-                if not arg_type.is_optional_type():
+                if not arg_type.can_be_optional():
                     arg_type = arg_type.equivalent_type
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
-            elif not self.or_none and arg_type.is_optional_type():
+            elif not self.or_none and arg_type.can_be_optional():
                 self.not_none = True
 
         return arg_type
@@ -1241,7 +1241,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.is_optional_type():
+            elif require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
                     ttype = ttype.equivalent_type
                 else:

@@ -335,7 +335,7 @@ class PyrexType(BaseType):
         return (self.is_int or self.is_float or self.is_complex or self.is_pyobject or
                 self.is_extension_type or self.is_ptr)
 
-    def is_optional_type(self):
+    def can_be_optional(self):
         """Returns True if type can be used with typing.Optional[]."""
         return (self.is_pyobject or self.is_buffer or self.is_memoryviewslice)
 
