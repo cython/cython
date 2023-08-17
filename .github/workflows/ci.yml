@@ -317,3 +317,13 @@ jobs:
         with:
           name: cycoverage_html
           path: coverage-report-html
+
+  codespell:
+    name: Check for spelling errors
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Codespell
+        uses: codespell-project/actions-codespell@v2
