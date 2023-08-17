@@ -64,7 +64,8 @@ u"""
     ... except:
     ...    pass
 
-    >>> sorted(list(callees(s, 'test_profile')) + (['f_noprof', 'nogil_noprof', 'withgil_noprof'] if COMPILED else []))  #doctest: +NORMALIZE_WHITESPACE
+    >>> sorted(list(callees(s, 'test_profile')) + (
+    ...        ['f_noprof', 'nogil_noprof', 'withgil_noprof'] if COMPILED else []))  #doctest: +NORMALIZE_WHITESPACE
     ['f_cdef', 'f_cpdef', 'f_def',
      'f_inline', 'f_inline_prof',
      'f_noprof',
@@ -125,10 +126,10 @@ COMPILED = cython.compiled
 def callees(pstats, target_caller):
     pstats.calc_callees()
     for (_, _, caller), callees in pstats.all_callees.items():
-      if caller == target_caller:
-        for (file, line, callee) in callees.keys():
-            if 'pstats_profile_test' in file:
-                yield callee
+        if caller == target_caller:
+            for (file, line, callee) in callees.keys():
+                if 'pstats_profile_test' in file:
+                    yield callee
 
 
 def test_profile(N: cython.long):
