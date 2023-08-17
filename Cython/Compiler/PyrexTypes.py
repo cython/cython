@@ -337,7 +337,7 @@ class PyrexType(BaseType):
 
     def can_be_optional(self):
         """Returns True if type can be used with typing.Optional[]."""
-        return (self.is_pyobject or self.is_buffer or self.is_memoryviewslice)
+        return False
 
     def struct_nesting_depth(self):
         # Returns the number levels of nested structs. This is
@@ -725,6 +725,10 @@ class MemoryViewSliceType(PyrexType):
     def is_complete(self):
         # incomplete since the underlying struct doesn't have a cython.memoryview object.
         return 0
+
+    def can_be_optional(self):
+        """Returns True if type can be used with typing.Optional[]."""
+        return True
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1182,6 +1186,10 @@ class BufferType(BaseType):
     def can_coerce_from_pyobject(self,env):
         return True
 
+    def can_be_optional(self):
+        """Returns True if type can be used with typing.Optional[]."""
+        return True
+
     def as_argument_type(self):
         return self
 
@@ -1257,6 +1265,10 @@ class PyObjectType(PyrexType):
         return True
 
     def can_coerce_from_pyobject(self, env):
+        return True
+
+    def can_be_optional(self):
+        """Returns True if type can be used with typing.Optional[]."""
         return True
 
     def default_coerced_ctype(self):
