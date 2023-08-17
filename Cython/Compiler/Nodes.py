@@ -996,7 +996,7 @@ class CArgDeclNode(Node):
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
-            elif arg_type.is_optional_type() and not self.or_none:
+            elif not self.or_none and arg_type.is_optional_type():
                 self.not_none = True
 
         return arg_type
