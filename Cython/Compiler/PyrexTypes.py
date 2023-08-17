@@ -332,8 +332,7 @@ class PyrexType(BaseType):
         return 1
 
     def is_simple_buffer_dtype(self):
-        return (self.is_int or self.is_float or self.is_complex or self.is_pyobject or
-                self.is_extension_type or self.is_ptr)
+        return False
 
     def can_be_optional(self):
         """Returns True if type can be used with typing.Optional[]."""
@@ -1242,7 +1241,7 @@ class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
     #
-    #  buffer_defaults  dict or None     Default options for bu
+    #  buffer_defaults  dict or None     Default options for buffer
 
     name = "object"
     is_pyobject = 1
@@ -1278,6 +1277,9 @@ class PyObjectType(PyrexType):
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
         return not src_type.is_ptr or src_type.is_string or src_type.is_pyunicode_ptr
+
+    def is_simple_buffer_dtype(self):
+        return True
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1987,6 +1989,9 @@ class CNumericType(CType):
         s = self.sign_words[self.signed]
         n = rank_to_type_name[self.rank]
         return s + n
+
+    def is_simple_buffer_dtype(self):
+        return True
 
     def __repr__(self):
         return "<CNumericType %s>" % self.sign_and_name()
@@ -2852,6 +2857,9 @@ class CPtrType(CPointerBaseType):
         return ((other_type.is_ptr and
             self.base_type.same_as(other_type.base_type))
                 or other_type is error_type)
+
+    def is_simple_buffer_dtype(self):
+        return True
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):

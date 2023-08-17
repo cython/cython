@@ -46,7 +46,7 @@ The main difference is that you can define attributes using
 
             @cython.cclass
             class Shrubbery:
-                width = declare(cython.int)
+                width = cython.declare(cython.int)
                 height: cython.int
 
     .. group-tab:: Cython

@@ -2,6 +2,52 @@
 Cython Changelog
 ================
 
+3.0.1 (2023-??-??)
+==================
+
+Features added
+--------------
+
+* The error messages regarding exception declarations were improved in order to give
+  better help about possible reasons and fixes.
+  (Github issue :issue:`5547`)
+
+Bugs fixed
+----------
+
+* Using constructed C++ default arguments could generate invalid C++ code.
+  (Github issue :issue:`5553`)
+
+* ``libcpp.memory.make_unique()`` was lacking C++ exception handling.
+  (Github issue :issue:`5560`)
+
+* Some non-public and deprecated CAPI usages were replaced by public
+  (and thus more future proof) API code.
+
+* Many issues with the Limited API support were resolved.
+  Patch by Lisandro Dalcin et al.  (Github issues :issue:`5549`, :issue:`5556`, :issue:`5605`)
+
+* Some C compiler warnings were resolved.
+  Patches by Matti Picus et al.  (Github issues :issue:`5557`, :issue:`5555`)
+
+* ``NULL`` could not be used as default for fused type pointer arguments.
+  (Github issue :issue:`5554`)
+
+* Untyped literal default arguments in fused functions could generate invalid C code.
+  (Github issue :issue:`5614`)
+
+* Star-imports could generate code that tried to assign to constant C macros like
+  `PY_SSIZE_T_MAX` and `PY_SSIZE_T_MIN`.
+  Patch by Philipp Wagner.  (Github issue :issue:`5562`)
+
+* ``CYTHON_USE_TYPE_SPECS`` can now be (explicitly) enabled in PyPy.
+
+* The ``cython --version`` output is now  less likely to reach both stdout and stderr.
+  Patch by Eli Schwartz.  (Github issue :issue:`5504`)
+
+* The sdist was missing the `Shadow.pyi` stub file.
+
+
 3.0.0 unified release notes
 ===========================
 
@@ -554,7 +600,7 @@ Additionally, the documentation has been substantially updated
 and pure Python syntax.
 
 Related changes
-^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * The ``cython.declare()`` and ``cython.cast()`` functions could fail in pure mode.
   Patch by Dmitry Shesterkin.  (Github issue :issue:`3244`)
@@ -727,7 +773,7 @@ Related changes
   Patch by David Woods.  (Github issue :issue:`4935`)
 
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
-  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  syncing Cython with upstream NumPy v1.25.0.  The aliases were confusing
   since they could mean different things on different platforms.
 
 
@@ -878,7 +924,7 @@ The support for C features like ``const`` or ``volatile`` was substantially impr
 The generated code has been cleared up to reduce the number of C compiler warnings emitted.
 
 Related changes
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue :issue:`2775`)
@@ -992,7 +1038,7 @@ rather than at the start of the function, making them behave more like Python va
 and also removing the requirement for them to be default constructible.
 
 Related changes
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * C++ ``typeid()`` failed for fused types.
   Patch by David Woods.  (Github issue :issue:`3203`)
@@ -1147,7 +1193,7 @@ A number of new options were added to the ``cython`` and ``cythonize``
 commands.
 
 Related changes
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * The command line parser was rewritten and modernised using ``argparse``.
   Patch by Egor Dranischnikow.  (Github issue :issue:`2952`, :issue:`3001`)
@@ -1198,7 +1244,7 @@ The new ``--depfile`` option generates dependency files to help integrate
 Cython with other build tools.
 
 Related changes
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * Binary Linux wheels now follow the manylinux2010 standard.
   Patch by Alexey Stepanov.  (Github issue :issue:`3355`)
@@ -1308,7 +1354,7 @@ compile time ``DEF`` and ``IF`` statements, although we emphasise that
 they will remain until a good alternative exists for all their use-cases.
 
 Related changes
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
   Use the normal Python package directory layout instead.
@@ -1339,7 +1385,7 @@ Editor support
 --------------
 
 Related changes
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
 
 * C compiler warnings and errors are now shown in Jupyter notebooks.
   Patch by Egor Dranischnikow.  (Github issue :issue:`3751`)
@@ -1553,7 +1599,7 @@ Other changes
   to make it more visible.
 
 * ``np.long_t`` and ``np.ulong_t`` were removed from the NumPy declarations,
-  synching Cython with upstream NumPy v1.25.0.  The aliases were confusing
+  syncing Cython with upstream NumPy v1.25.0.  The aliases were confusing
   since they could mean different things on different platforms.
 
 
@@ -3094,7 +3140,7 @@ Bugs fixed
 Bugs fixed
 ----------
 
-* A refence leak of the for-loop list/tuple iterable was resolved if the for-loop's
+* A reference leak of the for-loop list/tuple iterable was resolved if the for-loop's
   ``else:`` branch executes a ``break`` for an outer loop.
   (Github issue :issue:`5347`)
 

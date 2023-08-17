@@ -1369,6 +1369,16 @@ class IntNode(ConstNode):
     longness = ""
     is_c_literal = None  # unknown
 
+    # hex_value and base_10_value are designed only to simplify
+    # writing tests to get a consistent representation of value
+    @property
+    def hex_value(self):
+        return Utils.strip_py2_long_suffix(hex(Utils.str_to_number(self.value)))
+
+    @property
+    def base_10_value(self):
+        return str(Utils.str_to_number(self.value))
+
     def __init__(self, pos, **kwds):
         ExprNode.__init__(self, pos, **kwds)
         if 'type' not in kwds:
@@ -1440,7 +1450,13 @@ class IntNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
-            plain_integer_string = str(Utils.str_to_number(self.value))
+            # (In hex if sufficiently large to cope with Python's string-to-int limitations.
+            #  We use quite a small value of "sufficiently large" - 10**13 is picked as
+            #  the approximate point where hex strings become shorter)
+            value = Utils.str_to_number(self.value)
+            formatter = hex if value > (10**13) else str
+            plain_integer_string = formatter(value)
+            plain_integer_string = Utils.strip_py2_long_suffix(plain_integer_string)
             self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()
@@ -9718,6 +9734,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 if not must_use_constants:
                     if arg.default.is_literal:
                         arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
+                        if arg.default.type:
+                            arg.default = arg.default.coerce_to(arg.type, env)
                     else:
                         arg.is_dynamic = True
                         if arg.type.is_pyobject:

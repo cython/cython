@@ -7,28 +7,43 @@
 
 
 /////////////// AssertionsEnabled.init ///////////////
-__Pyx_init_assertions_enabled();
+
+if (likely(__Pyx_init_assertions_enabled() == 0)); else
+// error propagation code is appended automatically
 
 /////////////// AssertionsEnabled.proto ///////////////
 
-#define __Pyx_init_assertions_enabled()
-
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define __pyx_assertions_enabled() (1)
-#elif PY_VERSION_HEX < 0x03080000  ||  CYTHON_COMPILING_IN_PYPY  ||  defined(Py_LIMITED_API)
-  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030900A6
-  // Py3.8+ has PyConfig from PEP 587, but only Py3.9 added read access to it.
-  // Py_OptimizeFlag is deprecated in Py3.12+
+  #define __Pyx_init_assertions_enabled()  (0)
+  #define __pyx_assertions_enabled()  (1)
+#elif CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
+  // Py_OptimizeFlag is deprecated in Py3.12+ and not available in the Limited API.
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
 
-  #undef __Pyx_init_assertions_enabled
-  static void __Pyx_init_assertions_enabled(void) {
-    __pyx_assertions_enabled_flag = ! _PyInterpreterState_GetConfig(__Pyx_PyThreadState_Current->interp)->optimization_level;
+  static int __Pyx_init_assertions_enabled(void) {
+    PyObject *builtins, *debug, *debug_str;
+    int flag;
+    builtins = PyEval_GetBuiltins();
+    if (!builtins) goto bad;
+    debug_str = PyUnicode_FromStringAndSize("__debug__", 9);
+    if (!debug_str) goto bad;
+    debug = PyObject_GetItem(builtins, debug_str);
+    Py_DECREF(debug_str);
+    if (!debug) goto bad;
+    flag = PyObject_IsTrue(debug);
+    Py_DECREF(debug);
+    if (flag == -1) goto bad;
+    __pyx_assertions_enabled_flag = flag;
+    return 0;
+  bad:
+    __pyx_assertions_enabled_flag = 1;
+    // We (rarely) may not have an exception set, but the calling code will call PyErr_Occurred() either way.
+    return -1;
   }
 #else
-  #define __pyx_assertions_enabled() (!Py_OptimizeFlag)
+  #define __Pyx_init_assertions_enabled()  (0)
+  #define __pyx_assertions_enabled()  (!Py_OptimizeFlag)
 #endif
 
 
@@ -897,7 +912,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6
+#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif
@@ -905,14 +920,111 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject *scratch_dict, 
+                                                       PyObject *firstlineno, PyObject *name) {
+    PyObject *replace = NULL;
+    if (unlikely(PyDict_SetItemString(scratch_dict, "co_firstlineno", firstlineno))) return NULL;
+    if (unlikely(PyDict_SetItemString(scratch_dict, "co_name", name))) return NULL;
+
+    replace = PyObject_GetAttrString(code, "replace");
+    if (likely(replace)) {
+        PyObject *result;
+        result = PyObject_Call(replace, $empty_tuple, scratch_dict);
+        Py_DECREF(replace);
+        return result;
+    }
+
+    #if __PYX_LIMITED_VERSION_HEX < 0x030780000
+    // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
+    // In this we take a lazy interpreted route (without regard to performance
+    // since it's fairly old and this is mostly just to get something working)
+    PyErr_Clear();
+    {
+        PyObject *compiled = NULL, *result = NULL;
+        if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
+        if (unlikely(PyDict_SetItemString(scratch_dict, "type", (PyObject*)(&PyType_Type)))) return NULL;
+        compiled = Py_CompileString(
+            "out = type(code)(\n"
+            "  code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize,\n"
+            "  code.co_flags, code.co_code, code.co_consts, code.co_names,\n"
+            "  code.co_varnames, code.co_filename, co_name, co_firstlineno,\n"
+            "  code.co_lnotab)\n", "<dummy>", Py_file_input);
+        if (!compiled) return NULL;
+        result = PyEval_EvalCode(compiled, scratch_dict, scratch_dict);
+        Py_DECREF(compiled);
+        if (!result) PyErr_Print();
+        Py_DECREF(result);
+        result = PyDict_GetItemString(scratch_dict, "out");
+        if (result) Py_INCREF(result);
+        return result;
+    }
+    #endif
+}
+
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
+    PyObject *code_object = NULL, *py_py_line = NULL, *py_funcname = NULL, *dict = NULL;
+    PyObject *replace = NULL, *getframe = NULL, *frame = NULL;
+    PyObject *exc_type, *exc_value, *exc_traceback;
+    int success = 0;
     if (c_line) {
         // Avoid "unused" warning as long as we don't use this.
         (void) $cfilenm_cname;
         (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
-    _PyTraceback_Add(funcname, filename, py_line);
+
+    // DW - this is a horrendous hack, but I'm quite proud of it. Essentially
+    // we need to generate a frame with the right line number/filename/funcname.
+    // We do this by compiling a small bit of code that uses sys._getframe to get a
+    // frame, and then customizing the details of the code to match.
+    // We then run the code object and use the generated frame to set the traceback.
+
+    PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
+
+    code_object = Py_CompileString("_getframe()", filename, Py_eval_input);
+    if (unlikely(!code_object)) goto bad;
+    py_py_line = PyLong_FromLong(py_line);
+    if (unlikely(!py_py_line)) goto bad;
+    py_funcname = PyUnicode_FromString(funcname);
+    if (unlikely(!py_funcname)) goto bad;
+    dict = PyDict_New();
+    if (unlikely(!dict)) goto bad;
+    {
+        PyObject *old_code_object = code_object;
+        code_object = __Pyx_PyCode_Replace_For_AddTraceback(code_object, dict, py_py_line, py_funcname);
+        Py_DECREF(old_code_object);
+    }
+    if (unlikely(!code_object)) goto bad;
+
+    // Note that getframe is borrowed
+    getframe = PySys_GetObject("_getframe");
+    if (unlikely(!getframe)) goto bad;
+    // reuse dict as globals (nothing conflicts, and it saves an allocation)
+    if (unlikely(PyDict_SetItemString(dict, "_getframe", getframe))) goto bad;
+
+    frame = PyEval_EvalCode(code_object, dict, dict);
+    if (unlikely(!frame) || frame == Py_None) goto bad;
+    success = 1;
+
+  bad:
+    PyErr_Restore(exc_type, exc_value, exc_traceback);
+    Py_XDECREF(code_object);
+    Py_XDECREF(py_py_line);
+    Py_XDECREF(py_funcname);
+    Py_XDECREF(dict);
+    Py_XDECREF(replace);
+
+    if (success) {
+        // Unfortunately an easy way to check the type of frame isn't in the
+        // limited API. The check against None should cover the most
+        // likely wrong answer though.
+        PyTraceBack_Here(
+            // Python < 0x03090000 didn't expose PyFrameObject
+            // but they all expose struct _frame as an opaque type
+            (struct _frame*)frame);
+    }
+
+    Py_XDECREF(frame);
 }
 #else
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(

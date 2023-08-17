@@ -32,6 +32,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string
 from .Errors import error, warning
 from .ParseTreeTransforms import SkipDeclarations
+from .. import Utils
 
 try:
     from __builtin__ import reduce
@@ -4473,9 +4474,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                        getattr(operand2, 'unsigned', '')
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
+            value = hex(int(node.constant_result))
+            value = Utils.strip_py2_long_suffix(value)
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned=unsigned, longness=longness,
-                                         value=str(int(node.constant_result)),
+                                         value=value,
                                          constant_result=int(node.constant_result))
             # IntNode is smart about the type it chooses, so we just
             # make sure we were not smarter this time
