@@ -1,5 +1,5 @@
 # mode: run
-# tag: pstats, pure3.0
+# tag: pstats, pure3.6
 # cython: profile = True
 # distutils: define_macros = CYTHON_TRACE_NOGIL=1
 
