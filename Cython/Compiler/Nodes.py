@@ -1229,7 +1229,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         require_optional_types = base_type.python_type_constructor_name == 'typing.Optional'
         require_python_types = base_type.python_type_constructor_name == 'dataclasses.ClassVar'
 
-        in_c_type_context = env.in_c_type_context and not (require_python_types or require_optional_types)
+        in_c_type_context = env.in_c_type_context and not require_python_types
 
         template_types = []
         for template_node in self.positional_args:
