@@ -59,7 +59,8 @@ class BaseType(object):
         if self._specialization_name is None:
             # This is not entirely robust.
             common_subs = (self.empty_declaration_code()
-                           .replace("unsigned ", "unsigned_")
+                           # covers both "unsigned " amd "signed "
+                           .replace("signed ", "signed_")
                            .replace("long long", "long_long")
                            .replace(" ", "__"))
             self._specialization_name = re.sub(
@@ -2189,6 +2190,11 @@ class CAnonEnumType(CIntType):
     def sign_and_name(self):
         return 'int'
 
+    def specialization_name(self):
+        # ensure that the to/from Python functions don't conflict with
+        # "int"
+        return '__pyx_anon_enum'
+
 
 class CReturnCodeType(CIntType):
 
@@ -2197,6 +2203,11 @@ class CReturnCodeType(CIntType):
     is_returncode = True
     exception_check = False
     default_format_spec = ''
+
+    def specialization_name(self):
+        # I don't think we should end up creating PyInt_As_int/PyInt_From_int functions
+        # for this type, but it's better they're distinct in case it happens.
+        return super(CReturnCodeType, self).specialization_name() + "return_code"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
         return not format_spec
