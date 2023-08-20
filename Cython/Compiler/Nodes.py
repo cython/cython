@@ -1712,6 +1712,7 @@ class CEnumDefNode(StatNode):
         if self.scoped and self.items is not None:
             scope = CppScopedEnumScope(self.name, env)
             scope.type = self.entry.type
+            scope.directives = env.directives
         else:
             scope = env
 
