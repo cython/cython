@@ -1185,10 +1185,6 @@ class BufferType(BaseType):
     def can_coerce_from_pyobject(self,env):
         return True
 
-    def can_be_optional(self):
-        """Returns True if type can be used with typing.Optional[]."""
-        return True
-
     def as_argument_type(self):
         return self
 
