@@ -772,7 +772,7 @@ cdef enum:
 def test_anonymous_enum():
    """
    The main point here is that the from-py conversion function shouldn't
-   conflict with in
+   conflict with the function for int
    >>> test_anonymous_enum()
    1
    """

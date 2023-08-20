@@ -59,7 +59,7 @@ class BaseType(object):
         if self._specialization_name is None:
             # This is not entirely robust.
             common_subs = (self.empty_declaration_code()
-                           # covers both "unsigned " amd "signed "
+                           # covers both "unsigned " and "signed "
                            .replace("signed ", "signed_")
                            .replace("long long", "long_long")
                            .replace(" ", "__"))
