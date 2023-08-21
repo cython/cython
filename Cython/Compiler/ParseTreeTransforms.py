@@ -3514,6 +3514,7 @@ class GilCheck(VisitorTransform):
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
         self.nogil_declarator_only = False
+
         self.current_gilstat_node_knows_gil_state = False
         return super(GilCheck, self).__call__(root)
 
