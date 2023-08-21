@@ -177,31 +177,31 @@ class Context(object):
             warning(pos, "Dotted filenames ('%s') are deprecated."
                     " Please use the normal Python package directory layout." % pxd_filename, level=1)
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
-                    absolute_fallback=True):
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=1,
+                    absolute_fallback=True, relative_import=False):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
         # the corresponding .pxd file and process it.
-        # If relative_to is not None, it must be a module scope,
+        # If from_module is not None, it must be a module scope,
         # and the module will first be searched for relative to
         # that module, provided its name is not a dotted name.
         debug_find_module = 0
         if debug_find_module:
-            print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
-                module_name, relative_to, pos, need_pxd))
+            print("Context.find_module: module_name = %s, from_module = %s, pos = %s, need_pxd = %s" % (
+                module_name, from_module, pos, need_pxd))
 
         scope = None
         pxd_pathname = None
-        if relative_to:
+        if from_module:
             if module_name:
                 # from .module import ...
-                qualified_name = relative_to.qualify_name(module_name)
+                qualified_name = from_module.qualify_name(module_name)
             else:
                 # from . import ...
-                qualified_name = relative_to.qualified_name
-                scope = relative_to
-                relative_to = None
+                qualified_name = from_module.qualified_name
+                scope = from_module
+                from_module = None
         else:
             qualified_name = module_name
 
@@ -209,16 +209,19 @@ class Context(object):
             raise CompileError(pos or (module_name, 0, 0),
                                u"'%s' is not a valid module name" % module_name)
 
-        if relative_to:
+        if from_module:
             if debug_find_module:
                 print("...trying relative import")
-            scope = relative_to.lookup_submodule(module_name)
+            scope = from_module.lookup_submodule(module_name)
             if not scope:
-                pxd_pathname = self.find_pxd_file(qualified_name, pos)
+                pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=not relative_import)
                 self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if pxd_pathname:
                     is_package = self._is_init_file(pxd_pathname)
-                    scope = relative_to.find_submodule(module_name, as_package=is_package)
+                    scope = from_module.find_submodule(module_name, as_package=is_package)
+        if not scope and relative_import:
+            error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))
+            return None
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")
