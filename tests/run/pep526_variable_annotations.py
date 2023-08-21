@@ -285,8 +285,8 @@ def test_use_typing_attributes_as_non_annotations():
         "typing.Optional[typing.Dict]"
     ]
     print(x1, x2)
-    print(y1, str(y2) in allowed_optional_frozenset_strings)
-    print(z1, str(z2) in allowed_optional_dict_strings)
+    print(y1, str(y2) in allowed_optional_frozenset_strings  or  str(y2))
+    print(z1, str(z2) in allowed_optional_dict_strings  or  str(z2))
 
 def test_optional_ctuple(x: typing.Optional[tuple[float]]):
     """
