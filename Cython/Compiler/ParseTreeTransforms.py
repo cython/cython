@@ -1729,7 +1729,7 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
                 # re-analysing AttributeNodes. Therefore I've picked capture-by-value out of convenience
                 # TODO - could probably be optimized by making the arg a reference but the closure not
                 # (see https://github.com/cython/cython/issues/2468)
-                type = PyrexTypes.remove_cv_ref(type, dont_remove_fakeref=True)
+                type = PyrexTypes.remove_cv_ref(type, remove_fakeref=False)
 
                 name_decl.type = type
                 new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,

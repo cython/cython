@@ -3294,7 +3294,7 @@ class NextNode(AtomicExprNode):
             return iterator_type.base_type
         elif iterator_type.is_cpp_class:
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
-            item_type = PyrexTypes.remove_cv_ref(item_type, dont_remove_fakeref=False)
+            item_type = PyrexTypes.remove_cv_ref(item_type, remove_fakeref=True)
             return item_type
         else:
             # Avoid duplication of complicated logic.
