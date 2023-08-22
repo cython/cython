@@ -11,6 +11,7 @@ except ImportError:
     pass  # Workaround for python 2.7
 import numpy
 
+COMPILED = cython.compiled
 
 def one_dim(a: cython.double[:]):
     """
@@ -41,19 +42,18 @@ def two_dim(a: cython.double[:,:]):
     a[0,0] *= 3
     return a[0,0], a[0,1], a.ndim
 
-if cython.compiled:
-    # Tests are run both as compiled and not compiled. slice_none()
-    # output differs for compiled and not compiled. Hence, we need
-    # to ensure that it is run only when it is compiled.
-
-    def slice_none(m: cython.double[:]):
-        """
-        >>> slice_none(None)
-        Traceback (most recent call last):
-          ...
-        TypeError: Argument 'm' must not be None
-        """
-        return m
+def slice_none(m: cython.double[:]):
+    """
+    >>> try:
+    ...     a = slice_none(None)
+    ... except TypeError as exc:
+    ...     assert COMPILED
+    ...     if "Argument 'm' must not be None" not in str(exc): raise
+    ... else:
+    ...     assert a == 1
+    ...     assert not COMPILED
+    """
+    return 1 if m is None else 2
 
 
 def slice_optional(m: typing.Optional[cython.double[:]]):
