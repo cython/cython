@@ -15,6 +15,17 @@ Features added
 Bugs fixed
 ----------
 
+* ``nogil`` functions using parallel code could freeze when called with the GIL held.
+  (Github issues :issue:`5564`, :issue:`5573`)
+
+* Relative cimports could end up searching globally and find the same package installed
+  elsewhere, potentially in another version.
+  (Github issue :issue:`5511`)
+
+* Attribute lookups on known standard library modules could accidentally search
+  in the module namespace instead.
+  (Github issue :issue:`5536`)
+
 * Using constructed C++ default arguments could generate invalid C++ code.
   (Github issue :issue:`5553`)
 
@@ -25,19 +36,41 @@ Bugs fixed
   (and thus more future proof) API code.
 
 * Many issues with the Limited API support were resolved.
-  Patch by Lisandro Dalcin et al.  (Github issues :issue:`5549`, :issue:`5556`, :issue:`5605`)
+  Patches by Lisandro Dalcin et al.
+  (Github issues :issue:`5549`, :issue:`5550`, :issue:`5556`, :issue:`5605`)
 
 * Some C compiler warnings were resolved.
   Patches by Matti Picus et al.  (Github issues :issue:`5557`, :issue:`5555`)
 
+* Large Python integers are now stored in hex instead of decimal strings to work around
+  security limits in Python and generally speed up their Python object creation.
+
 * ``NULL`` could not be used as default for fused type pointer arguments.
+  (Github issue :issue:`5554`)
+
+* C functions that return pointer types now return ``NULL`` as default exception value.
+  Previously, calling code wasn't aware of this and always tested for raised exceptions.
   (Github issue :issue:`5554`)
 
 * Untyped literal default arguments in fused functions could generate invalid C code.
   (Github issue :issue:`5614`)
 
+* C variables declared as ``const`` could generate invalid C code when used in closures,
+  generator expressions, ctuples, etc.
+  (Github issues :issue:`5558`,  :issue:`5333`)
+
+* Enums could not refer to previously defined enums in their definition.
+  (Github issue :issue:`5602`)
+
+* The Python conversion code for anonymous C enums conflicted with regular int conversion.
+  (Github issue :issue:`5623`)
+
+* Using memory views for property methods (and other special methods) could lead to
+  refcounting problems.
+  (Github issue :issue:`5571`)
+
 * Star-imports could generate code that tried to assign to constant C macros like
-  `PY_SSIZE_T_MAX` and `PY_SSIZE_T_MIN`.
+  ``PY_SSIZE_T_MAX`` and ``PY_SSIZE_T_MIN``.
   Patch by Philipp Wagner.  (Github issue :issue:`5562`)
 
 * ``CYTHON_USE_TYPE_SPECS`` can now be (explicitly) enabled in PyPy.
