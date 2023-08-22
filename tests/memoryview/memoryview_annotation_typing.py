@@ -64,10 +64,7 @@ def slice_optional(m: typing.Optional[cython.double[:]]):
     >>> slice_optional(a)
     2
     """
-    if m is None:
-        return 1
-    else:
-        return 2
+    return 1 if m is None else 2
 
 
 @cython.nogil
