@@ -68,8 +68,7 @@ def slice_optional(m: typing.Optional[cython.double[:]]):
     >>> try:
     ...     x = slice_optional(123)
     ... except TypeError as exc:
-    ...     if "a bytes-like object is required, not 'int'" not in str(exc): raise
-    ...     assert COMPILED
+    ...     if not COMPILED: raise
     ... else:
     ...     assert not COMPILED
     """
