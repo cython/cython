@@ -63,6 +63,15 @@ def slice_optional(m: typing.Optional[cython.double[:]]):
     >>> a = numpy.ones((10,), numpy.double)
     >>> slice_optional(a)
     2
+
+    # Make sure that we actually evaluate the type and don't just accept everything.
+    >>> try:
+    ...     x = slice_optional(123)
+    ... except TypeError as exc:
+    ...     if "a bytes-like object is required, not 'int'" not in str(exc): raise
+    ...     assert COMPILED
+    ... else:
+    ...     assert not COMPILED
     """
     return 1 if m is None else 2
 
