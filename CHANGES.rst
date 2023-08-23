@@ -15,6 +15,15 @@ Features added
 Bugs fixed
 ----------
 
+* Memory view types in Python argument annotations no longer accept ``None``.  They now
+  require an explicit ``Optional[]`` or a ``None`` default value in order to allow ``None``
+  to be passed.  This was an oversight in the 3.0.0 release and is a BACKWARDS INCOMPATIBLE
+  change.  However, since it only applies to code using Python syntax, it probably only
+  applies to newly written code that was written for Cython 3.0 and can easily be adapted.
+  In most cases, we expect that this change will avoid bugs in user code rather than
+  produce problems.
+  (Github issue :issue:`5612`)
+
 * ``nogil`` functions using parallel code could freeze when called with the GIL held.
   (Github issues :issue:`5564`, :issue:`5573`)
 
