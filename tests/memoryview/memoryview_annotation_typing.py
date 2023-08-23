@@ -5,8 +5,13 @@
 from __future__ import annotations  # object[:] cannot be evaluated
 
 import cython
+try:
+    import typing
+except ImportError:
+    pass  # Workaround for python 2.7
 import numpy
 
+COMPILED = cython.compiled
 
 def one_dim(a: cython.double[:]):
     """
@@ -36,6 +41,38 @@ def two_dim(a: cython.double[:,:]):
     """
     a[0,0] *= 3
     return a[0,0], a[0,1], a.ndim
+
+def slice_none(m: cython.double[:]):
+    """
+    >>> try:
+    ...     a = slice_none(None)
+    ... except TypeError as exc:
+    ...     assert COMPILED
+    ...     if "Argument 'm' must not be None" not in str(exc): raise
+    ... else:
+    ...     assert a == 1
+    ...     assert not COMPILED
+    """
+    return 1 if m is None else 2
+
+
+def slice_optional(m: typing.Optional[cython.double[:]]):
+    """
+    >>> slice_optional(None)
+    1
+    >>> a = numpy.ones((10,), numpy.double)
+    >>> slice_optional(a)
+    2
+
+    # Make sure that we actually evaluate the type and don't just accept everything.
+    >>> try:
+    ...     x = slice_optional(123)
+    ... except TypeError as exc:
+    ...     if not COMPILED: raise
+    ... else:
+    ...     assert not COMPILED
+    """
+    return 1 if m is None else 2
 
 
 @cython.nogil
