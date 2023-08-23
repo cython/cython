@@ -42,6 +42,25 @@ def two_dim(a: cython.double[:,:]):
     a[0,0] *= 3
     return a[0,0], a[0,1], a.ndim
 
+
+def variable_annotation(a):
+    """
+    >>> a = numpy.ones((10,), numpy.double)
+    >>> variable_annotation(a)
+    2.0
+    """
+    b: cython.double[:]
+    b = None
+
+    if cython.compiled:
+        assert cython.typeof(b) == "double[:]",  cython.typeof(b)
+
+    b = a
+    b[1] += 1
+    b[2] += 2
+    return b[1]
+
+
 def slice_none(m: cython.double[:]):
     """
     >>> try:
