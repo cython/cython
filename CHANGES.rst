@@ -46,7 +46,7 @@ Bugs fixed
 
 * Many issues with the Limited API support were resolved.
   Patches by Lisandro Dalcin et al.
-  (Github issues :issue:`5549`, :issue:`5550`, :issue:`5556`, :issue:`5605`)
+  (Github issues :issue:`5549`, :issue:`5550`, :issue:`5556`, :issue:`5605`, :issue:`5617`)
 
 * Some C compiler warnings were resolved.
   Patches by Matti Picus et al.  (Github issues :issue:`5557`, :issue:`5555`)
