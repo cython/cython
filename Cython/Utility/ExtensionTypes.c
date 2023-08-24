@@ -121,10 +121,13 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         PyObject *b0 = PyTuple_GET_ITEM(bases, i);
-#else
+#elif !CYTHON_AVOID_BORROWED_REFS
         PyObject *b0 = PyTuple_GetItem(bases, i);
+        if (!b0) return -1;
+#else
+        PyObject *b0 = PySequence_GetItem(bases, i);
         if (!b0) return -1;
 #endif
         PyTypeObject *b;
@@ -134,6 +137,9 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         {
             PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
                          PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
 #endif
@@ -144,6 +150,9 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             PyErr_Format(PyExc_TypeError,
                 "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
             __Pyx_DECREF_TypeName(b_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
 #if !CYTHON_USE_TYPE_SLOTS
@@ -156,6 +165,9 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                 "Therefore, all extension types with multiple bases "
                 "must add 'cdef dict __dict__' in this compilation mode",
                 type_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
 #else
@@ -169,8 +181,14 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                 "or add '__slots__ = [...]' to the base type",
                 type_name, b_name);
             __Pyx_DECREF_TypeName(b_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(b0);
 #endif
     }
     return 0;

@@ -237,6 +237,7 @@
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 1
   #ifndef CYTHON_USE_TP_FINALIZE
+    // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
   #endif
   #undef CYTHON_USE_DICT_VERSIONS
