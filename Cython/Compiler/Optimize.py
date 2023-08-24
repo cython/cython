@@ -2811,12 +2811,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     _map_to_capi_len_function = {
         Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type:      "PyBytes_GET_SIZE",
-        Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
-        Builtin.list_type:       "PyList_GET_SIZE",
-        Builtin.tuple_type:      "PyTuple_GET_SIZE",
-        Builtin.set_type:        "PySet_GET_SIZE",
-        Builtin.frozenset_type:  "PySet_GET_SIZE",
+        Builtin.bytes_type:      "__Pyx_PyBytes_GET_SIZE",
+        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
+        Builtin.list_type:       "__Pyx_PyList_GET_SIZE",
+        Builtin.tuple_type:      "__Pyx_PyTuple_GET_SIZE",
+        Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
+        Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
         Builtin.dict_type:       "PyDict_Size",
     }.get
 

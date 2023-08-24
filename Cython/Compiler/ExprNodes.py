@@ -2522,9 +2522,11 @@ class NameNode(AtomicExprNode):
             namespace = self.entry.scope.namespace_cname
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
-                # on types, so we create a descriptor which is then added to tp_dict
-                setter = 'PyDict_SetItem'
-                namespace = '%s->tp_dict' % namespace
+                # on types, so we create a descriptor which is then added to tp_dict.
+                # For the case where we don't have direct access to typeslots the
+                # helper function __Pyx_PyDict_SafeSetItem ensures no crashes if
+                # getting the dict fails
+                setter = '__Pyx_SetItemOnTypeDict'
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
@@ -6572,7 +6574,8 @@ class PyMethodCallNode(SimpleCallNode):
         else:
             likely_method = 'unlikely'
 
-        code.putln("if (CYTHON_UNPACK_METHODS && %s(PyMethod_Check(%s))) {" % (likely_method, function))
+        code.putln("#if CYTHON_UNPACK_METHODS")
+        code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
         code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
@@ -6585,6 +6588,8 @@ class PyMethodCallNode(SimpleCallNode):
         code.putln("%s = 1;" % arg_offset_cname)
         code.putln("}")
         code.putln("}")
+        code.putln("#endif")  # CYTHON_UNPACK_METHODS
+        # TODO may need to deal with unused variables in the #else case
 
         # actually call the function
         code.globalstate.use_utility_code(
@@ -8044,9 +8049,9 @@ class SequenceNode(ExprNode):
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
             if self.type is list_type:
-                create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
+                create_func, set_item_func = 'PyList_New', '__Pyx_PyList_SET_ITEM'
             elif self.type is tuple_type:
-                create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
+                create_func, set_item_func = 'PyTuple_New', '__Pyx_PyTuple_SET_ITEM'
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
             arg_count = len(self.args)
@@ -8078,11 +8083,12 @@ class SequenceNode(ExprNode):
                 if c_mult or not arg.result_in_temp():
                     code.put_incref(arg.result(), arg.ctype())
                 arg.generate_giveref(code)
-                code.putln("%s(%s, %s, %s);" % (
+                code.putln("if (%s(%s, %s, %s)) %s;" % (
                     set_item_func,
                     target,
                     (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
-                    arg.py_result()))
+                    arg.py_result(),
+                    code.error_goto(self.pos)))
 
             if c_mult:
                 code.putln('}')

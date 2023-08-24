@@ -29,6 +29,8 @@ except RuntimeError:
     pass
 
 limited.C()
+limited.D()
+limited.E()
 
 
 ##################### limited.pyx #############################
@@ -50,4 +52,10 @@ def raises():
     raise RuntimeError()
 
 class C:
+    pass
+
+cdef class D:
+    pass
+
+cdef class E(D):
     pass

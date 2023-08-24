@@ -151,17 +151,34 @@ static int __Pyx_CheckKeywordStrings(
     return 1;
 #else
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
-        if (unlikely(PyTuple_GET_SIZE(kw) == 0))
+        Py_ssize_t kwsize;
+#if CYTHON_ASSUME_SAFE_MACROS
+        kwsize = PyTuple_GET_SIZE(kw);
+#else
+        kwsize = PyTuple_Size(kw);
+        if (kwsize < 0) return 0;
+#endif
+        if (unlikely(kwsize == 0))
             return 1;
         if (!kw_allowed) {
+#if CYTHON_ASSUME_SAFE_MACROS
             key = PyTuple_GET_ITEM(kw, 0);
+#else
+            key = PyTuple_GetItem(kw, pos);
+            if (!key) return 0;
+#endif
             goto invalid_keyword;
         }
 #if PY_VERSION_HEX < 0x03090000
         // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
         // names are strings (see https://bugs.python.org/issue37540)
-        for (pos = 0; pos < PyTuple_GET_SIZE(kw); pos++) {
+        for (pos = 0; pos < kwsize; pos++) {
+#if CYTHON_ASSUME_SAFE_MACROS
             key = PyTuple_GET_ITEM(kw, pos);
+#else
+            key = PyTuple_GetItem(kw, pos);
+            if (!key) return 0;
+#endif
             if (unlikely(!PyUnicode_Check(key)))
                 goto invalid_keyword_type;
         }
