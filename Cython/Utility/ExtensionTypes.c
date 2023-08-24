@@ -121,13 +121,13 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        PyObject *b0 = PyTuple_GET_ITEM(bases, i);
-#elif !CYTHON_AVOID_BORROWED_REFS
-        PyObject *b0 = PyTuple_GetItem(bases, i);
-        if (!b0) return -1;
-#else
+#if CYTHON_AVOID_BORROWED_REFS
         PyObject *b0 = PySequence_GetItem(bases, i);
+        if (!b0) return -1;
+#elif CYTHON_ASSUME_SAFE_MACROS
+        PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+#else
+        PyObject *b0 = PyTuple_GetItem(bases, i);
         if (!b0) return -1;
 #endif
         PyTypeObject *b;
