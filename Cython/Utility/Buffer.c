@@ -602,9 +602,8 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   return 0;
 }
 
-/* Parse an array in the format string (e.g. (1,2,3))
-   Return 0 on success, -1 on error
- */
+// Parse an array in the format string (e.g. (1,2,3))
+// Return 0 on success, -1 on error
 static int
 __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 {
