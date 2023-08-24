@@ -84,8 +84,8 @@ Bugs fixed
 
 * ``CYTHON_USE_TYPE_SPECS`` can now be (explicitly) enabled in PyPy.
 
-* The template parameter "delimeter" in the Tempita ``Template`` class was corrected
-  to "delimiter".  The old spelling is still available in the main template API but
+* The template parameter "delimeters" in the Tempita ``Template`` class was corrected
+  to "delimiters".  The old spelling is still available in the main template API but
   now issues a ``DeprecationWarning``.
   (Github issue :issue:`5608`)
 
