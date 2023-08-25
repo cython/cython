@@ -2007,6 +2007,8 @@ static void __Pyx_FastGilFuncInit(void);
   #ifndef CYTHON_THREAD_LOCAL
     #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112
       #define CYTHON_THREAD_LOCAL _Thread_local
+    #elif defined(__cplusplus) && __cplusplus >= 201103L
+      #define CYTHON_THREAD_LOCAL thread_local
     #elif defined(__GNUC__)
       #define CYTHON_THREAD_LOCAL __thread
     #elif defined(_MSC_VER)
