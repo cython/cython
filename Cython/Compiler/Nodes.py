@@ -4304,8 +4304,11 @@ class DefNodeWrapper(FuncDefNode):
             return
         # The 'values' array may not be borrowed depending on the compilation options.
         # This cleans it up in the case it isn't borrowed
-        code.putln("for (Py_ssize_t i=0; i<(Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++i) {")
+        code.putln("{")
+        code.putln("Py_ssize_t i;")
+        code.putln("for (i=0; i < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++i) {")
         code.putln("__Pyx_Arg_XDECREF_%s(values[i]);" % self.signature.fastvar)
+        code.putln("}")
         code.putln("}")
 
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
