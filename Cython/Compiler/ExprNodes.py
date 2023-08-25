@@ -2523,9 +2523,6 @@ class NameNode(AtomicExprNode):
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict.
-                # For the case where we don't have direct access to typeslots the
-                # helper function __Pyx_PyDict_SafeSetItem ensures no crashes if
-                # getting the dict fails
                 setter = '__Pyx_SetItemOnTypeDict'
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
