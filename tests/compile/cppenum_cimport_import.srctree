@@ -1,0 +1,49 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from definitions import f"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Distutils import build_ext
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules = [
+        Extension("declarations", ["declarations.pyx"]),
+        Extension("definitions", ["definitions.pyx"]),
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## declarations.pxd ########
+
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+cpdef enum class my_enum(int):
+    a = 1
+    b = 2
+
+######## declarations.pyx ########
+
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+######## definitions.pxd ########
+
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+from declarations cimport my_enum
+cpdef void f(my_enum x)
+
+######## definitions.pyx ########
+
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+from declarations import my_enum
+from declarations cimport my_enum
+
+
+cpdef void f(my_enum x):
+    pass
