@@ -2403,6 +2403,9 @@ class NameNode(AtomicExprNode):
         ) or (
             self.entry.is_cfunction and
             self.entry.is_overridable
+        ) or (
+            self.entry.type.is_cpp_enum and
+            self.entry.create_wrapper
         )
 
     def is_addressable(self):
