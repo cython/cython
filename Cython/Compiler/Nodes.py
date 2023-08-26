@@ -4305,9 +4305,10 @@ class DefNodeWrapper(FuncDefNode):
         # The 'values' array may not be borrowed depending on the compilation options.
         # This cleans it up in the case it isn't borrowed
         code.putln("{")
-        code.putln("Py_ssize_t i;")
-        code.putln("for (i=0; i < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++i) {")
-        code.putln("__Pyx_Arg_XDECREF_%s(values[i]);" % self.signature.fastvar)
+        code.putln("Py_ssize_t % ;" % Naming.quick_temp_cname)
+        code.putln("for (%s=0; %s < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++%s) {" % (
+            Naming.quick_temp_cname, Naming.quick_temp_cname, Naming.quick_temp_cname))
+        code.putln("__Pyx_Arg_XDECREF_%s(values[%s]);" % (self.signature.fastvar, Naming.quick_temp_cname))
         code.putln("}")
         code.putln("}")
 
