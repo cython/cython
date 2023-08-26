@@ -1,6 +1,6 @@
 # mode: run
 # ticket: 1772
-# cython: language_level=3
+# cython: language_level=3str
 
 cimport cython
 from cython.view cimport array
