@@ -2720,7 +2720,7 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
-        CFLAGS.append("-DCYTHON_LIMITED_API=1")
+        CDEFS.append(('CYTHON_LIMITED_API', '1'))
         CFLAGS.append('-Wno-unused-function')
 
     if xml_output_dir and options.fork:
