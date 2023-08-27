@@ -179,6 +179,7 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
 #if PY_VERSION_HEX >= 0x030C00A6
     PyObject *tmp_value;
     assert(type == NULL || (value != NULL && type == (PyObject*) Py_TYPE(value)));
+    CYTHON_UNUSED_VAR(type);
     if (value) {
         #if CYTHON_COMPILING_IN_CPYTHON
         if (unlikely(((PyBaseExceptionObject*) value)->traceback != tb))
@@ -920,7 +921,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject *scratch_dict, 
+static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject *scratch_dict,
                                                        PyObject *firstlineno, PyObject *name) {
     PyObject *replace = NULL;
     if (unlikely(PyDict_SetItemString(scratch_dict, "co_firstlineno", firstlineno))) return NULL;

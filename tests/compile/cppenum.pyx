@@ -40,3 +40,9 @@ cdef enum class Color(int):
 cdef enum class Color2(int):
     RED = (<int> Color.RED)
     GREEN = (<int> Color.GREEN)
+
+
+# enum class as cdef class function parameter
+cdef class A:
+    cdef Spam f(self, Spam s):
+        return s
