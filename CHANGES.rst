@@ -2,6 +2,23 @@
 Cython Changelog
 ================
 
+3.0.2 (2023-08-27)
+==================
+
+Bugs fixed
+----------
+
+* Using ``None`` as default value for arguments annotated as ``int`` could crash Cython.
+  (Github issue :issue:`5643`)
+
+* Default values of fused types that include ``complex`` could generate invalid C code
+  with ``-DCYTHON_CCOMPLEX=0``.
+  (Github issue :issue:`5644`)
+
+* Using C++ enum class types in extension type method signatures could generate invalid C code.
+  (Github issue :issue:`5637`)
+
+
 3.0.1 (2023-08-25)
 ==================
 
