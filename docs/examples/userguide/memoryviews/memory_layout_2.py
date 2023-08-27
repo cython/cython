@@ -2,7 +2,6 @@
 from cython.cimports.cython import view
 
 def main():
-
     # VALID
     a: cython.int[::view.indirect, ::1, :]
     b: cython.int[::view.indirect, :, ::1]
@@ -13,5 +12,5 @@ def main():
     e: cython.int[::1, ::view.indirect, :]
 
 _ERRORS = u"""
-13:17: Only dimension 2 may be contiguous and direct
+12:17: Only dimension 2 may be contiguous and direct
 """

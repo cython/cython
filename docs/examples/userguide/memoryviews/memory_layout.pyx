@@ -1,5 +1,6 @@
 from cython cimport view
 
+
 # direct access in both dimensions, strided in the first dimension, contiguous in the last
 cdef int[:, ::view.contiguous] a
 

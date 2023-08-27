@@ -6,6 +6,9 @@
 Typed Memoryviews
 *****************
 
+.. include::
+    ../two-syntax-variants-used
+
 Typed memoryviews allow efficient access to memory buffers, such as those
 underlying NumPy arrays, without incurring any Python overhead.
 Memoryviews are similar to the current NumPy array buffer support
@@ -60,7 +63,7 @@ Syntax
 
 Memory views use Python slicing syntax in a similar way as NumPy.
 
-To create a complete view on a one-dimensional int buffer:
+To create a complete view on a one-dimensional ``int`` buffer:
 
 .. tabs::
 
@@ -100,7 +103,7 @@ They also work conveniently as function arguments:
 
         .. code-block:: python
 
-            def process_3d_buffer(view: int[:,:,:]):
+            def process_3d_buffer(view: cython.int[:,:,:]):
                 ...
 
     .. group-tab:: Cython
@@ -111,8 +114,8 @@ They also work conveniently as function arguments:
                 ...
 
 The ``not None`` declaration for the argument automatically rejects
-None values as input, which would otherwise be allowed.  The reason why
-None is allowed by default is that it is conveniently used for return
+``None`` values as input, which would otherwise be allowed.  The reason why
+``None`` is allowed by default is that it is conveniently used for return
 arguments:
 
 .. tabs::
@@ -185,7 +188,7 @@ adds 1 to each item:
 
 Indexing and slicing can be done with or without the GIL.  It basically works
 like NumPy.  If indices are specified for every dimension you will get an element
-of the base type (e.g. `int`).  Otherwise, you will get a new view.  An Ellipsis
+of the base type (e.g. ``int``).  Otherwise, you will get a new view.  An Ellipsis
 means you get consecutive slices for every unspecified dimension:
 
 .. tabs::
@@ -289,6 +292,10 @@ See also an example_.
 Read-only views
 ---------------
 
+.. note::
+
+    Pure python mode currently does not support Read-only views.
+
 Since Cython 0.28, the memoryview item type can be declared as ``const`` to
 support read-only buffers as input:
 
@@ -312,11 +319,6 @@ buffers are not accepted for non-const, writable views::
     a = np.linspace(0, 10, num=50)
     a.setflags(write=False)
     myslice = a   # ERROR: requesting writable memory view from read-only buffer!
-
-
-.. note::
-
-    Pure python mode currently does not support Read-only views.
 
 
 Comparison to the old buffer support
@@ -422,7 +424,7 @@ A contiguous array is one for which a single continuous block of memory contains
 all the data for the elements of the array, and therefore the memory block
 length is the product of number of elements in the array and the size of the
 elements in bytes. In the example above, the memory block is 2 * 3 * 4 * 1 bytes
-long, where 1 is the length of an int8.
+long, where 1 is the length of an ``np.int8``.
 
 An array can be contiguous without being C or Fortran order::
 
@@ -549,7 +551,7 @@ you will get a ``ValueError`` at runtime::
 
     ValueError: ndarray is not C-contiguous
 
-Thus the `::1` in the slice type specification indicates in which dimension the
+Thus the ``::1`` in the slice type specification indicates in which dimension the
 data is contiguous.  It can only be used to specify full C or Fortran
 contiguity.
 
@@ -604,7 +606,7 @@ by using any of the constants in ``cython.view``. If no specifier is given in
 any dimension, then the data access is assumed to be direct, and the data
 packing assumed to be strided.  If you don't know whether a dimension will be
 direct or indirect (because you're getting an object with a buffer interface
-from some library perhaps), then you can specify the `generic` flag, in which
+from some library perhaps), then you can specify the ``generic`` flag, in which
 case it will be determined at runtime.
 
 The flags are as follows:
@@ -652,7 +654,7 @@ contiguity for all following (Fortran) or preceding (C) dimensions:
 
         .. code-block:: python
 
-            c_contig: cythonint[:, ::1] = ...
+            c_contig: cython.int[:, ::1] = ...
 
             # VALID
             myslice: cython.int[:, ::view.contiguous] = c_contig[::2]
@@ -830,7 +832,7 @@ may be assigned directly to a memoryview slice:
 
         .. code-block:: python
 
-            myslice: int[:, ::1] = my_2d_c_array
+            myslice: cython.int[:, ::1] = my_2d_c_array
 
     .. group-tab:: Cython
 
@@ -881,7 +883,6 @@ type.  Therefore, the following also works:
 
         .. code-block:: cython
 
-            from cython.cimports.cpython import array
             from cpython cimport array
 
             def sum_array(array.array[int] arr):  # using old buffer syntax
@@ -928,7 +929,7 @@ be checked for being ``None`` as well:
 
         .. code-block:: python
 
-            def func(myarray: cython.Optional[cython.double[:]] = None):
+            def func(myarray: typing.Optional[cython.double[:]] = None):
                 print(myarray is None)
 
     .. group-tab:: Cython
@@ -1005,7 +1006,7 @@ You can call the function in a Cython file in the following way:
 Several things to note:
  - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
    See :ref:`c_and_fortran_contiguous_memoryviews`.
- - ``&arr_memview[0]`` can be understood as 'the address of the first element of the
+ - ``&arr_memview[0]`` and ``cython.address(arr_memview[0]`` can be understood as 'the address of the first element of the
    memoryview'. For contiguous arrays, this is equivalent to the
    start address of the flat memory buffer.
  - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,

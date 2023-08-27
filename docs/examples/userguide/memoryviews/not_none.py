@@ -1,5 +1,5 @@
-import typing
 import numpy as np
+import typing
 
 def process_buffer(input_view: cython.int[:,:],
                    output_view: typing.Optional[cython.int[:,:]] = None):
