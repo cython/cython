@@ -1,3 +1,4 @@
+# tag: numpy
 import numpy
 from cython.cimports.numpy import int32_t
 

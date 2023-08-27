@@ -1,3 +1,4 @@
+# tag: numpy
 import numpy
 cimport numpy as cnp
 
