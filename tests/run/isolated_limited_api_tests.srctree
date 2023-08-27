@@ -1,4 +1,5 @@
 # mode: run
+# tag: limited-api
 
 # This is a bare minimum test to test compilation of the limited
 # API with the Py_LIMITED_API macro defined, with an example that's
