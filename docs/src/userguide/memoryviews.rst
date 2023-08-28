@@ -737,10 +737,12 @@ retrieve the original object:
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/userguide/memoryviews/cython_array.py
+            :lines: 2-
 
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/memoryviews/cython_array.pyx
+            :lines: 2-
 
 Note that this example returns the original object from which the view was
 obtained, and that the view was resliced in the meantime.
