@@ -961,7 +961,7 @@ def skip_limited(tags):
     # on all non-cpython, skip limited-api tests
     if 'limited-api' in tags['tag']:
         return True
-
+    return False
 def filter_stderr(stderr_bytes):
     """
     Filter annoying warnings from output.
