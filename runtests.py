@@ -954,6 +954,8 @@ def skip_c(tags):
     return False
 
 def skip_limited(tags):
+    if sys.version_info[0] < 3:
+        return True
     if sys.implementation.name == 'cpython':
         return False
     # on all non-cpython, skip limited-api tests
