@@ -14514,6 +14514,8 @@ class AnnotationNode(ExprNode):
 
     def _warn_on_unknown_annotation(self, env, annotation):
         """Method checks for cases when user should be warned that annotation contains unknown types."""
+        if isinstance(annotation, SliceIndexNode):
+            annotation = annotation.base
         if annotation.is_name:
             # Validate annotation in form `var: type`
             if not env.lookup(annotation.name):
