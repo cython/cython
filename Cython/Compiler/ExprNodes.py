@@ -6601,11 +6601,13 @@ class PyMethodCallNode(SimpleCallNode):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
 
+        padding_null_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln("%s = NULL;" % padding_null_arg)
         code.putln("{")
         code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
-            len(args)+1,
+            len(args)+2,
             self_arg,
-            ', '.join(arg.py_result() for arg in args)))
+            ', '.join(tuple(arg.py_result() for arg in args) + (padding_null_arg,))))
         code.putln("%s = __Pyx_PyObject_FastCall(%s, __pyx_callargs+1-%s, %d+%s);" % (
             self.result(),
             function,
@@ -6614,7 +6616,9 @@ class PyMethodCallNode(SimpleCallNode):
             arg_offset_cname))
 
         code.put_xdecref_clear(self_arg, py_object_type)
+        code.put_xdecref_clear(padding_null_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
+        code.funcstate.release_temp(padding_null_arg)
         code.funcstate.release_temp(arg_offset_cname)
         for arg in args:
             arg.generate_disposal_code(code)
