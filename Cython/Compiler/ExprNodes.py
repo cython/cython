@@ -2327,6 +2327,7 @@ class NameNode(AtomicExprNode):
             py_entry = Symtab.Entry(self.name, None, py_object_type)
             py_entry.is_pyglobal = True
             py_entry.scope = self.entry.scope
+            py_entry.is_variable = self.entry.is_variable
             self.entry = py_entry
         elif not (entry.is_const or entry.is_variable or
                   entry.is_builtin or entry.is_cfunction or

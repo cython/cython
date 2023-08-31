@@ -752,6 +752,7 @@ class Scope(object):
             entry.utility_code = Code.UtilityCode.load_cached("EnumClassDecl", "CppSupport.cpp")
             self.use_entry_utility_code(entry)
         entry.create_wrapper = create_wrapper
+        entry.is_variable = create_wrapper
         entry.enum_values = []
 
         self.sue_entries.append(entry)
