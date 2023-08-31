@@ -21,5 +21,5 @@ cdef extern from "<functional>" namespace "std" nogil:
         bool operator()(const T& lhs, const T& rhs) except +
 
     cdef cppclass reference_wrapper[T]:
-          reference_wrapper()
-          reference_wrapper(T)
+        reference_wrapper()
+        reference_wrapper(T)
