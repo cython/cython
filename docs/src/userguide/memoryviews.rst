@@ -294,7 +294,7 @@ Read-only views
 
 .. note::
 
-    Pure python mode currently does not support Read-only views.
+    Pure python mode currently does not support read-only views.
 
 Since Cython 0.28, the memoryview item type can be declared as ``const`` to
 support read-only buffers as input:
