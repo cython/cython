@@ -6606,7 +6606,7 @@ class PyMethodCallNode(SimpleCallNode):
         # we need at least two entries, so we pad with NULL and point to that.
         # See https://github.com/cython/cython/issues/5668
         code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
-            len(args) + 1 if args else 2,
+            (len(args) + 1) if args else 2,
             self_arg,
             ', '.join(arg.py_result() for arg in args) if args else "NULL",
         ))
