@@ -6602,12 +6602,14 @@ class PyMethodCallNode(SimpleCallNode):
             UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
 
         code.putln("{")
-        # Padding the array with trailing NULL pointer per Coverity
-        # out-of-bound buffer access issue (gh-5669)
+        # To avoid passing an out-of-bounds argument pointer in the no-args case,
+        # we need at least two entries, so we pad with NULL and point to that.
+        # See https://github.com/cython/cython/issues/5668
         code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
-            len(args)+2,
+            len(args) + 1 if args else 2,
             self_arg,
-            ', '.join(tuple(arg.py_result() for arg in args) + ("NULL",))))
+            ', '.join(arg.py_result() for arg in args) if args else "NULL",
+        ))
         code.putln("%s = __Pyx_PyObject_FastCall(%s, __pyx_callargs+1-%s, %d+%s);" % (
             self.result(),
             function,
