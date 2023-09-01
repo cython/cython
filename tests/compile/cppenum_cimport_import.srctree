@@ -1,3 +1,6 @@
+# mode: run
+# tag: cpp, cpp11
+
 PYTHON setup.py build_ext --inplace
 PYTHON -c "from definitions import f"
 
@@ -6,7 +9,7 @@ PYTHON -c "from definitions import f"
 from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
-setup(ext_modules = cythonize("*.pyx", language="c++"))
+setup(ext_modules = cythonize("*.pyx"))
 
 ######## declarations.pxd ########
 
