@@ -931,9 +931,11 @@ class Scope(object):
             var_entry.scope = entry.scope
             entry.as_variable = var_entry
         type.entry = entry
+        pos_filetype = pos[0]._file_type if pos else None
         if (type.exception_check and type.exception_value is None and type.nogil and
                 not pos[0].is_utility_code and
-                defining  # don't warn about external functions here - the user likely can't do anything
+                defining and  # don't warn about external functions here - the user likely can't do anything
+                pos_filetype != 'pxd'  # again, exclude extern functions (is_pxd is unreliable here)
             ):
             msg = (
                 "Exception check on '%s' will always require the GIL to be acquired. Possible solutions:"
