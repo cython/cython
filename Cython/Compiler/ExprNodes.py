@@ -1525,7 +1525,12 @@ class FloatNode(ConstNode):
         self.constant_result = float(self.value)
 
     def compile_time_value(self, denv):
-        return float(self.value)
+        float_value = float(self.value)
+        # It's difficult to warn about '1E5' notation because the user input is not easy to reproduce programmatically.
+        # Therefore, we only warn about simple fractional float value representations that are not copied literally.
+        if self.value.replace('.', '').isdigit() and repr(float_value) != self.value:
+            warning(self.pos, "Using this floating point value with DEF may lose precision, using %r" % float_value)
+        return float_value
 
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject and self.type.is_float:
