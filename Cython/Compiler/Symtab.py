@@ -936,7 +936,7 @@ class Scope(object):
                 not pos[0].in_utility_code and
                 defining and  # don't warn about external functions here - the user likely can't do anything
                 pos_filetype != 'pxd'  # again, exclude extern functions (is_pxd is unreliable here)
-            ):
+                ):
             noexcept_performance_hint_helper(pos, function_name=name, void_return=type.return_type.is_void)
         return entry
 
