@@ -621,8 +621,8 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytearray(
     char* as_c_string;
     Py_ssize_t size;
 #if CYTHON_ASSUME_SAFE_MACROS
-    as_c_string = PyBytes_AS_STRING(string);
-    size = PyBytes_GET_SIZE(string);
+    as_c_string = PyByteArray_AS_STRING(string);
+    size = PyByteArray_GET_SIZE(string);
 #else
     if (!(as_c_string = PyByteArray_AsString(string))) return NULL;
     if ((size = PyByteArray_Size(string)) < 0) return NULL;

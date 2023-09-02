@@ -1,7 +1,7 @@
 /////////////// TypeConversions.proto ///////////////
+//@requires: StringTools.c::IncludeStringH
 
 /* Type Conversion Predeclarations */
-#include <string.h>
 
 #define __Pyx_uchar_cast(c) ((unsigned char)c)
 #define __Pyx_long_cast(x) ((long)x)
