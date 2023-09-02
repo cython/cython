@@ -596,8 +596,18 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytes(
          PyObject* string, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    char* as_c_string;
+    Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS
+    as_c_string = PyBytes_AS_STRING(string);
+    size = PyBytes_GET_SIZE(string);
+#else
+    if (PyBytes_AsStringAndSize(string, &as_c_string, &size) < 0) {
+        return NULL;
+    }
+#endif
     return __Pyx_decode_c_bytes(
-        PyBytes_AS_STRING(string), PyBytes_GET_SIZE(string),
+        as_c_string, size,
         start, stop, encoding, errors, decode_func);
 }
 
@@ -608,8 +618,17 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytearray(
          PyObject* string, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    char* as_c_string;
+    Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS
+    as_c_string = PyBytes_AS_STRING(string);
+    size = PyBytes_GET_SIZE(string);
+#else
+    if (!(as_c_string = PyByteArray_AsString(string))) return NULL;
+    if ((size = PyByteArray_Size(string)) < 0) return NULL;
+#endif
     return __Pyx_decode_c_bytes(
-        PyByteArray_AS_STRING(string), PyByteArray_GET_SIZE(string),
+        as_c_string, size,
         start, stop, encoding, errors, decode_func);
 }
 
