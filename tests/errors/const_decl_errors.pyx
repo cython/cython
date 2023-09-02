@@ -8,8 +8,11 @@ x = 20           # nok
 cdef const int y
 cdef const int *z
 
+cdef float a[x] #nok
+
 cdef struct S:
     int member
+    int[x] member2 #nok
 
 cdef func(const int a, const int* b, const (int*) c, const S s, int *const d, int **const e, int *const *f,
           const S *const t):
@@ -39,19 +42,24 @@ cdef func3():
 
 cdef volatile object v
 
+cdef func4():
+    cdef int a[x] # nok
 
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
 6:4: Assignment to const 'x'
-16:8: Assignment to const 'a'
-17:8: Assignment to const 'c'
-18:5: Assignment to const dereference
-19:5: Assignment to const attribute 'member'
-20:8: Assignment to const 'd'
-23:8: Assignment to const 'e'
-25:5: Assignment to const dereference
-27:8: Assignment to const 't'
-31:8: Assignment to const 'y'
-33:5: Assignment to const dereference
-40:5: Const/volatile base type cannot be a Python object
+11:13: Array dimension cannot be const integer
+15:8: Array dimension cannot be const integer
+19:8: Assignment to const 'a'
+20:8: Assignment to const 'c'
+21:5: Assignment to const dereference
+22:5: Assignment to const attribute 'member'
+23:8: Assignment to const 'd'
+26:8: Assignment to const 'e'
+28:5: Assignment to const dereference
+30:8: Assignment to const 't'
+34:8: Assignment to const 'y'
+36:5: Assignment to const dereference
+43:5: Const/volatile base type cannot be a Python object
+46:15: Array dimension cannot be const integer
 """
