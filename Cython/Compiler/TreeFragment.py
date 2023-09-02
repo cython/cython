@@ -48,7 +48,7 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
 
     code - a unicode string containing Cython (module-level) code
     name - a descriptive name for the code source (to use in error messages etc.)
-    in_utility_code - used to surpress some messages from utility code. False by default
+    in_utility_code - used to suppress some messages from utility code. False by default
                       because some generated code snippets like properties and dataclasses
                       probably want to see those messages.
 
