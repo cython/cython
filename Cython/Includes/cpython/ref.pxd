@@ -48,4 +48,3 @@ cdef extern from "Python.h":
     # It is a good idea to use this macro whenever decrementing the
     # value of a variable that might be traversed during garbage
     # collection.
-

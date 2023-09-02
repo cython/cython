@@ -32,6 +32,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string
 from .Errors import error, warning
 from .ParseTreeTransforms import SkipDeclarations
+from .. import Utils
 
 try:
     from __builtin__ import reduce
@@ -1255,11 +1256,17 @@ class SwitchTransform(Visitor.EnvTransform):
                 # this isn't completely safe as we don't know the
                 # final C value, but this is about the best we can do
                 try:
-                    if value.entry.cname in seen:
-                        return True
+                    value_entry = value.entry
+                    if ((value_entry.type.is_enum or value_entry.type.is_cpp_enum)
+                            and value_entry.enum_int_value is not None):
+                        value_for_seen = value_entry.enum_int_value
+                    else:
+                        value_for_seen = value_entry.cname
                 except AttributeError:
                     return True  # play safe
-                seen.add(value.entry.cname)
+                if value_for_seen in seen:
+                    return True
+                seen.add(value_for_seen)
         return False
 
     def visit_IfStatNode(self, node):
@@ -2804,12 +2811,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     _map_to_capi_len_function = {
         Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type:      "PyBytes_GET_SIZE",
-        Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
-        Builtin.list_type:       "PyList_GET_SIZE",
-        Builtin.tuple_type:      "PyTuple_GET_SIZE",
-        Builtin.set_type:        "PySet_GET_SIZE",
-        Builtin.frozenset_type:  "PySet_GET_SIZE",
+        Builtin.bytes_type:      "__Pyx_PyBytes_GET_SIZE",
+        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
+        Builtin.list_type:       "__Pyx_PyList_GET_SIZE",
+        Builtin.tuple_type:      "__Pyx_PyTuple_GET_SIZE",
+        Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
+        Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
         Builtin.dict_type:       "PyDict_Size",
     }.get
 
@@ -4467,9 +4474,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                        getattr(operand2, 'unsigned', '')
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
+            value = hex(int(node.constant_result))
+            value = Utils.strip_py2_long_suffix(value)
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned=unsigned, longness=longness,
-                                         value=str(int(node.constant_result)),
+                                         value=value,
                                          constant_result=int(node.constant_result))
             # IntNode is smart about the type it chooses, so we just
             # make sure we were not smarter this time

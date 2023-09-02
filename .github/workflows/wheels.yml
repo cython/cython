@@ -62,7 +62,7 @@ jobs:
         - [macos-11, macosx_*]
         - [windows-2019, win_amd64]
         - [windows-2019, win32]
-        python: ["cp36", "cp37", "cp38", "cp39", "cp310", "cp311"]  # Note: Wheels not needed for PyPy
+        python: ["cp36", "cp37", "cp38", "cp39", "cp310", "cp311", "cp312"]  # Note: Wheels not needed for PyPy
     steps:
       - name: Checkout Cython
         uses: actions/checkout@v3
@@ -74,7 +74,7 @@ jobs:
           platforms: all
       
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.4
+        uses: pypa/cibuildwheel@v2.13.0
         env:
           # TODO: Build Cython with the compile-all flag?
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}

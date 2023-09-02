@@ -33,3 +33,6 @@ memoryview.numpy_memoryview
 # (the overridden __Pyx_PyObject_GetItem requires CYTHON_USE_TYPE_SLOTS)
 run.test_genericclass
 run.test_subclassinit
+
+# TypeError: 'memoryview' does not have the buffer interface
+run.buffer_n_overflowcheck_T5356

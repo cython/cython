@@ -31,7 +31,7 @@ from . import Future
 from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
-from ..Utils import add_metaclass
+from ..Utils import add_metaclass, str_to_number
 
 
 if sys.version_info[0] >= 3:
@@ -980,7 +980,7 @@ class CArgDeclNode(Node):
             if "typing.Optional" in modifiers:
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
-                if arg_type and not arg_type.is_pyobject:
+                if arg_type and not arg_type.can_be_optional():
                     # We probably already reported this as "cannot be applied to non-Python type".
                     # error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
                     pass
@@ -989,14 +989,14 @@ class CArgDeclNode(Node):
             elif arg_type is py_object_type:
                 # exclude ": object" from the None check - None is a generic object.
                 self.or_none = True
-            elif self.default and self.default.is_none and (arg_type.is_pyobject or arg_type.equivalent_type):
+            elif self.default and self.default.is_none and (arg_type.can_be_optional() or arg_type.equivalent_type):
                 # "x: ... = None"  =>  implicitly allow 'None'
-                if not arg_type.is_pyobject:
+                if not arg_type.can_be_optional():
                     arg_type = arg_type.equivalent_type
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
-            elif arg_type.is_pyobject and not self.or_none:
+            elif not self.or_none and arg_type.can_be_optional():
                 self.not_none = True
 
         return arg_type
@@ -1097,6 +1097,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         entry.is_type and entry.type.is_cpp_class
                     ):
                         scope = entry.type.scope
+                    elif entry and entry.as_module:
+                        scope = entry.as_module
                     else:
                         scope = None
                         break
@@ -1224,10 +1226,9 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        require_python_types = base_type.python_type_constructor_name in (
-            'typing.Optional',
-            'dataclasses.ClassVar',
-        )
+        require_optional_types = base_type.python_type_constructor_name == 'typing.Optional'
+        require_python_types = base_type.python_type_constructor_name == 'dataclasses.ClassVar'
+
         in_c_type_context = env.in_c_type_context and not require_python_types
 
         template_types = []
@@ -1240,11 +1241,11 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not ttype.is_pyobject:
+            elif require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
                     ttype = ttype.equivalent_type
                 else:
-                    error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
+                    error(template_node.pos, "%s[...] cannot be applied to type %s" % (
                         base_type.python_type_constructor_name,
                         ttype,
                     ))
@@ -1710,14 +1711,24 @@ class CEnumDefNode(StatNode):
         if self.scoped and self.items is not None:
             scope = CppScopedEnumScope(self.name, env)
             scope.type = self.entry.type
+            scope.directives = env.directives
         else:
             scope = env
 
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
+
+            # For extern enums, we can't reason about their equivalent int values because
+            # we don't know if their definition is complete.
+            is_declared_enum = self.visibility != 'extern'
+
+            next_int_enum_value = 0 if is_declared_enum else None
             for item in self.items:
-                item.analyse_declarations(scope, self.entry)
+                item.analyse_enum_declarations(scope, self.entry, next_int_enum_value)
+                if is_declared_enum:
+                    next_int_enum_value = 1 + (
+                        item.entry.enum_int_value if item.entry.enum_int_value is not None else next_int_enum_value)
 
     def analyse_expressions(self, env):
         return self
@@ -1750,7 +1761,7 @@ class CEnumDefItemNode(StatNode):
 
     child_attrs = ["value"]
 
-    def analyse_declarations(self, env, enum_entry):
+    def analyse_enum_declarations(self, env, enum_entry, incremental_int_value):
         if self.value:
             self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
@@ -1762,11 +1773,25 @@ class CEnumDefItemNode(StatNode):
         else:
             cname = self.cname
 
-        entry = env.declare_const(
+        self.entry = entry = env.declare_const(
             self.name, enum_entry.type,
             self.value, self.pos, cname=cname,
             visibility=enum_entry.visibility, api=enum_entry.api,
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
+
+        # Use the incremental integer value unless we see an explicitly declared value.
+        enum_value = incremental_int_value
+        if self.value:
+            if self.value.is_literal:
+                enum_value = str_to_number(self.value.value)
+            elif (self.value.is_name or self.value.is_attribute) and self.value.entry:
+                enum_value = self.value.entry.enum_int_value
+            else:
+                # There is a value but we don't understand its integer value.
+                enum_value = None
+        if enum_value is not None:
+            entry.enum_int_value = enum_value
+
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
             enum_entry.type.values.append(entry.name)
@@ -2145,6 +2170,9 @@ class FuncDefNode(StatNode, BlockNode):
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.cf_is_reassigned and not entry.in_closure:
+                if entry.type.is_memoryviewslice:
+                    code.put_var_incref_memoryviewslice(entry,
+                                        have_gil=code.funcstate.gil_owned)
                 if entry.xdecref_cleanup:
                     code.put_var_xincref(entry)
                 else:
@@ -2332,10 +2360,9 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
 
-            if entry.type.is_pyobject:
+            if entry.type.needs_refcounting:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-            if entry.type.needs_refcounting:
                 assure_gil('success')
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
@@ -2983,7 +3010,7 @@ class PyArgDeclNode(Node):
 class DecoratorNode(Node):
     # A decorator
     #
-    # decorator    NameNode or CallNode or AttributeNode
+    # decorator    ExprNode
     child_attrs = ['decorator']
 
 
@@ -3061,6 +3088,7 @@ class DefNode(FuncDefNode):
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
         exception_value, exception_check = except_val or (None, False)
+        nogil = nogil or with_gil
 
         if cfunc is None:
             cfunc_args = []
@@ -3569,6 +3597,7 @@ class DefNodeWrapper(FuncDefNode):
 
     defnode = None
     target = None  # Target DefNode
+    needs_values_cleanup = False
 
     def __init__(self, *args, **kwargs):
         FuncDefNode.__init__(self, *args, **kwargs)
@@ -3680,7 +3709,7 @@ class DefNodeWrapper(FuncDefNode):
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
 
-        self.generate_argument_parsing_code(lenv, code)
+        self.generate_argument_parsing_code(lenv, code, tempvardecl_code)
         self.generate_argument_type_tests(code)
         self.generate_function_body(code)
 
@@ -3705,13 +3734,13 @@ class DefNodeWrapper(FuncDefNode):
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
             if entry.is_arg:
-                # mainly captures the star/starstar args
                 if entry.xdecref_cleanup:
                     code.put_var_xdecref(entry)
                 else:
                     code.put_var_decref(entry)
+        var_entries_set = set(lenv.var_entries)
         for arg in self.args:
-            if not arg.type.is_pyobject:
+            if not arg.type.is_pyobject and arg.entry not in var_entries_set:
                 # This captures anything that's been converted from a PyObject.
                 # Primarily memoryviews at the moment
                 if arg.entry.xdecref_cleanup:
@@ -3719,6 +3748,7 @@ class DefNodeWrapper(FuncDefNode):
                 else:
                     code.put_var_decref(arg.entry)
 
+        self.generate_argument_values_cleanup_code(code)
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -3821,10 +3851,10 @@ class DefNodeWrapper(FuncDefNode):
             if entry.is_arg:
                 code.put_var_declaration(entry)
 
-        # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
+        # Create nargs, but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
-                        Naming.nargs_cname, Naming.args_cname)
+            # error handling for this is checked after the declarations
+            nargs_code = "CYTHON_UNUSED Py_ssize_t %s;" % Naming.nargs_cname
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
                 code.putln(nargs_code)
@@ -3833,12 +3863,9 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln(nargs_code)
 
         # Array containing the values of keyword arguments when using METH_FASTCALL.
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
-        code.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
-            Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
+        code.putln('CYTHON_UNUSED PyObject *const *%s;' % Naming.kwvalues_cname)
 
-    def generate_argument_parsing_code(self, env, code):
+    def generate_argument_parsing_code(self, env, code, decl_code):
         # Generate fast equivalent of PyArg_ParseTuple call for
         # generic arguments, if any, including args/kwargs
         old_error_label = code.new_error_label()
@@ -3854,6 +3881,25 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.type.create_from_py_utility_code(env):
                     pass  # will fail later
 
+        # Assign nargs variable as len(args).
+        if self.signature_has_generic_args():
+            if self.signature.use_fastcall:
+                code.putln("#if !CYTHON_METH_FASTCALL")
+            code.putln("#if CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("%s = PyTuple_GET_SIZE(%s);" % (
+                Naming.nargs_cname, Naming.args_cname))
+            code.putln("#else")
+            code.putln("%s = PyTuple_Size(%s);" % (
+                Naming.nargs_cname, Naming.args_cname))
+            code.putln(code.error_goto_if_neg(Naming.nargs_cname, self.pos))
+            code.putln("#endif")
+            if self.signature.use_fastcall:
+                code.putln("#endif")
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
+        code.putln('%s = __Pyx_KwValues_%s(%s, %s);' % (
+            Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
+
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
@@ -3866,13 +3912,20 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_stararg_copy_code(code)
 
         else:
-            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code)
+            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code, decl_code)
+            self.needs_values_cleanup = True
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
             if not code.label_used(end_label):
                 code.put_goto(end_label)
+            # This goto is just to suppress a warning that our_error_label is unused
+            # since it's quite likely that the only use is guarded by
+            # CYTHON_AVOID_BORROWED_REFERENCES
+            code.put_goto(our_error_label)
             code.put_label(our_error_label)
+            self.generate_argument_values_cleanup_code(code)
+
             if has_star_or_kw_args:
                 self.generate_arg_decref(self.star_arg, code)
                 if self.starstar_arg:
@@ -3934,15 +3987,11 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname, self.error_value()))
             code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
-            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
-            if allow_null:
-                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
-            else:
-                code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
-                code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-                code.put_var_gotref(self.starstar_arg.entry)
-            self.starstar_arg.entry.xdecref_cleanup = allow_null
+            code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                self.starstar_arg.entry.cname, self.error_value()))
+            code.put_var_gotref(self.starstar_arg.entry)
+            self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
 
         if self.self_in_stararg and not self.target.is_staticmethod:
@@ -3984,7 +4033,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
 
-    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
+    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code, decl_code):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
 
@@ -4043,7 +4092,7 @@ class DefNodeWrapper(FuncDefNode):
         # C-typed default arguments are handled at conversion time,
         # so their array value is NULL in the end if no argument
         # was passed for them.
-        self.generate_argument_values_setup_code(all_args, code)
+        self.generate_argument_values_setup_code(all_args, code, decl_code)
 
         # If all args are positional-only, we can raise an error
         # straight away if we receive a non-empty kw-dict.
@@ -4229,11 +4278,12 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('}')
                 code.put_var_gotref(self.star_arg.entry)
 
-    def generate_argument_values_setup_code(self, args, code):
+    def generate_argument_values_setup_code(self, args, code, decl_code):
         max_args = len(args)
-        # the 'values' array collects borrowed references to arguments
-        # before doing any type coercion etc.
-        code.putln("PyObject* values[%d] = {%s};" % (
+        # the 'values' array collects references to arguments
+        # before doing any type coercion etc.. Whether they are borrowed or not
+        # depends on the compilation options.
+        decl_code.putln("PyObject* values[%d] = {%s};" % (
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
@@ -4241,12 +4291,27 @@ class DefNodeWrapper(FuncDefNode):
                 self.target.defaults_struct, Naming.dynamic_args_cname,
                 self.target.defaults_struct, Naming.self_cname))
 
-        # assign borrowed Python default values to the values array,
+        # assign (usually borrowed) Python default values to the values array,
         # so that they can be overwritten by received arguments below
         for i, arg in enumerate(args):
             if arg.default and arg.type.is_pyobject:
                 default_value = arg.calculate_default_value_code(code)
-                code.putln('values[%d] = %s;' % (i, arg.type.as_pyobject(default_value)))
+                code.putln('values[%d] = __Pyx_Arg_NewRef_%s(%s);' % (
+                    i, self.signature.fastvar, arg.type.as_pyobject(default_value)))
+
+    def generate_argument_values_cleanup_code(self, code):
+        if not self.needs_values_cleanup:
+            return
+        # The 'values' array may not be borrowed depending on the compilation options.
+        # This cleans it up in the case it isn't borrowed
+        loop_var = Naming.quick_temp_cname
+        code.putln("{")
+        code.putln("Py_ssize_t %s;" % loop_var)
+        code.putln("for (%s=0; %s < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++%s) {" % (
+            loop_var, loop_var, loop_var))
+        code.putln("__Pyx_Arg_XDECREF_%s(values[%s]);" % (self.signature.fastvar, loop_var))
+        code.putln("}")
+        code.putln("}")
 
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
                                         has_fixed_positional_count,
@@ -4330,12 +4395,16 @@ class DefNodeWrapper(FuncDefNode):
                     # don't overwrite default argument
                     code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, %s);' % (
                         self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
+                    code.putln('if (value) { values[%d] = __Pyx_Arg_NewRef_%s(value); kw_args--; }' % (
+                        i, self.signature.fastvar))
                     code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
                     code.putln('}')
                 else:
-                    code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) kw_args--;' % (
+                    code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) {' % (
                         i, self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
+                    code.putln('(void)__Pyx_Arg_NewRef_%s(values[%d]);' % (self.signature.fastvar, i))
+                    code.putln('kw_args--;')
+                    code.putln('}')
                     code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
                     if i < min_positional_args:
                         if i == 0:
@@ -4462,7 +4531,8 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.kwvalues_cname,
                 Naming.pykwdlist_cname,
                 posonly_correction))
-            code.putln('if (value) { values[index] = value; kw_args--; }')
+            code.putln('if (value) { values[index] = __Pyx_Arg_NewRef_%s(value); kw_args--; }' %
+                       self.signature.fastvar)
             code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
             if len(optional_args) > 1:
                 code.putln('}')
@@ -5266,6 +5336,49 @@ class CClassDefNode(ClassDefNode):
         if self.bases and len(self.bases.args) > 1:
             self.entry.type.multiple_bases = True
 
+    def _handle_cclass_decorators(self, env):
+        extra_directives = {}
+        if not self.decorators:
+            return extra_directives
+
+        from . import ExprNodes
+
+        remaining_decorators = []
+
+        for original_decorator in self.decorators:
+            decorator = original_decorator.decorator
+            # entries aren't set at this point, so unfortunately we can't just do
+            #  decorator.get_known_standard_library_import().
+            # Instead we have to manually look it up
+            decorator_call = None
+            if isinstance(decorator, ExprNodes.CallNode):
+                decorator_call = decorator
+                decorator = decorator.function
+            known_name = Builtin.exprnode_to_known_standard_library_name(decorator, env)
+            if known_name == 'functools.total_ordering':
+                if decorator_call:
+                    error(decorator_call.pos, "total_ordering cannot be called.")
+                extra_directives["total_ordering"] = True
+                continue
+            elif known_name == "dataclasses.dataclass":
+                args = None
+                kwds = {}
+                if decorator_call:
+                    if isinstance(decorator_call, ExprNodes.SimpleCallNode):
+                        args = decorator_call.args
+                    else:
+                        args = decorator_call.positional_args.args
+                        kwds_ = decorator_call.keyword_args
+                        if kwds_:
+                            kwds = kwds_.as_python_dict()
+                extra_directives[known_name] = (args, kwds)
+                continue
+            remaining_decorators.append(original_decorator)
+        if remaining_decorators:
+            error(remaining_decorators[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
+        self.decorators = remaining_decorators
+        return extra_directives
+
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
         #print "...visibility =", self.visibility
@@ -5273,8 +5386,7 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
-        if self.decorators:
-            error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
+        extra_directives = self._handle_cclass_decorators(env)
         self.base_type = None
         # Now that module imports are cached, we need to
         # import the modules for extern classes.
@@ -5363,11 +5475,15 @@ class CClassDefNode(ClassDefNode):
             env.add_imported_entry(self.class_name, self.entry, self.pos)
         self.scope = scope = self.entry.type.scope
         if scope is not None:
-            scope.directives = env.directives
-            if "dataclasses.dataclass" in env.directives:
+            if extra_directives:
+                scope.directives = env.directives.copy()
+                scope.directives.update(extra_directives)
+            else:
+                scope.directives = env.directives
+            if "dataclasses.dataclass" in scope.directives:
                 is_frozen = False
                 # Retrieve the @dataclass config (args, kwargs), as passed into the decorator.
-                dataclass_config = env.directives["dataclasses.dataclass"]
+                dataclass_config = scope.directives["dataclasses.dataclass"]
                 if dataclass_config:
                     decorator_kwargs = dataclass_config[1]
                     frozen_flag = decorator_kwargs.get('frozen')
@@ -5568,10 +5684,12 @@ class CClassDefNode(ClassDefNode):
                             typeptr_cname, buffer_slot.slot_name,
                         ))
                         code.putln("}")
+                code.putln("#elif defined(Py_bf_getbuffer) && defined(Py_bf_releasebuffer)")
+                code.putln("/* PY_VERSION_HEX >= 0x03090000 || Py_LIMITED_API >= 0x030B0000 */")
                 code.putln("#elif defined(_MSC_VER)")
-                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API.\")")
+                code.putln("#pragma message (\"The buffer protocol is not supported in the Limited C-API < 3.11.\")")
                 code.putln("#else")
-                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API.\"")
+                code.putln("#warning \"The buffer protocol is not supported in the Limited C-API < 3.11.\"")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
@@ -6994,8 +7112,10 @@ class AssertStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c"))
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
-        code.putln("if (unlikely(!Py_OptimizeFlag)) {")
+        code.putln("if (unlikely(__pyx_assertions_enabled())) {")
         code.mark_pos(self.pos)
         self.condition.generate_evaluation_code(code)
         code.putln(
@@ -7471,34 +7591,33 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
         code.putln("}")
-        break_label = code.break_label
+
+        # clean up before we enter the 'else:' branch
+        self.iterator.generate_disposal_code(code)
+
+        else_label = code.new_label("for_else") if self.else_clause else None
+        end_label = code.new_label("for_end")
+        label_intercepts = code.label_interceptor(
+            [code.break_label],
+            [end_label],
+            skip_to_label=else_label or end_label,
+            pos=self.pos,
+        )
+
+        code.mark_pos(self.pos)
+        for _ in label_intercepts:
+            self.iterator.generate_disposal_code(code)
+
         code.set_loop_labels(old_loop_labels)
+        self.iterator.free_temps(code)
 
         if self.else_clause:
-            # in nested loops, the 'else' block can contain a
-            # 'continue' statement for the outer loop, but we may need
-            # to generate cleanup code before taking that path, so we
-            # intercept it here
-            orig_continue_label = code.continue_label
-            code.continue_label = code.new_label('outer_continue')
-
             code.putln("/*else*/ {")
+            code.put_label(else_label)
             self.else_clause.generate_execution_code(code)
             code.putln("}")
 
-            if code.label_used(code.continue_label):
-                code.put_goto(break_label)
-                code.mark_pos(self.pos)
-                code.put_label(code.continue_label)
-                self.iterator.generate_disposal_code(code)
-                code.put_goto(orig_continue_label)
-            code.set_loop_labels(old_loop_labels)
-
-        code.mark_pos(self.pos)
-        if code.label_used(break_label):
-            code.put_label(break_label)
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
+        code.put_label(end_label)
 
     def generate_function_definitions(self, env, code):
         self.target.generate_function_definitions(env, code)
@@ -8044,19 +8163,17 @@ class TryExceptStatNode(StatNode):
             if not self.has_default_clause:
                 code.put_goto(except_error_label)
 
-        for exit_label, old_label in [(except_error_label, old_error_label),
-                                      (try_break_label, old_break_label),
-                                      (try_continue_label, old_continue_label),
-                                      (try_return_label, old_return_label),
-                                      (except_return_label, old_return_label)]:
-            if code.label_used(exit_label):
-                if not normal_case_terminates and not code.label_used(try_end_label):
-                    code.put_goto(try_end_label)
-                code.put_label(exit_label)
-                code.mark_pos(self.pos, trace=False)
-                if can_raise:
-                    restore_saved_exception()
-                code.put_goto(old_label)
+        label_intercepts = code.label_interceptor(
+            [except_error_label, try_break_label, try_continue_label, try_return_label, except_return_label],
+            [old_error_label, old_break_label, old_continue_label, old_return_label, old_return_label],
+            skip_to_label=try_end_label if not normal_case_terminates and not code.label_used(try_end_label) else None,
+            pos=self.pos,
+            trace=False,
+        )
+
+        for _ in label_intercepts:
+            if can_raise:
+                restore_saved_exception()
 
         if code.label_used(except_end_label):
             if not normal_case_terminates and not code.label_used(try_end_label):
@@ -8225,7 +8342,7 @@ class ExceptClauseNode(Node):
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
         for var in exc_vars:
-            code.put_gotref(var, py_object_type)
+            code.put_xgotref(var, py_object_type)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -8234,9 +8351,7 @@ class ExceptClauseNode(Node):
             for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
 
-        old_break_label, old_continue_label = code.break_label, code.continue_label
-        code.break_label = code.new_label('except_break')
-        code.continue_label = code.new_label('except_continue')
+        old_loop_labels = code.new_loop_labels("except_")
 
         old_exc_vars = code.funcstate.exc_vars
         code.funcstate.exc_vars = exc_vars
@@ -8250,15 +8365,12 @@ class ExceptClauseNode(Node):
                 code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
-        for new_label, old_label in [(code.break_label, old_break_label),
-                                     (code.continue_label, old_continue_label)]:
-            if code.label_used(new_label):
-                code.put_label(new_label)
-                for var in exc_vars:
-                    code.put_decref_clear(var, py_object_type)
-                code.put_goto(old_label)
-        code.break_label = old_break_label
-        code.continue_label = old_continue_label
+        for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
+            for i, var in enumerate(exc_vars):
+                # Traceback may be NULL.
+                (code.put_decref_clear if i < 2 else code.put_xdecref_clear)(var, py_object_type)
+
+        code.set_loop_labels(old_loop_labels)
 
         for temp in exc_vars:
             code.funcstate.release_temp(temp)
@@ -8414,12 +8526,8 @@ class TryFinallyStatNode(StatNode):
                     code.funcstate.release_temp(exc_filename_cname)
                 code.put_goto(old_error_label)
 
-            for new_label, old_label in zip(code.get_all_labels(), finally_old_labels):
-                if not code.label_used(new_label):
-                    continue
-                code.put_label(new_label)
+            for _ in code.label_interceptor(code.get_all_labels(), finally_old_labels):
                 self.put_error_cleaner(code, exc_vars)
-                code.put_goto(old_label)
 
             for cname in exc_vars:
                 code.funcstate.release_temp(cname)
@@ -8429,6 +8537,7 @@ class TryFinallyStatNode(StatNode):
         return_label = code.return_label
         exc_vars = ()
 
+        # TODO: use code.label_interceptor()?
         for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
             if not code.label_used(new_label):
                 continue
@@ -8816,6 +8925,8 @@ class FromCImportStatNode(StatNode):
                 error(self.pos, "relative cimport from non-package directory is not allowed")
                 return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
+        if not module_scope:
+            return
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
         for pos, name, as_name in self.imported_names:
@@ -8827,8 +8938,11 @@ class FromCImportStatNode(StatNode):
                 if entry:
                     entry.used = 1
                 else:
+                    is_relative_import = self.relative_level is not None and self.relative_level > 0
                     submodule_scope = env.context.find_module(
-                        name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
+                        name, from_module=module_scope, pos=self.pos, absolute_fallback=False, relative_import=is_relative_import)
+                    if not submodule_scope:
+                        continue
                     if submodule_scope.parent_module is module_scope:
                         env.declare_module(as_name or name, submodule_scope, self.pos)
                     else:

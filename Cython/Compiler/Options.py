@@ -182,7 +182,8 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
-    'embedsignature' : False,
+    'embedsignature': False,
+    'embedsignature.format': 'c',
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
@@ -198,6 +199,8 @@ _directive_defaults = {
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'nogil' : False,
+    'gil' : False,
+    'with_gil' : False,
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
@@ -321,12 +324,15 @@ directive_types = {
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
     'collection_type': one_of('sequence'),
-    'nogil' : bool,
+    'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'ufunc': None,
     'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
@@ -340,9 +346,10 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'total_ordering': bool,
+    'total_ordering': None,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'embedsignature.format': one_of('c', 'clinic', 'python'),
 }
 
 for key, val in _directive_defaults.items():
@@ -355,6 +362,8 @@ directive_scopes = {  # defaults to available everywhere
     'final' : ('cclass', 'function'),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
+    'gil' : ('with statement'),
+    'with_gil' : ('function',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -388,22 +397,23 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
-    'total_ordering': ('cclass', ),
-    'dataclasses.dataclass' : ('class', 'cclass',),
+    'total_ordering': ('class', 'cclass'),
+    'dataclasses.dataclass' : ('class', 'cclass'),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
 }
 
 
-# a list of directives that (when used as a decorator) are only applied to
+# A list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
-    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass',
+    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
     # function signature directives
-    'inline', 'exceptval', 'returns',
+    'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
-    'auto_pickle', 'internal', 'collection_type',
+    'auto_pickle', 'internal', 'collection_type', 'total_ordering',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
 }
@@ -647,7 +657,7 @@ class CompilationOptions(object):
             import warnings
             warnings.warn("C++ mode forced when in Pythran mode!")
             options['cplus'] = True
-        if 'language_level' in directives and 'language_level' not in kw:
+        if 'language_level' not in kw and directives.get('language_level'):
             options['language_level'] = directives['language_level']
         elif not options.get('language_level'):
             options['language_level'] = directive_defaults.get('language_level')

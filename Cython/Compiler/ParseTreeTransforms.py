@@ -871,7 +871,8 @@ class InterpretCompilerDirectives(CythonTransform):
     def _check_valid_cython_module(self, pos, module_name):
         if not module_name.startswith("cython."):
             return
-        if module_name.split('.', 2)[1] in self.valid_cython_submodules:
+        submodule = module_name.split('.', 2)[1]
+        if submodule in self.valid_cython_submodules:
             return
 
         extra = ""
@@ -889,6 +890,15 @@ class InterpretCompilerDirectives(CythonTransform):
             if module_name.startswith("cython." + wrong):
                 extra = "Did you mean 'cython.%s' ?" % correct
                 break
+        if not extra:
+            is_simple_cython_name = submodule in Options.directive_types
+            if not is_simple_cython_name and not submodule.startswith("_"):
+                # Try to find it in the Shadow module (i.e. the pure Python namespace of cython.*).
+                # FIXME: use an internal reference of "cython.*" names instead of Shadow.py
+                from .. import Shadow
+                is_simple_cython_name = hasattr(Shadow, submodule)
+            if is_simple_cython_name:
+                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
             module_name,
@@ -1107,7 +1117,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # for most transforms annotations are left unvisited (because they're unevaluated)
         # however, it is important to pick up compiler directives from them
         if node.expr:
-            self.visitchildren(node.expr)
+            self.visit(node.expr)
         return node
 
     def visit_NewExprNode(self, node):
@@ -1305,6 +1315,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
+        current_opt_dict = dict(self.directives)
+        missing = object()
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1312,8 +1324,23 @@ class InterpretCompilerDirectives(CythonTransform):
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
                         name, value = directive
-                        if self.directives.get(name, object()) != value:
+                        if name in ('nogil', 'with_gil'):
+                            if value is None:
+                                value = True
+                            else:
+                                args, kwds = value
+                                if kwds or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
+                                    raise PostParseError(dec.pos, 'The %s directive takes one compile-time boolean argument' % name)
+                                value = args[0].value
+                            directive = (name, value)
+                        if current_opt_dict.get(name, missing) != value:
+                            if name == 'cfunc' and 'ufunc' in current_opt_dict:
+                                error(dec.pos, "Cannot apply @cfunc to @ufunc, please reverse the decorators.")
                             directives.append(directive)
+                            current_opt_dict[name] = value
+                        else:
+                            warning(dec.pos, "Directive does not change previous value (%s%s)" % (
+                                name, '=%r' % value if value is not None else ''))
                         if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
@@ -1321,17 +1348,6 @@ class InterpretCompilerDirectives(CythonTransform):
                         scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
-            for realdec in realdecs:
-                dec_pos = realdec.pos
-                realdec = realdec.decorator
-                if ((realdec.is_name and realdec.name == "dataclass") or
-                        (realdec.is_attribute and realdec.attribute == "dataclass")):
-                    error(dec_pos,
-                          "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
-            # Note - arbitrary C function decorators are caught later in DecoratorTransform
-            raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
@@ -1365,7 +1381,17 @@ class InterpretCompilerDirectives(CythonTransform):
                     name, value = directive
                     if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body)
+                        condition = None
+                        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
+                            if len(node.manager.args) == 1:
+                                condition = node.manager.args[0]
+                            else:
+                                self.context.nonfatal_error(
+                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+                        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
+                            self.context.nonfatal_error(
+                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
@@ -1555,6 +1581,7 @@ class WithTransform(VisitorTransform, SkipDeclarations):
         pos = node.pos
         is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
+        manager = node.manager = ExprNodes.ProxyNode(manager)
         node.enter_call = ExprNodes.SimpleCallNode(
             pos, function=ExprNodes.AttributeNode(
                 pos, obj=ExprNodes.CloneNode(manager),
@@ -1693,14 +1720,16 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
                 cname = EncodedString(Naming.genexpr_arg_prefix + Symtab.punycodify_name(str(name_source)))
                 name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
                 type = node.type
-                if type.is_reference and not type.is_fake_reference:
-                    # It isn't obvious whether the right thing to do would be to capture by reference or by
-                    # value (C++ itself doesn't know either for lambda functions and forces a choice).
-                    # However, capture by reference involves converting to FakeReference which would require
-                    # re-analysing AttributeNodes. Therefore I've picked capture-by-value out of convenience
-                    # TODO - could probably be optimized by making the arg a reference but the closure not
-                    # (see https://github.com/cython/cython/issues/2468)
-                    type = type.ref_base_type
+
+                # strip away cv types - they shouldn't be applied to the
+                # function argument or to the closure struct.
+                # It isn't obvious whether the right thing to do would be to capture by reference or by
+                # value (C++ itself doesn't know either for lambda functions and forces a choice).
+                # However, capture by reference involves converting to FakeReference which would require
+                # re-analysing AttributeNodes. Therefore I've picked capture-by-value out of convenience
+                # TODO - could probably be optimized by making the arg a reference but the closure not
+                # (see https://github.com/cython/cython/issues/2468)
+                type = PyrexTypes.remove_cv_ref(type, remove_fakeref=False)
 
                 name_decl.type = type
                 new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
@@ -2387,6 +2416,10 @@ if VALUE is not None:
             self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
+
+        if "ufunc" in lenv.directives:
+            from . import UFuncs
+            return UFuncs.convert_to_ufunc(node)
         return node
 
     def visit_DefNode(self, node):
@@ -2639,6 +2672,9 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     Calculate and store the '__qualname__' and the global
     module name on some nodes.
     """
+    needs_qualname_assignment = False
+    needs_module_assignment = False
+
     def visit_ModuleNode(self, node):
         self.module_name = self.global_scope().qualified_name
         self.qualified_name = []
@@ -2709,13 +2745,55 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
+    def generate_assignment(self, node, name, value):
+        entry = node.scope.lookup_here(name)
+        lhs = ExprNodes.NameNode(
+            node.pos,
+            name = EncodedString(name),
+            entry=entry)
+        rhs = ExprNodes.StringNode(
+            node.pos,
+            value=value.as_utf8_string(),
+            unicode_value=value)
+        node.body.stats.insert(0, Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs=lhs,
+            rhs=rhs,
+        ).analyse_expressions(self.current_env()))
+
     def visit_ClassDefNode(self, node):
+        orig_needs_qualname_assignment = self.needs_qualname_assignment
+        self.needs_qualname_assignment = False
+        orig_needs_module_assignment = self.needs_module_assignment
+        self.needs_module_assignment = False
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
                  self.current_env().lookup_here(node.target.name))  # CClass
         self._append_entry(entry)
         self._super_visit_ClassDefNode(node)
+        if self.needs_qualname_assignment:
+            self.generate_assignment(node, "__qualname__",
+                                     EncodedString(".".join(self.qualified_name)))
+        if self.needs_module_assignment:
+            self.generate_assignment(node, "__module__",
+                                     EncodedString(self.module_name))
         self.qualified_name = orig_qualified_name
+        self.needs_qualname_assignment = orig_needs_qualname_assignment
+        self.needs_module_assignment = orig_needs_module_assignment
+        return node
+
+    def visit_NameNode(self, node):
+        scope = self.current_env()
+        if scope.is_c_class_scope:
+            # unlike for a PyClass scope, these attributes aren't defined in the
+            # dictionary when the class definition is executed, therefore we ask
+            # the compiler to generate an assignment to them at the start of the
+            # body.
+            # NOTE: this doesn't put them in locals()
+            if node.name == "__qualname__":
+                self.needs_qualname_assignment = True
+            elif node.name == "__module__":
+                self.needs_module_assignment = True
         return node
 
 
@@ -2849,6 +2927,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.inline
     @cython.nogil
     """
+    # list of directives that cause conversion to cclass
+    converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
 
     def visit_ModuleNode(self, node):
         self.directives = node.directives
@@ -2868,6 +2948,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if 'inline' in self.directives:
             modifiers.append('inline')
         nogil = self.directives.get('nogil')
+        with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
@@ -2879,6 +2960,10 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
         if 'ccall' in self.directives:
+            if 'cfunc' in self.directives:
+                error(node.pos, "cfunc and ccall directives cannot be combined")
+            if with_gil:
+                error(node.pos, "ccall functions cannot be declared 'with_gil'")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
@@ -2888,7 +2973,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "cfunc directive is not allowed here")
             else:
                 node = node.as_cfunction(
-                    overridable=False, modifiers=modifiers, nogil=nogil,
+                    overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
                     returns=return_type_node, except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
@@ -2896,6 +2981,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if nogil:
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
+        if with_gil:
+            error(node.pos, "Python functions cannot be declared 'with_gil'")
         self.visitchildren(node)
         return node
 
@@ -2904,7 +2991,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_PyClassDefNode(self, node):
-        if 'cclass' in self.directives:
+        if any(directive in self.directives for directive in self.converts_to_cclass):
             node = node.as_cclass()
             return self.visit(node)
         else:
@@ -3429,6 +3516,8 @@ class GilCheck(VisitorTransform):
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
         self.nogil_declarator_only = False
+
+        self.current_gilstat_node_knows_gil_state = False
         return super(GilCheck, self).__call__(root)
 
     def _visit_scoped_children(self, node, gil_state):
@@ -3490,13 +3579,23 @@ class GilCheck(VisitorTransform):
             # which is wrapped in a StatListNode. Just unpack that.
             node.finally_clause, = node.finally_clause.stats
 
+        nogil_declarator_only = self.nogil_declarator_only
+        self.nogil_declarator_only = False
+        current_gilstat_node_knows_gil_state = self.current_gilstat_node_knows_gil_state
+        self.current_gilstat_node_knows_gil_state = node.scope_gil_state_known
         self._visit_scoped_children(node, is_nogil)
+        self.nogil_declarator_only = nogil_declarator_only
+        self.current_gilstat_node_knows_gil_state = current_gilstat_node_knows_gil_state
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil:
-            node.nogil = False
+        if node.nogil or self.nogil_declarator_only:
+            node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            if not node_was_nogil and self.nogil_declarator_only:
+                # We're in a "nogil" function, but that doesn't prove we
+                # didn't have the gil
+                node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
         if not self.nogil:
@@ -3513,6 +3612,12 @@ class GilCheck(VisitorTransform):
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
             return None
+        if self.nogil_declarator_only:
+            # We're in a "nogil" function but that doesn't prove we didn't
+            # have the gil, so release it
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            node.scope_gil_state_known = False
+            return self.visit_GILStatNode(node)
 
         if node.nogil_check:
             # It does not currently implement this, but test for it anyway to
@@ -3535,7 +3640,7 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_GILExitNode(self, node):
-        if self.nogil_declarator_only:
+        if not self.current_gilstat_node_knows_gil_state:
             node.scope_gil_state_known = False
         self.visitchildren(node)
         return node

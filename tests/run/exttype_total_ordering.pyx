@@ -17,6 +17,7 @@ from __future__ import print_function
 
 cimport cython
 import functools
+from functools import total_ordering as total_ordering_by_another_name
 import operator
 
 COMPARISONS = [
@@ -117,7 +118,7 @@ cdef class ExtTypeTotalOrderingNeGe:
     def __ge__(self, other):
         return self.value >= other.value
 
-@cython.total_ordering
+@functools.total_ordering
 cdef class ExtTypeTotalOrderingNeLe:
     """
     >>> test_all_comp(ExtTypeTotalOrderingNeLe)
@@ -133,7 +134,7 @@ cdef class ExtTypeTotalOrderingNeLe:
     def __le__(self, other):
         return self.value <= other.value
 
-@cython.total_ordering
+@functools.total_ordering
 cdef class ExtTypeTotalOrderingNeLeGe:
     """
     >>> test_all_comp(ExtTypeTotalOrderingNeLeGe)
@@ -392,7 +393,7 @@ cdef class ExtTypeTotalOrderingNeLtGtLeGe:
     def __ge__(self, other):
         return self.value >= other.value
 
-@cython.total_ordering
+@total_ordering_by_another_name
 cdef class ExtTypeTotalOrderingEqGe:
     """
     >>> test_all_comp(ExtTypeTotalOrderingEqGe)
@@ -443,7 +444,7 @@ cdef class ExtTypeTotalOrderingEqLeGe:
     def __ge__(self, other):
         return self.value >= other.value
 
-@cython.total_ordering
+@total_ordering_by_another_name
 cdef class ExtTypeTotalOrderingEqGt:
     """
     >>> test_all_comp(ExtTypeTotalOrderingEqGt)
@@ -519,21 +520,27 @@ cdef class ExtTypeTotalOrderingEqGtLeGe:
     def __ge__(self, other):
         return self.value >= other.value
 
+# cython.total_ordering implicitly means cclass too
 @cython.total_ordering
-cdef class ExtTypeTotalOrderingEqLt:
+class ExtTypeTotalOrderingEqLt:
     """
     >>> test_all_comp(ExtTypeTotalOrderingEqLt)
     True
     """
-    cdef public int value
+    _value: int
+
+    @property
+    def value(self):
+        return self._value  # it's hard to make value public directly in pure syntax
+
     def __init__(self, val):
-        self.value = val
+        self._value = val
 
     def __eq__(self, other):
-        return self.value == other.value
+        return self._value == other.value
 
     def __lt__(self, other):
-        return self.value < other.value
+        return self._value < other.value
 
 @cython.total_ordering
 cdef class ExtTypeTotalOrderingEqLtGe:

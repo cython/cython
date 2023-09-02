@@ -76,6 +76,7 @@ cdef class GilCheck(VisitorTransform):
     cdef list env_stack
     cdef bint nogil
     cdef bint nogil_declarator_only
+    cdef bint current_gilstat_node_knows_gil_state
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef visit_cython_attribute(self, node)

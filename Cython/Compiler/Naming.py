@@ -5,8 +5,10 @@
 #   Prefixes for generating C names.
 #   Collected here to facilitate ensuring uniqueness.
 #
+from .. import __version__
 
 pyrex_prefix    = "__pyx_"
+cyversion = __version__.replace('.', '_')
 
 
 codewriter_temp_prefix = pyrex_prefix + "t_"

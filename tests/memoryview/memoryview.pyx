@@ -682,9 +682,12 @@ def printbuf_object(object[:] mslice, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
@@ -975,6 +978,46 @@ def test_acquire_memoryview_slice():
     print b[2, 4]
     print c[2, 4]
 
+cdef class TestPassMemoryviewToSetter:
+    """
+    Setter has a fixed function signature and the
+    argument needs conversion so it ends up passing through
+    some slightly different reference counting code
+
+    >>> dmb = DoubleMockBuffer("dmb", range(2), shape=(2,))
+    >>> TestPassMemoryviewToSetter().prop = dmb
+    acquired dmb
+    In prop setter
+    released dmb
+    >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
+    acquired dmb
+    In prop_with_reassignment setter
+    released dmb
+    >>> dmb = DoubleMockBuffer("dmb", range(1,3), shape=(2,))
+    >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
+    acquired dmb
+    In prop_with_reassignment setter
+    released dmb
+    """
+    @property
+    def prop(self):
+        return None
+
+    @prop.setter
+    def prop(self, double[:] x):
+        print("In prop setter")
+
+    @property
+    def prop_with_reassignment(self):
+        return None
+
+    @prop_with_reassignment.setter
+    def prop_with_reassignment(self, double[:] x):
+        # reassignment again requires slightly different code
+        if x[0]:
+            x = x[1:]
+        print("In prop_with_reassignment setter")
+
 class SingleObject(object):
     def __init__(self, value):
         self.value = value
@@ -1240,3 +1283,18 @@ match arr:
         assert globs['res']
 
     return isinstance(<object>a, Sequence)
+
+
+ctypedef int aliasT
+def test_assignment_typedef():
+    """
+    >>> test_assignment_typedef()
+    1
+    2
+    """
+    cdef int[2] x
+    cdef aliasT[:] y
+    x[:] = [1, 2]
+    y = x
+    for v in y:
+        print(v)

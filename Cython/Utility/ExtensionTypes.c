@@ -112,10 +112,24 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     // tp_dictoffset (i.e. there is no __dict__ attribute in the object
     // structure), we need to check that none of the base classes sets
     // it either.
-    Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
+    Py_ssize_t i, n;
+#if CYTHON_ASSUME_SAFE_MACROS
+    n = PyTuple_GET_SIZE(bases);
+#else
+    n = PyTuple_Size(bases);
+    if (n < 0) return -1;
+#endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
+#if CYTHON_AVOID_BORROWED_REFS
+        PyObject *b0 = PySequence_GetItem(bases, i);
+        if (!b0) return -1;
+#elif CYTHON_ASSUME_SAFE_MACROS
         PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+#else
+        PyObject *b0 = PyTuple_GetItem(bases, i);
+        if (!b0) return -1;
+#endif
         PyTypeObject *b;
 #if PY_MAJOR_VERSION < 3
         /* Disallow old-style classes */
@@ -123,6 +137,9 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         {
             PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
                          PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
 #endif
@@ -133,8 +150,27 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             PyErr_Format(PyExc_TypeError,
                 "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
             __Pyx_DECREF_TypeName(b_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
+#if !CYTHON_USE_TYPE_SLOTS
+        if (dictoffset == 0) {
+            PyErr_Format(PyExc_TypeError,
+                "extension type '%s.200s': "
+                "unable to validate whether bases have a __dict__ "
+                "when CYTHON_USE_TYPE_SLOTS is off "
+                "(likely because you are building in the limited API). "
+                "Therefore, all extension types with multiple bases "
+                "must add 'cdef dict __dict__' in this compilation mode",
+                type_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
+            return -1;
+        }
+#else
         if (dictoffset == 0 && b->tp_dictoffset)
         {
             __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
@@ -145,8 +181,15 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                 "or add '__slots__ = [...]' to the base type",
                 type_name, b_name);
             __Pyx_DECREF_TypeName(b_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(b0);
+#endif
     }
     return 0;
 }
@@ -540,34 +583,42 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
             || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
+
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+    {{if not overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || __Pyx_TypeCheck(right, {{type_cname}});
-    }
+            || __Pyx_TypeCheck(right, {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && {{overloads_right}} && !({{overloads_left}})) {
+
+        {{if overloads_right and not overloads_left}}
+        if (maybe_self_is_right) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
             // Don't bother calling it again.
             maybe_self_is_right = 0;
         }
+        {{endif}}
+
         res = {{call_left}};
         if (res != Py_NotImplemented) return res;
         Py_DECREF(res);
     }
-    if (({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+
+    {{if overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
-    }
+            || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_right) {
         return {{call_right}};
     }
@@ -589,7 +640,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
 #if !CYTHON_COMPILING_IN_LIMITED_API
     itemsize = ((PyTypeObject *)base)->tp_itemsize;
 #else
-    py_itemsize = PyObject_GetAttrString(base, "__itemsize__");
+    py_itemsize = PyObject_GetAttrString((PyObject*)base, "__itemsize__");
     if (!py_itemsize)
         return -1;
     itemsize = PyLong_AsSsize_t(py_itemsize);

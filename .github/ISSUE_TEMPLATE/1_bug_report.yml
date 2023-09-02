@@ -36,17 +36,25 @@ body:
     attributes:
       label: "Expected behaviour"
       description: "A clear and concise description of what you expected to happen."
-  - type: textarea
-    id: environment
+  - type: markdown
     attributes:
-      label: Environment
-      description: "please complete the following information"
       value: |
-        OS: [e.g. Linux, Windows, macOS]
-        Python version [e.g. 3.10.2]
-        Cython version [e.g. 3.0.0a11]
-    validations:
-      required: true
+        **Environment** - please complete the following information:
+  - type: input
+    id: environment_os
+    attributes:
+      label: "OS"
+      placeholder: "e.g. Linux, Windows, macOS"
+  - type: input
+    id: environment_python_v
+    attributes:
+      label: "Python version"
+      placeholder: "e.g. 3.10.2"
+  - type: input
+    id: environment_cython_v
+    attributes:
+      label: "Cython version"
+      placeholder: "e.g. 3.0.0a11"
   - type: textarea
     id: context
     attributes:
