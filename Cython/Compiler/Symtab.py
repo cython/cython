@@ -14,7 +14,7 @@ except ImportError:  # Py3
     import builtins
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError, performance_hint
+from .Errors import warning, error, InternalError, noexcept_performance_hint_helper
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -933,17 +933,11 @@ class Scope(object):
         type.entry = entry
         pos_filetype = pos[0]._file_type if pos else None
         if (type.exception_check and type.exception_value is None and type.nogil and
-                not pos[0].is_utility_code and
+                not pos[0].in_utility_code and
                 defining and  # don't warn about external functions here - the user likely can't do anything
                 pos_filetype != 'pxd'  # again, exclude extern functions (is_pxd is unreliable here)
             ):
-            msg = (
-                "Exception check on '%s' will always require the GIL to be acquired. Possible solutions:"
-                "\n\t1. Declare the function as 'noexcept' if you're sure the function should not raise exceptions."
-             ) % name
-            if type.return_type.is_void:
-                msg += "\n\t2. Return a dummy integer for Cython to use as an exception flag."
-            performance_hint(pos, msg)
+            noexcept_performance_hint_helper(pos, function_name=name, void_return=type.return_type.is_void)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,

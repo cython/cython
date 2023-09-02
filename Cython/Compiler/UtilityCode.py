@@ -125,7 +125,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
             self.name, self.impl, context=context, allow_struct_enum_decorator=True,
-            is_utility_code=True)
+            in_utility_code=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:

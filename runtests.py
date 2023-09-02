@@ -643,21 +643,18 @@ class ErrorWriter(object):
 
     def _collect(self):
         s = ''.join(self.output)
-        results = {'errors': [], 'warnings': [], 'perf_hints': []}
+        results = {'error': [], 'warning': [], 'performance hint': []}
         for line in s.splitlines():
             match = self.match_error(line)
             if match:
-                is_warning, is_performance_hint, line, column, message = match.groups()
-                if is_warning:
-                    assert not is_performance_hint
-                    key = 'warnings'
-                elif is_performance_hint:
-                    key = 'perf_hints'
+                message_type, line, column, message = match.groups()
+                if not message_type:
+                    message_type = 'error'
                 else:
-                    key = 'errors'
-                results[key].append((int(line), int(column), message.strip()))
+                    message_type = message_type[:-1]  # drop final :
+                results[message_type].append((int(line), int(column), message.strip()))
 
-        return [["%d:%d: %s" % values for values in sorted(results[key])] for key in ('errors', 'warnings', 'perf_hints')]
+        return [["%d:%d: %s" % values for values in sorted(results[key])] for key in ('error', 'warning', 'performance hint')]
 
     def geterrors(self):
         return self._collect()[0]

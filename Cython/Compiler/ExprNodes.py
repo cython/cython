@@ -25,7 +25,7 @@ import operator
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
-    CannotSpecialize, performance_hint)
+    CannotSpecialize, performance_hint, noexcept_performance_hint_helper)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -6437,15 +6437,8 @@ class SimpleCallNode(CallNode):
                 if exc_check:
                     if nogil:
                         if not exc_checks:
-                            msg = (
-                                "Exception check always requires the GIL to be reacquired. "
-                                "Possible solutions:\n"
-                                "\t1. Declare the function as 'noexcept' if you control the definition and "
-                                "you're sure you don't want the function to raise exceptions.\n"
-                            )                            
-                            if self.type.is_void:
-                                msg += "\t2. Use an 'int' return type on the function to allow an error code to be returned."
-                            performance_hint(self.pos, msg)
+                            noexcept_performance_hint_helper(
+                                self.pos, function_name=None, void_return=self.type.is_void)
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
