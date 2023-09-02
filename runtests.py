@@ -630,7 +630,7 @@ class build_ext(_build_ext):
 
 class ErrorWriter(object):
     match_error = re.compile(
-        r'(warning:)?(performance hint:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
+        r'(warning:|performance hint:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
     def __init__(self, encoding=None):
         self.output = []
