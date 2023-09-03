@@ -33,6 +33,8 @@ limited.C()
 limited.D()
 limited.E()
 
+assert limited.decode(b'a', bytearray(b'b')) == "ab"
+
 
 ##################### limited.pyx #############################
 
@@ -52,6 +54,9 @@ def fib(int n):
 def raises():
     raise RuntimeError()
 
+def decode(bytes b, bytearray ba):
+    return b.decode("utf-8") + ba.decode("utf-8")
+    
 class C:
     pass
 
