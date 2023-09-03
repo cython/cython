@@ -1,4 +1,5 @@
 /////////////// TypeConversions.proto ///////////////
+//@requires: StringTools.c::IncludeStringH
 
 /* Type Conversion Predeclarations */
 
