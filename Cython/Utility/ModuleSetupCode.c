@@ -1,6 +1,10 @@
 /////////////// InitLimitedAPI ///////////////
 
-#if defined(CYTHON_LIMITED_API) && 0  /* disabled: enabling Py_LIMITED_API needs more work */
+#if defined(CYTHON_LIMITED_API) && defined(CYTHON_TEST_IN_LIMITED_API)
+  /* disabled by default: enabling Py_LIMITED_API needs more work.
+     Users should not define CYTHON_TEST_IN_LIMITED_API since it will
+     be removed when support is better.
+     If you want Py_LIMITED_API then set it yourself for now */
   #ifndef Py_LIMITED_API
     #if CYTHON_LIMITED_API+0 > 0x03030000
       #define Py_LIMITED_API CYTHON_LIMITED_API
@@ -689,7 +693,10 @@ class __Pyx_FakeReference {
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
         minor_version = 11; // we don't yet need to distinguish between versions > 11
-        // Note that from 3.13, when we do we can use Py_Version 
+        // Note that from 3.13, when we do we can use Py_Version
+        CYTHON_UNUSED_VAR(version_info);
+        CYTHON_UNUSED_VAR(py_minor_version);
+        CYTHON_UNUSED_VAR(minor_version);
         #else
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
         if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
@@ -716,10 +723,10 @@ class __Pyx_FakeReference {
             // 3.10 switches lnotab for linetable, but is otherwise the same
             result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
                           c, n, v, fn, name, fline, lnos, fv, cell);
-        } else {    
+        } else {
             // 3.11, 3.12
             // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
-            //    flags, codestring, constants, names, varnames, filename, name, 
+            //    flags, codestring, constants, names, varnames, filename, name,
             //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
             // We use name and qualname for simplicity
             if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
@@ -1100,7 +1107,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
 #define __Pyx_PyHeapTypeObject_GC_Del(obj)  { \
-    PyTypeObject *type = Py_TYPE(obj); \
+    PyTypeObject *type = Py_TYPE((PyObject*)obj); \
     assert(__Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)); \
     PyObject_GC_Del(obj); \
     Py_DECREF(type); \

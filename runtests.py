@@ -1315,6 +1315,12 @@ class CythonCompileTestCase(unittest.TestCase):
             if 'traceback' not in self.tags['tag']:
                 extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
 
+            # Allow tests to be incrementally enabled with Py_LIMITED_API set
+            # TODO: this tag is intended to be temporary while limited API support
+            # is improved. Eventually we'll want to move to excluding tests
+            if 'test_in_limited_api' in self.tags['tag']:
+                extension.define_macros.append(("CYTHON_TEST_IN_LIMITED_API", 1))
+
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
                     # lazy init
