@@ -14,8 +14,7 @@ except ImportError:  # Py3
     import builtins
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError
-from .MessageText import write_noexcept_performance_hint
+from .Errors import warning, error, InternalError, noexcept_performance_hint_helper
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes

@@ -298,3 +298,14 @@ def reset():
 
 def get_errors_count():
     return threadlocal.cython_errors_count
+
+def noexcept_performance_hint_helper(pos, function_name = None, void_return = False):
+    on_what = "on '%s' " % function_name if function_name else ""
+    msg = (
+        "Exception check %swill always require the GIL to be acquired. Possible solutions:\n"
+        "\t1. Declare the function as 'noexcept' if you control the definition and "
+                                "you're sure you don't want the function to raise exceptions.\n"
+    ) % on_what
+    if void_return:
+        msg += "\t2. Use an 'int' return type on the function to allow an error code to be returned."
+    performance_hint(pos, msg)
