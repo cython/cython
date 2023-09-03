@@ -29,7 +29,7 @@
 
 typedef struct {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject_HEAD;
+    PyObject_HEAD
     // We can't "inherit" from func, but we can use it as a data store
     PyObject *func;
 #elif PY_VERSION_HEX < 0x030900B1
@@ -1132,7 +1132,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
     Py_TPFLAGS_METHOD_DESCRIPTOR |
 #endif
-#ifdef _Py_TPFLAGS_HAVE_VECTORCALL
+#if defined(_Py_TPFLAGS_HAVE_VECTORCALL) && CYTHON_METH_FASTCALL
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/

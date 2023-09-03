@@ -246,19 +246,22 @@ def update_linetrace_extension(ext):
 
 
 def update_numpy_extension(ext, set_api17_macro=True):
-    import numpy
-    from numpy.distutils.misc_util import get_info
+    import numpy as np
+    # Add paths for npyrandom and npymath libraries:
+    lib_path = [
+        os.path.abspath(os.path.join(np.get_include(), '..', '..', 'random', 'lib')),
+        os.path.abspath(os.path.join(np.get_include(), '..', 'lib'))
+    ]
+    ext.library_dirs += lib_path
+    if sys.platform == "win32":
+        ext.libraries += ["npymath"]
+    else:
+        ext.libraries += ["npymath", "m"]
+    ext.include_dirs.append(np.get_include())
 
-    ext.include_dirs.append(numpy.get_include())
-
-    if set_api17_macro and getattr(numpy, '__version__', '') not in ('1.19.0', '1.19.1'):
+    if set_api17_macro and getattr(np, '__version__', '') not in ('1.19.0', '1.19.1'):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
-
-    # We need the npymath library for numpy.math.
-    # This is typically a static-only library.
-    for attr, value in get_info('npymath').items():
-        getattr(ext, attr).extend(value)
-
+    del np
 
 def update_gdb_extension(ext, _has_gdb=[None]):
     # We should probably also check for Python support.
@@ -506,6 +509,7 @@ VER_DEP_MODULES = {
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
                                          'run.test_dataclasses',
+                                         'run.isolated_limited_api_tests',
                                          ]),
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
@@ -811,6 +815,8 @@ class TestBuilder(object):
                 if self.cython_only:
                     # EndToEnd tests always execute arbitrary build and test code
                     continue
+                if skip_limited(tags):
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -874,6 +880,8 @@ class TestBuilder(object):
                 'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
             extra_directives_list.append({'cpp_locals': True})
         if not languages:
+            return []
+        if skip_limited(tags):
             return []
 
         language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
@@ -949,14 +957,22 @@ def skip_c(tags):
     # dictionary so we check before looping.
     if 'distutils' in tags:
         for option in tags['distutils']:
-            splitted = option.split('=')
-            if len(splitted) == 2:
-                argument, value = splitted
+            split = option.split('=')
+            if len(split) == 2:
+                argument, value = split
                 if argument.strip() == 'language' and value.strip() == 'c++':
                     return True
     return False
 
-
+def skip_limited(tags):
+    if sys.version_info[0] < 3:
+        return True
+    if sys.implementation.name == 'cpython':
+        return False
+    # on all non-cpython, skip limited-api tests
+    if 'limited-api' in tags['tag']:
+        return True
+    return False
 def filter_stderr(stderr_bytes):
     """
     Filter annoying warnings from output.
@@ -1302,7 +1318,8 @@ class CythonCompileTestCase(unittest.TestCase):
             if 'distutils' in self.tags:
                 from Cython.Build.Dependencies import DistutilsInfo
                 from Cython.Utils import open_source_file
-                pyx_path = os.path.join(self.test_directory, self.module + ".pyx")
+                pyx_path = self.find_module_source_file(
+                    os.path.join(self.test_directory, self.module + ".pyx"))
                 with open_source_file(pyx_path) as f:
                     DistutilsInfo(f).apply(extension)
 
@@ -2115,8 +2132,7 @@ class EmbedTest(unittest.TestCase):
 
 def load_listfile(filename):
     # just re-use the FileListExclude implementation
-    fle = FileListExcluder(filename)
-    return list(fle.excludes)
+    return list(FileListExcluder(filename))
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -2735,7 +2751,7 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
-        CFLAGS.append("-DCYTHON_LIMITED_API=1")
+        CDEFS.append(('CYTHON_LIMITED_API', '1'))
         CFLAGS.append('-Wno-unused-function')
 
     if xml_output_dir and options.fork:

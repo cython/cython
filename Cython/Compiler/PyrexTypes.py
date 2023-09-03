@@ -59,7 +59,8 @@ class BaseType(object):
         if self._specialization_name is None:
             # This is not entirely robust.
             common_subs = (self.empty_declaration_code()
-                           .replace("unsigned ", "unsigned_")
+                           # covers both "unsigned " and "signed "
+                           .replace("signed ", "signed_")
                            .replace("long long", "long_long")
                            .replace(" ", "__"))
             self._specialization_name = re.sub(
@@ -332,8 +333,11 @@ class PyrexType(BaseType):
         return 1
 
     def is_simple_buffer_dtype(self):
-        return (self.is_int or self.is_float or self.is_complex or self.is_pyobject or
-                self.is_extension_type or self.is_ptr)
+        return False
+
+    def can_be_optional(self):
+        """Returns True if type can be used with typing.Optional[]."""
+        return False
 
     def struct_nesting_depth(self):
         # Returns the number levels of nested structs. This is
@@ -721,6 +725,10 @@ class MemoryViewSliceType(PyrexType):
     def is_complete(self):
         # incomplete since the underlying struct doesn't have a cython.memoryview object.
         return 0
+
+    def can_be_optional(self):
+        """Returns True if type can be used with typing.Optional[]."""
+        return True
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1230,7 +1238,7 @@ class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
     #
-    #  buffer_defaults  dict or None     Default options for bu
+    #  buffer_defaults  dict or None     Default options for buffer
 
     name = "object"
     is_pyobject = 1
@@ -1255,6 +1263,10 @@ class PyObjectType(PyrexType):
     def can_coerce_from_pyobject(self, env):
         return True
 
+    def can_be_optional(self):
+        """Returns True if type can be used with typing.Optional[]."""
+        return True
+
     def default_coerced_ctype(self):
         """The default C type that this Python type coerces to, or None."""
         return None
@@ -1262,6 +1274,9 @@ class PyObjectType(PyrexType):
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
         return not src_type.is_ptr or src_type.is_string or src_type.is_pyunicode_ptr
+
+    def is_simple_buffer_dtype(self):
+        return True
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1972,6 +1987,9 @@ class CNumericType(CType):
         n = rank_to_type_name[self.rank]
         return s + n
 
+    def is_simple_buffer_dtype(self):
+        return True
+
     def __repr__(self):
         return "<CNumericType %s>" % self.sign_and_name()
 
@@ -2189,6 +2207,11 @@ class CAnonEnumType(CIntType):
     def sign_and_name(self):
         return 'int'
 
+    def specialization_name(self):
+        # ensure that the to/from Python functions don't conflict with
+        # "int"
+        return '__pyx_anon_enum'
+
 
 class CReturnCodeType(CIntType):
 
@@ -2197,6 +2220,11 @@ class CReturnCodeType(CIntType):
     is_returncode = True
     exception_check = False
     default_format_spec = ''
+
+    def specialization_name(self):
+        # I don't think we should end up creating PyInt_As_int/PyInt_From_int functions
+        # for this type, but it's better they're distinct in case it happens.
+        return super(CReturnCodeType, self).specialization_name() + "return_code"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
         return not format_spec
@@ -2817,6 +2845,7 @@ class CPtrType(CPointerBaseType):
 
     is_ptr = 1
     default_value = "0"
+    exception_value = "NULL"
 
     def __hash__(self):
         return hash(self.base_type) + 27  # arbitrarily chosen offset
@@ -2836,6 +2865,9 @@ class CPtrType(CPointerBaseType):
         return ((other_type.is_ptr and
             self.base_type.same_as(other_type.base_type))
                 or other_type is error_type)
+
+    def is_simple_buffer_dtype(self):
+        return True
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -5402,3 +5434,16 @@ def write_noexcept_performance_hint(pos, function_name = None, void_return = Fal
     if void_return:
         msg += "\t2. Use an 'int' return type on the function to allow an error code to be returned."
     performance_hint(pos, msg)
+
+def remove_cv_ref(tp, remove_fakeref=False):
+    # named by analogy with c++ std::remove_cv_ref
+    last_tp = None
+    # The while-loop is probably unnecessary, but I'm not confident
+    # of the order or how careful we are prevent nesting.
+    while tp != last_tp:
+        last_tp = tp
+        if tp.is_cv_qualified:
+            tp = tp.cv_base_type
+        if tp.is_reference and (not tp.is_fake_reference or remove_fakeref):
+            tp = tp.ref_base_type
+    return tp

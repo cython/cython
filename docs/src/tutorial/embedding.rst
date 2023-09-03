@@ -106,7 +106,7 @@ You should only initialize the interpreter once - a lot of modules, including mo
 modules and Numpy, don't currently like being imported multiple times. Therefore if you're
 doing occasional Python/Cython calculations in a larger program what you *don't do* is::
 
-   void run_calcuation() {
+   void run_calculation() {
         Py_Initialize();
         // Use Python/Cython code
         Py_Finalize();
