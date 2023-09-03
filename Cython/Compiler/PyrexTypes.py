@@ -20,7 +20,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, CannotSpecialize
+from .Errors import error, CannotSpecialize, performance_hint
 
 
 class BaseType(object):
@@ -5391,3 +5391,14 @@ def cap_length(s, max_prefix=63, max_len=1024):
         return s
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
+
+def write_noexcept_performance_hint(pos, function_name = None, void_return = False):
+    on_what = "on '%s' " % function_name if function_name else ""
+    msg = (
+        "Exception check %swill always require the GIL to be acquired. Possible solutions:\n"
+        "\t1. Declare the function as 'noexcept' if you control the definition and "
+                                "you're sure you don't want the function to raise exceptions.\n"
+    ) % on_what
+    if void_return:
+        msg += "\t2. Use an 'int' return type on the function to allow an error code to be returned."
+    performance_hint(pos, msg)

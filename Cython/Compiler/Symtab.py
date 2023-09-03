@@ -14,7 +14,7 @@ except ImportError:  # Py3
     import builtins
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError, noexcept_performance_hint_helper
+from .Errors import warning, error, InternalError
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -937,7 +937,8 @@ class Scope(object):
                 defining and  # don't warn about external functions here - the user likely can't do anything
                 pos_filetype != 'pxd'  # again, exclude extern functions (is_pxd is unreliable here)
                 ):
-            noexcept_performance_hint_helper(pos, function_name=name, void_return=type.return_type.is_void)
+            PyrexTypes.write_noexcept_performance_hint(
+                pos, function_name=name, void_return=type.return_type.is_void)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,
