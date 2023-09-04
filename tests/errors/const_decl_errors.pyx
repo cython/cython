@@ -8,11 +8,11 @@ x = 20           # nok
 cdef const int y
 cdef const int *z
 
-cdef float a[x] #nok
+cdef float a[x] #ok
 
 cdef struct S:
     int member
-    int[x] member2 #nok
+    int[x] member2 #ok
 
 cdef func(const int a, const int* b, const (int*) c, const S s, int *const d, int **const e, int *const *f,
           const S *const t):
@@ -43,13 +43,11 @@ cdef func3():
 cdef volatile object v
 
 cdef func4():
-    cdef int a[x] # nok
+    cdef int a[x] # ok
 
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
 6:4: Assignment to const 'x'
-11:13: Array dimension cannot be const integer
-15:8: Array dimension cannot be const integer
 19:8: Assignment to const 'a'
 20:8: Assignment to const 'c'
 21:5: Assignment to const dereference
@@ -61,5 +59,4 @@ _ERRORS = """
 34:8: Assignment to const 'y'
 36:5: Assignment to const dereference
 43:5: Const/volatile base type cannot be a Python object
-46:15: Array dimension cannot be const integer
 """

@@ -1390,6 +1390,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             type = entry.type
             cname = entry.cname
 
+            if type.is_const:
+                code.putln("#define %s %s" % (cname.upper(), init))
+
             if entry.defined_in_pxd and not definition:
                 storage_class = "static"
                 dll_linkage = None
@@ -1403,10 +1406,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put(type.cpp_optional_declaration_code(
                     cname, dll_linkage=dll_linkage))
             else:
+
                 code.put(type.declaration_code(
                     cname, dll_linkage=dll_linkage))
             if init is not None:
-                code.put_safe(" = %s" % init)
+                if type.is_const:
+                    code.put_safe(" = %s" % cname.upper())
+                else:
+                    code.put_safe(" = %s" % init)
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))

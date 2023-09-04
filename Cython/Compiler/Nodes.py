@@ -607,8 +607,9 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
             if self.dimension.type.is_const:
-                error(self.dimension.pos, "Array dimension cannot be const integer")
-            size = self.dimension.get_constant_c_result_code()
+                size = self.dimension.get_constant_c_result_code().upper()
+            else:
+                size = self.dimension.get_constant_c_result_code()
             if size is not None:
                 try:
                     size = int(size)
