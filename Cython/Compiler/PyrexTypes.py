@@ -5424,7 +5424,7 @@ def cap_length(s, max_prefix=63, max_len=1024):
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, function_name = None, void_return = False):
+def write_noexcept_performance_hint(pos, function_name=None, void_return=False):
     on_what = "on '%s' " % function_name if function_name else ""
     msg = (
         "Exception check %swill always require the GIL to be acquired. Possible solutions:\n"

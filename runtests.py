@@ -634,7 +634,7 @@ class build_ext(_build_ext):
 
 class ErrorWriter(object):
     match_error = re.compile(
-        r'(warning:|performance hint:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
+        r'(?:(warning|performance hint):)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
     def __init__(self, encoding=None):
         self.output = []
@@ -652,11 +652,7 @@ class ErrorWriter(object):
             match = self.match_error(line)
             if match:
                 message_type, line, column, message = match.groups()
-                if not message_type:
-                    message_type = 'error'
-                else:
-                    message_type = message_type[:-1]  # drop final :
-                results[message_type].append((int(line), int(column), message.strip()))
+                results[message_type or 'error'].append((int(line), int(column), message.strip()))
 
         return [["%d:%d: %s" % values for values in sorted(results[key])] for key in ('error', 'warning', 'performance hint')]
 
