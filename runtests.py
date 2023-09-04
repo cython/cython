@@ -654,7 +654,10 @@ class ErrorWriter(object):
                 message_type, line, column, message = match.groups()
                 results[message_type or 'error'].append((int(line), int(column), message.strip()))
 
-        return [["%d:%d: %s" % values for values in sorted(results[key])] for key in ('error', 'warning', 'performance hint')]
+        return [
+            ["%d:%d: %s" % values for values in sorted(results[key])]
+            for key in ('error', 'warning', 'performance hint')
+        ]
 
     def geterrors(self):
         return self._collect()[0]
