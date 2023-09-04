@@ -662,12 +662,6 @@ class ErrorWriter(object):
     def geterrors(self):
         return self._collect()[0]
 
-    def getwarnings(self):
-        return self._collect()[1]
-
-    def getperformancehints(self):
-        return self._collect()[2]
-
     def getall(self):
         return self._collect()
 
@@ -856,8 +850,11 @@ class TestBuilder(object):
 
     def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags):
         warning_errors = 'werror' in tags['tag']
-        expect_warnings = 'warnings' in tags['tag']
-        expect_perf_hints = 'perf_hints' in tags['tag']
+        expect_log = ("errors",) if expect_errors else ()
+        if 'warnings' in tags['tag']:
+            expect_log += ("warnings",)
+        if "perf_hints" in tags['tag']:
+            expect_log += ("perf_hints",)
 
         extra_directives_list = [{}]
 
@@ -899,7 +896,7 @@ class TestBuilder(object):
         preparse_list = tags.get('preparse', ['id'])
         tests = [ self.build_test(test_class, path, workdir, module, module_path,
                                   tags, language, language_level,
-                                  expect_errors, expect_warnings, expect_perf_hints,
+                                  expect_log,
                                   warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
                                   add_cython_import=add_cython_import,
@@ -912,7 +909,7 @@ class TestBuilder(object):
         return tests
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
-                   expect_errors, expect_warnings, expect_perf_hints, warning_errors, preparse, pythran_dir, add_cython_import,
+                   expect_log, warning_errors, preparse, pythran_dir, add_cython_import,
                    extra_directives):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
@@ -927,9 +924,7 @@ class TestBuilder(object):
         return test_class(path, workdir, module, module_path, tags,
                           language=language,
                           preparse=preparse,
-                          expect_errors=expect_errors,
-                          expect_warnings=expect_warnings,
-                          expect_perf_hints=expect_perf_hints,
+                          expect_log=expect_log,
                           annotate=self.annotate,
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
@@ -997,7 +992,7 @@ def filter_test_suite(test_suite, selector):
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, module_path, tags, language='c', preparse='id',
-                 expect_errors=False, expect_warnings=False, expect_perf_hints=False,
+                 expect_log=(),
                  annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
                  fork=True, language_level=2, warning_errors=False,
@@ -1014,9 +1009,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.language = language
         self.preparse = preparse
         self.name = module if self.preparse == "id" else "%s_%s" % (module, preparse)
-        self.expect_errors = expect_errors
-        self.expect_warnings = expect_warnings
-        self.expect_perf_hints = expect_perf_hints
+        self.expect_log = expect_log
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
@@ -1154,7 +1147,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def runCompileTest(self):
         return self.compile(
             self.test_directory, self.module, self.module_path, self.workdir,
-            self.test_directory, self.expect_errors, self.expect_warnings, self.expect_perf_hints,
+            self.test_directory, self.expect_log,
             self.annotate, self.add_cython_import)
 
     def find_module_source_file(self, source_file):
@@ -1397,8 +1390,11 @@ class CythonCompileTestCase(unittest.TestCase):
         return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, module_path, workdir, incdir,
-                expect_errors, expect_warnings, expect_perf_hints, annotate, add_cython_import):
+                expect_log, annotate, add_cython_import):
         expected_errors = expected_warnings = expected_perf_hints = errors = warnings = ()
+        expect_errors = "errors" in expect_log
+        expect_warnings = "warnings" in expect_log
+        expect_perf_hints = "perf_hints" in expect_log
         if expect_errors or expect_warnings or expect_perf_hints or add_cython_import:
             expected_errors, expected_warnings, expected_perf_hints = self.split_source_and_output(
                 module_path, workdir, add_cython_import)

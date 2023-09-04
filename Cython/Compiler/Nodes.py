@@ -2696,8 +2696,7 @@ class CFuncDefNode(FuncDefNode):
             name, typ, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
-            overridable=self.overridable)
-        self.entry.inline_func_in_pxd = self.inline_in_pxd
+            overridable=self.overridable, in_pxd=self.inline_in_pxd)
         self.return_type = typ.return_type
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos, "Function cannot return an array")
