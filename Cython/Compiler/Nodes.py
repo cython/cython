@@ -2363,7 +2363,8 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.needs_refcounting:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-                assure_gil('success')
+                if entry.type.refcounting_needs_gil:
+                    assure_gil('success')
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
 
