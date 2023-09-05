@@ -1543,8 +1543,19 @@ The right-hand side of the ``DEF`` must be a valid compile-time expression.
 Such expressions are made up of literal values and names defined using ``DEF``
 statements, combined using any of the Python expression syntax.
 
+.. note::
+    Cython does not intend to copy literal compile-time values 1:1 into the generated code.
+    Instead, these values are internally represented and calculated as plain Python
+    values and use Python's ``repr()`` when a serialisation is needed.  This means
+    that values defined using ``DEF`` may lose precision or change their type
+    depending on the calculation rules of the Python environment where Cython parses and
+    translates the source code.  Specifically, using ``DEF`` to define high-precision
+    floating point constants may not give the intended result and may generate different
+    C values in different Python versions.
+
 The following compile-time names are predefined, corresponding to the values
-returned by :func:`os.uname`.
+returned by :func:`os.uname`.  As noted above, they are not considered good ways
+to adapt code to different platforms and are mostly provided for legacy reasons.
 
     UNAME_SYSNAME, UNAME_NODENAME, UNAME_RELEASE,
     UNAME_VERSION, UNAME_MACHINE
