@@ -718,6 +718,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_objstruct_predeclaration(entry.type, code)
         vtabslot_entries = set(vtabslot_list)
         ctuple_names = set()
+        for entry in env.var_entries:
+            type = entry.type
+            cname = entry.cname
+            if entry.type.is_const:
+                code.putln("#define %s %s" % (entry.cname.upper(), entry.init))
+
         for module in modules:
             definition = module is env
             type_entries = []
@@ -1389,9 +1395,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     init = entry.type.literal_code(entry.init)
             type = entry.type
             cname = entry.cname
-
-            if type.is_const:
-                code.putln("#define %s %s" % (cname.upper(), init))
 
             if entry.defined_in_pxd and not definition:
                 storage_class = "static"

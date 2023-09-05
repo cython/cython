@@ -35,6 +35,18 @@ def test_array():
     print(len(int_array))
 
 
+ctypedef struct S:
+    double attr[int_constant3]
+
+
+def test_array_struct():
+    """
+    >>> test_array_struct()
+    2.0
+    """
+    cdef S s = S([1,2,3,4,5])
+    return s.attr[1]
+
 def test_constant_float_value():
     """
     >>> test_constant_float_value()
