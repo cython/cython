@@ -721,7 +721,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.var_entries:
             type = entry.type
             cname = entry.cname
-            if entry.type.is_const:
+            if entry.type.is_const and entry.init is not None:
                 code.putln("#define %s %s" % (entry.cname.upper(), entry.init))
 
         for module in modules:

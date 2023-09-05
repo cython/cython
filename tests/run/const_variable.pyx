@@ -1,5 +1,7 @@
 # mode: run
 
+import sys
+
 cdef const int int_constant = 50
 cdef const int int_constant2 = int_constant
 cdef const int int_constant3 = 5
@@ -65,3 +67,14 @@ def test_constant_pointer():
     print(pint_constant[0])
     pint_constant = &int_constant3
     print(pint_constant[0])
+
+cdef extern from *:
+    const Py_ssize_t PY_SSIZE_T_MAX
+
+def test_access_extern_const():
+    """
+    >>> test_access_extern_const()
+    True
+    """
+    ssize_t_max = PY_SSIZE_T_MAX
+    return ssize_t_max == sys.maxsize
