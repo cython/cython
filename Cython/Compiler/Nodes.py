@@ -9674,7 +9674,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
         code.funcstate.uses_error_indicator = True
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
-        code.put_gotref(Naming.parallel_exc_type, py_object_type)
+        # It turns out to be quite difficult to predict when this is going to be generated
+        # (and thus require the refnanny appropriately), so skip the gotref for parallel_exc_type
+        # except when we know we'll have the refnanny
+        if not code.funcstate.scope.nogil or code.funcstate.scope.has_with_gil_block:
+            code.put_gotref(Naming.parallel_exc_type, py_object_type)
 
         code.putln(
             "}")
@@ -9687,7 +9691,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
 
-        code.put_giveref(Naming.parallel_exc_type, py_object_type)
+        # It turns out to be quite difficult to predict when this is going to be generated
+        # (and thus require the refnanny appropriately), so skip the giveref for parallel_exc_type
+        # except when we know we'll have the refnanny
+        if not code.funcstate.scope.nogil or code.funcstate.scope.has_with_gil_block:
+            code.put_giveref(Naming.parallel_exc_type, py_object_type)
         code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
