@@ -722,7 +722,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             type = entry.type
             cname = entry.cname
             if entry.type.is_const and entry.init is not None:
-                code.putln("#define %s %s" % (entry.cname.upper(), entry.init))
+                code.putln("#define %s_CONST_VALUE %s" % (entry.cname.upper(), entry.init))
 
         for module in modules:
             definition = module is env
@@ -1414,7 +1414,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname, dll_linkage=dll_linkage))
             if init is not None:
                 if type.is_const:
-                    code.put_safe(" = %s" % cname.upper())
+                    code.put_safe(" = %s_CONST_VALUE" % cname.upper())
                 else:
                     code.put_safe(" = %s" % init)
             code.putln(";")
