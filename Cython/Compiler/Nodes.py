@@ -606,10 +606,15 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
-                size = self.dimension.get_constant_c_result_code().upper() + '_CONST_VALUE'
-            else:
+            size = None
+            if self.dimension.type.is_const:
+                if self.dimension.entry.defined_in_pxd:
+                    error(self.pos, "Array dimension declared in pxd file")
+                if self.dimension.entry.visibility != 'extern':
+                    size = self.dimension.get_constant_c_result_code().upper() + '_CONST_VALUE'
+            if size is None:
                 size = self.dimension.get_constant_c_result_code()
+
             if size is not None:
                 try:
                     size = int(size)
