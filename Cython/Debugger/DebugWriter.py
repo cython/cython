@@ -20,6 +20,13 @@ except ImportError:
 from ..Compiler import Errors
 
 
+def is_valid_tag(name):
+    if hasattr(name, "startswith"):
+        if name.startswith(".") and name[1:].isnumeric():
+            return False
+    return True
+
+
 class CythonDebugWriter(object):
     """
     Class to output debugging information for cygdb
@@ -39,14 +46,17 @@ class CythonDebugWriter(object):
         self.start('cython_debug', attrs=dict(version='1.0'))
 
     def start(self, name, attrs=None):
-        self.tb.start(name, attrs or {})
+        if is_valid_tag(name):
+            self.tb.start(name, attrs or {})
 
     def end(self, name):
-        self.tb.end(name)
+        if is_valid_tag(name):
+            self.tb.end(name)
 
     def add_entry(self, name, **attrs):
-        self.tb.start(name, attrs)
-        self.tb.end(name)
+        if is_valid_tag(name):
+            self.tb.start(name, attrs)
+            self.tb.end(name)
 
     def serialize(self):
         self.tb.end('Module')
