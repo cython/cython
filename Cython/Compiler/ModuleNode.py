@@ -3076,7 +3076,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
-        code.putln('#if !CYTHON_LIMITED_API')
+        code.putln('#if !CYTHON_COMPILING_IN_LIMITED_API')
         code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
         code.putln('#endif')
 
