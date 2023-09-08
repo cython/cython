@@ -18,10 +18,18 @@ except ImportError:
             etree = None
 
 from ..Compiler import Errors
+from ..Compiler.StringEncoding import EncodedString
 
 
 def is_valid_tag(name):
-    if hasattr(name, "startswith"):
+    """
+    Names like '.0' are used internally for arguments
+    to functions creating generator expressions,
+    however they are not identifiers. 
+
+    See gh-5552
+    """
+    if isinstance(name, EncodedString):
         if name.startswith(".") and name[1:].isnumeric():
             return False
     return True
