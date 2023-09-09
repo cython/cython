@@ -27,10 +27,10 @@ def is_valid_tag(name):
     to functions creating generator expressions,
     however they are not identifiers. 
 
-    See gh-5552
+    See https://github.com/cython/cython/issues/5552
     """
     if isinstance(name, EncodedString):
-        if name.startswith(".") and name[1:].isnumeric():
+        if name.startswith(".") and name[1:].isdecimal():
             return False
     return True
 
