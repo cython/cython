@@ -1819,7 +1819,7 @@ static unsigned long __Pyx_get_runtime_version() {
     int i = 0;
     while (factor) {
         while ('0' <= rt_version[i] && rt_version[i] <= '9') {
-            digit = digit * 10 + (unsigned long) (rt_version[i] - '0');
+            digit = digit * 10 + (unsigned int) (rt_version[i] - '0');
             ++i;
         }
         version += factor * digit;
