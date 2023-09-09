@@ -964,15 +964,17 @@ def skip_c(tags):
                     return True
     return False
 
+
 def skip_limited(tags):
-    if sys.version_info[0] < 3:
-        return True
-    if sys.implementation.name == 'cpython':
-        return False
-    # on all non-cpython, skip limited-api tests
     if 'limited-api' in tags['tag']:
-        return True
+        # Run limited-api tests only on CPython 3.x.
+        if sys.version_info[0] < 3:
+            return True
+        if sys.implementation.name != 'cpython':
+            return True
     return False
+
+
 def filter_stderr(stderr_bytes):
     """
     Filter annoying warnings from output.
