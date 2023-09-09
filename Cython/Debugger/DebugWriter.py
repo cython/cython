@@ -25,7 +25,7 @@ def is_valid_tag(name):
     """
     Names like '.0' are used internally for arguments
     to functions creating generator expressions,
-    however they are not identifiers. 
+    however they are not identifiers.
 
     See https://github.com/cython/cython/issues/5552
     """
