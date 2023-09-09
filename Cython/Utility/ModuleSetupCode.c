@@ -1,10 +1,6 @@
 /////////////// InitLimitedAPI ///////////////
 
-#if defined(CYTHON_LIMITED_API) && defined(CYTHON_TEST_IN_LIMITED_API)
-  /* disabled by default: enabling Py_LIMITED_API needs more work.
-     Users should not define CYTHON_TEST_IN_LIMITED_API since it will
-     be removed when support is better.
-     If you want Py_LIMITED_API then set it yourself for now */
+#if defined(CYTHON_LIMITED_API) && 0  /* disabled: enabling Py_LIMITED_API needs more work */
   #ifndef Py_LIMITED_API
     #if CYTHON_LIMITED_API+0 > 0x03030000
       #define Py_LIMITED_API CYTHON_LIMITED_API

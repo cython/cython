@@ -1,5 +1,4 @@
 # mode: compile
-# tag: test_in_limited_api
 
 cdef extern from *:
 

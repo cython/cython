@@ -1,5 +1,4 @@
 # mode: compile
-# tag: test_in_limited_api
 
 cdef int f() except -1:
     cdef list l

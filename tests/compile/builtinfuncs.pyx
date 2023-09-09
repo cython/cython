@@ -1,5 +1,4 @@
 # mode: compile
-# tag: test_in_limited_api
 
 cdef int f() except -1:
     cdef object x, y = 0, z = 0, w = 0

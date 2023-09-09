@@ -1,11 +1,7 @@
 /////////////// TypeConversions.proto ///////////////
+//@requires: StringTools.c::IncludeStringH
 
 /* Type Conversion Predeclarations */
-
-// Note that this is *always* included in the module preamble
-// (but the impl part is only generated on demand).
-// Therefore IncludeStringH is not be reliable
-#include <string.h>
 
 #define __Pyx_uchar_cast(c) ((unsigned char)c)
 #define __Pyx_long_cast(x) ((long)x)
