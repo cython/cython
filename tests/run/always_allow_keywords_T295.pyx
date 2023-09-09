@@ -31,6 +31,14 @@ def func1(arg):
     >>> func1(*[None])
     >>> func1(arg=None)
     """
+    return arg
+
+def func1_unused(arg):
+    """
+    >>> func1_unused(None)
+    >>> func1_unused(*[None])
+    >>> func1_unused(arg=None)
+    """
 
 @cython.always_allow_keywords(False)
 def func2(arg):
@@ -38,6 +46,15 @@ def func2(arg):
     >>> func2(None)
     >>> func2(*[None])
     >>> assert_typeerror_no_keywords(func2, arg=None)
+    """
+    return arg
+
+@cython.always_allow_keywords(False)
+def func2_unused(arg):
+    """
+    >>> func2_unused(None)
+    >>> func2_unused(*[None])
+    >>> assert_typeerror_no_keywords(func2_unused, arg=None)
     """
 
 @cython.always_allow_keywords(True)
@@ -47,8 +64,15 @@ def func3(arg):
     >>> func3(*[None])
     >>> func3(arg=None)
     """
-    pass
+    return arg
 
+@cython.always_allow_keywords(True)
+def func3_unused(arg):
+    """
+    >>> func3_unused(None)
+    >>> func3_unused(*[None])
+    >>> func3_unused(arg=None)
+    """
 
 cdef class A:
     """
