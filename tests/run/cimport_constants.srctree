@@ -1,0 +1,28 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import mymodule"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## constants.pxd ########
+
+cdef const int my_c_pyx
+cdef const int my_c_pxd = 6
+
+######## constants.pyx ########
+
+cdef const int my_c_pyx = 5
+
+######## mymodule.pyx ########
+
+cimport constants
+cdef int pyx_c = constants.my_c_pyx
+cdef int pxd_c = constants.my_c_pxd
+assert pyx_c == 5
+assert pxd_c == 6
