@@ -3076,8 +3076,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
-        code.put_error_if_neg(
-            self.pos, "__Pyx_check_binary_version(PY_VERSION_HEX, __Pyx_get_runtime_version(), CYTHON_COMPILING_IN_LIMITED_API)")
+        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
+                                        "__PYX_LIMITED_VERSION_HEX, "
+                                        "__Pyx_get_runtime_version(), "
+                                        "CYTHON_COMPILING_IN_LIMITED_API)"
+        )
 
         code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")
