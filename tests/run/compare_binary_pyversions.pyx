@@ -42,7 +42,7 @@ def test_compare_binary_versions_exact():
             else:
                 try:
                     check_binary_version(ct_version, rt_version, 0)
-                except RuntimeWarning as exc:
+                except Warning as exc:
                     assert "does not match runtime version" in str(exc), exc
                 else:
                     assert not "raised", (hex(rt_version), hex(ct_version))
@@ -70,7 +70,7 @@ def test_compare_binary_versions_minimum():
             else:
                 try:
                     check_binary_version(ct_version, rt_version, 1)
-                except RuntimeWarning as exc:
+                except Warning as exc:
                     if rt_version & major_and_minor < ct_version & major_and_minor:
                         assert "was newer than runtime version" in str(exc), exc
                     else:
