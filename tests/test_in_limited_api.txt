@@ -4,7 +4,5 @@ compile.builtin
 compile.builtinbuffer
 compile.builtinfuncs
 compile.builtinlist
-
-# requires fix to TypeConversion string.h
-# compile.arrayargs
-# compile.arraytoptrarg
+compile.arrayargs
+compile.arraytoptrarg
