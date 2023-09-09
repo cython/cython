@@ -13,14 +13,25 @@ import re, sys, time
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
-from distutils.extension import Extension
-from distutils.util import strtobool
 import zipfile
 
 try:
     from collections.abc import Iterable
 except ImportError:
     from collections import Iterable
+
+try:
+    from distutils.util import strtobool
+except ImportError:
+    def strtobool(val):
+        """Convert a string representation of truth to true (1) or false (0)."""
+        val = val.lower()
+        if val in ('y', 'yes', 't', 'true', 'on', '1'):
+            return 1
+        elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+            return 0
+        else:
+            raise ValueError("invalid truth value {!r}".format(val))
 
 try:
     import gzip
@@ -755,6 +766,8 @@ def default_create_extension(template, kwds):
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
                           exclude_failures=False):
+    from distutils.extension import Extension
+
     if language is not None:
         print('Warning: passing language={0!r} to cythonize() is deprecated. '
               'Instead, put "# distutils: language={0}" in your .pyx or .pxd file(s)'.format(language))

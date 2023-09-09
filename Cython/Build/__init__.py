@@ -1,2 +1,5 @@
 from .Dependencies import cythonize
-from .Distutils import build_ext
+try:
+    from .Distutils import build_ext
+except ModuleNotFoundError:
+    pass
