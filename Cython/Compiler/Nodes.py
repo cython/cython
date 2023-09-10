@@ -2050,33 +2050,20 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
 
-        # See if we need to acquire the GIL for variable declarations, or for
-        # refnanny only
-
-        # Closures are not currently possible for cdef nogil functions,
-        # but check them anyway
-        have_object_args = self.needs_closure or self.needs_outer_scope
-        for arg in lenv.arg_entries:
-            if arg.type.is_pyobject:
-                have_object_args = True
-                break
-
         used_buffer_entries = [entry for entry in lenv.buffer_entries if entry.used]
 
-        acquire_gil_for_var_decls_only = (
-            lenv.nogil and lenv.has_with_gil_block and
-            (have_object_args or used_buffer_entries))
-
-        acquire_gil_for_refnanny_only = (
-            lenv.nogil and lenv.has_with_gil_block and not
-            acquire_gil_for_var_decls_only)
-
-        use_refnanny = not lenv.nogil or lenv.has_with_gil_block
+        # See if we need to acquire the GIL for variable declarations, or for
+        # refnanny only
+        # Closures are not currently possible for cdef nogil functions,
+        # but check them anyway
+        var_decls_definitely_need_gil = self.needs_closure or self.needs_outer_scope
 
         gilstate_decl = None
-        if acquire_gil or acquire_gil_for_var_decls_only:
+        var_decls_need_gil = False
+        if acquire_gil or var_decls_definitely_need_gil:
             code.put_ensure_gil()
             code.funcstate.gil_owned = True
+            var_decls_need_gil = True
         else:
             gilstate_decl = code.insertion_point()
 
@@ -2092,10 +2079,8 @@ class FuncDefNode(StatNode, BlockNode):
             self.getbuffer_check(code)
 
         # ----- set up refnanny
-        if use_refnanny:
-            tempvardecl_code.put_declare_refcount_context()
-            code.put_setup_refcount_context(
-                self.entry.name, acquire_gil=acquire_gil_for_refnanny_only)
+        refnanny_decl_code = tempvardecl_code.insertion_point()
+        refnanny_setup_code = code.insertion_point()
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -2190,7 +2175,17 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
-        if acquire_gil_for_var_decls_only:
+        if code.funcstate.needs_refnanny:
+            # if this is true there's definite some reference counting in
+            # the variable declarations
+            var_decls_need_gil = True
+            
+        if var_decls_need_gil and lenv.nogil and gilstate_decl is not None:
+            gilstate_decl.put_ensure_gil()
+            code.funcstate.gil_owned = True
+            gilstate_decl = None
+
+        if var_decls_need_gil and lenv.nogil:
             code.put_release_ensured_gil()
             code.funcstate.gil_owned = False
 
@@ -2416,7 +2411,10 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_trace_return(
                         "Py_None", nogil=not gil_owned['success'])
 
-        if use_refnanny:
+        if code.funcstate.needs_refnanny:
+            refnanny_decl_code.put_declare_refcount_context()
+            refnanny_setup_code.put_setup_refcount_context(
+               self.entry.name, acquire_gil=not var_decls_need_gil)
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
         if acquire_gil or (lenv.nogil and gil_owned['success']):
@@ -9674,11 +9672,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
         code.funcstate.uses_error_indicator = True
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
-        # It turns out to be quite difficult to predict when this is going to be generated
-        # (and thus require the refnanny appropriately), so skip the gotref for parallel_exc_type
-        # except when we know we'll have the refnanny
-        if not code.funcstate.scope.nogil or code.funcstate.scope.has_with_gil_block:
-            code.put_gotref(Naming.parallel_exc_type, py_object_type)
+        code.put_gotref(Naming.parallel_exc_type, py_object_type)
 
         code.putln(
             "}")
@@ -9691,11 +9685,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
 
-        # It turns out to be quite difficult to predict when this is going to be generated
-        # (and thus require the refnanny appropriately), so skip the giveref for parallel_exc_type
-        # except when we know we'll have the refnanny
-        if not code.funcstate.scope.nogil or code.funcstate.scope.has_with_gil_block:
-            code.put_giveref(Naming.parallel_exc_type, py_object_type)
+        code.put_giveref(Naming.parallel_exc_type, py_object_type)
         code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))

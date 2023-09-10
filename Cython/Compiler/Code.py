@@ -744,6 +744,8 @@ class FunctionState(object):
 
         self.error_without_exception = False
 
+        self.needs_refnanny = False
+
     # safety checks
 
     def validate_exit(self):
@@ -2188,44 +2190,68 @@ class CCodeWriter(object):
         return typecast(py_object_type, type, cname)
 
     def put_gotref(self, cname, type):
+        if type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_gotref(self, cname)
 
     def put_giveref(self, cname, type):
+        if type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_giveref(self, cname)
 
     def put_xgiveref(self, cname, type):
+        if type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_xgiveref(self, cname)
 
     def put_xgotref(self, cname, type):
+        if type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_xgotref(self, cname)
 
     def put_incref(self, cname, type, nanny=True):
         # Note: original put_Memslice_Incref/Decref also added in some utility code
         # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
         # and so has been removed. However, it's potentially a feature that might be useful here
+        if nanny and type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_incref(self, cname, nanny=nanny)
 
     def put_xincref(self, cname, type, nanny=True):
+        if nanny and type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_xincref(self, cname, nanny=nanny)
 
     def put_decref(self, cname, type, nanny=True, have_gil=True):
+        if nanny and type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
 
     def put_xdecref(self, cname, type, nanny=True, have_gil=True):
+        if nanny and type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
 
     def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        if nanny and type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
                               nanny=nanny, have_gil=have_gil)
 
     def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        if nanny and type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
                               nanny=nanny, have_gil=have_gil)
 
     def put_decref_set(self, cname, type, rhs_cname):
+        if type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_decref_set(self, cname, rhs_cname)
 
     def put_xdecref_set(self, cname, type, rhs_cname):
+        if type.refcounting_tracked_by_refnanny and self.funcstate:
+            self.funcstate.needs_refnanny = True
         type.generate_xdecref_set(self, cname, rhs_cname)
 
     def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
