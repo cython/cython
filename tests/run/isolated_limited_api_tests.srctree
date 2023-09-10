@@ -73,7 +73,10 @@ def raises():
 
 def decode(bytes b, bytearray ba):
     return b.decode("utf-8") + ba.decode("utf-8")
-    
+
+def cast_float(object o):
+    return float(o)
+
 class C:
     pass
 
