@@ -1,5 +1,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import mymodule"
+PYTHON testerr.py
 
 ######## setup.py ########
 
@@ -7,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+  ext_modules = cythonize(["constants.pyx", "mymodule.pyx"]),
 )
 
 ######## constants.pxd ########
@@ -26,3 +27,44 @@ cdef int pyx_c = constants.my_c_pyx
 cdef int pxd_c = constants.my_c_pxd
 assert pyx_c == 5
 assert pxd_c == 6
+
+######## errmodule.pyx ########
+
+cimport constants
+cdef int[constants.my_c_pyx] my_arr
+cdef int[constants.my_c_pxd] my_arr
+
+######## testerr.py ########
+import os
+import sys
+from contextlib import contextmanager
+from Cython.Compiler.Errors import CompileError
+from Cython.Build.Dependencies import cythonize
+
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
+
+@contextmanager
+def assert_stderr(expected_errors):
+    sys.path.append('other')
+    sys.stderr = temp_stderr = StringIO()
+    try:
+        yield
+    except CompileError:
+        for err in expected_errors:
+            assert err in temp_stderr.getvalue(), '"%s" not found in stderr' % err
+    else:
+        assert False, 'The module was imported even when it should not be importable'
+    finally:
+        sys.stderr = sys.__stderr__
+        temp_stderr.close()
+
+expected_errors = [
+    "errmodule.pyx:3:8: Array dimension declared in pxd file",
+    "errmodule.pyx:4:8: Array dimension declared in pxd file",
+]
+
+with assert_stderr(expected_errors):
+    cythonize("errmodule.pyx")
