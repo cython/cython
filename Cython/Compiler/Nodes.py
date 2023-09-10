@@ -610,7 +610,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if self.dimension.type.is_const:
                 if self.dimension.entry.defined_in_pxd:
                     # Array dimension requires compile-time value.
-                    # cimported const values cannot be used since it is run-time value.
+                    # cimported const value cannot be used since it is run-time value.
                     error(self.pos, "Array dimension declared in pxd file")
                 if self.dimension.entry.visibility != 'extern':
                     size = self.dimension.get_constant_c_result_code().upper() + '_CONST_VALUE'
