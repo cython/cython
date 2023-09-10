@@ -2179,7 +2179,7 @@ class FuncDefNode(StatNode, BlockNode):
             # if this is true there's definite some reference counting in
             # the variable declarations
             var_decls_need_gil = True
-            
+
         if var_decls_need_gil and lenv.nogil and gilstate_decl is not None:
             gilstate_decl.put_ensure_gil()
             code.funcstate.gil_owned = True
