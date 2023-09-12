@@ -7,6 +7,8 @@ is preserved (and it could not be as it is not present in the code tree).
 
 from __future__ import absolute_import, print_function
 
+import copy
+
 from .Compiler.Visitor import TreeVisitor
 from .Compiler.ExprNodes import *
 from .Compiler.Nodes import CSimpleBaseTypeNode
@@ -16,6 +18,11 @@ class LinesResult(object):
     def __init__(self):
         self.lines = []
         self.s = u""
+
+    def __getitem__(self, s):
+        other = copy.deepcopy(self)
+        other.s = other.s[s]
+        return other
 
     def put(self, s):
         self.s += s
@@ -27,6 +34,9 @@ class LinesResult(object):
     def putline(self, s):
         self.put(s)
         self.newline()
+
+    def endswith(self, s):
+        return self.s.endswith(s)
 
 
 class DeclarationWriter(TreeVisitor):
@@ -424,9 +434,8 @@ class StatementWriter(DeclarationWriter):
         self._visit_indented(node.body)
 
     def visit_TryFinallyStatNode(self, node):
-        self.line(u"try:")
-        self._visit_indented(node.body)
-        self.line(u"finally:")
+        self.visit(node.body)
+        self.line(u'finally:')
         self._visit_indented(node.finally_clause)
 
     def visit_TryExceptStatNode(self, node):
@@ -435,15 +444,27 @@ class StatementWriter(DeclarationWriter):
         for x in node.except_clauses:
             self.visit(x)
         if node.else_clause is not None:
-            self.visit(node.else_clause)
+            self.line(u"else:")
+            self._visit_indented(node.else_clause)
 
     def visit_ExceptClauseNode(self, node):
         self.startline(u"except")
         if node.pattern is not None:
             self.put(u" ")
-            self.visit(node.pattern)
+            if len(node.pattern) == 0:
+                # except () as e
+                self.put(u"()")
+            elif len(node.pattern) == 1:
+                self.visit(node.pattern[0])
+            else:
+                self.put(u"(")
+                for p in node.pattern[:-1]:
+                    self.visit(p)
+                    self.put(u", ")
+                self.visit(node.pattern[-1])
+                self.put(u")")
         if node.target is not None:
-            self.put(u", ")
+            self.put(u" as ")
             self.visit(node.target)
         self.endline(":")
         self._visit_indented(node.body)
@@ -477,6 +498,45 @@ class StatementWriter(DeclarationWriter):
     def visit_TempRefNode(self, node):
         self.put(self.tempnames[node.handle])
 
+    def visit_AssertStatNode(self, node):
+        self.startline(u"assert ")
+        self.visit(node.condition)
+        if node.value:
+            self.put(u", ")
+            self.visit(node.value)
+        self.endline()
+
+    def visit_DelStatNode(self, node):
+        self.startline(u"del ")
+        for item in node.args[:-1]:
+            self.visit(item)
+            self.put(u", ")
+        self.visit(node.args[-1])
+        self.endline()
+
+    def visit_GlobalNode(self, node):
+        self.startline(u"global ")
+        for item in node.names[:-1]:
+            self.put(item)
+            self.put(u", ")
+        self.put(node.names[-1])
+        self.endline()
+
+    def visit_NonlocalNode(self, node):
+        self.startline(u"nonlocal ")
+        for item in node.names[:-1]:
+            self.put(item)
+            self.put(u", ")
+        self.put(node.names[-1])
+        self.endline()
+
+    def visit_RaiseStatNode(self, node):
+        self.startline(u"raise ")
+        self.visit(node.exc_type)
+        if node.cause:
+            self.put(u" from ")
+            self.visit(node.cause)
+        self.endline()
 
 class ExpressionWriter(TreeVisitor):
     """
@@ -639,6 +699,8 @@ class ExpressionWriter(TreeVisitor):
 
     def visit_PrimaryCmpNode(self, node):
         self.visit_BinopNode(node)
+        if node.cascade:
+            self.visit(node.cascade)
 
     def visit_IndexNode(self, node):
         self.visit(node.base)
@@ -783,6 +845,27 @@ class ExpressionWriter(TreeVisitor):
             # type(body) is Nodes.ExprStatNode
             body = body.expr.arg
         self.emit_comprehension(body, target, sequence, condition, u"()")
+
+    def visit_CascadedCmpNode(self, node):
+        self.put(u" %s " % node.operator)
+        self.visit(node.operand2)
+        if node.cascade:
+            # recursion
+            self.visit(node.cascade)
+
+    def visit_LambdaNode(self, node):
+        self.startline(u"lambda ")
+        self.comma_separated_list(node.args)
+        self.put(u" : ")
+        self.visit(node.result_expr)
+
+    def visit_YieldExprNode(self, node):
+        self.put(u"yield ")
+        self.visit(node.arg)
+
+    def visit_YieldFromExprNode(self, node):
+        self.put(u"yield from ")
+        self.visit(node.arg)
 
 
 class PxdWriter(DeclarationWriter, ExpressionWriter):
