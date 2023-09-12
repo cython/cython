@@ -158,7 +158,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         if (dictoffset == 0)
         {
             Py_ssize_t b_dictoffset = 0;
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
             b = b->tp_dictoffset;
 #else
             PyObject *py_b_dictoffset = PyObject_GetAttrString((PyObject*)b, "__dictoffset__");
