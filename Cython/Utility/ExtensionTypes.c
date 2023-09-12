@@ -159,7 +159,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         {
             Py_ssize_t b_dictoffset = 0;
 #if CYTHON_USE_TYPE_SLOTS
-            b =  = b->tp_dictoffset;
+            b = b->tp_dictoffset;
 #else
             PyObject *py_b_dictoffset = PyObject_GetAttrString((PyObject*)b, "__dictoffset__");
             if (!py_b_dictoffset) goto dictoffset_return;
@@ -168,21 +168,23 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             if (b_dictoffset == -1 && PyErr_Occurred()) goto dictoffset_return;
 #endif
             if (b_dictoffset) {
-                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
-                PyErr_Format(PyExc_TypeError,
-                    "extension type '%.200s' has no __dict__ slot, "
-                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
-                    "either add 'cdef dict __dict__' to the extension type "
-                    "or add '__slots__ = [...]' to the base type",
-                    type_name, b_name);
-                __Pyx_DECREF_TypeName(b_name);
                 {
-                  dictoffset_return:
-    #if CYTHON_AVOID_BORROWED_REFS
-                    Py_DECREF(b0);
-    #endif
-                    return -1;
+                    __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+                    PyErr_Format(PyExc_TypeError,
+                        "extension type '%.200s' has no __dict__ slot, "
+                        "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                        "either add 'cdef dict __dict__' to the extension type "
+                        "or add '__slots__ = [...]' to the base type",
+                        type_name, b_name);
+                    __Pyx_DECREF_TypeName(b_name);
                 }
+    #if CYTHON_USE_TYPE_SLOTS
+              dictoffset_return:
+    #endif
+    #if CYTHON_AVOID_BORROWED_REFS
+                Py_DECREF(b0);
+    #endif
+                return -1;
             }
         }
 #if CYTHON_AVOID_BORROWED_REFS
