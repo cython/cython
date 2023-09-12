@@ -715,4 +715,4 @@ def normalise_float_repr(float_str):
         + str_value[exp:]
     ).rstrip('0')
 
-    return result if result != '.' else '0.'
+    return result if result != '.' else '.0'

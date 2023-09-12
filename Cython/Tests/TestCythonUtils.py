@@ -171,8 +171,8 @@ class TestCythonUtils(unittest.TestCase):
 
     def test_normalise_float_repr(self):
         for float_str, norm_str in [
-                ('.0', '0.'),
-                ('.000000', '0.'),
+                ('.0', '.0'),
+                ('.000000', '.0'),
                 ('.1', '.1'),
                 ('1.', '1.'),
                 ('1.0', '1.'),
