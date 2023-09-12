@@ -2,6 +2,8 @@
 
 cdef extern from "<complex>" namespace "std" nogil:
     cdef cppclass complex[T]:
+        ctypedef T value_type
+
         complex() except +
         complex(T, T) except +
         complex(complex[T]&) except +

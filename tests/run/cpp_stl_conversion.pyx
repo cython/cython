@@ -13,6 +13,10 @@ from libcpp.pair cimport pair
 from libcpp.vector cimport vector
 from libcpp.list cimport list as cpp_list
 
+cdef extern from "<memory>" namespace "std":
+    cdef cppclass allocator[T]:
+        pass
+
 py_set = set
 py_xrange = xrange
 py_unicode = unicode
@@ -114,6 +118,22 @@ def test_int_vector(o):
     OverflowError: ...
     """
     cdef vector[int] v = o
+    return v
+
+def test_int_vector_allocator(o):
+    """
+    >>> test_int_vector_allocator([1, 2, 3])
+    [1, 2, 3]
+    >>> test_int_vector_allocator((1, 10, 100))
+    [1, 10, 100]
+    >>> test_int_vector_allocator(py_xrange(1,10,2))
+    [1, 3, 5, 7, 9]
+    >>> test_int_vector_allocator([10**20])       #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    OverflowError: ...
+    """
+    cdef vector[int, allocator[int]] v = o
     return v
 
 cdef vector[int] takes_vector(vector[int] x):
@@ -229,6 +249,30 @@ def test_unordered_set(o):
    cdef unordered_set[long] s = o
    return s
 
+cdef extern from *:
+    """
+    struct CustomHash {
+        template <typename T>
+        size_t operator()(T o) const {
+            return o;
+        }
+    };
+    """
+    cdef cppclass CustomHash:
+        pass
+
+def test_unordered_set_hash(o):
+   """
+   >>> sorted(test_unordered_set_hash([1, 2, 3]))
+   [1, 2, 3]
+   >>> sorted(test_unordered_set_hash([1, 2, 3, 3]))
+   [1, 2, 3]
+   >>> type(test_unordered_set_hash([])) is py_set
+   True
+   """
+   cdef unordered_set[long, CustomHash] s = o
+   return s
+
 def test_map(o):
     """
     >>> d = {1: 1.0, 2: 0.5, 3: 0.25}
@@ -245,7 +289,7 @@ def test_map(o):
 def test_unordered_map(o):
     """
     >>> d = {1: 1.0, 2: 0.5, 3: 0.25}
-    >>> m = test_map(d)
+    >>> m = test_unordered_map(d)
     >>> sorted(m)
     [1, 2, 3]
     >>> (m[1], m[2], m[3])
@@ -253,7 +297,7 @@ def test_unordered_map(o):
 
     >>> dd = defaultdict(float)
     >>> dd.update(d)
-    >>> m = test_map(dd)
+    >>> m = test_unordered_map(dd)
     >>> sorted(m)
     [1, 2, 3]
     >>> (m[1], m[2], m[3])
@@ -261,6 +305,17 @@ def test_unordered_map(o):
     """
     cdef unordered_map[int, double] m = o
     return m
+
+def test_unordered_map_hash(o):
+   """
+   >>> d = test_unordered_map_hash({1: 1.0, 2: 0.5, 3: 0.25})
+   >>> sorted(d)
+   [1, 2, 3]
+   >>> (d[1], d[2], d[3])
+   (1.0, 0.5, 0.25)
+   """
+   cdef unordered_map[int, double, CustomHash] m = o
+   return m
 
 def test_nested(o):
     """
