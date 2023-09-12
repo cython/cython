@@ -1526,9 +1526,9 @@ class FloatNode(ConstNode):
 
     def compile_time_value(self, denv):
         float_value = float(self.value)
-        # It's difficult to warn about '1E5' notation because the user input is not easy to reproduce programmatically.
-        # Therefore, we only warn about simple fractional float value representations that are not copied literally.
-        if self.value.replace('.', '').isdigit() and repr(float_value) != self.value:
+        str_float_value = ("%.330f" % float_value).strip('0')
+        str_value = Utils.normalise_float_repr(self.value)
+        if str_value not in (str_float_value, repr(float_value).lstrip('0')):
             warning(self.pos, "Using this floating point value with DEF may lose precision, using %r" % float_value)
         return float_value
 
