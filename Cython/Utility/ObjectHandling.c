@@ -2351,7 +2351,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
         return __Pyx_PyObject_Call(func, $empty_tuple, kwargs);
     }
     #if PY_VERSION_HEX >= 0x03090000 && !CYTHON_COMPILING_IN_LIMITED_API
-    return PyObject_VectorcallDict(func, args, nargs, kwargs);
+    return PyObject_VectorcallDict(func, args, (size_t)nargs, kwargs);
     #else
     return __Pyx_PyObject_FastCall_fallback(func, args, (size_t)nargs, kwargs);
     #endif
