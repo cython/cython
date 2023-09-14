@@ -2,6 +2,52 @@
 Cython Changelog
 ================
 
+3.0.3 (2023-0?-??)
+==================
+
+Features added
+--------------
+
+* More warnings were added to help users migrate and avoid bugs.
+  (Github issue :issue:`5650`)
+
+* FastGIL now uses standard ``thread_local`` in C++.
+  (Github issue :issue:`5640`)
+
+Bugs fixed
+----------
+
+* Performance regressions where the GIL was needlessly acquired were fixed.
+  (Github issue :issue:`5670`)
+
+* ``fastcall`` calls with keyword arguments generated incorrect C code.
+  (Github issue :issue:`5665`)
+
+* Early (unlikely) failures in Python function wrappers no longer set a
+  traceback in order to simplify the C code flow.  Being mostly memory
+  allocation errors, they probably would never have created a traceback anyway.
+  (Github issue :issue:`5681`)
+
+* Several issues with the Limited API support were resolved.
+  (Github issues :issue:`5641`, :issue:`5648`, :issue:`5689`)
+
+* Fix some C compiler warnings.
+  Patches by Ralf Gommers, Oleksandr Pavlyk et al.
+  (Github issues :issue:`5651`, :issue:`5663`, :issue:`5668`)
+
+* Generating gdb debugging information failed when using generator expressions.
+  Patch by Oleksandr Pavlyk.  (Github issue :issue:`5552`)
+
+Other changes
+-------------
+
+* The visible deprecation warning for ``DEF`` was removed again since it proved
+  difficult for some users to migrate away from it.  The statement is still
+  meant to be removed at some point (and thus, like ``IF``, should not be
+  used in new code), but the time for sunset is probably not around the corner.
+  (Github issue :issue:`4310`)
+
+
 3.0.2 (2023-08-27)
 ==================
 
