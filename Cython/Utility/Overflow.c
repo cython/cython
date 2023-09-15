@@ -230,16 +230,20 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     if ((sizeof({{INT}}) < sizeof(long))) {
-        long big_r = ((long) a) + ((long) b);
-        {{INT}} r = ({{INT}}) big_r;
-        *overflow |= big_r != r;
-        return r;
+      if ((b > 0) && (a > LONG_MAX - b)
+          || (b < 0) && (a < LONG_MIN - b)) {
+        *overflow |= 1;
+        return 0;
+      }
+      return a + b;
 #ifdef HAVE_LONG_LONG
     } else if ((sizeof({{INT}}) < sizeof(PY_LONG_LONG))) {
-        PY_LONG_LONG big_r = ((PY_LONG_LONG) a) + ((PY_LONG_LONG) b);
-        {{INT}} r = ({{INT}}) big_r;
-        *overflow |= big_r != r;
-        return r;
+      if ((b > 0) && (a > LLONG_MAX - b)
+          || (b < 0) && (a < LLONG_MIN - b)) {
+        *overflow |= 1;
+        return 0;
+      }
+      return a + b;
 #endif
     } else {
         // Signed overflow undefined, but unsigned overflow is well defined. Casting is
@@ -269,16 +273,22 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
     } else if (__Pyx_is_constant(a)) {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
     } else if ((sizeof({{INT}}) < sizeof(long))) {
-        long big_r = ((long) a) * ((long) b);
-        {{INT}} r = ({{INT}}) big_r;
-        *overflow |= big_r != r;
-        return ({{INT}}) r;
+        if ((b == 0)
+            ||(b > 0) && (a > LONG_MAX / b)
+            || (b < 0) && (a < LONG_MIN / b)) {
+          *overflow |= 1;
+          return 0;
+        }
+        return ({{INT}}) a * b;
 #ifdef HAVE_LONG_LONG
     } else if ((sizeof({{INT}}) < sizeof(PY_LONG_LONG))) {
-        PY_LONG_LONG big_r = ((PY_LONG_LONG) a) * ((PY_LONG_LONG) b);
-        {{INT}} r = ({{INT}}) big_r;
-        *overflow |= big_r != r;
-        return ({{INT}}) r;
+        if ((b == 0)
+            ||(b > 0) && (a > LLONG_MAX / b)
+            || (b < 0) && (a < LLONG_MIN / b)) {
+          *overflow |= 1;
+          return 0;
+        }
+        return ({{INT}}) a * b;
 #endif
     } else {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
@@ -304,6 +314,10 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
         *overflow |= a > __PYX_MIN({{INT}}) / b;
         *overflow |= a < __PYX_MAX({{INT}}) / b;
     }
+
+    if (*overflow) {
+      return -1;
+    }
     return ({{INT}}) (((unsigned {{INT}})a) * ((unsigned {{INT}}) b));
 }
 #endif  // defined(__PYX_HAVE_BUILTIN_OVERFLOW)
@@ -313,7 +327,10 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
         *overflow |= 1;
         return 0;
     }
-    *overflow |= a == __PYX_MIN({{INT}}) && b == -1;
+    if (*overflow |= a == __PYX_MIN({{INT}}) && b == -1) {
+      return -1;
+    }
+
     return ({{INT}}) ((unsigned {{INT}}) a / (unsigned {{INT}}) b);
 }
 
