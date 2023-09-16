@@ -343,7 +343,7 @@ def find_versioned_file(directory, filename, suffix,
         versions = _parse_file_version(path)
         if versions:
             int_version = int(versions[0])
-            if suffix == 'pxd':
+            if suffix == '.pxd':
                 # Let's assume no duplicates.
                 if best_match[0] < int_version <= _current_version:
                     best_match = (int_version, path)
