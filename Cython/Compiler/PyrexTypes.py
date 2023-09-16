@@ -207,6 +207,7 @@ class PyrexType(BaseType):
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
+    #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
     #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -280,6 +281,7 @@ class PyrexType(BaseType):
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
+    refcounting_needs_gil = True
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -638,6 +640,7 @@ class MemoryViewSliceType(PyrexType):
         # memoryview and pyobject code could be generated in the same way.
         # However, memoryviews are sufficiently specialized that this doesn't
         # seem practical. Implement a limited version of it for now
+    refcounting_needs_gil = False  # __PYX_XCLEAR_MEMVIEW acquires GIL internally.
     scope = None
 
     # These are special cased in Defnode
