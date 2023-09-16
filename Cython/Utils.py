@@ -309,7 +309,7 @@ def path_exists(path):
 
 
 _pxd_parse_file_version = re.compile(r".*[.]cython-([0-9]+)[.][^./\\]+$").findall
-_so_parse_file_version = re.compile(r".*[.]cpython-([0-9]+)-[^.]+[.][^./\\]+$").findall
+_so_parse_file_version = re.compile(r".*[.]cpython-([0-9]+)[^.]+[.][^./\\]+$").findall
 
 
 @cached_function
