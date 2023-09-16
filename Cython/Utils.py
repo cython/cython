@@ -36,7 +36,7 @@ from functools import wraps
 
 from . import __version__ as cython_version
 
-PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd", '__init__.so', '__init__.*.so')
+PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd", '__init__.so', '__init__.pyd', '__init__.*.so', '__init__.*.pyd')
 
 _build_cache_name = "__{0}_cache".format
 _CACHE_NAME_PATTERN = re.compile(r"^__(.+)_cache$")
@@ -309,7 +309,10 @@ def path_exists(path):
 
 
 _pxd_parse_file_version = re.compile(r".*[.]cython-([0-9]+)[.][^./\\]+$").findall
-_so_parse_file_version = re.compile(r".*[.]cpython-([0-9]+)[^.]+[.][^./\\]+$").findall
+# linux: __init__.cpython-39-darwin.so, __init__.cpython-36m-x86_64-linux-gnu.so
+# windows: __init__.cp35-win_amd64.pyd
+# pypy: __init__.pypy39-pp73-x86_64-linux-gnu.so
+_so_parse_file_version = re.compile(r".*[.][^0-9]+([0-9]+)[^.]+[.][^./\\]+$").findall
 
 
 @cached_function
