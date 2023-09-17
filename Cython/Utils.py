@@ -36,6 +36,7 @@ from functools import wraps
 
 from . import __version__ as cython_version
 
+# When Cython will support only Python >= 3.1 we can be use instead importlib.machinery.EXTENSION_SUFFIXES and importlib.machinery.all_suffixes()
 PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd", '__init__.so', '__init__.pyd', '__init__.*.so', '__init__.*.pyd')
 
 _build_cache_name = "__{0}_cache".format
