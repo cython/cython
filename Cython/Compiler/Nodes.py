@@ -740,8 +740,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     #   for now.
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
-                        self.exception_value = ConstNode(
-                            self.pos, value=return_type.exception_value, type=return_type)
+                        self.exception_value = ConstNode.make_specific_const_node(
+                            self.pos, value=str(return_type.exception_value), type=return_type)
             if self.exception_value:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)
@@ -759,8 +759,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
                         return_type, env).analyse_const_expression(env)
-                    exc_val = self.exception_value.get_constant_c_result_code()
-                    if exc_val is None:
+                    self.exception_value.calculate_constant_result()
+                    exc_val = self.exception_value.constant_result
+                    from .ExprNodes import constant_value_not_set
+                    if exc_val is None or exc_val is constant_value_not_set:
                         error(self.exception_value.pos, "Exception value must be constant")
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,

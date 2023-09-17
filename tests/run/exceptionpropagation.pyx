@@ -133,3 +133,25 @@ def test_ptr_func2(int failure_mode):
             print("NULL")
     except RuntimeError:
         print("exception")
+
+cdef double return_double(double arg, bint fail):
+    if fail:
+        raise RuntimeError
+    return arg
+
+ctypedef double (*func_ptr1)(double, bint) except? -1
+
+def test_return_double(fail):
+    """
+    >>> test_return_double(False)
+    2.0
+    >>> test_return_double(True)
+    exception
+    """
+    # Test that we can assign to the function pointer we expect
+    # https://github.com/cython/cython/issues/5709 - representation of the "-1" was fragile
+    cdef func_ptr1 p1 = return_double
+    try:
+        return p1(2.0, fail)
+    except RuntimeError:
+        print("exception")

@@ -1311,6 +1311,26 @@ class ConstNode(AtomicExprNode):
     def generate_result_code(self, code):
         pass
 
+    @staticmethod
+    def make_specific_const_node(pos, value, type):
+        cls = ConstNode
+        if type is PyrexTypes.c_bint_type:
+            cls = BoolNode
+        elif type is PyrexTypes.c_null_ptr_type or (
+                (value == "NULL" or value == 0) and type.is_ptr):
+            return NullNode(pos)  # value and type are preset here
+        elif type == PyrexTypes.c_char_type:
+            cls = CharNode
+        elif type.is_int:
+            cls = IntNode
+        elif type.is_float:
+            cls = FloatNode
+        elif type is bytes_type:
+            cls = BytesNode
+        elif type is unicode_type:
+            cls = UnicodeNode
+        return cls(pos, value=value, type=type)
+
 
 class BoolNode(ConstNode):
     type = PyrexTypes.c_bint_type
