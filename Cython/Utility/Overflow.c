@@ -233,7 +233,7 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
       if ((b > 0) && (a > LONG_MAX - b)
           || (b < 0) && (a < LONG_MIN - b)) {
         *overflow |= 1;
-        return -1;
+        return 0;
       }
       return a + b;
 #ifdef HAVE_LONG_LONG
@@ -241,7 +241,7 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
       if ((b > 0) && (a > LLONG_MAX - b)
           || (b < 0) && (a < LLONG_MIN - b)) {
         *overflow |= 1;
-        return -1;
+        return 0;
       }
       return a + b;
 #endif
@@ -274,19 +274,19 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
     } else if ((sizeof({{INT}}) < sizeof(long))) {
         if ((b == 0)
-            || (b > 0) && (a > LONG_MAX / b)
+            ||(b > 0) && (a > LONG_MAX / b)
             || (b < 0) && (a < LONG_MIN / b)) {
           *overflow |= 1;
-          return -1;
+          return 0;
         }
         return ({{INT}}) a * b;
 #ifdef HAVE_LONG_LONG
     } else if ((sizeof({{INT}}) < sizeof(PY_LONG_LONG))) {
         if ((b == 0)
-            || (b > 0) && (a > LLONG_MAX / b)
+            ||(b > 0) && (a > LLONG_MAX / b)
             || (b < 0) && (a < LLONG_MIN / b)) {
           *overflow |= 1;
-          return -1;
+          return 0;
         }
         return ({{INT}}) a * b;
 #endif
