@@ -332,8 +332,8 @@ def find_versioned_file(directory, filename, suffix,
     if suffix == '.pxd':
         matching_files = glob.glob(path_prefix + ".cython-*" + suffix)
         _parse_file_version = _pxd_parse_file_version
-    elif suffix == '.so':
-        matching_files = glob.glob(path_prefix + ".cpython-*" + suffix)
+    elif suffix == '.so' or suffix == '.pyd':
+        matching_files = glob.glob(path_prefix + ".*-*" + suffix)
         _parse_file_version = _so_parse_file_version
     else:
         matching_files = []

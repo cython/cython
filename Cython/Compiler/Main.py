@@ -252,7 +252,7 @@ class Context(object):
                         Utils.is_package_file(
                             self.search_include_directories(
                                 qualified_name, suffix=s, source_pos=pos)
-                        ) for s in [".py", ".so"]
+                        ) for s in [".py", ".so", ".pyd"]
                     ):
                         pass
                     else:
