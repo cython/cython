@@ -2652,7 +2652,7 @@ class CFuncDefNode(FuncDefNode):
                   "Function with optional arguments may not be declared public or api")
 
         if typ.exception_check == '+' and self.visibility != 'extern':
-            if typ.exception_value and typ.exception_value.is_name:
+            if typ.exception_value is not None and typ.exception_value.is_name:
                 # it really is impossible to reason about what the user wants to happens
                 # if they've specified a C++ exception translation function. Therefore,
                 # raise an error.

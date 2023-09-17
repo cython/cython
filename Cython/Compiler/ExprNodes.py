@@ -615,6 +615,7 @@ class ExprNode(Node):
         # This can be either a Python constant or a string
         # for types that can't be represented by a Python constant
         # (e.g. enums)
+        #import pdb; pdb.set_trace()
         result = None
         with local_errors(ignore=True):
             result = self.compile_time_value(env)
@@ -6430,7 +6431,7 @@ class SimpleCallNode(CallNode):
 
     def is_c_result_required(self):
         func_type = self.function_type()
-        if not func_type.exception_value or func_type.exception_check == '+':
+        if func_type.exception_value is None or func_type.exception_check == '+':
             return False  # skip allocation of unused result temp
         return True
 
