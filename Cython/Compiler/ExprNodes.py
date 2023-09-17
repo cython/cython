@@ -615,7 +615,6 @@ class ExprNode(Node):
         # This can be either a Python constant or a string
         # for types that can't be represented by a Python constant
         # (e.g. enums)
-        #import pdb; pdb.set_trace()
         result = None
         with local_errors(ignore=True):
             result = self.compile_time_value(env)
@@ -1334,28 +1333,24 @@ class ConstNode(AtomicExprNode):
     @staticmethod
     def for_type(pos, value, type):
         cls = ConstNode
-        needs_type_arg = False
         if type is PyrexTypes.c_bint_type:
             cls = BoolNode
         elif type is PyrexTypes.c_null_ptr_type or (
                 (value == "NULL" or value == 0) and type.is_ptr):
             return NullNode(pos)  # value and type are preset here
-        elif type == PyrexTypes.c_char_type:
-            cls = CharNode
+        # char node is deliberately skipped and treated as IntNode
         elif type.is_int:
             cls = IntNode
-            needs_type_arg = True
         elif type.is_float:
             cls = FloatNode
-            needs_type_arg = True
         elif type is bytes_type:
             cls = BytesNode
         elif type is unicode_type:
             cls = UnicodeNode
-        if needs_type_arg:
-            return cls(pos, value=value, type=type)
-        else:
+        if cls.type is type:
             return cls(pos, value=value)
+        else:
+            return cls(pos, value=value, type=type)
 
 
 class BoolNode(ConstNode):

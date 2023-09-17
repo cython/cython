@@ -755,7 +755,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
                               "Exception value must be a Python exception, or C++ function with no arguments, or *.")
-                    exc_val = self.exception_value.as_exception_value(env)
+                    exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
                         return_type, env).analyse_const_expression(env)
@@ -3124,7 +3124,7 @@ class DefNode(FuncDefNode):
         if exception_value is None and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
             exception_value = ConstNode.for_type(
-                self.pos, value=cfunc_type.exception_value, type=cfunc_type.return_type)
+                self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,

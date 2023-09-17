@@ -193,3 +193,20 @@ def test_enum2(fail):
         return return_enum2(fail) == E2
     except RuntimeError:
         print("exception")
+
+cdef char return_char(fail) except 'a':
+    if fail:
+        raise RuntimeError
+    return 'b'
+
+def test_return_char(fail):
+    """
+    >>> test_return_char(False)
+    'b'
+    >>> test_return_char(True)
+    exception
+    """
+    try:
+        return chr(return_char(fail))
+    except RuntimeError:
+        print("exception")
