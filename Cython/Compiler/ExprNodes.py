@@ -1333,13 +1333,14 @@ class ConstNode(AtomicExprNode):
     @staticmethod
     def for_type(pos, value, type):
         cls = ConstNode
-        if type is PyrexTypes.c_bint_type:
-            cls = BoolNode
-        elif type is PyrexTypes.c_null_ptr_type or (
+        if type is PyrexTypes.c_null_ptr_type or (
                 (value == "NULL" or value == 0) and type.is_ptr):
             return NullNode(pos)  # value and type are preset here
         # char node is deliberately skipped and treated as IntNode
-        elif type.is_int:
+        elif type.is_int or PyrexTypes.c_bint_type:
+            # use this instead of BoolNode for c_bint_type because
+            # BoolNode handles values differently to most other ConstNode
+            # derivatives (they aren't strings).
             cls = IntNode
         elif type.is_float:
             cls = FloatNode
@@ -1361,9 +1362,7 @@ class BoolNode(ConstNode):
         self.constant_result = self.value
 
     def compile_time_value(self, denv):
-        # Note that this may be something other than 1 or 0, because
-        # 'bint' error codes can pick a different number
-        return int(self.value)
+        return self.value
 
     def calculate_result_code(self):
         if self.type.is_pyobject:
