@@ -229,18 +229,23 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
 #else
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+#if defined __has_builtin && __has_builtin(__builtin_add_overflow)
+      {{INT}} result;
+      *overflow = __builtin_add_overflow(a, b, &result);
+      return result;
+#else
     if ((sizeof({{INT}}) < sizeof(long))) {
         long big_r = ((long) a) + ((long) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return r;
-#ifdef HAVE_LONG_LONG
+#  ifdef HAVE_LONG_LONG
     } else if ((sizeof({{INT}}) < sizeof(PY_LONG_LONG))) {
         PY_LONG_LONG big_r = ((PY_LONG_LONG) a) + ((PY_LONG_LONG) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return r;
-#endif
+#  endif
     } else {
         // Signed overflow undefined, but unsigned overflow is well defined. Casting is
         // implementation-defined, but we assume two's complement (see __Pyx_check_twos_complement
@@ -251,18 +256,30 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
         *overflow |= (((unsigned {{INT}})a ^ r) & ((unsigned {{INT}})b ^ r)) >> (8 * sizeof({{INT}}) - 1);
         return ({{INT}}) r;
     }
+#endif
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+#if defined __has_builtin && __has_builtin(__builtin_sub_overflow)
+      {{INT}} result;
+      *overflow = __builtin_sub_overflow(a, b, &result);
+      return result;
+#else
     // Compilers don't handle widening as well in the subtraction case, so don't bother
     unsigned {{INT}} r = (unsigned {{INT}}) a - (unsigned {{INT}}) b;
     // Overflow happened if the operands differing signs, and the result
     // has opposite sign to a.
     *overflow |= (((unsigned {{INT}})a ^ (unsigned {{INT}})b) & ((unsigned {{INT}})a ^ r)) >> (8 * sizeof({{INT}}) - 1);
     return ({{INT}}) r;
+#endif
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+#if defined __has_builtin && __has_builtin(__builtin_mul_overflow)
+      {{INT}} result;
+      *overflow = __builtin_mul_overflow(a, b, &result);
+      return result;
+#else
     // if we have a constant, use the constant version
     if (__Pyx_is_constant(b)) {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
@@ -273,16 +290,17 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return ({{INT}}) r;
-#ifdef HAVE_LONG_LONG
+#  ifdef HAVE_LONG_LONG
     } else if ((sizeof({{INT}}) < sizeof(PY_LONG_LONG))) {
         PY_LONG_LONG big_r = ((PY_LONG_LONG) a) * ((PY_LONG_LONG) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return ({{INT}}) r;
-#endif
+#  endif
     } else {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
     }
+#endif
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
