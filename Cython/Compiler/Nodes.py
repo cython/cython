@@ -3127,7 +3127,7 @@ class DefNode(FuncDefNode):
 
         if exception_value is None and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
-            exception_value = ConstNode(
+            exception_value = ConstNode.make_specific_const_node(
                 self.pos, value=cfunc_type.exception_value, type=cfunc_type.return_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
