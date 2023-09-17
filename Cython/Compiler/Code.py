@@ -1847,8 +1847,6 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        if s.find("__pyx_v_self->to_dtype_func(__pyx_v_itemp, __pyx_v_value); if (unlikely(None == ((int)0)))") != -1:
-            import pdb; pdb.set_trace()
         if '\n' in s:
             self._write_lines(s)
         else:
