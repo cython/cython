@@ -1081,9 +1081,6 @@ class ExprNode(Node):
             # is enough, but Cython gets confused when the types are
             # in different pxi files.
             # TODO: Remove this hack and require shared declarations.
-            #if not (src.type == dst_type or str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
-            #    import pdb; pdb.set_trace()
-            #    dst_type.assignable_from(src_type)
             if not (src.type == dst_type or str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 self.fail_assignment(dst_type)
         return src

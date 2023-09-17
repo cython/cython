@@ -175,20 +175,12 @@ class FusedCFuncDefNode(StatListNode):
                           entry.is_cmethod)
 
             exception_value_node = copied_node.cfunc_declarator.exception_value
-            import pdb; pdb.set_trace()
             if (exception_value_node and
                     isinstance(exception_value_node, UtilNodes.SpecializableExceptionValueNode)):
                 # Reset the declarator exception value and re-analyse to get the correct
                 # exception value for the specialized function.
                 exception_value_node = exception_value_node.specialize(fused_to_specific, env)
                 copied_node.cfunc_declarator.exception_value = exception_value_node
-                if exception_value_node is not None:
-                    exc_value = exception_value_node.get_constant_c_result_code()
-                else:
-                    exc_value = None
-                # may have been updated
-                entry.type = type = copied_node.type = type.update(
-                    exception_value=exc_value)
 
             if self.node.cfunc_declarator.optional_arg_count:
                 self.node.cfunc_declarator.declare_optional_arg_struct(

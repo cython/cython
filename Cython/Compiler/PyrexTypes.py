@@ -7,7 +7,6 @@ from __future__ import absolute_import
 import copy
 import hashlib
 import re
-from typing import Any
 
 try:
     reduce
@@ -1858,6 +1857,19 @@ class _FusedExceptionValuePlaceholderType(object):
 
 fused_type_exception_value_placeholder = _FusedExceptionValuePlaceholderType()
 
+class FusedExceptionTypeOptions(object):
+    """
+    constant_results is a dictionary mapping fused types to their
+    their specialized exception values. It's used when specializing
+    function types because it's easiest to work out all the
+    strings before the fused type is specialized
+    """
+    def __init__(self, constant_results):
+        self.constant_results = constant_results
+
+    def specialize(self, tp):
+        return self.constant_results[tp]
+
 class FusedType(CType):
     """
     Represents a Fused Type. All it needs to do is keep track of the types
@@ -3059,6 +3071,8 @@ class CFuncType(CType):
             is_const_method = False, is_static_method=False,
             templates = None, is_strict_signature = False):
         # if the signature of __init__ changes, update "update" too
+        if len(args) == 2 and exception_value and return_type is c_double_type:
+            import pdb; pdb.set_trace()
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -3350,10 +3364,14 @@ class CFuncType(CType):
         return '(%s)' % s
 
     def specialize(self, values):
-        result = CFuncType(self.return_type.specialize(values),
+        return_type = self.return_type.specialize(values)
+        exception_value = self.exception_value
+        if isinstance(exception_value, FusedExceptionTypeOptions):
+            exception_value = exception_value.specialize(return_type)
+        result = CFuncType(return_type,
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
-                           exception_value = self.exception_value,
+                           exception_value = exception_value,
                            exception_check = self.exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,

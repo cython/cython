@@ -10,7 +10,8 @@ from . import Nodes
 from . import ExprNodes
 from .Nodes import Node
 from .ExprNodes import AtomicExprNode
-from .PyrexTypes import c_ptr_type, c_bint_type
+from .PyrexTypes import c_ptr_type, c_bint_type, CType, FusedExceptionTypeOptions
+from .Errors import error
 
 
 class TempHandle(object):
@@ -392,12 +393,38 @@ class SpecializableExceptionValueNode(AtomicExprNode):
     """
     Used as a temporary exception_value for a fused function
     """
+    def make_const_node_for_type(self, tp, env):
+        if not isinstance(tp, CType):
+            # Python type or similar, that doesn't have an exception value
+            return None
+        return ExprNodes.ConstNode(
+            self.pos,
+            value = tp.exception_value,
+            type = tp
+        ).analyse_types(env)
+
     def analyse_types(self, env):
+        self.const_nodes = {
+            tp: self.make_const_node_for_type(tp, env) for tp in self.type.types
+        }
         return self
+    
+    def coerce_to(self, dst_type, env):
+        if dst_type == self.type:
+            return self  # nothing to do    
+        # Otherwise, fall back to the base class (which we expect will fail)
+        return super(SpecializableExceptionValueNode, self).coerce_to(dst_type, env)
+    
+    def check_const(self):
+        return True
+    
+    def get_constant_c_result_code(self):
+        return FusedExceptionTypeOptions({
+            tp: const_node.get_constant_c_result_code() if const_node else None
+            for tp, const_node in self.const_nodes.items()
+        })
 
     def specialize(self, fused_to_specific, env):
         specialized_return_type = fused_to_specific[self.type]
-        if specialized_return_type.exception_value is not None:
-            return ExprNodes.ConstNode(
-                self.pos, value=specialized_return_type.exception_value, type=specialized_return_type
-            ).analyse_const_expression(env)
+        specialized_node = self.const_nodes[specialized_return_type]
+        return specialized_node
