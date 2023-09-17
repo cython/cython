@@ -1361,7 +1361,9 @@ class BoolNode(ConstNode):
         self.constant_result = self.value
 
     def compile_time_value(self, denv):
-        return self.value
+        # Note that this may be something other than 1 or 0, because
+        # 'bint' error codes can pick a different number
+        return int(self.value)
 
     def calculate_result_code(self):
         if self.type.is_pyobject:
