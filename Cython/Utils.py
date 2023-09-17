@@ -273,6 +273,7 @@ def is_package_dir(dir_path):
     if contains_init(dir_path):
         return 1
 
+@cached_function
 def is_package_file(file_path):
     if file_path is None:
         return False
