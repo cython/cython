@@ -155,3 +155,41 @@ def test_return_double(fail):
         return p1(2.0, fail)
     except RuntimeError:
         print("exception")
+
+cdef enum E:
+    E1
+    E2
+
+cdef E return_enum1(bint fail) except? E.E1:
+    if fail:
+        raise RuntimeError
+    return E.E2
+
+cdef E return_enum2(bint fail) except? E1:
+    if fail:
+        raise RuntimeError
+    return E.E2
+
+def test_enum1(fail):
+    """
+    >>> test_enum1(False)
+    True
+    >>> test_enum1(True)
+    exception
+    """
+    try:
+        return return_enum1(fail) == E2
+    except RuntimeError:
+        print("exception")
+
+def test_enum2(fail):
+    """
+    >>> test_enum2(False)
+    True
+    >>> test_enum2(True)
+    exception
+    """
+    try:
+        return return_enum2(fail) == E2
+    except RuntimeError:
+        print("exception")

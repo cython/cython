@@ -740,7 +740,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     #   for now.
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
-                        self.exception_value = ConstNode.make_specific_const_node(
+                        self.exception_value = ConstNode.for_type(
                             self.pos, value=str(return_type.exception_value), type=return_type)
             if self.exception_value:
                 if self.exception_check == '+':
@@ -755,15 +755,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
                               "Exception value must be a Python exception, or C++ function with no arguments, or *.")
-                    exc_val = self.exception_value
+                    exc_val = self.exception_value.as_exception_value(env)
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
                         return_type, env).analyse_const_expression(env)
-                    self.exception_value.calculate_constant_result()
-                    exc_val = self.exception_value.constant_result
-                    from .ExprNodes import constant_value_not_set
-                    if exc_val is None or exc_val is constant_value_not_set:
-                        error(self.exception_value.pos, "Exception value must be constant")
+                    exc_val = self.exception_value.as_exception_value(env)
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                               "Exception value incompatible with function return type")
@@ -3127,7 +3123,7 @@ class DefNode(FuncDefNode):
 
         if exception_value is None and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
-            exception_value = ConstNode.make_specific_const_node(
+            exception_value = ConstNode.for_type(
                 self.pos, value=cfunc_type.exception_value, type=cfunc_type.return_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),

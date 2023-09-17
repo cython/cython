@@ -610,6 +610,25 @@ class ExprNode(Node):
         error(self.pos, "Error in compile-time expression: %s: %s" % (
             e.__class__.__name__, e))
 
+    def as_exception_value(self, env):
+        # Return the compile_time_value if possible.
+        # This can be either a Python constant or a string
+        # for types that can't be represented by a Python constant
+        # (e.g. enums)
+        result = None
+        with local_errors(ignore=True):
+            result = self.compile_time_value(env)
+        if isinstance(result, Symtab.Entry):
+            result = result.cname
+        if result is None:
+            # this isn't the preferred fallback because it can end up with
+            # hard to distinguish between identical types, e.g. -1.0 vs -1
+            # for floats. However, it lets things like NULL and typecasts work
+            result = self.get_constant_c_result_code()
+        if result is not None:
+            return result
+        error(self.pos, "Exception value must be constant")
+
     # ------------- Declaration Analysis ----------------
 
     def analyse_target_declaration(self, env):
@@ -1312,8 +1331,9 @@ class ConstNode(AtomicExprNode):
         pass
 
     @staticmethod
-    def make_specific_const_node(pos, value, type):
+    def for_type(pos, value, type):
         cls = ConstNode
+        needs_type_arg = False
         if type is PyrexTypes.c_bint_type:
             cls = BoolNode
         elif type is PyrexTypes.c_null_ptr_type or (
@@ -1323,13 +1343,18 @@ class ConstNode(AtomicExprNode):
             cls = CharNode
         elif type.is_int:
             cls = IntNode
+            needs_type_arg = True
         elif type.is_float:
             cls = FloatNode
+            needs_type_arg = True
         elif type is bytes_type:
             cls = BytesNode
         elif type is unicode_type:
             cls = UnicodeNode
-        return cls(pos, value=value, type=type)
+        if needs_type_arg:
+            return cls(pos, value=value, type=type)
+        else:
+            return cls(pos, value=value)
 
 
 class BoolNode(ConstNode):
