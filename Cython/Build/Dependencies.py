@@ -13,7 +13,6 @@ import re, sys, time
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
-from distutils.extension import Extension
 import zipfile
 
 try:
@@ -782,8 +781,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
 
-    # workaround for setuptools
+    from distutils.extension import Extension
     if 'setuptools' in sys.modules:
+        # Support setuptools Extension instances as well.
         extension_classes = (
             Extension,  # should normally be the same as 'setuptools.extension._Extension'
             sys.modules['setuptools.extension']._Extension,
