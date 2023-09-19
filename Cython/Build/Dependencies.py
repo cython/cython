@@ -219,9 +219,9 @@ def _legacy_strtobool(val):
     import warnings
     warnings.warn("The 'np_python' option requires 'True' or 'False'", category=DeprecationWarning)
     val = val.lower()
-    if val in ('y', 'yes', 't', 'on', '1'):
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
         return True
-    elif val in ('n', 'no', 'f', 'off', '0'):
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
         return False
     else:
         raise ValueError("invalid truth value %r" % (val,))
