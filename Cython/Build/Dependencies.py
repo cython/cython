@@ -21,19 +21,6 @@ except ImportError:
     from collections import Iterable
 
 try:
-    from distutils.util import strtobool
-except ImportError:
-    def strtobool(val):
-        """Convert a string representation of truth to true (1) or false (0)."""
-        val = val.lower()
-        if val in ('y', 'yes', 't', 'true', 'on', '1'):
-            return 1
-        elif val in ('n', 'no', 'f', 'false', 'off', '0'):
-            return 0
-        else:
-            raise ValueError("invalid truth value {!r}".format(val))
-
-try:
     import gzip
     gzip_open = gzip.open
     gzip_ext = '.gz'
@@ -221,6 +208,24 @@ distutils_settings = {
 }
 
 
+def _legacy_strtobool(val):
+    # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
+    if val == "True":
+        return True
+    elif val == "False":
+        return False
+
+    import warnings
+    warnings.warn("The 'np_python' option requires 'True' or 'False'", category=DeprecationWarning)
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'off', '0'):
+        return False
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
+
+
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
     if isinstance(source, basestring):
@@ -261,7 +266,7 @@ class DistutilsInfo(object):
                                      if '=' in macro else (macro, None)
                                      for macro in value]
                     if type is bool_or:
-                        value = strtobool(value)
+                        value = _legacy_strtobool(value)
                     self.values[key] = value
         elif exn is not None:
             for key in distutils_settings:
