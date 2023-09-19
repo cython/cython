@@ -5497,6 +5497,10 @@ class CClassDefNode(ClassDefNode):
             scope.doc = embed_position(self.pos, self.doc)
 
         if has_body:
+            properties = {}
+            for stat in self.body.stats:
+                if isinstance(stat, FuncDefNode):
+                    stat._properties = properties  # deliberately shared between them
             self.body.analyse_declarations(scope)
             dict_entry = self.scope.lookup_here("__dict__")
             if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
@@ -5506,6 +5510,11 @@ class CClassDefNode(ClassDefNode):
                 scope.defined = 1
             else:
                 scope.implemented = 1
+            for stat in self.body.stats:
+                if isinstance(stat, FuncDefNode):
+                    del stat._properties
+            for prop in properties.values():
+                prop.analyse_declarations(scope)
 
         if len(self.bases.args) > 1:
             if not has_body or self.in_pxd:
