@@ -208,7 +208,6 @@ class PyrexType(BaseType):
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
-    #  refcounting_tracked_by_refnanny  boolean   Reference counting can be verified by refnanny
     #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -283,7 +282,6 @@ class PyrexType(BaseType):
     needs_cpp_construction = 0
     needs_refcounting = 0
     refcounting_needs_gil = True
-    refcounting_tracked_by_refnanny = False
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -1255,7 +1253,6 @@ class PyObjectType(PyrexType):
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
     needs_refcounting = True
-    refcounting_tracked_by_refnanny = True
 
     def __str__(self):
         return "Python object"
@@ -1317,12 +1314,16 @@ class PyObjectType(PyrexType):
 
     def generate_incref(self, code, cname, nanny):
         if nanny:
+            if code.funcstate:
+                code.funcstate.needs_refnanny = True
             code.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname))
         else:
             code.putln("Py_INCREF(%s);" % self.as_pyobject(cname))
 
     def generate_xincref(self, code, cname, nanny):
         if nanny:
+            if code.funcstate:
+                code.funcstate.needs_refnanny = True
             code.putln("__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
         else:
             code.putln("Py_XINCREF(%s);" % self.as_pyobject(cname))
@@ -1348,27 +1349,42 @@ class PyObjectType(PyrexType):
                          clear=True, clear_before_decref=clear_before_decref)
 
     def generate_gotref(self, code, cname):
+        if code.funcstate:
+            code.funcstate.needs_refnanny = True
         code.putln("__Pyx_GOTREF(%s);" % self.as_pyobject(cname))
 
     def generate_xgotref(self, code, cname):
+        if code.funcstate:
+            code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XGOTREF(%s);" % self.as_pyobject(cname))
 
     def generate_giveref(self, code, cname):
+        if code.funcstate:
+            code.funcstate.needs_refnanny = True
         code.putln("__Pyx_GIVEREF(%s);" % self.as_pyobject(cname))
 
     def generate_xgiveref(self, code, cname):
+        if code.funcstate:
+            code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname))
 
     def generate_decref_set(self, code, cname, rhs_cname):
+        if code.funcstate:
+            code.funcstate.needs_refnanny = True
         code.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
 
     def generate_xdecref_set(self, code, cname, rhs_cname):
+        if code.funcstate:
+            code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
 
     def _generate_decref(self, code, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):
         prefix = '__Pyx' if nanny else 'Py'
         X = 'X' if null_check else ''
+
+        if code.funcstate:
+            code.funcstate.needs_refnanny = code.funcstate.needs_refnanny or nanny
 
         if clear:
             if clear_before_decref:
