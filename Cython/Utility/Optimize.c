@@ -833,11 +833,19 @@ static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
     return __Pyx__PyBytes_AsDouble(obj, as_c_string, size);
 }
 static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
+    char* as_c_string;
+    Py_ssize_t size;
 #if CYTHON_ASSUME_SAFE_MACROS
-    return __Pyx__PyBytes_AsDouble(obj, PyByteArray_AS_STRING(obj), PyByteArray_GET_SIZE(obj));
+    as_c_string = PyByteArray_AS_STRING(obj);
+    size = PyByteArray_GET_SIZE(obj);
 #else
-    return __Pyx__PyBytes_AsDouble(obj, PyByteArray_AsString(obj), PyByteArray_Size(obj));
+    as_c_string = PyByteArray_AsString(obj);
+    if (as_c_string == NULL) {
+        return (double)-1;
+    }
+    size = PyByteArray_Size(obj);
 #endif
+    return __Pyx__PyBytes_AsDouble(obj, as_c_string, size);
 }
 
 
