@@ -1,5 +1,5 @@
 cdef extern from "C_func_file.c":
-    # C is include here so that it doesn't need to be compiled externally
+    # The C file is include directly so that it doesn't need to be compiled separately.
     pass
 
 cdef extern from "C_func_file.h":
