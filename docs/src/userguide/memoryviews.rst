@@ -642,7 +642,7 @@ specified contiguous:
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.pyx
-            :lines: 2-11
+            :lines: 2-12
 
 The difference between the ``contiguous`` flag and the ``::1`` specifier is that the
 former specifies contiguity for only one dimension, whereas the latter specifies
