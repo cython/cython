@@ -113,10 +113,11 @@ They also work conveniently as function arguments:
             def process_3d_buffer(int[:,:,:] view not None):
                 ...
 
-The ``not None`` declaration for the argument automatically rejects
-``None`` values as input, which would otherwise be allowed.  The reason why
+The Cython ``not None`` declaration for the argument automatically rejects
+``None`` values as input, which would otherwise be allowed. The reason why
 ``None`` is allowed by default is that it is conveniently used for return
-arguments:
+arguments. On the other hand, when pure python mode is used, ``None`` value
+is rejected by default. It is allowed only when type is declared as ``Optional``:
 
 .. tabs::
 
