@@ -29,13 +29,14 @@ import re
 import io
 import codecs
 import glob
+import fnmatch
 import shutil
 import tempfile
 from functools import wraps
 
 from . import __version__ as cython_version
 
-PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
+PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd", '__init__.so', '__init__.pyd', '__init__.*.so', '__init__.*.pyd')
 
 _build_cache_name = "__{0}_cache".format
 _CACHE_NAME_PATTERN = re.compile(r"^__(.+)_cache$")
@@ -264,15 +265,24 @@ def check_package_dir(dir_path, package_names):
 @cached_function
 def contains_init(dir_path):
     for filename in PACKAGE_FILES:
-        path = os.path.join(dir_path, filename)
-        if path_exists(path):
+        paths = glob.glob(os.path.join(dir_path, filename))
+        if paths:
             return 1
-
 
 def is_package_dir(dir_path):
     if contains_init(dir_path):
         return 1
 
+@cached_function
+def is_package_file(file_path):
+    if file_path is None:
+        return False
+    filename = os.path.basename(file_path)
+    for package_file in PACKAGE_FILES:
+        regex = fnmatch.translate(package_file)
+        if re.match(regex, filename):
+            return True
+    return False
 
 @cached_function
 def path_exists(path):
@@ -299,7 +309,11 @@ def path_exists(path):
     return False
 
 
-_parse_file_version = re.compile(r".*[.]cython-([0-9]+)[.][^./\\]+$").findall
+_pxd_parse_file_version = re.compile(r".*[.]cython-([0-9]+)[.][^./\\]+$").findall
+# linux: __init__.cpython-39-darwin.so, __init__.cpython-36m-x86_64-linux-gnu.so
+# windows: __init__.cp35-win_amd64.pyd
+# pypy: __init__.pypy39-pp73-x86_64-linux-gnu.so
+_so_parse_file_version = re.compile(r".*[.][^0-9]+([0-9]+)[^.]+[.][^./\\]+$").findall
 
 
 @cached_function
@@ -316,7 +330,14 @@ def find_versioned_file(directory, filename, suffix,
     assert not suffix or suffix[:1] == '.'
     path_prefix = os.path.join(directory, filename)
 
-    matching_files = glob.glob(path_prefix + ".cython-*" + suffix)
+    if suffix == '.pxd':
+        matching_files = glob.glob(path_prefix + ".cython-*" + suffix)
+        _parse_file_version = _pxd_parse_file_version
+    elif suffix == '.so' or suffix == '.pyd':
+        matching_files = glob.glob(path_prefix + ".*-*" + suffix)
+        _parse_file_version = _so_parse_file_version
+    else:
+        matching_files = []
     path = path_prefix + suffix
     if not os.path.exists(path):
         path = None
@@ -326,9 +347,14 @@ def find_versioned_file(directory, filename, suffix,
         versions = _parse_file_version(path)
         if versions:
             int_version = int(versions[0])
-            # Let's assume no duplicates.
-            if best_match[0] < int_version <= _current_version:
+            if suffix == '.pxd':
+                # Let's assume no duplicates.
+                if best_match[0] < int_version <= _current_version:
+                    best_match = (int_version, path)
+            else:
+                # We pick first .so file available
                 best_match = (int_version, path)
+                break
     return best_match[1]
 
 

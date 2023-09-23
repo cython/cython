@@ -5,11 +5,20 @@ PYTHON setup.py build_ext --inplace
 PYTHON -c "import pkg_py"
 PYTHON -c "import pkg_py.pkg_pyx"
 PYTHON -c "import pkg_py.pkg_pyx.module as module; module.run_test()"
+PYTHON -c "import so_module; so_module.run_test()"
 
 ######## setup.py ########
 
+import os
 from distutils.core import setup
 from Cython.Build import cythonize
+
+setup(
+    ext_modules=cythonize('pkg_so/__init__.py', language_level=3),
+)
+
+# Leave only __init__.so file to test #2886
+os.remove('pkg_so/__init__.py')
 
 setup(
     ext_modules=cythonize('**/*.pyx', language_level=3),
@@ -41,3 +50,17 @@ def run_test():
     assert pkg_py.pkg_pyx.TYPE == 'pyx'
 
     assert fabs(-2.0) == 2.0
+
+######### pkg_so/__init__.py ########
+
+######### pkg_so/pkg_module.pxd ########
+
+ctypedef unsigned long ULong
+
+######### so_module.pyx ########
+
+from pkg_so cimport pkg_module
+
+def run_test():
+    cdef pkg_module.ULong a = 5
+    assert a == 5
