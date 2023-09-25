@@ -190,6 +190,8 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
     tmp_value = tstate->current_exception;
     tstate->current_exception = value;
     Py_XDECREF(tmp_value);
+    Py_XDECREF(tb);
+    Py_XDECREF(type);
 #else
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     tmp_type = tstate->curexc_type;
