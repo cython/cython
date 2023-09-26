@@ -179,7 +179,6 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
 #if PY_VERSION_HEX >= 0x030C00A6
     PyObject *tmp_value;
     assert(type == NULL || (value != NULL && type == (PyObject*) Py_TYPE(value)));
-    CYTHON_UNUSED_VAR(type);
     if (value) {
         #if CYTHON_COMPILING_IN_CPYTHON
         if (unlikely(((PyBaseExceptionObject*) value)->traceback != tb))
@@ -190,8 +189,8 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
     tmp_value = tstate->current_exception;
     tstate->current_exception = value;
     Py_XDECREF(tmp_value);
-    Py_XDECREF(tb);
     Py_XDECREF(type);
+    Py_XDECREF(tb);
 #else
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     tmp_type = tstate->curexc_type;
