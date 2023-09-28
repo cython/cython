@@ -990,13 +990,19 @@ Cython code.  Here is the list of currently supported directives:
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
 
+``fused_types_arbitrary_decorators`` (True / False)
+    When applying arbitrary decorators to methods of an extension type it is not
+    guaranteed that the first argument is an instance of the extension type.
+    This experimental option (off by default) changes the function to a fused
+    function to try to handle both cases and thus allow more flexible use of
+    decorators, at the cost of some performance.
+
 ``legacy_implicit_noexcept`` (True / False)
     When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
     the function will behave in the same way as if declared with `noexcept` keyword. See
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
-
 
 .. _configurable_optimisations:
 

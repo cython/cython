@@ -1850,6 +1850,8 @@ class FuncDefNode(StatNode, BlockNode):
     #       Whether this cdef function has fused parameters. This is needed
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
+    #  self_type_overridden   boolean   The type of the "self" argument has been overridden
+    #                                  and so shouldn't be automatically inferred
 
     py_func = None
     needs_closure = False
@@ -1868,6 +1870,7 @@ class FuncDefNode(StatNode, BlockNode):
     is_cyfunction = False
     code_object = None
     return_type_annotation = None
+    self_type_overridden = False
 
     outer_attrs = None  # overridden by some derived classes - to be visited outside the node's scope
 
@@ -1898,7 +1901,7 @@ class FuncDefNode(StatNode, BlockNode):
         if self.return_type_annotation:
             self.return_type_annotation = self.return_type_annotation.analyse_types(env)
 
-    def align_argument_type(self, env, arg):
+    def align_argument_type(self, env, arg, maybe_self):
         # @cython.locals()
         directive_locals = self.directive_locals
         orig_type = arg.type
@@ -1919,6 +1922,11 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
+            if maybe_self:
+                # Ideally we'd check the signature to see if it's self, but that isn't
+                # initialized yet. However, it doesn't matter if "self_type_overridden" is
+                # set when there isn't a self argument, so set it for any first argument
+                self.self_type_overridden = True
             if arg.type.is_complex:
                 # utility code for complex types is special-cased and also important to ensure that it's run
                 arg.type.create_declaration_utility_code(env)
@@ -2664,8 +2672,10 @@ class CFuncDefNode(FuncDefNode):
                 warning(self.pos,
                     "Only extern functions can throw C++ exceptions.", 2)
 
+        first_arg = True
         for formal_arg, type_arg in zip(self.args, typ.args):
-            self.align_argument_type(env, type_arg)
+            self.align_argument_type(env, type_arg, maybe_self=first_arg)
+            first_arg = False
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
@@ -3034,8 +3044,6 @@ class DefNode(FuncDefNode):
     #                                   (in case this is a specialization)
     #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
     #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
-    #
-    # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
     outer_attrs = ["decorators", "return_type_annotation"]
@@ -3056,6 +3064,8 @@ class DefNode(FuncDefNode):
     requires_classobj = False
     defaults_struct = None  # Dynamic kwrds structure name
     doc = None
+    is_in_arbitrary_decorator = False  # only relevant for functions in cdef classes
+    is_transformed_to_property = False  # useful for a single warning message
 
     fused_py_func = False
     specialized_cpdefs = None
@@ -3163,18 +3173,30 @@ class DefNode(FuncDefNode):
 
     def analyse_declarations(self, env):
         if self.decorators:
-            for decorator in self.decorators:
-                func = decorator.decorator
-                if func.is_name:
-                    self.is_classmethod |= func.name == 'classmethod'
-                    self.is_staticmethod |= func.name == 'staticmethod'
+            # should only apply to functions outside cdef classes
+            # because decorators inside a cdef class are transformed earlier
 
-        if self.is_classmethod and env.lookup_here('classmethod'):
-            # classmethod() was overridden - not much we can do here ...
-            self.is_classmethod = False
-        if self.is_staticmethod and env.lookup_here('staticmethod'):
-            # staticmethod() was overridden - not much we can do here ...
-            self.is_staticmethod = False
+            # only test the innermost decorator for classmethod
+            # and static method - anything else will have to be
+            # fed to the relevant builtin functions
+            decorator = self.decorators[-1]
+            func = decorator.decorator
+            if func.is_name:
+                self.is_classmethod |= func.name == 'classmethod'
+                self.is_staticmethod |= func.name == 'staticmethod'
+        if self.is_classmethod:
+            cm_entry = env.lookup('classmethod')
+            if cm_entry and cm_entry.cname != "__Pyx_Method_ClassMethod":
+                # classmethod() was overridden - not much we can do here ...
+                self.is_classmethod = False
+        if self.is_staticmethod:
+            sm_entry = env.lookup('staticmethod')
+            if sm_entry and not sm_entry.is_builtin:
+                # staticmethod() was overridden - not much we can do here ...
+                self.is_staticmethod = False
+        if self.is_transformed_to_property and env.lookup('property'):
+            warning(self.pos, "Re-assignment of name 'property' was ignored when "
+                    "function was transformed to property of cdef class", 1)
 
         if env.is_py_class_scope or env.is_c_class_scope:
             if self.name == '__new__' and env.is_py_class_scope:
@@ -3223,7 +3245,7 @@ class DefNode(FuncDefNode):
         f2s = env.fused_to_specific
         env.fused_to_specific = None
 
-        for arg in self.args:
+        for n, arg in enumerate(self.args):
             if hasattr(arg, 'name'):
                 name_declarator = None
             else:
@@ -3240,7 +3262,7 @@ class DefNode(FuncDefNode):
                 arg.name = name_declarator.name
                 arg.type = type
 
-            self.align_argument_type(env, arg)
+            self.align_argument_type(env, arg, maybe_self=(n==0))
             if name_declarator and name_declarator.cname:
                 error(self.pos, "Python function argument cannot have C name specification")
             arg.type = arg.type.as_argument_type()
@@ -3323,23 +3345,50 @@ class DefNode(FuncDefNode):
             sig.is_staticmethod = True
             sig.has_generic_args = True
 
-        if ((self.is_classmethod or self.is_staticmethod) and
-                self.has_fused_arguments and env.is_c_class_scope):
-            del self.decorator_indirection.stats[:]
-
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
             if i >= min_nfixed:
                 arg.is_special_method_optional = True
             if sig.is_self_arg(i) and not self.is_staticmethod:
+                self.self_type_overridden = (self.self_type_overridden or
+                                                bool(getattr(arg.base_type, "name", False)))
                 if self.is_classmethod:
                     arg.is_type_arg = 1
-                    arg.hdr_type = arg.type = Builtin.type_type
+                    usual_type = Builtin.type_type
+                    if not self.self_type_overridden:
+                        arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    arg.hdr_type = arg.type = env.parent_type
+                    usual_type = env.parent_type
+                    if self.is_in_arbitrary_decorator and not self.self_type_overridden:
+                        if env.directives['fused_types_arbitrary_decorators']:
+                            usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
+                                                                name="fused self or object")
+                        else:
+                            warning(arg.pos, "Type of argument '%s' assumed to be %s "
+                                        "which may not be true because it has an unknown decorator. "
+                                        "Consider setting the type explicitly or enabling "
+                                        "'cython.fused_types_arbitrary_decorators'" % (
+                                               arg.name, env.parent_type), 2)
+                    if not self.self_type_overridden:
+                        arg.hdr_type = arg.type = usual_type
+                    if arg.type.is_fused:
+                        self.self_type_overridden = True
+                        self.has_fused_arguments = True
                 arg.needs_conversion = 0
+                if self.self_type_overridden:
+                    if arg.type.same_as(usual_type):
+                        arg.hdr_type = usual_type
+                    else:
+                        arg.hdr_type = py_object_type
+                    if not arg.type.same_as(arg.hdr_type):
+                        if arg.hdr_type.is_pyobject and arg.type.is_pyobject:
+                            # for consistency with general behaviour of not testing self type
+                            # only test it if we're expecting something unusual
+                            arg.needs_type_test = not arg.type.same_as(usual_type)
+                        else:
+                            arg.needs_conversion = 1
             else:
                 arg.hdr_type = sig.fixed_arg_type(i)
                 if not arg.type.same_as(arg.hdr_type):
@@ -4031,6 +4080,9 @@ class DefNodeWrapper(FuncDefNode):
                 self.star_arg.entry.cname,
                 Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
+        if not self.self_in_stararg and len(self.args) >= 1:
+            if self.args[0].needs_conversion:  # in the unlikely event that self is typed as something else
+                self.generate_arg_conversion(self.args[0], code)
 
     def generate_tuple_and_keyword_parsing_code(self, args, code, decl_code):
         code.globalstate.use_utility_code(
