@@ -2180,12 +2180,11 @@ class FuncDefNode(StatNode, BlockNode):
             # the variable declarations
             var_decls_need_gil = True
 
-        if var_decls_need_gil and lenv.nogil and gilstate_decl is not None:
-            gilstate_decl.put_ensure_gil()
-            code.funcstate.gil_owned = True
-            gilstate_decl = None
-
         if var_decls_need_gil and lenv.nogil:
+            if gilstate_decl is not None:
+                gilstate_decl.put_ensure_gil()
+                gilstate_decl = None
+                code.funcstate.gil_owned = True
             code.put_release_ensured_gil()
             code.funcstate.gil_owned = False
 
