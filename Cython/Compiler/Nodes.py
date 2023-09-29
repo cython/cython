@@ -3887,9 +3887,14 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
             code.putln("#else")
-            code.putln("%s = PyTuple_Size(%s);" % (
-                Naming.nargs_cname, Naming.args_cname))
-            code.putln(code.error_goto_if_neg(Naming.nargs_cname, self.pos))
+            # An error here is very unlikely, but we risk a (conditionally) unused error label,
+            # so we just skip the traceback and return immediately.
+            code.putln("%s = PyTuple_Size(%s); if (%s) return %s;" % (
+                Naming.nargs_cname,
+                Naming.args_cname,
+                code.unlikely("%s < 0" % Naming.nargs_cname),
+                self.error_value(),
+             ))
             code.putln("#endif")
             if self.signature.use_fastcall:
                 code.putln("#endif")
@@ -3910,17 +3915,13 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_stararg_copy_code(code)
 
         else:
-            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code, decl_code)
+            self.generate_tuple_and_keyword_parsing_code(self.args, code, decl_code)
             self.needs_values_cleanup = True
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
             if not code.label_used(end_label):
                 code.put_goto(end_label)
-            # This goto is just to suppress a warning that our_error_label is unused
-            # since it's quite likely that the only use is guarded by
-            # CYTHON_AVOID_BORROWED_REFERENCES
-            code.put_goto(our_error_label)
             code.put_label(our_error_label)
             self.generate_argument_values_cleanup_code(code)
 
@@ -3955,6 +3956,7 @@ class DefNodeWrapper(FuncDefNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
             code.putln("if (unlikely(%s > 0)) {" % Naming.nargs_cname)
+            # Direct return simplifies **kwargs cleanup, but we give no traceback.
             code.put('__Pyx_RaiseArgtupleInvalid(%s, 1, 0, 0, %s); return %s;' % (
                 self.name.as_c_string_literal(), Naming.nargs_cname, self.error_value()))
             code.putln("}")
@@ -3992,20 +3994,16 @@ class DefNodeWrapper(FuncDefNode):
             self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
 
+        # Normal (traceback) error handling from this point on to clean up the kwargs dict.
+
         if self.self_in_stararg and not self.target.is_staticmethod:
             assert not self.signature.use_fastcall
             # need to create a new tuple with 'self' inserted as first item
-            code.put("%s = PyTuple_New(%s + 1); if (unlikely(!%s)) " % (
+            code.putln("%s = PyTuple_New(%s + 1); %s" % (
                 self.star_arg.entry.cname,
                 Naming.nargs_cname,
-                self.star_arg.entry.cname))
-            if self.starstar_arg and self.starstar_arg.entry.cf_used:
-                code.putln("{")
-                code.put_var_xdecref_clear(self.starstar_arg.entry)
-                code.putln("return %s;" % self.error_value())
-                code.putln("}")
-            else:
-                code.putln("return %s;" % self.error_value())
+                code.error_goto_if_null(self.star_arg.entry.cname, self.pos)
+            ))
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
@@ -4031,7 +4029,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
 
-    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code, decl_code):
+    def generate_tuple_and_keyword_parsing_code(self, args, code, decl_code):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
 
@@ -4209,15 +4207,19 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('}')  # end of the whole argument unpacking block
 
         if code.label_used(argtuple_error_label):
-            code.put_goto(success_label)
+            skip_error_handling = code.new_label("skip")
+            code.put_goto(skip_error_handling)
+
             code.put_label(argtuple_error_label)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.put('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %s); ' % (
+            code.putln('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %s); %s' % (
                 self_name_csafe, has_fixed_positional_count,
                 min_positional_args, max_positional_args,
-                Naming.nargs_cname))
-            code.putln(code.error_goto(self.pos))
+                Naming.nargs_cname,
+                code.error_goto(self.pos)
+            ))
+            code.put_label(skip_error_handling)
 
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:

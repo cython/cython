@@ -192,6 +192,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 
 /////////////// Import ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires:StringTools.c::IncludeStringH
 //@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {

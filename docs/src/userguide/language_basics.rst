@@ -1585,16 +1585,16 @@ Conditional Statements
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
-directive in C.::
+directive in C.
 
-    IF UNAME_SYSNAME == "Windows":
-        include "icky_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Darwin":
-        include "nice_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Linux":
-        include "penguin_definitions.pxi"
+::
+
+    IF ARRAY_SIZE > 64:
+        include "large_arrays.pxi"
+    ELIF ARRAY_SIZE > 16:
+        include "medium_arrays.pxi"
     ELSE:
-        include "other_definitions.pxi"
+        include "small_arrays.pxi"
 
 The ``ELIF`` and ``ELSE`` clauses are optional. An ``IF`` statement can appear
 anywhere that a normal statement or declaration can appear, and it can contain
