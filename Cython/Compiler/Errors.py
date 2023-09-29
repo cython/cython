@@ -191,6 +191,20 @@ def _write_file_encode(file, line):
         file.write(line.encode('ascii', 'replace'))
 
 
+def performance_hint(position, message):
+    if not Options.show_performance_hints:
+        return
+    warn = CompileWarning(position, message)
+    line = "performance hint: %s\n" % warn
+    listing_file = threadlocal.cython_errors_listing_file
+    if listing_file:
+        _write_file_encode(listing_file, line)
+    echo_file = threadlocal.cython_errors_echo_file
+    if echo_file:
+        _write_file_encode(echo_file, line)
+    return warn
+
+
 def message(position, message, level=1):
     if level < LEVEL:
         return

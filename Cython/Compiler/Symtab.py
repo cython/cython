@@ -861,6 +861,10 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
+        inline_in_pxd = 'inline' in modifiers and in_pxd and defining
+        if inline_in_pxd:
+            # in_pxd does special things that we don't want to apply to inline functions
+            in_pxd = False
         entry = self.lookup_here(name)
         if entry:
             if not in_pxd and visibility != entry.visibility and visibility == 'extern':
@@ -909,6 +913,8 @@ class Scope(object):
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
             entry.is_overridable = overridable
+        if inline_in_pxd:
+            entry.inline_in_pxd = True
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
@@ -931,6 +937,12 @@ class Scope(object):
             var_entry.scope = entry.scope
             entry.as_variable = var_entry
         type.entry = entry
+        if (type.exception_check and type.exception_value is None and type.nogil and
+                not pos[0].in_utility_code and
+                # don't warn about external functions here - the user likely can't do anything
+                defining and not in_pxd and not inline_in_pxd):
+            PyrexTypes.write_noexcept_performance_hint(
+                pos, function_name=name, void_return=type.return_type.is_void)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,
