@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.3 (2023-0?-??)
+3.0.3 (2023-1?-??)
 ==================
 
 Features added
@@ -11,6 +11,9 @@ Features added
 * More warnings were added to help users migrate and avoid bugs.
   (Github issue :issue:`5650`)
 
+* A warning-like category for performance hints was added that bypasses ``-Werror``.
+  (Github issue :issue:`5673`)
+
 * FastGIL now uses standard ``thread_local`` in C++.
   (Github issue :issue:`5640`)
 
@@ -18,7 +21,10 @@ Bugs fixed
 ----------
 
 * Performance regressions where the GIL was needlessly acquired were fixed.
-  (Github issue :issue:`5670`)
+  (Github issues :issue:`5670`, :issue:`5700`)
+
+* A reference leak for exceptions in Python 3.12 was resolved.
+  Patch by Eric Johnson.  (Github issue :issue:`5724`)
 
 * ``fastcall`` calls with keyword arguments generated incorrect C code.
   (Github issue :issue:`5665`)
@@ -28,15 +34,24 @@ Bugs fixed
   allocation errors, they probably would never have created a traceback anyway.
   (Github issue :issue:`5681`)
 
+* Relative cimports from packages with ``__init__.py`` files could fail.
+  (Github issue :issue:`5715`)
+
 * Several issues with the Limited API support were resolved.
   (Github issues :issue:`5641`, :issue:`5648`, :issue:`5689`)
 
 * Fix some C compiler warnings.
-  Patches by Ralf Gommers, Oleksandr Pavlyk et al.
-  (Github issues :issue:`5651`, :issue:`5663`, :issue:`5668`)
+  Patches by Ralf Gommers, Oleksandr Pavlyk, Sebastian Koslowski et al.
+  (Github issues :issue:`5651`, :issue:`5663`, :issue:`5668`, :issue:`5717`, :issue:`5726`)
 
 * Generating gdb debugging information failed when using generator expressions.
   Patch by Oleksandr Pavlyk.  (Github issue :issue:`5552`)
+
+* Passing a ``setuptools.Extension`` into ``cythonize()`` instead of a
+  ``distutils.Extension`` could make it miss the matching extensions.
+
+* ``cython -M`` needlessly required ``distutils``, which made it fail in Python 3.12.
+  (Github issue :issue:`5681`)
 
 Other changes
 -------------
@@ -46,6 +61,10 @@ Other changes
   meant to be removed at some point (and thus, like ``IF``, should not be
   used in new code), but the time for sunset is probably not around the corner.
   (Github issue :issue:`4310`)
+
+* The ``np_pythran`` option raise a ``DeprecationWarning`` if it receives other values
+  than ``True`` and ``False``.  This will eventually be disallowed (in line with all
+  other boolean options).
 
 
 3.0.2 (2023-08-27)
