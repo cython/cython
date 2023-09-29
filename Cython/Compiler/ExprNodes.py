@@ -12881,7 +12881,7 @@ class CondExprNode(ExprNode):
         elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
             error(self.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
 
-        if true_val_type.is_pyobject or false_val_type.is_pyobject:
+        if true_val_type.is_pyobject or false_val_type.is_pyobject or self.type.is_pyobject:
             if true_val_type != self.type:
                 self.true_val = self.true_val.coerce_to(self.type, env)
             if false_val_type != self.type:
@@ -12897,7 +12897,12 @@ class CondExprNode(ExprNode):
         if not self.false_val.type.is_int:
             self.false_val = self.false_val.coerce_to_integer(env)
         self.result_ctype = None
-        return self.analyse_result_type(env)
+        out = self.analyse_result_type(env)
+        if not out.type.is_int:
+            # fall back to ordinary coercion since we haven't ended as the correct type
+            assert isinstance(out, CondExprNode)
+            out = super(CondExprNode, out).coerce_to_integer(env)
+        return out
 
     def coerce_to(self, dst_type, env):
         if self.true_val.type != dst_type:
@@ -12905,7 +12910,12 @@ class CondExprNode(ExprNode):
         if self.false_val.type != dst_type:
             self.false_val = self.false_val.coerce_to(dst_type, env)
         self.result_ctype = None
-        return self.analyse_result_type(env)
+        out = self.analyse_result_type(env)
+        if out.type != dst_type:
+            # fall back to ordinary coercion since we haven't ended as the correct type
+            assert isinstance(out, CondExprNode)
+            out = super(CondExprNode, out).coerce_to(dst_type, env)
+        return out
 
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
