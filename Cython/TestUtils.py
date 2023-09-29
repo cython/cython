@@ -250,7 +250,7 @@ class TreeAssertVisitor(VisitorTransform):
 
             for antipattern in antipatterns:
                 #print("Searching antipattern '%s'" % antipattern)
-                start, end, pattern = _parse_pattern(antipattern)
+                start, end, antipattern = _parse_pattern(antipattern)
                 section = extract_section(file_path, content, start, end)
                 if re.search(antipattern, section):
                     fail(self._module_pos, antipattern, found=True, file_path=file_path)
