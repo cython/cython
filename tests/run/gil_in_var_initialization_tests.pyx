@@ -1,6 +1,16 @@
 # mode: run
 # tag: cpp, cpp11
 
+#cython: test_fail_if_c_code_has = __Pyx_RefNannySetupContext\("call_a_method_with_an_error_return"
+#cython: test_fail_if_c_code_has = /1C_call_a_method_with_an_error_return\(.+{/:/__pyx_vtab/PyGILState_Ensure
+#cython: test_fail_if_c_code_has = __Pyx_RefNannySetupContext\("call_me"
+#cython: test_fail_if_c_code_has = /1D_call_me\(.+{/:/get_left_edge\(/PyGILState_Ensure
+
+# patterns above look for unwanted __Pyx_RefNannySetupContext and PyGILState_Ensure calls within
+# the introductory part of the two functions (defined by looking at the function name, looking for
+# a { to know we're at the function definition, and looking for a distinctive early line in the
+# function
+
 from libcpp cimport bool
 
 # What we're testing in this file is that certain bits of code don't acquire the GIL
