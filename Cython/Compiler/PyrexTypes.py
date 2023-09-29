@@ -1314,12 +1314,14 @@ class PyObjectType(PyrexType):
 
     def generate_incref(self, code, cname, nanny):
         if nanny:
+            code.funcstate.needs_refnanny = True
             code.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname))
         else:
             code.putln("Py_INCREF(%s);" % self.as_pyobject(cname))
 
     def generate_xincref(self, code, cname, nanny):
         if nanny:
+            code.funcstate.needs_refnanny = True
             code.putln("__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
         else:
             code.putln("Py_XINCREF(%s);" % self.as_pyobject(cname))
@@ -1345,27 +1347,36 @@ class PyObjectType(PyrexType):
                          clear=True, clear_before_decref=clear_before_decref)
 
     def generate_gotref(self, code, cname):
+        code.funcstate.needs_refnanny = True
         code.putln("__Pyx_GOTREF(%s);" % self.as_pyobject(cname))
 
     def generate_xgotref(self, code, cname):
+        code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XGOTREF(%s);" % self.as_pyobject(cname))
 
     def generate_giveref(self, code, cname):
+        code.funcstate.needs_refnanny = True
         code.putln("__Pyx_GIVEREF(%s);" % self.as_pyobject(cname))
 
     def generate_xgiveref(self, code, cname):
+        code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname))
 
     def generate_decref_set(self, code, cname, rhs_cname):
+        code.funcstate.needs_refnanny = True
         code.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
 
     def generate_xdecref_set(self, code, cname, rhs_cname):
+        code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
 
     def _generate_decref(self, code, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):
         prefix = '__Pyx' if nanny else 'Py'
         X = 'X' if null_check else ''
+
+        if nanny:
+            code.funcstate.needs_refnanny = True
 
         if clear:
             if clear_before_decref:
