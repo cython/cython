@@ -2257,6 +2257,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 //@requires: PyObjectCallMethO
 //@substitute: naming
 
+#if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
 static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs) {
     PyObject *argstuple;
     PyObject *result = 0;
@@ -2273,6 +2274,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **arg
     Py_DECREF(argstuple);
     return result;
 }
+#endif
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t _nargs, PyObject *kwargs) {
     // Special fast paths for 0 and 1 arguments
