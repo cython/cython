@@ -1018,7 +1018,6 @@ class ExprNode(Node):
                 # NULL can be implicitly cast to any pointer type
                 return self
             else:
-                import pdb; pdb.set_trace()
                 error(self.pos, "Cannot coerce to a type that is not specialized")
 
             self.type = error_type

@@ -726,7 +726,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and self.exception_check != '+'):
             error(self.pos, "Exception clause not allowed for function returning Python object")
         else:
-            fused_exception_value = False
             if self.exception_value is None and self.exception_check and self.exception_check != '+':
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,

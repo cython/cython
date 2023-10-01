@@ -332,5 +332,3 @@ def test_fused_noexcept():
 
     # int
     print(return_fused_type_noexcept(1))
-
-# TODO - what about fused pointer return types????
