@@ -75,6 +75,20 @@ typedef struct {
 #define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
 #define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
 
+// Redefine PyCFunction access functions to also support CyFunction.
+// We need our own copies because the inline functions in CPython have a type-check assert
+// that breaks with a CyFunction in debug mode.
+#undef __Pyx_PyCFunction_Check
+#define __Pyx_PyCFunction_Check(func)  __Pyx_IsCyOrPyCFunction(func)
+#undef __Pyx_PyCFunction_GET_FLAGS
+#define __Pyx_PyCFunction_GET_FLAGS(func)  (((PyCFunctionObject*)(func))->m_ml->ml_flags)
+#undef __Pyx_PyCFunction_GET_FUNCTION
+#define __Pyx_PyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
+#undef __Pyx_PyCFunction_GET_SELF
+static CYTHON_INLINE PyObject* __Pyx_PyCFunction_GET_SELF(PyObject *func) {
+    return (unlikely(__Pyx_PyCFunction_GET_FLAGS(func) & METH_STATIC)) ? NULL : ((PyCFunctionObject*)func)->m_self;
+}
+
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
                                       PyObject *closure,

@@ -4969,14 +4969,9 @@ class OverrideCheckNode(StatNode):
             func_node_temp, self_arg, interned_attr_cname, err))
         code.put_gotref(func_node_temp, py_object_type)
 
-        is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
+        is_overridden = "(__Pyx_PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
             func_node_temp, method_entry.func_cname)
-        code.putln("#ifdef __Pyx_CyFunction_USED")
-        code.putln("if (!__Pyx_IsCyOrPyCFunction(%s)" % func_node_temp)
-        code.putln("#else")
-        code.putln("if (!PyCFunction_Check(%s)" % func_node_temp)
-        code.putln("#endif")
-        code.putln("        || %s) {" % is_overridden)
+        code.putln("if (!__Pyx_PyCFunction_Check(%s) || %s) {" % (func_node_temp, is_overridden))
         self.body.generate_execution_code(code)
         code.putln("}")
 
