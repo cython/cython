@@ -610,6 +610,25 @@ class ExprNode(Node):
         error(self.pos, "Error in compile-time expression: %s: %s" % (
             e.__class__.__name__, e))
 
+    def as_exception_value(self, env):
+        # Return the compile_time_value if possible.
+        # This can be either a Python constant or a string
+        # for types that can't be represented by a Python constant
+        # (e.g. enums)
+        result = None
+        with local_errors(ignore=True):
+            result = self.compile_time_value(env)
+        if isinstance(result, Symtab.Entry):
+            result = result.cname
+        if result is None:
+            # this isn't the preferred fallback because it can end up with
+            # hard to distinguish between identical types, e.g. -1.0 vs -1
+            # for floats. However, it lets things like NULL and typecasts work
+            result = self.get_constant_c_result_code()
+        if result is not None:
+            return result
+        error(self.pos, "Exception value must be constant")
+
     # ------------- Declaration Analysis ----------------
 
     def analyse_target_declaration(self, env):
@@ -1310,6 +1329,29 @@ class ConstNode(AtomicExprNode):
 
     def generate_result_code(self, code):
         pass
+
+    @staticmethod
+    def for_type(pos, value, type):
+        cls = ConstNode
+        if type is PyrexTypes.c_null_ptr_type or (
+                (value == "NULL" or value == 0) and type.is_ptr):
+            return NullNode(pos)  # value and type are preset here
+        # char node is deliberately skipped and treated as IntNode
+        elif type.is_int or PyrexTypes.c_bint_type:
+            # use this instead of BoolNode for c_bint_type because
+            # BoolNode handles values differently to most other ConstNode
+            # derivatives (they aren't strings).
+            cls = IntNode
+        elif type.is_float:
+            cls = FloatNode
+        elif type is bytes_type:
+            cls = BytesNode
+        elif type is unicode_type:
+            cls = UnicodeNode
+        if cls.type is type:
+            return cls(pos, value=value)
+        else:
+            return cls(pos, value=value, type=type)
 
 
 class BoolNode(ConstNode):
@@ -3036,21 +3078,26 @@ class IteratorNode(ScopedExprNode):
                     self.sequence.py_result()))
 
         if is_builtin_sequence or self.may_be_a_sequence:
+            code.putln("%s = %s; __Pyx_INCREF(%s);" % (
+                self.result(),
+                self.sequence.py_result(),
+                self.result(),
+            ))
             self.counter_cname = code.funcstate.allocate_temp(
                 PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             if self.reversed:
                 if sequence_type is list_type:
-                    init_value = 'PyList_GET_SIZE(%s) - 1' % self.result()
+                    len_func = '__Pyx_PyList_GET_SIZE'
                 else:
-                    init_value = 'PyTuple_GET_SIZE(%s) - 1' % self.result()
+                    len_func = '__Pyx_PyTuple_GET_SIZE'
+                code.putln("%s = %s(%s);" % (self.counter_cname, len_func, self.result()))
+                code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+                code.putln(code.error_goto_if_neg(self.counter_cname, self.pos))
+                code.putln("#endif")
+                code.putln("--%s;" % self.counter_cname)  # len -> last item
             else:
-                init_value = '0'
-            code.putln("%s = %s; __Pyx_INCREF(%s); %s = %s;" % (
-                self.result(),
-                self.sequence.py_result(),
-                self.result(),
-                self.counter_cname,
-                init_value))
+                code.putln("%s = 0;" % self.counter_cname)
+
         if not is_builtin_sequence:
             self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
             if self.may_be_a_sequence:
@@ -3075,14 +3122,30 @@ class IteratorNode(ScopedExprNode):
 
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
-        final_size = 'Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        assert test_name in ('List', 'Tuple')
+
+        final_size = '__Pyx_Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        size_is_safe = False
         if self.sequence.is_sequence_constructor:
             item_count = len(self.sequence.args)
             if self.sequence.mult_factor is None:
                 final_size = item_count
+                size_is_safe = True
             elif isinstance(self.sequence.mult_factor.constant_result, _py_int_types):
                 final_size = item_count * self.sequence.mult_factor.constant_result
-        code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
+                size_is_safe = True
+
+        if size_is_safe:
+            code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
+        else:
+            code.putln("{")
+            code.putln("Py_ssize_t %s = %s;" % (Naming.quick_temp_cname, final_size))
+            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln(code.error_goto_if_neg(Naming.quick_temp_cname, self.pos))
+            code.putln("#endif")
+            code.putln("if (%s >= %s) break;" % (self.counter_cname, Naming.quick_temp_cname))
+            code.putln("}")
+
         if self.reversed:
             inc_dec = '--'
         else:
@@ -3102,7 +3165,7 @@ class IteratorNode(ScopedExprNode):
                 ))
         code.putln("#else")
         code.putln(
-            "%s = PySequence_ITEM(%s, %s); %s%s; %s" % (
+            "%s = __Pyx_PySequence_ITEM(%s, %s); %s%s; %s" % (
                 result_name,
                 self.py_result(),
                 self.counter_cname,
@@ -6364,7 +6427,7 @@ class SimpleCallNode(CallNode):
 
     def is_c_result_required(self):
         func_type = self.function_type()
-        if not func_type.exception_value or func_type.exception_check == '+':
+        if func_type.exception_value is None or func_type.exception_check == '+':
             return False  # skip allocation of unused result temp
         return True
 

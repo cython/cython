@@ -207,6 +207,7 @@ class PyrexType(BaseType):
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
+    #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
     #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -280,6 +281,7 @@ class PyrexType(BaseType):
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
+    refcounting_needs_gil = True
     equivalent_type = None
     default_value = ""
     declaration_value = ""
@@ -606,7 +608,7 @@ class CTypedefType(BaseType):
 
     def error_condition(self, result_code):
         if self.typedef_is_external:
-            if self.exception_value:
+            if self.exception_value is not None:
                 condition = "(%s == %s)" % (
                     result_code, self.cast_code(self.exception_value))
                 if self.exception_check:
@@ -638,6 +640,7 @@ class MemoryViewSliceType(PyrexType):
         # memoryview and pyobject code could be generated in the same way.
         # However, memoryviews are sufficiently specialized that this doesn't
         # seem practical. Implement a limited version of it for now
+    refcounting_needs_gil = False  # __PYX_XCLEAR_MEMVIEW acquires GIL internally.
     scope = None
 
     # These are special cased in Defnode
@@ -2930,7 +2933,7 @@ class CPtrType(CPointerBaseType):
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = "Exception values are incompatible."
-                if not self.base_type.exception_check and not self.base_type.exception_value:
+                if not self.base_type.exception_check and self.base_type.exception_value is None:
                     msg += " Suggest adding 'noexcept' to type '{}'.".format(src_type)
                 return msg
         return super(CPtrType, self).assignment_failure_extra_info(src_type)
@@ -3092,7 +3095,7 @@ class CFuncType(CType):
         arg_reprs = list(map(repr, self.args))
         if self.has_varargs:
             arg_reprs.append("...")
-        if self.exception_value:
+        if self.exception_value is not None:
             except_clause = " %r" % self.exception_value
         else:
             except_clause = ""
@@ -3321,11 +3324,11 @@ class CFuncType(CType):
             arg_decl_code = "void"
         trailer = ""
         if (pyrex or for_display) and not self.return_type.is_pyobject:
-            if self.exception_value and self.exception_check:
+            if self.exception_value is not None and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value and not self.exception_check:
+            elif self.exception_value is not None and not self.exception_check:
                 trailer = " except %s" % self.exception_value
-            elif not self.exception_value and not self.exception_check:
+            elif self.exception_value is None and not self.exception_check:
                 trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
@@ -3546,7 +3549,7 @@ class CFuncType(CType):
             except_clause = 'except *'
         elif self.return_type.is_pyobject:
             except_clause = ''
-        elif self.exception_value:
+        elif self.exception_value is not None:
             except_clause = ('except? %s' if self.exception_check else 'except %s') % self.exception_value
         else:
             except_clause = 'except *'
