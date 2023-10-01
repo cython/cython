@@ -411,8 +411,9 @@ class SpecializableExceptionValueNode(AtomicExprNode):
         ).analyse_types(env)
 
     def analyse_types(self, env):
+        from .PyrexTypes import get_specialized_types
         self.const_nodes = {
-            tp: self.make_const_node_for_type(tp, env) for tp in self.type.types
+            tp: self.make_const_node_for_type(tp, env) for tp in get_specialized_types(self.type)
         }
         return self
     
@@ -432,6 +433,6 @@ class SpecializableExceptionValueNode(AtomicExprNode):
         })
 
     def specialize(self, fused_to_specific, env):
-        specialized_return_type = fused_to_specific[self.type]
+        specialized_return_type = self.type.specialize(fused_to_specific)
         specialized_node = self.const_nodes[specialized_return_type]
         return specialized_node
