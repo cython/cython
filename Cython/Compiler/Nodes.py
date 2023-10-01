@@ -2056,7 +2056,7 @@ class FuncDefNode(StatNode, BlockNode):
         # refnanny only
         # Closures are not currently possible for cdef nogil functions,
         # but check them anyway
-        var_decls_definitely_need_gil = self.needs_closure or self.needs_outer_scope
+        var_decls_definitely_need_gil = lenv.nogil and (self.needs_closure or self.needs_outer_scope)
 
         gilstate_decl = None
         var_decls_need_gil = False
