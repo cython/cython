@@ -233,6 +233,11 @@ def test_fused_number_or_object():
     Make sure that fused functions default to the appropriate exception type
 
     >>> test_fused_number_or_object()
+    1.0
+    -1.0
+    1
+    -1
+    None
     """
     # Test that we can assign to the function pointer we expect
     cdef fused_ptr1 p1 = return_fused_type[double]
@@ -269,49 +274,54 @@ cdef fused number:
     double
     int
 
-# TODO: this doesn't work
+
 # test that we can manually set the return value
-#cdef number return_fused_type_manual(number arg, bint fail) except -2:
-#    if fail:
-#        raise RuntimeError
-#    return arg
-#
-#ctypedef double (*fused_manual_ptr1)(double, bint) except? -2
-#ctypedef int (*fused_manual_ptr2)(int, bint) except -2
-#
-#def test_fused_number_or_object_manual():
-#    """
-#    >>> test_fused_number_or_object_manual()
-#    """
-#    # test that the pointer assignment works like we think it should
-#    cdef fused_manual_ptr1 p1 = return_fused_type_manual[double]
-#    cdef fused_manual_ptr1 p2 = return_fused_type_manual[int]
-#
-#    # double
-#    print(test_fused_number_or_object_manual(-1.0, False))
-#    try:
-#        print(test_fused_number_or_object_manual(-1.0, True))
-#        assert False, "Should not reach here"
-#    except RuntimeError:
-#        pass
-#
-#    # int
-#    print(test_fused_number_or_object_manual(-1, False))
-#    try:
-#        print(test_fused_number_or_object_manual(-1.0, True))
-#        assert False, "Should not reach here"
-#    except RuntimeError:
-#        pass
+cdef number return_fused_type_manual(number arg, bint fail) except -2:
+    if fail:
+        raise RuntimeError
+    return arg
+
+ctypedef double (*fused_manual_ptr1)(double, bint) except? -2
+ctypedef int (*fused_manual_ptr2)(int, bint) except -2
+
+def test_fused_number_or_object_manual():
+    """
+    >>> test_fused_number_or_object_manual()
+    -1.0
+    -1
+    """
+    # test that the pointer assignment works like we think it should
+    cdef fused_manual_ptr1 p1 = return_fused_type_manual[double]
+    cdef fused_manual_ptr2 p2 = return_fused_type_manual[int]
+
+    # double
+    print(p1(-1.0, False))
+    try:
+        print(p1(-1.0, True))
+        assert False, "Should not reach here"
+    except RuntimeError:
+        pass
+
+    # int
+    print(p2(-1, False))
+    try:
+        print(p2(-1, True))
+        assert False, "Should not reach here"
+    except RuntimeError:
+        pass
+
 
 cdef number return_fused_type_noexcept(number x) noexcept:
     return x
 
-ctypedef double (*fused_noexcept_ptr1)(double, bint) noexcept
-ctypedef int (*fused_noexcept_ptr2)(int, bint) noexcept
+ctypedef double (*fused_noexcept_ptr1)(double) noexcept
+ctypedef int (*fused_noexcept_ptr2)(int) noexcept
 
 def test_fused_noexcept():
     """
     >>> test_fused_noexcept()
+    1.0
+    1
     """
     # check the pointer types match
     cdef fused_noexcept_ptr1 p1 = return_fused_type_noexcept[double]

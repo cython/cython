@@ -3073,9 +3073,6 @@ class CFuncType(CType):
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False,
             templates = None, is_strict_signature = False):
-        # if the signature of __init__ changes, update "update" too
-        if len(args) == 2 and exception_value and return_type is c_double_type:
-            import pdb; pdb.set_trace()
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -3232,7 +3229,6 @@ class CFuncType(CType):
         return 1
 
     def _is_exception_compatible_with(self, other_type):
-        import pdb; pdb.set_trace()
         # narrower exception checks are ok, but prevent mismatches
         if self.exception_check == '+' and other_type.exception_check != '+':
             # must catch C++ exceptions if we raise them
@@ -3369,13 +3365,20 @@ class CFuncType(CType):
     def specialize(self, values):
         return_type = self.return_type.specialize(values)
         exception_value = self.exception_value
+        exception_check = self.exception_check
         if isinstance(exception_value, FusedExceptionTypeOptions):
             exception_value = exception_value.specialize(return_type)
+            if return_type.is_pyobject:
+                # PyObjects have an implicit exception check.
+                # (There's the slight possibility this is ignoring an
+                # explicit exception check that would cause an error in
+                # a non-fused function)
+                exception_check = False
         result = CFuncType(return_type,
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
                            exception_value = exception_value,
-                           exception_check = self.exception_check,
+                           exception_check = exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,
                            with_gil = self.with_gil,
@@ -3390,21 +3393,6 @@ class CFuncType(CType):
 
     def opt_arg_cname(self, arg_name):
         return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
-    
-    def update(self, **kwds):
-        # create a copy of self, but with the given attributes updated
-        
-        attrs = ["return_type", "args", "has_varargs",
-            "exception_value", "exception_check", "calling_convention",
-            "nogil", "with_gil", "is_overridable", "optional_arg_count",
-            "is_const_method", "is_static_method",
-            "templates", "is_strict_signature"]
-        new_kwds = {attr: getattr(self, attr) for attr in attrs}
-        new_kwds.update(kwds)
-        out = CFuncType(**new_kwds)
-        if hasattr(self, "entry"):
-            out.entry = self.entry
-        return out
 
     # Methods that deal with Fused Types
     # All but map_with_specific_entries should be called only on functions

@@ -396,10 +396,17 @@ class SpecializableExceptionValueNode(AtomicExprNode):
     def make_const_node_for_type(self, tp, env):
         if not isinstance(tp, CType):
             # Python type or similar, that doesn't have an exception value
+            if self.value:
+                # It might be worth loosening this a bit, to ignore the exception value for Python
+                # objects instead of rejecting this? To make it easier to write universal functions
+                error(self.pos,  "Exception clause not allowed for function returning Python object")
             return None
-        return ExprNodes.ConstNode(
+        exception_value = self.value or tp.exception_value
+        if not exception_value:
+            return None
+        return ExprNodes.ConstNode.for_type(
             self.pos,
-            value = tp.exception_value,
+            value = str(exception_value),
             type = tp
         ).analyse_types(env)
 
@@ -418,9 +425,9 @@ class SpecializableExceptionValueNode(AtomicExprNode):
     def check_const(self):
         return True
     
-    def get_constant_c_result_code(self):
+    def as_exception_value(self, env):
         return FusedExceptionTypeOptions({
-            tp: const_node.get_constant_c_result_code() if const_node else None
+            tp: const_node.as_exception_value(env) if const_node else None
             for tp, const_node in self.const_nodes.items()
         })
 

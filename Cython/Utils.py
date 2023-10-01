@@ -451,6 +451,8 @@ def str_to_number(value):
             # Py2 octal notation ('0136')
             value = int(value, 8)
     else:
+        if value == "None":
+            import pdb; pdb.set_trace()
         value = int(value, 0)
     return -value if is_neg else value
 

@@ -748,7 +748,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                         else:
                             from .UtilNodes import SpecializableExceptionValueNode
                             self.exception_value = SpecializableExceptionValueNode(
-                                self.pos, value=return_type.exception_value, type=return_type)
+                                self.pos, value=None, type=return_type)
                         
             if self.exception_value:
                 if self.exception_check == '+':
@@ -766,6 +766,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env)
+                    if return_type.is_fused:
+                        from .UtilNodes import SpecializableExceptionValueNode
+                        self.exception_value = SpecializableExceptionValueNode(
+                            self.exception_value.pos, value = self.exception_value.value, type = return_type)
                     self.exception_value = self.exception_value.coerce_to(
                         return_type, env).analyse_const_expression(env)
                     exc_val = self.exception_value.as_exception_value(env)
