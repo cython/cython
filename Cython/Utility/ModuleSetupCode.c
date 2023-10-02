@@ -679,7 +679,9 @@ class __Pyx_FakeReference {
         // constructor with version.
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
+        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
         PyObject *version_info; // borrowed
+        #endif
         PyObject *py_minor_version = NULL;
         long minor_version = 0;
         PyObject *type, *value, *traceback;
