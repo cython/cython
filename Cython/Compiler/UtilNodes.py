@@ -416,16 +416,16 @@ class SpecializableExceptionValueNode(AtomicExprNode):
             tp: self.make_const_node_for_type(tp, env) for tp in get_specialized_types(self.type)
         }
         return self
-    
+
     def coerce_to(self, dst_type, env):
         if dst_type == self.type:
-            return self  # nothing to do    
+            return self  # nothing to do
         # Otherwise, fall back to the base class (which we expect will fail)
         return super(SpecializableExceptionValueNode, self).coerce_to(dst_type, env)
-    
+
     def check_const(self):
         return True
-    
+
     def as_exception_value(self, env):
         return FusedExceptionTypeOptions({
             tp: const_node.as_exception_value(env) if const_node else None
