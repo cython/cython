@@ -80,14 +80,16 @@ typedef struct {
 // that breaks with a CyFunction in debug mode.
 #undef __Pyx_PyCFunction_Check
 #define __Pyx_PyCFunction_Check(func)  __Pyx_IsCyOrPyCFunction(func)
+#if CYTHON_COMPILING_IN_CPYTHON
 #undef __Pyx_PyCFunction_GET_FLAGS
-#define __Pyx_PyCFunction_GET_FLAGS(func)  (((PyCFunctionObject*)(func))->m_ml->ml_flags)
 #undef __Pyx_PyCFunction_GET_FUNCTION
-#define __Pyx_PyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
 #undef __Pyx_PyCFunction_GET_SELF
+#define __Pyx_PyCFunction_GET_FLAGS(func)  (((PyCFunctionObject*)(func))->m_ml->ml_flags)
+#define __Pyx_PyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
 static CYTHON_INLINE PyObject* __Pyx_PyCFunction_GET_SELF(PyObject *func) {
     return (unlikely(__Pyx_PyCFunction_GET_FLAGS(func) & METH_STATIC)) ? NULL : ((PyCFunctionObject*)func)->m_self;
 }
+#endif
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,

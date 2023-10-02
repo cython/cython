@@ -898,7 +898,7 @@ class __Pyx_FakeReference {
   #define __Pyx_PyVectorcall_NARGS(n)  ((Py_ssize_t)(n))
 #endif
 
-// These get redefined in CythonFunction.c.
+// These PyCFunction related macros get redefined in CythonFunction.c.
 // We need our own copies because the inline functions in CPython have a type-check assert
 // that breaks with a CyFunction in debug mode.
 #if PY_MAJOR_VERSION >= 0x030900B1
@@ -907,9 +907,15 @@ class __Pyx_FakeReference {
 #define __Pyx_PyCFunction_CheckExact(func)  PyCFunction_Check(func)
 #endif
 #define __Pyx_PyCFunction_Check(func)  PyCFunction_Check(func)
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_PyCFunction_GET_FLAGS(func)  PyCFunction_GetFlags(func)
+#define __Pyx_PyCFunction_GET_FUNCTION(func)  PyCFunction_GetFunction(func)
+#define __Pyx_PyCFunction_GET_SELF(func)  PyCFunction_GetSelf(func)
+#else
 #define __Pyx_PyCFunction_GET_FLAGS(func)  PyCFunction_GET_FLAGS(func)
 #define __Pyx_PyCFunction_GET_FUNCTION(func)  PyCFunction_GET_FUNCTION(func)
 #define __Pyx_PyCFunction_GET_SELF(func)  PyCFunction_GET_SELF(func)
+#endif
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
 #if __PYX_LIMITED_VERSION_HEX < 0x030900B1
