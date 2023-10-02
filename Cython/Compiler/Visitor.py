@@ -415,15 +415,12 @@ class EnvTransform(CythonTransform):
         return node
 
     def visit_CArgDeclNode(self, node):
-        # default arguments are evaluated in the outer scope
-        if node.default:
-            attrs = [attr for attr in node.child_attrs if attr != 'default']
-            self._process_children(node, attrs)
-            self.enter_scope(node, self.current_env().outer_scope)
-            self.visitchildren(node, ('default',))
-            self.exit_scope()
-        else:
-            self._process_children(node)
+        # default/annotation arguments are evaluated in the outer scope
+        outer_attrs = node.outer_attrs
+        self.visitchildren(node, attrs=None, exclude=outer_attrs)
+        self.enter_scope(node, self.current_env().outer_scope)
+        self._process_children(node, outer_attrs)
+        self.exit_scope()
         return node
 
 

@@ -9542,7 +9542,7 @@ class Py3ClassNode(ExprNode):
             DictItemNode(
                 entry.pos,
                 key=IdentifierStringNode(entry.pos, value=entry.name),
-                value=entry.annotation.string
+                value=entry.annotation
             )
             for entry in env.entries.values() if entry.annotation
         ]
@@ -9791,18 +9791,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         default_args.append(arg)
             if arg.annotation:
                 arg.annotation = arg.annotation.analyse_types(env)
-                annotations.append((arg.pos, arg.name, arg.annotation.string))
+                annotations.append((arg.pos, arg.name, arg.annotation))
 
         for arg in (self.def_node.star_arg, self.def_node.starstar_arg):
             if arg and arg.annotation:
                 arg.annotation = arg.annotation.analyse_types(env)
-                annotations.append((arg.pos, arg.name, arg.annotation.string))
+                annotations.append((arg.pos, arg.name, arg.annotation))
 
         annotation = self.def_node.return_type_annotation
         if annotation:
             self.def_node.return_type_annotation = annotation.analyse_types(env)
             annotations.append((annotation.pos, StringEncoding.EncodedString("return"),
-                                annotation.string))
+                                annotation))
 
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
@@ -14504,23 +14504,35 @@ class DocstringRefNode(ExprNode):
         self.generate_gotref(code)
 
 class AnnotationNode(ExprNode):
-    # Deals with the two possible uses of an annotation.
+    # Deals with the three possible uses of an annotation.
     # 1. The post PEP-563 use where an annotation is stored
     #  as a string
-    # 2. The Cython use where the annotation can indicate an
+    # 2. The pre-PEP-563 use where the annotation is evaluated
+    #  to a Python object
+    # 3. The Cython use where the annotation can indicate an
     #  object type
     #
-    # Doesn't handle the pre PEP-563 version where the
-    # annotation is evaluated into a Python Object.
+    # The three uses are kept separate, so that
+    #  processing for evaluation as a type doesn't break
+    #  the stored object
 
-    subexprs = []
-
+    _no_string_subexprs = ['expr']
+    _no_expr_subexprs = ['string']
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
     # annotations to override an already set type.
     untyped = False
+    string_annotation = False  # bool - set to true if from __future__ import annotations
+    original_expr = None  # set if expr is reassigned to a string (to avoid being an invalid evaluation)
 
-    def __init__(self, pos, expr, string=None):
+    @property
+    def subexprs(self):
+        if self.string_annotation:
+            return self._no_expr_subexprs
+        else:
+            return self._no_string_subexprs
+
+    def __init__(self, pos, expr, string=None, string_annotation=False):
         """string is expected to already be a StringNode or None"""
         ExprNode.__init__(self, pos)
         if string is None:
@@ -14531,9 +14543,23 @@ class AnnotationNode(ExprNode):
             string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
         self.string = string
         self.expr = expr
+        self.string_annotation = string_annotation
 
     def analyse_types(self, env):
-        return self  # nothing needs doing
+        if self.string_annotation:
+            self.type = self.string.type
+        else:
+            # convert to a form that catches name/attribute lookup failures.
+            # This isn't completely Python-compatible, however a lot of C types
+            # (e.g. cython.int) don't evaluate correctly, and this avoids turning
+            # them into runtime errors.
+            self.expr = self._evaluated_annotation_wrap_in_try_catch(env)
+            with local_errors(ignore=True) as errors:
+                self.expr = self.expr.analyse_types(env)
+                self.type = self.expr.type
+            if errors:
+                self.convert_to_string_annotation()
+        return self
 
     def analyse_as_type(self, env):
         # for compatibility when used as a return_type_node, have this interface too
@@ -14572,7 +14598,7 @@ class AnnotationNode(ExprNode):
         if self.untyped:
             # Already applied as a fused type, not re-evaluating it here.
             return [], None
-        annotation = self.expr
+        annotation = self.original_expr or self.expr
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
@@ -14616,6 +14642,59 @@ class AnnotationNode(ExprNode):
             modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
         return modifiers, arg_type
+
+    def generate_result_code(self, code):
+        pass
+
+    def calculate_result_code(self):
+        if self.string_annotation:
+            return self.string.result()
+        else:
+            return self.expr.result()
+
+    def convert_to_string_annotation(self):
+        self.original_expr = self.expr
+        self.expr = copy.copy(self.string)
+        self.type =self.expr.type
+
+    def _evaluated_annotation_wrap_in_try_catch(self, env):
+        from .UtilNodes import TempResultFromStatNode, ResultRefNode
+        pos = self.expr.pos
+        result = ResultRefNode(pos=pos, type=py_object_type)
+        result.lhs_of_first_assignment = True
+        assignment = Nodes.SingleAssignmentNode(
+            pos,
+            lhs = result,
+            rhs = self.expr
+        )
+        backup_assignment = Nodes.SingleAssignmentNode(
+            pos,
+            lhs = result,
+            rhs = self.string
+        )
+        errors = [
+            NameNode(
+                pos,
+                name=StringEncoding.EncodedString(name),
+                type=py_object_type,
+                entry=env.builtin_scope().lookup(name)
+            ) for name in ("NameError", "AttributeError")
+        ]
+        except_clause = Nodes.ExceptClauseNode(
+            pos,
+            pattern=errors,
+            target=None,
+            body=backup_assignment
+        )
+        try_node = Nodes.TryExceptStatNode(
+            pos,
+            body=assignment,
+            except_clauses=[except_clause],
+            else_clause=None,
+        )
+        return TempResultFromStatNode(
+            result, try_node
+        )
 
 
 class AssignmentExpressionNode(ExprNode):
