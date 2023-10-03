@@ -75,6 +75,7 @@ def _cython_compile_files(all_paths, options):
                 force=options.force,
                 quiet=options.quiet,
                 depfile=options.depfile,
+                language=options.language,
                 **options.options)
 
             if ext_modules and options.build:
@@ -152,6 +153,8 @@ Environment variables:
                       help='use Python 3 syntax mode by default')
     parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
                       help='use Python 3 syntax mode by default')
+    parser.add_argument('-+', '--cplus', dest='language', action='store_const', const='c++', default=None,
+                        help='Compile as C++ rather than C')
     parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
                       help='Produce a colorized HTML version of the source.')
     parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
