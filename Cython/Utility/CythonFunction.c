@@ -71,25 +71,13 @@ typedef struct {
     PyObject *func_is_coroutine;
 } __pyx_CyFunctionObject;
 
+#undef __Pyx_CyOrPyCFunction_Check
 #define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __pyx_CyFunctionType)
-#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
+#define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
 #define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
-
-// Redefine PyCFunction access functions to also support CyFunction.
-// We need our own copies because the inline functions in CPython have a type-check assert
-// that breaks with a CyFunction in debug mode.
-#undef __Pyx_PyCFunction_Check
-#define __Pyx_PyCFunction_Check(func)  __Pyx_IsCyOrPyCFunction(func)
-#if CYTHON_COMPILING_IN_CPYTHON
-#undef __Pyx_PyCFunction_GET_FLAGS
-#undef __Pyx_PyCFunction_GET_FUNCTION
-#undef __Pyx_PyCFunction_GET_SELF
-#define __Pyx_PyCFunction_GET_FLAGS(func)  (((PyCFunctionObject*)(func))->m_ml->ml_flags)
-#define __Pyx_PyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
-static CYTHON_INLINE PyObject* __Pyx_PyCFunction_GET_SELF(PyObject *func) {
-    return (unlikely(__Pyx_PyCFunction_GET_FLAGS(func) & METH_STATIC)) ? NULL : ((PyCFunctionObject*)func)->m_self;
-}
-#endif
+static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc);/*proto*/
+#undef __Pyx_IsSameCFunction
+#define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCyOrCFunction(func, cfunc)
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -130,6 +118,21 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
+    if (__Pyx_CyFunction_Check(func)) {
+        return PyCFunction_GetFunction(((__pyx_CyFunctionObject*)func)->func) == (PyCFunction) cfunc;
+    } else if (PyCFunction_Check(func)) {
+        return PyCFunction_GetFunction(func) == (PyCFunction) cfunc;
+    }
+    return 0;
+}
+#else
+static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
+    return __Pyx_CyOrPyCFunction_Check(func) && __Pyx_CyOrPyCFunction_GET_FUNCTION(func) == (PyCFunction) cfunc;
+}
+#endif
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
 #if PY_VERSION_HEX < 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API

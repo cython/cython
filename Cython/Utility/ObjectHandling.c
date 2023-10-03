@@ -2017,7 +2017,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     // method descriptor type isn't exported in Py2.x, cannot easily check the type there.
     // Therefore, reverse the check to the most likely alternative
     // (which is returned for class methods)
-    if (likely(!__Pyx_PyCFunction_Check(method)))
+    if (likely(!__Pyx_CyOrPyCFunction_Check(method)))
     #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
@@ -2281,11 +2281,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
-        if (__Pyx_PyCFunction_Check(func) && likely(__Pyx_PyCFunction_GET_FLAGS(func) & METH_NOARGS))
+        if (__Pyx_CyOrPyCFunction_Check(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_NOARGS))
             return __Pyx_PyObject_CallMethO(func, NULL);
     }
     else if (nargs == 1 && kwargs == NULL) {
-        if (__Pyx_PyCFunction_Check(func) && likely(__Pyx_PyCFunction_GET_FLAGS(func) & METH_O))
+        if (__Pyx_CyOrPyCFunction_Check(func) && likely( __Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_O))
             return __Pyx_PyObject_CallMethO(func, args[0]);
     }
 #endif
@@ -2447,8 +2447,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg) {
     PyObject *self, *result;
     PyCFunction cfunc;
-    cfunc = __Pyx_PyCFunction_GET_FUNCTION(func);
-    self = __Pyx_PyCFunction_GET_SELF(func);
+    cfunc = __Pyx_CyOrPyCFunction_GET_FUNCTION(func);
+    self = __Pyx_CyOrPyCFunction_GET_SELF(func);
 
     if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
         return NULL;

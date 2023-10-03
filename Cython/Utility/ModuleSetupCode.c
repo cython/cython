@@ -906,16 +906,26 @@ class __Pyx_FakeReference {
 #else
 #define __Pyx_PyCFunction_CheckExact(func)  PyCFunction_Check(func)
 #endif
-#define __Pyx_PyCFunction_Check(func)  PyCFunction_Check(func)
-#if CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_PyCFunction_GET_FLAGS(func)  PyCFunction_GetFlags(func)
-#define __Pyx_PyCFunction_GET_FUNCTION(func)  PyCFunction_GetFunction(func)
-#define __Pyx_PyCFunction_GET_SELF(func)  PyCFunction_GetSelf(func)
-#else
-#define __Pyx_PyCFunction_GET_FLAGS(func)  PyCFunction_GET_FLAGS(func)
-#define __Pyx_PyCFunction_GET_FUNCTION(func)  PyCFunction_GET_FUNCTION(func)
-#define __Pyx_PyCFunction_GET_SELF(func)  PyCFunction_GET_SELF(func)
+#define __Pyx_CyOrPyCFunction_Check(func)  PyCFunction_Check(func)
+
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_CyOrPyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
+#elif !CYTHON_COMPILING_IN_LIMITED_API
+// It's probably easier for non-CPythons to support PyCFunction_GET_FUNCTION() than the object struct layout.
+#define __Pyx_CyOrPyCFunction_GET_FUNCTION(func)  PyCFunction_GET_FUNCTION(func)
+// Unused in CYTHON_COMPILING_IN_LIMITED_API.
 #endif
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_CyOrPyCFunction_GET_FLAGS(func)  (((PyCFunctionObject*)(func))->m_ml->ml_flags)
+static CYTHON_INLINE PyObject* __Pyx_CyOrPyCFunction_GET_SELF(PyObject *func) {
+    return (__Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_STATIC) ? NULL : ((PyCFunctionObject*)func)->m_self;
+}
+// Only used if CYTHON_COMPILING_IN_CPYTHON.
+#endif
+static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
+    return PyCFunction_Check(func) && PyCFunction_GET_FUNCTION(func) == (PyCFunction) cfunc;
+}
+#define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCFunction(func, cfunc)
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
 #if __PYX_LIMITED_VERSION_HEX < 0x030900B1

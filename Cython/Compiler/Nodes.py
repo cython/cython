@@ -4964,14 +4964,12 @@ class OverrideCheckNode(StatNode):
         # need to get attribute manually--scope would return cdef method
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
-        err = code.error_goto_if_null(func_node_temp, self.pos)
         code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
-            func_node_temp, self_arg, interned_attr_cname, err))
+            func_node_temp, self_arg, interned_attr_cname,
+            code.error_goto_if_null(func_node_temp, self.pos)))
         code.put_gotref(func_node_temp, py_object_type)
 
-        is_overridden = "(__Pyx_PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
-            func_node_temp, method_entry.func_cname)
-        code.putln("if (!__Pyx_PyCFunction_Check(%s) || %s) {" % (func_node_temp, is_overridden))
+        code.putln("if (!__Pyx_IsSameCFunction(%s, %s)) {" % (func_node_temp, method_entry.func_cname))
         self.body.generate_execution_code(code)
         code.putln("}")
 
