@@ -12900,7 +12900,7 @@ class CondExprNode(ExprNode):
         out = self.analyse_result_type(env)
         if not out.type.is_int:
             # fall back to ordinary coercion since we haven't ended as the correct type
-            if isinstance(out, CondExprNode):
+            if out is self:
                 out = super(CondExprNode, out).coerce_to_integer(env)
             else:
                 # I believe `analyse_result_type` always returns a CondExprNode but
@@ -12917,7 +12917,7 @@ class CondExprNode(ExprNode):
         out = self.analyse_result_type(env)
         if out.type != dst_type:
             # fall back to ordinary coercion since we haven't ended as the correct type
-            if isinstance(out, CondExprNode):
+            if out is self:
                 out = super(CondExprNode, out).coerce_to(dst_type, env)
             else:
                 # I believe `analyse_result_type` always returns a CondExprNode but
