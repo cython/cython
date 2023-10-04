@@ -2029,7 +2029,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 #if CYTHON_COMPILING_IN_PYPY
     // In PyPy, functions are regular methods, so just do the self check.
 #else
-    if (__Pyx_PyCFunction_CheckExact(method))
+    if (PyCFunction_Check(method))
 #endif
     {
         PyObject *self;
