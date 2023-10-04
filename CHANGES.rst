@@ -2,7 +2,89 @@
 Cython Changelog
 ================
 
-3.0.1 (2023-??-??)
+3.0.3 (2023-1?-??)
+==================
+
+Features added
+--------------
+
+* More warnings were added to help users migrate and avoid bugs.
+  (Github issue :issue:`5650`)
+
+* A warning-like category for performance hints was added that bypasses ``-Werror``.
+  (Github issue :issue:`5673`)
+
+* FastGIL now uses standard ``thread_local`` in C++.
+  (Github issue :issue:`5640`)
+
+Bugs fixed
+----------
+
+* Performance regressions where the GIL was needlessly acquired were fixed.
+  (Github issues :issue:`5670`, :issue:`5700`)
+
+* A reference leak for exceptions in Python 3.12 was resolved.
+  Patch by Eric Johnson.  (Github issue :issue:`5724`)
+
+* ``fastcall`` calls with keyword arguments generated incorrect C code.
+  (Github issue :issue:`5665`)
+
+* Early (unlikely) failures in Python function wrappers no longer set a
+  traceback in order to simplify the C code flow.  Being mostly memory
+  allocation errors, they probably would never have created a traceback anyway.
+  (Github issue :issue:`5681`)
+
+* Relative cimports from packages with ``__init__.py`` files could fail.
+  (Github issue :issue:`5715`)
+
+* Several issues with the Limited API support were resolved.
+  (Github issues :issue:`5641`, :issue:`5648`, :issue:`5689`)
+
+* Fix some C compiler warnings.
+  Patches by Ralf Gommers, Oleksandr Pavlyk, Sebastian Koslowski et al.
+  (Github issues :issue:`5651`, :issue:`5663`, :issue:`5668`, :issue:`5717`, :issue:`5726`)
+
+* Generating gdb debugging information failed when using generator expressions.
+  Patch by Oleksandr Pavlyk.  (Github issue :issue:`5552`)
+
+* Passing a ``setuptools.Extension`` into ``cythonize()`` instead of a
+  ``distutils.Extension`` could make it miss the matching extensions.
+
+* ``cython -M`` needlessly required ``distutils``, which made it fail in Python 3.12.
+  (Github issue :issue:`5681`)
+
+Other changes
+-------------
+
+* The visible deprecation warning for ``DEF`` was removed again since it proved
+  difficult for some users to migrate away from it.  The statement is still
+  meant to be removed at some point (and thus, like ``IF``, should not be
+  used in new code), but the time for sunset is probably not around the corner.
+  (Github issue :issue:`4310`)
+
+* The ``np_pythran`` option raise a ``DeprecationWarning`` if it receives other values
+  than ``True`` and ``False``.  This will eventually be disallowed (in line with all
+  other boolean options).
+
+
+3.0.2 (2023-08-27)
+==================
+
+Bugs fixed
+----------
+
+* Using ``None`` as default value for arguments annotated as ``int`` could crash Cython.
+  (Github issue :issue:`5643`)
+
+* Default values of fused types that include ``complex`` could generate invalid C code
+  with ``-DCYTHON_CCOMPLEX=0``.
+  (Github issue :issue:`5644`)
+
+* Using C++ enum class types in extension type method signatures could generate invalid C code.
+  (Github issue :issue:`5637`)
+
+
+3.0.1 (2023-08-25)
 ==================
 
 Features added
@@ -15,6 +97,26 @@ Features added
 Bugs fixed
 ----------
 
+* Memory view types in Python argument annotations no longer accept ``None``.  They now
+  require an explicit ``Optional[]`` or a ``None`` default value in order to allow ``None``
+  to be passed.  This was an oversight in the 3.0.0 release and is a BACKWARDS INCOMPATIBLE
+  change.  However, since it only applies to code using Python syntax, it probably only
+  applies to newly written code that was written for Cython 3.0 and can easily be adapted.
+  In most cases, we expect that this change will avoid bugs in user code rather than
+  produce problems.
+  (Github issue :issue:`5612`)
+
+* ``nogil`` functions using parallel code could freeze when called with the GIL held.
+  (Github issues :issue:`5564`, :issue:`5573`)
+
+* Relative cimports could end up searching globally and find the same package installed
+  elsewhere, potentially in another version.
+  (Github issue :issue:`5511`)
+
+* Attribute lookups on known standard library modules could accidentally search
+  in the module namespace instead.
+  (Github issue :issue:`5536`)
+
 * Using constructed C++ default arguments could generate invalid C++ code.
   (Github issue :issue:`5553`)
 
@@ -25,22 +127,49 @@ Bugs fixed
   (and thus more future proof) API code.
 
 * Many issues with the Limited API support were resolved.
-  Patch by Lisandro Dalcin et al.  (Github issues :issue:`5549`, :issue:`5556`, :issue:`5605`)
+  Patches by Lisandro Dalcin et al.
+  (Github issues :issue:`5549`, :issue:`5550`, :issue:`5556`, :issue:`5605`, :issue:`5617`)
 
 * Some C compiler warnings were resolved.
   Patches by Matti Picus et al.  (Github issues :issue:`5557`, :issue:`5555`)
 
+* Large Python integers are now stored in hex instead of decimal strings to work around
+  security limits in Python and generally speed up their Python object creation.
+
 * ``NULL`` could not be used as default for fused type pointer arguments.
+  (Github issue :issue:`5554`)
+
+* C functions that return pointer types now return ``NULL`` as default exception value.
+  Previously, calling code wasn't aware of this and always tested for raised exceptions.
   (Github issue :issue:`5554`)
 
 * Untyped literal default arguments in fused functions could generate invalid C code.
   (Github issue :issue:`5614`)
 
+* C variables declared as ``const`` could generate invalid C code when used in closures,
+  generator expressions, ctuples, etc.
+  (Github issues :issue:`5558`,  :issue:`5333`)
+
+* Enums could not refer to previously defined enums in their definition.
+  (Github issue :issue:`5602`)
+
+* The Python conversion code for anonymous C enums conflicted with regular int conversion.
+  (Github issue :issue:`5623`)
+
+* Using memory views for property methods (and other special methods) could lead to
+  refcounting problems.
+  (Github issue :issue:`5571`)
+
 * Star-imports could generate code that tried to assign to constant C macros like
-  `PY_SSIZE_T_MAX` and `PY_SSIZE_T_MIN`.
+  ``PY_SSIZE_T_MAX`` and ``PY_SSIZE_T_MIN``.
   Patch by Philipp Wagner.  (Github issue :issue:`5562`)
 
 * ``CYTHON_USE_TYPE_SPECS`` can now be (explicitly) enabled in PyPy.
+
+* The template parameter "delimeters" in the Tempita ``Template`` class was corrected
+  to "delimiters".  The old spelling is still available in the main template API but
+  now issues a ``DeprecationWarning``.
+  (Github issue :issue:`5608`)
 
 * The ``cython --version`` output is now  less likely to reach both stdout and stderr.
   Patch by Eli Schwartz.  (Github issue :issue:`5504`)

@@ -192,6 +192,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 
 /////////////// Import ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires:StringTools.c::IncludeStringH
 //@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
@@ -216,8 +217,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     {
         #if PY_MAJOR_VERSION >= 3
         if (level == -1) {
-            // Avoid C compiler warning if strchr() evaluates to false at compile time.
-            if ((1) && (strchr(__Pyx_MODULE_NAME, '.'))) {
+            if (strchr(__Pyx_MODULE_NAME, '.') != NULL) {
                 /* try package relative import first */
                 module = PyImport_ImportModuleLevelObject(
                     name, $moddict_cname, empty_dict, from_list, 1);

@@ -2785,12 +2785,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     ### builtin functions
 
-    Pyx_strlen_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_size_t_type, [
-            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
-        ],
-        nogil=True)
-
     Pyx_ssize_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
@@ -2811,12 +2805,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     _map_to_capi_len_function = {
         Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type:      "PyBytes_GET_SIZE",
-        Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
-        Builtin.list_type:       "PyList_GET_SIZE",
-        Builtin.tuple_type:      "PyTuple_GET_SIZE",
-        Builtin.set_type:        "PySet_GET_SIZE",
-        Builtin.frozenset_type:  "PySet_GET_SIZE",
+        Builtin.bytes_type:      "__Pyx_PyBytes_GET_SIZE",
+        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
+        Builtin.list_type:       "__Pyx_PyList_GET_SIZE",
+        Builtin.tuple_type:      "__Pyx_PyTuple_GET_SIZE",
+        Builtin.set_type:        "__Pyx_PySet_GET_SIZE",
+        Builtin.frozenset_type:  "__Pyx_PySet_GET_SIZE",
         Builtin.dict_type:       "PyDict_Size",
     }.get
 
@@ -2837,8 +2831,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_ssize_strlen", self.Pyx_ssize_strlen_func_type,
                 args = [arg],
-                is_temp = node.is_temp,
-                utility_code = UtilityCode.load_cached("ssize_strlen", "StringTools.c"))
+                is_temp = node.is_temp)
         elif arg.type.is_pyunicode_ptr:
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_Py_UNICODE_ssize_strlen", self.Pyx_Py_UNICODE_strlen_func_type,
@@ -3995,11 +3988,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     string_node = UtilNodes.LetRefNode(string_node)  # used twice
                     temps.append(string_node)
                 stop = ExprNodes.PythonCapiCallNode(
-                    string_node.pos, "strlen", self.Pyx_strlen_func_type,
+                    string_node.pos, "__Pyx_ssize_strlen", self.Pyx_ssize_strlen_func_type,
                     args=[string_node],
-                    is_temp=False,
-                    utility_code=UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
-                ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+                    is_temp=True,
+                )
             helper_func_type = self._decode_c_string_func_type
             utility_code_name = 'decode_c_string'
         elif string_type.is_cpp_string:

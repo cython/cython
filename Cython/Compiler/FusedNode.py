@@ -904,7 +904,7 @@ class FusedCFuncDefNode(StatListNode):
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
                         if default.is_literal:
-                            arg.default = default
+                            arg.default = default.coerce_to(arg.type, env)
                         else:
                             arg.default = CloneNode(default).analyse_expressions(env).coerce_to(arg.type, env)
 

@@ -32,8 +32,8 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True, absolute_fallback=True):
-        if relative_to:
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=True, absolute_fallback=True, relative_import=False):
+        if from_module:
             raise AssertionError("Relative imports not supported in utility code.")
         if module_name != self.module_name:
             if module_name not in self.modules:
@@ -124,7 +124,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
-            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True,
+            in_utility_code=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:

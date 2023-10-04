@@ -1578,8 +1578,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
                 obj_struct = type.declaration_code("", deref=True)
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name, obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1587,7 +1588,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("(void) PyObject_INIT(o, t);")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
-                code.putln("} else {")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{")
             if not is_final_type:
                 code.putln("if (likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
             code.putln("o = (*t->tp_alloc)(t, 0);")
@@ -1814,16 +1817,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
 
                 type = scope.parent_type
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && ((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name,
                         freelist_size,
                         type.declaration_code("", deref=True),
                         type_safety_check))
                 code.putln("%s[%s++] = %s;" % (
                     freelist_name, freecount_name, type.cast_code("o")))
-                code.putln("} else {")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+            # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
+            code.putln("#else")
+            code.putln("{")
+            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+            code.putln("if (tp_free) tp_free(o);")
+            code.putln("}")
+            code.putln("#endif")
             if freelist_size:
                 code.putln("}")
 
@@ -3062,7 +3076,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
-        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
+        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
+                                        "__PYX_LIMITED_VERSION_HEX, "
+                                        "__Pyx_get_runtime_version(), "
+                                        "CYTHON_COMPILING_IN_LIMITED_API)"
+        )
 
         code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")
@@ -3400,7 +3418,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
+                code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
                 code.putln("(*Py_TYPE(o)->tp_free)(o);")
+                code.putln("#else")
+                # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
+                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+                code.putln("if (tp_free) tp_free(o);")
+                code.putln("#endif")
                 code.putln("}")
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,

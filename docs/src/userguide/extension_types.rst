@@ -1165,7 +1165,7 @@ values. If we write an extension module ``wrapper``::
             cdef:
                 int field0
                 int field1
-                int feild2
+                int field2
 
     def sum(Foo f):
         return f.field0 + f.field1 + f.field2
