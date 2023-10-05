@@ -599,7 +599,7 @@ For example::
 
 Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
-efficient re-use.
+efficient reuse.
 
 
 Compiling with ``cython.compile``

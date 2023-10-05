@@ -6517,7 +6517,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     #
     #  This code is a bit tricky because in order to obey Python
     #  semantics the sub-expressions (e.g. indices) of the lhs must
-    #  not be evaluated twice. So we must re-use the values calculated
+    #  not be evaluated twice. So we must reuse the values calculated
     #  in evaluation phase for the assignment phase as well.
     #  Fortunately, the type of the lhs node is fairly constrained
     #  (it must be a NameNode, AttributeNode, or IndexNode).

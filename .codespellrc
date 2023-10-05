@@ -5,4 +5,5 @@ skip = .git,*.pdf,*.svg,cython.st,msvc_strings.pyx,test_genericclass_exttype.pyx
 ignore-regex= Tripple|/Fo|ist das|TOi|respect to the includee
 # forin - ? tag used in 3 files. may be could be renamed?
 # delimeters - typo, but used in API so kept as is
-ignore-words-list = asend,forin,nd,mis,te,nin,ue,ccompiler,ket,defin,delimeters,filetests,crasher,re-use,implementor,implementors
+# implementor,implementors - was decided that both forms are ok
+ignore-words-list = asend,forin,nd,mis,te,nin,ue,ccompiler,ket,defin,delimeters,filetests,crasher,implementor,implementors
