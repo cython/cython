@@ -308,9 +308,10 @@ class FusedCFuncDefNode(StatListNode):
                 """)
 
     def _dtype_name(self, dtype):
+        dtype_name = str(dtype).replace(' ', '_')
         if dtype.is_typedef:
-            return '___pyx_%s' % dtype
-        return str(dtype).replace(' ', '_')
+            return '___pyx_%s' % dtype_name
+        return dtype_name
 
     def _dtype_type(self, dtype):
         if dtype.is_typedef:
