@@ -55,7 +55,7 @@ jobs:
           - "3.12"
         env: [{}]
 
-        #include:
+        include:
         #  # Temporary - Allow failure on Python 3.12-dev jobs until they are in beta (feature frozen)
         #  - python-version: 3.12-dev
         #    allowed_failure: true
