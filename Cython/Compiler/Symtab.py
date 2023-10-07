@@ -914,7 +914,7 @@ class Scope(object):
             entry.func_cname = cname
             entry.is_overridable = overridable
         if inline_in_pxd:
-            entry.inline_in_pxd = True
+            entry.inline_func_in_pxd = True
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
