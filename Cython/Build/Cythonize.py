@@ -7,9 +7,13 @@ import tempfile
 try:
     from distutils.core import setup
 except ImportError:
-    raise ImportError(
-        "'distutils' cannot be imported. Please install setuptools."
-    )
+    try:
+        # Python 3.12 no longer has distutils, but setuptools can replace it.
+        from setuptools import setup
+    except ImportError:
+        raise ImportError(
+            "'distutils' cannot be imported. Please install setuptools."
+        )
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir

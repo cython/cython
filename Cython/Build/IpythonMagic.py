@@ -54,13 +54,28 @@ import time
 import copy
 
 try:
-    import distutils.log
+    from distutils.log import DEBUG
+    from distutils.log import set_threshold
     from distutils.core import Distribution, Extension
     from distutils.command.build_ext import build_ext
+    import distutils.errors as _distutils_errors
 except ImportError:
-    raise ImportError(
-        "'distutils' cannot be imported. Please install setuptools."
-    )
+    import logging
+    from logging import DEBUG
+
+    def set_threshold(level):
+        old_threshold = logging.root.getEffectiveLevel()
+        logging.root.setLevel(level)
+        return old_threshold
+
+    try:
+        from setuptools import Distribution, Extension
+        from setuptools.command.build_ext import build_ext
+        import setuptools.errors as _distutils_errors
+    except ImportError:
+        raise ImportError(
+            "'distutils' cannot be imported. Please install setuptools."
+        )
 
 import textwrap
 
@@ -355,7 +370,7 @@ class CythonMagics(Magics):
                 with captured_fd(2) as get_stderr:
                     self._build_extension(
                         extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
-        except (distutils.errors.CompileError, distutils.errors.LinkError):
+        except (_distutils_errors.CompileError, _distutils_errors.LinkError):
             # Build failed, print error message from compiler/linker
             print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
             return None
@@ -469,11 +484,11 @@ class CythonMagics(Magics):
         old_threshold = None
         try:
             if not quiet:
-                old_threshold = distutils.log.set_threshold(distutils.log.DEBUG)
+                old_threshold = set_threshold(DEBUG)
             build_extension.run()
         finally:
             if not quiet and old_threshold is not None:
-                distutils.log.set_threshold(old_threshold)
+                set_threshold(old_threshold)
 
     def _add_pgo_flags(self, build_extension, step_name, temp_dir):
         compiler_type = build_extension.compiler.compiler_type

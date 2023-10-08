@@ -10,9 +10,13 @@ try:
     from distutils.core import Distribution, Extension
     from distutils.command.build_ext import build_ext
 except ImportError:
-    raise ImportError(
-        "'distutils' cannot be imported. Please install setuptools."
-    )
+    try:
+        from setuptools import Distribution, Extension
+        from setuptools.command.build_ext import build_ext
+    except ImportError:
+        raise ImportError(
+            "'distutils' cannot be imported. Please install setuptools."
+        )
 
 import Cython
 from ..Compiler.Main import Context

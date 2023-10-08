@@ -9,7 +9,11 @@ import sys
 try:
     import distutils.extension as _Extension
 except ImportError:
-    raise ImportError("'distutils' cannot be imported. Please install setuptools.")
+        # Python 3.12 no longer has distutils, but setuptools can replace it.
+        try:
+            import setuptools.extension as _Extension
+        except ImportError:
+            raise ImportError("'distutils' cannot be imported. Please install setuptools.")
 
 
 class Extension(_Extension.Extension):
@@ -94,10 +98,6 @@ class Extension(_Extension.Extension):
         self.cython_gdb = cython_gdb
         self.no_c_in_traceback = no_c_in_traceback
         self.cython_compile_time_env = cython_compile_time_env
-
-# class Extension
-
-read_setup_file = _Extension.read_setup_file
 
 
 # reuse and extend original docstring from base class (if we can)
