@@ -6,6 +6,17 @@ out_fname = pyx_to_dll("foo.pyx")
 import os
 import sys
 
+if sys.version_info > (3, 11):
+    try:
+        import setuptools
+    except ImportError:
+        raise ImportError(
+            "Missing optional dependency 'setuptools'. "
+            "Use pip or conda to install setuptools."
+        )
+
+del sys
+
 from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error

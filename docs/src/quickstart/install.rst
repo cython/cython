@@ -44,7 +44,11 @@ according to the system used:
 
 The simplest way of installing Cython is by using ``pip``::
 
-  pip install Cython
+  pip install Cython[setuptools]
+
+.. Note::
+   When cython is used only to generate .c files, setuptools optional dependency can be omited.
+   This is useful mainly when alternative build system like meson is used.
 
 On platforms that are covered by one of the binary wheel packages provided on PyPI,
 this will install an accelerated wheel which contains some Cython compiled modules.
@@ -58,7 +62,7 @@ The newest Cython release can always be downloaded from
 https://cython.org/.  Unpack the tarball or zip file, enter the
 directory, and then run::
 
-  pip install .
+  pip install .[setuptools]
 
 
 For one-time installations from a Cython source checkout, it is substantially
@@ -67,11 +71,11 @@ of Cython with something like
 
 ::
 
-    pip install .  --install-option="--no-cython-compile"
+    pip install .[setuptools] --install-option="--no-cython-compile"
 
     or
 
-    NO_CYTHON_COMPILE=true  pip install .
+    NO_CYTHON_COMPILE=true  pip install .[setuptools]
 
 
 .. [Anaconda] https://docs.anaconda.com/anaconda/
