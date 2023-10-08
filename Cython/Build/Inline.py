@@ -4,6 +4,7 @@ import hashlib
 import inspect
 import os
 import re
+import sys
 
 try:
     from distutils.core import Distribution, Extension
