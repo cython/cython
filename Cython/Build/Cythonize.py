@@ -3,7 +3,13 @@ from __future__ import absolute_import, print_function
 import os
 import shutil
 import tempfile
-from distutils.core import setup
+
+try:
+    from distutils.core import setup
+except ImportError:
+    raise ImportError(
+        "'distutils' cannot be imported. Please install setuptools."
+    )
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir

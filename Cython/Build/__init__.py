@@ -3,17 +3,8 @@ from .Dependencies import cythonize
 import sys
 if sys.version_info < (3, 7):
     from .Distutils import build_ext
-
-if sys.version_info >= (3, 12):
-    try:
-        import setuptools
-    except ImportError:
-        raise ImportError(
-            "Missing optional dependency 'setuptools'. "
-            "Use pip or conda to install setuptools."
-        )
-
 del sys
+
 
 def __getattr__(name):
     if name == 'build_ext':

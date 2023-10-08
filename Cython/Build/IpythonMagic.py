@@ -52,15 +52,22 @@ import re
 import sys
 import time
 import copy
-import distutils.log
+
+try:
+    import distutils.log
+    from distutils.core import Distribution, Extension
+    from distutils.command.build_ext import build_ext
+except ImportError:
+    raise ImportError(
+        "'distutils' cannot be imported. Please install setuptools."
+    )
+
 import textwrap
 
 IO_ENCODING = sys.getfilesystemencoding()
 IS_PY2 = sys.version_info[0] < 3
 
 import hashlib
-from distutils.core import Distribution, Extension
-from distutils.command.build_ext import build_ext
 
 from IPython.core import display
 from IPython.core import magic_arguments

@@ -6,7 +6,10 @@ Pyrex extension modules in setup scripts."""
 __revision__ = "$Id:$"
 
 import sys
-import distutils.extension as _Extension
+try:
+    import distutils.extension as _Extension
+except ImportError:
+    raise ImportError("'distutils' cannot be imported. Please install setuptools.")
 
 
 class Extension(_Extension.Extension):

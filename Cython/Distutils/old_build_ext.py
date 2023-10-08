@@ -10,11 +10,14 @@ __revision__ = "$Id:$"
 
 import sys
 import os
-from distutils.errors import DistutilsPlatformError
-from distutils.dep_util import newer, newer_group
-from distutils import log
-from distutils.command import build_ext as _build_ext
-from distutils import sysconfig
+try:
+    from distutils.errors import DistutilsPlatformError
+    from distutils.dep_util import newer, newer_group
+    from distutils import log
+    from distutils.command import build_ext as _build_ext
+    from distutils import sysconfig
+except ImportError:
+    raise ImportError("'distutils' cannot be imported. Please install setuptools.")
 
 
 try:

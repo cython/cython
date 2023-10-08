@@ -13,7 +13,12 @@ DEBUG = True
 
 import sys
 import os
-from distutils import sysconfig
+try:
+    from distutils import sysconfig
+except ImportError:
+    raise ImportError(
+        "'distutils' cannot be imported. Please install setuptools."
+    )
 
 
 def get_config_var(name, default=''):

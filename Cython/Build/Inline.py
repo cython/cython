@@ -4,10 +4,14 @@ import hashlib
 import inspect
 import os
 import re
-import sys
 
-from distutils.core import Distribution, Extension
-from distutils.command.build_ext import build_ext
+try:
+    from distutils.core import Distribution, Extension
+    from distutils.command.build_ext import build_ext
+except ImportError:
+    raise ImportError(
+        "'distutils' cannot be imported. Please install setuptools."
+    )
 
 import Cython
 from ..Compiler.Main import Context
