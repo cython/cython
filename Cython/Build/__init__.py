@@ -4,7 +4,7 @@ import sys
 if sys.version_info < (3, 7):
     from .Distutils import build_ext
 
-if sys.version_info > (3, 11):
+if sys.version_info >= (3, 12):
     try:
         import setuptools
     except ImportError:
