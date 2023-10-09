@@ -148,8 +148,8 @@ buffer_max_dims = 8
 #: Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
 
-#: Show performance hints -- these aren't warning but some people may not want
-# to see them
+#: Show performance hints during compilation pointing to places in code which can yield performance degradation.
+#: Note that performance hints are not warnings and hence warning related options does not affect them.
 show_performance_hints = True
 
 
