@@ -13,11 +13,10 @@ DEBUG = True
 
 import sys
 import os
-if sys.version_info < (3, 12):
+if sys.version_info < (3, 2):
     from distutils.sysconfig import get_python_inc
     from distutils.sysconfig import get_config_var
 else:
-    # Python 3.12 no longer has distutils
     from sysconfig import get_path
     from sysconfig import get_config_var
     get_python_inc = lambda: get_path('include')

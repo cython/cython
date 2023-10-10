@@ -25,10 +25,9 @@ cdef extern from "parsetok.h":
         perrdetail * err_ret,
         int * flags)
 
-if sys.version_info < (3, 12):
+if sys.version_info < (3, 2):
     from distutils.sysconfig import get_python_inc
 else:
-    # Python 3.12 no longer has distutils
     from sysconfig import get_path
     get_python_inc = lambda: get_path('include')
 import os
