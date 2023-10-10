@@ -8,6 +8,8 @@ __revision__ = "$Id:$"
 import sys
 try:
     import distutils.extension as _Extension
+    # Note: There is no simmilar function present in setuptools.
+    read_setup_file = _Extension.read_setup_file
 except ImportError:
         # Python 3.12 no longer has distutils, but setuptools can replace it.
         try:
