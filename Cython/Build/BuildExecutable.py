@@ -13,13 +13,20 @@ DEBUG = True
 
 import sys
 import os
-from distutils import sysconfig
+if sys.version_info < (3, 12):
+    from distutils.sysconfig import get_python_inc
+    from distutils.sysconfig import get_config_var
+else:
+    # Python 3.12 no longer has distutils
+    from sysconfig import get_path
+    from sysconfig import get_config_var
+    get_python_inc = lambda: get_path('include')
 
 
 def get_config_var(name, default=''):
-    return sysconfig.get_config_var(name) or default
+    return get_config_var(name) or default
 
-INCDIR = sysconfig.get_python_inc()
+INCDIR = get_python_inc()
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')
@@ -36,7 +43,7 @@ LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')
-EXE_EXT = sysconfig.get_config_var('EXE')
+EXE_EXT = get_config_var('EXE')
 
 
 def _debug(msg, *args):

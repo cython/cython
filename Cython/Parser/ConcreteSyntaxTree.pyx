@@ -25,7 +25,12 @@ cdef extern from "parsetok.h":
         perrdetail * err_ret,
         int * flags)
 
-import distutils.sysconfig
+if sys.version_info < (3, 12):
+    from distutils.sysconfig import get_python_inc
+else:
+    # Python 3.12 no longer has distutils
+    from sysconfig import get_path
+    get_python_inc = lambda: get_path('include')
 import os
 import re
 
@@ -47,7 +52,7 @@ cdef dict type_names = {}
 cdef print_tree(node* n, indent=""):
     if not type_names:
         type_names.update(extract_names(
-            os.path.join(distutils.sysconfig.get_python_inc(), 'token.h')))
+            os.path.join(get_python_inc(), 'token.h')))
         type_names.update(extract_names(
             os.path.join(os.path.dirname(__file__), 'graminit.h')))
 
