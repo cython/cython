@@ -25,9 +25,10 @@ cdef extern from "parsetok.h":
         perrdetail * err_ret,
         int * flags)
 
-if sys.version_info < (3, 2):
+if sys.version_info < (3, 9):
     from distutils.sysconfig import get_python_inc
 else:
+    # sysconfig can be trusted from cpython >= 3.8.7
     from sysconfig import get_path
     get_python_inc = lambda: get_path('include')
 import os
