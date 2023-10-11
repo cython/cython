@@ -5438,16 +5438,22 @@ def cap_length(s, max_prefix=63, max_len=1024):
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, function_name=None, void_return=False):
+def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False):
     on_what = "on '%s' " % function_name if function_name else ""
     msg = (
-        "Exception check %swill always require the GIL to be acquired. Possible solutions:\n"
-        "\t1. Declare the function as 'noexcept' if you control the definition and "
-                                "you're sure you don't want the function to raise exceptions.\n"
+        "Exception check %swill always require the GIL to be acquired."
     ) % on_what
+    solutions = ["Declare the function as 'noexcept' if you control the definition and "
+                                "you're sure you don't want the function to raise exceptions."]
     if void_return:
-        msg += "\t2. Use an 'int' return type on the function to allow an error code to be returned."
-    performance_hint(pos, msg)
+        solutions.append(
+            "Use an 'int' return type on the function to allow an error code to be returned.")
+    if len(solutions) == 1:
+        msg = "%s %s" % (msg, solutions[0])
+    else:
+        solutions = ["\t%s. %s" % (i+1, s) for i, s in enumerate(solutions)]
+        msg = "%s\nPossible solutions:\n%s" % (msg, "\n".join(solutions))
+    performance_hint(pos, msg, env)
 
 def remove_cv_ref(tp, remove_fakeref=False):
     # named by analogy with c++ std::remove_cv_ref

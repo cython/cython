@@ -942,7 +942,7 @@ class Scope(object):
                 # don't warn about external functions here - the user likely can't do anything
                 defining and not in_pxd and not inline_in_pxd):
             PyrexTypes.write_noexcept_performance_hint(
-                pos, function_name=name, void_return=type.return_type.is_void)
+                pos, self, function_name=name, void_return=type.return_type.is_void)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,

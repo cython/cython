@@ -191,8 +191,8 @@ def _write_file_encode(file, line):
         file.write(line.encode('ascii', 'replace'))
 
 
-def performance_hint(position, message):
-    if not Options.show_performance_hints:
+def performance_hint(position, message, env):
+    if not env.directives['show_performance_hints']:
         return
     warn = CompileWarning(position, message)
     line = "performance hint: %s\n" % warn
