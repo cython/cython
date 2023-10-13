@@ -11,7 +11,12 @@ try:
     from distutils.extension import Extension
     from distutils.util import grok_environment_error
 except ImportError:
-    raise ImportError("'distutils' cannot be imported. Please install setuptools.")
+    try:
+        from setuptools.errors import DistutilsArgError, DistutilsError, CCompilerError
+        from setuptools.extension import Extension
+        from setuptools._distutils.util import grok_environment_error
+    except ImportError:
+        raise ImportError("'distutils' cannot be imported. Please install setuptools.")
 
 try:
     from Cython.Distutils.build_ext import build_ext
