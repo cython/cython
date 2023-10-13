@@ -54,14 +54,13 @@ import time
 import copy
 
 try:
-    from distutils.log import DEBUG
+    import distutils.log as logging
     from distutils.log import set_threshold
     from distutils.core import Distribution, Extension
     from distutils.command.build_ext import build_ext
     import distutils.errors as _distutils_errors
 except ImportError:
     import logging
-    from logging import DEBUG
 
     def set_threshold(level):
         old_threshold = logging.root.getEffectiveLevel()
@@ -484,7 +483,7 @@ class CythonMagics(Magics):
         old_threshold = None
         try:
             if not quiet:
-                old_threshold = set_threshold(DEBUG)
+                old_threshold = set_threshold(logging.DEBUG)
             build_extension.run()
         finally:
             if not quiet and old_threshold is not None:
