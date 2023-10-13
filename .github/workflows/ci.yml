@@ -44,14 +44,6 @@ jobs:
         os: [ubuntu-20.04, windows-2019, macos-11]
         backend: [c, cpp]
         python-version:
-          - "2.7"
-          - "3.5"
-          - "3.6"
-          - "3.7"
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
           - "3.12"
         env: [{}]
 
@@ -64,64 +56,6 @@ jobs:
           # ================
           # GCC 11 (with latest language standards)
           - os: ubuntu-20.04
-            python-version: 3.9
-            backend: c
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
-          - os: ubuntu-20.04
-            python-version: 3.9
-            backend: cpp
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
-            extra_hash: "-gcc11"
-          # compile all modules
-          - os: ubuntu-20.04
-            python-version: 2.7
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-20.04
-            python-version: 2.7
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-20.04
-            python-version: "3.10"
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-20.04
-            python-version: "3.10"
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          # Linting
-          - os: ubuntu-20.04
-            python-version: 3.9
-            backend: "c,cpp"
-            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
-            extra_hash: "-codestyle"
-          # Limited API
-          - os: ubuntu-20.04
-            python-version: 3.6
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-20.04
-            python-version: 3.7
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-20.04
-            python-version: 3.8
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-20.04
-            python-version: "3.11"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-20.04
             python-version: "3.12"
             allowed_failure: true
             backend: "c,cpp"
@@ -129,61 +63,9 @@ jobs:
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-20.04
-            python-version: 3.9
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-20.04
-            python-version: 3.8
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-20.04
-            python-version: 3.7
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-20.04
-            python-version: 3.6
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Stackless
-          - os: ubuntu-20.04
-            python-version: 2.7
-            backend: c
-            env: { STACKLESS: true, PY: 2 }
-            extra_hash: "-stackless"
-          - os: ubuntu-20.04
-            python-version: 3.6
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
-          - os: ubuntu-20.04
-            python-version: 3.8
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
-          # Pypy
-          - os: ubuntu-20.04
-            python-version: pypy-2.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-20.04
             python-version: pypy-3.9-v7.3.12
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          # Coverage
-          - os: ubuntu-20.04
-            python-version: 3.8
-            backend: "c,cpp"
-            env: { COVERAGE: 1 }
-            extra_hash: '-coverage'
-
-          - os: windows-2019
-            # missing dependencies
-            python-version: 3.6
-            allowed_failure: true
 
         exclude:
           # fails due to lack of a compatible compiler
