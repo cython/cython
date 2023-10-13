@@ -58,7 +58,7 @@ try:
     from distutils.log import set_threshold
     from distutils.core import Distribution, Extension
     from distutils.command.build_ext import build_ext
-    import distutils.errors as _distutils_errors
+    import distutils.errors as _setuptools_errors
 except ImportError:
     import logging
 
@@ -70,7 +70,7 @@ except ImportError:
     try:
         from setuptools import Distribution, Extension
         from setuptools.command.build_ext import build_ext
-        import setuptools.errors as _distutils_errors
+        import setuptools.errors as _setuptools_errors
     except ImportError:
         raise ImportError(
             "'distutils' cannot be imported. Please install setuptools."
@@ -369,7 +369,7 @@ class CythonMagics(Magics):
                 with captured_fd(2) as get_stderr:
                     self._build_extension(
                         extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
-        except (_distutils_errors.CompileError, _distutils_errors.LinkError):
+        except (_setuptools_errors.CompileError, _setuptools_errors.LinkError):
             # Build failed, print error message from compiler/linker
             print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
             return None
