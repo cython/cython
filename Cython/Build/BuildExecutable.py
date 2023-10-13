@@ -14,19 +14,25 @@ DEBUG = True
 import sys
 import os
 if sys.version_info < (3, 9):
-    from distutils.sysconfig import get_python_inc
-    from distutils.sysconfig import get_config_var as sysconfig_get_config_var
+    from distutils import sysconfig as _sysconfig
+
+    class sysconfig(object):
+
+        @staticmethod
+        def get_path(name):
+            assert name == 'include'
+            return _sysconfig.get_python_inc()
+
+        get_config_var = staticmethod(_sysconfig.get_config_var)
 else:
     # sysconfig can be trusted from cpython >= 3.8.7
-    from sysconfig import get_path
-    from sysconfig import get_config_var as sysconfig_get_config_var
-    get_python_inc = lambda: get_path('include')
+    import sysconfig
 
 
 def get_config_var(name, default=''):
-    return sysconfig_get_config_var(name) or default
+    return sysconfig.get_config_var(name) or default
 
-INCDIR = get_python_inc()
+INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')
@@ -43,7 +49,7 @@ LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')
-EXE_EXT = sysconfig_get_config_var('EXE')
+EXE_EXT = sysconfig.get_config_var('EXE')
 
 
 def _debug(msg, *args):

@@ -26,11 +26,18 @@ cdef extern from "parsetok.h":
         int * flags)
 
 if sys.version_info < (3, 9):
-    from distutils.sysconfig import get_python_inc
+    from distutils import sysconfig as _sysconfig
+
+    class sysconfig(object):
+
+        @staticmethod
+        def get_path(name):
+            assert name == 'include'
+            return _sysconfig.get_python_inc()
 else:
     # sysconfig can be trusted from cpython >= 3.8.7
-    from sysconfig import get_path
-    get_python_inc = lambda: get_path('include')
+    import sysconfig
+
 import os
 import re
 
@@ -52,7 +59,7 @@ cdef dict type_names = {}
 cdef print_tree(node* n, indent=""):
     if not type_names:
         type_names.update(extract_names(
-            os.path.join(get_python_inc(), 'token.h')))
+            os.path.join(sysconfig.get_path('include'), 'token.h')))
         type_names.update(extract_names(
             os.path.join(os.path.dirname(__file__), 'graminit.h')))
 
