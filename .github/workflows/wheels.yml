@@ -110,10 +110,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           # Build sdist on lowest supported Python
           python-version: '3.12'
