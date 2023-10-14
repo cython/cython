@@ -1,4 +1,5 @@
 numpy
 coverage
 pycodestyle
+pytest
 setuptools

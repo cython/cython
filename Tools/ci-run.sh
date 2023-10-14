@@ -2,7 +2,7 @@
 
 set -x
 
-GCC_VERSION=${GCC_VERSION:=8}
+GCC_VERSION=${GCC_VERSION:=11}
 
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
@@ -31,11 +31,6 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
-
-  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
-    # see https://trac.macports.org/ticket/62757
-    unset MACOSX_DEPLOYMENT_TARGET
-  fi
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
@@ -90,29 +85,14 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "2.7"* ]]; then
-  pip install wheel || exit 1
-  pip install -r test-requirements-27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
-  python -m pip install wheel || exit 1
-  python -m pip install -r test-requirements-34.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.6"* ]]; then
-  python -m pip install wheel || exit 1
-  python -m pip install -r test-requirements-36.txt || exit 1
-elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
-  pip install wheel || exit 1
-  pip install -r test-requirements-pypy27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install --pre -r test-requirements-312.txt || exit 1
 else
-  python -m pip install -U pip "setuptools<60" wheel || exit 1
+  python -m pip install -U pip setuptools wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
-    python -m pip install -r test-requirements.txt || exit 1
-    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
-      python -m pip install -r test-requirements-cpython.txt || exit 1
-    fi
+    python -m pip install -r test-requirements-312.txt || exit 1
   fi
 fi
 
@@ -126,11 +106,10 @@ else
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
     if [[ $BACKEND == *"cpp"* ]]; then
       echo "WARNING: Currently not installing pythran due to compatibility issues"
-      # python -m pip install pythran==0.9.5 || exit 1
+      # python -m pip install pythran || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* &&
-          $PYTHON_VERSION != "2"* && $PYTHON_VERSION != "3.4"* ]]; then
+    if [[ $BACKEND != "cpp" ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -165,7 +144,7 @@ elif [[ $ODD_VERSION == "0" ]]; then
     CFLAGS="$CFLAGS -UNDEBUG"
 fi
 
-if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
+if [[ $NO_CYTHON_COMPILE != "1" ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $CYTHON_COMPILE_ALL == "1" && $OSTYPE != "msys" ]]; then
@@ -205,7 +184,7 @@ fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   make -C docs html || exit 1
-elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
+elif [[ $OSTYPE != "msys" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')

@@ -54,27 +54,27 @@ jobs:
         # Github Actions doesn't support pairing matrix values together, let's improvise
         # https://github.com/github/feedback/discussions/7835#discussioncomment-1769026
         buildplat:
-        - [ubuntu-20.04, manylinux_x86_64]
-        - [ubuntu-20.04, manylinux_aarch64]
-        - [ubuntu-20.04, manylinux_i686]
-        - [ubuntu-20.04, musllinux_x86_64]
-        - [ubuntu-20.04, musllinux_aarch64]
-        - [macos-11, macosx_*]
-        - [windows-2019, win_amd64]
-        - [windows-2019, win32]
-        python: ["cp36", "cp37", "cp38", "cp39", "cp310", "cp311", "cp312"]  # Note: Wheels not needed for PyPy
+        - [ubuntu-latest, manylinux_x86_64]
+        - [ubuntu-latest, manylinux_aarch64]
+        - [ubuntu-latest, manylinux_i686]
+        - [ubuntu-latest, musllinux_x86_64]
+        - [ubuntu-latest, musllinux_aarch64]
+        - [macos-latest, macosx_*]
+        - [windows-latest, win_amd64]
+        - [windows-latest, win32]
+        python: ["cp312"]  # Note: Wheels not needed for PyPy
     steps:
-      - name: Checkout Cython
-        uses: actions/checkout@v3
+      - name: actions/checkout@v4
+        uses: actions/checkout@v4
         
-      - name: Set up QEMU
+      - name: docker/setup-qemu-action@v3
         if: contains(matrix.buildplat[1], '_aarch64')
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
       
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.13.0
+      - name: pypa/cibuildwheel@v2.16
+        uses: pypa/cibuildwheel@v2.16
         env:
           # TODO: Build Cython with the compile-all flag?
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
@@ -109,18 +109,18 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'Build System'))
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Cython
-        uses: actions/checkout@v3
+      - name: actions/checkout@v4
+        uses: actions/checkout@v4
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           # Build sdist on lowest supported Python
-          python-version: '3.8'
+          python-version: "3.12"
 
       - name: Build sdist
         run: |
-          pip install --upgrade wheel setuptools
+          pip install --upgrade build wheel setuptools
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile --universal
 
