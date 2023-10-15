@@ -135,6 +135,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030D00A1
 static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -144,10 +145,15 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     Py_INCREF(d);
     return d;
 }
+#endif
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r;
-#if CYTHON_USE_TYPE_SLOTS
+#if __PYX_LIMITED_VERSION_HEX >= 0x030D00A1
+    int res = PyObject_GetOptionalAttr(o, n, &r);
+    return (r != 0) ? r : __Pyx_NewRef(d);
+#else
+  #if CYTHON_USE_TYPE_SLOTS
     if (likely(PyString_Check(n))) {
         r = __Pyx_PyObject_GetAttrStrNoError(o, n);
         if (unlikely(!r) && likely(!PyErr_Occurred())) {
@@ -155,9 +161,10 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
         }
         return r;
     }
-#endif
+  #endif
     r = PyObject_GetAttr(o, n);
     return (likely(r)) ? r : __Pyx_GetAttr3Default(d);
+#endif
 }
 
 //////////////////// HasAttr.proto ////////////////////
@@ -168,6 +175,9 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 //@requires: ObjectHandling.c::GetAttr
 
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
+#if __PYX_LIMITED_VERSION_HEX >= 0x030D00A1
+    return PyObject_HasAttrWithError(o, n);
+#else
     PyObject *r;
     if (unlikely(!__Pyx_PyBaseString_Check(n))) {
         PyErr_SetString(PyExc_TypeError,
@@ -182,6 +192,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         Py_DECREF(r);
         return 1;
     }
+#endif
 }
 
 //////////////////// Intern.proto ////////////////////

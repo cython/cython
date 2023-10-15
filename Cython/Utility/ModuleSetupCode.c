@@ -1305,6 +1305,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
 #endif
 
+#if PY_VERSION_HEX >= 0x030D00A1
+  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
+#else
+  static CYTHON_INLINE __Pyx_PyImport_AddModuleRef(const char *name) {
+      PyObject *module = PyImport_AddModule(name);
+      Py_XINCREF(module);
+      return module;
+  }
+#endif
+
 #if PY_MAJOR_VERSION >= 3
   #define PyIntObject                  PyLongObject
   #define PyInt_Type                   PyLong_Type
@@ -2265,9 +2275,12 @@ static void __Pyx_FastGilFuncInit0(void) {
     __Pyx_FastGIL_Remember = __Pyx_FastGIL_Remember0;
     __Pyx_FastGIL_Forget = __Pyx_FastGIL_Forget0;
     capsule = PyCapsule_New(&__Pyx_FastGilFuncs, __Pyx_FastGIL_PyCapsule, NULL);
-    abi_module = PyImport_AddModule(__Pyx_FastGIL_ABI_module);
-    if (capsule && abi_module) {
-      PyObject_SetAttrString(abi_module, __Pyx_FastGIL_PyCapsuleName, capsule);
+    if (capsule) {
+        abi_module = __Pyx_PyImport_AddModuleRef(__Pyx_FastGIL_ABI_module);
+        if (abi_module) {
+          PyObject_SetAttrString(abi_module, __Pyx_FastGIL_PyCapsuleName, capsule);
+          Py_DECREF(abi_module);
+        }
     }
     Py_XDECREF(capsule);
   }
