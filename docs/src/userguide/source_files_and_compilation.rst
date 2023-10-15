@@ -599,7 +599,7 @@ For example::
 
 Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
-efficient re-use.
+efficient reuse.
 
 
 Compiling with ``cython.compile``
@@ -1051,6 +1051,11 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
+   
+``show_performance_hints`` (default True)
+  Show performance hints during compilation pointing to places in the code which can yield performance degradation.
+  Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them
+  and they will not trigger a failure when "error on warnings" is enabled.
 
 
 .. _how_to_set_directives:

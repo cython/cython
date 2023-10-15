@@ -792,7 +792,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
         from .. import __version__
-        code.putln('#if CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
+        code.putln('#if defined(CYTHON_LIMITED_API) && CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
         # The limited API makes some significant changes to data structures, so we don't
         # want to shared implementation compiled with and without the limited API.
         code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME "limited"')
@@ -3076,7 +3076,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
-        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
+        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
+                                        "__PYX_LIMITED_VERSION_HEX, "
+                                        "__Pyx_get_runtime_version(), "
+                                        "CYTHON_COMPILING_IN_LIMITED_API)"
+        )
 
         code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")

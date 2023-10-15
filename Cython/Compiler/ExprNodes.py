@@ -25,7 +25,7 @@ import operator
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
-    CannotSpecialize)
+    CannotSpecialize, performance_hint)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -1525,7 +1525,12 @@ class FloatNode(ConstNode):
         self.constant_result = float(self.value)
 
     def compile_time_value(self, denv):
-        return float(self.value)
+        float_value = float(self.value)
+        str_float_value = ("%.330f" % float_value).strip('0')
+        str_value = Utils.normalise_float_repr(self.value)
+        if str_value not in (str_float_value, repr(float_value).lstrip('0')):
+            warning(self.pos, "Using this floating point value with DEF may lose precision, using %r" % float_value)
+        return float_value
 
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject and self.type.is_float:
@@ -3031,21 +3036,26 @@ class IteratorNode(ScopedExprNode):
                     self.sequence.py_result()))
 
         if is_builtin_sequence or self.may_be_a_sequence:
+            code.putln("%s = %s; __Pyx_INCREF(%s);" % (
+                self.result(),
+                self.sequence.py_result(),
+                self.result(),
+            ))
             self.counter_cname = code.funcstate.allocate_temp(
                 PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             if self.reversed:
                 if sequence_type is list_type:
-                    init_value = 'PyList_GET_SIZE(%s) - 1' % self.result()
+                    len_func = '__Pyx_PyList_GET_SIZE'
                 else:
-                    init_value = 'PyTuple_GET_SIZE(%s) - 1' % self.result()
+                    len_func = '__Pyx_PyTuple_GET_SIZE'
+                code.putln("%s = %s(%s);" % (self.counter_cname, len_func, self.result()))
+                code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+                code.putln(code.error_goto_if_neg(self.counter_cname, self.pos))
+                code.putln("#endif")
+                code.putln("--%s;" % self.counter_cname)  # len -> last item
             else:
-                init_value = '0'
-            code.putln("%s = %s; __Pyx_INCREF(%s); %s = %s;" % (
-                self.result(),
-                self.sequence.py_result(),
-                self.result(),
-                self.counter_cname,
-                init_value))
+                code.putln("%s = 0;" % self.counter_cname)
+
         if not is_builtin_sequence:
             self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
             if self.may_be_a_sequence:
@@ -3070,14 +3080,30 @@ class IteratorNode(ScopedExprNode):
 
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
-        final_size = 'Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        assert test_name in ('List', 'Tuple')
+
+        final_size = '__Pyx_Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        size_is_safe = False
         if self.sequence.is_sequence_constructor:
             item_count = len(self.sequence.args)
             if self.sequence.mult_factor is None:
                 final_size = item_count
+                size_is_safe = True
             elif isinstance(self.sequence.mult_factor.constant_result, _py_int_types):
                 final_size = item_count * self.sequence.mult_factor.constant_result
-        code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
+                size_is_safe = True
+
+        if size_is_safe:
+            code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
+        else:
+            code.putln("{")
+            code.putln("Py_ssize_t %s = %s;" % (Naming.quick_temp_cname, final_size))
+            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln(code.error_goto_if_neg(Naming.quick_temp_cname, self.pos))
+            code.putln("#endif")
+            code.putln("if (%s >= %s) break;" % (self.counter_cname, Naming.quick_temp_cname))
+            code.putln("}")
+
         if self.reversed:
             inc_dec = '--'
         else:
@@ -3097,7 +3123,7 @@ class IteratorNode(ScopedExprNode):
                 ))
         code.putln("#else")
         code.putln(
-            "%s = PySequence_ITEM(%s, %s); %s%s; %s" % (
+            "%s = __Pyx_PySequence_ITEM(%s, %s); %s%s; %s" % (
                 result_name,
                 self.py_result(),
                 self.counter_cname,
@@ -4939,7 +4965,7 @@ class MemoryViewIndexNode(BufferIndexNode):
 
             elif index.type.is_int or index.type.is_pyobject:
                 if index.type.is_pyobject and not self.warned_untyped_idx:
-                    warning(index.pos, "Index should be typed for more efficient access", level=2)
+                    performance_hint(index.pos, "Index should be typed for more efficient access")
                     MemoryViewIndexNode.warned_untyped_idx = True
 
                 self.is_memview_index = True
@@ -6316,12 +6342,6 @@ class SimpleCallNode(CallNode):
             if needs_cpp_exception_conversion(func_type):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
-        if (func_type.exception_value is not None or
-                func_type.exception_check and func_type.exception_check != '+'):
-            if env.nogil:
-                # need to generate refnanny for testing because of exception check
-                env.has_with_gil_block = True
-
         self.overflowcheck = env.directives['overflowcheck']
 
     def calculate_result_code(self):
@@ -6463,6 +6483,10 @@ class SimpleCallNode(CallNode):
                     exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
                 if exc_check:
                     if nogil:
+                        if not exc_checks:
+                            PyrexTypes.write_noexcept_performance_hint(
+                                self.pos, code.funcstate.scope,
+                                function_name=None, void_return=self.type.is_void)
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
@@ -6602,10 +6626,14 @@ class PyMethodCallNode(SimpleCallNode):
             UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
 
         code.putln("{")
+        # To avoid passing an out-of-bounds argument pointer in the no-args case,
+        # we need at least two entries, so we pad with NULL and point to that.
+        # See https://github.com/cython/cython/issues/5668
         code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
-            len(args)+1,
+            (len(args) + 1) if args else 2,
             self_arg,
-            ', '.join(arg.py_result() for arg in args)))
+            ', '.join(arg.py_result() for arg in args) if args else "NULL",
+        ))
         code.putln("%s = __Pyx_PyObject_FastCall(%s, __pyx_callargs+1-%s, %d+%s);" % (
             self.result(),
             function,
@@ -12851,7 +12879,7 @@ class CondExprNode(ExprNode):
         elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
             error(self.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
 
-        if true_val_type.is_pyobject or false_val_type.is_pyobject:
+        if true_val_type.is_pyobject or false_val_type.is_pyobject or self.type.is_pyobject:
             if true_val_type != self.type:
                 self.true_val = self.true_val.coerce_to(self.type, env)
             if false_val_type != self.type:
@@ -12867,7 +12895,16 @@ class CondExprNode(ExprNode):
         if not self.false_val.type.is_int:
             self.false_val = self.false_val.coerce_to_integer(env)
         self.result_ctype = None
-        return self.analyse_result_type(env)
+        out = self.analyse_result_type(env)
+        if not out.type.is_int:
+            # fall back to ordinary coercion since we haven't ended as the correct type
+            if out is self:
+                out = super(CondExprNode, out).coerce_to_integer(env)
+            else:
+                # I believe `analyse_result_type` always returns a CondExprNode but
+                # handle the opposite case just in case
+                out = out.coerce_to_integer(env)
+        return out
 
     def coerce_to(self, dst_type, env):
         if self.true_val.type != dst_type:
@@ -12875,7 +12912,16 @@ class CondExprNode(ExprNode):
         if self.false_val.type != dst_type:
             self.false_val = self.false_val.coerce_to(dst_type, env)
         self.result_ctype = None
-        return self.analyse_result_type(env)
+        out = self.analyse_result_type(env)
+        if out.type != dst_type:
+            # fall back to ordinary coercion since we haven't ended as the correct type
+            if out is self:
+                out = super(CondExprNode, out).coerce_to(dst_type, env)
+            else:
+                # I believe `analyse_result_type` always returns a CondExprNode but
+                # handle the opposite case just in case
+                out = out.coerce_to(dst_type, env)
+        return out
 
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
@@ -14514,6 +14560,8 @@ class AnnotationNode(ExprNode):
 
     def _warn_on_unknown_annotation(self, env, annotation):
         """Method checks for cases when user should be warned that annotation contains unknown types."""
+        if isinstance(annotation, SliceIndexNode):
+            annotation = annotation.base
         if annotation.is_name:
             # Validate annotation in form `var: type`
             if not env.lookup(annotation.name):

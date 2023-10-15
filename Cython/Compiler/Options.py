@@ -236,6 +236,7 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'show_performance_hints': True,
 
 # optimizations
     'optimize.inline_defnode_calls': True,

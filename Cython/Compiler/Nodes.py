@@ -2050,33 +2050,20 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
 
-        # See if we need to acquire the GIL for variable declarations, or for
-        # refnanny only
-
-        # Closures are not currently possible for cdef nogil functions,
-        # but check them anyway
-        have_object_args = self.needs_closure or self.needs_outer_scope
-        for arg in lenv.arg_entries:
-            if arg.type.is_pyobject:
-                have_object_args = True
-                break
-
         used_buffer_entries = [entry for entry in lenv.buffer_entries if entry.used]
 
-        acquire_gil_for_var_decls_only = (
-            lenv.nogil and lenv.has_with_gil_block and
-            (have_object_args or used_buffer_entries))
-
-        acquire_gil_for_refnanny_only = (
-            lenv.nogil and lenv.has_with_gil_block and not
-            acquire_gil_for_var_decls_only)
-
-        use_refnanny = not lenv.nogil or lenv.has_with_gil_block
+        # See if we need to acquire the GIL for variable declarations, or for
+        # refnanny only
+        # Closures are not currently possible for cdef nogil functions,
+        # but check them anyway
+        var_decls_definitely_need_gil = lenv.nogil and (self.needs_closure or self.needs_outer_scope)
 
         gilstate_decl = None
-        if acquire_gil or acquire_gil_for_var_decls_only:
+        var_decls_need_gil = False
+        if acquire_gil or var_decls_definitely_need_gil:
             code.put_ensure_gil()
             code.funcstate.gil_owned = True
+            var_decls_need_gil = True
         else:
             gilstate_decl = code.insertion_point()
 
@@ -2092,10 +2079,8 @@ class FuncDefNode(StatNode, BlockNode):
             self.getbuffer_check(code)
 
         # ----- set up refnanny
-        if use_refnanny:
-            tempvardecl_code.put_declare_refcount_context()
-            code.put_setup_refcount_context(
-                self.entry.name, acquire_gil=acquire_gil_for_refnanny_only)
+        refnanny_decl_code = tempvardecl_code.insertion_point()
+        refnanny_setup_code = code.insertion_point()
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -2190,7 +2175,16 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
-        if acquire_gil_for_var_decls_only:
+        if code.funcstate.needs_refnanny:
+            # if this is true there's definite some reference counting in
+            # the variable declarations
+            var_decls_need_gil = True
+
+        if var_decls_need_gil and lenv.nogil:
+            if gilstate_decl is not None:
+                gilstate_decl.put_ensure_gil()
+                gilstate_decl = None
+                code.funcstate.gil_owned = True
             code.put_release_ensured_gil()
             code.funcstate.gil_owned = False
 
@@ -2363,7 +2357,8 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.needs_refcounting:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-                assure_gil('success')
+                if entry.type.refcounting_needs_gil:
+                    assure_gil('success')
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
 
@@ -2415,7 +2410,10 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_trace_return(
                         "Py_None", nogil=not gil_owned['success'])
 
-        if use_refnanny:
+        if code.funcstate.needs_refnanny:
+            refnanny_decl_code.put_declare_refcount_context()
+            refnanny_setup_code.put_setup_refcount_context(
+               self.entry.name, acquire_gil=not var_decls_need_gil)
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
         if acquire_gil or (lenv.nogil and gil_owned['success']):
@@ -2696,8 +2694,7 @@ class CFuncDefNode(FuncDefNode):
             name, typ, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
-            overridable=self.overridable)
-        self.entry.inline_func_in_pxd = self.inline_in_pxd
+            overridable=self.overridable, in_pxd=self.inline_in_pxd)
         self.return_type = typ.return_type
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos, "Function cannot return an array")
@@ -3889,9 +3886,14 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
             code.putln("#else")
-            code.putln("%s = PyTuple_Size(%s);" % (
-                Naming.nargs_cname, Naming.args_cname))
-            code.putln(code.error_goto_if_neg(Naming.nargs_cname, self.pos))
+            # An error here is very unlikely, but we risk a (conditionally) unused error label,
+            # so we just skip the traceback and return immediately.
+            code.putln("%s = PyTuple_Size(%s); if (%s) return %s;" % (
+                Naming.nargs_cname,
+                Naming.args_cname,
+                code.unlikely("%s < 0" % Naming.nargs_cname),
+                self.error_value(),
+             ))
             code.putln("#endif")
             if self.signature.use_fastcall:
                 code.putln("#endif")
@@ -3912,17 +3914,13 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_stararg_copy_code(code)
 
         else:
-            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code, decl_code)
+            self.generate_tuple_and_keyword_parsing_code(self.args, code, decl_code)
             self.needs_values_cleanup = True
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
             if not code.label_used(end_label):
                 code.put_goto(end_label)
-            # This goto is just to suppress a warning that our_error_label is unused
-            # since it's quite likely that the only use is guarded by
-            # CYTHON_AVOID_BORROWED_REFERENCES
-            code.put_goto(our_error_label)
             code.put_label(our_error_label)
             self.generate_argument_values_cleanup_code(code)
 
@@ -3957,6 +3955,7 @@ class DefNodeWrapper(FuncDefNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
             code.putln("if (unlikely(%s > 0)) {" % Naming.nargs_cname)
+            # Direct return simplifies **kwargs cleanup, but we give no traceback.
             code.put('__Pyx_RaiseArgtupleInvalid(%s, 1, 0, 0, %s); return %s;' % (
                 self.name.as_c_string_literal(), Naming.nargs_cname, self.error_value()))
             code.putln("}")
@@ -3994,20 +3993,16 @@ class DefNodeWrapper(FuncDefNode):
             self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
 
+        # Normal (traceback) error handling from this point on to clean up the kwargs dict.
+
         if self.self_in_stararg and not self.target.is_staticmethod:
             assert not self.signature.use_fastcall
             # need to create a new tuple with 'self' inserted as first item
-            code.put("%s = PyTuple_New(%s + 1); if (unlikely(!%s)) " % (
+            code.putln("%s = PyTuple_New(%s + 1); %s" % (
                 self.star_arg.entry.cname,
                 Naming.nargs_cname,
-                self.star_arg.entry.cname))
-            if self.starstar_arg and self.starstar_arg.entry.cf_used:
-                code.putln("{")
-                code.put_var_xdecref_clear(self.starstar_arg.entry)
-                code.putln("return %s;" % self.error_value())
-                code.putln("}")
-            else:
-                code.putln("return %s;" % self.error_value())
+                code.error_goto_if_null(self.star_arg.entry.cname, self.pos)
+            ))
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
@@ -4033,7 +4028,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
 
-    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code, decl_code):
+    def generate_tuple_and_keyword_parsing_code(self, args, code, decl_code):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
 
@@ -4211,15 +4206,19 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('}')  # end of the whole argument unpacking block
 
         if code.label_used(argtuple_error_label):
-            code.put_goto(success_label)
+            skip_error_handling = code.new_label("skip")
+            code.put_goto(skip_error_handling)
+
             code.put_label(argtuple_error_label)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.put('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %s); ' % (
+            code.putln('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %s); %s' % (
                 self_name_csafe, has_fixed_positional_count,
                 min_positional_args, max_positional_args,
-                Naming.nargs_cname))
-            code.putln(code.error_goto(self.pos))
+                Naming.nargs_cname,
+                code.error_goto(self.pos)
+            ))
+            code.put_label(skip_error_handling)
 
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
@@ -4965,19 +4964,12 @@ class OverrideCheckNode(StatNode):
         # need to get attribute manually--scope would return cdef method
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
-        err = code.error_goto_if_null(func_node_temp, self.pos)
         code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
-            func_node_temp, self_arg, interned_attr_cname, err))
+            func_node_temp, self_arg, interned_attr_cname,
+            code.error_goto_if_null(func_node_temp, self.pos)))
         code.put_gotref(func_node_temp, py_object_type)
 
-        is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
-            func_node_temp, method_entry.func_cname)
-        code.putln("#ifdef __Pyx_CyFunction_USED")
-        code.putln("if (!__Pyx_IsCyOrPyCFunction(%s)" % func_node_temp)
-        code.putln("#else")
-        code.putln("if (!PyCFunction_Check(%s)" % func_node_temp)
-        code.putln("#endif")
-        code.putln("        || %s) {" % is_overridden)
+        code.putln("if (!__Pyx_IsSameCFunction(%s, (void*) %s)) {" % (func_node_temp, method_entry.func_cname))
         self.body.generate_execution_code(code)
         code.putln("}")
 
@@ -6525,7 +6517,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     #
     #  This code is a bit tricky because in order to obey Python
     #  semantics the sub-expressions (e.g. indices) of the lhs must
-    #  not be evaluated twice. So we must re-use the values calculated
+    #  not be evaluated twice. So we must reuse the values calculated
     #  in evaluation phase for the assignment phase as well.
     #  Fortunately, the type of the lhs node is fairly constrained
     #  (it must be a NameNode, AttributeNode, or IndexNode).
