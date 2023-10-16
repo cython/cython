@@ -170,15 +170,17 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
 
 //////////////////// HasAttr.proto ////////////////////
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030D00A1
+#define __Pyx_HasAttr(o, n)  PyObject_HasAttrWithError(o, n)
+#else
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
+#endif
 
 //////////////////// HasAttr ////////////////////
 //@requires: ObjectHandling.c::GetAttr
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030D00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
-#if __PYX_LIMITED_VERSION_HEX >= 0x030D00A1
-    return PyObject_HasAttrWithError(o, n);
-#else
     PyObject *r;
     if (unlikely(!__Pyx_PyBaseString_Check(n))) {
         PyErr_SetString(PyExc_TypeError,
@@ -193,8 +195,8 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         Py_DECREF(r);
         return 1;
     }
-#endif
 }
+#endif
 
 //////////////////// Intern.proto ////////////////////
 
