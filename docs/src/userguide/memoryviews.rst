@@ -77,7 +77,7 @@ To create a complete view on a one-dimensional ``int`` buffer:
 
         .. code-block:: cython
 
-            cdef cython.int[:] view1D = exporting_object
+            cdef int[:] view1D = exporting_object
 
 A complete 3D view:
 
