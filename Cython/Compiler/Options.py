@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import os
 
-from Cython import Utils
+from .. import Utils
 
 
 class ShouldBeFromDirective(object):
