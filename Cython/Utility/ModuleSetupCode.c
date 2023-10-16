@@ -1837,7 +1837,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
 
 /////////////// CheckBinaryVersion.proto ///////////////
 
-static unsigned long __Pyx_get_runtime_version();
+static unsigned long __Pyx_get_runtime_version(void);
 static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer);
 
 /////////////// CheckBinaryVersion ///////////////
