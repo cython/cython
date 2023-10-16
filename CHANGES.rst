@@ -2,6 +2,30 @@
 Cython Changelog
 ================
 
+3.0.4 (2023-10-17)
+==================
+
+Features added
+--------------
+
+* A new compiler directive ``show_performance_hints`` was added to disable the
+  newly added performance hint output.
+  (Github issue :issue:`5748`)
+
+Bugs fixed
+----------
+
+* ```cythonize` required ``distutils`` even for operations that did not build binaries.
+  (Github issue :issue:`5751`)
+
+* A regression in 3.0.3 was fixed that prevented calling inline functions
+  from another inline function in ``.pxd`` files.
+  (Github issue :issue:`5748`)
+
+* Some C compiler warnings were resolved.
+  Patch by Pierre Jolivet.  (Github issue :issue:`5756`)
+
+
 3.0.3 (2023-10-05)
 ==================
 
