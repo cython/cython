@@ -151,7 +151,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
     PyObject *r;
 #if __PYX_LIMITED_VERSION_HEX >= 0x030D00A1
     int res = PyObject_GetOptionalAttr(o, n, &r);
-    return (r != 0) ? r : __Pyx_NewRef(d);
+    // On failure (res == -1), r is set to NULL.
+    return (res != 0) ? r : __Pyx_NewRef(d);
 #else
   #if CYTHON_USE_TYPE_SLOTS
     if (likely(PyString_Check(n))) {
