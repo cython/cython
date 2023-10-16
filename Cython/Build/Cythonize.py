@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function
 import os
 import shutil
 import tempfile
-from distutils.core import setup
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
@@ -100,6 +99,14 @@ def _cython_compile_files(all_paths, options):
 
 
 def run_distutils(args):
+    try:
+        from distutils.core import setup
+    except ImportError:
+        try:
+            from setuptools import setup
+        except ImportError:
+            raise ImportError("'distutils' is not available. Please install 'setuptools' for binary builds.")
+
     base_dir, ext_modules = args
     script_args = ['build_ext', '-i']
     cwd = os.getcwd()
@@ -165,9 +172,9 @@ Environment variables:
                       help='exclude certain file patterns from the compilation')
 
     parser.add_argument('-b', '--build', dest='build', action='store_true', default=None,
-                      help='build extension modules using distutils')
+                      help='build extension modules using distutils/setuptools')
     parser.add_argument('-i', '--inplace', dest='build_inplace', action='store_true', default=None,
-                      help='build extension modules in place using distutils (implies -b)')
+                      help='build extension modules in place using distutils/setuptools (implies -b)')
     parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
                       type=int, default=parallel_compiles,
                       help=('run builds in N parallel jobs (default: %d)' %
