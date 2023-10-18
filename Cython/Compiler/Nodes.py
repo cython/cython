@@ -1075,7 +1075,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         if self.is_basic_c_type:
             type = PyrexTypes.simple_c_type(self.signed, self.longness, self.name)
             if not type:
-                error(self.pos, "Unrecognised type modifier combination")
+                error(self.pos, "Unrecognised type modifier combination: (%s, %s, %s)" % (self.signed, self.longness, self.name))
         elif self.name == "object" and not self.module_path:
             type = py_object_type
         elif self.name is None:

@@ -63,13 +63,13 @@ class Ctx(object):
         return ctx
 
 
-def p_ident(s, message="Expected an identifier"):
+def p_ident(s, message="Expected an identifier, found '%s'"):
     if s.sy == 'IDENT':
         name = s.context.intern_ustring(s.systring)
         s.next()
         return name
     else:
-        s.error(message)
+        s.error(message % s.sy)
 
 def p_ident_list(s):
     names = []
@@ -745,7 +745,7 @@ def p_atom(s):
         s.next()
         return result
     else:
-        s.error("Expected an identifier or literal")
+        s.error("Expected an identifier or literal, found '%s'" % s.sy)
 
 def p_int_literal(s):
     pos = s.position()

@@ -6,5 +6,5 @@ def unpack_mix():
 
 
 _ERRORS = """
-5:9: Expected an identifier or literal
+5:9: Expected an identifier or literal, found '**'
 """

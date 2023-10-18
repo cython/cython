@@ -6,5 +6,5 @@ def unpack_wrong_stars():
 
 
 _ERRORS = """
-5:5: Expected an identifier or literal
+5:5: Expected an identifier or literal, found '**'
 """
