@@ -4965,7 +4965,7 @@ class MemoryViewIndexNode(BufferIndexNode):
 
             elif index.type.is_int or index.type.is_pyobject:
                 if index.type.is_pyobject and not self.warned_untyped_idx:
-                    performance_hint(index.pos, "Index should be typed for more efficient access")
+                    performance_hint(index.pos, "Index should be typed for more efficient access", env)
                     MemoryViewIndexNode.warned_untyped_idx = True
 
                 self.is_memview_index = True
