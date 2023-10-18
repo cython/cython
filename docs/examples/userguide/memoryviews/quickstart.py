@@ -1,17 +1,17 @@
-from cython.view cimport array as cvarray
+from cython.cimports.cython.view import array as cvarray
 import numpy as np
 
 # Memoryview on a NumPy array
 narr = np.arange(27, dtype=np.dtype("i")).reshape((3, 3, 3))
-cdef int [:, :, :] narr_view = narr
+narr_view = cython.declare(cython.int[:, :, :], narr)
 
 # Memoryview on a C array
-cdef int[3][3][3] carr
-cdef int [:, :, :] carr_view = carr
+carr = cython.declare(cython.int[3][3][3])
+carr_view = cython.declare(cython.int[:, :, :], carr)
 
 # Memoryview on a Cython array
-cyarr = cvarray(shape=(3, 3, 3), itemsize=sizeof(int), format="i")
-cdef int [:, :, :] cyarr_view = cyarr
+cyarr = cvarray(shape=(3, 3, 3), itemsize=cython.sizeof(cython.int), format="i")
+cyarr_view = cython.declare(cython.int[:, :, :], cyarr)
 
 # Show the sum of all the arrays before altering it
 print("NumPy sum of the NumPy array before assignments: %s" % narr.sum())
@@ -31,9 +31,16 @@ cyarr_view[0, 0, 0] = 1000
 print("NumPy sum of NumPy array after assignments: %s" % narr.sum())
 
 # A function using a memoryview does not usually need the GIL
-cpdef int sum3d(int[:, :, :] arr) nogil:
-    cdef size_t i, j, k, I, J, K
-    cdef int total = 0
+@cython.nogil
+@cython.ccall
+def sum3d(arr: cython.int[:, :, :]) -> cython.int:
+    i: cython.size_t
+    j: cython.size_t
+    k: cython.size_t
+    I: cython.size_t
+    J: cython.size_t
+    K: cython.size_t
+    total: cython.int = 0
     I = arr.shape[0]
     J = arr.shape[1]
     K = arr.shape[2]
@@ -42,13 +49,6 @@ cpdef int sum3d(int[:, :, :] arr) nogil:
             for k in range(K):
                 total += arr[i, j, k]
     return total
-
-
-
-
-
-
-
 
 # A function accepting a memoryview knows how to use a NumPy array,
 # a C array, a Cython array...

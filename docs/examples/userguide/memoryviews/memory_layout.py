@@ -1,12 +1,12 @@
-from cython cimport view
+from cython.cimports.cython import view
 
 def main():
     # direct access in both dimensions, strided in the first dimension, contiguous in the last
-    cdef int[:, ::view.contiguous] a
+    a: cython.int[:, ::view.contiguous]
 
     # contiguous list of pointers to contiguous lists of ints
-    cdef int[::view.indirect_contiguous, ::1] b
+    b: cython.int[::view.indirect_contiguous, ::1]
 
     # direct or indirect in the first dimension, direct in the second dimension
     # strided in both dimensions
-    cdef int[::view.generic, :] c
+    c: cython.int[::view.generic, :]

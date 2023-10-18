@@ -1,8 +1,8 @@
 import numpy as np
+import typing
 
-
-def process_buffer(int[:,:] input_view not None,
-                   int[:,:] output_view=None):
+def process_buffer(input_view: cython.int[:,:],
+                   output_view: typing.Optional[cython.int[:,:]] = None):
 
     if output_view is None:
         # Creating a default view, e.g.
