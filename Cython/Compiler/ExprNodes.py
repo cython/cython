@@ -22,6 +22,7 @@ import sys
 import copy
 import os.path
 import operator
+from weakref import WeakSet
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -4908,7 +4909,7 @@ class MemoryViewIndexNode(BufferIndexNode):
 
     is_memview_index = True
     is_buffer_access = False
-    warned_untyped_idx = False
+    warned_untyped_idx_in_scopes = WeakSet()
 
     def analyse_types(self, env, getting=True):
         # memoryviewslice indexing or slicing
@@ -4964,9 +4965,11 @@ class MemoryViewIndexNode(BufferIndexNode):
                         new_indices.append(value)
 
             elif index.type.is_int or index.type.is_pyobject:
-                if index.type.is_pyobject and not self.warned_untyped_idx:
+                global_scope = env.global_scope()
+                # We warn about typed indices once for each global scope
+                if index.type.is_pyobject and global_scope not in self.warned_untyped_idx_in_scopes:
                     performance_hint(index.pos, "Index should be typed for more efficient access", env)
-                    MemoryViewIndexNode.warned_untyped_idx = True
+                    MemoryViewIndexNode.warned_untyped_idx_in_scopes.add(global_scope)
 
                 self.is_memview_index = True
                 index = index.coerce_to(index_type, env)

@@ -1494,6 +1494,7 @@ class CythonCompileTestCase(unittest.TestCase):
                     expected = expected.replace('/', '\\')
                 self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
+                import pdb; pdb.set_trace()
                 expected = expected_output[len(actual_output)]
                 self.assertEqual(expected, None)
             elif len(actual_output) > len(expected_output):
