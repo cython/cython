@@ -1396,7 +1396,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def compile(self, test_directory, module, module_path, workdir, incdir,
                 expect_log, annotate, add_cython_import):
-        expected_errors = expected_warnings = expected_perf_hints = errors = warnings = ()
+        expected_errors = expected_warnings = expected_perf_hints = errors = warnings = perf_hints = ()
         expect_errors = "errors" in expect_log
         expect_warnings = "warnings" in expect_log
         expect_perf_hints = "perf_hints" in expect_log
