@@ -1787,7 +1787,7 @@ static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name) {
     PyObject *result;
 #if __PYX_LIMITED_VERSION_HEX >= 0x030D00A1
-    (void) __Pyx_PyObject_GetOptionalAttr(obj, attr_name, &result);
+    (void) PyObject_GetOptionalAttr(obj, attr_name, &result);
     return result;
 #else
 #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS && PY_VERSION_HEX >= 0x030700B1
