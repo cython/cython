@@ -1245,15 +1245,18 @@ class CythonCompileTestCase(unittest.TestCase):
             Options.error_on_unknown_names = False
 
         try:
-            CompilationOptions
+            # see configure_cython()
+            CompilationOptions, cython_compile, pyrex_default_options
         except NameError:
-            from Cython.Compiler.Options import CompilationOptions
+            from Cython.Compiler.Options import (
+                CompilationOptions,
+                default_options as pyrex_default_options,
+            )
             from Cython.Compiler.Main import compile as cython_compile
-            from Cython.Compiler.Options import default_options
         common_utility_include_dir = self.common_utility_dir
 
         options = CompilationOptions(
-            default_options,
+            pyrex_default_options,
             include_path = include_dirs,
             output_file = target,
             annotate = annotate,
@@ -1393,7 +1396,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def compile(self, test_directory, module, module_path, workdir, incdir,
                 expect_log, annotate, add_cython_import):
-        expected_errors = expected_warnings = expected_perf_hints = errors = warnings = ()
+        expected_errors = expected_warnings = expected_perf_hints = errors = warnings = perf_hints = ()
         expect_errors = "errors" in expect_log
         expect_warnings = "warnings" in expect_log
         expect_perf_hints = "perf_hints" in expect_log
