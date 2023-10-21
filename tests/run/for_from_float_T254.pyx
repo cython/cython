@@ -9,7 +9,7 @@ def double_target(a, b):
     at 3.0
     4.0
     """
-    cdef double x
+    cdef f64 x
     for x from a <= x < b:
         print u"at", x
     return x
@@ -23,12 +23,12 @@ def double_step(a, b, dx):
     at 1.5
     2.0
     """
-    cdef double x
+    cdef f64 x
     for x from a <= x < b by dx:
         print u"at", x
     return x
 
-def double_step_typed(a, b, double dx):
+def double_step_typed(a, b, f64 dx):
     """
     >>> double_step_typed(0, 2, .5)
     at 0.0
@@ -37,12 +37,12 @@ def double_step_typed(a, b, double dx):
     at 1.5
     2.0
     """
-    cdef double x
+    cdef f64 x
     for x from a <= x < b by dx:
         print u"at", x
     return x
 
-def double_step_py_target(a, b, double dx):
+def double_step_py_target(a, b, f64 dx):
     """
     >>> double_step_py_target(0, 2, .5)
     at 0.0
@@ -56,7 +56,7 @@ def double_step_py_target(a, b, double dx):
         print u"at", x
     return x
 
-def int_step_py_target(a, b, int dx):
+def int_step_py_target(a, b, i32 dx):
     """
     >>> int_step_py_target(0, 2, 1)
     at 0

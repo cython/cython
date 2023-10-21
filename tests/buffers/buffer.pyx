@@ -35,7 +35,7 @@ releasing!
 s = b"abcdefg"
 
 cdef class TestBuffer:
-    def __getbuffer__(self, Py_buffer* buffer, int flags):
+    def __getbuffer__(self, Py_buffer* buffer, i32 flags):
         print u"__getbuffer__ called"
         buffer.buf = <char*>s
         buffer.obj = self
@@ -54,7 +54,7 @@ cdef class TestBufferRelease(TestBuffer):
         print u"releasing!"
 
 cdef class TestCompileWithDocstring(object):
-    def __getbuffer__(self, Py_buffer* buffer, int flags):
+    def __getbuffer__(self, Py_buffer* buffer, i32 flags):
         "I am a docstring!"
     def __releasebuffer__(self, Py_buffer* buf):
         "I am a docstring!"

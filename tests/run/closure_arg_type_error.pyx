@@ -13,7 +13,7 @@
 # reproduces the problem.
 
 
-def func_with_typed_args(object o, int i, tuple t, double d):
+def func_with_typed_args(object o, i32 i, tuple t, f64 d):
     """
     >>> g = func_with_typed_args(1, 2, (), 3.0)
     >>> g()

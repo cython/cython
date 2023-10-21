@@ -33,9 +33,9 @@ else:
     """
 
 def test(k):
-    cdef unsigned long m
+    cdef u64 m
     m = k
     return m
 
 def unsigned_long_size():
-    return sizeof(unsigned long)
+    return sizeof(u64)

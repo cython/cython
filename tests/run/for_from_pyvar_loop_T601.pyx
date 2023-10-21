@@ -1,6 +1,6 @@
 # ticket: t601
 
-cdef unsigned long size2():
+cdef u64 size2():
     return 3
 
 def for_from_plain_ulong():
@@ -25,10 +25,9 @@ def for_in_plain_ulong():
     for j in range(size2()):
         print j
 
-
 cdef extern from *:
-    """typedef unsigned long Ulong;"""
-    ctypedef unsigned long Ulong
+    """typedef u64 Ulong;"""
+    ctypedef u64 Ulong
 
 cdef Ulong size():
     return 3
@@ -54,7 +53,6 @@ def for_in_ctypedef_ulong():
     cdef object j = 0
     for j in range(size()):
         print j
-
 
 class ForFromLoopInPyClass(object):
     """

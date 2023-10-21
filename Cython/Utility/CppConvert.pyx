@@ -268,6 +268,6 @@ cdef extern from *:
 @cname("{{cname}}")
 cdef object {{cname}}(const std_complex[X]& z):
     cdef double complex tmp
-    tmp.real = <double>z.real()
-    tmp.imag = <double>z.imag()
+    tmp.real = <f64>z.real()
+    tmp.imag = <f64>z.imag()
     return tmp

@@ -7,7 +7,7 @@ cdef class B(A):
     pass
 
 cdef struct X:
-    double a
+    f64 a
     double complex b
 
 def simple():
@@ -23,11 +23,11 @@ def simple():
     X
     Python object
     """
-    cdef int i = 0
-    cdef long l = 0
-    cdef long long ll = 0
-    cdef int* iptr = &i
-    cdef int** iptrptr = &iptr
+    cdef i32 i = 0
+    cdef i64 l = 0
+    cdef i128 ll = 0
+    cdef i32* iptr = &i
+    cdef i32** iptrptr = &iptr
     cdef A a = None
     cdef B b = None
     cdef X x = X(a=1, b=2)
@@ -40,7 +40,7 @@ def simple():
     print typeof(b)
     print typeof(x)
     print typeof(None)
-    used = i, l, ll, <long>iptr, <long>iptrptr, a, b, x
+    used = i, l, ll, <i64>iptr, <i64>iptrptr, a, b, x
 
 def expression():
     """
@@ -52,11 +52,11 @@ def expression():
     """
     cdef X x = X(a=1, b=2)
     cdef X *xptr = &x
-    cdef short s = 0
-    cdef int i = 0
-    cdef unsigned int ui = 0
+    cdef i16 s = 0
+    cdef i32 i = 0
+    cdef u32 ui = 0
     print typeof(x.a)
     print typeof(xptr.b)
     print typeof(s + i)
     print typeof(i + ui)
-    used = x, <long>xptr, s, i, ui
+    used = x, <i64>xptr, s, i, ui

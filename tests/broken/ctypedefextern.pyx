@@ -1,6 +1,5 @@
 cdef extern from "ctypedefextern.h":
-
-    ctypedef int some_int
+    ctypedef i32 some_int
     ctypedef some_int *some_ptr
 
 cdef void spam():

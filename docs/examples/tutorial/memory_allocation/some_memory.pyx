@@ -5,8 +5,7 @@ cdef class SomeMemory:
 
     def __cinit__(self, usize number):
         # allocate some memory (uninitialised, may contain arbitrary data)
-        self.data = <f64*> PyMem_Malloc(
-            number * sizeof(f64))
+        self.data = <f64*> PyMem_Malloc(number * sizeof(f64))
         if not self.data:
             raise MemoryError()
 
@@ -14,8 +13,7 @@ cdef class SomeMemory:
         # Allocates new_number * sizeof(double) bytes,
         # preserving the current content and making a best-effort to
         # reuse the original data location.
-        mem = <f64*> PyMem_Realloc(
-            self.data, new_number * sizeof(double))
+        mem = <f64*> PyMem_Realloc(self.data, new_number * sizeof(f64))
         if not mem:
             raise MemoryError()
         # Only overwrite the pointer if the memory was really reallocated.

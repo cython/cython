@@ -2,7 +2,7 @@
 # tag: cpp, werror, cpp11, no-cpp-locals
 # cython: experimental_cpp_class_def=true
 
-cdef double pi
+cdef f64 pi
 from math import pi
 from libc.math cimport sin, cos
 from libcpp cimport bool
@@ -16,13 +16,13 @@ cdef extern from "shapes.h" namespace "shapes":
         float area() const
 
 cdef cppclass RegularPolygon(Shape):
-    float radius # major
-    int n
-    __init__(int n, float radius):
+    f32 radius # major
+    i32 n
+    __init__(i32 n, float radius):
         this.n = n
         this.radius = radius
     float area() noexcept const:
-        cdef double theta = pi / this.n
+        cdef f64 theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
     void do_with() except *:
         # only a compile test - the file doesn't actually have to exist
@@ -30,7 +30,7 @@ cdef cppclass RegularPolygon(Shape):
         with open("does not matter") as f:
             return
 
-def test_Poly(int n, float radius=1):
+def test_Poly(i32 n, float radius=1):
     """
     >>> test_Poly(4)
     2.0
@@ -84,7 +84,7 @@ def test_BaseMethods(x):
 
 cdef cppclass WithStatic:
     @staticmethod
-    double square(double x):
+    f64 square(f64 x):
         return x * x
 
 def test_Static(x):
@@ -95,7 +95,6 @@ def test_Static(x):
     0.25
     """
     return WithStatic.square(x)
-
 
 cdef cppclass InitDealloc:
     __init__():

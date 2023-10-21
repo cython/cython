@@ -1,6 +1,6 @@
 # ticket: t260
 
-def floor_div_float(double a, double b):
+def floor_div_float(f64 a, f64 b):
     """
     >>> floor_div_float(2, 1.5)
     1.0

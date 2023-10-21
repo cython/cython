@@ -24,8 +24,7 @@ def call_empty_cfunc():
     cdef object another_py_func = another_empty_cfunc
     another_py_func()
 
-
-cdef double square_c(double x):
+cdef f64 square_c(f64 x):
     return x * x
 
 def call_square_c(x):
@@ -37,7 +36,6 @@ def call_square_c(x):
     """
     cdef object py_func = square_c
     return py_func(x)
-
 
 def return_square_c():
     """
@@ -51,7 +49,6 @@ def return_square_c():
     """
     return square_c
 
-
 def return_libc_sqrt():
     """
     >>> sqrt = return_libc_sqrt()
@@ -63,7 +60,6 @@ def return_libc_sqrt():
     'wrap(x: float) -> float'
     """
     return sqrt
-
 
 global_csqrt = sqrt
 
@@ -80,10 +76,9 @@ def test_global():
     print cython.typeof(sqrt)
     print cython.typeof(global_csqrt)
 
-
-cdef long long rad(long long x):
-    cdef long long rad = 1
-    for p in range(2, <long long>sqrt(<double>x) + 1):  # MSVC++ fails without the input cast
+cdef i128 rad(i128 x):
+    cdef i128 rad = 1
+    for p in range(2, <i128>sqrt(<f64>x) + 1):  # MSVC++ fails without the input cast
         if x % p == 0:
             rad *= p
             while x % p == 0:
@@ -92,7 +87,7 @@ cdef long long rad(long long x):
             break
     return rad
 
-cdef bint abc(long long a, long long b, long long c) except -1:
+cdef bint abc(i128 a, i128 b, i128 c) except -1:
     if a + b != c:
         raise ValueError("Not a valid abc candidate: (%s, %s, %s)" % (a, b, c))
     return rad(a*b*c) < c
@@ -125,8 +120,7 @@ def return_abc():
     """
     return abc
 
-
-ctypedef double foo
+ctypedef f64 foo
 cdef foo test_typedef_cfunc(foo x):
     return x
 
@@ -137,16 +131,15 @@ def test_typedef(x):
     """
     return (<object>test_typedef_cfunc)(x)
 
-
 cdef union my_union:
-    int a
-    double b
+    f32 a
+    f64 b
 
 cdef struct my_struct:
-    int which
+    f32 which
     my_union y
 
-cdef my_struct c_struct_builder(int which, int a, double b):
+cdef my_struct c_struct_builder(f32 which, f32 a, f64 b):
     cdef my_struct value
     value.which = which
     if which:
@@ -173,7 +166,6 @@ def return_struct_builder():
     """
     return c_struct_builder
 
-
 cdef object test_object_params_cfunc(a, b):
     return a, b
 
@@ -183,7 +175,6 @@ def test_object_params(a, b):
     (1, 'a')
     """
     return (<object>test_object_params_cfunc)(a, b)
-
 
 cdef tuple test_builtin_params_cfunc(list a, dict b):
     return a, b
@@ -208,7 +199,6 @@ def return_builtin_params_cfunc():
     'wrap(a: list, b: dict) -> tuple'
     """
     return test_builtin_params_cfunc
-
 
 cdef class A:
     def __repr__(self):
@@ -267,13 +257,12 @@ def make_map():
     }
     return map
 
-
 cdef class HasCdefFunc:
-    cdef int x
+    cdef i32 x
     def __init__(self, x):
         self.x = x
 
-    cdef int func(self, int y):
+    cdef i32 func(self, i32 y):
         return self.x + y
 
 def test_unbound_methods():

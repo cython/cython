@@ -13,109 +13,109 @@ cdef extern from "cpp_template_functions_helper.h":
         pair[T, U] method[U](T, U)
         U part_method[U](pair[T, U])
         U part_method_ref[U](pair[T, U]&)
-        int overloaded(double x)
+        i32 overloaded(f64 x)
         T overloaded(pair[T, T])
         U overloaded[U](vector[U])
         X overloaded[X](char* s, vector[X])
     cdef T nested_deduction[T](const T*)
     pair[T, U] pair_arg[T, U](pair[T, U] a)
     cdef T* pointer_param[T](T*)
-    cdef cppclass double_pair(pair[double, double]):
-        double_pair(double, double)
+    cdef cppclass double_pair(pair[f64, f64]):
+        double_pair(f64, f64)
 
 def test_no_arg():
     """
     >>> test_no_arg()
     0
     """
-    return no_arg[int]()
+    return no_arg[i32]()
 
-def test_one_param(int x):
+def test_one_param(i32 x):
     """
     >>> test_one_param(3)
     (3, 3.0)
     """
-    return one_param[int](x), one_param[double](x)
+    return one_param[i32](x), one_param[f64](x)
 
-def test_two_params(int x, int y):
+def test_two_params(i32 x, i32 y):
     """
     >>> test_two_params(1, 2)
     (1, 2.0)
     """
-    return two_params[int, double](x, y)
+    return two_params[i32, f64](x, y)
 
-def test_method(int x, int y):
+def test_method(i32 x, i32 y):
     """
     >>> test_method(5, 10)
     ((5, 10.0), (5.0, 10), (5, 10), (5.0, 10))
     """
-    cdef A[int] a_int
-    cdef A[double] a_double
-    return (a_int.method[float](x, y), a_double.method[int](x, y),
+    cdef A[i32] a_int
+    cdef A[f64] a_double
+    return (a_int.method[float](x, y), a_double.method[i32](x, y),
         a_int.method(x, y), a_double.method(x, y))
-#    return a_int.method[double](x, y), a_double.method[int](x, y)
+#    return a_int.method[f64](x, y), a_double.method[i32](x, y)
 
-def test_part_method(int x, int y):
+def test_part_method(i32 x, i32 y):
     """
     >>> test_part_method(5, 10)
     (10.0, 10, 10.0)
     """
-    cdef A[int] a_int
-    cdef pair[int, double] p_int = (x, y)
-    cdef A[double] a_double
-    cdef pair[double, int] p_double = (x, y)
+    cdef A[i32] a_int
+    cdef pair[i32, f64] p_int = (x, y)
+    cdef A[f64] a_double
+    cdef pair[f64, i32] p_double = (x, y)
     return (a_int.part_method(p_int),
         a_double.part_method(p_double),
         a_double.part_method_ref(double_pair(x, y)))
 
-def test_simple_deduction(int x, double y):
+def test_simple_deduction(i32 x, f64 y):
     """
     >>> test_simple_deduction(1, 2)
     (1, 2.0)
     """
     return one_param(x), one_param(y)
 
-def test_more_deductions(int x, double y):
+def test_more_deductions(i32 x, f64 y):
     """
     >>> test_more_deductions(1, 2)
     (1, 2.0)
     """
     return nested_deduction(&x), nested_deduction(&y)
 
-def test_class_deductions(pair[long, double] x):
+def test_class_deductions(pair[long, f64] x):
     """
     >>> test_class_deductions((1, 1.5))
     (1, 1.5)
     """
     return pair_arg(x)
 
-def test_deduce_through_pointers(int k):
+def test_deduce_through_pointers(i32 k):
     """
     >>> test_deduce_through_pointers(5)
     (5, 5.0)
     """
-    cdef double x = k
+    cdef f64 x = k
     return pointer_param(&k)[0], pointer_param(&x)[0]
 
-def test_inference(int k):
+def test_inference(i32 k):
     """
     >>> test_inference(27)
     27
     """
     res = one_param(&k)
-    assert cython.typeof(res) == 'int *', cython.typeof(res)
+    assert cython.typeof(res) == 'i32 *', cython.typeof(res)
     return res[0]
 
 def test_overload_GH1583():
     """
     >>> test_overload_GH1583()
     """
-    cdef A[int] a
+    cdef A[i32] a
     assert a.overloaded(1.5) == 1
-    cdef pair[int, int] p = (2, 3)
+    cdef pair[i32, i32] p = (2, 3)
     assert a.overloaded(p) == 2
-    cdef vector[double] v = [0.25, 0.125]
+    cdef vector[f64] v = [0.25, 0.125]
     assert a.overloaded(v) == 0.25
     assert a.overloaded("s", v) == 0.25
     # GH Issue #1584
-    # assert a.overloaded[double](v) == 0.25
+    # assert a.overloaded[f64](v) == 0.25

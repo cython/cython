@@ -20,7 +20,7 @@ def copy_fortran3(f64[:, :, :] mat):
     >>> (a == c).all()
     True
     """
-    cdef int x, y, z
+    cdef i32 x, y, z
 
     x, y, z = np.shape(mat)
 

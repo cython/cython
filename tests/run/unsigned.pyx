@@ -1,7 +1,7 @@
 cdef int i = 1
 cdef long l = 2
-cdef unsigned int ui = 4
-cdef unsigned long ul = 8
+cdef u32 ui = 4
+cdef u64 ul = 8
 
 def test_add():
     """
@@ -16,7 +16,7 @@ def test_add():
     print ui + l
     print ui + ul
 
-def test_add_sshort_ulong(signed short a, unsigned long b):
+def test_add_sshort_ulong(signed short a, u64 b):
     """
     >>> test_add_sshort_ulong(1, 1) == 2
     True
@@ -27,7 +27,7 @@ def test_add_sshort_ulong(signed short a, unsigned long b):
     """
     return a + b
 
-def test_add_ushort_slonglong(unsigned short a, signed long long b):
+def test_add_ushort_slonglong(u16 a, signed long long b):
     """
     >>> test_add_ushort_slonglong(1, 1) == 2
     True
@@ -38,7 +38,7 @@ def test_add_ushort_slonglong(unsigned short a, signed long long b):
     """
     return a + b
 
-def test_add_slong_ulong(signed long a, unsigned long b):
+def test_add_slong_ulong(signed long a, u64 b):
     """
     >>> test_add_slong_ulong(1, 1) == 2
     True

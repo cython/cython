@@ -4,6 +4,6 @@ True
 """
 
 
-cdef unsigned int ui
+cdef u32 ui
 ui = 5
 x = ui

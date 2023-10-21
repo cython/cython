@@ -6,11 +6,11 @@ shoe
 """
 
 def idx_ulong(seq, i):
-    cdef unsigned long u
+    cdef u64 u
     u = i
     return seq[u]
 
 def idx_uint(seq, i):
-    cdef unsigned int u
+    cdef u32 u
     u = i
     return seq[u]

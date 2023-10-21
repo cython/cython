@@ -1,13 +1,11 @@
 # mode: run
 
 cdef extern from *:
-    ctypedef long long int128_t "__int128_t"
-    ctypedef unsigned long long uint128_t "__uint128_t"
-
+    ctypedef i128 int128_t "__int128_t"
+    ctypedef u128 uint128_t "__uint128_t"
 
 def bigint(x):
     print(str(x).rstrip('L'))
-
 
 def unsigned_conversion(x):
     """
@@ -75,7 +73,6 @@ def unsigned_conversion(x):
     cdef uint128_t n = x
     return n
 
-
 def signed_conversion(x):
     """
     >>> bigint(signed_conversion(0))
@@ -139,7 +136,6 @@ def signed_conversion(x):
     cdef int128_t n = x
     return n
 
-
 def get_int_distribution(shuffle=true):
     """
     >>> L = get_int_distribution()
@@ -163,7 +159,6 @@ def get_int_distribution(shuffle=true):
     ]
     return ints * 3  # longer list, but keeps median in the middle
 
-
 def intsum(L):
     """
     >>> L = get_int_distribution()
@@ -181,7 +176,6 @@ def intsum(L):
     for i in L:
         x += i
     return x
-
 
 def intxor(L):
     """

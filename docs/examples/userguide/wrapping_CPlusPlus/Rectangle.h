@@ -8,8 +8,8 @@ namespace shapes {
 			Rectangle();
 			Rectangle(int x0, int y0, int x1, int y1);
 			~Rectangle();
-			int getArea();
-			void getSize(int* width, int* height);
+			int get_area();
+			void get_size(int* width, int* height);
 			void move(int dx, int dy);
 	};
 }

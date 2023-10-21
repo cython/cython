@@ -316,7 +316,7 @@ def test_maxN():
 
 @cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
-def max3_typed_signed_unsigned(int a, unsigned int b, int c):
+def max3_typed_signed_unsigned(int a, u32 b, int c):
     """
     >>> max3_typed_signed_unsigned(1,2,-3)
     2

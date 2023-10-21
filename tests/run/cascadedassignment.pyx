@@ -24,9 +24,9 @@ def test_cascaded_assignment_typed():
     int Python object double
     (5, 5, 5.0)
     """
-    cdef int a
+    cdef i32 a
     cdef object b
-    cdef double c
+    cdef f64 c
 
     a = b = c = 5
 

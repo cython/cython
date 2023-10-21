@@ -33,7 +33,7 @@ cdef extern from "cpp_templates_helper.h":
         @staticmethod
         T half(T value)
 
-def test_int(int x, int y):
+def test_int(i32 x, i32 y):
     """
     >>> test_int(3, 4)
     (3, 4, False)
@@ -41,15 +41,14 @@ def test_int(int x, int y):
     (100, 100, True)
     """
     try:
-        a = new Wrap[int](x)
-        b = new Wrap[int](0)
+        a = new Wrap[i32](x)
+        b = new Wrap[i32](0)
         b.set(y)
         return a.get(), b.get(), a[0] == b[0]
     finally:
         del a, b
 
-
-def test_double(double x, double y):
+def test_double(f64 x, f64 y):
     """
     >>> test_double(3, 3.5)
     (3.0, 3.5, False)
@@ -57,22 +56,22 @@ def test_double(double x, double y):
     (100.0, 100.0, True)
     """
     try:
-        a = new Wrap[double](x)
-        b = new Wrap[double](-1)
+        a = new Wrap[f64](x)
+        b = new Wrap[f64](-1)
         b.set(y)
         return a.get(), b.get(), deref(a) == deref(b)
     finally:
         del a, b
 
 
-def test_default_template_arguments(double x):
+def test_default_template_arguments(f64 x):
     """
     >>> test_default_template_arguments(3.5)
     (3.5, 3.0)
     """
     try:
-        a = new Wrap[double](x)
-        b = new Wrap[double, int, long](x)
+        a = new Wrap[f64](x)
+        b = new Wrap[f64, i32, long](x)
 
         ax = a.get_alt_type()
         a.set_alt_type(ax)
@@ -88,8 +87,7 @@ def test_default_template_arguments(double x):
     finally:
         del a
 
-
-def test_pair(int i, double x):
+def test_pair(i32 i, f64 x):
     """
     >>> test_pair(1, 1.5)
     (1, 1.5, True, False)
@@ -97,12 +95,12 @@ def test_pair(int i, double x):
     (2, 2.25, True, False)
     """
     try:
-        pair = new Pair[int, double](i, x)
+        pair = new Pair[i32, f64](i, x)
         return pair.first(), pair.second(), deref(pair) == deref(pair), deref(pair) != deref(pair)
     finally:
         del pair
 
-def test_ptr(int i):
+def test_ptr(i32 i):
     """
     >>> test_ptr(3)
     3
@@ -110,15 +108,15 @@ def test_ptr(int i):
     5
     """
     try:
-        w = new Wrap[int*](&i)
+        w = new Wrap[i32*](&i)
         return deref(w.get())
     finally:
         del w
 
-cdef double f(double x):
+cdef f64 f(f64 x):
     return x*x
 
-def test_func_ptr(double x):
+def test_func_ptr(f64 x):
     """
     >>> test_func_ptr(3)
     9.0
@@ -126,12 +124,12 @@ def test_func_ptr(double x):
     2.25
     """
     try:
-        w = new Wrap[double (*)(double)](&f)
+        w = new Wrap[f64 (*)(f64)](&f)
         return w.get()(x)
     finally:
         del w
 
-def test_typeof(double x):
+def test_typeof(f64 x):
     """
     >>> test_func_ptr(3)
     9.0
@@ -148,11 +146,11 @@ def test_cast_template_pointer():
     """
     >>> test_cast_template_pointer()
     """
-    cdef SubClass[int, float] *sub = new SubClass[int, float]()
-    cdef SuperClass[int, float] *sup
+    cdef SubClass[i32, f32] *sub = new SubClass[i32, f32]()
+    cdef SuperClass[i32, f32] *sup
 
     sup = sub
-    sup = <SubClass[int, float] *> sub
+    sup = <SubClass[i32, f32] *> sub
 
 def test_static(x):
     """
@@ -161,9 +159,9 @@ def test_static(x):
     >>> test_static(3)
     (1, 1.5)
     """
-    return Div[int].half(x), Div[double].half(x)
+    return Div[i32].half(x), Div[f64].half(x)
 
-def test_pure_syntax(int i):
+def test_pure_syntax(i32 i):
     """
     >>> test_ptr(3)
     3
@@ -171,7 +169,7 @@ def test_pure_syntax(int i):
     5
     """
     try:
-        w = new Wrap[cython.pointer(int)](&i)
+        w = new Wrap[cython.pointer(i32)](&i)
         return deref(w.get())
     finally:
         del w

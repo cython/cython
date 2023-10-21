@@ -20,15 +20,15 @@ setup(
 
 ######## a.pxd ########
 
-ctypedef api float flt
+ctypedef api f32 flt
 
-cdef int   int0
-cdef float flt0
+cdef i32 int0
+cdef f32 flt0
 
-cdef api int   int1
-cdef api float flt1
+cdef api i32 int1
+cdef api f32 flt1
 
-cdef public api int int2
+cdef public api i32 int2
 cdef public api flt flt2
 
 cdef class A0:
@@ -52,13 +52,13 @@ cdef public api A2 a2
 
 ######## a.pyx ########
 
-cdef int   int0 = 1, int1 = 1, int2 = 1
-cdef float flt0 = 1, flt1 = 1, flt2 = 1
+cdef i32 int0 = 1, int1 = 1, int2 = 1
+cdef f32 flt0 = 1, flt1 = 1, flt2 = 1
 
-cdef api int int3 = 1
+cdef api i32 int3 = 1
 cdef api flt flt3 = 1
 
-cdef public int int4 = 1
+cdef public i32 int4 = 1
 cdef public flt flt4 = 1
 
 def get_int():
@@ -87,9 +87,9 @@ flt0 = flt1 = flt2 = 7
 # distutils: language = c++
 
 cdef extern from "a_api.h":
-     int import_a() except -1
-     ctypedef float flt
-     int int1, int2, int3
+     i32 import_a() except -1
+     ctypedef f32 flt
+     i32 int1, int2, int3
      flt flt1, flt2, flt3
 
 import_a()
@@ -133,8 +133,8 @@ cdef extern from "inita.h":
      pass
 cdef extern from "a.h":
      void inita() except *
-     ctypedef float flt
-     int int2, int4
+     ctypedef f32 flt
+     i32 int2, int4
      flt flt2, flt4
 
 inita()

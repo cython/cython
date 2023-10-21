@@ -35,7 +35,7 @@ OverflowError: ...
 
 # XXX This should generate a warning !!!
 cdef extern from *:
-    ctypedef unsigned long size_t
+    ctypedef u64 size_t
 
 def test(size_t i):
     return i

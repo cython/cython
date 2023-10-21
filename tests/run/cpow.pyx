@@ -13,7 +13,7 @@ if sys.version_info[0] > 2:
     soft double complex complex
     """
 
-def pow_double_double(double a, double b, delta):
+def pow_double_double(f64 a, f64 b, delta):
     """
     >>> pow_double_double(2, 2, 1e-15)
     soft double complex float
@@ -27,7 +27,7 @@ def pow_double_double(double a, double b, delta):
     assert abs((c/object_c) - 1) < delta
 
 @cython.cpow(true)
-def pow_double_double_cpow(double a, double b, delta=None):
+def pow_double_double_cpow(f64 a, f64 b, delta=None):
     """
     >>> pow_double_double_cpow(2, 2, 1e-15)
     double float
@@ -47,10 +47,10 @@ def pow_double_double_cpow(double a, double b, delta=None):
     else:
         return c
 
-cdef cfunc_taking_double(double x):
+cdef cfunc_taking_double(f64 x):
     return x
 
-def pow_double_double_coerced_directly(double a, double b):
+def pow_double_double_coerced_directly(f64 a, f64 b):
     """
     >>> pow_double_double_coerced_directly(2, 2)
     8.0
@@ -60,10 +60,10 @@ def pow_double_double_coerced_directly(double a, double b):
     """
     # Because we're assigning directly to a double assume 'cpow'
     # but warn.
-    cdef double c = a**b
+    cdef f64 c = a**b
     return cfunc_taking_double(a**b) + c
 
-def pow_double_int(double a, int b):
+def pow_double_int(f64 a, int b):
     """
     # a few variations of 'double**int'. In all cases
     # Cython should realise that the result can't be complex
@@ -86,7 +86,7 @@ def pow_double_int(double a, int b):
     print(cython.typeof(c4))
     print(cython.typeof(c5))
 
-def soft_complex_coerced_to_double(double a, double b):
+def soft_complex_coerced_to_double(f64 a, f64 b):
     """
     >>> soft_complex_coerced_to_double(2, 2)
     4.0
@@ -97,10 +97,10 @@ def soft_complex_coerced_to_double(double a, double b):
     """
     c = a**b
     assert cython.typeof(c) == "soft double complex"
-    cdef double d = c  # will raise if complex
+    cdef f64 d = c  # will raise if complex
     return d
 
-def soft_complex_coerced_to_complex(double a, double b):
+def soft_complex_coerced_to_complex(f64 a, f64 b):
     """
     >>> soft_complex_coerced_to_complex(2, 2)
     (4+0j)
@@ -116,7 +116,7 @@ def soft_complex_coerced_to_complex(double a, double b):
     cdef double complex d = c
     return d
 
-def soft_complex_type_inference_1(double a, double b, pick):
+def soft_complex_type_inference_1(f64 a, f64 b, pick):
     """
     >>> soft_complex_type_inference_1(2, 1, False)
     soft double complex 2.0
@@ -130,7 +130,7 @@ def soft_complex_type_inference_1(double a, double b, pick):
         c = a**b
     print(cython.typeof(c), c)
 
-def soft_complex_type_inference_2(double a, double b, expected):
+def soft_complex_type_inference_2(f64 a, f64 b, expected):
     """
     >>> soft_complex_type_inference_2(2, 1, 1.0)
     soft double complex
@@ -179,7 +179,7 @@ def pow_int_int_coerced_directly(int a, int b):
     cdef int c = a**b
     return cfunc_taking_int(a**b) + c
 
-def pow_int_int_non_negative(int a, unsigned int b):
+def pow_int_int_non_negative(i32 a, u32 b):
     """
     A couple of combinations of non-negative values for the
     exponent, which lets us fall back to int as a return type
@@ -192,10 +192,9 @@ def pow_int_int_non_negative(int a, unsigned int b):
     print(cython.typeof(c1))
     print(cython.typeof(c2))
 
-
 ctypedef double f64
 
-def pythagoras_with_typedef(double a, double b):
+def pythagoras_with_typedef(f64 a, f64 b):
     # see https://github.com/cython/cython/issues/5203
     """
     >>> rc = pythagoras_with_typedef(2.0, 2.0)
@@ -207,9 +206,8 @@ def pythagoras_with_typedef(double a, double b):
     result = 1.0 / result ** 0.5
     return result
 
-
 @cython.cpow(false)
-def power_coercion_in_nogil_1(double a, double b):
+def power_coercion_in_nogil_1(f64 a, f64 b):
     """
     >>> power_coercion_in_nogil_1(2., 2.)
     4.0
@@ -218,16 +216,15 @@ def power_coercion_in_nogil_1(double a, double b):
     ...
     TypeError: Cannot convert 'complex' with non-zero imaginary component to 'double' (this most likely comes from the '**' operator; use 'cython.cpow(True)' to return 'nan' instead of a complex number).
     """
-    cdef double c
+    cdef f64 c
     with nogil:
         c = a**b
     return c
 
-
-cdef double nogil_fun(double x) nogil:
+cdef f64 nogil_fun(f64 x) nogil:
     return x
 
-def power_coercion_in_nogil_2(double a, double b):
+def power_coercion_in_nogil_2(f64 a, f64 b):
     """
     >>> power_coercion_in_nogil_2(2., 2.)
     4.0
@@ -241,15 +238,14 @@ def power_coercion_in_nogil_2(double a, double b):
         d = nogil_fun(c)
     return d
 
-
-def power_coercion_in_nogil_3(double a, double b, double c):
+def power_coercion_in_nogil_3(f64 a, f64 b, f64 c):
     """
     >>> power_coercion_in_nogil_3(2., 2., 1.0)
     0.25
     >>> power_coercion_in_nogil_3(-1., 0.5, 1.0)
     Traceback (most recent call last):
     ...
-    TypeError: Cannot convert 'complex' with non-zero imaginary component to 'double' (this most likely comes from the '**' operator; use 'cython.cpow(True)' to return 'nan' instead of a complex number).
+    TypeError: Cannot convert 'complex' with non-zero imaginary component to 'f64' (this most likely comes from the '**' operator; use 'cython.cpow(True)' to return 'nan' instead of a complex number).
     """
     with nogil:
         c /= a**b
@@ -257,7 +253,7 @@ def power_coercion_in_nogil_3(double a, double b, double c):
 
 
 _WARNINGS = """
-63:21: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.
+63:18: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.
 64:32: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a a non-complex C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.
 179:18: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a an integer C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.
 180:29: Treating '**' as if 'cython.cpow(True)' since it is directly assigned to a an integer C numeric type. This is likely to be fragile and we recommend setting 'cython.cpow' explicitly.

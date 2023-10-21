@@ -1,5 +1,5 @@
-cdef int f():
+cdef i32 f():
     pass
 
-cdef char *g(int k, float z):
+cdef char *g(i32 k, f32 z):
     pass

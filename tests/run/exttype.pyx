@@ -5,16 +5,13 @@ from __future__ import print_function
 
 from cpython.object cimport PyTypeObject
 
-
 cdef gobble(a, b):
     print(a, b)
-
 
 def tp_new_ptr(exttype):
     assert isinstance(exttype, type)
     tp = <PyTypeObject*> exttype
-    return <unsigned long long><void*>tp.tp_new
-
+    return <u128><void*>tp.tp_new
 
 cdef class Empty:
     """
@@ -24,7 +21,6 @@ cdef class Empty:
     >>> tp_new_ptr(Empty) != 0
     True
     """
-
 
 cdef class EmptySubclass(Empty):
     """
@@ -37,7 +33,6 @@ cdef class EmptySubclass(Empty):
     True
     """
 
-
 cdef class CInit:
     """
     >>> c = CInit()
@@ -47,7 +42,6 @@ cdef class CInit:
     def __cinit__(self):
         assert self is not None
 
-
 cdef class Spam:
     """
     >>> s = Spam(12)
@@ -55,7 +49,7 @@ cdef class Spam:
     12 42
     """
     cdef eggs
-    cdef int ham
+    cdef i32 ham
 
     def __cinit__(self, eggs):
         self.eggs = eggs
@@ -66,7 +60,6 @@ cdef class Spam:
 
     def eat(self):
         gobble(self.eggs, self.ham)
-
 
 def f(Spam spam):
     """

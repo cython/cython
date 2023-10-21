@@ -2,18 +2,18 @@
 # tag: cpp, werror
 
 cdef extern from "cpp_namespaces_helper.h" namespace "A":
-    ctypedef int A_t
+    ctypedef i32 A_t
     cdef struct S:
-        double x
+        f64 x
         A_t k
     A_t A_func(A_t first, A_t)
     cdef void f(A_t)
 
 cdef extern from "cpp_namespaces_helper.h" namespace "outer":
-    int outer_value
+    i32 outer_value
 
 cdef extern from "cpp_namespaces_helper.h" namespace "outer::inner":
-    int inner_value
+    i32 inner_value
 
 def test_function(x, y):
     """

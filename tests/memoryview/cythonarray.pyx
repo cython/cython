@@ -58,7 +58,7 @@ def acquire():
     cdef object[i32, ndim=2, mode="c"] buf2d = \
             array(shape=(10,10), itemsize=sizeof(i32), format='i')
     cdef object[u64, ndim=3, mode='fortran'] buf3d = \
-            array(shape=(1, 2, 3), itemsize=sizeof(unsigned long), format='L', mode='fortran')
+            array(shape=(1, 2, 3), itemsize=sizeof(u64), format='L', mode='fortran')
     cdef object[long double, ndim=3, mode='fortran'] bufld = \
             array(shape=(1, 2, 3), itemsize=sizeof(long double), format='g', mode='fortran')
 

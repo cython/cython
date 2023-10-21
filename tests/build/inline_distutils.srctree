@@ -17,7 +17,7 @@ else:
    MATH_LIBS = ['m']
 
 setup(
-  ext_modules = cythonize("*.pyx", aliases={'MATH_LIBS': MATH_LIBS}),
+    ext_modules = cythonize("*.pyx", aliases={'MATH_LIBS': MATH_LIBS}),
 )
 
 ######## my_lib.pxd ########
@@ -26,7 +26,7 @@ setup(
 # distutils: libraries = MATH_LIBS
 
 cdef extern from "my_lib_helper.cpp" namespace "A":
-    int x
+    i32 x
 
 ######## my_lib_helper.cpp #######
 

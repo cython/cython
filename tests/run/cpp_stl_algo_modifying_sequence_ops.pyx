@@ -15,84 +15,76 @@ from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-
-def copy_int(vector[int] values):
+def copy_int(vector[i32] values):
     """
     Test copy.
 
     >>> copy_int(range(5))
     [0, 1, 2, 3, 4]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     copy(values.begin(), values.end(), back_inserter(out))
     return out
 
-
-cdef bool is_odd(int i):
+cdef bool is_odd(i32 i):
     return i % 2
 
-
-def copy_int_if_odd(vector[int] values):
+def copy_int_if_odd(vector[i32] values):
     """
     Test copy_if.
 
     >>> copy_int_if_odd(range(5))
     [1, 3]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     copy_if(values.begin(), values.end(), back_inserter(out), is_odd)
     return out
 
-
-def copy_int_n(vector[int] values, int count):
+def copy_int_n(vector[i32] values, i32 count):
     """
     Test copy_n.
 
     >>> copy_int_n(range(5), 2)
     [0, 1]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     copy_n(values.begin(), count, back_inserter(out))
     return out
 
-
-def copy_int_backward(vector[int] values):
+def copy_int_backward(vector[i32] values):
     """
     Test copy_backward.
 
     >>> copy_int_backward(range(5))
     [0, 0, 0, 0, 1, 2, 3, 4]
     """
-    out = vector[int](values.size() + 3)
+    out = vector[i32](values.size() + 3)
     copy_backward(values.begin(), values.end(), out.end())
     return out
 
-
-def move_int(vector[int] values):
+def move_int(vector[i32] values):
     """
     Test move.
 
     >>> move_int(range(5))
     [0, 1, 2, 3, 4]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     move(values.begin(), values.end(), back_inserter(out))
     return out
 
-
-def move_int_backward(vector[int] values):
+def move_int_backward(vector[i32] values):
     """
     Test move_backward.
 
     >>> move_int_backward(range(5))
     [0, 0, 0, 0, 1, 2, 3, 4]
     """
-    out = vector[int](values.size() + 3)
+    out = vector[i32](values.size() + 3)
     move_backward(values.begin(), values.end(), out.end())
     return out
 
-
-def fill_int(vector[int] array, int value):
+def fill_int(vector[i32] array, i32 value):
     """
     Test fill.
 
@@ -102,8 +94,7 @@ def fill_int(vector[int] array, int value):
     fill(array.begin(), array.end(), value)
     return array
 
-
-def fill_int_n(vector[int] array, int count, int value):
+def fill_int_n(vector[i32] array, i32 count, i32 value):
     """
     Test fill_n.
 
@@ -113,10 +104,8 @@ def fill_int_n(vector[int] array, int count, int value):
     fill_n(array.begin(), count, value)
     return array
 
-
-cdef int to_ord(unsigned char c):
+cdef i32 to_ord(u8 c):
     return c
-
 
 def string_to_ord(string s):
     """
@@ -125,16 +114,14 @@ def string_to_ord(string s):
     >> string_to_ord(b"HELLO")
     [72, 69, 76, 76, 79]
     """
-    cdef vector[int] ordinals
+    cdef vector[i32] ordinals
     transform(s.begin(), s.end(), back_inserter(ordinals), to_ord)
     return ordinals
 
-
-cdef int add_ints(int lhs, int rhs):
+cdef i32 add_ints(i32 lhs, i32 rhs):
     return lhs + rhs
 
-
-def add_int_vectors(vector[int] lhs, vector[int] rhs):
+def add_int_vectors(vector[i32] lhs, vector[i32] rhs):
     """
     Test transform (binary version).
 
@@ -144,40 +131,35 @@ def add_int_vectors(vector[int] lhs, vector[int] rhs):
     transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), add_ints)
     return lhs
 
-
-cdef int i = 0
-cdef int generator():
+cdef i32 i = 0
+cdef i32 generator():
     return postincrement(i)
 
-
-def generate_ints(int count):
+def generate_ints(i32 count):
     """
     Test generate.
 
     >> generate_ints(5)
     [0, 1, 2, 3, 4]
     """
-    out = vector[int](count)
+    out = vector[i32](count)
     generate(out.begin(), out.end(), generator)
     return out
 
-
-cdef int j = 0
-cdef int generator2():
+cdef i32 j = 0
+cdef i32 generator2():
     return postincrement(j)
 
-
-def generate_n_ints(int count):
+def generate_n_ints(i32 count):
     """
     Test generate_n.
 
     >> generate_n_ints(5)
     [0, 1, 2, 3, 4, 0, 0, 0]
     """
-    out = vector[int](count + 3)
+    out = vector[i32](count + 3)
     generate_n(out.begin(), count, generator2)
     return out
-
 
 def remove_spaces(string s):
     """
@@ -189,11 +171,9 @@ def remove_spaces(string s):
     s.erase(remove(s.begin(), s.end(), ord(" ")), s.end())
     return s
 
-
-cdef bool is_whitespace(unsigned char c) except -1:
+cdef bool is_whitespace(u8 c) except -1:
     # std::isspace from <cctype>
     return chr(c) in " \f\n\r\t\v"
-
 
 def remove_whitespace(string s):
     r"""
@@ -204,7 +184,6 @@ def remove_whitespace(string s):
     """
     s.erase(remove_if(s.begin(), s.end(), &is_whitespace), s.end())
     return s
-
 
 def remove_spaces2(string s):
     """
@@ -217,7 +196,6 @@ def remove_spaces2(string s):
     remove_copy(s.begin(), s.end(), back_inserter(out), ord(" "))
     return out
 
-
 def remove_whitespace2(string s):
     r"""
     Test remove_copy_if.
@@ -229,8 +207,7 @@ def remove_whitespace2(string s):
     remove_copy_if(s.begin(), s.end(), back_inserter(out), &is_whitespace)
     return out
 
-
-def replace_ints(vector[int] values, int old, int new):
+def replace_ints(vector[i32] values, i32 old, i32 new):
     """
     Test replace.
 
@@ -240,12 +217,10 @@ def replace_ints(vector[int] values, int old, int new):
     replace(values.begin(), values.end(), old, new)
     return values
 
-
-cdef bool less_than_five(int i):
+cdef bool less_than_five(i32 i):
     return i < 5
 
-
-def replace_ints_less_than_five(vector[int] values, int new):
+def replace_ints_less_than_five(vector[i32] values, i32 new):
     """
     Test replace_if (using cppreference example that doesn't translate well).
 
@@ -255,30 +230,27 @@ def replace_ints_less_than_five(vector[int] values, int new):
     replace_if(values.begin(), values.end(), less_than_five, new)
     return values
 
-
-def replace_ints2(vector[int] values, int old, int new):
+def replace_ints2(vector[i32] values, i32 old, i32 new):
     """
     Test replace_copy.
 
     >>> replace_ints2([5, 7, 4, 2, 8, 6, 1, 9, 0, 3], 8, 88)
     [5, 7, 4, 2, 88, 6, 1, 9, 0, 3]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     replace_copy(values.begin(), values.end(), back_inserter(out), old, new)
     return out
 
-
-def replace_ints_less_than_five2(vector[int] values, int new):
+def replace_ints_less_than_five2(vector[i32] values, i32 new):
     """
     Test replace_copy_if (using cppreference example that doesn't translate well).
 
     >>> replace_ints_less_than_five2([5, 7, 4, 2, 88, 6, 1, 9, 0, 3], 55)
     [5, 7, 55, 55, 88, 6, 55, 9, 55, 55]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     replace_copy_if(values.begin(), values.end(), back_inserter(out), less_than_five, new)
     return out
-
 
 def test_swap_ints():
     """
@@ -286,11 +258,10 @@ def test_swap_ints():
     5 3
     3 5
     """
-    cdef int a = 5, b = 3
+    cdef i32 a = 5, b = 3
     print(a, b)
     swap(a, b)
     print(a, b)
-
 
 def test_swap_vectors():
     """
@@ -298,11 +269,10 @@ def test_swap_vectors():
     [1, 2, 3] [4, 5, 6]
     [4, 5, 6] [1, 2, 3]
     """
-    cdef vector[int] a = [1, 2, 3], b = [4, 5, 6]
+    cdef vector[i32] a = [1, 2, 3], b = [4, 5, 6]
     print(a, b)
     swap(a, b)
     print(a, b)
-
 
 def test_swap_ranges():
     """
@@ -310,13 +280,12 @@ def test_swap_ranges():
     [1, 2, 3] [4, 5, 6]
     [4, 5, 6] [1, 2, 3]
     """
-    cdef vector[int] a = [1, 2, 3], b = [4, 5, 6]
+    cdef vector[i32] a = [1, 2, 3], b = [4, 5, 6]
     print(a, b)
     swap_ranges(a.begin(), a.end(), b.begin())
     print(a, b)
 
-
-def selection_sort(vector[int] values, reversed=false):
+def selection_sort(vector[i32] values, reversed=false):
     """
     Test iter_swap using cppreference example. Extra "reversed argument tests max_element
 
@@ -332,8 +301,7 @@ def selection_sort(vector[int] values, reversed=false):
         preincrement(i)
     return values
 
-
-def reverse_ints(vector[int] values):
+def reverse_ints(vector[i32] values):
     """
     Test reverse.
 
@@ -343,20 +311,18 @@ def reverse_ints(vector[int] values):
     reverse(values.begin(), values.end())
     return values
 
-
-def reverse_ints2(vector[int] values):
+def reverse_ints2(vector[i32] values):
     """
     Test reverse_copy.
 
     >>> reverse_ints2([1, 2, 3])
     [3, 2, 1]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     reverse_copy(values.begin(), values.end(), back_inserter(out))
     return out
 
-
-def insertion_sort(vector[int] values):
+def insertion_sort(vector[i32] values):
     """
     Test rotate using cppreference example.
 
@@ -369,21 +335,19 @@ def insertion_sort(vector[int] values):
         preincrement(i)
     return values
 
-
-def rotate_ints_about_middle(vector[int] values):
+def rotate_ints_about_middle(vector[i32] values):
     """
     Test rotate_copy.
 
     >>> rotate_ints_about_middle([1, 2, 3, 4, 5])
     [3, 4, 5, 1, 2]
     """
-    cdef vector[int] out
-    cdef vector[int].iterator pivot = values.begin() + values.size()/2
+    cdef vector[i32] out
+    cdef vector[i32].iterator pivot = values.begin() + values.size()/2
     rotate_copy(values.begin(), pivot, values.end(), back_inserter(out))
     return out
 
-
-def unique_ints(vector[int] values):
+def unique_ints(vector[i32] values):
     """
     Test unique.
 
@@ -394,10 +358,8 @@ def unique_ints(vector[int] values):
     values.erase(unique(values.begin(), values.end()), values.end())
     return values
 
-
-cdef bool both_space(unsigned char lhs, unsigned char rhs):
+cdef bool both_space(u8 lhs, u8 rhs):
     return lhs == rhs == ord(' ')
-
 
 def collapse_spaces(string text):
     """
@@ -410,19 +372,17 @@ def collapse_spaces(string text):
     text.erase(last, text.end())
     return text
 
-
-def unique_ints2(vector[int] values):
+def unique_ints2(vector[i32] values):
     """
     Test unique_copy.
 
     >>> unique_ints2([1, 2, 3, 1, 2, 3, 3, 4, 5, 4, 5, 6, 7])
     [1, 2, 3, 4, 5, 6, 7]
     """
-    cdef vector[int] out
+    cdef vector[i32] out
     sort(values.begin(), values.end())
     unique_copy(values.begin(), values.end(), back_inserter(out))
     return out
-
 
 def collapse_spaces2(string text):
     """

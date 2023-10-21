@@ -2,10 +2,9 @@ cimport cython
 
 cdef char* s = b"abcdefg"
 cdef const char* cs = b"abcdefg"
-cdef unsigned char* us = b"abcdefg"
-cdef const unsigned char* cus = b"abcdefg"
+cdef u8* us = b"abcdefg"
+cdef const u8* cus = b"abcdefg"
 cdef bytes pystr =  b"abcdefg"
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
@@ -17,7 +16,6 @@ def lentest_char():
     """
     return len(s)
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
     )
@@ -28,7 +26,6 @@ def lentest_const_char():
     """
     return len(cs)
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
     )
@@ -37,9 +34,8 @@ def lentest_char_c():
     >>> lentest_char_c()
     7
     """
-    cdef Py_ssize_t l = len(s)
+    cdef isize l = len(s)
     return l
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
@@ -52,7 +48,6 @@ def lentest_char_c_short():
     cdef short l = len(s)
     return l
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
     )
@@ -64,7 +59,6 @@ def lentest_char_c_float():
     cdef float l = len(s)
     return l
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
     )
@@ -74,7 +68,6 @@ def lentest_uchar():
     7
     """
     return len(us)
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
@@ -86,7 +79,6 @@ def lentest_const_uchar():
     """
     return len(cus)
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
     )
@@ -95,9 +87,8 @@ def lentest_uchar_c():
     >>> lentest_uchar_c()
     7
     """
-    cdef Py_ssize_t l = len(us)
+    cdef isize l = len(us)
     return l
-
 
 def lentest_py():
     """
@@ -106,11 +97,10 @@ def lentest_py():
     """
     return len(pystr)
 
-
 def lentest_py_c():
     """
     >>> lentest_py_c()
     7
     """
-    cdef Py_ssize_t l = len(pystr)
+    cdef isize l = len(pystr)
     return l

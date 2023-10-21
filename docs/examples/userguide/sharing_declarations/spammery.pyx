@@ -1,4 +1,3 @@
- 
 from volume cimport cube
 
 def menu(description, size):

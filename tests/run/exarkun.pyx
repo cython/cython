@@ -10,8 +10,8 @@ __doc__ = u"""
 """
 
 cdef class Point:
-    cdef double x, y, z
-    def __init__(self, double x, double y, double z):
+    cdef f64 x, y, z
+    def __init__(self, f64 x, f64 y, f64 z):
         self.x = x
         self.y = y
         self.z = z

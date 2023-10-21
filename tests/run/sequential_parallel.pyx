@@ -39,15 +39,15 @@ def test_descending_prange():
     >>> test_descending_prange()
     5
     """
-    cdef int i, start = 5, stop = -5, step = -2
-    cdef int sum = 0
+    cdef i32 i, start = 5, stop = -5, step = -2
+    cdef i32 sum = 0
 
     for i in prange(start, stop, step, nogil=true):
         sum += i
 
     return sum
 
-def test_prange_matches_range(int start, int stop, int step):
+def test_prange_matches_range(i32 start, i32 stop, i32 step):
     """
     >>> test_prange_matches_range(0, 8, 3)
     >>> test_prange_matches_range(0, 9, 3)
@@ -60,7 +60,7 @@ def test_prange_matches_range(int start, int stop, int step):
     >>> test_prange_matches_range(2, -10, -3)
     >>> test_prange_matches_range(3, -10, -3)
     """
-    cdef int i = -765432, range_last = -876543, prange_last = -987654
+    cdef i32 i = -765432, range_last = -876543, prange_last = -987654
     prange_set = set()
     for i in prange(start, stop, step, nogil=true, num_threads=3):
         prange_last = i
@@ -80,8 +80,8 @@ def test_propagation():
     >>> test_propagation()
     (9, 9, 9, 9, 450, 450)
     """
-    cdef int i = 0, j = 0, x = 0, y = 0
-    cdef int sum1 = 0, sum2 = 0
+    cdef i32 i = 0, j = 0, x = 0, y = 0
+    cdef i32 sum1 = 0, sum2 = 0
 
     for i in prange(10, nogil=true):
         for j in prange(10):
@@ -100,13 +100,13 @@ def test_propagation():
 #    >>> test_unsigned_operands()
 #    10
 #    """
-#    cdef int i
-#    cdef int start = -5
-#    cdef unsigned int stop = 5
-#    cdef int step = 1
+#    cdef i32 i
+#    cdef i32 start = -5
+#    cdef u32 stop = 5
+#    cdef i32 step = 1
 #
-#    cdef int steps_taken = 0
-#    cdef int *steps_takenp = &steps_taken
+#    cdef i32 steps_taken = 0
+#    cdef i32 *steps_takenp = &steps_taken
 #
 #    for i in prange(start, stop, step, nogil=true):
 #        steps_taken += 1
@@ -120,9 +120,9 @@ def test_reassign_start_stop_step():
     >>> test_reassign_start_stop_step()
     20
     """
-    cdef int start = 0, stop = 10, step = 2
-    cdef int i
-    cdef int sum = 0
+    cdef i32 start = 0, stop = 10, step = 2
+    cdef i32 i
+    cdef i32 sum = 0
 
     for i in prange(start, stop, step, nogil=true):
         start = -2
@@ -140,7 +140,7 @@ def test_closure_parallel_privates():
     45 45
     0 0 9 9
     """
-    cdef int x
+    cdef i32 x
 
     def test_target():
         nonlocal x
@@ -152,7 +152,7 @@ def test_closure_parallel_privates():
 
     def test_reduction():
         nonlocal x
-        cdef int i
+        cdef i32 i
 
         x = 0
         for i in prange(10, nogil=true):
@@ -164,7 +164,7 @@ def test_closure_parallel_privates():
 
     def test_generator():
         nonlocal x
-        cdef int i
+        cdef i32 i
 
         x = 0
         yield x
@@ -184,14 +184,14 @@ def test_closure_parallel_with_gil():
     45
     45
     """
-    cdef int sum = 0
+    cdef i32 sum = 0
     temp1 = 5
     temp2 = -5
 
     def test_reduction():
         nonlocal sum, temp1, temp2
 
-        cdef int i
+        cdef i32 i
 
         for i in prange(10, nogil=true):
             with gil:
@@ -231,29 +231,29 @@ def test_pure_mode():
         print pure_parallel.threadid()
 
 cdef extern from "types.h":
-    ctypedef short actually_long_t
-    ctypedef long actually_short_t
+    ctypedef i16 actually_long_t
+    ctypedef i64 actually_short_t
 
-ctypedef int myint_t
+ctypedef i32 myint_t
 
 def test_nan_init():
     """
     >>> test_nan_init()
     """
-    cdef int mybool = 0
-    cdef int err = 0
-    cdef int *errp = &err
+    cdef i32 mybool = 0
+    cdef i32 err = 0
+    cdef i32 *errp = &err
 
     cdef signed char a1 = 10
-    cdef unsigned char a2 = 10
-    cdef short b1 = 10
-    cdef unsigned short b2 = 10
-    cdef int c1 = 10
-    cdef unsigned int c2 = 10
-    cdef long d1 = 10
-    cdef unsigned long d2 = 10
-    cdef long long e1 = 10
-    cdef unsigned long long e2 = 10
+    cdef u8 a2 = 10
+    cdef i16 b1 = 10
+    cdef u16 b2 = 10
+    cdef i32 c1 = 10
+    cdef u32 c2 = 10
+    cdef i64 d1 = 10
+    cdef u64 d2 = 10
+    cdef i128 e1 = 10
+    cdef u128 e2 = 10
 
     cdef actually_long_t miss1 = 10
     cdef actually_short_t miss2 = 10
@@ -285,7 +285,7 @@ def test_nan_init():
             or typedef1 == 10):
             errp[0] = 1
 
-    cdef int i
+    cdef i32 i
     for i in prange(10, nogil=true):
         # First, trick the error checking to make it believe these variables
         # are initialized after this if
@@ -323,7 +323,7 @@ def test_else_clause():
     >>> test_else_clause()
     else clause executed
     """
-    cdef int i
+    cdef i32 i
 
     for i in prange(5, nogil=true):
         pass
@@ -334,7 +334,7 @@ def test_prange_break():
     """
     >>> test_prange_break()
     """
-    cdef int i
+    cdef i32 i
 
     for i in prange(10, nogil=true):
         if i == 8:
@@ -357,8 +357,8 @@ def test_prange_continue():
     8 8
     9 0
     """
-    cdef int i
-    cdef int *p = <int *> calloc(10, sizeof(int))
+    cdef i32 i
+    cdef i32 *p = <i32 *> calloc(10, sizeof(i32))
 
     if p == NULL:
         raise MemoryError
@@ -382,7 +382,7 @@ def test_nested_break_continue():
     6 7 6 7
     8
     """
-    cdef int i, j, result1 = 0, result2 = 0
+    cdef i32 i, j, result1 = 0, result2 = 0
 
     for i in prange(10, nogil=true, num_threads=2, schedule='static'):
         for j in prange(10, num_threads=2, schedule='static'):
@@ -406,8 +406,8 @@ def test_nested_break_continue():
 
     print i
 
-cdef int parallel_return() noexcept nogil:
-    cdef int i
+cdef i32 parallel_return() noexcept nogil:
+    cdef i32 i
 
     for i in prange(10):
         if i == 8:
@@ -430,7 +430,7 @@ def test_parallel_exceptions():
     I am executed first
     ('propagate me',) 0
     """
-    cdef int i, j, sum = 0
+    cdef i32 i, j, sum = 0
 
     mylist = []
 
@@ -456,7 +456,7 @@ def test_parallel_exceptions_unnested():
     ('I am executed first', 0)
     ('propagate me',) 0
     """
-    cdef int i, sum = 0
+    cdef i32 i, sum = 0
 
     mylist = []
 
@@ -475,8 +475,8 @@ def test_parallel_exceptions_unnested():
         print mylist[0]
         print e.args, sum
 
-cdef int parallel_exc_cdef() except -3:
-    cdef int i, j
+cdef i32 parallel_exc_cdef() except -3:
+    cdef i32 i, j
     for i in prange(10, nogil=true):
         for j in prange(10, num_threads=6):
             with gil:
@@ -484,8 +484,8 @@ cdef int parallel_exc_cdef() except -3:
 
     return 0
 
-cdef int parallel_exc_cdef_unnested() except -3:
-    cdef int i
+cdef i32 parallel_exc_cdef_unnested() except -3:
+    cdef i32 i
     for i in prange(10, nogil=true):
         with gil:
             raise Exception("propagate me")
@@ -502,8 +502,8 @@ def test_parallel_exc_cdef():
     parallel_exc_cdef_unnested()
     parallel_exc_cdef()
 
-cpdef int parallel_exc_cpdef() except -3:
-    cdef int i, j
+cpdef i32 parallel_exc_cpdef() except -3:
+    cdef i32 i, j
     for i in prange(10, nogil=true):
         for j in prange(10, num_threads=6):
             with gil:
@@ -511,14 +511,13 @@ cpdef int parallel_exc_cpdef() except -3:
 
     return 0
 
-cpdef int parallel_exc_cpdef_unnested() except -3:
-    cdef int i, j
+cpdef i32 parallel_exc_cpdef_unnested() except -3:
+    cdef i32 i, j
     for i in prange(10, nogil=true):
         with gil:
             raise Exception("propagate me")
 
     return 0
-
 
 def test_parallel_exc_cpdef():
     """
@@ -530,8 +529,8 @@ def test_parallel_exc_cpdef():
     parallel_exc_cpdef_unnested()
     parallel_exc_cpdef()
 
-cdef int parallel_exc_nogil_swallow() except -1:
-    cdef int i, j
+cdef i32 parallel_exc_nogil_swallow() except -1:
+    cdef i32 i, j
     for i in prange(10, nogil=true):
         try:
             for j in prange(10):
@@ -542,8 +541,8 @@ cdef int parallel_exc_nogil_swallow() except -1:
 
     return 0
 
-cdef int parallel_exc_nogil_swallow_unnested() except -1:
-    cdef int i
+cdef i32 parallel_exc_nogil_swallow_unnested() except -1:
+    cdef i32 i
     with nogil:
         try:
             for i in prange(10):
@@ -572,7 +571,7 @@ def parallel_exc_replace():
         ...
     Exception: propagate me instead
     """
-    cdef int i, j
+    cdef i32 i, j
     for i in prange(10, nogil=true):
         with gil:
             try:
@@ -584,7 +583,6 @@ def parallel_exc_replace():
 
     return 0
 
-
 def parallel_exceptions2():
     """
     >>> parallel_exceptions2()
@@ -592,7 +590,7 @@ def parallel_exceptions2():
        ...
     Exception: propagate me
     """
-    cdef int i, j, k
+    cdef i32 i, j, k
 
     for i in prange(10, nogil=true):
         for j in prange(10):
@@ -610,7 +608,7 @@ def test_parallel_with_gil_return():
     True
     45
     """
-    cdef int i, sum = 0
+    cdef i32 i, sum = 0
 
     for i in prange(10, nogil=true):
         with gil:
@@ -628,7 +626,7 @@ def test_parallel_with_gil_continue_unnested():
     >>> test_parallel_with_gil_continue_unnested()
     20
     """
-    cdef int i, sum = 0
+    cdef i32 i, sum = 0
 
     for i in prange(10, nogil=true):
         with gil:
@@ -640,8 +638,8 @@ def test_parallel_with_gil_continue_unnested():
     print sum
 
 
-cdef int inner_parallel_section() noexcept nogil:
-    cdef int j, sum = 0
+cdef i32 inner_parallel_section() noexcept nogil:
+    cdef i32 j, sum = 0
     for j in prange(10):
         sum += j
     return sum
@@ -651,12 +649,12 @@ def outer_parallel_section():
     >>> outer_parallel_section()
     450
     """
-    cdef int i, sum = 0
+    cdef i32 i, sum = 0
     for i in prange(10, nogil=true):
         sum += inner_parallel_section()
     return sum
 
-cdef int nogil_cdef_except_clause() except -1 nogil:
+cdef i32 nogil_cdef_except_clause() except -1 nogil:
     return 1
 
 cdef void nogil_cdef_except_star() except * nogil:
@@ -666,13 +664,13 @@ def test_nogil_cdef_except_clause():
     """
     >>> test_nogil_cdef_except_clause()
     """
-    cdef int i
+    cdef i32 i
     for i in prange(10, nogil=true):
         nogil_cdef_except_clause()
         nogil_cdef_except_star()
 
 def test_num_threads_compile():
-    cdef int i
+    cdef i32 i
     for i in prange(10, nogil=true, num_threads=2):
         pass
 
@@ -683,7 +681,7 @@ def test_num_threads_compile():
         for i in prange(10):
             pass
 
-cdef int chunksize() noexcept nogil:
+cdef i32 chunksize() noexcept nogil:
     return 3
 
 def test_chunksize():
@@ -693,7 +691,7 @@ def test_chunksize():
     45
     45
     """
-    cdef int i, sum
+    cdef i32 i, sum
 
     sum = 0
     for i in prange(10, nogil=true, num_threads=2, schedule='static', chunksize=chunksize()):
@@ -752,7 +750,7 @@ def test_pointer_temps(double x):
     return f[0]
 
 
-def test_prange_in_with(int x, ctx):
+def test_prange_in_with(i32 x, ctx):
     """
     >>> from contextlib import contextmanager
     >>> @contextmanager
@@ -760,7 +758,7 @@ def test_prange_in_with(int x, ctx):
     >>> test_prange_in_with(4, ctx([0]))
     6
     """
-    cdef int i
+    cdef i32 i
     with ctx as l:
         for i in prange(x, nogil=true):
             with gil:
@@ -817,18 +815,18 @@ def test_inner_private():
 
     print('ok')
 
-cdef void prange_exception_checked_function(int* ptr, int id) except * nogil:
+cdef void prange_exception_checked_function(i32* ptr, i32 id) except * nogil:
     # requires the GIL after each call
     ptr[0] = id;
 
-cdef void prange_call_exception_checked_function_impl(int* arr, int N) nogil:
+cdef void prange_call_exception_checked_function_impl(i32* arr, i32 N) nogil:
     # Inside a nogil function, prange can't be sure the GIL has been released.
     # Therefore Cython must release the GIL itself.
     # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL
     # (since if any other thread has finished, it will be holding the GIL).
     #
     # An equivalent test with prange is in "sequential_parallel.pyx"
-    cdef int i
+    cdef i32 i
     for i in prange(N, num_threads=4, schedule='static', chunksize=1):
         prange_exception_checked_function(arr+i, i)
 
@@ -837,8 +835,8 @@ def test_prange_call_exception_checked_function():
     >>> test_prange_call_exception_checked_function()
     """
 
-    cdef int N = 10000
-    cdef int* buf = <int*>malloc(sizeof(int)*N)
+    cdef i32 N = 10000
+    cdef i32* buf = <i32*>malloc(sizeof(i32)*N)
     if buf == NULL:
         raise MemoryError
     try:

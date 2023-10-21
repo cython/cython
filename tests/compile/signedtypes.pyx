@@ -13,6 +13,6 @@ cdef struct S:
     i64 l
     u64 ul
     signed long sl
-    long long ll
-    unsigned long long ull
+    i128 ll
+    u128 ull
     signed long long sll

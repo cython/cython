@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef extern short int s
-cdef extern long int l
-cdef extern long long ll
+cdef extern i16 s
+cdef extern i64 l
+cdef extern i128 ll
 cdef extern long double ld

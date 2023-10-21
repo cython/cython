@@ -18,7 +18,7 @@ def cascaded_py(a, b, c):
     """
     return a < b < c
 
-def single_c(int a, int b):
+def single_c(i32 a, i32 b):
     """
     >>> single_c(1, 2)
     True
@@ -27,7 +27,7 @@ def single_c(int a, int b):
     """
     return a < b
 
-def cascaded_c(double a, double b, double c):
+def cascaded_c(f64 a, f64 b, f64 c):
     """
     >>> cascaded_c(1, 2, 3)
     True
@@ -38,7 +38,7 @@ def cascaded_c(double a, double b, double c):
     """
     return a < b < c
 
-def cascaded_mix_pyleft(a, double b, double c):
+def cascaded_mix_pyleft(a, f64 b, f64 c):
     """
     >>> cascaded_mix_pyleft(1, 2, 3)
     True
@@ -49,7 +49,7 @@ def cascaded_mix_pyleft(a, double b, double c):
     """
     return a < b < c
 
-def cascaded_mix_pyright(double a, double b, c):
+def cascaded_mix_pyright(f64 a, f64 b, c):
     """
     >>> cascaded_mix_pyright(1, 2, 3)
     True
@@ -80,14 +80,14 @@ def pointer_cmp():
     False
     True
     """
-    cdef int* a = NULL
-    cdef double* b = NULL
-    cdef double** c = NULL
+    cdef i32* a = NULL
+    cdef f64* b = NULL
+    cdef f64** c = NULL
     print a is NULL
     print b is not NULL
     print c == NULL
 
-def c_cmp(double a, int b, long c):
+def c_cmp(f64 a, i32 b, i64 c):
     """
     >>> c_cmp(1, 2, 3)
     True

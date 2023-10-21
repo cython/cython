@@ -23,7 +23,7 @@ def coerce_to_charptrs(bytearray b):
     True
     """
     cdef char* cs = b
-    cdef unsigned char* ucs = b
+    cdef u8* ucs = b
     cdef signed char* scs = b
     return b == <bytearray>cs == <bytearray> ucs == <bytearray>scs
 

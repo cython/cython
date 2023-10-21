@@ -1,5 +1,5 @@
 # define a global name for whatever char type is used in the module
-ctypedef unsigned char char_type
+ctypedef u8 char_type
 
 cdef char_type[:] _chars(s):
     if isinstance(s, unicode):

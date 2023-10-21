@@ -1,7 +1,6 @@
 # mode: compile
 # tag: cpp,cpp11
 
-
 cpdef enum class Spam:
     a, b
     c
@@ -9,16 +8,13 @@ cpdef enum class Spam:
     e
     f = 42
 
-
-cpdef enum class Cheese(unsigned int):
+cpdef enum class Cheese(u32):
     x = 1
     y = 2
-
 
 cdef enum struct parrot_state:
     alive = 1
     dead = 0
-
 
 cdef void eggs():
     cdef Spam s1
@@ -30,17 +26,14 @@ cdef void eggs():
 
 eggs()
 
-
 # enum interdependency
 cdef enum class Color(int):
     RED = 1
     GREEN = 2
 
-
 cdef enum class Color2(int):
     RED = (<int> Color.RED)
     GREEN = (<int> Color.GREEN)
-
 
 # enum class as cdef class function parameter
 cdef class A:

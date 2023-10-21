@@ -5,7 +5,7 @@ __doc__ = u"""
     TypeError: 'int' object ...
 """
 
-cdef Py_ssize_t maxsize
+cdef isize maxsize
 
 import sys
 if sys.version_info < (2,5):
@@ -18,7 +18,7 @@ py_maxsize = maxsize
 
 import cython
 
-def index_tuple(tuple t, int i):
+def index_tuple(tuple t, i32 i):
     """
     >>> index_tuple((1,1,2,3,5), 0)
     1
@@ -38,7 +38,7 @@ def index_tuple(tuple t, int i):
     """
     return t[i]
 
-def index_list(list L, int i):
+def index_list(list L, i32 i):
     """
     >>> index_list([2,3,5,7,11,13,17,19], 0)
     2
@@ -58,7 +58,7 @@ def index_list(list L, int i):
     """
     return L[i]
 
-def index_object(object o, int i):
+def index_object(object o, i32 i):
     """
     >>> index_object([2,3,5,7,11,13,17,19], 1)
     3
@@ -80,8 +80,7 @@ def index_object(object o, int i):
     """
     return o[i]
 
-
-def del_index_list(list L, Py_ssize_t index):
+def del_index_list(list L, isize index):
     """
     >>> del_index_list(list(range(4)), 0)
     [1, 2, 3]
@@ -99,8 +98,7 @@ def del_index_list(list L, Py_ssize_t index):
     del L[index]
     return L
 
-
-def set_index_list(list L, Py_ssize_t index):
+def set_index_list(list L, isize index):
     """
     >>> set_index_list(list(range(4)), 0)
     [5, 1, 2, 3]
@@ -118,21 +116,20 @@ def set_index_list(list L, Py_ssize_t index):
     L[index] = 5
     return L
 
-
 # These make sure that our fast indexing works with large and unsigned types.
 
 def test_unsigned_long():
     """
     >>> test_unsigned_long()
     """
-    cdef int i
-    cdef unsigned long ix
+    cdef i32 i
+    cdef u64 ix
     cdef D = {}
-    for i from 0 <= i < <int>sizeof(unsigned long) * 8:
-        ix = (<unsigned long>1) << i
+    for i from 0 <= i < <i32>sizeof(u64) * 8:
+        ix = (<u64>1) << i
         D[ix] = True
-    for i from 0 <= i < <int>sizeof(unsigned long) * 8:
-        ix = (<unsigned long>1) << i
+    for i from 0 <= i < <i32>sizeof(u64) * 8:
+        ix = (<u64>1) << i
         assert D[ix] is True
         del D[ix]
     assert len(D) == 0
@@ -141,14 +138,14 @@ def test_unsigned_short():
     """
     >>> test_unsigned_short()
     """
-    cdef int i
-    cdef unsigned short ix
+    cdef i32 i
+    cdef u16 ix
     cdef D = {}
-    for i from 0 <= i < <int>sizeof(unsigned short) * 8:
-        ix = (<unsigned short>1) << i
+    for i from 0 <= i < <i32>sizeof(u16) * 8:
+        ix = (<u16>1) << i
         D[ix] = True
-    for i from 0 <= i < <int>sizeof(unsigned short) * 8:
-        ix = (<unsigned short>1) << i
+    for i from 0 <= i < <i32>sizeof(u16) * 8:
+        ix = (<u16>1) << i
         assert D[ix] is True
         del D[ix]
     assert len(D) == 0
@@ -157,14 +154,14 @@ def test_long_long():
     """
     >>> test_long_long()
     """
-    cdef int i
-    cdef long long ix
+    cdef i32 i
+    cdef i128 ix
     cdef D = {}
-    for i from 0 <= i < <int>sizeof(long long) * 8:
-        ix = (<long long>1) << i
+    for i from 0 <= i < <i32>sizeof(i128) * 8:
+        ix = (<i128>1) << i
         D[ix] = True
-    for i from 0 <= i < <int>sizeof(long long) * 8:
-        ix = (<long long>1) << i
+    for i from 0 <= i < <i32>sizeof(i128) * 8:
+        ix = (<i128>1) << i
         assert D[ix] is True
         del D[ix]
 
@@ -197,12 +194,11 @@ def test_long_long():
 
     assert len(D) == 0
 
-
 def test_ulong_long():
     """
     >>> test_ulong_long()
     """
-    cdef unsigned long long ix
+    cdef u128 ix
 
     L = [1, 2, 3]
     try:
@@ -220,7 +216,7 @@ def test_ulong_long():
 
 
 @cython.boundscheck(false)
-def test_boundscheck_unsigned(list L, tuple t, object o, unsigned long ix):
+def test_boundscheck_unsigned(list L, tuple t, object o, u64 ix):
     """
     >>> test_boundscheck_unsigned([1, 2, 4], (1, 2, 4), [1, 2, 4], 2)
     (4, 4, 4)
@@ -262,7 +258,6 @@ def large_literal_index(object o):
     """
     return o[1000000000000000000000000000000]
 
-
 class LargeIndexable(object):
     expected = None
 
@@ -279,7 +274,6 @@ class LargeIndexable(object):
     def __delitem__(self, index):
         assert self.expected == index
         self.expected = None
-
 
 def test_large_indexing(obj):
     """
@@ -308,8 +302,7 @@ def test_large_indexing(obj):
         #obj[maxsize*2], obj[-maxsize*2]     # FIXME!
     )
 
-
-def del_large_index(obj, Py_ssize_t index):
+def del_large_index(obj, isize index):
     """
     >>> obj = LargeIndexable()
     >>> del_large_index(obj, 0)
@@ -322,8 +315,7 @@ def del_large_index(obj, Py_ssize_t index):
     del obj[index]
     assert obj.expected is None
 
-
-def set_large_index(obj, Py_ssize_t index):
+def set_large_index(obj, isize index):
     """
     >>> obj = LargeIndexable()
     >>> set_large_index(obj, 0)

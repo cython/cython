@@ -37,18 +37,18 @@ def cast_test():
     """
     cdef any a
     a = 1
-    assert a.type() == typeid(int)
-    assert any_cast[int](a) == 1
+    assert a.type() == typeid(i32)
+    assert any_cast[i32](a) == 1
     a = 3.14
-    assert a.type() == typeid(double)
-    assert any_cast[double](a) == 3.14
+    assert a.type() == typeid(f64)
+    assert any_cast[f64](a) == 3.14
     a = <bool>(true)
     assert a.type() == typeid(bool)
-    assert any_cast[bool](a) == True
+    assert any_cast[bool](a) == true
     # bad cast
     try:
         a = 1
-        b = any_cast[double](a)
+        b = any_cast[f64](a)
     except TypeError:
         pass
 
@@ -58,13 +58,13 @@ def emplace_test():
     """
     cdef any a
     a = 42
-    assert any_cast[int](a) == 42
-    a.emplace[pair[int,int]](1,2)
-    assert any_cast[pair[int,int]](a) == pair[int,int](1,2)
+    assert any_cast[i32](a) == 42
+    a.emplace[pair[i32, i32]](1,2)
+    assert any_cast[pair[i32, i32]](a) == pair[i32, i32](1,2)
     a.reset()
     assert not a.has_value()
-    a.emplace[pair[int,int]](1,2)
-    assert any_cast[pair[int,int]](a) == pair[int,int](1,2)
+    a.emplace[pair[i32, i32]](1,2)
+    assert any_cast[pair[i32, i32]](a) == pair[i32, i32](1,2)
 
 def swap_test():
     """
@@ -75,4 +75,4 @@ def swap_test():
     b = "hello"
     a.swap(b)
     assert any_cast[str](a) == "hello"
-    assert any_cast[int](b) == 42
+    assert any_cast[i32](b) == 42

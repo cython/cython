@@ -18,11 +18,10 @@
 >>> assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html) # per default no complete c code
 """
 
-
 def mixed_test():
     """docstring
     """
-    cdef int int1, int2, int3
+    cdef i32 int1, int2, int3
     cdef char *ptr1, *ptr2 = "test", *ptr3 = "toast"
     int2 = 10
     int3 = 20
@@ -35,35 +34,27 @@ def mixed_test():
     obj1 = obj2 + int3
     return int1, obj1
 
-
-def add_x_1(int x):
+def add_x_1(i32 x):
     return x + 1
-
 
 def add_x_1f(x):
     return x + 1.0
 
-
 def add_x_large(x):
     return x + 2**30
-
 
 def add_1_x(x):
     return 1 + x
 
-
-def add_1f_x(double x):
+def add_1f_x(f64 x):
     return 1.0 + x
-
 
 def add_large_x(x):
     return 2**30 + x
 
-
 class PythonClass(object):
     def call(self, x):
         return add_1_x(x)
-
 
 cdef class ExtensionType(object):
     @classmethod

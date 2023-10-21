@@ -112,7 +112,7 @@ def x_and_1_or_False(x):
     """
     return x and 1 or False
 
-def test_large_int(unsigned long x):
+def test_large_int(u64 x):
     """
     >>> try: test_large_int(1 << 127)
     ... except OverflowError: print(true)

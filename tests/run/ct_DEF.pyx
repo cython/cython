@@ -48,7 +48,6 @@ DEF ELLIPSIS = ...
 DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
 DEF UNICODE_EXPRESSION = unicode(BYTES.decode('utf8')).encode('ascii').decode('latin1')
 
-
 def c():
     """
     >>> c()
@@ -62,7 +61,7 @@ def i0():
     >>> i0() == -1
     True
     """
-    cdef int i = INT0
+    cdef i32 i = INT0
     return i
 
 def i1():
@@ -70,7 +69,7 @@ def i1():
     >>> i1() == 42
     True
     """
-    cdef int i = INT1
+    cdef i32 i = INT1
     return i
 
 def i2():
@@ -78,7 +77,7 @@ def i2():
     >>> i2() == 0x42
     True
     """
-    cdef int i = INT2
+    cdef i32 i = INT2
     return i
 
 def i3():
@@ -86,7 +85,7 @@ def i3():
     >>> i3() == -0x42
     True
     """
-    cdef int i = INT3
+    cdef i32 i = INT3
     return i
 
 def l():
@@ -94,7 +93,7 @@ def l():
     >>> l()
     666
     """
-    cdef long l = LONG
+    cdef i64 l = LONG
     return l
 
 def large_nums():
@@ -109,10 +108,10 @@ def large_nums():
     >>> print_large_number(n64)
     -4294967295
     """
-    cdef unsigned long ul32 = LARGE_NUM32
-    cdef unsigned long long ul64 = LARGE_NUM64
-    cdef long long l64 = LARGE_NUM32
-    cdef long long n64 = -LARGE_NUM32
+    cdef u64 ul32 = LARGE_NUM32
+    cdef u128 ul64 = LARGE_NUM64
+    cdef i128 l64 = LARGE_NUM32
+    cdef i128 n64 = -LARGE_NUM32
     return ul32, ul64, l64, n64
 
 def f():
@@ -120,7 +119,7 @@ def f():
     >>> f()
     12.5
     """
-    cdef float f = FLOAT
+    cdef f32 f = FLOAT
     return f
 
 def s():
@@ -167,7 +166,7 @@ def tuple_indexing():
     >>> tuple_indexing()
     2
     """
-    cdef int two = INT_TUPLE1[-1]
+    cdef i32 two = INT_TUPLE1[-1]
     return two
 
 def two():
@@ -175,7 +174,7 @@ def two():
     >>> two()
     2
     """
-    cdef int two = TWO
+    cdef i32 two = TWO
     return two
 
 def five():
@@ -183,7 +182,7 @@ def five():
     >>> five()
     5
     """
-    cdef int five = FIVE
+    cdef i32 five = FIVE
     return five
 
 @cython.test_assert_path_exists('//BoolNode')
@@ -218,9 +217,8 @@ def expression():
     >>> expression()
     16
     """
-    cdef int i = EXPRESSION
+    cdef i32 i = EXPRESSION
     return i
-
 
 def unicode_expression():
     """
@@ -229,7 +227,6 @@ def unicode_expression():
     """
     s = UNICODE_EXPRESSION
     return s
-
 
 def none():
     """

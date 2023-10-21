@@ -10,9 +10,9 @@ if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u"L", u"")
 
 def f(x):
-    cdef unsigned long long ull
+    cdef u128 ull
     ull = x
     return ull + 1
 
-def g(unsigned long x):
+def g(u64 x):
     return x + 1

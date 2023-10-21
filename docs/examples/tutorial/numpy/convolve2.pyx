@@ -50,21 +50,21 @@ def naive_convolve(cnp.ndarray f, cnp.ndarray g):
     # other C types (like "unsigned int") could have been used instead.
     # Purists could use "Py_ssize_t" which is the proper Python type for
     # array indices.
-    cdef int vmax = f.shape[0]
-    cdef int wmax = f.shape[1]
-    cdef int smax = g.shape[0]
-    cdef int tmax = g.shape[1]
-    cdef int smid = smax // 2
-    cdef int tmid = tmax // 2
-    cdef int xmax = vmax + 2 * smid
-    cdef int ymax = wmax + 2 * tmid
+    cdef i32 vmax = f.shape[0]
+    cdef i32 wmax = f.shape[1]
+    cdef i32 smax = g.shape[0]
+    cdef i32 tmax = g.shape[1]
+    cdef i32 smid = smax // 2
+    cdef i32 tmid = tmax // 2
+    cdef i32 xmax = vmax + 2 * smid
+    cdef i32 ymax = wmax + 2 * tmid
     cdef cnp.ndarray h = np.zeros([xmax, ymax], dtype=DTYPE)
-    cdef int x, y, s, t, v, w
+    cdef i32 x, y, s, t, v, w
 
     # It is very important to type ALL your variables. You do not get any
     # warnings if not, only much slower code (they are implicitly typed as
     # Python objects).
-    cdef int s_from, s_to, t_from, t_to
+    cdef i32 s_from, s_to, t_from, t_to
 
     # For the value variable, we want to use the same data type as is
     # stored in the array, so we use "DTYPE_t" as defined above.

@@ -1,24 +1,20 @@
 # cython: language_level=3
 
 cdef extern from "math.h":
-    double c_lgamma "lgamma" (double)
-    double c_exp "exp" (double)
-
+    f64 c_lgamma "lgamma" (f64)
+    f64 c_exp "exp" (f64)
 
 def exp(n):
     """Return e**n."""
     return c_exp(n)
 
-
 def lfactorial(n):
     """Return an estimate of the log factorial of n."""
     return c_lgamma(n+1)
 
-
 def factorial(n):
     """Return an estimate of the factorial of n."""
     return c_exp( c_lgamma(n+1) )
-
 
 if __name__ == "__main__":
     import sys

@@ -9,11 +9,11 @@ def f00(a, object b=42):
     "f00 docstring"
     pass
 
-def f01(unsigned int a: int, unsigned int b: int = 42, /, c=123):
+def f01(u32 a: i32, u32 b: i32 = 42, /, c=123):
     "f01 docstring"
     pass
 
-def f02(unsigned int a: float, *, unsigned int b: float = 42) -> tuple[int]:
+def f02(u32 a: f32, *, u32 b: f32 = 42) -> tuple[i32]:
     "f02 docstring"
     pass
 
@@ -34,7 +34,6 @@ f02 docstring
 (a, *, b=42)
 
 """
-
 
 cdef class Foo:
     "Foo docstring"
@@ -61,14 +60,14 @@ cdef class Foo:
         "s00 docstring"
         pass
 
-    cdef public long int p0
+    cdef public i64 p0
     property p1:
         "p1 docstring"
         def __get__(self):
             return 0
     property p2:
         "p2 docstring"
-        def __get__(self) -> int:
+        def __get__(self) -> i32:
             return 0
     cdef public Foo p3
 

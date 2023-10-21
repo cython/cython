@@ -18,13 +18,13 @@ namespace shapes {
 	Rectangle::~Rectangle () {}
 
 	// Return the area of the rectangle
-	int Rectangle::getArea () {
+	int Rectangle::get_area () {
 		return (this->x1 - this->x0) * (this->y1 - this->y0);
 	}
 
 	// Get the size of the rectangle.
 	// Put the size in the pointer args
-	void Rectangle::getSize (int *width, int *height) {
+	void Rectangle::get_size (int *width, int *height) {
 		(*width) = x1 - x0;
 		(*height) = y1 - y0;
 	}

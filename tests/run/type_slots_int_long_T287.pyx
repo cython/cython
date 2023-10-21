@@ -12,33 +12,31 @@ __doc__ = u"""
 
 """
 
-
-def getint(int i):
+def getint(i32 i):
     """
-    >>> getint( Int() )
+    >>> getint(Int())
     2
-    >>> getint( Long() )
+    >>> getint(Long())
     3
-    >>> getint( IntLongA() )
+    >>> getint(IntLongA())
     2
-    >>> getint( IntLongB() )
+    >>> getint(IntLongB())
     2
     """
     return i
 
-def getlong(long long i):
+def getlong(i128 i):
     """
-    >>> getlong( Int() )
+    >>> getlong(Int())
     2
-    >>> getlong( Long() )
+    >>> getlong(Long())
     3
-    >>> getlong( IntLongA() )
+    >>> getlong(IntLongA())
     2
-    >>> getlong( IntLongB() )
+    >>> getlong(IntLongB())
     2
     """
-    return <int>i
-
+    return <i32>i
 
 cdef class Int:
    def __int__(self):

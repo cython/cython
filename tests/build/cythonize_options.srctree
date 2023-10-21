@@ -43,11 +43,11 @@ cimport x
 include "y.pxi"
 
 # cdivision from setup.py
-def mod_int_c(int a, int b):
+def mod_int_c(i32 a, i32 b):
     return a % b
 
 assert mod_int_c(-1, 10) < 0
 
 # unraisable exceptions should produce a warning
-cdef int no_exc_propagate() noexcept:
+cdef i32 no_exc_propagate() noexcept:
     raise TypeError()

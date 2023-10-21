@@ -16,7 +16,6 @@ max_int = INT_MAX
 max_long = LONG_MAX
 min_long = LONG_MIN
 
-
 @cython.test_fail_if_path_exists(
     "//JoinedStrNode",
 )
@@ -75,7 +74,6 @@ def concat_strings(a, b):
     print(f"{a}{'x'+b}")      # fresh temp string right
     print(f"{a+'x'}{'x'+b}")  # fresh temp strings right and left
 
-
 @cython.test_fail_if_path_exists(
     "//FormattedValueNode",
     "//JoinedStrNode",
@@ -97,7 +95,6 @@ def escaping():
     s = f'{"{{}}"}'
     assert s == '{{}}', s
 
-
 @cython.test_fail_if_path_exists(
     "//FormattedValueNode",
     "//JoinedStrNode",
@@ -109,7 +106,6 @@ def nested_constant():
     xyabc123321
     """
     return f"""{f'''xy{f"abc{123}{'321'}"!s}'''}"""
-
 
 def format2(ab, cd):
     """
@@ -137,11 +133,9 @@ def format2(ab, cd):
     assert isinstance(c, unicode) or (IS_PYPY and isinstance(c, str)), type(c)
     return a, b, c
 
-
 ctypedef enum TestValues:
     enum_ABC = 1
     enum_XYZ = 2
-
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
@@ -154,8 +148,7 @@ def format_c_enum():
     """
     return f"{enum_ABC}-{enum_XYZ}"
 
-
-def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
+def format_c_numbers(signed char c, i16 s, i32 n, i64 l, f32 f, f64 d):
     """
     >>> s1, s2, s3, s4 = format_c_numbers(123, 135, 12, 12312312, 2.3456, 3.1415926)
     >>> print(s1)
@@ -198,8 +191,7 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     assert isinstance(s4, unicode), type(s4)
     return s1, s2, s3, s4
 
-
-def format_c_numbers_unsigned(unsigned char c, unsigned short s, unsigned int n, unsigned long l):
+def format_c_numbers_unsigned(u8 c, u16 s, u32 n, u64 l):
     """
     >>> s1, s2, s3 = format_c_numbers_unsigned(123, 135, 12, 12312312)
     >>> print(s1)
@@ -218,11 +210,10 @@ def format_c_numbers_unsigned(unsigned char c, unsigned short s, unsigned int n,
     assert isinstance(s3, unicode), type(s3)
     return s1, s2, s3
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
-def format_c_numbers_max(int n, long l):
+def format_c_numbers_max(i32 n, i64 l):
     """
     >>> n, l = max_int, max_long
     >>> s1, s2 = format_c_numbers_max(n, l)
@@ -244,7 +235,6 @@ def format_c_numbers_max(int n, long l):
     assert isinstance(s2, unicode), type(s2)
     return s1, s2
 
-
 def format_c_number_const():
     """
     >>> s = format_c_number_const()
@@ -253,22 +243,20 @@ def format_c_number_const():
     """
     return f"{LONG_MAX}"
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
-def format_c_number_range(int n):
+def format_c_number_range(i32 n):
     """
     >>> for i in range(-1000, 1001):
     ...     assert format_c_number_range(i) == str(i)
     """
     return f'{n}'
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
-def format_c_number_range_width(int n):
+def format_c_number_range_width(i32 n):
     """
     >>> for i in range(-1000, 1001):
     ...     formatted = format_c_number_range_width(i)
@@ -277,8 +265,7 @@ def format_c_number_range_width(int n):
     """
     return f'{n:04}'
 
-
-def format_c_number_range_width0(int n):
+def format_c_number_range_width0(i32 n):
     """
     >>> for i in range(-100, 101):
     ...     formatted = format_c_number_range_width0(i)
@@ -287,11 +274,10 @@ def format_c_number_range_width0(int n):
     """
     return f'{n:00}'
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
-def format_c_number_range_width1(int n):
+def format_c_number_range_width1(i32 n):
     """
     >>> for i in range(-100, 101):
     ...     formatted = format_c_number_range_width1(i)
@@ -300,11 +286,10 @@ def format_c_number_range_width1(int n):
     """
     return f'{n:01}'
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
-def format_c_number_range_width_m4(int n):
+def format_c_number_range_width_m4(i32 n):
     """
     >>> for i in range(-100, 101):
     ...     formatted = format_c_number_range_width_m4(i)
@@ -313,8 +298,7 @@ def format_c_number_range_width_m4(int n):
     """
     return f'{n:-4}'
 
-
-def format_c_number_range_dyn_width(int n, int width):
+def format_c_number_range_dyn_width(i32 n, i32 width):
     """
     >>> for i in range(-1000, 1001):
     ...     assert format_c_number_range_dyn_width(i, 0) == str(i), format_c_number_range_dyn_width(i, 0)
@@ -324,7 +308,6 @@ def format_c_number_range_dyn_width(int n, int width):
     ...     assert format_c_number_range_dyn_width(i, 6) == '%06d' % i, format_c_number_range_dyn_width(i, 6)
     """
     return f'{n:0{width}}'
-
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
@@ -363,7 +346,6 @@ def format_bool(bint x):
     """
     return f'{x}', f'{True}', f'{x == 2}', f'{2 > 3}'
 
-
 def format_c_values(Py_UCS4 uchar, Py_UNICODE pyunicode):
     """
     >>> s, s1, s2, s3 = format_c_values(b'A'.decode('ascii'), b'X'.decode('ascii'))
@@ -388,7 +370,6 @@ def format_c_values(Py_UCS4 uchar, Py_UNICODE pyunicode):
     assert isinstance(s3, unicode), type(s3)
     assert l == [3, 2, 1]
     return s, s1, s2, s3
-
 
 xyz_ustring = u'xÄyÖz'
 
@@ -442,7 +423,6 @@ def format_strings(str s, unicode u):
     assert isinstance(g, unicode), type(g)
     return a, b, c, d, e, f, g
 
-
 def format_pystr(str s1, str s2):
     """
     >>> a, b, c, d = format_pystr('abc', 'xyz')
@@ -465,14 +445,12 @@ def format_pystr(str s1, str s2):
     assert isinstance(d, unicode), type(d)
     return a, b, c, d
 
-
 def raw_fstring(value):
     """
     >>> print(raw_fstring('abc'))
     abc\\x61
     """
     return fr'{value}\x61'
-
 
 def format_repr(value):
     """
@@ -492,7 +470,6 @@ def format_repr(value):
     assert isinstance(b, unicode), type(b)
     return a, b
 
-
 def format_str(value):
     """
     >>> a, b = format_str('abc')
@@ -511,7 +488,6 @@ def format_str(value):
     assert isinstance(b, unicode), type(b)
     return a, b
 
-
 @cython.test_fail_if_path_exists(
     "//FormattedValueNode",  # bytes.decode() returns unicode => formatting is useless
     "//JoinedStrNode",       # replaced by call to PyUnicode_Concat()
@@ -524,7 +500,6 @@ def format_decoded_bytes(bytes value):
     """
     return f"U-{value.decode('utf-8')}"
 
-
 @cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
@@ -533,7 +508,7 @@ def format_decoded_bytes(bytes value):
     "//FormattedValueNode",
     "//JoinedStrNode",
 )
-def generated_fstring(int i, float f, unicode u not None, o):
+def generated_fstring(i32 i, f32 f, unicode u not None, o):
     """
     >>> i, f, u, o = 11, 1.3125, u'xyz', [1]
     >>> print(((
@@ -564,19 +539,17 @@ def generated_fstring(int i, float f, unicode u not None, o):
         f, f,
     )
 
-
 @cython.test_assert_path_exists(
     "//FormattedValueNode",
     "//JoinedStrNode",
 )
-def percent_s_unicode(u, int i):
+def percent_s_unicode(u, i32 i):
     u"""
     >>> u = u'x\u0194z'
     >>> print(percent_s_unicode(u, 12))
     x\u0194z-12
     """
     return u"%s-%d" % (u, i)
-
 
 @cython.test_assert_path_exists(
     "//FormattedValueNode",
@@ -597,7 +570,6 @@ def sideeffect(l):
     """
     f"{l.append(123)}"  # unused f-string !
     return list(l)
-
 
 ########################################
 # await inside f-string

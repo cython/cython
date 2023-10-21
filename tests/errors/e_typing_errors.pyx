@@ -7,50 +7,43 @@ try:
 except ImportError:
     pass
 
-
 # not OK
 
-def optional_cython_types(Optional[cython.int] i, Optional[cython.double] d, Optional[cython.float] f,
-                          Optional[cython.complex] c, Optional[cython.long] l, Optional[cython.longlong] ll):
+def optional_cython_types(Optional[cython.i32] i, Optional[cython.f64] d, Optional[cython.f32] f,
+                          Optional[cython.complex] c, Optional[cython.i64] l, Optional[cython.i128] ll):
     pass
 
-
-MyStruct = cython.struct(a=cython.int, b=cython.double)
+MyStruct = cython.struct(a=cython.i32, b=cython.f64)
 
 def optional_cstruct(Optional[MyStruct] x):
     pass
 
-
 def optional_pytypes(Optional[i32] i, Optional[f32] f, Optional[complex] c, Optional[i64] l):
     pass
 
-
 cdef ClassVar[list] x
-
 
 # OK
 
 def optional_memoryview(f64[:] d, Optional[f64[:]] o):
     pass
 
-
 cdef class Cls(object):
     cdef ClassVar[list] x
 
 
-
 _ERRORS = """
-13:42: typing.Optional[...] cannot be applied to type int
-13:66: typing.Optional[...] cannot be applied to type double
-13:93: typing.Optional[...] cannot be applied to type float
-14:42: typing.Optional[...] cannot be applied to type double complex
-14:70: typing.Optional[...] cannot be applied to type long
-14:95: typing.Optional[...] cannot be applied to type long long
-24:30: typing.Optional[...] cannot be applied to type int
-24:47: typing.Optional[...] cannot be applied to type float
-24:85: typing.Optional[...] cannot be applied to type long
+12:42: typing.Optional[...] cannot be applied to type int
+12:66: typing.Optional[...] cannot be applied to type double
+12:90: typing.Optional[...] cannot be applied to type float
+13:42: typing.Optional[...] cannot be applied to type double complex
+13:70: typing.Optional[...] cannot be applied to type long
+13:94: typing.Optional[...] cannot be applied to type long long
+21:30: typing.Optional[...] cannot be applied to type int
+21:47: typing.Optional[...] cannot be applied to type float
+21:85: typing.Optional[...] cannot be applied to type long
 
-20:30: typing.Optional[...] cannot be applied to type MyStruct
+18:30: typing.Optional[...] cannot be applied to type MyStruct
 
-28:20: Modifier 'typing.ClassVar' is not allowed here.
+24:20: Modifier 'typing.ClassVar' is not allowed here.
 """

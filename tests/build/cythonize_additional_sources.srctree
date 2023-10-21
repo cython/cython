@@ -8,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+    ext_modules = cythonize("*.pyx"),
 )
 
 ######## a.pyx ########
@@ -16,7 +16,7 @@ setup(
 # distutils: sources=alib.c
 
 cdef extern from "alib.h":
-    int c_function(int x)
+    i32 c_function(i32 x)
 
 def test():
     return c_function(42)
@@ -24,10 +24,10 @@ def test():
 
 ######## alib.c ########
 
-int c_function(int x) {
+i32 c_function(i32 x) {
     return x + 1;
 }
 
 ######## alib.h ########
 
-int c_function(int x);
+i32 c_function(i32 x);

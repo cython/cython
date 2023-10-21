@@ -1,7 +1,7 @@
 from libc.stdlib cimport malloc, free
 from cpython.object cimport Py_EQ, Py_NE
 
-def double_ptr_slice(x, L, int a, int b):
+def double_ptr_slice(x, L, i32 a, i32 b):
     """
     >>> L = list(range(10))
     >>> double_ptr_slice(5, L, 0, 10)
@@ -14,9 +14,9 @@ def double_ptr_slice(x, L, int a, int b):
     >>> double_ptr_slice(EqualsEvens(), L, 0, 10)
     >>> double_ptr_slice(EqualsEvens(), L, 1, 10)
     """
-    cdef double *L_c = NULL
+    cdef f64 *L_c = NULL
     try:
-        L_c = <double*>malloc(<unsigned long> len(L) * sizeof(double))
+        L_c = <f64*>malloc(<u64> len(L) * sizeof(f64))
         for i, a in enumerate(L):
             L_c[i] = L[i]
         assert (x in L_c[:b]) == (x in L[:b])
@@ -28,7 +28,7 @@ def double_ptr_slice(x, L, int a, int b):
     finally:
         free(L_c)
 
-def void_ptr_slice(py_x, L, int a, int b):
+def void_ptr_slice(py_x, L, i32 a, i32 b):
     """
     >>> L = list(range(10))
     >>> void_ptr_slice(5, L, 0, 10)
@@ -42,7 +42,7 @@ def void_ptr_slice(py_x, L, int a, int b):
     cdef void **L_c = NULL
     cdef void *x = <void*>py_x
     try:
-        L_c = <void**>malloc(<unsigned long> len(L) * sizeof(void*))
+        L_c = <void**>malloc(<u64> len(L) * sizeof(void*))
         for i, a in enumerate(L):
             L_c[i] = <void*>L[i]
         assert (x in L_c[:b]) == (py_x in L[:b])
@@ -64,7 +64,7 @@ cdef class EqualsEvens:
     >>> [e == k for k in range(4)]
     [True, False, True, False]
     """
-    def __richcmp__(self, other, int op):
+    def __richcmp__(self, other, i32 op):
         if op == Py_EQ:
             return other % 2 == 0
         elif op == Py_NE:

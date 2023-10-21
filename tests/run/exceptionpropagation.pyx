@@ -1,8 +1,8 @@
-cdef int CHKERR(int ierr) except -1:
+cdef i32 CHKERR(i32 ierr) except -1:
     if ierr==0: return 0
     raise RuntimeError
 
-cdef int obj2int(object ob) except *:
+cdef i32 obj2int(object ob) except *:
     return ob
 
 def foo(a):
@@ -12,10 +12,10 @@ def foo(a):
     Traceback (most recent call last):
     RuntimeError
     """
-    cdef int i = obj2int(a)
+    cdef i32 i = obj2int(a)
     CHKERR(i)
 
-cdef int* except_expr(bint fire) except <int*>-1:
+cdef i32* except_expr(bint fire) except <i32*>-1:
     if fire:
         raise RuntimeError
 
@@ -29,7 +29,7 @@ def test_except_expr(bint fire):
     """
     except_expr(fire)
 
-cdef double except_big_result(bint fire) except 100000000000000000000000000000000:
+cdef f64 except_big_result(bint fire) except 100000000000000000000000000000000:
     if fire:
         raise RuntimeError
 
@@ -43,8 +43,7 @@ def test_except_big_result(bint fire):
     """
     except_big_result(fire)
 
-
-cdef unsigned short except_promotion_compare(bint fire) except *:
+cdef u16 except_promotion_compare(bint fire) except *:
     if fire:
         raise RuntimeError
 
@@ -59,10 +58,10 @@ def test_except_promotion_compare(bint fire):
     except_promotion_compare(fire)
 
 
-cdef int cdef_function_that_raises():
+cdef i32 cdef_function_that_raises():
     raise RuntimeError
 
-cdef int cdef_noexcept_function_that_raises() noexcept:
+cdef i32 cdef_noexcept_function_that_raises() noexcept:
     raise RuntimeError
 
 def test_except_raise_by_default():
@@ -81,7 +80,7 @@ def test_noexcept():
     cdef_noexcept_function_that_raises()
 
 
-cdef int* cdef_ptr_func(int* input, int failure_mode):
+cdef i32* cdef_ptr_func(i32* input, i32 failure_mode):
     # should have except NULL? by default
     # failure mode is 0, 1, or 2
     if failure_mode == 0:
@@ -91,9 +90,9 @@ cdef int* cdef_ptr_func(int* input, int failure_mode):
     else:
         raise RuntimeError("help!")
 
-ctypedef int* (*cdef_ptr_func_ptr)(int*, int) except? NULL
+ctypedef i32* (*cdef_ptr_func_ptr)(i32*, i32) except? NULL
 
-def test_ptr_func(int failure_mode):
+def test_ptr_func(i32 failure_mode):
     """
     >>> test_ptr_func(0)
     100
@@ -104,7 +103,7 @@ def test_ptr_func(int failure_mode):
     """
     # check that the signature is what we think it is
     cdef cdef_ptr_func_ptr fptr = cdef_ptr_func
-    cdef int a = 100
+    cdef i32 a = 100
     try:
         out = fptr(&a, failure_mode)
         if out:
@@ -114,7 +113,7 @@ def test_ptr_func(int failure_mode):
     except RuntimeError:
         print("exception")
 
-def test_ptr_func2(int failure_mode):
+def test_ptr_func2(i32 failure_mode):
     """
     >>> test_ptr_func(0)
     100
@@ -124,7 +123,7 @@ def test_ptr_func2(int failure_mode):
     exception
     """
     # as above, but don't go through a function pointer
-    cdef int a = 100
+    cdef i32 a = 100
     try:
         out = cdef_ptr_func(&a, failure_mode)
         if out:

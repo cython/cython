@@ -28,13 +28,13 @@ setup(ext_modules=ext_modules)
 ######## src/a.pyx ########
 
 cdef extern from "helper.h":
-    int value1
+    i32 value1
 
 cdef extern from "subdir/helper.h":
-    int value2
+    i32 value2
 
 cdef extern from "pkg/pkg_helper.h":
-    int value3
+    i32 value3
 
 assert value1 == 100
 assert value2 == 200
@@ -42,24 +42,24 @@ assert value3 == 300
 
 ######## src/helper.h ########
 
-int value1 = 100;
+i32 value1 = 100;
 
 ######## src/subdir/helper.h ########
 
-int value2 = 200;
+i32 value2 = 200;
 
 ######## src/pkg/__init__.py ########
 
 ######## src/pkg/b.pyx ########
 
 cdef extern from "../fake/helper.h":
-    int value2
+    i32 value2
 
 cdef extern from "pkg_helper.h":
-    int value3
+    i32 value3
 
 cdef extern from "subdir/pkg_helper.h":
-    int value4
+    i32 value4
 
 assert value2 == 200
 assert value3 == 300
@@ -67,11 +67,11 @@ assert value4 == 400
 
 ######## src/pkg/pkg_helper.h ########
 
-int value3 = 300;
+i32 value3 = 300;
 
 ######## src/pkg/subdir/pkg_helper.h ########
 
-int value4 = 400;
+i32 value4 = 400;
 
 ######## check_paths.py ########
 

@@ -122,7 +122,7 @@ def buffers_in_locals(object[char, ndim=1] a):
     >>> sorted(buffers_in_locals(b'abcdefg'))
     ['a', 'b']
     """
-    cdef object[unsigned char, ndim=1] b = a
+    cdef object[u8, ndim=1] b = a
 
     return locals()
 

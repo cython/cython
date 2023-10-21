@@ -3,7 +3,7 @@
 
 from libcpp.cmath cimport lerp
 
-def test_lerp(double a, double b, double t):
+def test_lerp(f64 a, f64 b, f64 t):
     """ Test C++20 std::lerp function
     >>> test_lerp(1.0, 2.0, 0.5)
     1.5

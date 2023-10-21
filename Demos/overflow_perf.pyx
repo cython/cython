@@ -26,7 +26,7 @@ def fib(INT n):
     a, b = 0, 1
     for k in range(n):
         a, b = b, a + b
-    return int(b)
+    return i32(b)
 
 @cython.overflowcheck(true)
 def fib_overflow(INT n):
@@ -38,7 +38,7 @@ def fib_overflow(INT n):
     a, b = 0, 1
     for k in range(n):
         a, b = b, a + b
-    return int(b)
+    return i32(b)
 
 @cython.overflowcheck(false)
 def collatz(INT n):
@@ -57,7 +57,7 @@ def collatz(INT n):
         else:
             n = 3*n + 1
         k += 1
-    return int(k)
+    return i32(k)
 
 @cython.overflowcheck(true)
 @cython.overflowcheck.fold(false)
@@ -77,7 +77,7 @@ def collatz_overflow(INT n):
         else:
             n = 3*n + 1
         k += 1
-    return int(k)
+    return i32(k)
 
 @cython.overflowcheck(true)
 @cython.overflowcheck.fold(true)
@@ -97,7 +97,7 @@ def collatz_overflow_fold(INT n):
         else:
             n = 3*n + 1
         k += 1
-    return int(k)
+    return i32(k)
 
 @cython.overflowcheck(false)
 def factorial(INT n):
@@ -110,7 +110,7 @@ def factorial(INT n):
     cdef INT k, res = 1
     for k in range(2, n+1):
         res = res * k
-    return int(res)
+    return i32(res)
 
 @cython.overflowcheck(true)
 def factorial_overflow(INT n):
@@ -123,10 +123,10 @@ def factorial_overflow(INT n):
     cdef INT k, res = 1
     for k in range(2, n+1):
         res = res * k
-    return int(res)
+    return i32(res)
 
 @cython.overflowcheck(false)
-def most_orthogonal(C_INT[:,::1] vectors):
+def most_orthogonal(C_INT[:, ::1] vectors):
     cdef C_INT n = vectors.shape[0]
     cdef C_INT* a
     cdef C_INT* b
@@ -145,7 +145,7 @@ def most_orthogonal(C_INT[:,::1] vectors):
 
 @cython.overflowcheck(true)
 @cython.overflowcheck.fold(false)
-def most_orthogonal_overflow(C_INT[:,::1] vectors):
+def most_orthogonal_overflow(C_INT[:, ::1] vectors):
     cdef C_INT n = vectors.shape[0]
     cdef C_INT* a
     cdef C_INT* b
@@ -165,7 +165,7 @@ def most_orthogonal_overflow(C_INT[:,::1] vectors):
 
 @cython.overflowcheck(true)
 @cython.overflowcheck.fold(true)
-def most_orthogonal_overflow_fold(C_INT[:,::1] vectors):
+def most_orthogonal_overflow_fold(C_INT[:, ::1] vectors):
     cdef C_INT n = vectors.shape[0]
     cdef C_INT* a
     cdef C_INT* b

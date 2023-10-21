@@ -19,9 +19,9 @@ NameError: ...name 'log' is not defined
 """
 
 cdef extern from "math.h":
-    cpdef double sqrt(double)
-    cpdef double pyx_sqrt "sqrt"(double)
-    cdef double log(double) # not wrapped
+    cpdef f64 sqrt(f64)
+    cpdef f64 pyx_sqrt "sqrt"(f64)
+    cdef f64 log(f64) # not wrapped
 
 cdef extern from "string.h":
     # signature must be exact in C++, disagrees with C

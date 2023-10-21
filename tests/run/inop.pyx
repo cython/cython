@@ -115,7 +115,7 @@ def m_bytes(char a, bytes bytes_string):
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
-def m_bytes_unsigned(unsigned char a, bytes bytes_string):
+def m_bytes_unsigned(u8 a, bytes bytes_string):
     """
     >>> m_bytes(ord('f'), py_bytes_string)
     1
@@ -145,7 +145,7 @@ def m_bytes_literal(char a):
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def m_bytes_literal_unsigned(unsigned char a):
+def m_bytes_literal_unsigned(u8 a):
     """
     >>> m_bytes_literal(ord('f'))
     1

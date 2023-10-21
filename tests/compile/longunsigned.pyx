@@ -1,4 +1,4 @@
 # mode: compile
 
-cdef extern unsigned long x
+cdef extern u64 x
 cdef extern long unsigned y

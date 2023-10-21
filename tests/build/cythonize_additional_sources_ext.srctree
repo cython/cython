@@ -13,7 +13,7 @@ extensions = [
 ]
 
 setup(
-  ext_modules = cythonize(extensions)
+    ext_modules = cythonize(extensions)
 )
 
 ######## pkg/__init__.py ########
@@ -21,7 +21,7 @@ setup(
 ######## pkg/a.pyx ########
 
 cdef extern from "alib.h":
-    int c_function(int x)
+    i32 c_function(i32 x)
 
 def test():
     return c_function(42)
@@ -29,10 +29,10 @@ def test():
 
 ######## pkg/alib.c ########
 
-int c_function(int x) {
+i32 c_function(i32 x) {
     return x + 1;
 }
 
 ######## pkg/alib.h ########
 
-int c_function(int x);
+i32 c_function(i32 x);

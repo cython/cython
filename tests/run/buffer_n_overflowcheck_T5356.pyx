@@ -9,7 +9,7 @@ cdef size_t _mul_checked(size_t a, size_t b) except? -1:
     return a * b
 
 
-def f(unsigned char[:] a, unsigned char[:] b):
+def f(u8[:] a, u8[:] b):
     """
     >>> f(memoryview(bytearray(b"12")), memoryview(bytearray(b"345")))
     6

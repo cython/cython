@@ -3,7 +3,7 @@
 
 from libcpp.cmath cimport beta, legendre, hypot
 
-def test_beta(double x, double y):
+def test_beta(f64 x, f64 y):
     """
     Test C++17 std::beta function
     >>> test_beta(1.0, 1.0)
@@ -13,7 +13,7 @@ def test_beta(double x, double y):
     """
     return beta(x, y)
 
-def test_legendre(int x, double y):
+def test_legendre(i32 x, f64 y):
     """
     Test C++17 std::legendre function
     >>> test_legendre(1, 0.5)
@@ -23,7 +23,7 @@ def test_legendre(int x, double y):
     """
     return legendre(x, y)
 
-def test_hypot(double x, double y, double z):
+def test_hypot(f64 x, f64 y, f64 z):
     """
     Test C++17 std::hypot function
     >>> test_hypot(1.0, 2.0, 2.0)

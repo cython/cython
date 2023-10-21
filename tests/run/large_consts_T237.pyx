@@ -1,6 +1,6 @@
 # ticket: t237
 #def add_large_c():
-#    cdef unsigned long long val = 2**30 + 2**30
+#    cdef u128 val = 2**30 + 2**30
 #    return val
 
 def add_large():

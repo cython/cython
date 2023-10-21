@@ -1,6 +1,6 @@
 # ticket: t359
 
-cdef unsigned char* some_c_unstring = 'test toast taste'
+cdef u8* some_c_unstring = 'test toast taste'
 
 def test_uchar_conversion():
     """
@@ -15,7 +15,7 @@ def test_uchar_conversion():
 
     cdef object py_string1 = some_c_unstring
 
-    cdef unsigned char* c_unstring_from_py = py_string1
+    cdef u8* c_unstring_from_py = py_string1
     cdef object py_string2 = c_unstring_from_py
 
     cdef char* c_string_from_py = py_string2

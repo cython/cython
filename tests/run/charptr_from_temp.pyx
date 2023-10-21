@@ -12,7 +12,7 @@ cdef cfunc1(char* s):
         return s.decode('ASCII')
 
 
-cdef cfunc3(int x, char* s, object y):
+cdef cfunc3(i32 x, char* s, object y):
     return cfunc1(s)
 
 
@@ -93,4 +93,4 @@ def test_charptr_and_ucharptr(char* s):
     >>> test_charptr_and_ucharptr(b'abc') == b'abc'
     True
     """
-    return s and <unsigned char*>s
+    return s and <u8*>s

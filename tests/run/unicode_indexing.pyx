@@ -4,7 +4,6 @@ cimport cython
 cdef unicode _ustring = u'azerty123456'
 ustring = _ustring
 
-
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
@@ -25,7 +24,6 @@ def index(unicode ustring, Py_ssize_t i):
     """
     return ustring[i]
 
-
 @cython.test_assert_path_exists("//IndexNode")
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 def index_pyindex(unicode ustring, i):
@@ -44,8 +42,6 @@ def index_pyindex(unicode ustring, i):
     IndexError: string index out of range
     """
     return ustring[i]
-
-
 
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
@@ -67,7 +63,6 @@ def index_literal(Py_ssize_t i):
     """
     return u'azerty123456'[i]
 
-
 @cython.test_assert_path_exists("//IndexNode")
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 def index_literal_pyunicode_cast(int i):
@@ -85,7 +80,6 @@ def index_literal_pyunicode_cast(int i):
     IndexError: string index out of range
     """
     return <Py_UNICODE>(u"12345"[i])
-
 
 @cython.test_assert_path_exists("//IndexNode",
                                 "//SingleAssignmentNode")
@@ -107,7 +101,6 @@ def index_literal_pyunicode_coerce(int i):
     cdef Py_UNICODE result = u"12345"[i]
     return result
 
-
 @cython.test_assert_path_exists("//SingleAssignmentNode")
 @cython.test_fail_if_path_exists("//SingleAssignmentNode//CoerceFromPyTypeNode")
 @cython.boundscheck(false)
@@ -124,7 +117,6 @@ def index_literal_pyunicode_coerce_no_check(int i):
     """
     cdef Py_UNICODE result = u"12345"[i]
     return result
-
 
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
@@ -145,12 +137,11 @@ def index_no_boundscheck(unicode ustring, Py_ssize_t i):
     """
     return ustring[i]
 
-
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 @cython.boundscheck(false)
-def unsigned_index_no_boundscheck(unicode ustring, unsigned int i):
+def unsigned_index_no_boundscheck(unicode ustring, u32 i):
     """
     >>> unsigned_index_no_boundscheck(ustring, 0) == 'a'
     True

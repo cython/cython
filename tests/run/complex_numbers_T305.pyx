@@ -20,7 +20,7 @@ cdef class Complex3j:
     >>> Complex3j() != Complex3j()
     False
     """
-    def __richcmp__(a, b, int op):
+    def __richcmp__(a, b, i32 op):
         if op == Py_EQ or op == Py_NE:
             if isinstance(a, Complex3j):
                 eq = isinstance(b, Complex3j) or b == 3j
@@ -89,7 +89,7 @@ def test_pow(double complex z, double complex w, tol=None):
         return abs(z**w / <object>z ** <object>w - 1) < tol
 
 
-def test_int_pow(double complex z, int n, tol=None):
+def test_int_pow(double complex z, i32 n, tol=None):
     """
     >>> [test_int_pow(complex(0, 1), k, 1e-15) for k in range(-4, 5)]
     [True, True, True, True, True, True, True, True, True]
@@ -105,7 +105,6 @@ def test_int_pow(double complex z, int n, tol=None):
     else:
         return abs(z**n / <object>z ** <object>n - 1) < tol
 
-
 @cython.cdivision(false)
 def test_div_by_zero(double complex z):
     """
@@ -118,8 +117,7 @@ def test_div_by_zero(double complex z):
     """
     return 1/z
 
-
-def test_coercion(int a, float b, double c, float complex d, double complex e):
+def test_coercion(i32 a, f32 b, f64 c, float complex d, double complex e):
     """
     >>> test_coercion(1, 1.5, 2.5, 4+1j, 10j)
     (1+0j)
@@ -137,7 +135,6 @@ def test_coercion(int a, float b, double c, float complex d, double complex e):
     z = e; print z
     return z + a + b + c + d + e
 
-
 def test_compare(double complex a, double complex b):
     """
     >>> test_compare(3, 3)
@@ -153,8 +150,7 @@ def test_compare(double complex a, double complex b):
     """
     return a == b, a != b, a == 3j, 3j == b, a == Complex3j(), Complex3j() != b, a == C21
 
-
-def test_compare_coerce(double complex a, int b):
+def test_compare_coerce(double complex a, i32 b):
     """
     >>> test_compare_coerce(3, 4)
     (False, True, False, False, False, True)
@@ -167,14 +163,12 @@ def test_compare_coerce(double complex a, int b):
     """
     return a == b, a != b, a == 3j, 4+1j == a, a == Complex3j(), Complex3j() != a
 
-
 def test_literal():
     """
     >>> test_literal()
     (5j, (1-2.5j), (2-1j))
     """
     return 5j, 1-2.5j, C21
-
 
 def test_real_imag(double complex z):
     """
@@ -187,7 +181,7 @@ def test_real_imag(double complex z):
     """
     return z.real, z.imag
 
-def test_real_imag_assignment(object a, double b):
+def test_real_imag_assignment(object a, f64 b):
     """
     >>> test_real_imag_assignment(1, 2)
     (1+2j)
@@ -227,10 +221,10 @@ cdef cdouble test_conjugate_nogil(cdouble z) nogil:
 test_conjugate_nogil(0) # use it
 
 ## cdef extern from "complex_numbers_T305.h":
-##     ctypedef double double_really_float "myfloat"
-##     ctypedef float float_really_double "mydouble"
-##     ctypedef float real_float "myfloat"
-##     ctypedef double real_double "mydouble"
+##     ctypedef f64 double_really_float "myfloat"
+##     ctypedef f32 float_really_double "mydouble"
+##     ctypedef f32 real_float "myfloat"
+##     ctypedef f64 real_double "mydouble"
 
 ## def test_conjugate_nosizeassumptions(double_really_float x,
 ##                                      float_really_double y,
@@ -244,7 +238,7 @@ test_conjugate_nogil(0) # use it
 ##     cdef double complex I = 1j
 ##     return ((x*I).conjugate(), (y*I).conjugate(), (z*I).conjugate(), (w*I).conjugate())
 
-ctypedef double mydouble
+ctypedef f64 mydouble
 def test_coerce_typedef_multiply(mydouble x, double complex z):
     """
     >>> test_coerce_typedef_multiply(3, 1+1j)
@@ -252,7 +246,7 @@ def test_coerce_typedef_multiply(mydouble x, double complex z):
     """
     return x * z
 
-ctypedef int myint
+ctypedef i32 myint
 def test_coerce_typedef_multiply_int(myint x, double complex z):
     """
     >>> test_coerce_typedef_multiply_int(3, 1+1j)

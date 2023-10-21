@@ -10,15 +10,15 @@ import numpy as np
 
 @cython.boundscheck(false)
 @cython.wraparound(false)
-def median_along_axis0(const double[:, :] x):
+def median_along_axis0(const f64[:, :] x):
     cdef f64[::1] out = np.empty(x.shape[1])
-    cdef Py_ssize_t i, j
+    cdef isize i, j
 
     cdef vector[f64] *scratch
     cdef vector[f64].iterator median_it
     with nogil, parallel():
         # allocate scratch space per loop
-        scratch = new vector[double](x.shape[0])
+        scratch = new vector[f64](x.shape[0])
         try:
             for i in prange(x.shape[1]):
                 # copy row into scratch space

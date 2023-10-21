@@ -4,8 +4,8 @@
 a = 3
 
 cdef void* allowed = <void*>a
-cdef double* disallowed = <double*>a
+cdef f64* disallowed = <f64*>a
 
 _ERRORS = u"""
-7:26: Python objects cannot be cast to pointers of primitive types
+7:23: Python objects cannot be cast to pointers of primitive types
 """

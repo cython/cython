@@ -113,10 +113,10 @@ def test_int_vector(o):
     ...
     OverflowError: ...
     """
-    cdef vector[int] v = o
+    cdef vector[i32] v = o
     return v
 
-cdef vector[int] takes_vector(vector[int] x):
+cdef vector[i32] takes_vector(vector[i32] x):
     return x
 
 def test_list_literal_to_vector():
@@ -158,18 +158,18 @@ def test_double_vector(o):
     >>> test_double_vector([10**20])
     [1e+20]
     """
-    cdef vector[double] v = o
+    cdef vector[f64] v = o
     return v
 
-def test_repeated_double_vector(a, b, int n):
+def test_repeated_double_vector(a, b, i32 n):
     """
     >>> test_repeated_double_vector(1, 1.5, 3)
     [1.0, 1.5, 1.0, 1.5, 1.0, 1.5]
     """
-    cdef vector[double] v = [a, b] * n
+    cdef vector[f64] v = [a, b] * n
     return v
 
-ctypedef int my_int
+ctypedef i32 my_int
 
 def test_typedef_vector(o):
     """
@@ -194,7 +194,7 @@ def test_pair(o):
     >>> test_pair((1, 2))
     (1, 2.0)
     """
-    cdef pair[long, double] p = o
+    cdef pair[long, f64] p = o
     return p
 
 def test_list(o):
@@ -202,7 +202,7 @@ def test_list(o):
     >>> test_list([1, 2, 3])
     [1, 2, 3]
     """
-    cdef cpp_list[int] l = o
+    cdef cpp_list[i32] l = o
     return l
 
 def test_set(o):
@@ -239,7 +239,7 @@ def test_map(o):
     >>> test_map(dd)  # try with a non-dict
     {1: 1.0, 2: 0.5, 3: 0.25}
     """
-    cdef map[int, double] m = o
+    cdef map[i32, f64] m = o
     return m
 
 def test_unordered_map(o):
@@ -259,7 +259,7 @@ def test_unordered_map(o):
     >>> (m[1], m[2], m[3])
     (1.0, 0.5, 0.25)
     """
-    cdef unordered_map[int, double] m = o
+    cdef unordered_map[i32, f64] m = o
     return m
 
 def test_nested(o):
@@ -276,23 +276,23 @@ def test_nested(o):
     >>> d[(1.0, 2.0)]
     [1, 2, 3]
     """
-    cdef map[pair[double, double], vector[int]] m = o
+    cdef map[pair[f64, f64], vector[i32]] m = o
     return m
 
 cpdef enum Color:
-    RED = 0
-    GREEN
-    BLUE
+    Red = 0
+    Green
+    Blue
 
 def test_enum_map(o):
     """
-    >>> test_enum_map({RED: GREEN})
-    {<Color.RED: 0>: <Color.GREEN: 1>}
+    >>> test_enum_map({Red: Green})
+    {<Color.Red: 0>: <Color.Green: 1>}
     """
     cdef map[Color, Color] m = o
     return m
 
-cdef map[unsigned int, unsigned int] takes_map(map[unsigned int, unsigned int] m):
+cdef map[u32, u32] takes_map(map[u32, u32] m):
     return m
 
 def test_dict_literal_to_map():

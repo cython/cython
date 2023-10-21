@@ -9,8 +9,8 @@ def test():
     pos
     """
     cdef object D
-    cdef long neg = -1
-    cdef unsigned long pos = -2 # will be a large positive number
+    cdef i64 neg = -1
+    cdef u64 pos = -2 # will be a large positive number
 
     print u"neg", neg > 0
     print u"pos", pos > 0

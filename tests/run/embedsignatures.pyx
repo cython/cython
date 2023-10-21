@@ -205,7 +205,7 @@ __doc__ = ur"""
 
 cdef class Ext:
 
-    cdef public int  attr0
+    cdef public i32  attr0
     """attr0 docstring"""
     cdef public      attr1
     """attr1 docstring"""
@@ -213,8 +213,8 @@ cdef class Ext:
     cdef public Ext attr3
 
     """NOT attr3 docstring"""
-    cdef        int  attr4
-    cdef public int \
+    cdef        i32  attr4
+    cdef public i32 \
         attr5
     """attr5 docstring"""
 
@@ -271,16 +271,16 @@ cdef class Ext:
     def m(self, a=u'spam', b='foo', c=b'bar'):
         pass
 
-    def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+    def n(self, a: i32, b: f32 = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
         pass
 
     def o(self, a, b=1, /, c=5, *args, **kwargs):
         pass
 
-    cpdef int get_int(self):
+    cpdef i32 get_int(self):
         return 0
 
-    cpdef float get_float(self):
+    cpdef f32 get_float(self):
         return 0.0
 
     cpdef str get_str(self):
@@ -293,7 +293,7 @@ cdef class Ext:
 def foo():
     pass
 
-def types(Ext a, int b, unsigned short c, float d, e):
+def types(Ext a, i32 b, u16 c, f32 d, e):
     pass
 
 def with_doc_1(a, b, c):
@@ -310,7 +310,7 @@ cpdef with_doc_3(a, b, c):
     """Existing string"""
     pass
 
-cpdef str with_doc_4(int a, str b, list c):
+cpdef str with_doc_4(i32 a, str b, list c):
     """
     Existing string
     """
@@ -325,7 +325,7 @@ cpdef str cf_sd(str s='spam'):
 cpdef char f_c(char c):
     return c
 
-cpdef unsigned char f_uc(unsigned char c):
+cpdef u8 f_uc(u8 c):
     return c
 
 cpdef signed char f_sc(signed char c):
@@ -335,44 +335,43 @@ cpdef signed char f_sc(signed char c):
 cpdef short f_s(short s):
     return s
 
-cpdef unsigned short f_us(unsigned short s):
+cpdef u16 f_us(u16 s):
     return s
 
 
-cpdef int f_i(int i):
+cpdef i32 f_i(i32 i):
     return i
 
-cpdef unsigned int f_ui(unsigned int i):
+cpdef u32 f_ui(u32 i):
     return i
 
 cpdef bint f_bint(bint i):
     return i
 
 
-cpdef long f_l(long l):
+cpdef i64 f_l(i64 l):
     return l
 
-cpdef unsigned long f_ul(unsigned long l):
+cpdef u64 f_ul(u64 l):
     return l
 
 
-cpdef long long f_L(long long L):
+cpdef i128 f_L(i128 L):
     return L
 
-cpdef unsigned long long f_uL(unsigned long long L):
+cpdef u128 f_uL(u128 L):
     return L
 
-
-cpdef float f_f(float f):
+cpdef f32 f_f(f32 f):
     return f
 
-cpdef double f_d(double d):
+cpdef f64 f_d(f64 d):
     return d
 
 cpdef long double f_D(long double D):
     return D
 
-ctypedef int MyInt
+ctypedef i32 MyInt
 cpdef MyInt f_my_i(MyInt i):
     return i
 
@@ -384,36 +383,34 @@ cdef enum:
     FLAG1
     FLAG2
 
-cpdef f_defexpr1(int x = FLAG1, int y = FLAG2):
+cpdef f_defexpr1(i32 x = FLAG1, i32 y = FLAG2):
     pass
 
-cpdef f_defexpr2(int x = FLAG1 | FLAG2, y = FLAG1 & FLAG2):
+cpdef f_defexpr2(i32 x = FLAG1 | FLAG2, y = FLAG1 & FLAG2):
     pass
 
-cpdef f_defexpr3(int x = Ext.CONST1, f = __builtins__.abs):
+cpdef f_defexpr3(i32 x = Ext.CONST1, f = __builtins__.abs):
     pass
 
-cpdef f_defexpr4(int x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
+cpdef f_defexpr4(i32 x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
     pass
 
-cpdef f_defexpr5(int x = 2+2):
+cpdef f_defexpr5(i32 x = 2+2):
     pass
 
 cpdef (char*) f_charptr_null(char* s=NULL):
     return s or b'abc'
 
-
 # no signatures for lambda functions
 lambda_foo = lambda x: 10
 lambda_bar = lambda x: 20
-
 
 cdef class Foo:
     def __init__(self, *args, **kwargs): pass
     def m00(self, a: None) ->  None: pass
     def m01(self, a: ...) ->  Ellipsis: pass
     def m02(self, a: True, b: False) ->  bool: pass
-    def m03(self, a: 42, b: +42, c: -42) ->  int : pass  # XXX +42 -> 42
+    def m03(self, a: 42, b: +42, c: -42) ->  i32 : pass  # XXX +42 -> 42
     def m04(self, a: 3.14, b: +3.14, c: -3.14) -> float : pass
     def m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex : pass
     def m06(self, a: "abc", b: b"abc", c: u"abc") -> (str, bytes, unicode) : pass
@@ -441,7 +438,7 @@ cdef class Foo:
     def m28(self, a: list(range(3))[::1]): pass
     def m29(self, a: list(range(3))[0:1:1]): pass
     def m30(self, a: list(range(3))[7, 3:2:1, ...]): pass
-    def m31(self, double[::1] a): pass
+    def m31(self, f64[::1] a): pass
     def m32(self, a: tuple[()]) -> tuple[tuple[()]]: pass
 
 __doc__ += ur"""

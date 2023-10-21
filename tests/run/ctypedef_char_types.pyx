@@ -16,7 +16,7 @@ def const_charptrs():
     """
     cdef object obj
     cdef const_char*  st  = b'XYZ'
-    cdef const_uchar* ust = <unsigned char*>b'XYZ' # needs cast to unsigned
+    cdef const_uchar* ust = <u8*>b'XYZ' # needs cast to unsigned
 
     assert typeof(st) == "const_char *", typeof(st)
     my_st = st
@@ -31,13 +31,13 @@ def const_charptrs():
     assert obj == b'XYZ', obj
 
 ctypedef char mychar
-ctypedef unsigned char myuchar
+ctypedef u8 myuchar
 
 def const_char_arrays():
     """
     >>> const_char_arrays()
     """
-    cdef int i
+    cdef i32 i
     cdef object obj
     cdef mychar[4]  st
     cdef myuchar[4] ust
@@ -46,7 +46,7 @@ def const_char_arrays():
     i = 0
     for ch in b'XYZ\0':
         st[i] = ch
-        ust[i] = <unsigned char>ch
+        ust[i] = <u8>ch
         i += 1
 
     assert typeof(st) == "mychar [4]", typeof(st)

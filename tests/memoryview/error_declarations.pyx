@@ -10,8 +10,8 @@ cdef signed char[::-100] err1
 cdef signed char[::-1] err2
 cdef i128[01::1, 0x01:, '0'   :, False:] fort_contig0
 cdef signed char[1::] bad_start
-cdef u64[:,:1] bad_stop
-cdef u64[:,::1,:] neither_c_or_f
+cdef u64[:, :1] bad_stop
+cdef u64[:, ::1, :] neither_c_or_f
 cdef signed char[::1-1+1] expr_spec
 cdef signed char[::blargh] bad_name
 cdef f64[::alist[0]['view'].full] expr_attribute
@@ -70,7 +70,7 @@ _ERRORS = u'''
 10:20: Step must be omitted, 1, or a valid specifier.
 11:10: Start must not be given.
 12:17: Start must not be given.
-13:12: Axis specification only allowed in the 'step' slot.
+13:13: Axis specification only allowed in the 'step' slot.
 14:8: Fortran contiguous specifier must follow an indirect dimension
 15:22: Invalid axis specification.
 16:19: Invalid axis specification.

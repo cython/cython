@@ -1,6 +1,5 @@
 # cython: infer_types = True
 
-
 cimport cython
 from cython cimport typeof, infer_types
 
@@ -129,7 +128,6 @@ def indexing():
     t5_3 = t5[t[0]-3]
     assert typeof(t5_3) == "Python object", typeof(t5_3)
 
-
 def multiple_assignments():
     """
     >>> multiple_assignments()
@@ -173,7 +171,7 @@ def unary_operators():
     """
     >>> unary_operators()
     """
-    cdef int x = 1
+    cdef i32 x = 1
     assert typeof(~x) == "int", typeof(~x)
     cdef some_class obj
     assert typeof(~obj) == "Python object", typeof(~obj)
@@ -234,7 +232,7 @@ def builtin_type_methods():
     append(1)
     assert l == [1], str(l)
 
-cdef int cfunc(int x):
+cdef i32 cfunc(i32 x):
     return x+1
 
 def c_functions():
@@ -287,7 +285,6 @@ def cascaded_assignment():
     e = a + b + c + d
     assert typeof(e) == "double"
 
-
 def unpacking(x):
     """
     >>> unpacking(0)
@@ -298,7 +295,6 @@ def unpacking(x):
     assert typeof(c) == "double", typeof(c)
     assert typeof(d) == "long", typeof(d)
     assert typeof(e) == "list object", typeof(e)
-
 
 def star_unpacking(*x):
     """
@@ -315,7 +311,6 @@ def star_unpacking(*x):
     assert typeof(e) == "list object", typeof(e)
     assert typeof(f) == "Python object", typeof(f)
     assert typeof(g) == "Python object", typeof(f)
-
 
 def increment():
     """
@@ -413,13 +408,13 @@ def loop_over_int_array():
     >>> print( loop_over_int_array() )
     int
     """
-    cdef int[10] int_array
+    cdef i32[10] int_array
     for i in int_array:
         pass
     return typeof(i)
 
 cdef struct MyStruct:
-    int a
+    i32 a
 
 def loop_over_struct_ptr():
     """
@@ -482,7 +477,7 @@ def double_loop():
     >>> double_loop() == 1.0 * 10
     True
     """
-    cdef int i
+    cdef i32 i
     d = 1.0
     for i in range(9):
         d += 1.0
@@ -528,14 +523,13 @@ def safe_only():
     h = 1
     res = abs(h)
     assert typeof(h) == "Python object", typeof(h)
-    cdef int c_int = 1
+    cdef i32 c_int = 1
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
     # float can be inferred
     cdef float fl = 5.0
     from_fl = fl
     assert typeof(from_fl) == "float", typeof(from_fl)
-
 
 @infer_types(None)
 def safe_c_functions():
@@ -551,12 +545,12 @@ def ptr_types():
     """
     >>> ptr_types()
     """
-    cdef int a
+    cdef i32 a
     a_ptr = &a
     assert typeof(a_ptr) == "int *", typeof(a_ptr)
     a_ptr_ptr = &a_ptr
     assert typeof(a_ptr_ptr) == "int **", typeof(a_ptr_ptr)
-    cdef int[1] b
+    cdef i32[1] b
     b_ref = b
     assert typeof(b_ref) == "int *", typeof(b_ref)
     ptr = &a
@@ -647,7 +641,6 @@ def constructor_call():
     x = AcceptsKeywords(a=1, b=2)
     assert typeof(x) == "AcceptsKeywords", typeof(x)
 
-
 @infer_types(None)
 def large_literals():
     """
@@ -661,7 +654,6 @@ def large_literals():
     c, d = 10, 100000000000000000000000000000000
     assert typeof(c) == "long", typeof(c)
     assert typeof(d) == "Python object", typeof(d)
-
 
 class EmptyContextManager(object):
     def __enter__(self):
@@ -738,7 +730,7 @@ def test_int_typedef_inference():
     """
     cdef long x = 1
     cdef my_long y = 2
-    cdef long long z = 3
+    cdef i128 z = 3
     assert typeof(x + y) == typeof(y + x) == 'my_long', typeof(x + y)
     assert typeof(y + z) == typeof(z + y) == 'long long', typeof(y + z)
 
@@ -747,7 +739,7 @@ def int64_long_sum():
     cdef long x = 1
     cdef int32_t x32 = 2
     cdef int64_t x64 = 3
-    cdef unsigned long ux = 4
+    cdef u64 ux = 4
     assert typeof(x + x32) == typeof(x32 + x) == 'long', typeof(x + x32)
     assert typeof(x + x64) == typeof(x64 + x) == 'int64_t', typeof(x + x64)
     # The correct answer here is either unsigned long or int64_t, depending on
@@ -774,12 +766,12 @@ cdef class InferInProperties:
             return typeof(a), typeof(b), typeof(c), typeof(d)
 
 cdef class WithMethods:
-    cdef int offset
+    cdef i32 offset
     def __init__(self, offset):
         self.offset = offset
-    cpdef int one_arg(self, int x):
+    cpdef i32 one_arg(self, i32 x):
         return x + self.offset
-    cpdef int default_arg(self, int x, int y=0):
+    cpdef i32 default_arg(self, i32 x, i32 y=0):
         return x + y + self.offset
 
 def test_bound_methods():

@@ -35,16 +35,16 @@ test_string = "TEST"
 
 ######## headers1/myheader1.pxi ########
 
-cdef int test_value1 = 1
+cdef i32 test_value1 = 1
 
 ######## headers2/myheader2.pxi ########
 
-cdef int test_value2 = 2
+cdef i32 test_value2 = 2
 
 ######## headers3/myheader3.pxi ########
 
-cdef int test_value3 = 3
+cdef i32 test_value3 = 3
 
 ######## headers4/myheader4.pxi ########
 
-cdef int test_value4 = 4
+cdef i32 test_value4 = 4

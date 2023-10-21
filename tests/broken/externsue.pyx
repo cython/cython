@@ -1,13 +1,12 @@
 cdef extern from "externsue.h":
-
     enum Eggs:
-        runny, firm, hard
+        Runny, Firm, Hard
 
     struct Spam:
-        int i
+        i32 i
 
     union Soviet:
-        char c
+        i8 c
 
 cdef extern Eggs e
 cdef extern Spam s
@@ -15,7 +14,6 @@ cdef extern Soviet u
 
 cdef void tomato():
     global e
-    e = runny
-    e = firm
-    e = hard
-
+    e = Runny
+    e = Firm
+    e = Hard

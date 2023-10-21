@@ -27,16 +27,15 @@ include "counting.pxi"
 cimport cython
 from cython.parallel cimport prange
 
-cdef int[100] a
-cdef int[:] m = a
+cdef i32[100] a
+cdef i32[:] m = a
 
-
-cdef Py_ssize_t i
+cdef isize i
 for i in prange(1000000, nogil=true, num_threads=16):
     use_slice(m[::2])
 
-cdef int use_slice(int[:] m) except -1 nogil:
-    cdef int[:] m2 = m[1:]
+cdef i32 use_slice(i32[:] m) except -1 nogil:
+    cdef i32[:] m2 = m[1:]
     m = m2[:-1]
     del m, m2
     return 0

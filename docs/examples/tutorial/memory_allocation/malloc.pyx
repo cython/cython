@@ -3,9 +3,8 @@ from libc.stdlib cimport malloc, free
 
 def random_noise(i32 number=1):
     cdef i32 i
-    # allocate number * sizeof(double) bytes of memory
-    cdef f64 *my_array = <f64 *> malloc(
-        number * sizeof(f64))
+    # allocate number * sizeof(f64) bytes of memory
+    cdef f64 *my_array = <f64 *> malloc(number * sizeof(f64))
     if not my_array:
         raise MemoryError()
 

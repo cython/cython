@@ -12,22 +12,22 @@ from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_iterators_simple.h":
     cdef cppclass DoublePointerIter:
-        DoublePointerIter(double* start, int len)
-        double* begin()
-        double* end()
+        DoublePointerIter(f64* start, i32 len)
+        f64* begin()
+        f64* end()
     cdef cppclass DoublePointerIterDefaultConstructible:
         DoublePointerIterDefaultConstructible()
-        DoublePointerIterDefaultConstructible(double* start, int len)
-        double* begin()
-        double* end()
+        DoublePointerIterDefaultConstructible(f64* start, i32 len)
+        f64* begin()
+        f64* end()
 
 def test_vector(py_v):
     """
     >>> test_vector([1, 2, 3])
     [1, 2, 3]
     """
-    cdef vector[int] vint = py_v
-    cdef vector[int] result
+    cdef vector[i32] vint = py_v
+    cdef vector[i32] result
     with nogil:
         for item in vint:
             result.push_back(item)
@@ -38,11 +38,11 @@ def test_deque_iterator_subtraction(py_v):
     >>> print(test_deque_iterator_subtraction([1, 2, 3]))
     3
     """
-    cdef deque[int] dint
+    cdef deque[i32] dint
     for i in py_v:
         dint.push_back(i)
-    cdef deque[int].iterator first = dint.begin()
-    cdef deque[int].iterator last = dint.end()
+    cdef deque[i32].iterator first = dint.begin()
+    cdef deque[i32].iterator last = dint.end()
 
     return last - first
 
@@ -51,9 +51,9 @@ def test_vector_iterator_subtraction(py_v):
     >>> print(test_vector_iterator_subtraction([1, 2, 3]))
     3
     """
-    cdef vector[int] vint = py_v
-    cdef vector[int].iterator first = vint.begin()
-    cdef vector[int].iterator last = vint.end()
+    cdef vector[i32] vint = py_v
+    cdef vector[i32].iterator first = vint.begin()
+    cdef vector[i32].iterator last = vint.end()
 
     return last - first
 
@@ -62,10 +62,10 @@ def test_deque_iterator_addition(py_v):
     >>> test_deque_iterator_addition([2, 4, 6])
     6
     """
-    cdef deque[int] dint
+    cdef deque[i32] dint
     for i in py_v:
         dint.push_back(i)
-    cdef deque[int].iterator first = dint.begin()
+    cdef deque[i32].iterator first = dint.begin()
 
     return deref(first+2)
 
@@ -74,8 +74,8 @@ def test_vector_iterator_addition(py_v):
     >>> test_vector_iterator_addition([2, 4, 6])
     6
     """
-    cdef vector[int] vint = py_v
-    cdef vector[int].iterator first = vint.begin()
+    cdef vector[i32] vint = py_v
+    cdef vector[i32].iterator first = vint.begin()
 
     return deref(first+2)
 
@@ -84,10 +84,10 @@ def test_ptrs():
     >>> test_ptrs()
     [1.0, 2.0, 3.0]
     """
-    cdef double a = 1
-    cdef double b = 2
-    cdef double c = 3
-    cdef vector[double*] v
+    cdef f64 a = 1
+    cdef f64 b = 2
+    cdef f64 c = 3
+    cdef vector[f64*] v
     v.push_back(&a)
     v.push_back(&b)
     v.push_back(&c)
@@ -98,7 +98,7 @@ def test_custom():
     >>> test_custom()
     [1.0, 2.0, 3.0]
     """
-    cdef double* values = [1, 2, 3]
+    cdef f64* values = [1, 2, 3]
     cdef DoublePointerIter* iter
     try:
         iter = new DoublePointerIter(values, 3)
@@ -113,7 +113,7 @@ def test_custom_deref():
     >>> test_custom_deref()
     [1.0, 2.0, 3.0]
     """
-    cdef double* values = [1, 2, 3]
+    cdef f64* values = [1, 2, 3]
     cdef DoublePointerIter* iter
     try:
         iter = new DoublePointerIter(values, 3)
@@ -128,7 +128,7 @@ def test_custom_genexp():
     """
     def to_list(g):  # function to hide the intent to avoid inlined-generator expression optimization
         return list(g)
-    cdef double* values = [1, 2, 3]
+    cdef f64* values = [1, 2, 3]
     cdef DoublePointerIterDefaultConstructible* iter
     try:
         iter = new DoublePointerIterDefaultConstructible(values, 3)
@@ -142,8 +142,8 @@ def test_iteration_over_heap_vector(L):
     >>> test_iteration_over_heap_vector([1,2])
     [1, 2]
     """
-    cdef int i
-    cdef vector[int] *vint = new vector[int]()
+    cdef i32 i
+    cdef vector[i32] *vint = new vector[i32]()
     try:
         for i in L:
             vint.push_back(i)
@@ -151,7 +151,7 @@ def test_iteration_over_heap_vector(L):
     finally:
         del vint
 
-def test_iteration_in_generator(vector[int] vint):
+def test_iteration_in_generator(vector[i32] vint):
     """
     >>> list( test_iteration_in_generator([1,2]) )
     [1, 2]
@@ -164,8 +164,8 @@ def test_iteration_in_generator_reassigned():
     >>> list( test_iteration_in_generator_reassigned() )
     [1]
     """
-    cdef vector[int] *vint = new vector[int]()
-    cdef vector[int] *orig_vint = vint
+    cdef vector[i32] *vint = new vector[i32]()
+    cdef vector[i32] *orig_vint = vint
     vint.push_back(1)
     reassign = True
     try:
@@ -173,7 +173,7 @@ def test_iteration_in_generator_reassigned():
             yield i
             if reassign:
                 reassign = False
-                vint = new vector[int]()
+                vint = new vector[i32]()
                 vint.push_back(2)
     finally:
         if vint is not orig_vint:
@@ -189,12 +189,12 @@ cdef extern from *:
         return vint;
     }
     """
-    cdef vector[int] make_vec1() except +
+    cdef vector[i32] make_vec1() except +
 
-cdef vector[int] make_vec2() except *:
+cdef vector[i32] make_vec2() except *:
     return make_vec1()
 
-cdef vector[int] make_vec3():
+cdef vector[i32] make_vec3():
     try:
         return make_vec1()
     except:
@@ -222,13 +222,13 @@ def test_const_iterator_calculations(py_v):
     >>> print(test_const_iterator_calculations([1, 2, 3]))
     [3, 3, 3, 3, True, True, False, False]
     """
-    cdef deque[int] dint
+    cdef deque[i32] dint
     for i in py_v:
         dint.push_back(i)
-    cdef deque[int].iterator first = dint.begin()
-    cdef deque[int].iterator last = dint.end()
-    cdef deque[int].const_iterator cfirst = first
-    cdef deque[int].const_iterator clast = last
+    cdef deque[i32].iterator first = dint.begin()
+    cdef deque[i32].iterator last = dint.end()
+    cdef deque[i32].const_iterator cfirst = first
+    cdef deque[i32].const_iterator clast = last
 
     return [
         last - first,
@@ -243,9 +243,9 @@ def test_const_iterator_calculations(py_v):
 
 cdef extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
     cdef cppclass HasIterableAttribute:
-        vector[int] vec
+        vector[i32] vec
         HasIterableAttribute()
-        HasIterableAttribute(vector[int])
+        HasIterableAttribute(vector[i32])
 
 cdef HasIterableAttribute get_object_with_iterable_attribute():
     return HasIterableAttribute()
@@ -265,7 +265,7 @@ def test_iteration_over_attribute_of_call():
     """
     for i in HasIterableAttribute().vec:
         print(i)
-    cdef vector[int] vec
+    cdef vector[i32] vec
     for i in range(42, 45):
         vec.push_back(i)
     for i in HasIterableAttribute(vec).vec:
@@ -274,8 +274,8 @@ def test_iteration_over_attribute_of_call():
         print(i)
 
 cdef extern from *:
-    # TODO: support make_shared[const int]
-    shared_ptr[const int] make_shared_const_int "std::make_shared<const int>"(int)
+    # TODO: support make_shared[const i32]
+    shared_ptr[const i32] make_shared_const_int "std::make_shared<const int>"(i32)
 
 def test_iteration_over_shared_const_ptr_vector(py_v):
     """
@@ -284,12 +284,12 @@ def test_iteration_over_shared_const_ptr_vector(py_v):
     4
     6
     """
-    cdef vector[shared_ptr[const int]] s
-    cdef int i
+    cdef vector[shared_ptr[const i32]] s
+    cdef i32 i
     for i in py_v:
         s.push_back(make_shared_const_int(i))
 
-    cdef shared_ptr[const int] a
+    cdef shared_ptr[const i32] a
     for a in s:
         print(deref(a))
 
@@ -300,7 +300,7 @@ def test_iteration_over_reversed_list(py_v):
     4
     2
     """
-    cdef stdlist[int] lint
+    cdef stdlist[i32] lint
     for e in py_v:
         lint.push_back(e)
     for e in reversed(lint):
@@ -313,7 +313,7 @@ def test_iteration_over_reversed_map(py_v):
     2 20
     1 10
     """
-    cdef stdmap[int, int] m
+    cdef stdmap[i32, i32] m
     for k, v in py_v:
         m[k] = v
     for k, v in reversed(m):
@@ -326,7 +326,7 @@ def test_iteration_over_reversed_set(py_v):
     2
     1
     """
-    cdef stdset[int] s
+    cdef stdset[i32] s
     for e in py_v:
         s.insert(e)
     for e in reversed(s):
@@ -353,7 +353,7 @@ def test_iteration_over_reversed_vector(py_v):
     2
     1
     """
-    cdef vector[int] vint
+    cdef vector[i32] vint
     for e in py_v:
         vint.push_back(e)
     for e in reversed(vint):
@@ -371,7 +371,7 @@ def test_non_built_in_reversed_function(py_v):
         print("Non-built-in reversed called.")
         return arg[::-1]
 
-    cdef vector[int] vint
+    cdef vector[i32] vint
     for e in py_v:
         vint.push_back(e)
     for e in reversed(vint):
@@ -393,11 +393,11 @@ cdef extern from *:
     };
     """
     cppclass ConstNumberHolder:
-        ConstNumberHolder(int num)
+        ConstNumberHolder(i32 num)
 
-        const int num
+        const i32 num
 
-def test_iteration_from_const_member(int num):
+def test_iteration_from_const_member(i32 num):
     """
     >>> tuple(test_iteration_from_const_member(5))
     (0, 1, 2, 3, 4)

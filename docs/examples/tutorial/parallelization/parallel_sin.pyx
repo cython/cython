@@ -6,8 +6,8 @@ import numpy as np
 
 @cython.boundscheck(false)
 @cython.wraparound(false)
-def do_sine(f64[:,:] input):
-    cdef f64[:,:] output = np.empty_like(input)
+def do_sine(f64[:, :] input):
+    cdef f64[:, :] output = np.empty_like(input)
     cdef isize i, j
 
     for i in prange(input.shape[0], nogil=true):

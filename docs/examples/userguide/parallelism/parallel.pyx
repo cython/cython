@@ -5,7 +5,7 @@ cdef void func(i32 *buf) nogil:
     pass
     # ...
 
-cdef Py_ssize_t idx, i, j, n = 100
+cdef isize idx, i, j, n = 100
 cdef i32 * local_buf
 cdef usize size = 10
 

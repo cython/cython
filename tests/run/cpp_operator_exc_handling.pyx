@@ -7,10 +7,10 @@ from libcpp cimport bool
 
 cdef extern from "cpp_operator_exc_handling_helper.hpp" nogil:
     cppclass wrapped_int:
-        long long val
+        i128 val
         wrapped_int()
-        wrapped_int(long long val)
-        wrapped_int(long long v1, long long v2) except +
+        wrapped_int(i128 val)
+        wrapped_int(i128 v1, i128 v2) except +
         wrapped_int operator+(wrapped_int &other) except +ValueError
         wrapped_int operator+() except +RuntimeError
         wrapped_int operator-(wrapped_int &other) except +
@@ -18,29 +18,29 @@ cdef extern from "cpp_operator_exc_handling_helper.hpp" nogil:
         wrapped_int operator*(wrapped_int &other) except +OverflowError
         wrapped_int operator/(wrapped_int &other) except +
         wrapped_int operator%(wrapped_int &other) except +
-        long long operator^(wrapped_int &other) except +
-        long long operator&(wrapped_int &other) except +
-        long long operator|(wrapped_int &other) except +
+        i128 operator^(wrapped_int &other) except +
+        i128 operator&(wrapped_int &other) except +
+        i128 operator|(wrapped_int &other) except +
         wrapped_int operator~() except +
-        long long operator&() except +
-        long long operator==(wrapped_int &other) except +
-        long long operator!=(wrapped_int &other) except +
-        long long operator<(wrapped_int &other) except +
-        long long operator<=(wrapped_int &other) except +
-        long long operator>(wrapped_int &other) except +
-        long long operator>=(wrapped_int &other) except +
-        wrapped_int operator<<(long long shift) except +
-        wrapped_int operator>>(long long shift) except +
+        i128 operator&() except +
+        i128 operator==(wrapped_int &other) except +
+        i128 operator!=(wrapped_int &other) except +
+        i128 operator<(wrapped_int &other) except +
+        i128 operator<=(wrapped_int &other) except +
+        i128 operator>(wrapped_int &other) except +
+        i128 operator>=(wrapped_int &other) except +
+        wrapped_int operator<<(i128 shift) except +
+        wrapped_int operator>>(i128 shift) except +
         wrapped_int &operator++() except +
         wrapped_int &operator--() except +
-        wrapped_int operator++(int) except +
-        wrapped_int operator--(int) except +
+        wrapped_int operator++(i32) except +
+        wrapped_int operator--(i32) except +
         wrapped_int operator!() except +
         bool operator bool() except +
-        wrapped_int &operator[](long long &index) except +IndexError
-        long long &operator()() except +AttributeError
+        wrapped_int &operator[](i128 &index) except +IndexError
+        i128 &operator()() except +AttributeError
         wrapped_int &operator=(const wrapped_int &other) except +ArithmeticError
-        wrapped_int &operator=(const long long &vao) except +
+        wrapped_int &operator=(const i128 &vao) except +
 
     cdef cppclass second_call_is_different:
         second_call_is_different()
@@ -63,162 +63,162 @@ def assert_raised(f, *args, **kwargs):
             raised = True
     assert raised
 
-def initialization(long long a, long long b):
+def initialization(i128 a, i128 b):
     cdef wrapped_int w = wrapped_int(a, b)
     return w.val
 
-def addition(long long a, long long b):
+def addition(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return (wa + wb).val
 
-def subtraction(long long a, long long b):
+def subtraction(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return (wa - wb).val
 
-def multiplication(long long a, long long b):
+def multiplication(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return (wa * wb).val
 
-def division(long long a, long long b):
+def division(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return (wa / wb).val
 
-def mod(long long a, long long b):
+def mod(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return (wa % wb).val
 
-def minus(long long a):
+def minus(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return (-wa).val
 
-def plus(long long a):
+def plus(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return (+wa).val
 
-def xor(long long a, long long b):
+def xor(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa ^ wb
 
-def bitwise_and(long long a, long long b):
+def bitwise_and(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa & wb
 
-def bitwise_or(long long a, long long b):
+def bitwise_or(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa | wb
 
-def bitwise_not(long long a):
+def bitwise_not(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return (~a).val
 
-def address(long long a):
+def address(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return &wa
 
-def iseq(long long a, long long b):
+def iseq(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa == wb
 
-def neq(long long a, long long b):
+def neq(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa != wb
 
-def less(long long a, long long b):
+def less(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa < wb
 
-def leq(long long a, long long b):
+def leq(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa <= wb
 
-def greater(long long a, long long b):
+def greater(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa > wb
 
-def geq(long long a, long long b):
+def geq(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     return wa < wb
 
-def left_shift(long long a, long long b):
+def left_shift(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     return (wa << b).val
 
-def right_shift(long long a, long long b):
+def right_shift(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     return (wa >> b).val
 
-def cpp_preincrement(long long a):
+def cpp_preincrement(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return preincrement(wa).val
 
-def cpp_predecrement(long long a):
+def cpp_predecrement(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return predecrement(wa).val
 
-def cpp_postincrement(long long a):
+def cpp_postincrement(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return postincrement(wa).val
 
-def cpp_postdecrement(long long a):
+def cpp_postdecrement(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return postdecrement(wa).val
 
-def negate(long long a):
+def negate(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return (not wa).val
 
-def bool_cast(long long a):
+def bool_cast(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     if wa:
         return true
     else:
         return false
 
-def index(long long a, long long b):
+def index(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     return wa[b].val
 
-def assign_index(long long a, long long b, long long c):
+def assign_index(i128 a, i128 b, i128 c):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     wb[c] = wa
     return wb.val
 
-def call(long long a):
+def call(i128 a):
     cdef wrapped_int wa = wrapped_int(a)
     return wa()
 
-def assign_same(long long a, long long b):
+def assign_same(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     cdef wrapped_int wb = wrapped_int(b)
     wa = wb
     return wa.val
 
-def assign_different(long long a, long long b):
+def assign_different(i128 a, i128 b):
     cdef wrapped_int wa = wrapped_int(a)
     wa = b
     return wa.val
 
-def cascaded_assign(long long a, long long b, long long c):
+def cascaded_assign(i128 a, i128 b, i128 c):
     cdef wrapped_int wa = wrapped_int(a)
     a = b = c
     return a.val
 
-def separate_exceptions(long long a, long long b, long long c, long long d, long long e):
+def separate_exceptions(i128 a, i128 b, i128 c, i128 d, i128 e):
     cdef:
         wrapped_int wa = wrapped_int(a)
         wrapped_int wc = wrapped_int(c)
@@ -227,7 +227,7 @@ def separate_exceptions(long long a, long long b, long long c, long long d, long
     wa[b] = (+wc) * wd + we
     return a.val
 
-def call_temp_separation(long long a, long long b, long long c):
+def call_temp_separation(i128 a, i128 b, i128 c):
     cdef:
         wrapped_int wa = wrapped_int(a)
         wrapped_int wc = wrapped_int(c)

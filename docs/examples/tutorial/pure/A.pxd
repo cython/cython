@@ -1,6 +1,6 @@
-cpdef int myfunction(int x, int y=*)
-cdef double _helper(double a)
+cpdef int myfunction(i32 x, i32 y=*)
+cdef f64 _helper(f64 a)
 
 cdef class A:
-    cdef public int a, b
-    cpdef foo(self, double x)
+    cdef public i32 a, b
+    cpdef foo(self, f64 x)

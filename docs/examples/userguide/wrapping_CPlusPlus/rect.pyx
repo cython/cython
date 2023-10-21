@@ -12,11 +12,11 @@ cdef class PyRectangle:
         self.c_rect = Rectangle(x0, y0, x1, y1)
 
     def get_area(self):
-        return self.c_rect.getArea()
+        return self.c_rect.get_area()
 
     def get_size(self):
         cdef i32 width, height
-        self.c_rect.getSize(&width, &height)
+        self.c_rect.get_size(&width, &height)
         return width, height
 
     def move(self, dx, dy):

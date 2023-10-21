@@ -3,11 +3,11 @@
 cdef extern from "cpp_nested_classes_support.h":
     cdef cppclass A:
         cppclass B:
-            int square(int)
+            i32 square(i32)
             cppclass C:
-                int cube(int)
+                i32 cube(i32)
         B* createB()
-        ctypedef int my_int
+        ctypedef i32 my_int
         @staticmethod
         my_int negate(my_int)
 
@@ -15,36 +15,35 @@ cdef extern from "cpp_nested_classes_support.h":
         ctypedef T MyType
         struct MyStruct:
             T typed_value
-            int int_value
+            i32 int_value
         union MyUnion:
             T typed_value
-            int int_value
+            i32 int_value
         enum MyEnum:
             value
 
-    cdef cppclass SpecializedTypedClass(TypedClass[double]):
+    cdef cppclass SpecializedTypedClass(TypedClass[f64]):
         pass
 
 cdef cppclass AA:
     cppclass BB:
-        int square(int x):
+        i32 square(i32 x):
             return x * x
         cppclass CC:
-            int cube(int x):
+            i32 cube(i32 x):
                 return x * x * x
     BB* createB():
         return new BB()
-    ctypedef int my_int
+    ctypedef i32 my_int
     @staticmethod
     my_int negate(my_int x):
         return -x
 
 cdef cppclass DD(AA):
-    ctypedef int my_other_int
+    ctypedef i32 my_other_int
 
 ctypedef A AliasA1
 ctypedef AliasA1 AliasA2
-
 
 def test_nested_classes():
     """
@@ -114,11 +113,11 @@ def test_typed_nested_typedef(x):
     >>> test_typed_nested_typedef(4)
     (4, 4.0)
     """
-    cdef TypedClass[int].MyType ix = x
-    cdef TypedClass[double].MyType dx = x
+    cdef TypedClass[i32].MyType ix = x
+    cdef TypedClass[f64].MyType dx = x
     return ix, dx
 
-def test_nested_enum(TypedClass[double].MyEnum x):
+def test_nested_enum(TypedClass[f64].MyEnum x):
     """
     >>> test_nested_enum(4)
     False
@@ -130,7 +129,7 @@ def test_nested_union(x):
     >>> test_nested_union(2)
     2.0
     """
-    cdef TypedClass[double].MyUnion u
+    cdef TypedClass[f64].MyUnion u
     u.int_value = x
     assert u.int_value == x
     u.typed_value = x
@@ -141,13 +140,11 @@ def test_nested_struct(x):
     >>> test_nested_struct(2)
     2.0
     """
-    cdef TypedClass[double].MyStruct s
+    cdef TypedClass[f64].MyStruct s
     s.int_value = x
     assert s.int_value == x
     s.typed_value = x
     return s.typed_value
-
-
 
 def test_typed_nested_sub_typedef(x):
     """

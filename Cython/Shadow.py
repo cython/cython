@@ -444,7 +444,6 @@ builtin_types = [
     'isize',
     'usize',
 ]
-
 int_types = [
     'char',
     'short',
@@ -518,7 +517,7 @@ bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
-for t in int_types + float_types + complex_types + other_types:
+for t in builtin_types + int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
 

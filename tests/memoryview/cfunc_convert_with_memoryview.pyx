@@ -14,12 +14,11 @@ cdef void memoryview_func_c(i32 [:] x):
 cdef void memoryview_func_d(i32 [:] x):
     x[0] = 2
 
-cdef void memoryview_func_e(i32 [:,::1] x):
-    x[0,0] = 4
+cdef void memoryview_func_e(i32 [:, ::1] x):
+    x[0, 0] = 4
 
-cdef void memoryview_func_f(i32 [::1,:] x):
-    x[0,0] = 4
-
+cdef void memoryview_func_f(i32 [::1, :] x):
+    x[0, 0] = 4
 
 def test_memview_wrapping():
     """

@@ -15,13 +15,13 @@ cdef extern from "cpp_template_subclasses_helper.h":
     cdef cppclass B[B1, B2](A[B2]):
         pair[B1, B2] funcB(B1, B2)
 
-    cdef cppclass C[C1](B[long, C1]):
+    cdef cppclass C[C1](B[i64, C1]):
         C1 funcC(C1)
 
     cdef cppclass D[D1](C[pair[D1, D1]]):
         pass
 
-    cdef cppclass E(D[double]):
+    cdef cppclass E(D[f64]):
         pass
 
 def testA(x):
@@ -30,9 +30,9 @@ def testA(x):
     10.0
     """
     cdef Base *base
-    cdef A[double] *a = NULL
+    cdef A[f64] *a = NULL
     try:
-        a = new A[double]()
+        a = new A[f64]()
         base = a
         assert base.name() == b"A", base.name()
         return a.funcA(x)
@@ -45,10 +45,10 @@ def testB(x, y):
     >>> testB(1, 1.5)
     """
     cdef Base *base
-    cdef A[double] *a
-    cdef B[long, double] *b = NULL
+    cdef A[f64] *a
+    cdef B[i64, f64] *b = NULL
     try:
-        base = a = b = new B[long, double]()
+        base = a = b = new B[i64, f64]()
         assert base.name() == b"B", base.name()
         assert a.funcA(y) == y
         assert <object>b.funcB(x, y) == (x, y)
@@ -62,11 +62,11 @@ def testC(x, y):
     >>> testC(105, [1, 3, 5, 7, 15, 21, 35, 105])
     """
     cdef Base *base
-    cdef A[vector[long]] *a
-    cdef B[long, vector[long]] *b
-    cdef C[vector[long]] *c = NULL
+    cdef A[vector[i64]] *a
+    cdef B[i64, vector[i64]] *b
+    cdef C[vector[i64]] *c = NULL
     try:
-        base = a = b = c = new C[vector[long]]()
+        base = a = b = c = new C[vector[i64]]()
         assert base.name() == b"C", base.name()
         assert <object>a.funcA(y) == y
         assert <object>b.funcB(x, y) == (x, y)
@@ -81,12 +81,12 @@ def testD(x, y):
     >>> testD(4, 0.25)
     """
     cdef Base *base
-    cdef A[pair[double, double]] *a
-    cdef B[long, pair[double, double]] *b
-    cdef C[pair[double, double]] *c
-    cdef D[double] *d = NULL
+    cdef A[pair[f64, f64]] *a
+    cdef B[i64, pair[f64, f64]] *b
+    cdef C[pair[f64, f64]] *c
+    cdef D[f64] *d = NULL
     try:
-        base = a = b = c = d = new D[double]()
+        base = a = b = c = d = new D[f64]()
         assert base.name() == b"D", base.name()
         assert <object>a.funcA((y, y)) == (y, y)
         assert <object>b.funcB(x, (y, y + 1)) == (x, (y, y + 1))
@@ -101,10 +101,10 @@ def testE(x, y):
     >>> testD(4, 0.25)
     """
     cdef Base *base
-    cdef A[pair[double, double]] *a
-    cdef B[long, pair[double, double]] *b
-    cdef C[pair[double, double]] *c
-    cdef D[double] *d
+    cdef A[pair[f64, f64]] *a
+    cdef B[i64, pair[f64, f64]] *b
+    cdef C[pair[f64, f64]] *c
+    cdef D[f64] *d
     cdef E *e = NULL
     try:
         base = a = b = c = d = e = new E()
@@ -116,8 +116,8 @@ def testE(x, y):
         del e
 
 
-cdef public pair[int, double] public_return_pair(a, b) except *:
-  return pair[int, double](a, b)
+cdef public pair[i32, f64] public_return_pair(a, b) except *:
+  return pair[i32, f64](a, b)
 
 def test_GH1599(a, b):
   """
@@ -139,7 +139,6 @@ cdef cppclass MySubclass[T](MyClass[T]):
     void Invoke(Callback[T]* callback):
       pass
 
-
 cdef cppclass Getter[T]:
     T get(bint fire) except *:
         if fire:
@@ -147,8 +146,8 @@ cdef cppclass Getter[T]:
         else:
            raise NotImplementedError
 
-cdef cppclass GetInt(Getter[int]):
-    int get(bint fire) except *:
+cdef cppclass GetInt(Getter[i32]):
+    i32 get(bint fire) except *:
         if fire:
             raise RuntimeError
         else:

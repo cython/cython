@@ -4,7 +4,7 @@ __doc__ = u""
 
 # -------------------------------------------------------------------
 
-SCHAR_MAX = <signed char>((<unsigned char>-1)>>1)
+SCHAR_MAX = <signed char>((<u8>-1)>>1)
 SCHAR_MIN = (-SCHAR_MAX-1)
 
 def test_schar(signed char x):
@@ -48,9 +48,9 @@ def test_add_schar(x, y):
    cdef signed char r = x + y
    return r
 
-UCHAR_MAX = <unsigned char>((<unsigned char>-1))
+UCHAR_MAX = <u8>((<u8>-1))
 
-def test_uchar(unsigned char x):
+def test_uchar(u8 x):
    u"""
    >>> test_uchar(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -78,7 +78,7 @@ def test_add_uchar(x, y):
        ...
    OverflowError: value too large to convert to unsigned char
    """
-   cdef unsigned char r = x + y
+   cdef u8 r = x + y
    return r
 
 # chars may be signed or unsigned
@@ -136,7 +136,7 @@ def test_add_char(x, y):
 
 # -------------------------------------------------------------------
 
-SHORT_MAX = <short>((<unsigned short>-1)>>1)
+SHORT_MAX = <short>((<u16>-1)>>1)
 SHORT_MIN = (-SHORT_MAX-1)
 
 def test_short(short x):
@@ -184,7 +184,7 @@ def test_add_short(x, y):
    cdef short r = x + y
    return r
 
-SSHORT_MAX = <signed short>((<unsigned short>-1)>>1)
+SSHORT_MAX = <signed short>((<u16>-1)>>1)
 SSHORT_MIN = (-SSHORT_MAX-1)
 
 def test_sshort(signed short x):
@@ -232,9 +232,9 @@ def test_add_sshort(x, y):
    cdef signed short r = x + y
    return r
 
-USHORT_MAX = <unsigned short>((<unsigned short>-1))
+USHORT_MAX = <u16>((<u16>-1))
 
-def test_ushort(unsigned short x):
+def test_ushort(u16 x):
    u"""
    >>> test_ushort(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -262,15 +262,15 @@ def test_add_ushort(x, y):
        ...
    OverflowError: value too large to convert to unsigned short
    """
-   cdef unsigned short r = x + y
+   cdef u16 r = x + y
    return r
 
 # -------------------------------------------------------------------
 
-INT_MAX = <int>((<unsigned int>-1)>>1)
+INT_MAX = <i32>((<u32>-1)>>1)
 INT_MIN = (-INT_MAX-1)
 
-def test_int(int x):
+def test_int(i32 x):
    u"""
    >>> test_int(INT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -312,10 +312,10 @@ def test_add_int(x, y):
        ...
    OverflowError: ...
    """
-   cdef int r = x + y
+   cdef i32 r = x + y
    return r
 
-SINT_MAX = <signed int>((<unsigned int>-1)>>1)
+SINT_MAX = <signed int>((<u32>-1)>>1)
 SINT_MIN = (-SINT_MAX-1)
 
 def test_sint(signed int x):
@@ -363,14 +363,14 @@ def test_add_sint(x, y):
    cdef signed int r = x + y
    return r
 
-UINT_MAX = <unsigned int>(<unsigned int>-1)
+UINT_MAX = <u32>(<u32>-1)
 
-def test_uint(unsigned int x):
+def test_uint(u32 x):
    u"""
    >>> test_uint(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: can't convert negative value to unsigned int
+   OverflowError: can't convert negative value to u32
    >>> print(test_uint(0))
    0
    >>> print(test_uint(1))
@@ -393,12 +393,12 @@ def test_add_uint(x, y):
        ...
    OverflowError: ...
    """
-   cdef unsigned int r = x + y
+   cdef u32 r = x + y
    return r
 
 # -------------------------------------------------------------------
 
-LONG_MAX = <long>((<unsigned long>-1)>>1)
+LONG_MAX = <long>((<u64>-1)>>1)
 LONG_MIN = (-LONG_MAX-1)
 
 def test_long(long x):
@@ -446,7 +446,7 @@ def test_add_long(x, y):
    cdef long r = x + y
    return r
 
-SLONG_MAX = <signed long>((<unsigned long>-1)>>1)
+SLONG_MAX = <signed long>((<u64>-1)>>1)
 SLONG_MIN = (-SLONG_MAX-1)
 
 def test_slong(signed long x):
@@ -494,14 +494,14 @@ def test_add_slong(x, y):
    cdef signed long r = x + y
    return r
 
-ULONG_MAX = <unsigned long>(<unsigned long>-1)
+ULONG_MAX = <u64>(<u64>-1)
 
-def test_ulong(unsigned long x):
+def test_ulong(u64 x):
    u"""
    >>> test_ulong(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: can't convert negative value to unsigned long
+   OverflowError: can't convert negative value to u64
    >>> print(test_ulong(0))
    0
    >>> print(test_ulong(1))
@@ -524,15 +524,15 @@ def test_add_ulong(x, y):
        ...
    OverflowError: ...
    """
-   cdef unsigned long r = x + y
+   cdef u64 r = x + y
    return r
 
 # -------------------------------------------------------------------
 
-LONGLONG_MAX = <long long>((<unsigned long long>-1)>>1)
+LONGLONG_MAX = <i128>((<u128>-1)>>1)
 LONGLONG_MIN = (-LONGLONG_MAX-1)
 
-def test_longlong(long long x):
+def test_longlong(i128 x):
    u"""
    >>> test_longlong(LONGLONG_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -574,13 +574,13 @@ def test_add_longlong(x, y):
        ...
    OverflowError: ...
    """
-   cdef long long r = x + y
+   cdef i128 r = x + y
    return r
 
-SLONGLONG_MAX = <signed long long>((<unsigned long long>-1)>>1)
+SLONGLONG_MAX = <signed long long>((<u128>-1)>>1)
 SLONGLONG_MIN = (-SLONGLONG_MAX-1)
 
-def test_slonglong(long long x):
+def test_slonglong(i128 x):
    u"""
    >>> test_slonglong(SLONGLONG_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -625,9 +625,9 @@ def test_add_slonglong(x, y):
    cdef signed long long r = x + y
    return r
 
-ULONGLONG_MAX = <unsigned long long>(<unsigned long long>-1)
+ULONGLONG_MAX = <u128>(<u128>-1)
 
-def test_ulonglong(unsigned long long x):
+def test_ulonglong(u128 x):
    u"""
    >>> test_ulonglong(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -655,7 +655,7 @@ def test_add_ulonglong(x, y):
        ...
    OverflowError: ...
    """
-   cdef unsigned long long r = x + y
+   cdef u128 r = x + y
    return r
 
 # -------------------------------------------------------------------
@@ -762,7 +762,7 @@ def test_convert_pylong(x):
    MyInt.__long__()
    True
    """
-   cdef long long r = x
+   cdef i128 r = x
    return r
 
 
