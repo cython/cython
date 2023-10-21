@@ -48,7 +48,7 @@ setup(
 
 from libcpp cimport vector
 
-cdef public vector.vector[int] get_vector():
+cdef pub vector.vector[int] get_vector():
     return [1,2,3]
 
 cdef extern from "include_as_c_and_cpp_header.h":
@@ -90,7 +90,7 @@ size_t size_vector2() {
 
 ######## include_from_c_and_cpp.pyx ########
 
-cdef public char get_char():
+cdef pub char get_char():
     return 42
 
 cdef extern from "include_from_c_and_cpp_header.h":
@@ -125,7 +125,7 @@ extern "C" int get_int2() { return (int)get_char(); }
 
 # distutils: language = c++
 
-cdef public char get_char():
+cdef pub char get_char():
     return 42
 
 cdef extern from "cdefines_header.h":

@@ -11,7 +11,7 @@ cdef extern from *:
 
 @cname('__pyx_TestClass')
 cdef class TestClass(object):
-    cdef public int value
+    cdef pub int value
 
     def __init__(self, int value):
         self.value = value

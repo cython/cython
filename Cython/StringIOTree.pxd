@@ -4,10 +4,10 @@ cdef object StringIO
 
 @cython.final
 cdef class StringIOTree:
-    cdef public list prepended_children
-    cdef public object stream
-    cdef public object write
-    cdef public list markers
+    cdef pub list prepended_children
+    cdef pub object stream
+    cdef pub object write
+    cdef pub list markers
 
     cpdef bint empty(self)
     @cython.locals(x=StringIOTree)

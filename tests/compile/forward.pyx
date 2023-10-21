@@ -19,7 +19,7 @@ cdef class ClassA:
     cdef ClassA a
     cdef ClassB b
 
-ctypedef public class ClassB [ object ClassB, type TypeB ]:
+ctypedef pub class ClassB [ object ClassB, type TypeB ]:
     cdef ClassA a
     cdef ClassB b
 

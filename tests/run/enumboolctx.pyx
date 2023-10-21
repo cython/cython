@@ -1,6 +1,6 @@
-cdef public enum Truth:
-   FALSE=0
-   TRUE=1
+cdef pub enum Truth:
+   FALSE = 0
+   TRUE = 1
 
 def enum_boolctx(Truth arg):
     """

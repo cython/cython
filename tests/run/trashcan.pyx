@@ -30,7 +30,7 @@ cdef class Recurse:
     >>> recursion_test(Recurse)
     >>> assert_no_double_deallocations()
     """
-    cdef public attr
+    cdef pub attr
     cdef int deallocated
 
     def __cinit__(self, x):
@@ -65,7 +65,7 @@ cdef class RecurseFreelist:
     >>> recursion_test(RecurseFreelist, 1000)
     >>> assert_no_double_deallocations()
     """
-    cdef public attr
+    cdef pub attr
     cdef int deallocated
 
     def __cinit__(self, x):
@@ -116,7 +116,7 @@ cdef class Sub1(Base):
     >>> recursion_test(Sub1, 100)
     >>> assert_no_trashcan_used()
     """
-    cdef public attr
+    cdef pub attr
 
     def __cinit__(self, x):
         self.attr = x
@@ -128,7 +128,7 @@ cdef class Sub1(Base):
 
 @cython.trashcan(true)
 cdef class Middle(Base):
-    cdef public foo
+    cdef pub foo
 
 
 # Trashcan disabled explicitly
@@ -138,7 +138,7 @@ cdef class Sub2(Middle):
     >>> recursion_test(Sub2, 1000)
     >>> assert_no_trashcan_used()
     """
-    cdef public attr
+    cdef pub attr
 
     def __cinit__(self, x):
         self.attr = x

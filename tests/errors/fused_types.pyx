@@ -10,7 +10,7 @@ from cython import fused_type
 # ctypedef fused_type(foo) dtype3
 dtype4 = cython.fused_type(i32, i64, kw=None)
 
-# ctypedef public cython.fused_type(i32, i64) dtype7
+# ctypedef pub cython.fused_type(i32, i64) dtype7
 # ctypedef api cython.fused_type(i32, i64) dtype8
 
 int_t = cython.fused_type(i16, i16, i32)

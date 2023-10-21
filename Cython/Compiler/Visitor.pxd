@@ -3,7 +3,7 @@
 cimport cython
 
 cdef class TreeVisitor:
-    cdef public list access_path
+    cdef pub list access_path
     cdef dict dispatch_table
 
     cpdef visit(self, obj)
@@ -21,16 +21,16 @@ cdef class VisitorTransform(TreeVisitor):
     cpdef visitchild(self, parent, str attr, idx=*)
 
 cdef class CythonTransform(VisitorTransform):
-    cdef public context
-    cdef public current_directives
+    cdef pub context
+    cdef pub current_directives
 
 cdef class ScopeTrackingTransform(CythonTransform):
-    cdef public scope_type
-    cdef public scope_node
+    cdef pub scope_type
+    cdef pub scope_node
     cdef visit_scope(self, node, scope_type)
 
 cdef class EnvTransform(CythonTransform):
-    cdef public list env_stack
+    cdef pub list env_stack
 
 cdef class MethodDispatcherTransform(EnvTransform):
     @cython.final
@@ -47,9 +47,9 @@ cdef class MethodDispatcherTransform(EnvTransform):
                                      node, function, arg_list, kwargs)
 
 cdef class RecursiveNodeReplacer(VisitorTransform):
-    cdef public orig_node
-    cdef public new_node
+    cdef pub orig_node
+    cdef pub new_node
 
 cdef class NodeFinder(TreeVisitor):
     cdef node
-    cdef public bint found
+    cdef pub bint found

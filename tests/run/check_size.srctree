@@ -79,7 +79,7 @@ typedef struct {
 ######## check_size.pyx ########
 
 cdef class Foo:
-    cdef public int field0, field1, field2;
+    cdef pub int field0, field1, field2;
 
     def __init__(self, f0, f1, f2):
         self.field0 = f0
@@ -96,7 +96,7 @@ cdef extern from "check_size_nominal.h":
             int f1
 
 
-cpdef public int testme(Foo f) except -1:
+cpdef pub int testme(Foo f) except -1:
     return f.f0 + f.f1
 
 ######## _check_size_too_small.pyx ########
@@ -110,7 +110,7 @@ cdef extern from "check_size_bigger.h":
             int f2
 
 
-cpdef public int testme(Foo f, int f2) except -1:
+cpdef pub int testme(Foo f, int f2) except -1:
     f.f2 = f2
     return f.f0 + f.f1 + f.f2
 
@@ -123,7 +123,7 @@ cdef extern from "check_size_smaller.h":
             int f9
 
 
-cpdef public int testme(Foo f) except -1:
+cpdef pub int testme(Foo f) except -1:
     return f.f9
 
 ######## _check_size_warn.pyx ########
@@ -136,7 +136,7 @@ cdef extern from "check_size_smaller.h":
             int f9
 
 
-cpdef public int testme(Foo f) except -1:
+cpdef pub int testme(Foo f) except -1:
     return f.f9
 
 ######## _check_size_ignore.pyx ########
@@ -149,7 +149,7 @@ cdef extern from "check_size_smaller.h":
             int f9
 
 
-cpdef public int testme(Foo f) except -1:
+cpdef pub int testme(Foo f) except -1:
     return f.f9
 
 ######## _check_size_error.pyx ########
@@ -162,7 +162,7 @@ cdef extern from "check_size_smaller.h":
             int f9
 
 
-cpdef public int testme(Foo f) except -1:
+cpdef pub int testme(Foo f) except -1:
     return f.f9
 
 ######## check_size_invalid.pyx ########
@@ -175,7 +175,7 @@ cdef extern from "check_size_smaller.h":
             int f9
 
 
-cpdef public int testme(Foo f) except -1:
+cpdef pub int testme(Foo f) except -1:
     return f.f9
 
 ######## runner.py ########

@@ -2,11 +2,11 @@ cimport cython
 
 @cython.final
 cdef class Packet:
-    cdef public object link
-    cdef public object ident
-    cdef public object kind
-    cdef public isize datum
-    cdef public list data
+    cdef pub object link
+    cdef pub object ident
+    cdef pub object kind
+    cdef pub isize datum
+    cdef pub list data
 
     cpdef append_to(self, lst)
 
@@ -15,30 +15,30 @@ cdef class TaskRec:
 
 @cython.final
 cdef class DeviceTaskRec(TaskRec):
-    cdef public object pending
+    cdef pub object pending
 
 @cython.final
 cdef class IdleTaskRec(TaskRec):
-    cdef public i64 control
-    cdef public isize count
+    cdef pub i64 control
+    cdef pub isize count
 
 @cython.final
 cdef class HandlerTaskRec(TaskRec):
-    cdef public object work_in   # = None
-    cdef public object device_in # = None
+    cdef pub object work_in   # = None
+    cdef pub object device_in # = None
 
     cpdef work_in_add(self, Packet p)
     cpdef device_in_add(self, Packet p)
 
 @cython.final
 cdef class WorkerTaskRec(TaskRec):
-    cdef public object destination # = I_HANDLERA
-    cdef public isize count
+    cdef pub object destination # = I_HANDLERA
+    cdef pub isize count
 
 cdef class TaskState:
-    cdef public bint packet_pending # = True
-    cdef public bint task_waiting   # = False
-    cdef public bint task_holding   # = False
+    cdef pub bint packet_pending # = True
+    cdef pub bint task_waiting   # = False
+    cdef pub bint task_holding   # = False
 
     cpdef packet_pending(self)
     cpdef waiting(self)
@@ -51,19 +51,19 @@ cdef class TaskState:
     cpdef bint is_waiting_with_packet(self)
 
 cdef class TaskWorkArea:
-    cdef public list taskTab # = [None] * TASKTABSIZE
+    cdef pub list taskTab # = [None] * TASKTABSIZE
 
-    cdef public object taskList # = None
+    cdef pub object taskList # = None
 
-    cdef public isize hold_count # = 0
-    cdef public isize qpkt_count # = 0
+    cdef pub isize hold_count # = 0
+    cdef pub isize qpkt_count # = 0
 
 cdef class Task(TaskState):
-    cdef public Task link # = taskWorkArea.taskList
-    cdef public object ident # = i
-    cdef public object priority # = p
-    cdef public object input # = w
-    cdef public object handle # = r
+    cdef pub Task link # = taskWorkArea.taskList
+    cdef pub object ident # = i
+    cdef pub object priority # = p
+    cdef pub object input # = w
+    cdef pub object handle # = r
 
     cpdef add_packet(self, Packet p, Task old)
     cpdef run_task(self)

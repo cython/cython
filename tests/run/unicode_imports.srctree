@@ -48,7 +48,7 @@ if sys.version_info >= (3, 5):
 def f():
     return True
 
-cdef public api void cdef_func():
+cdef pub api void cdef_func():
     pass
 
 ############ pxd_moð.pxd ##########
@@ -56,7 +56,7 @@ cdef public api void cdef_func():
 cdef struct S:
     int x
     
-cdef public api void cdef_func() # just to test generation of headers
+cdef pub api void cdef_func() # just to test generation of headers
     
 ############ from_py.py #########
 

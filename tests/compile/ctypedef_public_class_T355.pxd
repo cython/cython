@@ -1,5 +1,5 @@
-ctypedef public class Time [type MyTime_Type, object MyTimeObject]:
-     cdef public double seconds
+ctypedef pub class Time [type MyTime_Type, object MyTimeObject]:
+     cdef pub f64 seconds
 
-ctypedef public class Event [type MyEvent_Type, object MyEventObject]:
-     cdef public Time time
+ctypedef pub class Event [type MyEvent_Type, object MyEventObject]:
+     cdef pub Time time

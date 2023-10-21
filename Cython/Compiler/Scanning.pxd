@@ -13,30 +13,30 @@ cdef initial_compile_time_env()
 
 @cython.final
 cdef class CompileTimeScope:
-    cdef public dict entries
-    cdef public CompileTimeScope outer
+    cdef pub dict entries
+    cdef pub CompileTimeScope outer
     ##cdef declare(self, name, value)
     ##cdef lookup_here(self, name)
     ##cpdef lookup(self, name)
 
 @cython.final
 cdef class PyrexScanner(Scanner):
-    cdef public context
-    cdef public list included_files
-    cdef public CompileTimeScope compile_time_env
-    cdef public bint compile_time_eval
-    cdef public bint compile_time_expr
-    cdef public bint parse_comments
-    cdef public bint in_python_file
-    cdef public source_encoding
+    cdef pub context
+    cdef pub list included_files
+    cdef pub CompileTimeScope compile_time_env
+    cdef pub bint compile_time_eval
+    cdef pub bint compile_time_expr
+    cdef pub bint parse_comments
+    cdef pub bint in_python_file
+    cdef pub source_encoding
     cdef dict keywords
-    cdef public list indentation_stack
-    cdef public indentation_char
-    cdef public int bracket_nesting_level
+    cdef pub list indentation_stack
+    cdef pub indentation_char
+    cdef pub int bracket_nesting_level
     cdef readonly bint async_enabled
-    cdef public unicode sy
-    cdef public systring  # EncodedString
-    cdef public list put_back_on_failure
+    cdef pub unicode sy
+    cdef pub systring  # EncodedString
+    cdef pub list put_back_on_failure
 
     cdef Py_ssize_t current_level(self)
     #cpdef commentline(self, text)

@@ -6,7 +6,7 @@ ctypedef void* VoidP
 cdef class Spam:
     cdef          VoidP vp0
     cdef readonly VoidP vp2
-    cdef public   VoidP vp1
+    cdef pub      VoidP vp1
 
 ctypedef struct Foo:
     int i
@@ -14,7 +14,7 @@ ctypedef struct Foo:
 cdef class Bar:
     cdef          Foo foo0
     cdef readonly Foo foo2
-    cdef public   Foo foo1
+    cdef pub      Foo foo1
     pass
 
 _ERRORS = u"""

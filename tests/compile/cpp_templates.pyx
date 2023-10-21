@@ -39,13 +39,13 @@ ctypedef TemplateTest1[i32] TemplateTest1_int
 cdef TemplateTest1_int aa
 
 # Verify that T767 is fixed.
-cdef public i32 func(i32 arg):
+cdef pub i32 func(i32 arg):
     return arg
 
 # Regression test: the function call used to produce
 #   template_function<TemplateTest1<int>>(__pyx_v_t);
 # which is valid C++11, but not valid C++98 because the ">>" would be
 # parsed as a single token.
-cdef public void use_nested_templates():
+cdef pub void use_nested_templates():
     cdef TemplateTest1[TemplateTest1[i32]] t
     template_function(t)

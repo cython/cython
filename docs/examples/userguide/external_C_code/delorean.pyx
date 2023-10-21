@@ -1,6 +1,6 @@
 # delorean.pyx
 
-cdef public struct Vehicle:
+cdef pub struct Vehicle:
     i32 speed
     f32 power
 

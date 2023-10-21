@@ -447,7 +447,7 @@ cdef class ExtTypeWithRefCycle:
     >>> obj = PyClass()
     >>> del PyClass, obj
     """
-    cdef public attribute
+    cdef pub attribute
 
     def __init__(self, obj=None):
         self.attribute = obj

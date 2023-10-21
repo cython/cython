@@ -28,7 +28,7 @@ cdef class CDefTest:
     2
     """
     __x = 1
-    cdef public int __y
+    cdef pub i32 __y
 
     def __init__(self):
         self.__y = 2

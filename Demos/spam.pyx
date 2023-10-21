@@ -5,7 +5,7 @@
 #
 
 cdef class Spam:
-    cdef public i32 amount
+    cdef pub i32 amount
 
     def __cinit__(self):
         self.amount = 0

@@ -3234,7 +3234,7 @@ def p_cdef_statement(s, ctx):
     ctx.visibility = p_visibility(s, ctx.visibility)
     ctx.api = ctx.api or p_api(s)
     if ctx.api:
-        if ctx.visibility not in ('private', 'public'):
+        if ctx.visibility not in ("private", "pub", "public"):
             error(pos, "Cannot combine 'api' with '%s'" % ctx.visibility)
     if (ctx.visibility == 'extern') and s.sy == 'from':
         return p_cdef_extern_block(s, pos, ctx)
@@ -3472,8 +3472,11 @@ def p_struct_enum(s, pos, ctx):
 def p_visibility(s, prev_visibility):
     pos = s.position()
     visibility = prev_visibility
-    if s.sy == 'IDENT' and s.systring in ('extern', 'public', 'readonly'):
-        visibility = s.systring
+    if s.sy == 'IDENT' and s.systring in ("extern", "pub", "public", "readonly"):
+        if s.systring == "pub":
+            visibility = "public"
+        else:
+            visibility = s.systring
         if prev_visibility != 'private' and visibility != prev_visibility:
             s.error("Conflicting visibility options '%s' and '%s'"
                 % (prev_visibility, visibility), fatal=False)
@@ -3727,7 +3730,7 @@ def p_c_class_definition(s, pos,  ctx):
         bases = ExprNodes.TupleNode(pos, args=[])
 
     if s.sy == '[':
-        if ctx.visibility not in ('public', 'extern') and not ctx.api:
+        if ctx.visibility not in ("pub", "public", "extern") and not ctx.api:
             error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
         objstruct_name, typeobj_name, check_size = p_c_class_options(s)
     if s.sy == ':':
@@ -3745,7 +3748,7 @@ def p_c_class_definition(s, pos,  ctx):
             error(pos, "Module name required for 'extern' C class")
         if typeobj_name:
             error(pos, "Type object name specification not allowed for 'extern' C class")
-    elif ctx.visibility == 'public':
+    elif ctx.visibility in ("pub", "public"):
         if not objstruct_name:
             error(pos, "Object struct name specification required for 'public' C class")
         if not typeobj_name:

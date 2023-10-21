@@ -204,17 +204,16 @@ __doc__ = ur"""
 """
 
 cdef class Ext:
-
-    cdef public i32  attr0
+    cdef pub i32  attr0
     """attr0 docstring"""
-    cdef public      attr1
+    cdef pub      attr1
     """attr1 docstring"""
-    cdef public list attr2
-    cdef public Ext attr3
+    cdef pub list attr2
+    cdef pub Ext  attr3
 
     """NOT attr3 docstring"""
-    cdef        i32  attr4
-    cdef public i32 \
+    cdef     i32  attr4
+    cdef pub i32 \
         attr5
     """attr5 docstring"""
 

@@ -5,19 +5,19 @@ cimport cython
 from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
-    cdef public set children
-    cdef public set parents
-    cdef public set positions
-    cdef public list stats
-    cdef public dict gen
-    cdef public set bounded
+    cdef pub set children
+    cdef pub set parents
+    cdef pub set positions
+    cdef pub list stats
+    cdef pub dict gen
+    cdef pub set bounded
 
     # Big integer bitsets
-    cdef public object i_input
-    cdef public object i_output
-    cdef public object i_gen
-    cdef public object i_kill
-    cdef public object i_state
+    cdef pub object i_input
+    cdef pub object i_output
+    cdef pub object i_gen
+    cdef pub object i_kill
+    cdef pub object i_state
 
     cpdef bint empty(self)
     cpdef detach(self)
@@ -27,39 +27,39 @@ cdef class ExitBlock(ControlBlock):
     cpdef bint empty(self)
 
 cdef class NameAssignment:
-    cdef public bint is_arg
-    cdef public bint is_deletion
-    cdef public object lhs
-    cdef public object rhs
-    cdef public object entry
-    cdef public object pos
-    cdef public set refs
-    cdef public object bit
-    cdef public object inferred_type
-    cdef public object rhs_scope
+    cdef pub bint is_arg
+    cdef pub bint is_deletion
+    cdef pub object lhs
+    cdef pub object rhs
+    cdef pub object entry
+    cdef pub object pos
+    cdef pub set refs
+    cdef pub object bit
+    cdef pub object inferred_type
+    cdef pub object rhs_scope
 
 cdef class AssignmentList:
-    cdef public object bit
-    cdef public object mask
-    cdef public list stats
+    cdef pub object bit
+    cdef pub object mask
+    cdef pub list stats
 
 cdef class AssignmentCollector(TreeVisitor):
     cdef list assignments
 
 @cython.final
 cdef class ControlFlow:
-    cdef public set blocks
-    cdef public set entries
-    cdef public list loops
-    cdef public list exceptions
+    cdef pub set blocks
+    cdef pub set entries
+    cdef pub list loops
+    cdef pub list exceptions
 
-    cdef public ControlBlock entry_point
-    cdef public ExitBlock exit_point
-    cdef public ControlBlock block
+    cdef pub ControlBlock entry_point
+    cdef pub ExitBlock exit_point
+    cdef pub ControlBlock block
 
-    cdef public dict assmts
+    cdef pub dict assmts
 
-    cdef public Py_ssize_t in_try_block
+    cdef pub Py_ssize_t in_try_block
 
     cpdef newblock(self, ControlBlock parent=*)
     cpdef nextblock(self, ControlBlock parent=*)

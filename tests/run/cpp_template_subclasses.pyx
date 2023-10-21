@@ -115,8 +115,7 @@ def testE(x, y):
     finally:
         del e
 
-
-cdef public pair[i32, f64] public_return_pair(a, b) except *:
+cdef pub pair[i32, f64] public_return_pair(a, b) except *:
   return pair[i32, f64](a, b)
 
 def test_GH1599(a, b):

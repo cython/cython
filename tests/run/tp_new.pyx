@@ -5,7 +5,7 @@
 cimport cython
 
 cdef class MyType:
-    cdef public args, kwargs
+    cdef pub args, kwargs
     def __cinit__(self, *args, **kwargs):
         self.args, self.kwargs = args, kwargs
         print "CINIT"

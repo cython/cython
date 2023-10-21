@@ -44,7 +44,7 @@ cdef class DisableTpClear:
     >>> del uut
     """
 
-    cdef public object requires_cleanup
+    cdef pub object requires_cleanup
 
     def __cinit__(self):
         self.requires_cleanup = [
@@ -68,7 +68,7 @@ cdef class ReallowTpClear(DisableTpClear):
 
     # Problem: cannot really validate that the cycle was cleaned up without using weakrefs etc...
     """
-    cdef public object attr
+    cdef pub object attr
 
 
 def test_closure_without_clear(str x):

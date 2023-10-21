@@ -34,7 +34,7 @@ cdef class A:
     ... except (OverflowError, TypeError): print("ERROR")
     ERROR
     """
-    cdef public ptrdiff_t a
+    cdef pub ptrdiff_t a
     cdef readonly ptrdiff_t b
 
     def __init__(self, ptrdiff_t a, object b):

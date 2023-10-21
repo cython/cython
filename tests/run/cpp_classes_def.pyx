@@ -162,7 +162,7 @@ def test_default_init_no_gil():
 
 
 cdef class NoisyAlloc(object):
-    cdef public name
+    cdef pub name
     def __init__(self, name):
         print "NoisyAlloc.__init__", name
         self.name = name
@@ -231,7 +231,7 @@ def test_CppClassWithObjectMemberCopyAssign(name):
 
 
 # Github issue #1886.
-cdef public cppclass PublicCppClassWithObjectMember:
+cdef pub cppclass PublicCppClassWithObjectMember:
   object o
 
 def test_PublicCppClassWithObjectMember():

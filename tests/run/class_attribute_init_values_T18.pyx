@@ -46,11 +46,11 @@ class MyPyFoo(PyFoo):
 
 cdef class CyFoo:
     cdef public int bar = 5
-    cdef public object baz = u"someval"
+    cdef pub object baz = u"someval"
 
 cdef class MyCyFoo(CyFoo):
     cdef public int bar = 7
-    cdef public object baz = u"anotherval"
+    cdef pub object baz = u"anotherval"
 
 class AnotherFoo(CyFoo):
     bar = 8

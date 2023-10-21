@@ -41,7 +41,7 @@ def test(size_t i):
     return i
 
 cdef class A:
-    cdef public size_t a
+    cdef pub size_t a
     cdef readonly size_t b
 
     def __init__(self, size_t a, object b):

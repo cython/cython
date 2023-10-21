@@ -11,8 +11,8 @@ cdef extern from "external_defs.h":
     ctypedef float DoubleTypedef
     ctypedef float LongDoubleTypedef
 
-cdef public DoubleTypedef global_tdef
-cdef public double global_double
+cdef pub DoubleTypedef global_tdef
+cdef pub double global_double
 
 cdef class MyClass:
     cdef readonly:

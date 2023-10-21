@@ -90,7 +90,7 @@ cdef class ExtTypeNoTotalOrdering:
     ... else:
     ...     assert sys.version_info[0] < 3
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -108,7 +108,7 @@ cdef class ExtTypeTotalOrderingNeGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -124,7 +124,7 @@ cdef class ExtTypeTotalOrderingNeLe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -140,7 +140,7 @@ cdef class ExtTypeTotalOrderingNeLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -159,7 +159,7 @@ cdef class ExtTypeTotalOrderingNeGt:
     >>> test_all_comp(ExtTypeTotalOrderingNeGt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -175,7 +175,7 @@ cdef class ExtTypeTotalOrderingNeGtGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeGtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -194,7 +194,7 @@ cdef class ExtTypeTotalOrderingNeGtLe:
     >>> test_all_comp(ExtTypeTotalOrderingNeGtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -213,7 +213,7 @@ cdef class ExtTypeTotalOrderingNeGtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeGtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -235,7 +235,7 @@ cdef class ExtTypeTotalOrderingNeLt:
     >>> test_all_comp(ExtTypeTotalOrderingNeLt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -251,7 +251,7 @@ cdef class ExtTypeTotalOrderingNeLtGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -270,7 +270,7 @@ cdef class ExtTypeTotalOrderingNeLtLe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -289,7 +289,7 @@ cdef class ExtTypeTotalOrderingNeLtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -311,7 +311,7 @@ cdef class ExtTypeTotalOrderingNeLtGt:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtGt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -330,7 +330,7 @@ cdef class ExtTypeTotalOrderingNeLtGtGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtGtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -352,7 +352,7 @@ cdef class ExtTypeTotalOrderingNeLtGtLe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtGtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -374,7 +374,7 @@ cdef class ExtTypeTotalOrderingNeLtGtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingNeLtGtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -399,7 +399,7 @@ cdef class ExtTypeTotalOrderingEqGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -415,7 +415,7 @@ cdef class ExtTypeTotalOrderingEqLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -431,7 +431,7 @@ cdef class ExtTypeTotalOrderingEqLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -450,7 +450,7 @@ cdef class ExtTypeTotalOrderingEqGt:
     >>> test_all_comp(ExtTypeTotalOrderingEqGt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -466,7 +466,7 @@ cdef class ExtTypeTotalOrderingEqGtGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqGtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -485,7 +485,7 @@ cdef class ExtTypeTotalOrderingEqGtLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqGtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -504,7 +504,7 @@ cdef class ExtTypeTotalOrderingEqGtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqGtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -548,7 +548,7 @@ cdef class ExtTypeTotalOrderingEqLtGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -567,7 +567,7 @@ cdef class ExtTypeTotalOrderingEqLtLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -586,7 +586,7 @@ cdef class ExtTypeTotalOrderingEqLtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -608,7 +608,7 @@ cdef class ExtTypeTotalOrderingEqLtGt:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtGt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -627,7 +627,7 @@ cdef class ExtTypeTotalOrderingEqLtGtGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtGtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -649,7 +649,7 @@ cdef class ExtTypeTotalOrderingEqLtGtLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtGtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -671,7 +671,7 @@ cdef class ExtTypeTotalOrderingEqLtGtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqLtGtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -696,7 +696,7 @@ cdef class ExtTypeTotalOrderingEqNeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -715,7 +715,7 @@ cdef class ExtTypeTotalOrderingEqNeLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -734,7 +734,7 @@ cdef class ExtTypeTotalOrderingEqNeLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -756,7 +756,7 @@ cdef class ExtTypeTotalOrderingEqNeGt:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeGt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -775,7 +775,7 @@ cdef class ExtTypeTotalOrderingEqNeGtGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeGtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -797,7 +797,7 @@ cdef class ExtTypeTotalOrderingEqNeGtLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeGtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -819,7 +819,7 @@ cdef class ExtTypeTotalOrderingEqNeGtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeGtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -844,7 +844,7 @@ cdef class ExtTypeTotalOrderingEqNeLt:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -863,7 +863,7 @@ cdef class ExtTypeTotalOrderingEqNeLtGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -885,7 +885,7 @@ cdef class ExtTypeTotalOrderingEqNeLtLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -907,7 +907,7 @@ cdef class ExtTypeTotalOrderingEqNeLtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -932,7 +932,7 @@ cdef class ExtTypeTotalOrderingEqNeLtGt:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtGt)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -954,7 +954,7 @@ cdef class ExtTypeTotalOrderingEqNeLtGtGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtGtGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -979,7 +979,7 @@ cdef class ExtTypeTotalOrderingEqNeLtGtLe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtGtLe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 
@@ -1004,7 +1004,7 @@ cdef class ExtTypeTotalOrderingEqNeLtGtLeGe:
     >>> test_all_comp(ExtTypeTotalOrderingEqNeLtGtLeGe)
     True
     """
-    cdef public int value
+    cdef pub int value
     def __init__(self, val):
         self.value = val
 

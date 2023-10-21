@@ -286,7 +286,7 @@ cdef class Wrapper(object):
   >>> w2.ref[0] is w2
   True
   """
-  cdef public object ref
+  cdef pub object ref
   def __init__(self, ref=_unset):
       if ref is _unset:
           self.ref = self

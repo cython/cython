@@ -16,7 +16,7 @@ setup(
 
 ######## a.pxd ########
 
-cdef public int foo()
+cdef pub int foo()
 
 cdef extern from "b.h":
     cpdef int bar()

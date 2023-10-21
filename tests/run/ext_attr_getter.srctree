@@ -107,8 +107,8 @@ int *PyFoo_GetV(FooStructOpaque *f)
 ######## foo_extension.pyx ########
 
 cdef class Foo:
-    cdef public int _field0, _field1, _field2;
-    cdef public int _vector[10];
+    cdef pub int _field0, _field1, _field2;
+    cdef pub int _vector[10];
 
     @property
     def field0(self):

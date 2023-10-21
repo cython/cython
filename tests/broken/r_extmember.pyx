@@ -1,5 +1,5 @@
 cdef class Spam:
-    cdef public int tons
+    cdef pub int tons
     cdef readonly float tastiness
     cdef int temperature
 
