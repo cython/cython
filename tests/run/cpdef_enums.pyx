@@ -106,7 +106,7 @@ cdef extern from *:
 
 cpdef enum CyDefinedHasDuplicates1:
     CY_DUP1_A
-    CY_DUP1_B = 0
+    CY_DUP1_B = 0x00000000
 
 
 cpdef enum CyDefinedHasDuplicates2:

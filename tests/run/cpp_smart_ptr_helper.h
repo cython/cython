@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 class CountAllocDealloc {
   public:
       CountAllocDealloc(int* alloc_count, int* dealloc_count)
@@ -21,4 +23,11 @@ struct FreePtr {
       t=nullptr;
     }
   }
+};
+
+class RaiseOnConstruct {
+  public:
+    RaiseOnConstruct() {
+      throw std::runtime_error("Oh no!");
+    }
 };

@@ -439,6 +439,7 @@ def str_to_number(value):
         literal_type = value[1]  # 0'o' - 0'b' - 0'x'
         if literal_type in 'xX':
             # hex notation ('0x1AF')
+            value = strip_py2_long_suffix(value)
             value = int(value[2:], 16)
         elif literal_type in 'oO':
             # Py3 octal notation ('0o136')
@@ -452,6 +453,16 @@ def str_to_number(value):
     else:
         value = int(value, 0)
     return -value if is_neg else value
+
+
+def strip_py2_long_suffix(value_str):
+    """
+    Python 2 likes to append 'L' to stringified numbers
+    which in then can't process when converting them to numbers.
+    """
+    if value_str[-1] in 'lL':
+        return value_str[:-1]
+    return value_str
 
 
 def long_literal(value):
@@ -662,3 +673,46 @@ def write_depfile(target, source, dependencies):
 
     with open(target+'.dep', 'w') as outfile:
         outfile.write(depline)
+
+
+def print_version():
+    print("Cython version %s" % cython_version)
+    # For legacy reasons, we also write the version to stderr.
+    # New tools should expect it in stdout, but existing ones still pipe from stderr, or from both.
+    if sys.stderr.isatty() or sys.stdout == sys.stderr:
+        return
+    if os.fstat(1) == os.fstat(2):
+        # This is somewhat unsafe since sys.stdout/err might not really be linked to streams 1/2.
+        # However, in most *relevant* cases, where Cython is run as an external tool, they are linked.
+        return
+    sys.stderr.write("Cython version %s\n" % cython_version)
+
+
+def normalise_float_repr(float_str):
+    """
+    Generate a 'normalised', simple digits string representation of a float value
+    to allow string comparisons.  Examples: '.123', '123.456', '123.'
+    """
+    str_value = float_str.lower().lstrip('0')
+
+    exp = 0
+    if 'E' in str_value or 'e' in str_value:
+        str_value, exp = str_value.split('E' if 'E' in str_value else 'e', 1)
+        exp = int(exp)
+
+    if '.' in str_value:
+        num_int_digits = str_value.index('.')
+        str_value = str_value[:num_int_digits] + str_value[num_int_digits + 1:]
+    else:
+        num_int_digits = len(str_value)
+    exp += num_int_digits
+
+    result = (
+        str_value[:exp]
+        + '0' * (exp - len(str_value))
+        + '.'
+        + '0' * -exp
+        + str_value[exp:]
+    ).rstrip('0')
+
+    return result if result != '.' else '.0'
