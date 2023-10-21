@@ -43,6 +43,13 @@ cpdef int sum3d(int[:, :, :] arr) nogil:
                 total += arr[i, j, k]
     return total
 
+
+
+
+
+
+
+
 # A function accepting a memoryview knows how to use a NumPy array,
 # a C array, a Cython array...
 print("Memoryview sum of NumPy array is %s" % sum3d(narr))

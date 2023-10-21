@@ -2,6 +2,111 @@
 Cython Changelog
 ================
 
+3.0.4 (2023-10-17)
+==================
+
+Features added
+--------------
+
+* A new compiler directive ``show_performance_hints`` was added to disable the
+  newly added performance hint output.
+  (Github issue :issue:`5748`)
+
+Bugs fixed
+----------
+
+* ```cythonize` required ``distutils`` even for operations that did not build binaries.
+  (Github issue :issue:`5751`)
+
+* A regression in 3.0.3 was fixed that prevented calling inline functions
+  from another inline function in ``.pxd`` files.
+  (Github issue :issue:`5748`)
+
+* Some C compiler warnings were resolved.
+  Patch by Pierre Jolivet.  (Github issue :issue:`5756`)
+
+
+3.0.3 (2023-10-05)
+==================
+
+Features added
+--------------
+
+* More warnings were added to help users migrate and avoid bugs.
+  (Github issue :issue:`5650`)
+
+* A warning-like category for performance hints was added that bypasses ``-Werror``.
+  (Github issue :issue:`5673`)
+
+* FastGIL now uses standard ``thread_local`` in C++.
+  (Github issue :issue:`5640`)
+
+* ``reference_wrapper`` was added to ``libcpp.functional``.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`5671`)
+
+* The ``cythonize`` command now supports the ``--cplus`` option known from the ``cython`` command.
+  (Github issue :issue:`5736`)
+
+Bugs fixed
+----------
+
+* Performance regressions where the GIL was needlessly acquired were fixed.
+  (Github issues :issue:`5670`, :issue:`5700`)
+
+* A reference leak for exceptions in Python 3.12 was resolved.
+  Patch by Eric Johnson.  (Github issue :issue:`5724`)
+
+* ``fastcall`` calls with keyword arguments generated incorrect C code.
+  (Github issue :issue:`5665`)
+
+* Assigning the type converted result of a conditional (if-else) expression
+  to ``int`` or ``bool`` variables could lead to incorrect C code.
+  (Github issue :issue:`5731`)
+
+* Early (unlikely) failures in Python function wrappers no longer set a
+  traceback in order to simplify the C code flow.  Being mostly memory
+  allocation errors, they probably would never have created a traceback anyway.
+  (Github issue :issue:`5681`)
+
+* Relative cimports from packages with ``__init__.py`` files could fail.
+  (Github issue :issue:`5715`)
+
+* Several issues with the Limited API support were resolved.
+  (Github issues :issue:`5641`, :issue:`5648`, :issue:`5689`)
+
+* The code generated for special-casing both Cython functions and PyCFunctions was cleaned up
+  to avoid calling C-API functions that were not meant for the other type respectively.
+  This could previously trigger assertions in CPython debug builds and now also plays better
+  with the Limited API.
+  (Github issues :issue:`4804`, :issue:`5739`)
+
+* Fix some C compiler warnings.
+  Patches by Ralf Gommers, Oleksandr Pavlyk, Sebastian Koslowski et al.
+  (Github issues :issue:`5651`, :issue:`5663`, :issue:`5668`, :issue:`5717`, :issue:`5726`, :issue:`5734`)
+
+* Generating gdb debugging information failed when using generator expressions.
+  Patch by Oleksandr Pavlyk.  (Github issue :issue:`5552`)
+
+* Passing a ``setuptools.Extension`` into ``cythonize()`` instead of a
+  ``distutils.Extension`` could make it miss the matching extensions.
+
+* ``cython -M`` needlessly required ``distutils``, which made it fail in Python 3.12.
+  (Github issue :issue:`5681`)
+
+Other changes
+-------------
+
+* The visible deprecation warning for ``DEF`` was removed again since it proved
+  difficult for some users to migrate away from it.  The statement is still
+  meant to be removed at some point (and thus, like ``IF``, should not be
+  used in new code), but the time for sunset is probably not around the corner.
+  (Github issue :issue:`4310`)
+
+* The ``np_pythran`` option raise a ``DeprecationWarning`` if it receives other values
+  than ``True`` and ``False``.  This will eventually be disallowed (in line with all
+  other boolean options).
+
+
 3.0.2 (2023-08-27)
 ==================
 

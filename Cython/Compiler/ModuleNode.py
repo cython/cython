@@ -792,7 +792,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
         from .. import __version__
-        code.putln('#if CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
+        code.putln('#if defined(CYTHON_LIMITED_API) && CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
         # The limited API makes some significant changes to data structures, so we don't
         # want to shared implementation compiled with and without the limited API.
         code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME "limited"')
