@@ -20,7 +20,7 @@ def test_non_optimised():
     # Non-optimized
     cdef object foo = A
     assert isinstance(A(), foo)
-    return True
+    return true
 
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
@@ -107,7 +107,7 @@ def test_optimised():
     assert isinstance(A(), typed_type)
     cdef object untyped_type = A
     assert isinstance(A(), <type>untyped_type)
-    return True
+    return true
 
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
@@ -127,7 +127,7 @@ def test_optimised_tuple():
     assert isinstance(A(),  (int, long, float, bytes, str, unicode, a_as_obj, tuple, list, dict, set, slice, type, A))
     assert isinstance(0, (int, long))
     assert not isinstance(u"xyz", (int, long))
-    return True
+    return true
 
 
 def test_custom():
@@ -136,7 +136,7 @@ def test_custom():
     True
     """
     assert isinstance(A(), A)
-    return True
+    return true
 
 cdef class B:
     pass
@@ -172,5 +172,5 @@ def test_nested(x):
     """
     cdef object a = (x, None)
     if isinstance(a[0], (int, float)):
-        return True
-    return False
+        return true
+    return false

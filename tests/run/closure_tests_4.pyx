@@ -347,11 +347,11 @@ def g1946():
               return None
             return (a_1393 == g1936())
           if (g1937()):
-            return True
+            return true
           else:
-            return False
+            return false
         else:
-          return False
+          return false
       if (g1943()):
         return 778477
       else:
@@ -816,7 +816,7 @@ def g2075():
         h_1501 = g2067()
         def g2065():
           if (((x_1490)*(x_1490) == (x_1490)+(x_1490))):
-            return True
+            return true
           else:
             return (x_1490 < 0)
         if (g2065()):

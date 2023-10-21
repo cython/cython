@@ -2,7 +2,7 @@
 
 cdef class Test:
     """
-    >>> t = Test(True)
+    >>> t = Test(true)
     >>> t.some_ro_bool
     True
     >>> t.some_public_bool

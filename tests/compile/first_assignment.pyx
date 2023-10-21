@@ -26,7 +26,7 @@ def test_py():
 #    "//SingleAssignmentNode[./NameNode[@name = 'a'] and @first = True]",
     )
 def test_cond():
-    if True:
+    if true:
         a = 1
     else:
         a = 2

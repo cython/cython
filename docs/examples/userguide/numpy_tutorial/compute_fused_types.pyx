@@ -11,8 +11,8 @@ ctypedef fused my_type:
 cdef my_type clip(my_type a, my_type min_value, my_type max_value):
     return min(max(a, min_value), max_value)
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@cython.boundscheck(false)
+@cython.wraparound(false)
 def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type b, my_type c):
     x_max = array_1.shape[0]
     y_max = array_1.shape[1]

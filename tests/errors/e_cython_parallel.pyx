@@ -41,11 +41,11 @@ with nogil, cython.parallel.parallel:
 
 cdef i32 y
 
-for i in prange(10, nogil=True):
+for i in prange(10, nogil=true):
     i = y * 4
     y = i
 
-for i in prange(10, nogil=True):
+for i in prange(10, nogil=true):
     y = i
     i = y * 4
     y = i
@@ -55,14 +55,14 @@ with nogil, cython.parallel.parallel():
     i = y
     y = i
 
-for i in prange(10, nogil=True):
+for i in prange(10, nogil=true):
     y += i
     y *= i
 
 with nogil, cython.parallel.parallel("invalid"):
     pass
 
-with nogil, cython.parallel.parallel(invalid=True):
+with nogil, cython.parallel.parallel(invalid=true):
     pass
 
 def f(x):
@@ -78,7 +78,7 @@ def f(x):
 
 # Disabled nesting:
 
-for i in prange(10, nogil=True):
+for i in prange(10, nogil=true):
     for y in prange(10):
         pass
 
@@ -113,7 +113,7 @@ print i
 
 # Reading of reduction variables in the prange block
 cdef i32 sum = 0
-for i in prange(10, nogil=True):
+for i in prange(10, nogil=true):
     sum += i
     with gil:
         print sum
@@ -127,22 +127,22 @@ with nogil, parallel.parallel():
         pass
 
 cdef i32[:] dst, src = object()
-for i in prange(10, nogil=True):
+for i in prange(10, nogil=true):
     dst = src
 
-for i in prange(10, nogil=True, chunksize=20):
+for i in prange(10, nogil=true, chunksize=20):
     pass
 
-for i in prange(10, nogil=True, schedule='static', chunksize=-1):
+for i in prange(10, nogil=true, schedule='static', chunksize=-1):
     pass
 
-for i in prange(10, nogil=True, schedule='runtime', chunksize=10):
+for i in prange(10, nogil=true, schedule='runtime', chunksize=10):
     pass
 
 cdef i32 chunksize():
     return 10
 
-for i in prange(10, nogil=True, schedule='static', chunksize=chunksize()):
+for i in prange(10, nogil=true, schedule='static', chunksize=chunksize()):
     pass
 
 with nogil, cython.parallel.parallel():

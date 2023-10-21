@@ -11,7 +11,7 @@ cdef class BaseClass:
     True
     """
     cdef method(self):
-        return True
+        return true
 
     def call_base(self):
         return self.method()
@@ -27,7 +27,7 @@ cdef class Child(BaseClass):
     True
     """
     cdef method(self):
-        return True
+        return true
 
     def call_child(self):
         # original bug: this requires a proper cast for self

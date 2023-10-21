@@ -1,4 +1,4 @@
-# cython: optimize.use_switch=True
+# cython: optimize.use_switch=true
 # mode: error
 # tag: cerror
 

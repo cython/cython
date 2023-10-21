@@ -1,2 +1,2 @@
-# cython: autotestdict=False
+# cython: autotestdict=false
 # mode: error

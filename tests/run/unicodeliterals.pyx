@@ -104,7 +104,7 @@ __doc__ = br"""
     True
 
     >>> expected = u'\U00101234'    # unescaped by Cython
-    >>> if wide_literal == expected: print(True)
+    >>> if wide_literal == expected: print(true)
     ... else: print(repr(wide_literal), repr(expected), sys.maxunicode)
     True
 """

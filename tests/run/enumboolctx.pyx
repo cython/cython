@@ -10,9 +10,9 @@ def enum_boolctx(Truth arg):
     True
     """
     if arg:
-        return True
+        return true
     else:
-        return False
+        return false
 
 cdef extern from *:
     enum: FALSE_VALUE "(0)"

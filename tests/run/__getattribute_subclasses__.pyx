@@ -33,7 +33,7 @@ cdef class getattr_boring(boring):
         if n == 'resolved_by':
             return 'getattr_boring'
         elif n == 'getattr_boring':
-            return True
+            return true
         else:
             raise AttributeError
 
@@ -71,7 +71,7 @@ cdef class getattribute_boring(boring):
         if n == 'resolved_by':
             return 'getattribute_boring'
         elif n == 'getattribute_boring':
-            return True
+            return true
         elif n == 'getattribute_called':
             return self.getattribute_called
         else:
@@ -90,7 +90,7 @@ cdef class _getattr:
         if n == 'resolved_by':
             return '_getattr'
         elif n == '_getattr':
-            return True
+            return true
         elif n == 'getattr_called':
             # must only get here if __getattribute__ is overwritten
             assert 'getattribute' in type(self).__name__
@@ -131,7 +131,7 @@ cdef class _getattribute:
         if n == 'resolved_by':
             return '_getattribute'
         elif n == '_getattribute':
-            return True
+            return true
         elif n == 'getattribute_called':
             return self.getattribute_called
         else:
@@ -237,7 +237,7 @@ cdef class getattribute_boring_boring_getattr(boring_boring_getattr):
         if n == 'resolved_by':
             return 'getattribute_boring_boring_getattr'
         elif n == 'getattribute_boring_boring_getattr':
-            return True
+            return true
         elif n == 'getattribute_called':
             return self.getattribute_called
         else:
@@ -282,7 +282,7 @@ cdef class getattr_boring_boring_getattribute(boring_boring_getattribute):
         if n == 'resolved_by':
             return 'getattr_boring_boring_getattribute'
         elif n == 'getattr_boring_boring_getattribute':
-            return True
+            return true
         elif n == 'getattr_called':
             return self.getattr_called
         else:

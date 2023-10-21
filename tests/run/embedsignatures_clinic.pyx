@@ -1,7 +1,7 @@
-# cython: embedsignature=True
+# cython: embedsignature=true
 # cython: embedsignature.format=clinic
-# cython: annotation_typing=False
-# cython: binding=False
+# cython: annotation_typing=false
+# cython: binding=false
 # cython: c_string_type=bytearray
 # tag: py3only
 

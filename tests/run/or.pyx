@@ -57,7 +57,7 @@ def or2_literal():
     >>> or2_literal()
     5
     """
-    return False or 5
+    return false or 5
 
 cdef class A(object):
     def __repr__(self):

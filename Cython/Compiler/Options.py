@@ -429,10 +429,10 @@ def parse_directive_value(name, value, relaxed_bool=False):
     None
     >>> parse_directive_value('boundscheck', 'True')
     True
-    >>> parse_directive_value('boundscheck', 'true')
+    >>> parse_directive_value('boundscheck', 'yes')
     Traceback (most recent call last):
        ...
-    ValueError: boundscheck directive must be set to True or False, got 'true'
+    ValueError: boundscheck directive must be set to True or False, got 'yes'
 
     >>> parse_directive_value('c_string_encoding', 'us-ascii')
     'ascii'
@@ -454,9 +454,9 @@ def parse_directive_value(name, value, relaxed_bool=False):
     orig_value = value
     if type is bool:
         value = str(value)
-        if value == 'True':
+        if value in ("true", "True"):
             return True
-        if value == 'False':
+        if value in ("false", "False"):
             return False
         if relaxed_bool:
             value = value.lower()

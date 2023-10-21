@@ -11,7 +11,7 @@ cdef class C:
         "This is an unusable docstring."
     def __nonzero__(self):
         "This is an unusable docstring."
-        return False
+        return false
     def __contains__(self, other):
         "This is an unusable docstring."
 
@@ -25,8 +25,8 @@ cdef class C:
         "usable docstring"
     def __iter__(self):
         "usable docstring"
-        return False
+        return false
     def __next__(self):
         "usable docstring"
-        return False
+        return false
 

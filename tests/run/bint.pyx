@@ -2,9 +2,9 @@ from cython cimport typeof
 
 def test(bint value):
     """
-    >>> test(True)
+    >>> test(true)
     True
-    >>> test(False)
+    >>> test(false)
     False
     >>> test(None)
     False

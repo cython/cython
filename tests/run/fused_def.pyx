@@ -434,7 +434,7 @@ def test_decorators(cython.floating arg):
     [3, 2, 1]
     """
 
-@cython.binding(True)
+@cython.binding(true)
 def bind_me(self, cython.floating a=1.):
     return a
 

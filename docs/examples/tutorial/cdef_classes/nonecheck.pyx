@@ -1,19 +1,18 @@
-# cython: nonecheck=True
+# cython: nonecheck=true
 #        ^^^ Turns on nonecheck globally
 
 import cython
-
 
 cdef class MyClass:
     pass
 
 # Turn off nonecheck locally for the function
-@cython.nonecheck(False)
+@cython.nonecheck(false)
 def func():
     cdef MyClass obj = None
     try:
         # Turn nonecheck on again for a block
-        with cython.nonecheck(True):
+        with cython.nonecheck(true):
             print(obj.myfunc())  # Raises exception
     except AttributeError:
         pass

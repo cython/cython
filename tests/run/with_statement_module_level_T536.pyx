@@ -19,7 +19,7 @@ class ContextManager(object):
         self.result.append("ENTER")
     def __exit__(self, *values):
         self.result.append("EXIT %r" % (values,))
-        return True
+        return true
 
 result_no_exc = []
 

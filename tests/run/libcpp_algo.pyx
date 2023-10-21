@@ -11,11 +11,11 @@ cdef inline bool greater(const int &x, const int &y):
     return x > y
 
 
-def heapsort(l, bool reverse=False):
+def heapsort(l, bool reverse=false):
     """
     >>> heapsort([3, 5, 1, 0, 2, 4])
     [0, 1, 2, 3, 4, 5]
-    >>> heapsort([3, 5, 1, 0, 2, 4], reverse=True)
+    >>> heapsort([3, 5, 1, 0, 2, 4], reverse=true)
     [5, 4, 3, 2, 1, 0]
     """
     cdef vector[int] v = l

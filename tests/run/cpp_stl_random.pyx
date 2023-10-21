@@ -136,7 +136,7 @@ cdef sample_or_range(any_dist dist, bint sample):
     else:
         return dist.min(), dist.max()
 
-def uniform_int_distribution_test(a, b, sample=True):
+def uniform_int_distribution_test(a, b, sample=true):
     """
     >>> uniform_int_distribution_test(2, 3)
     >>> uniform_int_distribution_test(5, 9, False)
@@ -145,7 +145,7 @@ def uniform_int_distribution_test(a, b, sample=True):
     cdef uniform_int_distribution[i32] dist = uniform_int_distribution[i32](a, b)
     return sample_or_range[uniform_int_distribution[i32]](dist, sample)
 
-def uniform_real_distribution_test(a, b, sample=True):
+def uniform_real_distribution_test(a, b, sample=true):
     """
     >>> x = uniform_real_distribution_test(4, 5)
     >>> uniform_real_distribution_test(3, 8, False)
@@ -154,7 +154,7 @@ def uniform_real_distribution_test(a, b, sample=True):
     cdef uniform_real_distribution[f64] dist = uniform_real_distribution[f64](a, b)
     return sample_or_range[uniform_real_distribution[f64]](dist, sample)
 
-def bernoulli_distribution_test(proba, sample=True):
+def bernoulli_distribution_test(proba, sample=true):
     """
     >>> bernoulli_distribution_test(0.2)
     >>> bernoulli_distribution_test(0.7, False)
@@ -163,7 +163,7 @@ def bernoulli_distribution_test(proba, sample=True):
     cdef bernoulli_distribution dist = bernoulli_distribution(proba)
     return sample_or_range[bernoulli_distribution](dist, sample)
 
-def binomial_distribution_test(n, proba, sample=True):
+def binomial_distribution_test(n, proba, sample=true):
     """
     >>> binomial_distribution_test(10, 0.7)
     >>> binomial_distribution_test(75, 0.3, False)
@@ -172,7 +172,7 @@ def binomial_distribution_test(n, proba, sample=True):
     cdef binomial_distribution[i32] dist = binomial_distribution[i32](n, proba)
     return sample_or_range[binomial_distribution[i32]](dist, sample)
 
-def geometric_distribution_test(proba, sample=True):
+def geometric_distribution_test(proba, sample=true):
     """
     >>> geometric_distribution_test(.4)
     >>> geometric_distribution_test(0.2, False)  # 2147483647 = 2 ** 32 - 1
@@ -181,7 +181,7 @@ def geometric_distribution_test(proba, sample=True):
     cdef geometric_distribution[i32] dist = geometric_distribution[i32](proba)
     return sample_or_range[geometric_distribution[i32]](dist, sample)
 
-def negative_binomial_distribution_test(n, p, sample=True):
+def negative_binomial_distribution_test(n, p, sample=true):
     """
     >>> negative_binomial_distribution_test(5, .1)
     >>> negative_binomial_distribution_test(10, 0.2, False)  # 2147483647 = 2 ** 32 - 1
@@ -190,7 +190,7 @@ def negative_binomial_distribution_test(n, p, sample=True):
     cdef negative_binomial_distribution[i32] dist = negative_binomial_distribution[i32](n, p)
     return sample_or_range[negative_binomial_distribution[i32]](dist, sample)
 
-def poisson_distribution_test(rate, sample=True):
+def poisson_distribution_test(rate, sample=true):
     """
     >>> poisson_distribution_test(7)
     >>> poisson_distribution_test(7, False)  # 2147483647 = 2 ** 32 - 1
@@ -199,7 +199,7 @@ def poisson_distribution_test(rate, sample=True):
     cdef poisson_distribution[i32] dist = poisson_distribution[i32](rate)
     return sample_or_range[poisson_distribution[i32]](dist, sample)
 
-def exponential_distribution_test(rate, sample=True):
+def exponential_distribution_test(rate, sample=true):
     """
     >>> x = exponential_distribution_test(6)
     >>> l, u = exponential_distribution_test(1, False)
@@ -211,7 +211,7 @@ def exponential_distribution_test(rate, sample=True):
     cdef exponential_distribution[f64] dist = exponential_distribution[f64](rate)
     return sample_or_range[exponential_distribution[f64]](dist, sample)
 
-def gamma_distribution_test(shape, scale, sample=True):
+def gamma_distribution_test(shape, scale, sample=true):
     """
     >>> gamma_distribution_test(3, 4)
     >>> l, u = gamma_distribution_test(1, 1, False)
@@ -223,7 +223,7 @@ def gamma_distribution_test(shape, scale, sample=True):
     cdef gamma_distribution[f64] dist = gamma_distribution[f64](shape, scale)
     return sample_or_range[gamma_distribution[f64]](dist, sample)
 
-def weibull_distribution_test(shape, scale, sample=True):
+def weibull_distribution_test(shape, scale, sample=true):
     """
     >>> weibull_distribution_test(3, 2)
     >>> l, u = weibull_distribution_test(1, 1, False)
@@ -235,7 +235,7 @@ def weibull_distribution_test(shape, scale, sample=True):
     cdef weibull_distribution[f64] dist = weibull_distribution[f64](shape, scale)
     return sample_or_range[weibull_distribution[f64]](dist, sample)
 
-def extreme_value_distribution_test(shape, scale, sample=True):
+def extreme_value_distribution_test(shape, scale, sample=true):
     """
     >>> extreme_value_distribution_test(3, 0.1)
     >>> l, u = extreme_value_distribution_test(1, 1, False)
@@ -247,7 +247,7 @@ def extreme_value_distribution_test(shape, scale, sample=True):
     cdef extreme_value_distribution[f64] dist = extreme_value_distribution[f64](shape, scale)
     return sample_or_range[extreme_value_distribution[f64]](dist, sample)
 
-def normal_distribution_test(loc, scale, sample=True):
+def normal_distribution_test(loc, scale, sample=true):
     """
     >>> normal_distribution_test(3, 2)
     >>> l, u = normal_distribution_test(1, 1, False)
@@ -259,7 +259,7 @@ def normal_distribution_test(loc, scale, sample=True):
     cdef normal_distribution[f64] dist = normal_distribution[f64](loc, scale)
     return sample_or_range[normal_distribution[f64]](dist, sample)
 
-def lognormal_distribution_test(loc, scale, sample=True):
+def lognormal_distribution_test(loc, scale, sample=true):
     """
     >>> lognormal_distribution_test(3, 2)
     >>> l, u = lognormal_distribution_test(1, 1, False)
@@ -271,7 +271,7 @@ def lognormal_distribution_test(loc, scale, sample=True):
     cdef lognormal_distribution[f64] dist = lognormal_distribution[f64](loc, scale)
     return sample_or_range[lognormal_distribution[f64]](dist, sample)
 
-def chi_squared_distribution_test(dof, sample=True):
+def chi_squared_distribution_test(dof, sample=true):
     """
     >>> x = chi_squared_distribution_test(9)
     >>> l, u = chi_squared_distribution_test(5, False)
@@ -283,7 +283,7 @@ def chi_squared_distribution_test(dof, sample=True):
     cdef chi_squared_distribution[f64] dist = chi_squared_distribution[f64](dof)
     return sample_or_range[chi_squared_distribution[f64]](dist, sample)
 
-def cauchy_distribution_test(loc, scale, sample=True):
+def cauchy_distribution_test(loc, scale, sample=true):
     """
     >>> cauchy_distribution_test(3, 9)
     >>> l, u = cauchy_distribution_test(1, 1, False)
@@ -295,7 +295,7 @@ def cauchy_distribution_test(loc, scale, sample=True):
     cdef cauchy_distribution[f64] dist = cauchy_distribution[f64](loc, scale)
     return sample_or_range[cauchy_distribution[f64]](dist, sample)
 
-def fisher_f_distribution_test(m, n, sample=True):
+def fisher_f_distribution_test(m, n, sample=true):
     """
     >>> x = fisher_f_distribution_test(9, 11)
     >>> l, u = fisher_f_distribution_test(1, 1, False)
@@ -307,7 +307,7 @@ def fisher_f_distribution_test(m, n, sample=True):
     cdef fisher_f_distribution[f64] dist = fisher_f_distribution[f64](m, n)
     return sample_or_range[fisher_f_distribution[f64]](dist, sample)
 
-def student_t_distribution_test(dof, sample=True):
+def student_t_distribution_test(dof, sample=true):
     """
     >>> x = student_t_distribution_test(13)
     >>> l, u = student_t_distribution_test(1, False)

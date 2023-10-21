@@ -4,9 +4,9 @@ from cpython.bool cimport bool
 
 def foo(bool a):
     """
-    >>> foo(True)
+    >>> foo(true)
     True
-    >>> foo(False)
+    >>> foo(false)
     False
     >>> foo('abc') # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -16,9 +16,9 @@ def foo(bool a):
 
 def call_cfoo(a):
     """
-    >>> call_cfoo(True)
+    >>> call_cfoo(true)
     True
-    >>> call_cfoo(False)
+    >>> call_cfoo(false)
     False
     >>> call_cfoo('abc') # doctest: +ELLIPSIS
     Traceback (most recent call last):

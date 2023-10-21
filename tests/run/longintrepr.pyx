@@ -5,7 +5,7 @@
 from cpython.longintrepr cimport *
 cimport cython
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def lshift(long a, unsigned long n):
     """
     Return a * 2^n as Python long.

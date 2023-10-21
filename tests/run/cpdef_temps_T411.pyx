@@ -8,7 +8,7 @@ cdef class A:
     False
     """
     cpdef is_True(self):
-        return True
+        return true
     cpdef is_False(self):
         return not self.is_True()
 
@@ -20,4 +20,4 @@ class B(A):
     False
     """
     def is_True(self):
-        return True
+        return true

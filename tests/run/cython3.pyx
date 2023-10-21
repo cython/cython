@@ -1,4 +1,4 @@
-# cython: language_level=3, binding=True, annotation_typing=False
+# cython: language_level=3, binding=true, annotation_typing=false
 # mode: run
 # tag: generators, python3, exceptions, gh2230, gh2811
 
@@ -66,7 +66,7 @@ def truediv_int(int x):
     return x / 2
 
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def cdiv_int(int x):
     """
     >>> cdiv_int(4)
@@ -272,13 +272,13 @@ def except_as_deletes_target_in_gen(x, a):
         yield 6
 
 
-def nested_except_gh3666(a=False, b=False):
+def nested_except_gh3666(a=false, b=false):
     """
     >>> print(nested_except_gh3666())
     A
-    >>> print(nested_except_gh3666(a=True))
+    >>> print(nested_except_gh3666(a=true))
     B-V
-    >>> print(nested_except_gh3666(a=True, b=True))
+    >>> print(nested_except_gh3666(a=true, b=true))
     B-V-T
     """
     try:
@@ -518,8 +518,8 @@ def listcomp_as_condition(sequence):
     False
     """
     if [1 for c in sequence if c in '+-*/<=>!%&|([^~,']:
-        return True
-    return False
+        return true
+    return false
 
 
 def set_comp():
@@ -633,7 +633,7 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     return result
 
 
-@cython.annotation_typing(False)
+@cython.annotation_typing(false)
 def builtin_as_ignored_annotation(text: str):
     # Used to crash the compiler when annotation typing is disabled.
     # See https://github.com/cython/cython/issues/2811
@@ -647,7 +647,7 @@ def builtin_as_ignored_annotation(text: str):
         print(c)
 
 
-@cython.annotation_typing(True)
+@cython.annotation_typing(true)
 def int_annotation(x: int) -> int:
     """
     >>> print(int_annotation(1))
@@ -664,7 +664,7 @@ def int_annotation(x: int) -> int:
     return 2 ** x
 
 
-@cython.annotation_typing(True)
+@cython.annotation_typing(true)
 async def async_def_annotations(x: 'int') -> 'float':
     """
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())

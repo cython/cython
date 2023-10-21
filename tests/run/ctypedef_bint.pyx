@@ -11,10 +11,10 @@ cdef int num = 42
 
 def CondExprNode_to_obj(test):
     """
-    >>> CondExprNode_to_obj(True)
+    >>> CondExprNode_to_obj(true)
     Python object | Python object
     2
-    >>> CondExprNode_to_obj(False)
+    >>> CondExprNode_to_obj(false)
     Python object | Python object
     84
     """
@@ -42,10 +42,10 @@ cdef int test_bool(mybool arg):
 
 def CondExprNode_to_bool(test):
     """
-    >>> CondExprNode_to_bool(True)
+    >>> CondExprNode_to_bool(true)
     bint | bint
     0
-    >>> CondExprNode_to_bool(False)
+    >>> CondExprNode_to_bool(false)
     bint | bint
     2
     """

@@ -1,4 +1,4 @@
-# cython: language_level=3str, binding=True
+# cython: language_level=3str, binding=true
 # mode: run
 # tag: python3, str_is_str
 
@@ -150,7 +150,7 @@ def strip_wrapped_string(s):
     return s[1:-1] # strip them
 
 
-@cython.annotation_typing(False)
+@cython.annotation_typing(false)
 def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":
     """
     >>> annotation_syntax(1)
@@ -176,7 +176,7 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     return result
 
 
-@cython.annotation_typing(True)
+@cython.annotation_typing(true)
 def repr_returns_str(x) -> str:
     """
     >>> repr_returns_str(123)

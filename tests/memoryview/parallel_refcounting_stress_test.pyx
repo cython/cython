@@ -12,8 +12,8 @@ include "../buffers/mockbuffers.pxi"
 # parallel that we should see errors if it isn't thread-safe.
 # It has been verified to crash if the atomic reference counting is replaced with non-atomic counting.
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@cython.boundscheck(false)
+@cython.wraparound(false)
 def refcounting_stress_test(i32 N):
     """
     >>> _ = refcounting_stress_test(5000)
@@ -38,7 +38,7 @@ def refcounting_stress_test(i32 N):
     cdef i32 i
     cdef f64 total = 0.0
 
-    for i in prange(N, nogil=True):
+    for i in prange(N, nogil=true):
         total += loopbody(aview, bview, cview, selectorsview[i])
 
     # make "release" order predictable
@@ -48,8 +48,8 @@ def refcounting_stress_test(i32 N):
 
     return total
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@cython.boundscheck(false)
+@cython.wraparound(false)
 cdef f64 loopbody(f64[:, :] a, f64[:, :] b, f64[:, :] c, i32 selector) nogil:
     cdef f64[:, :] selected
     cdef f64[:] subslice

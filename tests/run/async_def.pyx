@@ -1,4 +1,4 @@
-# cython: language_level=3str, binding=True
+# cython: language_level=3str, binding=true
 # mode: run
 # tag: pep492, await, gh3337
 
@@ -16,7 +16,7 @@ def run_async(coro):
 
     buffer = []
     result = None
-    while True:
+    while true:
         try:
             buffer.append(coro.send(None))
         except StopIteration as ex:

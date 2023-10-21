@@ -1,4 +1,4 @@
-# cython: language_level=2, warn.maybe_uninitialized=True
+# cython: language_level=2, warn.maybe_uninitialized=true
 # mode: error
 # tag: werror
 

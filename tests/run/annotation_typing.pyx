@@ -224,9 +224,9 @@ def struct_convert(d) -> MyStruct:
 @cython.ccall
 def exception_default(raise_exc : cython.bint = False) -> cython.int:
     """
-    >>> exception_default(raise_exc=False)
+    >>> exception_default(raise_exc=false)
     10
-    >>> exception_default(raise_exc=True)
+    >>> exception_default(raise_exc=true)
     Traceback (most recent call last):
     ValueError: huhu!
     """
@@ -235,11 +235,11 @@ def exception_default(raise_exc : cython.bint = False) -> cython.int:
     return 10
 
 
-def call_exception_default(raise_exc=False):
+def call_exception_default(raise_exc=false):
     """
-    >>> call_exception_default(raise_exc=False)
+    >>> call_exception_default(raise_exc=false)
     10
-    >>> call_exception_default(raise_exc=True)
+    >>> call_exception_default(raise_exc=true)
     Traceback (most recent call last):
     ValueError: huhu!
     """
@@ -255,9 +255,9 @@ def call_exception_default(raise_exc=False):
 @cython.ccall
 def exception_default_uint(raise_exc : cython.bint = False) -> cython.uint:
     """
-    >>> print(exception_default_uint(raise_exc=False))
+    >>> print(exception_default_uint(raise_exc=false))
     10
-    >>> exception_default_uint(raise_exc=True)
+    >>> exception_default_uint(raise_exc=true)
     Traceback (most recent call last):
     ValueError: huhu!
     """
@@ -266,11 +266,11 @@ def exception_default_uint(raise_exc : cython.bint = False) -> cython.uint:
     return 10
 
 
-def call_exception_default_uint(raise_exc=False):
+def call_exception_default_uint(raise_exc=false):
     """
-    >>> print(call_exception_default_uint(raise_exc=False))
+    >>> print(call_exception_default_uint(raise_exc=false))
     10
-    >>> call_exception_default_uint(raise_exc=True)
+    >>> call_exception_default_uint(raise_exc=true)
     Traceback (most recent call last):
     ValueError: huhu!
     """
@@ -347,7 +347,7 @@ class HasPtr:
         return f"HasPtr({self.a[0]}, {self.b})"
 
 
-@cython.annotation_typing(False)
+@cython.annotation_typing(false)
 def turn_off_typing(x: float, d: dict):
     """
     >>> turn_off_typing('not a float', [])  # ignore the typing
@@ -356,7 +356,7 @@ def turn_off_typing(x: float, d: dict):
     return typeof(x), typeof(d), x, d
 
 
-@cython.annotation_typing(False)
+@cython.annotation_typing(false)
 cdef class ClassTurnOffTyping:
     x: float
     d: dict
@@ -368,7 +368,7 @@ cdef class ClassTurnOffTyping:
         """
         return typeof(self.x), typeof(self.d), typeof(arg)
 
-    @cython.annotation_typing(True)
+    @cython.annotation_typing(true)
     def and_turn_it_back_on_again(self, arg: float):
         """
         >>> ClassTurnOffTyping().and_turn_it_back_on_again(1.0)

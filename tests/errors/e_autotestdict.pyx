@@ -2,7 +2,7 @@
 
 cimport cython
 
-@cython.autotestdict(False)
+@cython.autotestdict(false)
 def foo():
     pass
 

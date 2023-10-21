@@ -1,9 +1,9 @@
-# cython: remove_unreachable=False
+# cython: remove_unreachable=false
 # ticket: t135
 # mode: error
 
-def _runtime_True():
-    return True
+def _runtime_true():
+    return true
 
 return 'bar'
 
@@ -22,10 +22,10 @@ finally: pass
 for i in (1,2):
     return None
 
-while True:
+while true:
     return None
 
-if _runtime_True():
+if _runtime_true():
     return None
 else:
     return None

@@ -10,7 +10,7 @@ def simple_loops(*args):
         continue
         print 'Never be here'
 
-    while True:
+    while true:
         break
         print 'Never be here'
 

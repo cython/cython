@@ -7,8 +7,8 @@ DTYPE = np.intc
 cdef i32 clip(i32 a, i32 min_value, i32 max_value):
     return min(max(a, min_value), max_value)
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@cython.boundscheck(false)
+@cython.wraparound(false)
 def compute(i32[:, ::1] array_1, i32[:, ::1] array_2, i32 a, i32 b, i32 c):
     x_max = array_1.shape[0]
     y_max = array_1.shape[1]

@@ -6,7 +6,7 @@ IS_PYTHON2 = sys.version_info[0] == 2
 __doc__ = ""
 
 
-@cython.c_api_binop_methods(False)
+@cython.c_api_binop_methods(false)
 @cython.cclass
 class Base(object):
     """
@@ -15,11 +15,11 @@ class Base(object):
     >>> 2 + Base()
     'Base.__radd__(Base(), 2)'
 
-    >>> Base(implemented=False) + 2  #doctest: +ELLIPSIS
+    >>> Base(implemented=false) + 2  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> 2 + Base(implemented=False)  #doctest: +ELLIPSIS
+    >>> 2 + Base(implemented=false)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
@@ -39,7 +39,7 @@ class Base(object):
     """
     implemented: cython.bint
 
-    def __init__(self, *, implemented=True):
+    def __init__(self, *, implemented=true):
         self.implemented = implemented
 
     def __add__(self, other):
@@ -112,7 +112,7 @@ if sys.version_info >= (3, 0):
     """
 
 
-@cython.c_api_binop_methods(False)
+@cython.c_api_binop_methods(false)
 @cython.cclass
 class OverloadLeft(Base):
     """
@@ -126,18 +126,18 @@ class OverloadLeft(Base):
     >>> Base() + OverloadLeft()
     'Base.__add__(Base(), OverloadLeft())'
 
-    >>> OverloadLeft(implemented=False) + Base(implemented=False)  #doctest: +ELLIPSIS
+    >>> OverloadLeft(implemented=false) + Base(implemented=false)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> Base(implemented=False) + OverloadLeft(implemented=False)  #doctest: +ELLIPSIS
+    >>> Base(implemented=false) + OverloadLeft(implemented=false)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
     """
     derived_implemented: cython.bint
 
-    def __init__(self, *, implemented=True):
+    def __init__(self, *, implemented=true):
         super().__init__(implemented=implemented)
         self.derived_implemented = implemented
 
@@ -149,7 +149,7 @@ class OverloadLeft(Base):
             return NotImplemented
 
 
-@cython.c_api_binop_methods(False)
+@cython.c_api_binop_methods(false)
 @cython.cclass
 class OverloadRight(Base):
     """
@@ -163,18 +163,18 @@ class OverloadRight(Base):
     >>> Base() + OverloadRight()
     'OverloadRight.__radd__(OverloadRight(), Base())'
 
-    >>> OverloadRight(implemented=False) + Base(implemented=False)  #doctest: +ELLIPSIS
+    >>> OverloadRight(implemented=false) + Base(implemented=false)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> Base(implemented=False) + OverloadRight(implemented=False)  #doctest: +ELLIPSIS
+    >>> Base(implemented=false) + OverloadRight(implemented=false)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
     """
     derived_implemented: cython.bint
 
-    def __init__(self, *, implemented=True):
+    def __init__(self, *, implemented=true):
         super().__init__(implemented=implemented)
         self.derived_implemented = implemented
 
@@ -186,7 +186,7 @@ class OverloadRight(Base):
             return NotImplemented
 
 
-@cython.c_api_binop_methods(True)
+@cython.c_api_binop_methods(true)
 @cython.cclass
 class OverloadCApi(Base):
     """
@@ -200,19 +200,19 @@ class OverloadCApi(Base):
     >>> Base() + OverloadCApi()
     'OverloadCApi.__add__(Base(), OverloadCApi())'
 
-    >>> OverloadCApi(derived_implemented=False) + 2 #doctest: +ELLIPSIS
+    >>> OverloadCApi(derived_implemented=false) + 2 #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> 2 + OverloadCApi(derived_implemented=False) #doctest: +ELLIPSIS
+    >>> 2 + OverloadCApi(derived_implemented=false) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
     """
     derived_implemented: cython.bint
 
-    def __init__(self, *, derived_implemented=True):
-        super().__init__(implemented=True)
+    def __init__(self, *, derived_implemented=true):
+        super().__init__(implemented=true)
         self.derived_implemented = derived_implemented
 
     def __add__(self, other):
@@ -241,7 +241,7 @@ if sys.version_info >= (3, 5):
 """
 
 
-@cython.c_api_binop_methods(False)
+@cython.c_api_binop_methods(false)
 @cython.cclass
 class PyVersionDependent:
     """

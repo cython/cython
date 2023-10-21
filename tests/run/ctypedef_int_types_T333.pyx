@@ -1,5 +1,5 @@
 # ticket: t333
-#cython: autotestdict=True
+#cython: autotestdict=true
 
 # -------------------------------------------------------------------
 

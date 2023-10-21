@@ -2,7 +2,7 @@
 # tag: cpp, cpp17, no-cpp-locals, openmp
 # no-cpp-locals because the test is already run with it explicitly set
 
-# cython: cpp_locals=True
+# cython: cpp_locals=true
 
 from cython.parallel cimport prange
 
@@ -28,6 +28,6 @@ def test():
     9
     """
     cdef int i
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         var = Test(i)
     print(var.get_value())

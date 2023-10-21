@@ -383,10 +383,10 @@ def empty_try():
 
 def empty_try_in_except_raise(raise_in_finally):
     """
-    >>> empty_try_in_except_raise(False)
+    >>> empty_try_in_except_raise(false)
     Traceback (most recent call last):
     ValueError: HUHU
-    >>> empty_try_in_except_raise(True)
+    >>> empty_try_in_except_raise(true)
     Traceback (most recent call last):
     TypeError: OLA
     """

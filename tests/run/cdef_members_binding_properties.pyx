@@ -1,7 +1,7 @@
-# cython: embedsignature=True, binding=True
+# cython: embedsignature=true, binding=true
 # mode: run
 
-# same test as "cdef_members_T517.pyx" but "binding=True"
+# same test as "cdef_members_T517.pyx" but "binding=true"
 
 __doc__ = u"""
 >>> a = A()

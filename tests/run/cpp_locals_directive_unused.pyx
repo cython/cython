@@ -2,7 +2,7 @@
 # tag: cpp, cpp17, no-cpp-locals
 # no cpp_locals because this test is already run with cpp_locals explicitly set
 
-# cython: cpp_locals=True
+# cython: cpp_locals=true
 
 cdef cppclass C:
     C()

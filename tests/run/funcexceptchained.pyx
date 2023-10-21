@@ -20,7 +20,7 @@ __doc__ = u"""
 ...         print(isinstance(sys.exc_info()[1].__context__, AttributeError)
 ...               or sys.exc_info()[1].__context__)
 ...       else:
-...         print(True)
+...         print(true)
 ...     print((IS_PY3 and sys.exc_info()[0] is AttributeError) or
 ...           (not IS_PY3 and sys.exc_info()[0] is KeyError) or
 ...           sys.exc_info()[0])
@@ -95,7 +95,7 @@ def test_c(outer_exc):
                 print(isinstance(sys.exc_info()[1].__context__, AttributeError)
                       or sys.exc_info()[1].__context__)
             else:
-                print(True)
+                print(true)
         print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
     print(sys.exc_info()[0] is outer_exc or sys.exc_info()[0])
 

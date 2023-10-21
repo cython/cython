@@ -9,7 +9,7 @@ cimport cython
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=False]/NameNode",
     )
 @cython.test_fail_if_path_exists(
-    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
 def swap(a,b):
     """
@@ -27,7 +27,7 @@ def swap(a,b):
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=False]/NameNode",
     )
 @cython.test_fail_if_path_exists(
-    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
 def swap5(a,b,c,d,e):
     """
@@ -45,7 +45,7 @@ def swap5(a,b,c,d,e):
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=False]/NameNode",
     )
 @cython.test_fail_if_path_exists(
-    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
 cdef bint c_swap_cmp5(a, b, c, d, e):
     a,b,c,d,e = e,d,c,b,a
@@ -63,7 +63,7 @@ def swap_cmp5(a,b,c,d,e):
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode/NameNode",
-    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=True]/NameNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]/NameNode",
     )
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=False]",
@@ -92,8 +92,8 @@ cdef class A:
     "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode[@use_managed_ref=False]/NameNode",
     )
 @cython.test_fail_if_path_exists(
-    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=True]",
-    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=true]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=true]",
     )
 def swap_attr_values(A a, A b):
     """
@@ -124,8 +124,8 @@ cdef class B:
     "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode[@use_managed_ref=False]/NameNode",
     )
 @cython.test_fail_if_path_exists(
-    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=True]",
-    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=true]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=true]",
     )
 def swap_recursive_attr_values(B a, B b):
     """
@@ -170,7 +170,7 @@ def swap_recursive_attr_values(B a, B b):
 #    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=False]",
     )
 @cython.test_fail_if_path_exists(
-#    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=True]",
+#    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=true]",
     )
 def swap_list_items(list a, int i, int j):
     """
@@ -194,7 +194,7 @@ def swap_list_items(list a, int i, int j):
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode",
-    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=true]",
     )
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=False]",
@@ -207,7 +207,7 @@ def swap_list_items_py1(list a, int i, int j):
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode",
-    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=true]",
     )
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=False]",

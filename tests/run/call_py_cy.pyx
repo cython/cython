@@ -1,6 +1,6 @@
 # mode: run
 # tag: cyfunction,call,python
-# cython: binding=True
+# cython: binding=true
 
 #######
 # Test that Cython and Python functions can call each other in various signature combinations.

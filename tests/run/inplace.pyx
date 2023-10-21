@@ -118,7 +118,7 @@ def test_side_effects():
     b[c_side_effect(4)] += 100
     return a, [b[i] for i from 0 <= i < 5]
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def test_inplace_cdivision(int a, int b):
     """
     >>> test_inplace_cdivision(13, 10)
@@ -133,7 +133,7 @@ def test_inplace_cdivision(int a, int b):
     a %= b
     return a
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def test_inplace_pydivision(int a, int b):
     """
     >>> test_inplace_pydivision(13, 10)

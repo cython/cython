@@ -47,18 +47,18 @@ def test_copy_to():
     0 1 2 3 4 5 6 7
     '''
     cdef i32[:, :, :] from_mvs, to_mvs
-    from_mvs = np.arange(8, dtype=np.int32).reshape(2,2,2)
+    from_mvs = np.arange(8, dtype=np.int32).reshape(2, 2, 2)
 
     cdef i32 *from_data = <i32 *> from_mvs._data
-    print ' '.join(str(from_data[i]) for i in range(2*2*2))
+    print ' '.join(str(from_data[i]) for i in range(2 * 2 * 2))
 
     to_mvs = array((2, 2, 2), sizeof(i32), 'i')
     to_mvs[...] = from_mvs
 
     # TODO Mark: remove this _data attribute
     cdef i32 *to_data = <i32*>to_mvs._data
-    print ' '.join(str(from_data[i]) for i in range(2*2*2))
-    print ' '.join(str(to_data[i]) for i in range(2*2*2))
+    print ' '.join(str(from_data[i]) for i in range(2 * 2 * 2))
+    print ' '.join(str(to_data[i]) for i in range(2 * 2 * 2))
 
 def test_overlapping_copy():
     """
@@ -102,7 +102,7 @@ def test_partly_overlapping():
     for i in range(5):
         assert slice2[i] == i + 4
 
-@cython.nonecheck(True)
+@cython.nonecheck(true)
 def test_nonecheck1():
     u'''
     >>> test_nonecheck1()
@@ -113,7 +113,7 @@ def test_nonecheck1():
     cdef i32[:, :, :] uninitialized
     print uninitialized.is_c_contig()
 
-@cython.nonecheck(True)
+@cython.nonecheck(true)
 def test_nonecheck2():
     u'''
     >>> test_nonecheck2()
@@ -124,7 +124,7 @@ def test_nonecheck2():
     cdef i32[:, :, :] uninitialized
     print uninitialized.is_f_contig()
 
-@cython.nonecheck(True)
+@cython.nonecheck(true)
 def test_nonecheck3():
     u'''
     >>> test_nonecheck3()
@@ -135,7 +135,7 @@ def test_nonecheck3():
     cdef i32[:, :, :] uninitialized
     uninitialized.copy()
 
-@cython.nonecheck(True)
+@cython.nonecheck(true)
 def test_nonecheck4():
     u'''
     >>> test_nonecheck4()
@@ -146,7 +146,7 @@ def test_nonecheck4():
     cdef i32[:, :, :] uninitialized
     uninitialized.copy_fortran()
 
-@cython.nonecheck(True)
+@cython.nonecheck(true)
 def test_nonecheck5():
     u'''
     >>> test_nonecheck5()
@@ -255,7 +255,7 @@ def two_dee():
     except UnboundLocalError:
         pass
     else:
-        assert False, "UnboundLocalError not raised for uninitialised memory view"
+        assert false, "UnboundLocalError not raised for uninitialised memory view"
 
     cdef i64 *arr_data
     arr_data = <i64*>arr.data

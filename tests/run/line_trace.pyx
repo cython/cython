@@ -1,4 +1,4 @@
-# cython: linetrace=True
+# cython: linetrace=true
 # distutils: define_macros=CYTHON_TRACE_NOGIL=1
 # mode: run
 # tag: trace
@@ -186,7 +186,7 @@ def py_return(retval=123): return retval
 """, plain_python_functions)
 
 
-def run_trace(func, *args, bint with_sys=False):
+def run_trace(func, *args, bint with_sys=false):
     """
     >>> py_add = plain_python_functions['py_add']
     >>> run_trace(py_add, 1, 2)
@@ -194,9 +194,9 @@ def run_trace(func, *args, bint with_sys=False):
     >>> run_trace(cy_add, 1, 2)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
 
-    >>> run_trace(py_add, 1, 2, with_sys=True)
+    >>> run_trace(py_add, 1, 2, with_sys=true)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
-    >>> run_trace(cy_add, 1, 2, with_sys=True)
+    >>> run_trace(cy_add, 1, 2, with_sys=true)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
 
     >>> result = run_trace(cy_add_with_nogil, 1, 2)
@@ -207,7 +207,7 @@ def run_trace(func, *args, bint with_sys=False):
     >>> result[9:]
     [('line', 2), ('line', 5), ('return', 5)]
 
-    >>> result = run_trace(cy_add_with_nogil, 1, 2, with_sys=True)
+    >>> result = run_trace(cy_add_with_nogil, 1, 2, with_sys=true)
     >>> result[:5]  # sys
     [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
     >>> result[5:9]  # sys
@@ -228,9 +228,9 @@ def run_trace(func, *args, bint with_sys=False):
     [('call', 0), ('line', 2), ('return', 2)]
     >>> run_trace(global_name, 111)
     [('call', 0), ('line', 2), ('return', 2)]
-    >>> run_trace(global_name, 111, with_sys=True)
+    >>> run_trace(global_name, 111, with_sys=true)
     [('call', 0), ('line', 2), ('return', 2)]
-    >>> run_trace(global_name, 111, with_sys=True)
+    >>> run_trace(global_name, 111, with_sys=true)
     [('call', 0), ('line', 2), ('return', 2)]
     """
     trace = []
@@ -249,21 +249,21 @@ def run_trace(func, *args, bint with_sys=False):
     return trace
 
 
-def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
+def run_trace_with_exception(func, bint with_sys=false, bint fail=false):
     """
     >>> py_return = plain_python_functions["py_return"]
     >>> run_trace_with_exception(py_return)
     OK: 123
     [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
-    >>> run_trace_with_exception(py_return, with_sys=True)
+    >>> run_trace_with_exception(py_return, with_sys=true)
     OK: 123
     [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
 
-    >>> run_trace_with_exception(py_return, fail=True)
+    >>> run_trace_with_exception(py_return, fail=true)
     ValueError('failing line trace!')
     [('call', 0)]
 
-    #>>> run_trace_with_exception(lambda: 123, with_sys=True, fail=True)
+    #>>> run_trace_with_exception(lambda: 123, with_sys=true, fail=true)
     #ValueError('huhu')
     #[('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
 
@@ -271,14 +271,14 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
     >>> run_trace_with_exception(py_raise_exc)
     AttributeError('huhu')
     [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
-    >>> run_trace_with_exception(py_raise_exc, with_sys=True)
+    >>> run_trace_with_exception(py_raise_exc, with_sys=true)
     AttributeError('huhu')
     [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
-    >>> run_trace_with_exception(py_raise_exc, fail=True)
+    >>> run_trace_with_exception(py_raise_exc, fail=true)
     ValueError('failing line trace!')
     [('call', 0)]
 
-    #>>> run_trace_with_exception(raise_exc, with_sys=True, fail=True)
+    #>>> run_trace_with_exception(raise_exc, with_sys=true, fail=true)
     #ValueError('huhu')
     #[('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
     """
@@ -403,22 +403,22 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     return trace
 
 
-def disable_trace(func, *args, bint with_sys=False):
+def disable_trace(func, *args, bint with_sys=false):
     """
     >>> py_add = plain_python_functions["py_add"]
     >>> disable_trace(py_add, 1, 2)
     [('call', 0), ('line', 1)]
-    >>> disable_trace(py_add, 1, 2, with_sys=True)
+    >>> disable_trace(py_add, 1, 2, with_sys=true)
     [('call', 0), ('line', 1)]
 
     >>> disable_trace(cy_add, 1, 2)
     [('call', 0), ('line', 1)]
-    >>> disable_trace(cy_add, 1, 2, with_sys=True)
+    >>> disable_trace(cy_add, 1, 2, with_sys=true)
     [('call', 0), ('line', 1)]
 
     >>> disable_trace(cy_add_with_nogil, 1, 2)
     [('call', 0), ('line', 1)]
-    >>> disable_trace(cy_add_with_nogil, 1, 2, with_sys=True)
+    >>> disable_trace(cy_add_with_nogil, 1, 2, with_sys=true)
     [('call', 0), ('line', 1)]
     """
     trace = []

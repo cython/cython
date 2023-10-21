@@ -31,7 +31,7 @@ cdef class NotADataclass:
     def __hash__(self):
         return 1
 
-@dataclass(unsafe_hash=True)
+@dataclass(unsafe_hash=true)
 cdef class BasicDataclass:
     """
     >>> sorted(list(BasicDataclass.__dataclass_fields__.keys()))
@@ -125,10 +125,10 @@ cdef class ContainsNonPyFields:
     Traceback (most recent call last):
     TypeError: __init__() got an unexpected keyword argument 'mystruct_ptr'
     """
-    mystruct: S = cython.dataclasses.field(compare=False)
-    mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
+    mystruct: S = cython.dataclasses.field(compare=false)
+    mystruct_ptr: S_ptr = field(init=false, repr=false, default_factory=malloc_a_struct)
     memview: cython.int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
-                                        compare=False)
+                                        compare=false)
 
     def __dealloc__(self):
         free(self.mystruct_ptr)
@@ -212,7 +212,7 @@ cdef class TestVisibility:
     cdef public object d
     d = object()
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 cdef class TestFrozen:
     """
     >>> inst = TestFrozen(a=5)
@@ -228,7 +228,7 @@ def get_dataclass_initvar():
     return py_dataclasses.InitVar
 
   
-@dataclass(kw_only=True)
+@dataclass(kw_only=true)
 cdef class TestKwOnly:
     """
     >>> inst = TestKwOnly(a=3, b=2)

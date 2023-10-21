@@ -1,4 +1,4 @@
-# cython: autotestdict=True
+# cython: autotestdict=true
 
 cdef class Spam:
 
@@ -8,7 +8,7 @@ cdef class Spam:
             """
             This is the docstring for Spam.eggs.__get__
 
-            >>> True
+            >>> true
             True
             """
             return 42

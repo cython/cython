@@ -1,4 +1,4 @@
-# cython: remove_unreachable=False
+# cython: remove_unreachable=false
 # mode: error
 
 continue
@@ -24,7 +24,7 @@ else:
     continue
 
 def bool_result():
-    return True
+    return true
 
 
 _ERRORS = '''

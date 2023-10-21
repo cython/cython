@@ -29,7 +29,7 @@ def test_prange():
         for i in prange(10, schedule='dynamic'):
             sum1 += i
 
-    for j in prange(10, nogil=True):
+    for j in prange(10, nogil=true):
         sum2 += j
 
     return i, j, sum1, sum2
@@ -42,7 +42,7 @@ def test_descending_prange():
     cdef int i, start = 5, stop = -5, step = -2
     cdef int sum = 0
 
-    for i in prange(start, stop, step, nogil=True):
+    for i in prange(start, stop, step, nogil=true):
         sum += i
 
     return sum
@@ -62,7 +62,7 @@ def test_prange_matches_range(int start, int stop, int step):
     """
     cdef int i = -765432, range_last = -876543, prange_last = -987654
     prange_set = set()
-    for i in prange(start, stop, step, nogil=True, num_threads=3):
+    for i in prange(start, stop, step, nogil=true, num_threads=3):
         prange_last = i
         with gil:
             prange_set.add(i)
@@ -83,7 +83,7 @@ def test_propagation():
     cdef int i = 0, j = 0, x = 0, y = 0
     cdef int sum1 = 0, sum2 = 0
 
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         for j in prange(10):
             sum1 += i
 
@@ -108,7 +108,7 @@ def test_propagation():
 #    cdef int steps_taken = 0
 #    cdef int *steps_takenp = &steps_taken
 #
-#    for i in prange(start, stop, step, nogil=True):
+#    for i in prange(start, stop, step, nogil=true):
 #        steps_taken += 1
 #        if steps_takenp[0] > 10:
 #            abort()
@@ -124,7 +124,7 @@ def test_reassign_start_stop_step():
     cdef int i
     cdef int sum = 0
 
-    for i in prange(start, stop, step, nogil=True):
+    for i in prange(start, stop, step, nogil=true):
         start = -2
         stop = 2
         step = 0
@@ -144,7 +144,7 @@ def test_closure_parallel_privates():
 
     def test_target():
         nonlocal x
-        for x in prange(10, nogil=True):
+        for x in prange(10, nogil=true):
             pass
         return x
 
@@ -155,7 +155,7 @@ def test_closure_parallel_privates():
         cdef int i
 
         x = 0
-        for i in prange(10, nogil=True):
+        for i in prange(10, nogil=true):
             x += i
 
         return x
@@ -170,7 +170,7 @@ def test_closure_parallel_privates():
         yield x
         x = 2
 
-        for i in prange(10, nogil=True):
+        for i in prange(10, nogil=true):
             x = i
 
         yield x
@@ -193,7 +193,7 @@ def test_closure_parallel_with_gil():
 
         cdef int i
 
-        for i in prange(10, nogil=True):
+        for i in prange(10, nogil=true):
             with gil:
                 sum += temp1 + temp2 + i
                 # assert abs(sum - sum) == 0
@@ -224,7 +224,7 @@ def test_pure_mode():
     for i in pure_parallel.prange(5):
         print i
 
-    for i in pure_parallel.prange(4, -1, -1, schedule='dynamic', nogil=True):
+    for i in pure_parallel.prange(4, -1, -1, schedule='dynamic', nogil=true):
         print i
 
     with pure_parallel.parallel():
@@ -286,7 +286,7 @@ def test_nan_init():
             errp[0] = 1
 
     cdef int i
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         # First, trick the error checking to make it believe these variables
         # are initialized after this if
 
@@ -325,7 +325,7 @@ def test_else_clause():
     """
     cdef int i
 
-    for i in prange(5, nogil=True):
+    for i in prange(5, nogil=true):
         pass
     else:
         nogil_print('else clause executed')
@@ -336,7 +336,7 @@ def test_prange_break():
     """
     cdef int i
 
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         if i == 8:
             break
     else:
@@ -363,7 +363,7 @@ def test_prange_continue():
     if p == NULL:
         raise MemoryError
 
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         if i % 2 != 0:
             continue
 
@@ -384,7 +384,7 @@ def test_nested_break_continue():
     """
     cdef int i, j, result1 = 0, result2 = 0
 
-    for i in prange(10, nogil=True, num_threads=2, schedule='static'):
+    for i in prange(10, nogil=true, num_threads=2, schedule='static'):
         for j in prange(10, num_threads=2, schedule='static'):
             if i == 6 and j == 7:
                 result1 = i
@@ -435,7 +435,7 @@ def test_parallel_exceptions():
     mylist = []
 
     try:
-        for i in prange(10, nogil=True):
+        for i in prange(10, nogil=true):
             try:
                 for j in prange(10):
                     with gil:
@@ -477,7 +477,7 @@ def test_parallel_exceptions_unnested():
 
 cdef int parallel_exc_cdef() except -3:
     cdef int i, j
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         for j in prange(10, num_threads=6):
             with gil:
                 raise Exception("propagate me")
@@ -486,7 +486,7 @@ cdef int parallel_exc_cdef() except -3:
 
 cdef int parallel_exc_cdef_unnested() except -3:
     cdef int i
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         with gil:
             raise Exception("propagate me")
 
@@ -504,7 +504,7 @@ def test_parallel_exc_cdef():
 
 cpdef int parallel_exc_cpdef() except -3:
     cdef int i, j
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         for j in prange(10, num_threads=6):
             with gil:
                 raise Exception("propagate me")
@@ -513,7 +513,7 @@ cpdef int parallel_exc_cpdef() except -3:
 
 cpdef int parallel_exc_cpdef_unnested() except -3:
     cdef int i, j
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         with gil:
             raise Exception("propagate me")
 
@@ -532,7 +532,7 @@ def test_parallel_exc_cpdef():
 
 cdef int parallel_exc_nogil_swallow() except -1:
     cdef int i, j
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         try:
             for j in prange(10):
                 with gil:
@@ -573,10 +573,10 @@ def parallel_exc_replace():
     Exception: propagate me instead
     """
     cdef int i, j
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         with gil:
             try:
-                for j in prange(10, nogil=True):
+                for j in prange(10, nogil=true):
                     with gil:
                         raise Exception("propagate me")
             except Exception, e:
@@ -594,7 +594,7 @@ def parallel_exceptions2():
     """
     cdef int i, j, k
 
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         for j in prange(10):
             for k in prange(10):
                 if i + j + k > 20:
@@ -612,7 +612,7 @@ def test_parallel_with_gil_return():
     """
     cdef int i, sum = 0
 
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         with gil:
             obj = i
             sum += obj
@@ -630,7 +630,7 @@ def test_parallel_with_gil_continue_unnested():
     """
     cdef int i, sum = 0
 
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         with gil:
             if i % 2:
                 continue
@@ -652,7 +652,7 @@ def outer_parallel_section():
     450
     """
     cdef int i, sum = 0
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         sum += inner_parallel_section()
     return sum
 
@@ -667,13 +667,13 @@ def test_nogil_cdef_except_clause():
     >>> test_nogil_cdef_except_clause()
     """
     cdef int i
-    for i in prange(10, nogil=True):
+    for i in prange(10, nogil=true):
         nogil_cdef_except_clause()
         nogil_cdef_except_star()
 
 def test_num_threads_compile():
     cdef int i
-    for i in prange(10, nogil=True, num_threads=2):
+    for i in prange(10, nogil=true, num_threads=2):
         pass
 
     with nogil, cython.parallel.parallel(num_threads=2):
@@ -696,12 +696,12 @@ def test_chunksize():
     cdef int i, sum
 
     sum = 0
-    for i in prange(10, nogil=True, num_threads=2, schedule='static', chunksize=chunksize()):
+    for i in prange(10, nogil=true, num_threads=2, schedule='static', chunksize=chunksize()):
         sum += i
     print sum
 
     sum = 0
-    for i in prange(10, nogil=True, num_threads=6, schedule='dynamic', chunksize=chunksize()):
+    for i in prange(10, nogil=true, num_threads=6, schedule='dynamic', chunksize=chunksize()):
         sum += i
     print sum
 
@@ -728,7 +728,7 @@ def test_clean_temps():
     cdef Py_ssize_t i
 
     try:
-        for i in prange(100, nogil=True, num_threads=1):
+        for i in prange(100, nogil=true, num_threads=1):
             with gil:
                 x = PrintOnDealloc() + error()
     except Exception, e:
@@ -746,7 +746,7 @@ def test_pointer_temps(double x):
     arr[0] = 4.0
     arr[1] = 3.0
 
-    for i in prange(10, nogil=True, num_threads=1):
+    for i in prange(10, nogil=true, num_threads=1):
         f = &arr[0]
 
     return f[0]
@@ -762,7 +762,7 @@ def test_prange_in_with(int x, ctx):
     """
     cdef int i
     with ctx as l:
-        for i in prange(x, nogil=True):
+        for i in prange(x, nogil=true):
             with gil:
                 l[0] += i
         return l[0]
@@ -803,7 +803,7 @@ def test_inner_private():
         address_of_temp(not_parallel[n], get_value(), 0)
     assert not_parallel[0] == not_parallel[1], "Addresses should be the same since they come from the same temp"
 
-    for n in prange(2, num_threads=2, schedule='static', chunksize=1, nogil=True):
+    for n in prange(2, num_threads=2, schedule='static', chunksize=1, nogil=true):
         address_of_temp(outer_vals[n], get_value(), n)
         for m in prange(1):
             # second temp just ensures different numbering

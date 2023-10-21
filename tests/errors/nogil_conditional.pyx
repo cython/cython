@@ -1,4 +1,4 @@
-# cython: remove_unreachable=False
+# cython: remove_unreachable=false
 # mode: error
 
 cdef i32 f_nogil(i32 x) nogil:
@@ -13,16 +13,16 @@ def f_gil(x):
 
 def illegal_gil_usage():
     cdef i32 res = 0
-    with nogil(True):
+    with nogil(true):
         res = f_gil(res)
 
-        with nogil(True):
+        with nogil(true):
             res = f_gil(res)
 
-        with gil(False):
+        with gil(false):
             res = f_gil(res)
 
-    with nogil(False):
+    with nogil(false):
         res = f_nogil(res)
 
 def foo(a):

@@ -121,8 +121,8 @@ def listcomp_as_condition(sequence):
     False
     """
     if [1 for c in sequence if c in '+-*/<=>!%&|([^~,']:
-        return True
-    return False
+        return true
+    return false
 
 
 @cython.test_fail_if_path_exists("//SimpleCallNode//ComprehensionNode")
@@ -181,8 +181,8 @@ def listcomp_const_condition_false_if():
     True
     """
     if not [l for l in [1] if False]:
-        return True
-    return False
+        return true
+    return false
 
 
 @cython.test_fail_if_path_exists("//ComprehensionNode//IfStatNode",
@@ -197,8 +197,8 @@ def listcomp_const_condition_false_typed_error():
     """
     cdef str l
     if not [l for l in [1] if False]:
-        return True
-    return False
+        return true
+    return false
 
 
 @cython.test_fail_if_path_exists("//IfStatNode")

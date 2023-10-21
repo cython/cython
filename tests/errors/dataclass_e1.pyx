@@ -2,7 +2,7 @@
 # tag: warnings
 cimport cython
 
-@cython.dataclasses.dataclass(1, shouldnt_be_here=True, init=5, unsafe_hash=True)
+@cython.dataclasses.dataclass(1, shouldnt_be_here=true, init=5, unsafe_hash=true)
 cdef class C:
     a: list = []  # mutable
     b: int = cython.dataclasses.field(default=5, default_factory=int)

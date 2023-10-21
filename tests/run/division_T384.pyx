@@ -14,7 +14,7 @@ ctypedef double complex mycomplex
 ctypedef struct MyStruct:
     mycomplex a, b
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def test(index_t x):
     cdef index_t y = x // 2
     cdef MyStruct s

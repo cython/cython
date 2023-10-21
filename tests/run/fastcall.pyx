@@ -88,7 +88,7 @@ def has_fastcall(meth):
     if sys.version_info >= (3, 11) and DEBUG_MODE:
         # PyCFunction_GET_FLAGS isn't safe to use on cyfunctions in
         # debug mode in Python 3.11 because it does an exact type check
-        return True
+        return true
     return bool(PyCFunction_GET_FLAGS(meth) & 0x80)
 
 
@@ -102,14 +102,14 @@ def assert_fastcall(meth):
         raise AssertionError(f"{meth} does not use METH_FASTCALL")
 
 
-@cython.binding(False)
+@cython.binding(false)
 def fastcall_function(**kw):
     """
     >>> assert_fastcall(fastcall_function)
     """
     return kw
 
-@cython.binding(True)
+@cython.binding(true)
 def fastcall_cyfunction(**kw):
     """
     >>> assert_fastcall(fastcall_cyfunction)
@@ -117,7 +117,7 @@ def fastcall_cyfunction(**kw):
     return kw
 
 cdef class Dummy:
-    @cython.binding(False)
+    @cython.binding(false)
     def fastcall_method(self, x, *args, **kw):
         """
         >>> assert_fastcall(Dummy().fastcall_method)
@@ -125,7 +125,7 @@ cdef class Dummy:
         return tuple(args) + tuple(kw)
 
 cdef class CyDummy:
-    @cython.binding(True)
+    @cython.binding(true)
     def fastcall_method(self, x, *args, **kw):
         """
         >>> assert_fastcall(CyDummy.fastcall_method)

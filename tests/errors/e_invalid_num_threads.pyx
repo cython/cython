@@ -30,7 +30,7 @@ with nogil, parallel():
         pass
 
 # this one is valid
-for i in prange(10, nogil=True, num_threads=2):
+for i in prange(10, nogil=true, num_threads=2):
     pass
 
 _ERRORS = u"""

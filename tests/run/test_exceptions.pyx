@@ -631,7 +631,7 @@ class ExceptionTests(unittest.TestCase):
             obj = None
             obj = wr()
             # guarantee no ref cycles on CPython (don't gc_collect)
-            if check_impl_detail(cpython=False):
+            if check_impl_detail(cpython=false):
                 gc_collect()
             self.assertIsNone(obj)
 
@@ -649,7 +649,7 @@ class ExceptionTests(unittest.TestCase):
             except MyException:
                 pass
         obj = None
-        if check_impl_detail(cpython=False):
+        if check_impl_detail(cpython=false):
             gc_collect()
         obj = wr()
         self.assertIsNone(obj)
@@ -659,13 +659,13 @@ class ExceptionTests(unittest.TestCase):
             def __enter__(self):
                 return self
             def __exit__ (self, exc_type, exc_value, exc_tb):
-                return True
+                return true
         obj = MyObj()
         wr = weakref.ref(obj)
         with Context():
             inner_raising_func()
         obj = None
-        if check_impl_detail(cpython=False):
+        if check_impl_detail(cpython=false):
             gc_collect()
         obj = wr()
         self.assertIsNone(obj)
@@ -1331,7 +1331,7 @@ class ImportErrorTests(unittest.TestCase):
             ImportError(invalid='keyword')
 
         with self.assertRaisesRegex(TypeError, msg):
-            ImportError('test', invalid='keyword', another=True)
+            ImportError('test', invalid='keyword', another=true)
 
     @unittest.skipIf(sys.version_info < (3, 7), "requires Py3.7+")
     def test_reset_attributes(self):
@@ -1350,7 +1350,7 @@ class ImportErrorTests(unittest.TestCase):
 
     def test_non_str_argument(self):
         # Issue #15778
-        with check_warnings(('', BytesWarning), quiet=True):
+        with check_warnings(('', BytesWarning), quiet=true):
             arg = b'abc'
             exc = ImportError(arg)
             self.assertEqual(str(arg), str(exc))

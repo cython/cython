@@ -169,7 +169,7 @@ def splitlines_keep(unicode s, keep):
 def splitlines_keep_bint(unicode s):
     """
     >>> def test_splitlines_keep_bint(s):
-    ...     py = s.splitlines(True) + ['--'] + s.splitlines(False)
+    ...     py = s.splitlines(true) + ['--'] + s.splitlines(false)
     ...     cy = splitlines_keep_bint(s)
     ...     assert py == cy, (py, cy)
     ...     return cy
@@ -186,7 +186,7 @@ def splitlines_keep_bint(unicode s):
     sdflk as sa
     sadas asdas fsdf\x20
     """
-    return s.splitlines(True) + ['--'] + s.splitlines(False)
+    return s.splitlines(true) + ['--'] + s.splitlines(false)
 
 
 # unicode.join(s, iterable)
@@ -339,9 +339,9 @@ def startswith(unicode s, sub):
     True
     """
     if s.startswith(sub):
-        return True
+        return true
     else:
-        return False
+        return false
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
@@ -375,9 +375,9 @@ def startswith_start_end(unicode s, sub, start, end):
     False
     """
     if s.startswith(sub, start, end):
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 # unicode.endswith(s, prefix, [start, [end]])
@@ -406,9 +406,9 @@ def endswith(unicode s, sub):
     False
     """
     if s.endswith(sub):
-        return True
+        return true
     else:
-        return False
+        return false
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
@@ -448,9 +448,9 @@ def endswith_start_end(unicode s, sub, start, end):
     False
     """
     if s.endswith(sub, start, end):
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 # unicode.__contains__(s, sub)

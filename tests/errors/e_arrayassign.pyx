@@ -1,5 +1,5 @@
 # mode: error
-# cython: auto_pickle=False
+# cython: auto_pickle=false
 
 ctypedef i32[1] int_array
 ctypedef i32[2] int_array2

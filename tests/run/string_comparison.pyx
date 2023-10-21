@@ -124,9 +124,9 @@ def unicode_cascade_untyped_end_bool(unicode s1, unicode s2):
     False
     """
     if s1 == s2 == u"abcdefg" == (<object>ustring1) == ustring1:
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 # str
@@ -511,7 +511,7 @@ def untyped_unicode_literal_eq_bool(s):
     >>> untyped_unicode_literal_eq_bool(ustring2)
     False
     """
-    return True if s == u"abcdefg" else False
+    return true if s == u"abcdefg" else False
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
@@ -530,7 +530,7 @@ def untyped_str_literal_eq_bool(s):
     >>> untyped_str_literal_eq_bool(ustring2)
     False
     """
-    return True if s == "abcdefg" else False
+    return true if s == "abcdefg" else False
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
@@ -572,7 +572,7 @@ def untyped_unicode_cascade_bool(s1, unicode s2):
     >>> untyped_unicode_cascade_bool(ustring1, ustring2)
     False
     """
-    return True if s1 == s2 == u"abcdefg" else False
+    return true if s1 == s2 == u"abcdefg" else False
 
 @cython.test_assert_path_exists(
     "//PrimaryCmpNode",
@@ -599,7 +599,7 @@ def untyped_untyped_unicode_cascade_bool(s1, s2):
     >>> untyped_untyped_unicode_cascade_bool(1, 1)
     False
     """
-    return True if s1 == s2 == u"abcdefg" else False
+    return true if s1 == s2 == u"abcdefg" else False
 
 
 # bytes/str comparison

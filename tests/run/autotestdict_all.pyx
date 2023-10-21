@@ -1,4 +1,4 @@
-# cython: autotestdict=True, autotestdict.all=True
+# cython: autotestdict=true, autotestdict.all=true
 
 """
 Tests autotestdict compiler directive.
@@ -55,7 +55,7 @@ class MyClass:
     Needs no hack
 
     >>> add_log("class")
-    >>> True
+    >>> true
     True
     """
 
@@ -67,7 +67,7 @@ cdef class MyCdefClass:
     Needs no hack
 
     >>> add_log("cdef class")
-    >>> True
+    >>> true
     True
     """
     def method(self):
@@ -83,7 +83,7 @@ cdef class MyCdefClass:
         """
         Should not be included, as it can't be looked up with getattr
 
-        >>> True
+        >>> true
         False
         """
 
@@ -91,7 +91,7 @@ cdef class MyCdefClass:
         """
         Should not be included, as it can't be looked up with getattr
 
-        >>> True
+        >>> true
         False
         """
 
@@ -99,7 +99,7 @@ cdef class MyCdefClass:
         """
         Should not be included, as it can't be looked up with getattr in Py 2
 
-        >>> True
+        >>> true
         False
         """
 
@@ -107,7 +107,7 @@ cdef class MyCdefClass:
         """
         Should not be included, as it can't be looked up with getattr in Py 3.1
 
-        >>> True
+        >>> true
         False
         """
 
@@ -131,7 +131,7 @@ cdef class MyOtherCdefClass:
     """
     Needs no hack
 
-    >>> True
+    >>> true
     True
     """
 
@@ -139,6 +139,6 @@ cdef class MyOtherCdefClass:
         """
         Should not be included, as it can't be looked up with getattr in Py 2
 
-        >>> True
+        >>> true
         False
         """

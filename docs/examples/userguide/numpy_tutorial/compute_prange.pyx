@@ -18,8 +18,8 @@ ctypedef fused my_type:
 cdef my_type clip(my_type a, my_type min_value, my_type max_value) nogil:
     return min(max(a, min_value), max_value)
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@cython.boundscheck(false)
+@cython.wraparound(false)
 def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type b, my_type c):
     cdef isize x_max = array_1.shape[0]
     cdef isize y_max = array_1.shape[1]
@@ -40,7 +40,7 @@ def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type
     cdef isize x, y
 
     # We use prange here.
-    for x in prange(x_max, nogil=True):
+    for x in prange(x_max, nogil=true):
         for y in range(y_max):
             tmp = clip(array_1[x, y], 2, 10)
             tmp = tmp * a + array_2[x, y] * b

@@ -29,7 +29,7 @@ class C_TestCase_test_named_init_params:
 class C_TestCase_test_field_named_object:
     object: str
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 @cclass
 class C_TestCase_test_field_named_object_frozen:
     object: str
@@ -39,12 +39,12 @@ class C_TestCase_test_field_named_object_frozen:
 class C0_TestCase_test_0_field_compare:
     pass
 
-@dataclass(order=False)
+@dataclass(order=false)
 @cclass
 class C1_TestCase_test_0_field_compare:
     pass
 
-@dataclass(order=True)
+@dataclass(order=true)
 @cclass
 class C_TestCase_test_0_field_compare:
     pass
@@ -54,12 +54,12 @@ class C_TestCase_test_0_field_compare:
 class C0_TestCase_test_1_field_compare:
     x: int
 
-@dataclass(order=False)
+@dataclass(order=false)
 @cclass
 class C1_TestCase_test_1_field_compare:
     x: int
 
-@dataclass(order=True)
+@dataclass(order=true)
 @cclass
 class C_TestCase_test_1_field_compare:
     x: int
@@ -73,7 +73,7 @@ class C_TestCase_test_field_no_default:
 @cclass
 class C_TestCase_test_not_in_compare:
     x: int = 0
-    y: int = field(compare=False, default=4)
+    y: int = field(compare=false, default=4)
 
 class Mutable_TestCase_test_deliberately_mutable_defaults:
 
@@ -393,7 +393,7 @@ class P_TestCase_test_dataclasses_pickleable:
 @cclass
 class Q_TestCase_test_dataclasses_pickleable:
     x: int
-    y: int = field(default=0, init=False)
+    y: int = field(default=0, init=false)
 
 @dataclass
 @cclass
@@ -409,7 +409,7 @@ class C_TestInit_test_overwriting_init:
     def __init__(self, x):
         self.x = 2 * x
 
-@dataclass(init=True)
+@dataclass(init=true)
 @cclass
 class C_TestInit_test_overwriting_init_:
     x: int
@@ -417,7 +417,7 @@ class C_TestInit_test_overwriting_init_:
     def __init__(self, x):
         self.x = 2 * x
 
-@dataclass(init=False)
+@dataclass(init=false)
 @cclass
 class C_TestInit_test_overwriting_init__:
     x: int
@@ -433,7 +433,7 @@ class C_TestRepr_test_overwriting_repr:
     def __repr__(self):
         return 'x'
 
-@dataclass(repr=True)
+@dataclass(repr=true)
 @cclass
 class C_TestRepr_test_overwriting_repr_:
     x: int
@@ -441,7 +441,7 @@ class C_TestRepr_test_overwriting_repr_:
     def __repr__(self):
         return 'x'
 
-@dataclass(repr=False)
+@dataclass(repr=false)
 @cclass
 class C_TestRepr_test_overwriting_repr__:
     x: int
@@ -449,12 +449,12 @@ class C_TestRepr_test_overwriting_repr__:
     def __repr__(self):
         return 'x'
 
-@dataclass(eq=False)
+@dataclass(eq=false)
 @cclass
 class C_TestEq_test_no_eq:
     x: int
 
-@dataclass(eq=False)
+@dataclass(eq=false)
 @cclass
 class C_TestEq_test_no_eq_:
     x: int
@@ -470,7 +470,7 @@ class C_TestEq_test_overwriting_eq:
     def __eq__(self, other):
         return other == 3
 
-@dataclass(eq=True)
+@dataclass(eq=true)
 @cclass
 class C_TestEq_test_overwriting_eq_:
     x: int
@@ -478,7 +478,7 @@ class C_TestEq_test_overwriting_eq_:
     def __eq__(self, other):
         return other == 4
 
-@dataclass(eq=False)
+@dataclass(eq=false)
 @cclass
 class C_TestEq_test_overwriting_eq__:
     x: int
@@ -486,28 +486,28 @@ class C_TestEq_test_overwriting_eq__:
     def __eq__(self, other):
         return other == 5
 
-@dataclass(unsafe_hash=True)
+@dataclass(unsafe_hash=true)
 @cclass
 class C_TestHash_test_unsafe_hash:
     x: int
     y: str
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 @cclass
 class C_TestHash_test_0_field_hash:
     pass
 
-@dataclass(unsafe_hash=True)
+@dataclass(unsafe_hash=true)
 @cclass
 class C_TestHash_test_0_field_hash_:
     pass
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 @cclass
 class C_TestHash_test_1_field_hash:
     x: int
 
-@dataclass(unsafe_hash=True)
+@dataclass(unsafe_hash=true)
 @cclass
 class C_TestHash_test_1_field_hash_:
     x: int
@@ -526,19 +526,19 @@ class Base1_TestMakeDataclass_test_base_dataclass:
 class Base2_TestMakeDataclass_test_base_dataclass:
     pass
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 @cclass
 class C_TestReplace_test:
     x: int
     y: int
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 @cclass
 class C_TestReplace_test_invalid_field_name:
     x: int
     y: int
 
-@dataclass(frozen=True)
+@dataclass(frozen=true)
 @cclass
 class C_TestReplace_test_invalid_object:
     x: int
@@ -548,7 +548,7 @@ class C_TestReplace_test_invalid_object:
 @cclass
 class C_TestReplace_test_no_init:
     x: int
-    y: int = field(init=False, default=10)
+    y: int = field(init=false, default=10)
 
 @dataclass
 @cclass

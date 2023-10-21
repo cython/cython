@@ -11,7 +11,7 @@ class PyBase(object):
     def py_method(self):
         return "PyBase"
 
-@cython.binding(True)
+@cython.binding(true)
 cdef class BothBound(CBase, PyBase):
     cdef dict __dict__
     """
@@ -47,7 +47,7 @@ cdef class BothSub(BothBound):
     """
     pass
 
-@cython.binding(False)
+@cython.binding(false)
 cdef class BothUnbound(CBase, PyBase):
     cdef dict __dict__
     """

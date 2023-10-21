@@ -440,9 +440,9 @@ cdef bytes retb():
 
 def conditional(x):
     """
-    >>> conditional(True)
+    >>> conditional(true)
     (True, 'Python object')
-    >>> conditional(False)
+    >>> conditional(false)
     (False, 'Python object')
     """
     if x:

@@ -21,8 +21,8 @@ cdef int* except_expr(bint fire) except <int*>-1:
 
 def test_except_expr(bint fire):
     """
-    >>> test_except_expr(False)
-    >>> test_except_expr(True)
+    >>> test_except_expr(false)
+    >>> test_except_expr(true)
     Traceback (most recent call last):
     ...
     RuntimeError
@@ -35,8 +35,8 @@ cdef double except_big_result(bint fire) except 10000000000000000000000000000000
 
 def test_except_big_result(bint fire):
     """
-    >>> test_except_big_result(False)
-    >>> test_except_big_result(True)
+    >>> test_except_big_result(false)
+    >>> test_except_big_result(true)
     Traceback (most recent call last):
     ...
     RuntimeError
@@ -50,8 +50,8 @@ cdef unsigned short except_promotion_compare(bint fire) except *:
 
 def test_except_promotion_compare(bint fire):
     """
-    >>> test_except_promotion_compare(False)
-    >>> test_except_promotion_compare(True)
+    >>> test_except_promotion_compare(false)
+    >>> test_except_promotion_compare(true)
     Traceback (most recent call last):
     ...
     RuntimeError

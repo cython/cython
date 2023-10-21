@@ -57,7 +57,7 @@ def small_int_pow(long s):
     return s**0, s**1, s**2, s**3, s**4
 
 
-@cython.cpow(True)
+@cython.cpow(true)
 def int_pow_cpow(short a, short b):
     """
     >>> int_pow_cpow(7, 2)
@@ -69,7 +69,7 @@ def int_pow_cpow(short a, short b):
     """
     return a**b
 
-@cython.cpow(False)
+@cython.cpow(false)
 def int_pow(short a, short b):
     """
     >>> int_pow(7, 2)

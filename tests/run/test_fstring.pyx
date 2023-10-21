@@ -20,7 +20,7 @@ from Cython.TestUtils import CythonTest
 from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
 
 def cy_eval(s, **kwargs):
-    return cython_inline('return ' + s, force=True, **kwargs)
+    return cython_inline('return ' + s, force=true, **kwargs)
 
 a_global = 'global variable'
 
@@ -46,7 +46,7 @@ class TestCase(CythonTest):
                     init_thread()  # reset error status
             else:
                 try:
-                    cython_inline(str, quiet=True)
+                    cython_inline(str, quiet=true)
                 except exception_type:
                     assert True
                 else:

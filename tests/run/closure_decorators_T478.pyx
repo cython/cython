@@ -6,10 +6,10 @@ __doc__ = """
     >>> Num(13).is_prime()
     args (Num(13),) kwds {}
     True
-    >>> Num(13).is_prime(True)
+    >>> Num(13).is_prime(true)
     args (Num(13), True) kwds {}
     True
-    >>> Num(15).is_prime(print_factors=True)
+    >>> Num(15).is_prime(print_factors=true)
     args (Num(15),) kwds {'print_factors': True}
     3 5
     False
@@ -33,11 +33,11 @@ cdef class Num:
         return "Num(%s)" % self.n
 
     @print_args
-    def is_prime(self, bint print_factors=False):
+    def is_prime(self, bint print_factors=false):
         if self.n == 2:
-            return True
+            return true
         elif self.n < 2:
-            return False
+            return false
         elif self.n % 2 == 0:
             if print_factors:
                 print 2, self.n // 2
@@ -46,6 +46,6 @@ cdef class Num:
             if self.n % i == 0:
                 if print_factors:
                     print i, self.n // i
-                return False
+                return false
             i += 2
-        return True
+        return true

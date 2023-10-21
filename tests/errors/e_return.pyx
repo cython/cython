@@ -1,4 +1,4 @@
-# cython: remove_unreachable=False
+# cython: remove_unreachable=false
 # mode: error
 
 cdef void g():

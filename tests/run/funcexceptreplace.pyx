@@ -4,7 +4,7 @@ __doc__ = u"""
 ...     if IS_PY3:
 ...         print(isinstance(sys.exc_info()[1].__context__, ValueError))
 ...     else:
-...         print(True)
+...         print(true)
 True
 """
 

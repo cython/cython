@@ -184,9 +184,9 @@ def negate(long long a):
 def bool_cast(long long a):
     cdef wrapped_int wa = wrapped_int(a)
     if wa:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def index(long long a, long long b):
     cdef wrapped_int wa = wrapped_int(a)

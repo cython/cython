@@ -1,4 +1,4 @@
-#cython: embedsignature=True, annotation_typing=False
+#cython: embedsignature=true, annotation_typing=false
 
 # signatures here are a little fragile - when they are
 # generated during the build process gives slightly

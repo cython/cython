@@ -129,8 +129,8 @@ def test_func_that_can_raise_or_throw_c_return(bint py):
 
 def test_int_raw(bint fire):
     """
-    >>> test_int_raw(False)
-    >>> test_int_raw(True)
+    >>> test_int_raw(false)
+    >>> test_int_raw(true)
     Traceback (most recent call last):
     ...
     RuntimeError: Unknown exception
@@ -139,8 +139,8 @@ def test_int_raw(bint fire):
 
 def test_int_value(bint fire):
     """
-    >>> test_int_value(False)
-    >>> test_int_value(True)
+    >>> test_int_value(false)
+    >>> test_int_value(true)
     Traceback (most recent call last):
     ...
     ValueError
@@ -149,8 +149,8 @@ def test_int_value(bint fire):
 
 def test_int_custom(bint fire):
     """
-    >>> test_int_custom(False)
-    >>> test_int_custom(True)
+    >>> test_int_custom(false)
+    >>> test_int_custom(true)
     Traceback (most recent call last):
     ...
     TypeError: custom
@@ -159,8 +159,8 @@ def test_int_custom(bint fire):
 
 def test_index_raw(bint fire):
     """
-    >>> test_index_raw(False)
-    >>> test_index_raw(True)
+    >>> test_index_raw(false)
+    >>> test_index_raw(true)
     Traceback (most recent call last):
     ...
     IndexError: c++ error
@@ -169,8 +169,8 @@ def test_index_raw(bint fire):
 
 def test_index_value(bint fire):
     """
-    >>> test_index_value(False)
-    >>> test_index_value(True)
+    >>> test_index_value(false)
+    >>> test_index_value(true)
     Traceback (most recent call last):
     ...
     ValueError: c++ error
@@ -179,8 +179,8 @@ def test_index_value(bint fire):
 
 def test_index_custom(bint fire):
     """
-    >>> test_index_custom(False)
-    >>> test_index_custom(True)
+    >>> test_index_custom(false)
+    >>> test_index_custom(true)
     Traceback (most recent call last):
     ...
     TypeError: custom
@@ -189,8 +189,8 @@ def test_index_custom(bint fire):
 
 def test_cppclass_method_raw(bint fire):
     """
-    >>> test_cppclass_method_raw(False)
-    >>> test_cppclass_method_raw(True)
+    >>> test_cppclass_method_raw(false)
+    >>> test_cppclass_method_raw(true)
     Traceback (most recent call last):
     ...
     RuntimeError: Unknown exception
@@ -203,8 +203,8 @@ def test_cppclass_method_raw(bint fire):
 
 def test_cppclass_method_value(bint fire):
     """
-    >>> test_cppclass_method_value(False)
-    >>> test_cppclass_method_value(True)
+    >>> test_cppclass_method_value(false)
+    >>> test_cppclass_method_value(true)
     Traceback (most recent call last):
     ...
     ValueError
@@ -217,8 +217,8 @@ def test_cppclass_method_value(bint fire):
 
 def test_cppclass_method_custom(bint fire):
     """
-    >>> test_cppclass_method_custom(False)
-    >>> test_cppclass_method_custom(True)
+    >>> test_cppclass_method_custom(false)
+    >>> test_cppclass_method_custom(true)
     Traceback (most recent call last):
     ...
     TypeError: custom

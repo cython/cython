@@ -2,7 +2,7 @@
 # tag: cpp, cpp17, no-cpp-locals
 # no-cpp-locals because the test is already run with it explicitly set
 
-# cython: cpp_locals=True
+# cython: cpp_locals=true
 
 cimport cython
 
@@ -134,7 +134,7 @@ def maybe_assign_nocheck(assign, value):
     """
     if assign:
         x = C(value)
-    with cython.initializedcheck(False):
+    with cython.initializedcheck(false):
         print(x.getX())
 
 def uses_temp(value):
@@ -190,7 +190,7 @@ cdef class HoldsC:
 cdef acceptC(C& c):
     return c.getX()
 
-@cython.cpp_locals(False)
+@cython.cpp_locals(false)
 def access_from_function_with_different_directive(HoldsC c):
     # doctest is in HoldsC class
     print(acceptC(c.value))  # this originally tried to pass a __Pyx_Optional<C> as a C instance
@@ -205,9 +205,9 @@ def dont_test_on_pypy(f):
 @dont_test_on_pypy  # non-deterministic destruction
 def testHoldsCDestruction(initialize):
     """
-    >>> testHoldsCDestruction(True)
+    >>> testHoldsCDestruction(true)
     ~C()
-    >>> testHoldsCDestruction(False)  # no destructor
+    >>> testHoldsCDestruction(false)  # no destructor
     """
     x = HoldsC(initialize, True)
     del x

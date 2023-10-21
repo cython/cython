@@ -54,7 +54,7 @@ def test_derived_types(int size, bint round):
     print typeof(ptr)
     del ptr
 
-def test_stack_allocated(bint b=True):
+def test_stack_allocated(bint b=true):
     """
     >>> test_stack_allocated()
     """

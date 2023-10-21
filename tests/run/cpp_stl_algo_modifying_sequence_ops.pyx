@@ -316,13 +316,13 @@ def test_swap_ranges():
     print(a, b)
 
 
-def selection_sort(vector[int] values, reversed=False):
+def selection_sort(vector[int] values, reversed=false):
     """
     Test iter_swap using cppreference example. Extra "reversed argument tests max_element
 
     >>> selection_sort([-7, 6, 2, 4, -1, 6, -9, -1, 2, -5, 10, -9, -5, -3, -5, -3, 6, 6, 1, 8])
     [-9, -9, -7, -5, -5, -5, -3, -3, -1, -1, 1, 2, 2, 4, 6, 6, 6, 6, 8, 10]
-    >>> selection_sort([-7, 6, 2, 4, -1, 6, -9, -1, 2, -5, 10, -9, -5, -3, -5, -3, 6, 6, 1, 8], reversed=True)
+    >>> selection_sort([-7, 6, 2, 4, -1, 6, -9, -1, 2, -5, 10, -9, -5, -3, -5, -3, 6, 6, 1, 8], reversed=true)
     [10, 8, 6, 6, 6, 6, 4, 2, 2, 1, -1, -1, -3, -3, -5, -5, -5, -7, -9, -9]
     """
     i = values.begin()

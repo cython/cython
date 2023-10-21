@@ -215,7 +215,7 @@ def test_cdef_attribute():
 
     print ExtClass().mview
 
-@cython.boundscheck(False)
+@cython.boundscheck(false)
 def test_nogil_unbound_localerror():
     """
     >>> test_nogil_unbound_localerror()
@@ -449,7 +449,7 @@ def memview_iter(f64[:, :] arg):
         for val in mview1d:
             total += val
     if total == 15:
-        return True
+        return true
 
 #
 # Test all kinds of indexing and flags
@@ -664,8 +664,8 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
-@cython.binding(False)
-@cython.always_allow_keywords(False)
+@cython.binding(false)
+@cython.always_allow_keywords(false)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -749,7 +749,7 @@ def test_pyview_of_memview(i32[:] ints):
     """
     return ints
 
-def test_generic_slicing(arg, indirect=False):
+def test_generic_slicing(arg, indirect=false):
     """
     Test simple slicing
     >>> test_generic_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
@@ -768,7 +768,7 @@ def test_generic_slicing(arg, indirect=False):
     released A
 
     Test indirect slicing
-    >>> test_generic_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)), indirect=True)
+    >>> test_generic_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)), indirect=true)
     acquired A
     (2, 0, 2)
     0 1 -1
@@ -776,7 +776,7 @@ def test_generic_slicing(arg, indirect=False):
 
     >>> stride1 = 21 * 14
     >>> stride2 = 21
-    >>> test_generic_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)), indirect=True)
+    >>> test_generic_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)), indirect=true)
     acquired A
     (3, 9, 2)
     10 1 -1
@@ -1073,12 +1073,12 @@ def test_dtype_object_scalar_assignment():
 
 def test_assignment_in_conditional_expression(bint left):
     """
-    >>> test_assignment_in_conditional_expression(True)
+    >>> test_assignment_in_conditional_expression(true)
     1.0
     2.0
     1.0
     2.0
-    >>> test_assignment_in_conditional_expression(False)
+    >>> test_assignment_in_conditional_expression(false)
     3.0
     4.0
     3.0
@@ -1135,7 +1135,7 @@ def min_max_tree_restructuring():
 @cython.test_assert_path_exists(
     '//MemoryViewIndexNode',
 )
-#@cython.boundscheck(False)  # reduce C code clutter
+#@cython.boundscheck(false)  # reduce C code clutter
 def optimised_index_of_slice(i32[:, :, :] arr, i32 x, i32 y, i32 z):
     """
     >>> arr = IntMockBuffer("A", list(range(10*10*10)), shape=(10,10,10))

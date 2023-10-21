@@ -1,6 +1,6 @@
 # mode: run
 # tag: cyfunction
-# cython: binding=True
+# cython: binding=true
 
 cimport cython
 

@@ -14,9 +14,9 @@ def test(x: cython.int):
     >>> test(0)
     110
     """
-    with cython.nogil(True):
+    with cython.nogil(true):
         x = f_nogil(x)
-        with cython.gil(True):
+        with cython.gil(true):
             x = f_gil(x)
     return x
 
@@ -52,7 +52,7 @@ def test_with_gil(x: cython.int):
 
 
 @cython.nogil
-@cython.exceptval(check=False)
+@cython.exceptval(check=false)
 @cython.cfunc
 def write_unraisable() -> cython.int:
     with cython.gil:
@@ -82,7 +82,7 @@ def test_nested():
     """
     res: cython.int = 0
 
-    with cython.nogil(True):
+    with cython.nogil(true):
         res = f_nogil(res)
         with cython.gil:
             res = f_gil(res)
@@ -91,7 +91,7 @@ def test_nested():
 
         with cython.gil:
             res = f_gil(res)
-            with cython.nogil(True):
+            with cython.nogil(true):
                 res = f_nogil(res)
             with cython.nogil:
                 res = f_nogil(res)
@@ -107,7 +107,7 @@ def test_try_finally():
     res: cython.int = 0
 
     try:
-        with cython.nogil(True):
+        with cython.nogil(true):
             try:
                 res = f_nogil(res)
                 with cython.gil:
@@ -159,7 +159,7 @@ def test_fused_object(x: int_or_object):
     res: cython.int = 0
 
     if int_or_object is object:
-        with cython.nogil(False):
+        with cython.nogil(false):
             res += len(x)
 
         try:
@@ -169,12 +169,12 @@ def test_fused_object(x: int_or_object):
                         res = f_gil(res)
                     with cython.gil:
                         res = f_gil(res)
-                    with cython.gil(False):
+                    with cython.gil(false):
                         res = f_nogil(res)
 
                     with cython.gil(int_or_object is not object):
                         res = f_nogil(res)
-                    with cython.nogil(False):
+                    with cython.nogil(false):
                         res = f_nogil(res)
 
                     res = f_nogil(res)
@@ -218,12 +218,12 @@ def test_fused_int(x: int_or_object):
                         res = f_gil(res)
                     with cython.gil:
                         res = f_gil(res)
-                    with cython.gil(False):
+                    with cython.gil(false):
                         res = f_nogil(res)
 
                     with cython.gil(int_or_object is not int):
                         res = f_nogil(res)
-                    with cython.nogil(False):
+                    with cython.nogil(false):
                         res = f_nogil(res)
 
                     res = f_nogil(res)
@@ -242,7 +242,7 @@ def test_fused_int(x: int_or_object):
         finally:
             res += 1
     else:
-        with cython.nogil(False):
+        with cython.nogil(false):
             res = len(x)
 
     return res

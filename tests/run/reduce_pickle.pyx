@@ -75,7 +75,7 @@ cdef class C(B):
     pass
 
 
-@cython.auto_pickle(True)  # Not needed, just to test the directive.
+@cython.auto_pickle(true)  # Not needed, just to test the directive.
 cdef class DefaultReduce(object):
     """
     >>> a = DefaultReduce(11, 'abc'); a
@@ -249,7 +249,7 @@ cdef class StructMemberDefault(object):
         return "%s(i=%s, x=%s)" % (
             type(self).__name__, self.my_struct.i, self.my_struct.x)
 
-@cython.auto_pickle(True)  # Forced due to the (inherited) struct attribute.
+@cython.auto_pickle(true)  # Forced due to the (inherited) struct attribute.
 cdef class StructMemberForcedPickle(StructMemberDefault):
     """
     >>> import pickle

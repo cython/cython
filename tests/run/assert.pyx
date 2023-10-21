@@ -67,8 +67,8 @@ def g(a, b):
     '//AssertStatNode//RaiseStatNode//TupleNode//TupleNode',)
 def assert_with_tuple_arg(a):
     """
-    >>> assert_with_tuple_arg(True)
-    >>> assert_with_tuple_arg(False)
+    >>> assert_with_tuple_arg(true)
+    >>> assert_with_tuple_arg(false)
     Traceback (most recent call last):
     AssertionError: (1, 2)
     """
@@ -84,8 +84,8 @@ def assert_with_tuple_arg(a):
 )
 def assert_with_str_arg(a):
     """
-    >>> assert_with_str_arg(True)
-    >>> assert_with_str_arg(False)
+    >>> assert_with_str_arg(true)
+    >>> assert_with_str_arg(false)
     Traceback (most recent call last):
     AssertionError: abc
     """

@@ -21,7 +21,7 @@ cdef f64[:] foo_nogil(i32 i) nogil:
     if i == 4:
         raise TypeError('dummy')
 
-def propagate(i, bint nogil=False):
+def propagate(i, bint nogil=false):
     """
     >>> propagate(0)
     TypeError('Memoryview return value is not initialized')
@@ -34,15 +34,15 @@ def propagate(i, bint nogil=False):
     >>> propagate(4)
     TypeError('dummy')
 
-    >>> propagate(0, nogil=True)
+    >>> propagate(0, nogil=true)
     TypeError('Memoryview return value is not initialized')
-    >>> propagate(1, nogil=True)
+    >>> propagate(1, nogil=true)
     AttributeError('dummy')
-    >>> propagate(2, nogil=True)
+    >>> propagate(2, nogil=true)
     RuntimeError('dummy')
-    >>> propagate(3, nogil=True)
+    >>> propagate(3, nogil=true)
     ValueError('dummy')
-    >>> propagate(4, nogil=True)
+    >>> propagate(4, nogil=true)
     TypeError('dummy')
     """
     try:

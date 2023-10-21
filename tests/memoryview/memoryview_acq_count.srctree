@@ -32,7 +32,7 @@ cdef int[:] m = a
 
 
 cdef Py_ssize_t i
-for i in prange(1000000, nogil=True, num_threads=16):
+for i in prange(1000000, nogil=true, num_threads=16):
     use_slice(m[::2])
 
 cdef int use_slice(int[:] m) except -1 nogil:

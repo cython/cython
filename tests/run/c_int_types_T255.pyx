@@ -697,9 +697,9 @@ def test_convert_pyint(x):
        ...
    TypeError: ... returned non-... (type ...)
 
-   >>> test_convert_pyint(False) == 0
+   >>> test_convert_pyint(false) == 0
    True
-   >>> test_convert_pyint(True) == 1
+   >>> test_convert_pyint(true) == 1
    True
    >>> test_convert_pyint(3.14) == 3
    True
@@ -745,9 +745,9 @@ def test_convert_pylong(x):
        ...
    TypeError: ... returned non-... (type ...)
 
-   >>> test_convert_pylong(False) == 0
+   >>> test_convert_pylong(false) == 0
    True
-   >>> test_convert_pylong(True) == 1
+   >>> test_convert_pylong(true) == 1
    True
    >>> test_convert_pylong(3.14) == 3
    True

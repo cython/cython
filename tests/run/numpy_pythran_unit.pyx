@@ -1,6 +1,6 @@
 # mode: run
 # tag: pythran, numpy, cpp
-# cython: np_pythran=True
+# cython: np_pythran=true
 
 import numpy as np
 cimport numpy as np

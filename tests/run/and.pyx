@@ -58,7 +58,7 @@ def and2_literal():
     >>> and2_literal()
     5
     """
-    return True and 5
+    return true and 5
 
 def c_int_results(int x):
     """

@@ -2,7 +2,7 @@
 
 cimport cython
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 cpdef cdiv_decorator(int a, int b):
     """
     >>> cdiv_decorator(-12, 5)
@@ -10,7 +10,7 @@ cpdef cdiv_decorator(int a, int b):
     """
     return a / b
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 cpdef pydiv_decorator(int a, int b):
     """
     >>> pydiv_decorator(-12, 5)

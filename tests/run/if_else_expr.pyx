@@ -37,9 +37,9 @@ def test_cpp_pyobject_cast(Foo obj1, Foo obj2, cond):
 
 def test_charptr_coercion(x):
     """
-    >>> print(test_charptr_coercion(True))
+    >>> print(test_charptr_coercion(true))
     abc
-    >>> print(test_charptr_coercion(False))
+    >>> print(test_charptr_coercion(false))
     def
     """
     cdef char* s = b'abc' if x else b'def'
@@ -62,9 +62,9 @@ from libc cimport math
 
 def test_cfunc_ptrs(double x, bint round_down):
     """
-    >>> test_cfunc_ptrs(2.5, round_down=True)
+    >>> test_cfunc_ptrs(2.5, round_down=true)
     2.0
-    >>> test_cfunc_ptrs(2.5, round_down=False)
+    >>> test_cfunc_ptrs(2.5, round_down=false)
     3.0
     """
     return (math.floor if round_down else math.ceil)(x)

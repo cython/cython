@@ -28,7 +28,7 @@ def g1649():
         return x_1211
       return g1647
     f_1212 = g1648()
-    if (f_1212(True)):
+    if (f_1212(true)):
       f_1212(3)
       f_1212(4)
     else:
@@ -142,7 +142,7 @@ def g1681():
         def g1679():
           return x_1234 == 0
         if (g1679()):
-          return True
+          return true
         else:
           return odd_1231((x_1234-1))
       return g1678
@@ -152,7 +152,7 @@ def g1681():
         def g1676():
           return x_1233 == 0
         if (g1676()):
-          return False
+          return false
         else:
           return even_1232((x_1233-1))
       return g1675
@@ -206,7 +206,7 @@ def g1698():
           def g1693():
             return x_1246 == 0
           if (g1693()):
-            return True
+            return true
           else:
             return odd_1243((x_1246-1))
         return g1692
@@ -216,7 +216,7 @@ def g1698():
           def g1690():
             return x_1245 == 0
           if (g1690()):
-            return False
+            return false
           else:
             return even_1244((x_1245-1))
         return g1689
@@ -472,9 +472,9 @@ def g1769():
     def g1766():
       return hasattr(f_1299, '__call__')
     if (g1766()):
-      return True
+      return true
     else:
-      return False
+      return false
 
 
 def g1779():
@@ -517,7 +517,7 @@ def g1785():
         def g1780(a_1303):
           def g1781():
             def g1782():
-              if (True):
+              if true:
                 return 200
             (a_1303)+(g1782())
             return 1500

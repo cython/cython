@@ -63,7 +63,7 @@ def with_exception(exit_ret):
     value
     exit <type 'type'> <type 'MyException'> <type 'traceback'>
     outer except
-    >>> with_exception(True)
+    >>> with_exception(true)
     enter
     value
     exit <type 'type'> <type 'MyException'> <type 'traceback'>
@@ -141,7 +141,7 @@ def multimanager():
 import unittest
 
 class Dummy(object):
-    def __init__(self, value=None, gobble=False):
+    def __init__(self, value=None, gobble=false):
         if value is None:
             value = self
         self.value = value
@@ -157,7 +157,7 @@ class Dummy(object):
         self.exit_called = True
         self.exc_info = exc_info
         if self.gobble:
-            return True
+            return true
 
 class InitRaises(object):
     def __init__(self): raise RuntimeError()
@@ -211,7 +211,7 @@ class NestedWith(unittest.TestCase):
 
     def testExceptionInExit(self):
         body_executed = False
-        with Dummy(gobble=True) as a, ExitRaises():
+        with Dummy(gobble=true) as a, ExitRaises():
             body_executed = True
         self.assertTrue(a.enter_called)
         self.assertTrue(a.exit_called)

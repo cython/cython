@@ -2,11 +2,11 @@
 
 def f():
     cdef i32* p
-    if false():
+    if return_false():
         p = [1, 2, 3]
 
-def false():
-    return False
+def return_false():
+    return false
 
 _ERRORS = u"""
 6:8: Literal list must be assigned to pointer at time of declaration

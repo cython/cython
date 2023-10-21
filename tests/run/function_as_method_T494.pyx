@@ -1,5 +1,5 @@
 # ticket: t494
-# cython: binding=True
+# cython: binding=true
 
 __doc__ = """
     >>> A.foo = foo
@@ -39,7 +39,7 @@ cimport cython
 def f_plus(a):
     return a + 1
 
-@cython.binding(False)
+@cython.binding(false)
 def f_plus_nobind(a):
     return a+1
 

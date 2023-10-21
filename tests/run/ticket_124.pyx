@@ -4,5 +4,5 @@ def spam(dict d):
     False
     """
     for elm in d:
-        return False
-    return True
+        return false
+    return true

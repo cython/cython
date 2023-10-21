@@ -19,9 +19,9 @@ def nonzero(int x):
     cdef jmp_buf ctx
     if setjmp(ctx) == 0:
         check_nonzero(ctx, x)
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 from libc.string cimport strcpy

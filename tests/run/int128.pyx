@@ -140,7 +140,7 @@ def signed_conversion(x):
     return n
 
 
-def get_int_distribution(shuffle=True):
+def get_int_distribution(shuffle=true):
     """
     >>> L = get_int_distribution()
     >>> bigint(L[0])

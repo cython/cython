@@ -13,146 +13,146 @@ cdef class ExtNoFuncs:
 @cython.total_ordering
 cdef class ExtGe:
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLe:
     def __le__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLeGe:
     def __le__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtGt:
     def __gt__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtGtGe:
     def __gt__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtGtLe:
     def __gt__(self, other):
-        return False
+        return false
 
     def __le__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtGtLeGe:
     def __gt__(self, other):
-        return False
+        return false
 
     def __le__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLt:
     def __lt__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtGe:
     def __lt__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtLe:
     def __lt__(self, other):
-        return False
+        return false
 
     def __le__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtLeGe:
     def __lt__(self, other):
-        return False
+        return false
 
     def __le__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtGt:
     def __lt__(self, other):
-        return False
+        return false
 
     def __gt__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtGtGe:
     def __lt__(self, other):
-        return False
+        return false
 
     def __gt__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtGtLe:
     def __lt__(self, other):
-        return False
+        return false
 
     def __gt__(self, other):
-        return False
+        return false
 
     def __le__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtLtGtLeGe:
     def __lt__(self, other):
-        return False
+        return false
 
     def __gt__(self, other):
-        return False
+        return false
 
     def __le__(self, other):
-        return False
+        return false
 
     def __ge__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtNe:
     def __ne__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtEq:
     def __eq__(self, other):
-        return False
+        return false
 
 @cython.total_ordering
 cdef class ExtEqNe:
     def __eq__(self, other):
-        return False
+        return false
 
     def __ne__(self, other):
-        return False
+        return false
 
 
 _WARNINGS = """

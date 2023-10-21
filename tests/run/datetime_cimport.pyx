@@ -53,9 +53,9 @@ def test_timezone(int days, int seconds, int useconds, str name):
         val = timezone_new(timedelta(days, seconds, useconds), name)
     except RuntimeError:
         if sys.version_info < (3, 7):
-            return True
+            return true
         else:
             # It's only supposed to raise on Python < 3.7
-            return False
+            return false
     else:
-        return True
+        return true

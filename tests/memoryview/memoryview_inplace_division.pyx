@@ -12,7 +12,7 @@ def div_memoryview(int[:] A):
     >>> x[0]
     3
     """
-    with cython.cdivision(True):
+    with cython.cdivision(true):
         A[0] /= 2
 
 def div_buffer(object[int, ndim=1] A):
@@ -23,6 +23,6 @@ def div_buffer(object[int, ndim=1] A):
     >>> x[0]
     3
     """
-    with cython.cdivision(True):
+    with cython.cdivision(true):
         A[0] /= 2
 

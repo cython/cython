@@ -4,7 +4,7 @@
 cimport cython
 
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 cdef size_t _mul_checked(size_t a, size_t b) except? -1:
     return a * b
 

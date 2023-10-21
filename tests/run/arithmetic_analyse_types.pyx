@@ -56,7 +56,7 @@ def longlong_unnop(long long val):
 
 def test_bint(bint a):
     """
-    >>> test_bint(True)
+    >>> test_bint(true)
     """
     assert typeof(a + a) == "int", typeof(a + a)
     assert typeof(a & a) == "bint", typeof(a & a)

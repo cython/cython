@@ -69,7 +69,7 @@ def test_cast_object(x, typecheck):
     (1, 2, 3)
     """
     if typecheck:
-        as_list = cython.cast(list, x, typecheck=True)
+        as_list = cython.cast(list, x, typecheck=true)
     else:
         as_list = cython.cast(list, x, typecheck=False)
     return as_list
@@ -187,41 +187,41 @@ def ext_type_string_ref(x: "ExtType"):
     return cython.typeof(x)
 
 
-with cython.cdivision(True):
+with cython.cdivision(true):
 
-    @cython.cdivision(False)
-    @cython.cdivision(True)
+    @cython.cdivision(false)
+    @cython.cdivision(true)
     def test_override_reset(x: cython.int):
         """
-        >>> test_override_reset(-3)  # @cdivision(False)
+        >>> test_override_reset(-3)  # @cdivision(false)
         -2
         """
         return x / 2
 
-    @cython.cdivision(True)
-    @cython.cdivision(False)
+    @cython.cdivision(true)
+    @cython.cdivision(false)
     def test_override_set(x: cython.int):
         """
-        >>> test_override_set(-5)  # @cdivision(True)
+        >>> test_override_set(-5)  # @cdivision(true)
         -1
         """
         return x / 3
 
-    @cython.cdivision(True)
-    @cython.cdivision(False)
-    @cython.cdivision(True)
-    @cython.cdivision(False)
-    @cython.cdivision(False)
-    @cython.cdivision(False)
-    @cython.cdivision(True)
-    @cython.cdivision(False)
-    @cython.cdivision(True)
-    @cython.cdivision(True)
-    @cython.cdivision(True)
-    @cython.cdivision(False)
+    @cython.cdivision(true)
+    @cython.cdivision(false)
+    @cython.cdivision(true)
+    @cython.cdivision(false)
+    @cython.cdivision(false)
+    @cython.cdivision(false)
+    @cython.cdivision(true)
+    @cython.cdivision(false)
+    @cython.cdivision(true)
+    @cython.cdivision(true)
+    @cython.cdivision(true)
+    @cython.cdivision(false)
     def test_override_set_repeated(x: cython.int):
         """
-        >>> test_override_set_repeated(-5)  # @cdivision(True)
+        >>> test_override_set_repeated(-5)  # @cdivision(true)
         -1
         """
         return x / 3

@@ -179,7 +179,7 @@ def g22():
     >>> g22()
     False
     """
-    f_46 = (lambda x_45: (x_45) if (((not ((x_45[0]) == 0))) if (isinstance(x_45, list)) else (False)) else (False))
+    f_46 = (lambda x_45: (x_45) if (((not ((x_45[0]) == 0))) if (isinstance(x_45, list)) else (false)) else (false))
     return f_46([0,[0,[]]])
 
 
@@ -188,7 +188,7 @@ def g23():
     >>> g23()
     False
     """
-    f_48 = (lambda x_47: (x_47) if (((not ((not ((x_47[0]) == 0))) if (isinstance(x_47, list)) else (False))) if (x_47) else (False)) else (False))
+    f_48 = (lambda x_47: (x_47) if (((not ((not ((x_47[0]) == 0))) if (isinstance(x_47, list)) else (false))) if (x_47) else (false)) else (false))
     return f_48(0)
 
 
@@ -197,7 +197,7 @@ def g24():
     >>> g24()
     []
     """
-    f_50 = (lambda x_49: (x_49) if ((True) if (isinstance(x_49, list)) else ((x_49 == []))) else ([]))
+    f_50 = (lambda x_49: (x_49) if ((true) if (isinstance(x_49, list)) else ((x_49 == []))) else ([]))
     return f_50(0)
 
 
@@ -235,7 +235,7 @@ def g28():
     23
     """
     f_63 = (lambda x_62: x_62)
-    return ((1) if (False) else (f_63(22))+1)
+    return ((1) if false else (f_63(22))+1)
 
 
 def g29():
@@ -263,8 +263,8 @@ def g31():
     >>> g31()
     True
     """
-    even_72 = (lambda x_74: (True) if (x_74 == 0) else (odd_71((x_74-1))))
-    odd_71 = (lambda x_73: (False) if (x_73 == 0) else (even_72((x_73-1))))
+    even_72 = (lambda x_74: (true) if (x_74 == 0) else (odd_71((x_74-1))))
+    odd_71 = (lambda x_73: (false) if (x_73 == 0) else (even_72((x_73-1))))
     return odd_71(13)
 
 
@@ -273,8 +273,8 @@ def g32():
     >>> g32()
     False
     """
-    even_76 = (lambda x_78: (True) if (x_78 == 0) else (odd_75((x_78-1))))
-    odd_75 = (lambda x_77: (False) if (x_77 == 0) else (even_76((x_77-1))))
+    even_76 = (lambda x_78: (true) if (x_78 == 0) else (odd_75((x_78-1))))
+    odd_75 = (lambda x_77: (false) if (x_77 == 0) else (even_76((x_77-1))))
     return even_76(13)
 
 
@@ -285,8 +285,8 @@ def g34():
     """
     even_80 = (lambda x_79: x_79)
     def g33():
-      even_82 = (lambda x_84: (True) if (x_84 == 0) else (odd_81((x_84-1))))
-      odd_81 = (lambda x_83: (False) if (x_83 == 0) else (even_82((x_83-1))))
+      even_82 = (lambda x_84: (true) if (x_84 == 0) else (odd_81((x_84-1))))
+      odd_81 = (lambda x_83: (false) if (x_83 == 0) else (even_82((x_83-1))))
       return odd_81(13)
     return even_80(g33())
 

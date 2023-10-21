@@ -48,8 +48,8 @@ def unicode_for_loop_ord(unicode s):
     """
     for c in s:
         if ord(c) == ord(u'a'):
-            return True
-    return False
+            return true
+    return false
 
 
 def compare_to_char(s):

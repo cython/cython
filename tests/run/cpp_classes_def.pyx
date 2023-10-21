@@ -1,6 +1,6 @@
 # mode: run
 # tag: cpp, werror, cpp11, no-cpp-locals
-# cython: experimental_cpp_class_def=True
+# cython: experimental_cpp_class_def=true
 
 cdef double pi
 from math import pi
@@ -70,9 +70,9 @@ cdef cppclass SubClass(BaseClass):
 
 def test_BaseMethods(x):
     """
-    >>> test_BaseMethods(True)
+    >>> test_BaseMethods(true)
     0
-    >>> test_BaseMethods(False)
+    >>> test_BaseMethods(false)
     1
     """
     cdef SubClass* subClass

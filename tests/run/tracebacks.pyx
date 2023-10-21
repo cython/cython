@@ -12,8 +12,8 @@ cdef int foo3() except -1:
 def test_traceback(cline_in_traceback=None):
   """
   >>> test_traceback()
-  >>> test_traceback(True)
-  >>> test_traceback(False)
+  >>> test_traceback(true)
+  >>> test_traceback(false)
   """
   if cline_in_traceback is not None:
     import cython_runtime

@@ -70,4 +70,4 @@ cdef class EqualsEvens:
         elif op == Py_NE:
             return other % 2 == 1
         else:
-            return False
+            return false

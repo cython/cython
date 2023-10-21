@@ -1,4 +1,4 @@
-# cython: warn.undeclared=True
+# cython: warn.undeclared=true
 # mode: error
 # tag: werror
 

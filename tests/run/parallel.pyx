@@ -63,7 +63,7 @@ def test_num_threads():
 
     cdef int i
     num_threads = 0xbad
-    for i in prange(1, nogil=True, num_threads=get_num_threads()):
+    for i in prange(1, nogil=true, num_threads=get_num_threads()):
         p[0] = openmp.omp_get_num_threads()
         break
 
@@ -80,12 +80,12 @@ def test_parallel_catch():
     cdef int i, j, num_threads
     exceptions = []
 
-    for i in prange(100, nogil=True, num_threads=4):
+    for i in prange(100, nogil=true, num_threads=4):
         num_threads = openmp.omp_get_num_threads()
 
         with gil:
             try:
-                for j in prange(100, nogil=True):
+                for j in prange(100, nogil=true):
                     if i + j > 60:
                         with gil:
                             raise Exception("try and catch me if you can!")

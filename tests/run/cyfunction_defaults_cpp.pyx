@@ -1,4 +1,4 @@
-# cython: binding=True
+# cython: binding=true
 # mode: run
 # tag: cyfunction, cpp
 

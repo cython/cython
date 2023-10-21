@@ -1,4 +1,4 @@
-# cython: remove_unreachable=False
+# cython: remove_unreachable=false
 # mode: error
 
 break
@@ -24,7 +24,7 @@ else:
     break
 
 def bool_result():
-    return True
+    return true
 
 
 def break_after_loop():

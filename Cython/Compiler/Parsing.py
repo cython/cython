@@ -734,9 +734,9 @@ def p_atom(s):
         name = s.systring
         if name == "None":
             result = ExprNodes.NoneNode(pos)
-        elif name == "True":
+        elif name in ("true", "True"):
             result = ExprNodes.BoolNode(pos, value=True)
-        elif name == "False":
+        elif name in ("false", "False"):
             result = ExprNodes.BoolNode(pos, value=False)
         elif name == "NULL" and not s.in_python_file:
             result = ExprNodes.NullNode(pos)

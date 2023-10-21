@@ -21,7 +21,7 @@ def test_finally_c():
     ...         print(isinstance(sys.exc_info()[1].__context__, AttributeError)
     ...               or sys.exc_info()[1].__context__)
     ...     else:
-    ...         print(True)
+    ...         print(true)
     True
     True
 
@@ -33,7 +33,7 @@ def test_finally_c():
     ...         print(isinstance(sys.exc_info()[1].__context__, AttributeError)
     ...               or sys.exc_info()[1].__context__)
     ...     else:
-    ...         print(True)
+    ...         print(true)
     True
     True
     """

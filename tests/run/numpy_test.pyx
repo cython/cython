@@ -385,7 +385,7 @@ def test_good_cast():
     True
     """
     # Check that a signed int can round-trip through casted unsigned int access
-    cdef np.ndarray[u32, cast=True] arr = np.array([-100], dtype='i')
+    cdef np.ndarray[u32, cast=true] arr = np.array([-100], dtype='i')
     cdef unsigned int data = arr[0]
     return -100 == <i32>data
 
@@ -397,7 +397,7 @@ def test_bad_cast():
     ValueError: Item size of buffer (1 byte) does not match size of 'int' (4 bytes)
     """
     # This should raise an exception
-    cdef np.ndarray[i32, cast=True] arr = np.array([1], dtype='b')
+    cdef np.ndarray[i32, cast=true] arr = np.array([1], dtype='b')
 
 cdef packed struct PackedStruct:
     i8 a
@@ -421,9 +421,9 @@ cdef packed struct PartiallyPackedStruct2:
 
 def test_packed_align(np.ndarray[PackedStruct] arr):
     """
-    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
+    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=false))))
     [(22, 23)]
-    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=True)))) #doctest: +ELLIPSIS
+    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=true)))) #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
     ValueError: ...
@@ -435,7 +435,7 @@ def test_packed_align(np.ndarray[PackedStruct] arr):
 def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     """
     The output changed in Python 3:
-    >> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    >> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=true))))
     array([(22, 23)],
           dtype=[('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])
 
@@ -445,9 +445,9 @@ def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
           dtype={'names':['f0','f1'], 'formats':['i1','!i4'], 'offsets':[0,4], 'itemsize':8, 'aligned':True})
 
 
-    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=true))))
     [(22, 23)]
-    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=False)))) #doctest: +ELLIPSIS
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=false)))) #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
     ValueError: ...

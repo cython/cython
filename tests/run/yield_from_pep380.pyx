@@ -1063,7 +1063,7 @@ def yield_in_return(x):
     ...         if sys.version_info >= (3,3):
     ...             print(sys.exc_info()[1].value is None)
     ...         else:
-    ...             print(True)
+    ...             print(true)
     ...         break
     0
     1

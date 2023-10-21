@@ -5,7 +5,7 @@
 import numpy as np
 cimport cython
 
-def new_array(dtype='float', writeable=True):
+def new_array(dtype='float', writeable=true):
     array = np.arange(10, dtype=dtype)
     array.setflags(write=writeable)
     return array
@@ -40,8 +40,8 @@ def test_mmview_ro(x):
     >>> test_mmview_ro(new_array())
     9.0
     """
-    x.setflags(write=False)
-    assert x.flags.writeable is False
+    x.setflags(write=false)
+    assert x.flags.writeable is false
     return getmax(x)
 
 def test_update_mmview_rw(x):
@@ -57,13 +57,13 @@ def test_update_mmview_ro(x):
     >>> test_update_mmview_ro(new_array())
     0.0
     """
-    x.setflags(write=False)
-    assert x.flags.writeable is False
+    x.setflags(write=false)
+    assert x.flags.writeable is false
     try:
         update_array(x)
     except ValueError: pass
     else:
-        assert False, "RO error not raised!"
+        assert false, "RO error not raised!"
     return getconst(x)
 
 def test_rw_call_getmax(f64[:] x):
@@ -80,8 +80,8 @@ def test_const_mmview_ro(x):
     >>> test_const_mmview_ro(new_array())
     0.0
     """
-    x.setflags(write=False)
-    assert x.flags.writeable is False
+    x.setflags(write=false)
+    assert x.flags.writeable is false
     return getconst(x)
 
 def test_two_views(x):
@@ -133,7 +133,7 @@ def test_mmview_const_fused_cdef():
     cdef f32[:] data_rw = new_array(dtype='float32')
     assert getmax_floating(data_rw) == 9
 
-    cdef const f32[:] data_ro = new_array(dtype='float32', writeable=False)
+    cdef const f32[:] data_ro = new_array(dtype='float32', writeable=false)
     assert getmax_floating(data_ro) == 9
 
 def test_mmview_const_fused_def(const cython.floating[:] x):
@@ -141,16 +141,16 @@ def test_mmview_const_fused_def(const cython.floating[:] x):
 
     With read-write numpy array:
 
-    >>> test_mmview_const_fused_def(new_array('float32', writeable=True))
+    >>> test_mmview_const_fused_def(new_array('float32', writeable=true))
     0.0
-    >>> test_mmview_const_fused_def(new_array('float64', writeable=True))
+    >>> test_mmview_const_fused_def(new_array('float64', writeable=true))
     0.0
 
     With read-only numpy array:
 
-    >>> test_mmview_const_fused_def(new_array('float32', writeable=False))
+    >>> test_mmview_const_fused_def(new_array('float32', writeable=false))
     0.0
-    >>> test_mmview_const_fused_def(new_array('float64', writeable=False))
+    >>> test_mmview_const_fused_def(new_array('float64', writeable=false))
     0.0
     """
     cdef cython.floating result = x[0]

@@ -1,4 +1,4 @@
-# cython: binding=True
+# cython: binding=true
 # mode: run
 # tag: cyfunction, closures
 
@@ -86,9 +86,9 @@ def test_defaults_nonliteral_func_call(f):
         return a
     return func
 
-def assign_defaults_and_check_warnings(func, value=None, delete=False):
+def assign_defaults_and_check_warnings(func, value=None, delete=false):
     import warnings
-    with warnings.catch_warnings(record=True) as w:
+    with warnings.catch_warnings(record=true) as w:
         warnings.simplefilter("always")
         if delete:
             del func.__defaults__
@@ -106,7 +106,7 @@ def test_assign_defaults():
     >>> assign_defaults_and_check_warnings(f, value=())
     >>> f.__defaults__
     ()
-    >>> assign_defaults_and_check_warnings(f, delete=True)
+    >>> assign_defaults_and_check_warnings(f, delete=true)
     >>> f.__defaults__
     >>> f.__defaults__ = "Not a tuple"
     Traceback (most recent call last):
@@ -122,7 +122,7 @@ def cy_kwonly_default_args(a, x=1, *, b=2):
 
 def assign_kwdefaults_and_check_warnings(func, value):
     import warnings
-    with warnings.catch_warnings(record=True) as w:
+    with warnings.catch_warnings(record=true) as w:
         warnings.simplefilter("always")
         func.__kwdefaults__ = value
         assert len(w) == 1, len(w)

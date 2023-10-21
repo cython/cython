@@ -5,9 +5,9 @@ def test_ptr():
     """
     cdef void* p = NULL
     if p:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def test_ptr2():
     """
@@ -33,9 +33,9 @@ def test_int(int i):
     True
     """
     if i:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def test_short(short i):
     """
@@ -45,9 +45,9 @@ def test_short(short i):
     True
     """
     if i:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def test_Py_ssize_t(Py_ssize_t i):
     """
@@ -57,9 +57,9 @@ def test_Py_ssize_t(Py_ssize_t i):
     True
     """
     if i:
-        return True
+        return true
     else:
-        return False
+        return false
 
 cdef class TestExtInt:
     cdef int i
@@ -73,9 +73,9 @@ def test_attr_int(TestExtInt e):
     True
     """
     if e.i:
-        return True
+        return true
     else:
-        return False
+        return false
 
 ctypedef union _aux:
     size_t i
@@ -96,6 +96,6 @@ def test_attr_ptr(TestExtPtr e):
     True
     """
     if e.p:
-        return True
+        return true
     else:
-        return False
+        return false

@@ -168,28 +168,28 @@ cpdef long f_cpdef(long a):
 cdef inline long f_inline(long a):
     return a
 
-@cython.profile(True)
+@cython.profile(true)
 cdef inline long f_inline_prof(long a):
     return a
 
-@cython.profile(False)
+@cython.profile(false)
 cdef int f_noprof(long a):
     return a
 
 cdef long f_raise(long) except -2:
     raise RuntimeError
 
-@cython.profile(False)
+@cython.profile(false)
 cdef int withgil_noprof(long a) with gil:
     return (a)
-@cython.profile(True)
+@cython.profile(true)
 cdef int withgil_prof(long a) with gil:
     return (a)
 
-@cython.profile(False)
+@cython.profile(false)
 cdef int nogil_noprof(long a) nogil:
     return a
-@cython.profile(True)
+@cython.profile(true)
 cdef int nogil_prof(long a) nogil:
     return a
 

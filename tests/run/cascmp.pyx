@@ -53,9 +53,9 @@ def eq_if_statement(a, b, c):
     True
     """
     if 1 == a == b == c:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def eq_if_statement_semi_optimized(a, int b, int c):
     """
@@ -77,9 +77,9 @@ def eq_if_statement_semi_optimized(a, int b, int c):
     True
     """
     if 1 == a == b == c == 1:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def eq_if_statement_semi_optimized2(a, b, c):
     """
@@ -99,6 +99,6 @@ def eq_if_statement_semi_optimized2(a, b, c):
     True
     """
     if 1 == a == 1 == b == c:
-        return True
+        return true
     else:
-        return False
+        return false

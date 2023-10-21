@@ -405,7 +405,7 @@ def test_memslice_getbuffer():
      [10 12 14]]
     callback called
     """
-    cdef i32[:, :] array = create_array((4, 5), mode="c", use_callback=True)
+    cdef i32[:, :] array = create_array((4, 5), mode="c", use_callback=true)
     print(np.asarray(array)[::2, ::2])
 
 cdef class DeallocateMe(object):
@@ -681,8 +681,8 @@ def test_refcount_GH507():
     cdef np.int_t[:,:] b = a_view[1:2,:].T
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@cython.boundscheck(false)
+@cython.wraparound(false)
 def test_boundscheck_and_wraparound(f64[:, :] x):
     """
     >>> import numpy as np

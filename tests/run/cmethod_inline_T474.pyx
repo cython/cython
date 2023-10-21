@@ -11,8 +11,8 @@ cdef class TestInlineMethod(object):
     """
 
     @cython.test_assert_path_exists(
-        "//AttributeNode[@entry.is_inline_cmethod=True]",
-        "//AttributeNode[@entry.is_final_cmethod=True]")
+        "//AttributeNode[@entry.is_inline_cmethod=true]",
+        "//AttributeNode[@entry.is_final_cmethod=true]")
     def test_cdef_method(self):
         return self.cdef_inline_method()
 
@@ -25,7 +25,7 @@ cdef class Subtyping(TestInlineMethod):
     """
 
     @cython.test_assert_path_exists(
-        "//AttributeNode[@entry.is_inline_cmethod=True]",
-        "//AttributeNode[@entry.is_final_cmethod=True]")
+        "//AttributeNode[@entry.is_inline_cmethod=true]",
+        "//AttributeNode[@entry.is_final_cmethod=true]")
     def test_cdef_subtyping(self):
         return self.cdef_inline_method()

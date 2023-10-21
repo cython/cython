@@ -17,7 +17,7 @@ class class1:
         return a + 1
 
     @staticmethod
-    @cython.binding(True)
+    @cython.binding(true)
     def bplus1(a):
         return a + 1
 
@@ -61,7 +61,7 @@ cdef class BaseClass(object):
         print arg1
 
     @staticmethod
-    @cython.binding(True)
+    @cython.binding(true)
     def mystaticmethod2(a, b, c):
         print a, b, c
 

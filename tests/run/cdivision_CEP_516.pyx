@@ -48,8 +48,8 @@ del true_py_functions
 def _all(seq):
     for x in seq:
         if not x:
-            return False
-    return True
+            return false
+    return true
 
 try:
     all
@@ -59,52 +59,52 @@ except NameError:
 
 cimport cython
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def mod_int_py(int a, int b):
     return a % b
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def mod_short_py(short a, short b):
     return a % b
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def mod_double_py(double a, double b):
     return a % b
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def mod_float_py(float a, float b):
     return a % b
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def mod_int_c(int a, int b):
     return a % b
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def mod_float_c(float a, float b):
     return a % b
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def mod_double_c(double a, double b):
     return a % b
 
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def div_int_py(int a, int b):
     return a // b
 
-@cython.cdivision(True)
+@cython.cdivision(true)
 def div_int_c(int a, int b):
     return a // b
 
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def test_cdiv_cmod(short a, short b):
     cdef short q = cython.cdiv(a, b)
     cdef short r = cython.cmod(a, b)
     return q, r
 
-@cython.cdivision(True)
-@cython.cdivision_warnings(True)
+@cython.cdivision(true)
+@cython.cdivision_warnings(true)
 def mod_int_c_warn(int a, int b):
     """
     >>> warnings.showwarning = simple_warn
@@ -115,8 +115,8 @@ def mod_int_c_warn(int a, int b):
     """
     return a % b
 
-@cython.cdivision(True)
-@cython.cdivision_warnings(True)
+@cython.cdivision(true)
+@cython.cdivision_warnings(true)
 def div_int_c_warn(int a, int b):
     """
     >>> warnings.showwarning = simple_warn
@@ -127,8 +127,8 @@ def div_int_c_warn(int a, int b):
     """
     return a // b
 
-@cython.cdivision(False)
-@cython.cdivision_warnings(True)
+@cython.cdivision(false)
+@cython.cdivision_warnings(true)
 def complex_expression(int a, int b, int c, int d):
     """
     >>> warnings.showwarning = simple_warn
@@ -149,7 +149,7 @@ cdef int verbose_call(int x):
 
 # These may segfault with cdivision
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def mod_div_zero_int(int a, int b, int c):
     """
     >>> mod_div_zero_int(25, 10, 2)
@@ -166,7 +166,7 @@ def mod_div_zero_int(int a, int b, int c):
     except ZeroDivisionError, ex:
         return unicode(ex)
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def mod_div_zero_float(float a, float b, float c):
     """
     >>> mod_div_zero_float(25, 10, 2)
@@ -181,7 +181,7 @@ def mod_div_zero_float(float a, float b, float c):
     except ZeroDivisionError, ex:
         return unicode(ex)
 
-@cython.cdivision(False)
+@cython.cdivision(false)
 def py_div_long(long a, long b):
     """
     >>> py_div_long(-5, -1)

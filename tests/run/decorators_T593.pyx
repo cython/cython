@@ -11,9 +11,9 @@ False
 def testme(func):
     try:
         am_i_buggy
-        return True
+        return true
     except NameError:
-        return False
+        return false
 
 @testme
 def am_i_buggy():
@@ -22,9 +22,9 @@ def am_i_buggy():
 def testclass(klass):
     try:
         Foo
-        return True
+        return true
     except NameError:
-        return False
+        return false
 @testclass
 class Foo:
     pass

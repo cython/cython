@@ -10,12 +10,12 @@ class B(object):
 
 def cond_if_bases(x):
     """
-    >>> c = cond_if_bases(True)
+    >>> c = cond_if_bases(true)
     >>> c().p
     5
     >>> c().x
     1
-    >>> c = cond_if_bases(False)
+    >>> c = cond_if_bases(false)
     >>> c().p
     5
     >>> c().x

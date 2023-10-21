@@ -27,12 +27,12 @@ cdef class MockBuffer:
     cdef readonly object received_flags, release_ok
     cdef public object fail
 
-    def __init__(self, label, data, shape=None, strides=None, format=None, writable=True, offset=0):
+    def __init__(self, label, data, shape=None, strides=None, format=None, writable=true, offset=0):
         # It is important not to store references to data after the constructor
         # as refcounting is checked on object buffers.
         cdef Py_ssize_t x, s, cumprod, itemsize
         self.label = label
-        self.release_ok = True
+        self.release_ok = true
         self.log = u""
         self.offset = offset
         self.itemsize = itemsize = self.get_itemsize()
@@ -50,7 +50,7 @@ cdef class MockBuffer:
         suboffsets = [-1] * len(shape)
         datashape = [len(data)]
         p = data
-        while True:
+        while true:
             p = p[0]
             if isinstance(p, list): datashape.append(len(p))
             else: break
@@ -157,7 +157,7 @@ cdef class MockBuffer:
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         if buffer.suboffsets != self.suboffsets:
-            self.release_ok = False
+            self.release_ok = false
         if self.label:
             msg = f"released {self.label}"
             print(msg)
@@ -334,10 +334,10 @@ cdef class LongComplexMockBuffer(MockBuffer):
     cdef get_default_format(self): return b"Zg"
 
 
-def print_offsets(*args, size, newline=True):
+def print_offsets(*args, size, newline=true):
     sys.stdout.write(' '.join([str(item // size) for item in args]) + ('\n' if newline else ''))
 
-def print_int_offsets(*args, newline=True):
+def print_int_offsets(*args, newline=true):
     print_offsets(*args, size=sizeof(int), newline=newline)
 
 

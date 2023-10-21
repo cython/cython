@@ -264,7 +264,7 @@ def test_get_utc():
     except RuntimeError:
         if sys.version_info >= (3, 7):
             raise  # get_utc() is only supposed to raise on Python < 3.7
-    return True
+    return true
 
 def test_datetime_from_timestamp():
     """

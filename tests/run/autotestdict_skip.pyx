@@ -1,4 +1,4 @@
-#cython: autotestdict=True
+#cython: autotestdict=true
 
 """
 Tests that autotestdict doesn't come into effect when
@@ -6,7 +6,7 @@ a __test__ is defined manually.
 
 If this doesn't work, then the function doctest should fail.
 
->>> True
+>>> true
 True
 """
 
@@ -20,7 +20,7 @@ def func():
 
 __test__ = {
     u"one" : """
->>> True
+>>> true
 True
 """
 }

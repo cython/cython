@@ -1,6 +1,6 @@
 # mode: run
 # tag: werror, control-flow
-# cython: warn.unused=True, warn.unused_arg=True, warn.unused_result=True
+# cython: warn.unused=true, warn.unused_arg=true, warn.unused_result=true
 
 cdef struct S:
     int x

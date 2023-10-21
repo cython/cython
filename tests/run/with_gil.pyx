@@ -212,7 +212,7 @@ def test_loops_and_boxing():
 cdef class SomeExtClass(object):
     cdef int some_attribute
 
-@cython.infer_types(True)
+@cython.infer_types(true)
 def test_infer_types():
     """
     >>> test_infer_types()

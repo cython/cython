@@ -95,7 +95,7 @@ cdef class Silly:
         """
         return a
 
-    @cython.binding(False)  # passthrough of exact same tuple can't work with binding
+    @cython.binding(false)  # passthrough of exact same tuple can't work with binding
     def onlyt_nobinding(self, *a):
         """
         >>> s = Silly()
@@ -149,7 +149,7 @@ cdef class Silly:
         """
         return a + sorteditems(k)
 
-    @cython.binding(False)  # passthrough of exact same tuple can't work with binding
+    @cython.binding(false)  # passthrough of exact same tuple can't work with binding
     def t_kwonly(self, *a, k):
         """
         >>> s = Silly()

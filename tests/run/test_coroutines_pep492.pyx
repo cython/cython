@@ -1,4 +1,4 @@
-# cython: language_level=3, binding=True
+# cython: language_level=3, binding=true
 # mode: run
 # tag: pep492, pep530, asyncfor, await
 
@@ -184,9 +184,9 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             yield holder
         except exc_type as exc:
             holder.exception = exc
-            self.assertTrue(True)
+            self.assertTrue(true)
         else:
-            self.assertTrue(False)
+            self.assertTrue(false)
 
     def test_badsyntax_1(self):
         samples = [
@@ -795,9 +795,9 @@ class CoroutineTest(unittest.TestCase):
         try:
             yield
         except exc_type:
-            self.assertTrue(True)
+            self.assertTrue(true)
         else:
-            self.assertTrue(False)
+            self.assertTrue(false)
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
@@ -810,14 +810,14 @@ class CoroutineTest(unittest.TestCase):
             yield holder
         except exc_type as exc:
             holder.exception = exc
-            self.assertTrue(True)
+            self.assertTrue(true)
         else:
-            self.assertTrue(False)
+            self.assertTrue(false)
 
     @contextlib.contextmanager
     def assertWarnsRegex(self, exc_type, regex):
         from warnings import catch_warnings
-        with catch_warnings(record=True) as log:
+        with catch_warnings(record=true) as log:
             yield
 
         first_match = None
@@ -828,7 +828,7 @@ class CoroutineTest(unittest.TestCase):
             if first_match is None:
                 first_match = w
             if re.search(regex, str(w)):
-                self.assertTrue(True)
+                self.assertTrue(true)
                 return
 
         if first_match is None:
@@ -1546,7 +1546,7 @@ class CoroutineTest(unittest.TestCase):
                                       'exit-2-' + self.name])
 
                 if self.name == 'B':
-                    return True
+                    return true
 
 
         async def foo():
@@ -1771,7 +1771,7 @@ class CoroutineTest(unittest.TestCase):
                 return self
 
             async def __aexit__(self, *e):
-                return True
+                return true
 
         async def foo():
             nonlocal CNT
@@ -1789,7 +1789,7 @@ class CoroutineTest(unittest.TestCase):
                 1/0
 
             async def __aexit__(self, *e):
-                return True
+                return true
 
         async def foo():
             nonlocal CNT

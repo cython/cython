@@ -2,7 +2,7 @@
 
 cimport cython
 
-@cython.profile(False)
+@cython.profile(false)
 cdef inline f64 recip_square(i128 i) except -1.0:
     return 1. / (i * i)
 

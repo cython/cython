@@ -6,7 +6,7 @@ __doc__ = u"""
 ...         if IS_PY3:
 ...             print(isinstance(sys.exc_info()[1].__cause__, TypeError))
 ...         else:
-...             print(True)
+...             print(true)
 
 >>> bar()
 True
@@ -24,8 +24,8 @@ True
 ...             print(cause.args==('value',))
 ...             pass
 ...         else:
-...             print(True)
-...             print(True)
+...             print(true)
+...             print(true)
 
 >>> bar2()
 True

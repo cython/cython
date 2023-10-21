@@ -12,7 +12,7 @@ def none_checks(a):
     c = None
     d = {11:22}
     if a is c:
-        return True
+        return true
     else:
         return d.get(11)
 
@@ -50,9 +50,9 @@ def reassignment(dict d):
 @cython.test_fail_if_path_exists('//NoneCheckNode')
 def conditional(a):
     """
-    >>> conditional(True)
+    >>> conditional(true)
     2
-    >>> conditional(False)
+    >>> conditional(false)
     3
     """
     if a:
@@ -101,9 +101,9 @@ def self_dependency(int x):
 @cython.test_assert_path_exists('//NoneCheckNode')
 def self_dependency_none(int x):
     """
-    >>> self_dependency_none(False)
+    >>> self_dependency_none(false)
     1
-    >>> self_dependency_none(True)
+    >>> self_dependency_none(true)
     Traceback (most recent call last):
     AttributeError: 'NoneType' object has no attribute 'get'
     """

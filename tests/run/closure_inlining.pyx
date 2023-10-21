@@ -1,4 +1,4 @@
-# cython: optimize.inline_defnode_calls=True
+# cython: optimize.inline_defnode_calls=true
 # mode: run
 cimport cython
 
@@ -137,9 +137,9 @@ def test_sideeffect_call_order():
 
 def test_redef(redefine):
     """
-    >>> test_redef(False)
+    >>> test_redef(false)
     1
-    >>> test_redef(True)
+    >>> test_redef(true)
     2
     """
     def inner():

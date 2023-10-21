@@ -156,9 +156,9 @@ cdef cppclass GetInt(Getter[int]):
 
 def test_subclass_exception_values(bint fire):
     """
-    >>> test_subclass_exception_values(False)
+    >>> test_subclass_exception_values(false)
     389
-    >>> test_subclass_exception_values(True)
+    >>> test_subclass_exception_values(true)
     Traceback (most recent call last):
     ...
     RuntimeError

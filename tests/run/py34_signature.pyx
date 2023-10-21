@@ -1,4 +1,4 @@
-# cython: binding=True, language_level=3
+# cython: binding=true, language_level=3
 # mode: run
 # tag: cyfunction
 
@@ -101,17 +101,17 @@ cpdef cp1(a, b):
     """
 
 
-cpdef cp2(a, b=True):
+cpdef cp2(a, b=true):
     """
-    >>> def py_cp2(a, b=True): pass
+    >>> def py_cp2(a, b=true): pass
 
     >>> signatures_match(cp2, py_cp2)
     """
 
 
-cpdef cp3(a=1, b=True):
+cpdef cp3(a=1, b=true):
     """
-    >>> def py_cp3(a=1, b=True): pass
+    >>> def py_cp3(a=1, b=true): pass
 
     >>> signatures_match(cp3, py_cp3)
     """

@@ -42,7 +42,7 @@ def sub_abs(int a):
     """
     return -abs(a), 100 - abs(a)
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'abs']")
 def int_abs(int a):
@@ -60,7 +60,7 @@ def int_abs(int a):
     """
     return abs(a)
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'abs']")
 cdef int c_int_abs(int a) except * nogil:
@@ -104,7 +104,7 @@ def test_c_uint_abs(unsigned int a):
     """
     return c_uint_abs(a)
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'labs']")
 def long_abs(long a):
@@ -122,7 +122,7 @@ def long_abs(long a):
     """
     return abs(a)
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'labs']")
 cdef long c_long_abs(long a) except * nogil:
@@ -170,7 +170,7 @@ def test_c_ulong_abs(unsigned long a):
     """
     return c_ulong_abs(a)
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
 def long_long_abs(long long a):
@@ -186,7 +186,7 @@ def long_long_abs(long long a):
     """
     return abs(a)
 
-@cython.overflowcheck(True)
+@cython.overflowcheck(true)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
 cdef long long c_long_long_abs(long long a) except * nogil:

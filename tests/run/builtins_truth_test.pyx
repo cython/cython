@@ -21,9 +21,9 @@ def if_list(list obj):
     False
     """
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 def if_list_nogil(list obj):
@@ -46,21 +46,21 @@ def if_list_nogil(list obj):
 
 def if_list_literal(t):
     """
-    >>> if_list_literal(True)
+    >>> if_list_literal(true)
     True
-    >>> if_list_literal(False)
+    >>> if_list_literal(false)
     False
     """
     if t:
         if [1,2,3]:
-            return True
+            return true
         else:
-            return False
+            return false
     else:
         if []:
-            return True
+            return true
         else:
-            return False
+            return false
 
 
 def bool_tuple(tuple obj):
@@ -85,28 +85,28 @@ def if_tuple(tuple obj):
     False
     """
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 def if_tuple_literal(t):
     """
-    >>> if_tuple_literal(True)
+    >>> if_tuple_literal(true)
     True
-    >>> if_tuple_literal(False)
+    >>> if_tuple_literal(false)
     False
     """
     if t:
         if (1,2,3):
-            return True
+            return true
         else:
-            return False
+            return false
     else:
         if ():
-            return True
+            return true
         else:
-            return False
+            return false
 
 
 def bool_set(set obj):
@@ -131,9 +131,9 @@ def if_set(set obj):
     False
     """
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 def if_set_nogil(set obj):
@@ -156,21 +156,21 @@ def if_set_nogil(set obj):
 
 def if_set_literal(t):
     """
-    >>> if_set_literal(True)
+    >>> if_set_literal(true)
     True
-    >>> if_set_literal(False)
+    >>> if_set_literal(false)
     False
     """
     if t:
         if {1,2,3}:
-            return True
+            return true
         else:
-            return False
+            return false
     else:
         if set():
-            return True
+            return true
         else:
-            return False
+            return false
 
 
 def bool_frozenset(frozenset obj):
@@ -195,9 +195,9 @@ def if_frozenset(frozenset obj):
     False
     """
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 
 
 b0 = b''
@@ -224,27 +224,27 @@ def if_bytes(bytes obj):
     False
     """
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def if_bytes_literal(t):
     """
-    >>> if_bytes_literal(True)
+    >>> if_bytes_literal(true)
     True
-    >>> if_bytes_literal(False)
+    >>> if_bytes_literal(false)
     False
     """
     if t:
         if b'abc':
-            return True
+            return true
         else:
-            return False
+            return false
     else:
         if b'':
-            return True
+            return true
         else:
-            return False
+            return false
 
 
 u0 = u''
@@ -271,24 +271,24 @@ def if_unicode(unicode obj):
     False
     """
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 
 def if_unicode_literal(t):
     """
-    >>> if_unicode_literal(True)
+    >>> if_unicode_literal(true)
     True
-    >>> if_unicode_literal(False)
+    >>> if_unicode_literal(false)
     False
     """
     if t:
         if u'abc':
-            return True
+            return true
         else:
-            return False
+            return false
     else:
         if u'':
-            return True
+            return true
         else:
-            return False
+            return false

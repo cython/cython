@@ -1,4 +1,4 @@
-# cython: linetrace=True
+# cython: linetrace=true
 
 cdef void foo(int err) except * nogil:
     with gil:

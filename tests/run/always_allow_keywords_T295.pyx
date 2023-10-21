@@ -40,7 +40,7 @@ def func1_unused(arg):
     >>> func1_unused(arg=None)
     """
 
-@cython.always_allow_keywords(False)
+@cython.always_allow_keywords(false)
 def func2(arg):
     """
     >>> func2(None)
@@ -49,7 +49,7 @@ def func2(arg):
     """
     return arg
 
-@cython.always_allow_keywords(False)
+@cython.always_allow_keywords(false)
 def func2_unused(arg):
     """
     >>> func2_unused(None)
@@ -57,7 +57,7 @@ def func2_unused(arg):
     >>> assert_typeerror_no_keywords(func2_unused, arg=None)
     """
 
-@cython.always_allow_keywords(True)
+@cython.always_allow_keywords(true)
 def func3(arg):
     """
     >>> func3(None)
@@ -66,7 +66,7 @@ def func3(arg):
     """
     return arg
 
-@cython.always_allow_keywords(True)
+@cython.always_allow_keywords(true)
 def func3_unused(arg):
     """
     >>> func3_unused(None)
@@ -93,7 +93,7 @@ cdef class A:
     >>> if not IS_PY2: PyA.meth1(self=PyA(), arg=1)
     """
 
-    @cython.always_allow_keywords(False)
+    @cython.always_allow_keywords(false)
     def meth0_nokw(self):
         """
         >>> A().meth0_nokw()
@@ -103,7 +103,7 @@ cdef class A:
         ... else: pass  #assert False, "No TypeError for missing 'self' positional argument"
         """
 
-    @cython.always_allow_keywords(True)
+    @cython.always_allow_keywords(true)
     def meth0_kw(self):
         """
         >>> A().meth0_kw()
@@ -115,7 +115,7 @@ cdef class A:
         ... else: pass  #assert False, "No TypeError when passing 'self' argument twice"
         """
 
-    @cython.always_allow_keywords(True)
+    @cython.always_allow_keywords(true)
     def meth1_kw(self, arg):
         """
         >>> A().meth1_kw(None)
@@ -125,7 +125,7 @@ cdef class A:
         >>> #A.meth1_kw(self=A(), arg=None)
         """
 
-    @cython.always_allow_keywords(False)
+    @cython.always_allow_keywords(false)
     def meth1_nokw(self, arg):
         """
         >>> A().meth1_nokw(None)
@@ -137,7 +137,7 @@ cdef class A:
         ... else: pass  # assert False, "No TypeError for missing 'self' positional argument"
         """
 
-    @cython.always_allow_keywords(False)
+    @cython.always_allow_keywords(false)
     def meth2(self, arg):
         """
         >>> A().meth2(None)
@@ -145,7 +145,7 @@ cdef class A:
         >>> assert_typeerror_no_keywords(A().meth2, arg=None)
         """
 
-    @cython.always_allow_keywords(True)
+    @cython.always_allow_keywords(true)
     def meth3(self, arg):
         """
         >>> A().meth3(None)
@@ -155,7 +155,7 @@ cdef class A:
 
 
 class B(object):
-    @cython.always_allow_keywords(False)
+    @cython.always_allow_keywords(false)
     def meth0_nokw(self):
         """
         >>> B().meth0_nokw()
@@ -163,7 +163,7 @@ class B(object):
         >>> if not IS_PY2: assert_typeerror_no_keywords(B.meth0_nokw, self=B())
         """
 
-    @cython.always_allow_keywords(True)
+    @cython.always_allow_keywords(true)
     def meth0_kw(self):
         """
         >>> B().meth0_kw()
@@ -175,7 +175,7 @@ class B(object):
         ... else: assert False, "No TypeError when passing 'self' argument twice"
         """
 
-    @cython.always_allow_keywords(True)
+    @cython.always_allow_keywords(true)
     def meth1(self, arg):
         """
         >>> B().meth1(None)
@@ -185,7 +185,7 @@ class B(object):
         >>> if not IS_PY2: B.meth1(self=B(), arg=None)
         """
 
-    @cython.always_allow_keywords(False)
+    @cython.always_allow_keywords(false)
     def meth2(self, arg):
         """
         >>> B().meth2(None)
@@ -195,7 +195,7 @@ class B(object):
         >>> B().meth2(arg=None)  # assert_typeerror_no_keywords(B().meth2, arg=None)  -> not a cdef class!
         """
 
-    @cython.always_allow_keywords(True)
+    @cython.always_allow_keywords(true)
     def meth3(self, arg):
         """
         >>> B().meth3(None)

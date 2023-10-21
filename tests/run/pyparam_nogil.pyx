@@ -12,7 +12,7 @@ def if_list_nogil(list obj):
 
 cdef bint _if_list_nogil(list obj) nogil:
     if obj:
-        return True
+        return true
     else:
-        return False
+        return false
 

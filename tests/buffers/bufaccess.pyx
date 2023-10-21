@@ -50,7 +50,7 @@ def disabled_usage(obj):
     >>> disabled_usage(None)
     """
     cdef object[int, ndim=2] buf
-    if False:
+    if false:
         buf = obj
     return obj
 
@@ -58,8 +58,8 @@ def disabled_usage(obj):
 @testcase
 def nousage_cleanup(x):
     """
-    >>> nousage_cleanup(False)
-    >>> nousage_cleanup(True)
+    >>> nousage_cleanup(false)
+    >>> nousage_cleanup(true)
     Traceback (most recent call last):
     RuntimeError
     """
@@ -122,7 +122,7 @@ def acquire_failure1():
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer()
-        assert False
+        assert false
     except Exception:
         print buf[0], buf[3]
 
@@ -139,7 +139,7 @@ def acquire_failure2():
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer()
-        assert False
+        assert false
     except Exception:
         print buf[0], buf[3]
 
@@ -159,7 +159,7 @@ def acquire_failure3():
     print buf[0], buf[3]
     try:
         buf = 3
-        assert False
+        assert false
     except Exception:
         print buf[0], buf[3]
 
@@ -178,7 +178,7 @@ def acquire_failure4():
     print buf[0], buf[3]
     try:
         buf = 2
-        assert False
+        assert false
     except Exception:
         print buf[0], buf[3]
 
@@ -192,7 +192,7 @@ def acquire_failure5():
     """
     cdef object[int] buf
     buf = IntMockBuffer("working", range(4))
-    buf.fail = True
+    buf.fail = true
     buf = 3
 
 
@@ -228,7 +228,7 @@ def acquire_nonbuffer2():
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer
-        assert False
+        assert false
     except Exception:
         print buf[0], buf[3]
 
@@ -550,7 +550,7 @@ def list_comprehension(object[int] buf, len):
 # The negative_indices buffer option
 #
 @testcase
-def no_negative_indices(object[int, negative_indices=False] buf, int idx):
+def no_negative_indices(object[int, negative_indices=false] buf, int idx):
     """
     The most interesting thing here is to inspect the C source and
     make sure optimal code is produced.
@@ -566,7 +566,7 @@ def no_negative_indices(object[int, negative_indices=False] buf, int idx):
     return buf[idx]
 
 @testcase
-@cython.wraparound(False)
+@cython.wraparound(false)
 def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
     """
     Again, the most interesting thing here is to inspect the C source.
@@ -580,7 +580,7 @@ def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
     IndexError: Out of bounds on buffer access (axis 0)
     """
     cdef int byneg
-    with cython.wraparound(True):
+    with cython.wraparound(true):
         byneg = buf[neg_idx]
     return buf[pos_idx] + byneg
 
@@ -628,7 +628,7 @@ def strided(object[int, ndim=1, mode='strided'] buf):
 
     Check that the suboffsets were patched back prior to release.
     >>> A.release_ok
-    True
+    true
     """
     return buf[2]
 
@@ -714,8 +714,8 @@ def safe_get(object[int] buf, int idx):
     return buf[idx]
 
 @testcase
-@cython.boundscheck(False) # outer decorators should take precedence
-@cython.boundscheck(True)
+@cython.boundscheck(false) # outer decorators should take precedence
+@cython.boundscheck(true)
 def unsafe_get(object[int] buf, int idx):
     """
     Access outside of the area the buffer publishes.
@@ -730,8 +730,8 @@ def unsafe_get(object[int] buf, int idx):
     return buf[idx]
 
 @testcase
-@cython.boundscheck(False)
-def unsafe_get_nonegative(object[int, negative_indices=False] buf, int idx):
+@cython.boundscheck(false)
+def unsafe_get_nonegative(object[int, negative_indices=false] buf, int idx):
     """
     Also inspect the C source to see that it is optimal...
 
@@ -752,9 +752,9 @@ def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
         ...
     IndexError: Out of bounds on buffer access (axis 0)
     """
-    with cython.boundscheck(False):
+    with cython.boundscheck(false):
         one = buf[unsafe_idx]
-    with cython.boundscheck(True):
+    with cython.boundscheck(true):
         two = buf[safe_idx]
     return (one, two)
 
@@ -956,8 +956,8 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
-@cython.binding(False)
-@cython.always_allow_keywords(False)
+@cython.binding(false)
+@cython.always_allow_keywords(false)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -1077,7 +1077,7 @@ def assign_temporary_to_object(object[object] buf):
 # cast option
 #
 @testcase
-def buffer_cast(object[unsigned int, cast=True] buf, int idx):
+def buffer_cast(object[unsigned int, cast=true] buf, int idx):
     """
     Round-trip a signed int through unsigned int buffer access.
 
@@ -1089,7 +1089,7 @@ def buffer_cast(object[unsigned int, cast=True] buf, int idx):
     return <int>data
 
 @testcase
-def buffer_cast_fails(object[char, cast=True] buf):
+def buffer_cast_fails(object[char, cast=true] buf):
     """
     Cannot cast between datatype of different sizes.
 
@@ -1246,7 +1246,7 @@ def complex_struct_inplace(object[LongComplex] buf):
 # Nogil
 #
 @testcase
-@cython.boundscheck(False)
+@cython.boundscheck(false)
 def buffer_nogil():
     """
     >>> buffer_nogil()

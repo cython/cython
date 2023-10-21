@@ -323,8 +323,8 @@ def test_bool_op():
     """
     >>> test_bool_op()
     """
-    cdef TruthClass yes = TruthClass(True)
-    cdef TruthClass no = TruthClass(False)
+    cdef TruthClass yes = TruthClass(true)
+    cdef TruthClass no = TruthClass(false)
     if yes:
         pass
     else:
@@ -336,15 +336,15 @@ def test_bool_cond():
     """
     >>> test_bool_cond()
     """
-    assert (TruthClass(False) or TruthClass(False)).value == False
-    assert (TruthClass(False) or TruthClass(True)).value == True
-    assert (TruthClass(True) or TruthClass(False)).value == True
-    assert (TruthClass(True) or TruthClass(True)).value == True
+    assert (TruthClass(false) or TruthClass(false)).value == False
+    assert (TruthClass(false) or TruthClass(true)).value == True
+    assert (TruthClass(true) or TruthClass(false)).value == True
+    assert (TruthClass(true) or TruthClass(true)).value == True
 
-    assert (TruthClass(False) and TruthClass(False)).value == False
-    assert (TruthClass(False) and TruthClass(True)).value == False
-    assert (TruthClass(True) and TruthClass(False)).value == False
-    assert (TruthClass(True) and TruthClass(True)).value == True
+    assert (TruthClass(false) and TruthClass(false)).value == False
+    assert (TruthClass(false) and TruthClass(true)).value == False
+    assert (TruthClass(true) and TruthClass(false)).value == False
+    assert (TruthClass(true) and TruthClass(true)).value == True
 
 
 ctypedef int* int_ptr

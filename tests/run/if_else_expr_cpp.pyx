@@ -18,9 +18,9 @@ cdef reset() :
 
 def test_one_ref(bint b):
     """
-    >>> test_one_ref(False)
+    >>> test_one_ref(false)
     1
-    >>> test_one_ref(True)
+    >>> test_one_ref(true)
     100
     """
     reset()
@@ -28,9 +28,9 @@ def test_one_ref(bint b):
 
 def test_both_ref(bint b):
     """
-    >>> test_both_ref(False)
+    >>> test_both_ref(false)
     (1, 100)
-    >>> test_both_ref(True)
+    >>> test_both_ref(true)
     (100, 2)
     """
     reset()
