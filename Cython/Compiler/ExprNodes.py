@@ -777,7 +777,7 @@ class ExprNode(Node):
 #        self.release_subexpr_temps(env)
 
     def allocate_temp(self, code, type):
-        # implemented so it can be overidden in special cases
+        # implemented so it can be overridden in special cases
         return code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref)
 
     def allocate_temp_result(self, code):
