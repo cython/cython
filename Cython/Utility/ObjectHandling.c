@@ -465,7 +465,9 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         }
     }
 #else
-    if (is_list || PySequence_Check(o)) {
+    // PySequence_GetItem behaves differently to PyObject_GetItem for i<0
+    // and possibly some other cases so can't generally be substituted
+    if (is_list || PyList_CheckExact(o) || PyTuple_CheckExact(o)) {
         return PySequence_GetItem(o, i);
     }
 #endif
@@ -534,11 +536,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         }
     }
 #else
-#if CYTHON_COMPILING_IN_PYPY
-    if (is_list || (PySequence_Check(o) && !PyDict_Check(o)))
-#else
-    if (is_list || PySequence_Check(o))
-#endif
+    // PySequence_SetItem behaves differently that PyObject_SetItem for i<0
+    // and possibly some other cases so can't generally be substituted
+    if (is_list || PyList_CheckExact(o) || PyTuple_CheckExact(o))
     {
         return PySequence_SetItem(o, i, v);
     }
@@ -572,7 +572,9 @@ static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                int is_list, CYTHON_NCP_UNUSED int wraparound) {
 #if !CYTHON_USE_TYPE_SLOTS
-    if (is_list || PySequence_Check(o)) {
+    // PySequence_DelItem behaves differently than PyObject_DelItem for i<0
+    // and possibly some other cases so can't generally be substituted
+    if (is_list || PyList_CheckExact(o) || PyTuple_CheckExact(o)) {
         return PySequence_DelItem(o, i);
     }
 #else
