@@ -881,7 +881,7 @@ class FunctionState(object):
                 self.temp_counter += 1
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if result not in self.names_taken: break
-            self.temps_allocated.append((result, type, additional_hashing, manage_ref, static))
+            self.temps_allocated.append((result, type, manage_ref, static, additional_hashing))
             if not reusable:
                 self.zombie_temps.add(result)
         self.temps_used_type[result] = (type, manage_ref, additional_hashing)
@@ -920,7 +920,7 @@ class FunctionState(object):
         that are currently in use.
         """
         used = []
-        for name, type, additional_hashing, manage_ref, static in self.temps_allocated:
+        for name, type, manage_ref, static, additional_hashing in self.temps_allocated:
             freelist = self.temps_free.get((type, manage_ref, additional_hashing))
             if freelist is None or name not in freelist[1]:
                 used.append((name, type, manage_ref and type.needs_refcounting))
@@ -939,7 +939,7 @@ class FunctionState(object):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                for cname, type, additional_hashing, manage_ref, static in self.temps_allocated
+                for cname, type, manage_ref, static, additional_hashing in self.temps_allocated
                 if manage_ref]
 
     def all_free_managed_temps(self):
@@ -2143,7 +2143,7 @@ class CCodeWriter(object):
         self.funcstate.scope.use_entry_utility_code(entry)
 
     def put_temp_declarations(self, func_context):
-        for name, type, additional_hashing, manage_ref, static in func_context.temps_allocated:
+        for name, type, manage_ref, static, additional_hashing in func_context.temps_allocated:
             if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
             else:

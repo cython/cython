@@ -221,6 +221,9 @@ class ResultRefNode(AtomicExprNode):
     def free_temps(self, code):
         pass
 
+    def unpacked_node(self):
+        return self.expression
+
 
 class LetNodeMixin:
     def set_temp_expr(self, lazy_temp):

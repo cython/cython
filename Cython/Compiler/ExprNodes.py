@@ -776,7 +776,7 @@ class ExprNode(Node):
 #        #  Release temporaries used by LHS of an assignment.
 #        self.release_subexpr_temps(env)
 
-    def call_funcstate_allocate_temp(self, code, type):
+    def allocate_temp(self, code, type):
         # implemented so it can be overidden in special cases
         return code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref)
 
@@ -790,7 +790,7 @@ class ExprNode(Node):
             elif not (self.result_is_used or type.is_memoryviewslice or self.is_c_result_required()):
                 self.temp_code = None
                 return
-            self.temp_code = self.call_funcstate_allocate_temp(code, type)
+            self.temp_code = self.allocate_temp(code, type)
         else:
             self.temp_code = None
 
@@ -1215,6 +1215,16 @@ class ExprNode(Node):
         this function returns a false value.
         """
         return None
+
+    def unpacked_node(self):
+        """
+        Extracts the "underlying expression" from underneath all the wrapper nodes
+
+        For ResultRefNode returns self.expression
+        For NoneCheckNode returns arg
+        (Other types of nodes to be implemented as needed)
+        """
+        return self
 
 
 class AtomicExprNode(ExprNode):
@@ -5114,8 +5124,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         return self.result_in_temp()
 
-    def call_funcstate_allocate_temp(self, code, type):
-        from .UtilNodes import ResultRefNode
+    def allocate_temp(self, code, type):
         # make the type distinct from the "normal" memoryview type
 
         type = type.make_dont_clear_temps_type()
@@ -5124,11 +5133,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         # direct iteration. (It'd still work without this but
         # it wouldn't preserve the "same temp for same entry" which
         # should make the speed-up more reliable)
-        base = self.base
-        if isinstance(base, ResultRefNode):
-            base = base.expression
-        if isinstance(base, NoneCheckNode):
-            base = base.arg
+        base = self.base.unpacked_node()
         if (base.is_name or base.is_attribute) and base.entry:
             # Allocate a unique temp for entry (type, entry). This maximises the chance
             # that the temp already points to the same memoryview
@@ -5136,7 +5141,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
             res = code.funcstate.allocate_temp(type, manage_ref=self.use_managed_ref,
                                                 additional_hashing=base.entry)
             return res
-        return super(MemoryViewSliceNode, self).call_funcstate_allocate_temp(code, type)
+        return super(MemoryViewSliceNode, self).allocate_temp(code, type)
 
     def calculate_result_code(self):
         """This is called in case this is a no-op slicing node"""
@@ -14047,6 +14052,9 @@ class NoneCheckNode(CoercionNode):
 
     def free_temps(self, code):
         self.arg.free_temps(code)
+
+    def unpacked_node(self):
+        return self.arg
 
 
 class CoerceToPyTypeNode(CoercionNode):

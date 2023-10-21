@@ -283,14 +283,14 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         # There's a decent chance that the source and destination memoryviews are the same
         # in which case we can skip the reference counting for speed
-        code.putln("if (%(dst)s.memview != %(src)s.memview) {" % locals())
+        code.putln("if (%s.memview != %s.memview) {" % (dst, src))
         code.put_xdecref(dst, self.type, have_gil=have_gil)
-        code.putln("%(dst)s.data = %(src)s.data;" % locals())
-        code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
+        code.putln("%s.data = %s.data;" % (dst, src))
+        code.putln("%s.memview = %s.memview;" % (dst, src))
         code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
         code.putln("} else {")
         # just copy the data
-        code.putln("%(dst)s.data = %(src)s.data;" % locals())
+        code.putln("%s.data = %s.data;" % (dst, src))
         code.putln("}")
 
 
