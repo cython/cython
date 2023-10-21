@@ -1,5 +1,5 @@
-# cython: test_assert_c_code_has = __pyx_int_large_498767777577077770_xxx_709777877895072797
-# cython: test_assert_c_code_has = __pyx_int_large2_498767777577077770_xxx_709777877895072797
+# cython: test_assert_c_code_has = __pyx_int_large_0x16a76f60ab5d456a_xxx_1cd89e1a3713adcc1d
+# cython: test_assert_c_code_has = __pyx_int_large2_0x16a76f60ab5d456a_xxx_1cd89e1a3713adcc1d
 
 """
 >>> print(large_int1)

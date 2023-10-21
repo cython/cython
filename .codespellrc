@@ -1,0 +1,9 @@
+[codespell]
+skip = .git,*.pdf,*.svg,cython.st,msvc_strings.pyx,test_genericclass_exttype.pyx,e_invalid_special_cython_modules.py,encoding.pyx,str_encoding_latin1.pyx,unicodeliteralslatin1.pyx
+# case sensitive etc
+# Tripple -- relates to kate. Not sure if could be fixed
+ignore-regex= Tripple|/Fo|ist das|TOi|respect to the includee
+# forin - ? tag used in 3 files. may be could be renamed?
+# delimeters - typo, but used in API so kept as is
+# implementor,implementors - was decided that both forms are ok
+ignore-words-list = asend,forin,nd,mis,te,nin,ue,ccompiler,ket,defin,delimeters,filetests,crasher,implementor,implementors

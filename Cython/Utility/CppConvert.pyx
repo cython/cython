@@ -60,7 +60,7 @@ cdef extern from "Python.h":
     void Py_INCREF(object)
     list PyList_New(Py_ssize_t size)
     void PyList_SET_ITEM(object list, Py_ssize_t i, object o)
-    cdef Py_ssize_t PY_SSIZE_T_MAX
+    const Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
 cdef object {{cname}}(const vector[X]& v):

@@ -571,6 +571,7 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.is_variable = True
             var_entry.scope = mod
             entry.as_variable = var_entry
+            entry.known_standard_library_import = "%s.%s" % (module_name, name)
 
         for name in ['ClassVar', 'Optional']:
             name = EncodedString(name)
@@ -581,6 +582,7 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.is_variable = True
             var_entry.scope = mod
             entry.as_variable = var_entry
+            entry.known_standard_library_import = "%s.%s" % (module_name, name)
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)
@@ -591,6 +593,7 @@ def get_known_standard_library_module_scope(module_name):
         var_entry.is_pyglobal = True
         var_entry.scope = mod
         entry.as_variable = var_entry
+        entry.known_standard_library_import = "%s.InitVar" % module_name
         for name in ["dataclass", "field"]:
             mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
         _known_module_scopes[module_name] = mod

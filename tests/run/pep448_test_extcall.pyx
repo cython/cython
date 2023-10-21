@@ -451,7 +451,7 @@ def call_method(Foo):
 
 # A PyCFunction that takes only positional parameters should allow an
 # empty keyword dictionary to pass without a complaint, but raise a
-# TypeError if te dictionary is not empty
+# TypeError if the dictionary is not empty
 
 def call_builtin_empty_dict():
     """

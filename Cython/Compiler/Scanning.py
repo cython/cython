@@ -131,6 +131,7 @@ class SourceDescriptor(object):
     A SourceDescriptor should be considered immutable.
     """
     filename = None
+    in_utility_code = False
 
     _file_type = 'pyx'
 

@@ -193,3 +193,13 @@ def py_bin():
     (1, -2, 15)
     """
     return 0b01, -0b10, 0b1111
+
+def big_value():
+    """
+    >>> big_value() == (10**10000)
+    True
+    """
+    # Not quite a literal, but Cython expands the binop and inserts the literal
+    # into the C source. Which means it must be converted to a hex string to avoid
+    # hitting Python's integer conversion limits
+    return 10**10000

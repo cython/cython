@@ -1,0 +1,5 @@
+jupyter
+pytest  # needed by IPython/Jupyter integration tests
+line_profiler<4  # currently 4 appears to collect no profiling info
+setuptools<60
+pywinpty<2.0.0 ; os_name == "nt"  # jupyter dependency, no wheels after 2.0

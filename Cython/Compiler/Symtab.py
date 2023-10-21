@@ -861,6 +861,10 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
+        inline_in_pxd = 'inline' in modifiers and in_pxd and defining
+        if inline_in_pxd:
+            # in_pxd does special things that we don't want to apply to inline functions
+            in_pxd = False
         entry = self.lookup_here(name)
         if entry:
             if not in_pxd and visibility != entry.visibility and visibility == 'extern':
@@ -909,6 +913,8 @@ class Scope(object):
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
             entry.is_overridable = overridable
+        if inline_in_pxd:
+            entry.inline_func_in_pxd = True
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
@@ -931,6 +937,12 @@ class Scope(object):
             var_entry.scope = entry.scope
             entry.as_variable = var_entry
         type.entry = entry
+        if (type.exception_check and type.exception_value is None and type.nogil and
+                not pos[0].in_utility_code and
+                # don't warn about external functions here - the user likely can't do anything
+                defining and not in_pxd and not inline_in_pxd):
+            PyrexTypes.write_noexcept_performance_hint(
+                pos, self, function_name=name, void_return=type.return_type.is_void)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,
@@ -1392,30 +1404,31 @@ class ModuleScope(Scope):
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
-        relative_to = None
+        is_relative_import = relative_level is not None and relative_level > 0
+        from_module = None
         absolute_fallback = False
         if relative_level is not None and relative_level > 0:
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
-            relative_to = self
+            from_module = self
 
             top_level = 1 if self.is_package else 0
-            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            # * top_level == 1 when file is __init__.pyx, current package (from_module) is the current module
             #   i.e. dot in `from . import ...` points to the current package
-            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            # * top_level == 0 when file is regular module, current package (from_module) is parent module
             #   i.e. dot in `from . import ...` points to the package where module is placed
-            while relative_level > top_level and relative_to:
-                relative_to = relative_to.parent_module
+            while relative_level > top_level and from_module:
+                from_module = from_module.parent_module
                 relative_level -= 1
 
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
-            relative_to = self.parent_module
+            from_module = self.parent_module
             absolute_fallback = True
 
         module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
+            module_name, from_module=from_module, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
     def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,

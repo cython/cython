@@ -193,6 +193,19 @@ _strip_cython_code_from_html = partial(re.compile(
 ).sub, '')
 
 
+def _parse_pattern(pattern):
+    start = end = None
+    if pattern.startswith('/'):
+        start, pattern = re.split(r"(?<!\\)/", pattern[1:], maxsplit=1)
+        pattern = pattern.strip()
+    if pattern.startswith(':'):
+        pattern = pattern[1:].strip()
+        if pattern.startswith("/"):
+            end, pattern = re.split(r"(?<!\\)/", pattern[1:], maxsplit=1)
+            pattern = pattern.strip()
+    return start, end, pattern
+
+
 class TreeAssertVisitor(VisitorTransform):
     # actually, a TreeVisitor would be enough, but this needs to run
     # as part of the compiler pipeline
@@ -213,15 +226,34 @@ class TreeAssertVisitor(VisitorTransform):
                 file_path,
             ))
 
+        def extract_section(file_path, content, start, end):
+            if start:
+                split = re.search(start, content)
+                if split:
+                    content = content[split.end():]
+                else:
+                    fail(self._module_pos, start, found=False, file_path=file_path)
+            if end:
+                split = re.search(end, content)
+                if split:
+                    content = content[:split.start()]
+                else:
+                    fail(self._module_pos, end, found=False, file_path=file_path)
+            return content
+
         def validate_file_content(file_path, content):
             for pattern in patterns:
                 #print("Searching pattern '%s'" % pattern)
-                if not re.search(pattern, content):
+                start, end, pattern = _parse_pattern(pattern)
+                section = extract_section(file_path, content, start, end)
+                if not re.search(pattern, section):
                     fail(self._module_pos, pattern, found=False, file_path=file_path)
 
             for antipattern in antipatterns:
                 #print("Searching antipattern '%s'" % antipattern)
-                if re.search(antipattern, content):
+                start, end, antipattern = _parse_pattern(antipattern)
+                section = extract_section(file_path, content, start, end)
+                if re.search(antipattern, section):
                     fail(self._module_pos, antipattern, found=True, file_path=file_path)
 
         def validate_c_file(result):
