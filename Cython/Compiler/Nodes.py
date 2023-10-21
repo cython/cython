@@ -8203,7 +8203,7 @@ class ExceptClauseNode(Node):
     #  function_name  string             qualified name of enclosing function
     #  exc_vars       (string * 3)       local exception variables
     #  is_except_as   bool               Py3-style "except ... as xyz"
-    #  add_traceback  bool               Can be used internally to supress traceback
+    #  add_traceback  bool               Can be used internally to suppress traceback
 
     # excinfo_target is never set by the parser, but can be set by a transform
     # in order to extract more extensive information about the exception as a
@@ -8675,7 +8675,7 @@ class StarExceptPrepAndReraiseNode(StatNode):
 
     def generate_execution_code(self, code):
         # If we've had an internal exception while validating/matching one of the star exceptions
-        # this takes precendence
+        # this takes precedence
         code.putln("if (unlikely(%s)) {" % self.internal_exception_set.result())
         code.putln("__Pyx_RaisePreppedException(%s);" % self.internal_exception_set.result())
         code.put_decref_clear(self.internal_exception_set.result(), PyrexTypes.py_object_type)
