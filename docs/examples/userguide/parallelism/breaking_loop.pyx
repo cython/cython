@@ -1,8 +1,6 @@
 from cython.parallel import prange
 
-
-
-cdef int func(Py_ssize_t n) except -1:
+cdef i32 func(Py_ssize_t n) except -1:
     cdef Py_ssize_t i
 
     for i in prange(n, nogil=True):

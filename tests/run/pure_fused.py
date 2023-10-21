@@ -5,7 +5,7 @@
 
 import cython
 
-InPy = cython.fused_type(cython.int, cython.float)
+InPy = cython.fused_type(cython.i32, cython.f32)
 
 class TestCls:
     # although annotations as strings isn't recommended and generates a warning

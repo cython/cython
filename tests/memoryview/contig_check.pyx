@@ -5,8 +5,7 @@ import numpy as np
 
 # Cython used to forget the "is contig" helper functions when both are used.
 
-
-def copy_fortran3(double[:, :, :] mat):
+def copy_fortran3(f64[:, :, :] mat):
     """
     >>> a = np.ones((1, 1, 1), dtype=np.float64)
     >>> c = copy_fortran3(a)
@@ -36,8 +35,7 @@ def copy_fortran3(double[:, :, :] mat):
     else:
         return np.asarray(mat.copy_fortran())
 
-
-def copy_fortran2(double[:, :] mat):
+def copy_fortran2(f64[:, :] mat):
     """
     >>> a = np.ones((1, 1), dtype=np.float64)
     >>> c = copy_fortran2(a)
@@ -52,7 +50,7 @@ def copy_fortran2(double[:, :] mat):
     >>> (a == c).all()
     True
     """
-    cdef int rows, cols
+    cdef i32 rows, cols
 
     rows, cols = np.shape(mat)
 

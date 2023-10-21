@@ -1,7 +1,7 @@
 # mode: compile
 
 def f(a, b, c, x):
-    cdef int i
+    cdef i32 i
     a = b + c
 
     try:
@@ -47,7 +47,7 @@ def f(a, b, c, x):
         raise
 
 def g(a, b, c, x):
-    cdef int i
+    cdef i32 i
     a = b + c
 
     try:

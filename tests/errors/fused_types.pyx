@@ -8,26 +8,26 @@ from cython import fused_type
 # ctypedef foo(int) dtype1
 # ctypedef foo.bar(float) dtype2
 # ctypedef fused_type(foo) dtype3
-dtype4 = cython.fused_type(int, long, kw=None)
+dtype4 = cython.fused_type(i32, i64, kw=None)
 
-# ctypedef public cython.fused_type(int, long) dtype7
-# ctypedef api cython.fused_type(int, long) dtype8
+# ctypedef public cython.fused_type(i32, i64) dtype7
+# ctypedef api cython.fused_type(i32, i64) dtype8
 
-int_t = cython.fused_type(short, short, int)
-int2_t = cython.fused_type(int, long)
-dtype9 = cython.fused_type(int2_t, int)
+int_t = cython.fused_type(i16, i16, i32)
+int2_t = cython.fused_type(i32, i64)
+dtype9 = cython.fused_type(int2_t, i32)
 
-floating = cython.fused_type(float, double)
+floating = cython.fused_type(f32, f64)
 
 cdef func(floating x, int2_t y):
     print x, y
 
-cdef float x = 10.0
-cdef int y = 10
-func[float](x, y)
-func[float][int](x, y)
-func[float, int](x)
-func[float, int](x, y, y)
+cdef f32 x = 10.0
+cdef i32 y = 10
+func[f32](x, y)
+func[f32][i32](x, y)
+func[f32, i32](x)
+func[f32, i32](x, y, y)
 func(x, y=y)
 
 ctypedef fused memslice_dtype_t:
@@ -39,7 +39,6 @@ def f(memslice_dtype_t[:, :] a):
 
 lambda cython.integral i: i
 
-
 cdef cython.floating x
 
 cdef class Foo(object):
@@ -49,30 +48,28 @@ def outer(cython.floating f):
     def inner():
         cdef cython.floating g
 
-
 # Mixing const and non-const type makes fused type ambiguous
 cdef fused mix_const_t:
-    int
-    const int
+    i32
+    const i32
 
 cdef cdef_func_with_mix_const_type(mix_const_t val):
     print(val)
 
 cdef_func_with_mix_const_type(1)
 
-
 # This is all valid
-dtype5 = fused_type(int, long, float)
-dtype6 = cython.fused_type(int, long)
-func[float, int](x, y)
+dtype5 = fused_type(i32, i64, f32)
+dtype6 = cython.fused_type(i32, i64)
+func[f32, i32](x, y)
 
 cdef fused fused1:
-    int
-    long long
+    i32
+    i128
 
 ctypedef fused fused2:
-    int
-    long long
+    i32
+    i128
 
 func(x, y)
 
@@ -89,27 +86,27 @@ cdef void contents_unfindable1(cython.integral x):
 
 _ERRORS = u"""
 11:15: fused_type does not take keyword arguments
-16:33: Type specified multiple times
+16:31: Type specified multiple times
 27:0: Invalid use of fused types, type cannot be specialized
 27:4: Not enough types specified to specialize the function, int2_t is still fused
 28:0: Invalid use of fused types, type cannot be specialized
 28:4: Not enough types specified to specialize the function, int2_t is still fused
-29:16: Call with wrong number of arguments (expected 2, got 1)
-30:16: Call with wrong number of arguments (expected 2, got 3)
+29:14: Call with wrong number of arguments (expected 2, got 1)
+30:14: Call with wrong number of arguments (expected 2, got 3)
 37:6: Invalid base type for memoryview slice: int *
 40:0: Fused lambdas not allowed
-43:5: Fused types not allowed here
-43:21: cdef variable 'x' declared after it is used
-46:9: Fused types not allowed here
-61:0: Invalid use of fused types, type cannot be specialized
-61:29: ambiguous overloaded method
+42:5: Fused types not allowed here
+42:21: cdef variable 'x' declared after it is used
+45:9: Fused types not allowed here
+59:0: Invalid use of fused types, type cannot be specialized
+59:29: ambiguous overloaded method
 # Possibly duplicates the errors more often than we want
-79:5: Return type is a fused type that cannot be determined from the function arguments
-82:6: Return type is a fused type that cannot be determined from the function arguments
-86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-86:4: 'z' cannot be specialized since its type is not a fused argument to this function
-87:16: Type cannot be specialized since it is not a fused argument to this function
-87:16: Type cannot be specialized since it is not a fused argument to this function
-87:16: Type cannot be specialized since it is not a fused argument to this function
+76:5: Return type is a fused type that cannot be determined from the function arguments
+79:6: Return type is a fused type that cannot be determined from the function arguments
+83:4: 'z' cannot be specialized since its type is not a fused argument to this function
+83:4: 'z' cannot be specialized since its type is not a fused argument to this function
+83:4: 'z' cannot be specialized since its type is not a fused argument to this function
+84:16: Type cannot be specialized since it is not a fused argument to this function
+84:16: Type cannot be specialized since it is not a fused argument to this function
+84:16: Type cannot be specialized since it is not a fused argument to this function
 """

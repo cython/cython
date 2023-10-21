@@ -1,6 +1,6 @@
 cdef struct Sandwich:
-	int i
-	char *s
+	i32 i
+	i8 *s
 
 cdef class Tomato:
-	cdef float danger
+	cdef f32 danger

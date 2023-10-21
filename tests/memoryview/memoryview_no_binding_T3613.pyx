@@ -9,13 +9,13 @@
 
 import cython
 
-def f(double[:] a):
+def f(f64[:] a):
     pass
 
 @cython.binding(False)
-def g(double[:] a):
+def g(f64[:] a):
     pass
 
 @cython.binding(True)
-def h(double[:] a):
+def h(f64[:] a):
     pass

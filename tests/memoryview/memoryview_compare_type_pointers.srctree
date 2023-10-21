@@ -7,7 +7,7 @@ from Cython.Build import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+    ext_modules = cythonize("*.pyx"),
 )
 
 ######## test_compare_type_pointers.pyx ########
@@ -29,7 +29,7 @@ otherfooview[0].f = 4.0
 assert test_foo_view(otherfooview_obj) == 4.0
 
 # Test a simple dtype now
-def test_double_view(double[:] m):
+def test_double_view(f64[:] m):
     return m[0]
 
 assert test_double_view(other_module.doubleview_obj) == 6.0
@@ -49,31 +49,31 @@ otherfooview_obj = otherfooview
 
 otherfooview[0].f = 4.0
 
-cdef double[10] doublearray
-cdef double[:] doubleview = doublearray
+cdef f64[10] doublearray
+cdef f64[:] doubleview = doublearray
 doubleview_obj = doubleview
 
 doubleview[0] = 6.0
 
 ######## types.pxi ########
 ctypedef packed struct Baz:
-    double d
+    f64 d
 
 ctypedef struct Bar:
-    int i
+    i32 i
 
 ctypedef struct Foo:
-    float f
-    double complex dc
+    f32 f
+    f64 complex dc
     char c
-    int i
+    i32 i
     Bar b
     char s[20]
 
 ctypedef struct OtherFoo:
-    float f
+    f32 f
     double complex dc
     char c
-    int i
+    i32 i
     Bar b
     char s[20]

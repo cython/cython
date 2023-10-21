@@ -1,18 +1,18 @@
 
 cimport cython
 
-@cython.locals(x=Py_ssize_t)
+@cython.locals(x=isize)
 cdef combinations(list l)
 
-@cython.locals(x1=double, x2=double, y1=double, y2=double, z1=double, z2=double,
-               m1=double, m2=double, vx=double, vy=double, vz=double, i=long)
-cdef advance(double dt, long n, list bodies=*, list pairs=*)
+@cython.locals(x1=f64, x2=f64, y1=f64, y2=f64, z1=f64, z2=f64,
+               m1=f64, m2=f64, vx=f64, vy=f64, vz=f64, i=i64)
+cdef advance(f64 dt, i64 n, list bodies=*, list pairs=*)
 
-@cython.locals(x1=double, x2=double, y1=double, y2=double, z1=double, z2=double,
-               m=double, m1=double, m2=double, vx=double, vy=double, vz=double)
-cdef report_energy(list bodies=*, list pairs=*, double e=*)
+@cython.locals(x1=f64, x2=f64, y1=f64, y2=f64, z1=f64, z2=f64,
+               m=f64, m1=f64, m2=f64, vx=f64, vy=f64, vz=f64)
+cdef report_energy(list bodies=*, list pairs=*, f64 e=*)
 
-@cython.locals(vx=double, vy=double, vz=double, m=double)
-cdef offset_momentum(tuple ref, list bodies=*, double px=*, double py=*, double pz=*)
+@cython.locals(vx=f64, vy=f64, vz=f64, m=f64)
+cdef offset_momentum(tuple ref, list bodies=*, f64 px=*, f64 py=*, f64 pz=*)
 
-cpdef test_nbody(long iterations)
+cpdef test_nbody(i64 iterations)

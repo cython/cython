@@ -1,9 +1,9 @@
 # mode: error
 
 cdef void foo():
-	cdef int bool, int1
+	cdef i32 bool, int1
 	cdef char *ptr2
-	cdef int *ptr3
+	cdef i32 *ptr3
 	cdef object i = 5
 
 	bool = i == ptr2  # evaluated in Python space

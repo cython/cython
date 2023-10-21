@@ -1,21 +1,21 @@
 # mode: compile
 
-cdef int spam() except 42:
+cdef i32 spam() except 42:
     pass
 
-cdef float eggs() except 3.14:
+cdef f32 eggs() except 3.14:
     pass
 
 cdef char *grail() except NULL:
     pass
 
-cdef int tomato() except *:
+cdef i32 tomato() except *:
     pass
 
-cdef int brian() except? 0:
+cdef i32 brian() except? 0:
     pass
 
-cdef int silly() except -1:
+cdef i32 silly() except -1:
     pass
 
 spam()

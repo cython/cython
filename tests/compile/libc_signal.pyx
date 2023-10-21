@@ -2,7 +2,7 @@
 
 from libc.signal cimport *
 
-cdef void sighdl(int signum) noexcept nogil:
+cdef void sighdl(i32 signum) noexcept nogil:
     pass
 
 cdef sighandler_t h
@@ -15,5 +15,5 @@ h = signal(SIGABRT, SIG_DFL)
 if h == SIG_ERR: pass
 
 h = signal(SIGABRT, SIG_IGN)
-cdef int e = raise_(SIGABRT)
+cdef i32 e = raise_(SIGABRT)
 h = signal(SIGABRT, h)

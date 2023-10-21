@@ -1,14 +1,14 @@
 # mode: compile
 
 cdef enum E:
-    z
+    Z
 
 cdef void f():
-    cdef int *p
+    cdef i32 *p
     cdef void *v
-    cdef int[5] a
-    cdef int i=0
-    cdef E e=z
+    cdef i32[5] a
+    cdef i32 i = 0
+    cdef E e = Z
     p = a
     v = a
     p = a + i

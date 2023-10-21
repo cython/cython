@@ -3,27 +3,28 @@ from builtins import (int as py_int, float as py_float,
 from typing import (Union, Dict, Any, Sequence, Optional,
                     List, TypeVar, Type, Generic)
 
-int = py_int
-long = py_int
-longlong = py_int
-short = py_int
-char = py_int
+
+i32 = int = py_int
+i64 = long = py_int
+i128 = longlong = py_int
+i16 = short = py_int
+i8 = char = py_int
 sint = py_int
 slong = py_int
 slonglong = py_int
 sshort = py_int
 schar = py_int
-uint = py_int
-ulong = py_int
-ulonglong = py_int
-ushort = py_int
-uchar = py_int
-size_t = py_int
-Py_ssize_t = py_int
+u32 = uint = py_int
+u64 = ulong = py_int
+u128 = ulonglong = py_int
+u16 = ushort = py_int
+u8 = uchar = py_int
+usize = size_t = py_int
+isize = Py_ssize_t = py_int
 Py_UCS4 = Union[py_int, str]
 Py_UNICODE = Union[py_int, str]
-float = py_float
-double = py_float
+f32 = float = py_float
+f64 = double = py_float
 longdouble = py_float
 complex = py_complex
 floatcomplex = py_complex

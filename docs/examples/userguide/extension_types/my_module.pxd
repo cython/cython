@@ -1,2 +1,2 @@
 cdef class Shrubbery:
-    cdef int width, height
+    cdef i32 width, height

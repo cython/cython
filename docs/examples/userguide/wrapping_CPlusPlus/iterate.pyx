@@ -3,9 +3,9 @@
 from libcpp.vector cimport vector
 
 def main():
-    cdef vector[int] v = [4, 6, 5, 10, 3]
+    cdef vector[i32] v = [4, 6, 5, 10, 3]
 
-    cdef int value
+    cdef i32 value
     for value in v:
         print(value)
 

@@ -3,16 +3,13 @@
 from cpython cimport Py_buffer
 from libcpp.vector cimport vector
 
-
 cdef class Matrix:
-
-    cdef int view_count
-
-    cdef Py_ssize_t ncols
-    cdef vector[float] v
+    cdef i32 view_count
+    cdef isize ncols
+    cdef vector[f32] v
     # ...
 
-    def __cinit__(self, Py_ssize_t ncols):
+    def __cinit__(self, isize ncols):
         self.ncols = ncols
         self.view_count = 0
 
@@ -21,7 +18,7 @@ cdef class Matrix:
             raise ValueError("can't add row while being viewed")
         self.v.resize(self.v.size() + self.ncols)
 
-    def __getbuffer__(self, Py_buffer *buffer, int flags):
+    def __getbuffer__(self, Py_buffer *buffer, i32 flags):
         # ... as before
 
         self.view_count += 1

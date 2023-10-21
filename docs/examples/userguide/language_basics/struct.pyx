@@ -1,6 +1,6 @@
 cdef struct Grail:
-    int age
-    float volume
+    i32 age
+    f32 volume
 
 def main():
     cdef Grail grail = Grail(5, 3.0)

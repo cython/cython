@@ -1,7 +1,7 @@
 cimport cython
 
 ctypedef fused double_or_object:
-    double
+    f64
     object
 
 def increment(double_or_object x):

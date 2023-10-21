@@ -1,6 +1,6 @@
 # mode: compile
 
-ctypedef int *IntPtr
-ctypedef unsigned long ULong
+ctypedef i32 *IntPtr
+ctypedef u64 ULong
 cdef extern IntPtr spam
 cdef extern ULong grail

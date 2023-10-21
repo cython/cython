@@ -6,9 +6,9 @@ import numpy as np
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def do_sine(double[:,:] input):
-    cdef double[:,:] output = np.empty_like(input)
-    cdef Py_ssize_t i, j
+def do_sine(f64[:,:] input):
+    cdef f64[:,:] output = np.empty_like(input)
+    cdef isize i, j
 
     for i in prange(input.shape[0], nogil=True):
         for j in range(input.shape[1]):

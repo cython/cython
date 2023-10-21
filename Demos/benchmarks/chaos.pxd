@@ -1,39 +1,36 @@
-
 cimport cython
 
 cdef extern from "math.h":
-    cpdef double sqrt(double x)
+    cpdef f64 sqrt(f64 x)
 
 @cython.final
 cdef class GVector:
-    cdef public double x, y, z
+    cdef public f64 x, y, z
 
-    cpdef double Mag(self)
-    cpdef double dist(self, GVector other)
+    cpdef f64 Mag(self)
+    cpdef f64 dist(self, GVector other)
 
-
-cpdef list GetKnots(list points, long degree)
-
+cpdef list GetKnots(list points, i64 degree)
 
 @cython.final
 cdef class Spline:
     cdef list knots
     cdef list points
-    cdef long degree
+    cdef i64 degree
 
-    cpdef (long, long) GetDomain(self)
-    cpdef long GetIndex(self, u)
+    cpdef (i64, i64) GetDomain(self)
+    cpdef i64 GetIndex(self, u)
 
 
 @cython.final
 cdef class Chaosgame:
     cdef list splines
-    cdef double thickness
-    cdef double minx, miny, maxx, maxy, height, width
+    cdef f64 thickness
+    cdef f64 minx, miny, maxx, maxy, height, width
     cdef list num_trafos
-    cdef double num_total
+    cdef f64 num_total
 
     cpdef tuple get_random_trafo(self)
     cpdef GVector transform_point(self, GVector point, trafo=*)
     cpdef truncate(self, GVector point)
-    cpdef create_image_chaos(self, timer, long w, long h, long n)
+    cpdef create_image_chaos(self, timer, i64 w, i64 h, i64 n)

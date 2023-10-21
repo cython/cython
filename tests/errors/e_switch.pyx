@@ -1,6 +1,6 @@
 # mode: error
 
-cdef int x = 3
+cdef i32 x = 3
 
 if x == NONEXISTING:
     print 2

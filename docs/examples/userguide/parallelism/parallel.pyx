@@ -1,21 +1,16 @@
 from cython.parallel import parallel, prange
 from libc.stdlib cimport abort, malloc, free
 
-
-
-cdef void func(int *buf) nogil:
+cdef void func(i32 *buf) nogil:
     pass
     # ...
 
 cdef Py_ssize_t idx, i, j, n = 100
-cdef int * local_buf
-cdef size_t size = 10
-
-
-
+cdef i32 * local_buf
+cdef usize size = 10
 
 with nogil, parallel():
-    local_buf = <int *> malloc(sizeof(int) * size)
+    local_buf = <i32 *> malloc(sizeof(i32) * size)
     if local_buf is NULL:
         abort()
 

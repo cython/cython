@@ -1,7 +1,3 @@
- 
-
-
 cdef class Shrubbery:
-    cdef public int width, height
-
-    cdef readonly float depth
+    cdef public i32 width, height
+    cdef readonly f32 depth

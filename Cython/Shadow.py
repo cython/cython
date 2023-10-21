@@ -428,6 +428,23 @@ py_complex = typedef(complex, "double complex")
 
 # Predefined types
 
+builtin_types = [
+    'i8',
+    'i16',
+    'i32',
+    'i64',
+    'i128',
+    'u8',
+    'u16',
+    'u32',
+    'u64',
+    'u128',
+    'f32',
+    'f64',
+    'isize',
+    'usize',
+]
+
 int_types = [
     'char',
     'short',
@@ -475,6 +492,14 @@ except ImportError:  # Py3
 
 gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
 del builtins
+
+for name in builtin_types:
+    if name[0] in ('i', 'u'):
+        gs[name] = typedef(py_int, name)
+    elif name[0] == 'f':
+        gs[name] = typedef(py_float, name)
+    else:
+        raise ValueError(name)
 
 for name in int_types:
     reprname = to_repr(name, name)

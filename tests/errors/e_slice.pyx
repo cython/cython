@@ -1,13 +1,13 @@
 # mode: error
 
 def f(obj2):
-    cdef int *ptr1
+    cdef i32 *ptr1
     obj1 = obj2[ptr1::] # error
     obj1 = obj2[:ptr1:] # error
     obj1 = obj2[::ptr1] # error
 
-cdef int a
-cdef int* int_ptr
+cdef i32 a
+cdef i32* int_ptr
 
 for a in int_ptr:
     pass

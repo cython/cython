@@ -6,7 +6,7 @@ cdef extern from "templates.h":
     cdef cppclass TemplateTest1[T]:
         TemplateTest1()
         T value
-        int t
+        i32 t
         T getValue()
 
     cdef cppclass TemplateTest2[T, U]:
@@ -24,22 +24,22 @@ cdef TemplateTest1[int]* b = new TemplateTest1[int]()
 cdef int c = a.getValue()
 c = b.getValue()
 
-cdef TemplateTest2[int, char] d
-cdef TemplateTest2[int, char]* e = new TemplateTest2[int, char]()
+cdef TemplateTest2[i32, i8] d
+cdef TemplateTest2[i32, i8]* e = new TemplateTest2[i32, i8]()
 
 c = d.getValue1()
 c = e.getValue2()
 
-cdef char f = d.getValue2()
+cdef i8 f = d.getValue2()
 f = e.getValue2()
 
 del b, e
 
-ctypedef TemplateTest1[int] TemplateTest1_int
+ctypedef TemplateTest1[i32] TemplateTest1_int
 cdef TemplateTest1_int aa
 
 # Verify that T767 is fixed.
-cdef public int func(int arg):
+cdef public i32 func(i32 arg):
     return arg
 
 # Regression test: the function call used to produce
@@ -47,5 +47,5 @@ cdef public int func(int arg):
 # which is valid C++11, but not valid C++98 because the ">>" would be
 # parsed as a single token.
 cdef public void use_nested_templates():
-    cdef TemplateTest1[TemplateTest1[int]] t
+    cdef TemplateTest1[TemplateTest1[i32]] t
     template_function(t)

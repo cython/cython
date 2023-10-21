@@ -4,11 +4,11 @@
 cdef object f(object x) nogil:
     pass
 
-cdef void g(int x) nogil:
+cdef void g(i32 x) nogil:
     cdef object z
     z = None
 
-cdef void h(int x) nogil:  # allowed
+cdef void h(i32 x) nogil:  # allowed
     p()
 
 cdef object p() nogil:
@@ -90,7 +90,7 @@ def bare_pyvar_name(object x):
     with nogil:
         x
 
-cdef int fstrings(int x, object obj) except -1 nogil:
+cdef int fstrings(i32 x, object obj) except -1 nogil:
     f""         # allowed
     f"a"        # allowed
     f"a"f"b"    # allowed
@@ -102,8 +102,8 @@ cdef void slice_array() nogil:
         b = [1, 2, 3, 4]
     cdef int[4] a = b[:]
 
-cdef int[:] main() nogil:
-    cdef int[4] a = [1,2,3,4]
+cdef i32[:] main() nogil:
+    cdef i32[4] a = [1,2,3,4]
     return a
 
 

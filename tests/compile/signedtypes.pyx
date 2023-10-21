@@ -1,17 +1,17 @@
 # mode: compile
 
 cdef struct S:
-    char c
-    unsigned char uc
+    i8 c
+    u8 uc
     signed char sc
-    short s
-    unsigned short us
+    i16 s
+    u16 us
     signed short ss
-    int i
-    unsigned int ui
+    i32 i
+    u32 ui
     signed int si
-    long l
-    unsigned long ul
+    i64 l
+    u64 ul
     signed long sl
     long long ll
     unsigned long long ull

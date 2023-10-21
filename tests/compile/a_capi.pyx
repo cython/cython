@@ -1,10 +1,10 @@
 # mode: compile
 
 cdef public struct Foo:
-    int a, b
+    i32 a, b
 
 ctypedef struct Blarg:
-    int c, d
+    i32 c, d
 
 ctypedef public Foo Zax
 
@@ -19,7 +19,7 @@ cdef api    C c_api = C()
 cdef public dict o_pub = C()
 cdef api    list o_api = C()
 
-cdef api float f(Foo *x):
+cdef api f32 f(Foo *x):
     pass
 
 cdef public void g(Blarg *x):

@@ -1,8 +1,5 @@
- 
-
-
 cdef class Shrubbery:
-    def __init__(self, int w, int l):
+    def __init__(self, i32 w, i32 l):
         self.width = w
         self.length = l
 

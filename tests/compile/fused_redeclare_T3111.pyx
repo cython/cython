@@ -2,8 +2,8 @@
 # mode: compile
 # tag: warnings
 
-ctypedef unsigned char npy_uint8
-ctypedef unsigned short npy_uint16
+ctypedef u8 npy_uint8
+ctypedef u16 npy_uint16
 
 
 ctypedef fused dtype_t:

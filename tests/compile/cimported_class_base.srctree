@@ -21,7 +21,7 @@ ext_modules = cythonize(ext_modules, include_path=["include"])
 ######## pkg/a.pxd ########
 
 cdef class A(object):
-  pass
+    pass
 
 ######## importer.pyx ########
 
@@ -31,13 +31,13 @@ cimport pkg.a as a_by_another_name
 from pkg cimport a as from_cimported_a
 
 cdef class A1(a.A):
-  pass
+    pass
 
 cdef class A2(a_by_another_name.A):
-  pass
+    pass
 
 cdef class A3(pkg.a.A):
-  pass
+    pass
 
 cdef class A4(from_cimported_a.A):
-  pass
+    pass

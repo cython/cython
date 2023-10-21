@@ -2,9 +2,9 @@
 
 print("starting")
 
-def primes(int kmax):
-    # cdef int n, k, i
-    cdef int p[1000]
+def primes(i32 kmax):
+    # cdef i32 n, k, i
+    cdef i32 p[1000]
     result = []
     if kmax > 1000:
         kmax = 1000

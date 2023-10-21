@@ -1,16 +1,16 @@
 # mode: error
 
-cdef int i
+cdef i32 i
 i()
 
-cdef float f
+cdef f32 f
 f()
 
 ctypedef struct s:    # FIXME: this might be worth an error ...
-    int x
+    i32 x
 s()
 
-cdef int x():
+cdef i32 x():
     return 0
 
 x()()

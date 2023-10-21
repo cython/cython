@@ -1,4 +1,3 @@
-
 ctypedef fused sequence:
     list
     tuple
@@ -60,7 +59,7 @@ def unpack_two_int(sequence it):
     Traceback (most recent call last):
     TypeError: ...int...
     """
-    cdef int b
+    cdef i32 b
     a,b = it
     return a,b
 
@@ -105,8 +104,8 @@ def unpack_many_int(sequence it):
     Traceback (most recent call last):
     ValueError: need more than 9 values to unpack
     """
-    cdef int b
-    cdef long f
-    cdef Py_ssize_t h
+    cdef i32 b
+    cdef i64 f
+    cdef isize h
     a,b,c,d,e,f,g,h,i,j,k,l = it
     return a,b,c,d,e,f,g,h,i,j,k,l

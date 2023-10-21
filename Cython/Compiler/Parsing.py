@@ -2636,7 +2636,11 @@ def p_c_simple_base_type(s, nonempty, templates=None):
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
-        if s.sy == 'IDENT' and s.systring in special_basic_c_types:
+        if s.sy == 'IDENT' and s.systring in builtin_type_names:
+            signed, longness = None, None
+            name = s.systring
+            s.next()
+        elif s.sy == 'IDENT' and s.systring in special_basic_c_types:
             signed, longness = special_basic_c_types[s.systring]
             name = s.systring
             s.next()
@@ -2841,6 +2845,12 @@ def looking_at_dotted_name(s):
         return 0
 
 
+builtin_type_names = cython.declare(frozenset, frozenset((
+    "i8", "i16", "i32", "i64", "i128",
+    "u8", "u16", "u32", "u64", "u128",
+    "f32", "f64",
+    "isize", "usize")))
+
 basic_c_type_names = cython.declare(frozenset, frozenset((
     "void", "char", "int", "float", "double", "bint")))
 
@@ -2861,7 +2871,8 @@ sign_and_longness_words = cython.declare(frozenset, frozenset((
 
 base_type_start_words = cython.declare(
     frozenset,
-    basic_c_type_names
+    builtin_type_names
+    | basic_c_type_names
     | sign_and_longness_words
     | frozenset(special_basic_c_types))
 

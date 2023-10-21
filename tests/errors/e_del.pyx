@@ -1,10 +1,10 @@
 # mode: error
 
 cdef struct S:
-    int m
+    i32 m
 
 def f(a):
-    cdef int i, x[2]
+    cdef i32 i, x[2]
     cdef S s
     global j
     del f() # error

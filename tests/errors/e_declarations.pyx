@@ -1,14 +1,14 @@
 # mode: error
 
 cdef extern void fa[5]()
-cdef extern int af()[5]
-cdef extern int ff()()
+cdef extern i32 af()[5]
+cdef extern i32 ff()()
 
 cdef void f():
 	cdef void *p
-	cdef int (*h)()
-	h = <int ()()>f # this is an error
-	h = <int (*)()>f # this is OK
+	cdef i32 (*h)()
+	h = <i32 ()()>f # this is an error
+	h = <i32 (*)()>f # this is OK
 
 
 _ERRORS = u"""

@@ -4,18 +4,17 @@
 cimport cython
 
 ctypedef fused INT:
-    int
-    long long
-    unsigned int
-    unsigned long long
+    i32
+    i128
+    u32
+    u128
     object
 
 ctypedef fused C_INT:
-    int
-    long long
-    unsigned int
-    unsigned long long
-
+    i32
+    i128
+    u32
+    u128
 
 @cython.overflowcheck(False)
 def fib(INT n):
@@ -29,7 +28,6 @@ def fib(INT n):
         a, b = b, a + b
     return int(b)
 
-
 @cython.overflowcheck(True)
 def fib_overflow(INT n):
     """
@@ -41,7 +39,6 @@ def fib_overflow(INT n):
     for k in range(n):
         a, b = b, a + b
     return int(b)
-
 
 @cython.overflowcheck(False)
 def collatz(INT n):
@@ -61,7 +58,6 @@ def collatz(INT n):
             n = 3*n + 1
         k += 1
     return int(k)
-
 
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(False)
@@ -83,7 +79,6 @@ def collatz_overflow(INT n):
         k += 1
     return int(k)
 
-
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(True)
 def collatz_overflow_fold(INT n):
@@ -103,7 +98,6 @@ def collatz_overflow_fold(INT n):
             n = 3*n + 1
         k += 1
     return int(k)
-
 
 @cython.overflowcheck(False)
 def factorial(INT n):
@@ -131,13 +125,12 @@ def factorial_overflow(INT n):
         res = res * k
     return int(res)
 
-
 @cython.overflowcheck(False)
 def most_orthogonal(C_INT[:,::1] vectors):
     cdef C_INT n = vectors.shape[0]
     cdef C_INT* a
     cdef C_INT* b
-    cdef double min_dot = 2 # actual max is 1
+    cdef f64 min_dot = 2 # actual max is 1
     for i in range(n):
         for j in range(i):
             a = &vectors[i, 0]
@@ -150,14 +143,13 @@ def most_orthogonal(C_INT[:,::1] vectors):
                 min_pair = i, j
     return vectors[i], vectors[j]
 
-
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(False)
 def most_orthogonal_overflow(C_INT[:,::1] vectors):
     cdef C_INT n = vectors.shape[0]
     cdef C_INT* a
     cdef C_INT* b
-    cdef double min_dot = 2 # actual max is 1
+    cdef f64 min_dot = 2 # actual max is 1
     for i in range(n):
         for j in range(i):
             a = &vectors[i, 0]
@@ -177,7 +169,7 @@ def most_orthogonal_overflow_fold(C_INT[:,::1] vectors):
     cdef C_INT n = vectors.shape[0]
     cdef C_INT* a
     cdef C_INT* b
-    cdef double min_dot = 2 # actual max is 1
+    cdef f64 min_dot = 2 # actual max is 1
     for i in range(n):
         for j in range(i):
             a = &vectors[i, 0]

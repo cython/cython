@@ -2,10 +2,10 @@
 # tag: werror
 
 cdef useless_semicolon():
-    cdef int i;
+    cdef i32 i;
     pass;
 
-ctypedef int x;
+ctypedef i32 x;
 
 
 _ERRORS="""

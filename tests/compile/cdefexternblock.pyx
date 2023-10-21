@@ -2,11 +2,10 @@
 # tag: struct, union, enum, cdefextern
 
 cdef extern from "cheese.h":
-
-    ctypedef int camembert
+    ctypedef i32 camembert
 
     struct roquefort:
-        int x
+        i32 x
 
     char *swiss
 
@@ -17,7 +16,6 @@ cdef extern from "cheese.h":
     #    cdef int a
     #    def __init__(self):
     #        pass
-
 
 #cdef runny r = runny()
 #r.a = 42

@@ -5,7 +5,7 @@ cdef class Point(Position)
 cdef class Vector(Point)
 cdef class CoordSyst
 
-cdef void test(float* f):
+cdef void test(f32* f):
   pass
 
 cdef class Position:
@@ -20,5 +20,5 @@ cdef class Vector(Point):
     test(self.parent._matrix)
 
 cdef class CoordSyst:
-  cdef float* _matrix
+  cdef f32* _matrix
 

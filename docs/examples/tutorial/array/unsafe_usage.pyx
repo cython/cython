@@ -8,4 +8,4 @@ print(a.data.as_ints[0])
 
 from libc.string cimport memset
 
-memset(a.data.as_voidptr, 0, len(a) * sizeof(int))
+memset(a.data.as_voidptr, 0, len(a) * sizeof(i32))

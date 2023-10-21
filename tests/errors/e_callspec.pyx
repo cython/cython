@@ -2,7 +2,7 @@
 
 cimport cython
 
-ctypedef int USERTYPE
+ctypedef i32 USERTYPE
 
 # Functions
 

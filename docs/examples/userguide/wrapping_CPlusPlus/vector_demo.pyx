@@ -2,8 +2,8 @@
 
 from libcpp.vector cimport vector
 
-cdef vector[int] vect
-cdef int i, x
+cdef vector[i32] vect
+cdef i32 i, x
 
 for i in range(10):
     vect.push_back(i)

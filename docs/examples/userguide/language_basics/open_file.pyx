@@ -11,7 +11,7 @@ def open_file():
 
 
 def allocating_memory(number=10):
-    cdef double *my_array = <double *> malloc(number * sizeof(double))
+    cdef f64 *my_array = <f64 *> malloc(number * sizeof(f64))
     if not my_array:  # same as 'is NULL' above
         raise MemoryError()
     ...

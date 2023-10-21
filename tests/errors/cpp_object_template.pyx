@@ -14,7 +14,7 @@ def main():
 
 def memview():
     import array
-    cdef vector[int[:]] vmv
+    cdef vector[i32[:]] vmv
     vmv.push_back(array.array("i", [1,2,3]))
 
 _ERRORS = u"""

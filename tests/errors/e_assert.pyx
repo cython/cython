@@ -1,7 +1,7 @@
 # mode: error
 # tag: assert
 
-def nontrivial_assert_in_nogil(int a, obj):
+def nontrivial_assert_in_nogil(i32 a, obj):
     with nogil:
         # NOK
         assert obj

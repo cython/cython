@@ -3,7 +3,6 @@
 
 cimport cython
 
-
 @cython.test_assert_path_exists(
     "//IfClauseNode",
     "//IfClauseNode[not(@branch_hint)]",
@@ -11,7 +10,6 @@ cimport cython
 def if_simple(x):
     if x:
         x = 2
-
 
 @cython.test_assert_path_exists(
     "//IfClauseNode",
@@ -21,7 +19,6 @@ def if_return(x):
     if x:
         return 1
     raise TypeError()
-
 
 @cython.test_assert_path_exists(
     "//IfClauseNode",
@@ -33,7 +30,6 @@ def if_raise_else(x):
     else:
         return 1
 
-
 @cython.test_assert_path_exists(
     "//IfClauseNode",
     "//IfClauseNode[@branch_hint = 'likely']",
@@ -44,7 +40,6 @@ def if_else_raise(x):
     else:
         raise TypeError()
 
-
 @cython.test_assert_path_exists(
     "//IfClauseNode",
     "//IfClauseNode[@branch_hint = 'unlikely']",
@@ -54,7 +49,6 @@ def if_raise_else_raise(x):
         raise ValueError()
     else:
         raise TypeError()
-
 
 @cython.test_assert_path_exists(
     "//IfClauseNode",
@@ -72,7 +66,6 @@ def if_elif_raise_else_raise(x):
     else:
         raise TypeError()
 
-
 @cython.test_assert_path_exists(
     "//IfClauseNode",
     "//IfClauseNode[@branch_hint = 'unlikely']",
@@ -82,7 +75,7 @@ def if_elif_raise_else_raise(x):
     "//IfClauseNode[@branch_hint = 'likely']",
     "//IfClauseNode[not(@branch_hint)]",
 )
-cpdef int nogil_if_raise(int x) except -1 nogil:
+cpdef i32 nogil_if_raise(i32 x) except -1 nogil:
     if x:
         raise TypeError()
     elif not x:

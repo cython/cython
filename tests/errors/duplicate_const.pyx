@@ -1,10 +1,10 @@
 # mode: error
 
 cdef extern from *:
-    cdef const const int a
-    cdef const volatile int b
-    cdef volatile const int c
-    cdef volatile volatile int d
+    cdef const const i32 a
+    cdef const volatile i32 b
+    cdef volatile const i32 c
+    cdef volatile volatile i32 d
 
 
 _ERRORS = """

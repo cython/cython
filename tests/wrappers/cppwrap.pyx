@@ -17,21 +17,20 @@ cdef class DoubleKeeper:
     """
     cdef cppwrap_lib.DoubleKeeper* keeper
 
-    def __cinit__(self, double number):
+    def __cinit__(self, f64 number):
         self.keeper = new cppwrap_lib.DoubleKeeper(number)
 
     def __dealloc__(self):
         del self.keeper
 
-    def set_number(self, double number):
+    def set_number(self, f64 number):
         self.keeper.set_number(number)
 
     def get_number(self):
         return self.keeper.get_number()
 
-    def transmogrify(self, double value):
+    def transmogrify(self, f64 value):
         return self.keeper.transmogrify(value)
-
 
 def voidfunc():
     """
@@ -39,14 +38,14 @@ def voidfunc():
     """
     cppwrap_lib.voidfunc()
 
-def doublefunc(double x, double y, double z):
+def doublefunc(f64 x, f64 y, f64 z):
     """
     >>> doublefunc(1.0, 2.0, 3.0) == 1.0 + 2.0 + 3.0
     True
     """
     return cppwrap_lib.doublefunc(x, y, z)
 
-def transmogrify_from_cpp(DoubleKeeper obj not None, double value):
+def transmogrify_from_cpp(DoubleKeeper obj not None, f64 value):
     """
     >>> d = DoubleKeeper(2.0)
     >>> d.transmogrify(3.0) == 6.0

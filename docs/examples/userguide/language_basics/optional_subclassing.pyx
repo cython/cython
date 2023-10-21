@@ -15,5 +15,5 @@ cdef class B(A):
 
 cdef class C(B):
 
-    cpdef foo(self, x=True, int k=3):
+    cpdef foo(self, x=True, i32 k=3):
         print("C", x, k)

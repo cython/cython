@@ -1,9 +1,9 @@
 # --
 
-ctypedef            int Int0
-ctypedef public     int Int1
-ctypedef        api int Int2
-ctypedef public api int Int3
+ctypedef            i32 Int0
+ctypedef public     i32 Int1
+ctypedef        api i32 Int2
+ctypedef public api i32 Int3
 
 ctypedef            enum EnumA0: EA0
 ctypedef public     enum EnumA1: EA1
@@ -18,22 +18,22 @@ cdef public api enum EnumB3: EB3=3
 # --
 
 ctypedef            struct StructA0: 
-    int SA0
+    i32 SA0
 ctypedef public     struct StructA1: 
-    int SA1
+    i32 SA1
 ctypedef        api struct StructA2:
-    int SA2
+    i32 SA2
 ctypedef public api struct StructA3:
-    int SA3
+    i32 SA3
 
 cdef            struct StructB0:
-    int SB0
+    i32 SB0
 cdef public     struct StructB1:
-    int SB1
+    i32 SB1
 cdef        api struct StructB2:
-    int SB2
+    i32 SB2
 cdef public api struct StructB3:
-    int SB3
+    i32 SB3
 
 # --
 
@@ -66,9 +66,9 @@ cdef public api void* spam3(object o) except NULL with gil
 
 # --
 
-cdef            int i0 = 0 # XXX implement initialization!!!
-cdef public     int i1
-cdef        api int i2
-cdef public api int i3
+cdef            i32 i0 = 0 # XXX implement initialization!!!
+cdef public     i32 i1
+cdef        api i32 i2
+cdef public api i32 i3
 
 # --

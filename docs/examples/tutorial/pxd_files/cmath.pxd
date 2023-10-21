@@ -1,2 +1,2 @@
 cdef extern from "math.h":
-    cpdef double sin(double x)
+    cpdef f64 sin(f64 x)

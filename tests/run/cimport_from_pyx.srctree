@@ -10,7 +10,7 @@ Cython.Compiler.Options.cimport_from_pyx = True
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+    ext_modules = cythonize("*.pyx"),
 )
 
 ######## a.pyx ########
@@ -23,7 +23,7 @@ assert b.anotherValue == 6, b.anotherValue
 assert b.asStruct().value == b.value
 cdef Btypedef b_type = &b.value
 cdef Benum b_enum = Benum_value
-cdef int tmp = Py_EQ
+cdef i32 tmp = Py_EQ
 
 cdef DecoratedClass dc = DecoratedClass()
 assert dc.cfuncInClass().value == 5
@@ -45,22 +45,22 @@ cdef enum Benum:
     Benum_value
 
 cdef struct Bstruct:
-    int value
+    i32 value
 
-ctypedef long *Btypedef
+ctypedef i32 *Btypedef
 
 cdef class Bclass:
-    cdef long value
+    cdef i64 value
     anotherValue: cython.double
     def __init__(self, value):
         self.value = value
         self.anotherValue = value + 1
     cdef Bstruct asStruct(self):
         return Bstruct(value=self.value)
-    cdef double getOtherValue(self):
+    cdef f64 getOtherValue(self):
         return self.anotherValue
 
-cdef long Bfunc(Btypedef x):
+cdef i64 Bfunc(Btypedef x):
     return x[0]
 
 @cython.cclass
@@ -82,16 +82,16 @@ def cfuncOutside():
 ######## c.pxd ########
 
 cdef class ClassC:
-    cdef int value
+    cdef i32 value
 
 ######## d.pyx ########
 
 ctypedef fused fused_type:
-    long
-    double
+    i64
+    f64
 
 cdef fused_checker(fused_type i):
-    if fused_type is long:
+    if fused_type is i64:
         return True
     else:
         return False

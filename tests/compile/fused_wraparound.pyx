@@ -12,8 +12,8 @@ cimport cython
 
 ctypedef fused fused_t:
     str
-    int
-    long
+    i32
+    i64
     complex
 
 @cython.wraparound(False)

@@ -1,5 +1,4 @@
 # mode: compile
 
 cdef extern from *:
-    int spam
-
+    i32 spam

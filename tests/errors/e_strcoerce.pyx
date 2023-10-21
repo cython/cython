@@ -1,14 +1,14 @@
 # mode: error
 
-cdef int c1 = "t"     # works
-cdef int c2 = "te"    # fails
-cdef int cx = "test"  # fails
+cdef i32 c1 = "t"     # works
+cdef i32 c2 = "te"    # fails
+cdef i32 cx = "test"  # fails
 
-cdef int x1 =  "\xFF"    # works
-cdef int x2 =  "\u0FFF"  # fails
+cdef i32 x1 =  "\xFF"    # works
+cdef i32 x2 =  "\u0FFF"  # fails
 
 cdef Py_UNICODE u1 = u"\xFF"   # works
-cdef int u3 = u"\xFF"          # fails
+cdef i32 u3 = u"\xFF"          # fails
 
 
 _ERRORS = """

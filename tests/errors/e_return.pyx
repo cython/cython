@@ -2,11 +2,11 @@
 # mode: error
 
 cdef void g():
-	cdef int i
+	cdef i32 i
 	return i # error
 
 cdef int h():
-	cdef int *p
+	cdef i32 *p
 	return # error
 	return p # error
 

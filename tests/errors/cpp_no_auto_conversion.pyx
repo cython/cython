@@ -6,18 +6,18 @@
 
 cdef extern from "no_such_file.cpp" nogil:
     cppclass wrapped_int:
-        long long val
+        i128 val
         wrapped_int()
-        wrapped_int(long long val)
+        wrapped_int(i128 val)
         wrapped_int& operator=(const wrapped_int &other)
-        wrapped_int& operator=(const long long other)
+        wrapped_int& operator=(const i128 other)
 
-    long long constructor_overload(const wrapped_int& x)
-    long long constructor_overload(const wrapped_int x)
+    i128 constructor_overload(const wrapped_int& x)
+    i128 constructor_overload(const wrapped_int x)
 
-cdef long long e = constructor_overload(17)
+cdef i128 e = constructor_overload(17)
  
 
 _ERRORS = u"""
-18:40: Cannot assign type 'long' to 'const wrapped_int'
+18:35: Cannot assign type 'long' to 'const wrapped_int'
 """

@@ -1,7 +1,7 @@
 # mode: error
 
 cdef class Ext:
-    cdef int a
+    cdef i32 a
     cdef object o
 
 def f(int a):

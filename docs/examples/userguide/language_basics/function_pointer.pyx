@@ -1,6 +1,6 @@
-cdef int(*ptr_add)(int, int)
+cdef i32(*ptr_add)(i32, i32)
 
-cdef int add(int a, int b):
+cdef i32 add(i32 a, i32 b):
     return a + b
 
 ptr_add = add

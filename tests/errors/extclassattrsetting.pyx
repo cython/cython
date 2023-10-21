@@ -7,7 +7,7 @@ __doc__ = u"""
 """
 
 cdef class ExtClass:
-    cdef int _attribute = 2
+    cdef i32 _attribute = 2
 
     def get(self):
         return self._attribute

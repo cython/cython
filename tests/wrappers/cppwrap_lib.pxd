@@ -1,13 +1,14 @@
 cdef extern from "cppwrap_lib.cpp":
     pass
+
 cdef extern from "cppwrap_lib.h":
     void voidfunc()
-    double doublefunc(double a, double b, double c)
+    f64 doublefunc(f64 a, f64 b, f64 c)
 
     cdef cppclass DoubleKeeper:
-        DoubleKeeper(double factor)
-        void set_number(double f)
-        double get_number()
-        double transmogrify(double value)
+        DoubleKeeper(f64 factor)
+        void set_number(f64 f)
+        f64 get_number()
+        f64 transmogrify(f64 value)
 
-    double transmogrify_from_cpp (DoubleKeeper *obj, double value)
+    f64 transmogrify_from_cpp (DoubleKeeper *obj, f64 value)

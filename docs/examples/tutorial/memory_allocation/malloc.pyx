@@ -1,11 +1,11 @@
 import random
 from libc.stdlib cimport malloc, free
 
-def random_noise(int number=1):
-    cdef int i
+def random_noise(i32 number=1):
+    cdef i32 i
     # allocate number * sizeof(double) bytes of memory
-    cdef double *my_array = <double *> malloc(
-        number * sizeof(double))
+    cdef f64 *my_array = <f64 *> malloc(
+        number * sizeof(f64))
     if not my_array:
         raise MemoryError()
 

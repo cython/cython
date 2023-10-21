@@ -5,6 +5,6 @@ cdef extern from *:
         char a
 
 cdef public packed struct PublicStruct:
-    int a
-    unsigned char b
-    int c
+    i32 a
+    u8 b
+    i32 c

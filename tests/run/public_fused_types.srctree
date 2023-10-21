@@ -8,7 +8,7 @@ from Cython.Build import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+    ext_modules = cythonize("*.pyx"),
 )
 
 ######## a.pxd ########
@@ -16,9 +16,8 @@ setup(
 cimport cython
 
 cdef extern from "header.h":
-    ctypedef int extern_int
-    ctypedef long extern_long
-
+    ctypedef i32 extern_int
+    ctypedef i64 extern_long
 
 cdef struct mystruct_t:
     extern_int a
@@ -27,27 +26,27 @@ ctypedef union myunion_t:
     extern_long a
 
 cdef public class MyExt [ type MyExtType, object MyExtObject ]:
-    cdef unsigned char a
+    cdef u8 a
 
 ctypedef char *string_t
-simple_t = cython.fused_type(int, float)
-less_simple_t = cython.fused_type(int, float, string_t)
+simple_t = cython.fused_type(i32, f32)
+less_simple_t = cython.fused_type(i32, f32, string_t)
 struct_t = cython.fused_type(mystruct_t, myunion_t, MyExt)
 builtin_t = cython.fused_type(str, unicode, bytes)
 
 ctypedef fused fusedbunch:
-    int
-    long
+    i32
+    i64
     complex
     string_t
 
 ctypedef fused fused1:
-    short
+    i16
     string_t
 
 cdef fused fused2:
-    float
-    double
+    f32
+    f64
     string_t
 
 cdef struct_t add_simple(struct_t obj, simple_t simple)
@@ -72,7 +71,7 @@ typedef long extern_long;
 cimport cython
 
 cdef struct_t add_simple(struct_t obj, simple_t simple):
-     obj.a = <int> (obj.a + simple)
+     obj.a = <i32> (obj.a + simple)
      return obj
 
 cdef less_simple_t add_to_simple(struct_t obj, less_simple_t simple):
@@ -83,10 +82,10 @@ cdef public_optional_args(struct_t obj, simple_t simple = 6):
 
 cdef class TestFusedExtMethods(object):
     cdef cython.floating method(self, cython.integral x, cython.floating y):
-        if cython.integral is int:
+        if cython.integral is i32:
             x += 1
 
-        if cython.floating is double:
+        if cython.floating is f64:
             y += 2.0
 
         return x + y
@@ -129,46 +128,44 @@ assert add_to_simple(mystruct, 5.0) == 10.0
 assert add_to_simple(myunion, b"spamhameggs") == b"ameggs"
 assert add_to_simple(myext, 5) == 10
 
-cdef mystruct_t (*f)(mystruct_t, int)
+cdef mystruct_t (*f)(mystruct_t, i32)
 f = add_simple
 assert f(mystruct, 5).a == 10
 
-f = <mystruct_t (*)(mystruct_t, int)> add_simple
+f = <mystruct_t (*)(mystruct_t, i32)> add_simple
 assert f(mystruct, 5).a == 10
 
-f = add_simple[mystruct_t, int]
+f = add_simple[mystruct_t, i32]
 assert f(mystruct, 5).a == 10
 
 assert public_optional_args(mystruct, 5) == (5, 5)
-assert public_optional_args[mystruct_t, int](mystruct) == (5, 6)
+assert public_optional_args[mystruct_t, i32](mystruct) == (5, 6)
 
-assert public_optional_args[mystruct_t, float](mystruct) == (5, 6.0)
-assert public_optional_args[mystruct_t, float](mystruct, 7.0) == (5, 7.0)
-
+assert public_optional_args[mystruct_t, f32](mystruct) == (5, 6.0)
+assert public_optional_args[mystruct_t, f32](mystruct, 7.0) == (5, 7.0)
 
 cdef TestFusedExtMethods obj = TestFusedExtMethods()
 
-cdef int x = 4
-cdef float y = 5.0
-cdef long a = 6
-cdef double b = 7.0
+cdef i32 x = 4
+cdef f32 y = 5.0
+cdef i64 a = 6
+cdef f64 b = 7.0
 
-cdef double (*func)(TestFusedExtMethods, long, double)
+cdef f64 (*func)(TestFusedExtMethods, i64, f64)
 
 func = obj.method
 
 result = func(obj, a, b)
 assert result == 15.0, result
 
-func = <double (*)(TestFusedExtMethods, long, double)> obj.method
+func = <f64 (*)(TestFusedExtMethods, i64, f64)> obj.method
 assert func(obj, x, y) == 11.0
 
-func = obj.method[long, double]
+func = obj.method[i64, f64]
 assert func(obj, a, y) == 13.0
 
-assert obj.method(x, <double> a) == 13.0
-assert obj.method[int, double](x, b) == 14.0
-
+assert obj.method(x, <f64> a) == 13.0
+assert obj.method[i32, f64](x, b) == 14.0
 
 # Test inheritance
 cdef class Subclass(TestFusedExtMethods):
@@ -179,15 +176,14 @@ cdef class Subclass(TestFusedExtMethods):
         return x, y
 
 cdef Subclass myobj = Subclass()
-assert myobj.method[int, float](5, 5.0) == -10
+assert myobj.method[i32, f32](5, 5.0) == -10
 
-cdef float (*meth)(Subclass, int, float)
+cdef float (*meth)(Subclass, i32, f32)
 meth = myobj.method
 assert meth(myobj, 5, 5.0) == -10
 
-meth = myobj.method[int, float]
+meth = myobj.method[i32, f32]
 assert meth(myobj, 5, 5.0) == -10
-
 
 # Test cpdef functions and methods
 cy = __import__("cython")
@@ -201,17 +197,17 @@ def ae(result, expected):
 
     assert result == expected
 
-ae(a_mod.public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list object"))
+ae(a_mod.public_cpdef[i32, f32, list](5, 6, [7]), ("int", "float", "list object"))
 
 idx = cy.typeof(0), cy.typeof(0.0), cy.typeof([])
 ae(a_mod.public_cpdef[idx](5, 6, [7]), ("int", "float", "list object"))
 
-ae(a_mod.public_cpdef[cy.int, cy.double, cython.typeof(obj)](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
-ae(a_mod.public_cpdef[cy.int, cy.double, cython.typeof(obj)](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
+ae(a_mod.public_cpdef[cy.i32, cy.f64, cython.typeof(obj)](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
+ae(a_mod.public_cpdef[cy.i32, cy.f64, cython.typeof(obj)](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
 
-ae(public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list object"))
-ae(public_cpdef[int, double, TestFusedExtMethods](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
-ae(public_cpdef[int, double, TestFusedExtMethods](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
+ae(public_cpdef[i32, f32, list](5, 6, [7]), ("int", "float", "list object"))
+ae(public_cpdef[i32, f64, TestFusedExtMethods](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
+ae(public_cpdef[i32, f64, TestFusedExtMethods](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
 
 ae(obj.cpdef_method(10, 10.0), ("long", "double"))
 ae(myobj.cpdef_method(10, 10.0), (10, 10.0))
@@ -221,8 +217,8 @@ ae(myobj.cpdef_method[int, float](10, 10.0), (10, 10.0))
 s = """\
 import cython as cy
 
-ae(obj.cpdef_method[cy.int, cy.float](10, 10.0), ("int", "float"))
-ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
+ae(obj.cpdef_method[cy.i32, cy.f32](10, 10.0), ("int", "float"))
+ae(myobj.cpdef_method[cy.i32, cy.f32](10, 10.0), (10, 10.0))
 """
 
 d = {'obj': obj, 'myobj': myobj, 'ae': ae}
@@ -232,4 +228,4 @@ exec(s, d)
 # Test def methods
 # ae(obj.def_method(12, 14.9), 26)
 # ae(obj.def_method(13, "spam"), (13, "spam"))
-# ae(obj.def_method[cy.short, cy.float](13, 16.3), 29)
+# ae(obj.def_method[cy.i16, cy.f32](13, 16.3), 29)

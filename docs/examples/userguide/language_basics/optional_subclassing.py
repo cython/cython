@@ -15,5 +15,5 @@ class B(A):
 @cython.cclass
 class C(B):
     @cython.ccall
-    def foo(self, x=True, k:cython.int = 3):
+    def foo(self, x=True, k: cython.int = 3):
         print("C", x, k)

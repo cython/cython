@@ -17,5 +17,5 @@ setup(
 # https://github.com/cython/cython/issues/3406
 # Failure was at Cython compilation stage
 
-def f(double [::1] x):
+def f(f64 [::1] x):
     pass

@@ -3,7 +3,7 @@
 from cython.parallel cimport parallel
 cimport openmp
 
-cdef int num_threads
+cdef i32 num_threads
 
 openmp.omp_set_dynamic(1)
 with nogil, parallel():

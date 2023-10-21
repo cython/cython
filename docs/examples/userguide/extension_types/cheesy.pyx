@@ -1,8 +1,4 @@
- 
-
-
 cdef class CheeseShop:
-
     cdef object cheeses
 
     def __cinit__(self):

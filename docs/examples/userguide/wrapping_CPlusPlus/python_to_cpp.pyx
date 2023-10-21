@@ -12,7 +12,7 @@ print(s)  # b'The knights who say ni'
 cdef string cpp_string = <string> py_unicode_object.encode('utf-8')
 print(cpp_string)  # b'Those who hear them seldom live to tell the tale.'
 
-cdef vector[int] vect = range(1, 10, 2)
+cdef vector[i32] vect = range(1, 10, 2)
 print(vect)  # [1, 3, 5, 7, 9]
 
 cdef vector[string] cpp_strings = b'It is a good shrubbery'.split()

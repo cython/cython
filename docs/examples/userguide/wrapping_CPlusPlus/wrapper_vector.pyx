@@ -2,9 +2,8 @@
 
 from libcpp.vector cimport vector
 
-
 cdef class VectorStack:
-    cdef vector[int] v
+    cdef vector[i32] v
 
     def push(self, x):
         self.v.push_back(x)

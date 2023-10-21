@@ -1,29 +1,29 @@
 # mode: error
 
 ctypedef struct struct_type_not_boolean:
-    int i
-    float f
+    i32 i
+    f32 f
 
 if struct_type_not_boolean:
     print("INVALID CODE")
 
 cdef struct struct_not_boolean:
-    int i
-    float f
+    i32 i
+    f32 f
 
 if struct_not_boolean:
     print("INVALID CODE")
 
 ctypedef union union_type_not_boolean:
-    int i
-    float f
+    i32 i
+    f32 f
 
 if union_type_not_boolean:
     print("INVALID CODE")
 
 cdef union union_not_boolean:
-    int i
-    float f
+    i32 i
+    f32 f
 
 if union_not_boolean:
     print("INVALID CODE")

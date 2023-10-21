@@ -4,7 +4,7 @@
 from cython.operator import typeid
 
 def use_typeid():
-    cdef int i = 0
+    cdef i32 i = 0
     print typeid(i) == typeid(i)
 
 cdef cppclass A:

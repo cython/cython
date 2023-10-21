@@ -1,7 +1,7 @@
 # ticket: t117
 # mode: error
 
-ctypedef object[float] mybuffer
+ctypedef object[f32] mybuffer
 
 _ERRORS = u"""
 1:0: Buffer vars not allowed in module scope

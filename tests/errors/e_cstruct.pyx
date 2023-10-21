@@ -1,9 +1,9 @@
 # mode: error
 
 cdef struct Spam:
-    int i
+    i32 i
     char c
-    float[42] *p
+    f32[42] *p
     obj             # error - py object
 
 #cdef struct Spam: # error - redefined (not an error in Cython, should it be?)
@@ -12,7 +12,7 @@ cdef struct Spam:
 cdef struct Grail
 
 cdef void eggs(Spam s):
-    cdef int j
+    cdef i32 j
     cdef Grail *gp
     j = s.k # error - undef attribute
     j = s.p # type error

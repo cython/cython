@@ -1,7 +1,7 @@
 # mode: error
 
 def func():
-    cdef int i
+    cdef i32 i
 
 
 _ERRORS = """

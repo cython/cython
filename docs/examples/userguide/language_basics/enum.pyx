@@ -1,11 +1,11 @@
 cdef enum CheeseType:
-    cheddar, edam,
-    camembert
+    Cheddar, Edam,
+    Camembert
 
 cdef enum CheeseState:
-    hard = 1
-    soft = 2
-    runny = 3
+    Hard = 1
+    Soft = 2
+    Runny = 3
 
-print(CheeseType.cheddar)
-print(CheeseState.hard)
+print(CheeseType.Cheddar)
+print(CheeseState.Hard)

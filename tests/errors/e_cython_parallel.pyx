@@ -12,7 +12,7 @@ import cython.parallel
 
 prange(1, 2, 3, schedule='dynamic')
 
-cdef int i
+cdef i32 i
 
 with nogil, cython.parallel.parallel():
     for i in prange(10, schedule='invalid_schedule'):
@@ -21,7 +21,7 @@ with nogil, cython.parallel.parallel():
 with cython.parallel.parallel():
     print "hello world!"
 
-cdef int *x = NULL
+cdef i32 *x = NULL
 
 with nogil, cython.parallel.parallel():
     for j in prange(10):
@@ -39,7 +39,7 @@ with nogil, cython.parallel.parallel():
 with nogil, cython.parallel.parallel:
     pass
 
-cdef int y
+cdef i32 y
 
 for i in prange(10, nogil=True):
     i = y * 4
@@ -66,7 +66,7 @@ with nogil, cython.parallel.parallel(invalid=True):
     pass
 
 def f(x):
-    cdef int i
+    cdef i32 i
 
     with nogil, cython.parallel.parallel():
         with gil:
@@ -112,7 +112,7 @@ i = 2
 print i
 
 # Reading of reduction variables in the prange block
-cdef int sum = 0
+cdef i32 sum = 0
 for i in prange(10, nogil=True):
     sum += i
     with gil:
@@ -126,7 +126,7 @@ with nogil, parallel.parallel():
     for i in parallel.prange(10):
         pass
 
-cdef int[:] dst, src = object()
+cdef i32[:] dst, src = object()
 for i in prange(10, nogil=True):
     dst = src
 
@@ -139,7 +139,7 @@ for i in prange(10, nogil=True, schedule='static', chunksize=-1):
 for i in prange(10, nogil=True, schedule='runtime', chunksize=10):
     pass
 
-cdef int chunksize():
+cdef i32 chunksize():
     return 10
 
 for i in prange(10, nogil=True, schedule='static', chunksize=chunksize()):

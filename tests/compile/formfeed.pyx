@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef int x
+cdef i32 x
 
 x = 42
 

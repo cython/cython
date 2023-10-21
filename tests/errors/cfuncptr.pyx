@@ -1,39 +1,39 @@
 # mode: error
 
-cdef int exceptmaybeminus2(int bad) except ?-2:
+cdef int exceptmaybeminus2(i32 bad) except ?-2:
     if bad:
         raise RuntimeError
     else:
         return 0
 
 def fail_exceptmaybeminus2(bad):
-    cdef int (*fptr_a)(int) except -2
-    cdef int (*fptr_b)(int) except -1
-    cdef int (*fptr_c)(int) except ?-1
+    cdef i32 (*fptr_a)(i32) except -2
+    cdef i32 (*fptr_b)(i32) except -1
+    cdef i32 (*fptr_c)(i32) except ?-1
     fptr_a = exceptmaybeminus2
     fptr_b = exceptmaybeminus2
     fptr_c = exceptmaybeminus2
 
 cdef extern from *:
     # define this as extern since Cython converts internal "except*" to "except -1"
-    cdef int exceptstar(int bad) except *
+    cdef i32 exceptstar(i32 bad) except *
 
     struct mystruct:
-        int (*func_ptr)(int param) nogil
-        void (*func_ptr_void)(int param) nogil
+        i32 (*func_ptr)(i32 param) nogil
+        void (*func_ptr_void)(i32 param) nogil
 
 def fail_exceptstar(bad):
-    cdef int (*fptr_a)(int) noexcept
-    cdef int (*fptr_b)(int) except -1
-    cdef int (*fptr_c)(int) except ?-1
+    cdef i32 (*fptr_a)(i32) noexcept
+    cdef i32 (*fptr_b)(i32) except -1
+    cdef i32 (*fptr_c)(i32) except ?-1
     fptr_a = exceptstar
     fptr_b = exceptstar
     fptr_c = exceptstar
 
-cdef int cb(int param) nogil:
+cdef int cb(i32 param) nogil:
     return param
 
-cdef void cb_void(int param) except * nogil:
+cdef void cb_void(i32 param) except * nogil:
     return
 
 def fail_struct_pointer():

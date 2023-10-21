@@ -1,8 +1,7 @@
 # mode: run
 # tag: memoryview
 
-
-cdef double[:] foo(int i):
+cdef f64[:] foo(i32 i):
     if i == 1:
         raise AttributeError('dummy')
     if i == 2:
@@ -12,8 +11,7 @@ cdef double[:] foo(int i):
     if i == 4:
         raise TypeError('dummy')
 
-
-cdef double[:] foo_nogil(int i) nogil:
+cdef f64[:] foo_nogil(i32 i) nogil:
     if i == 1:
         raise AttributeError('dummy')
     if i == 2:
@@ -22,7 +20,6 @@ cdef double[:] foo_nogil(int i) nogil:
         raise ValueError('dummy')
     if i == 4:
         raise TypeError('dummy')
-
 
 def propagate(i, bint nogil=False):
     """

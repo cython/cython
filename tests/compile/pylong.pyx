@@ -15,10 +15,10 @@ cdef extern from "Python.h":
     #endif
     """
     cdef struct _longobject:
-        int ob_refcnt
+        i32 ob_refcnt
         PyTypeObject *ob_type
 #        int ob_size            # not in Py3k
-        unsigned int *ob_digit
+        u32 *ob_digit
 
 def test(temp = long(0)):
     cdef _longobject *l

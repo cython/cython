@@ -19,6 +19,6 @@ cdef extern from *:
       return std::vector<int>(17);
     }
     """
-    vector[int] get_vector()
+    vector[i32] get_vector()
 
 my_vector = get_vector()

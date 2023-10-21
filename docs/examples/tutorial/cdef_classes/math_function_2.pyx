@@ -1,5 +1,3 @@
- 
 cdef class Function:
-
-    cpdef double evaluate(self, double x) except *:
+    cpdef f64 evaluate(self, f64 x) except *:
         return 0

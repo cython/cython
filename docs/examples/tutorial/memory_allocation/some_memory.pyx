@@ -1,21 +1,20 @@
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
-
 cdef class SomeMemory:
-    cdef double* data
+    cdef f64* data
 
-    def __cinit__(self, size_t number):
+    def __cinit__(self, usize number):
         # allocate some memory (uninitialised, may contain arbitrary data)
-        self.data = <double*> PyMem_Malloc(
-            number * sizeof(double))
+        self.data = <f64*> PyMem_Malloc(
+            number * sizeof(f64))
         if not self.data:
             raise MemoryError()
 
-    def resize(self, size_t new_number):
+    def resize(self, usize new_number):
         # Allocates new_number * sizeof(double) bytes,
         # preserving the current content and making a best-effort to
         # reuse the original data location.
-        mem = <double*> PyMem_Realloc(
+        mem = <f64*> PyMem_Realloc(
             self.data, new_number * sizeof(double))
         if not mem:
             raise MemoryError()

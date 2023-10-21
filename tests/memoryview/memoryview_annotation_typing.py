@@ -13,7 +13,7 @@ import numpy
 
 COMPILED = cython.compiled
 
-def one_dim(a: cython.double[:]):
+def one_dim(a: cython.f64[:]):
     """
     >>> a = numpy.ones((10,), numpy.double)
     >>> one_dim(a)
@@ -23,7 +23,7 @@ def one_dim(a: cython.double[:]):
     return a[0], a.ndim
 
 
-def one_dim_ccontig(a: cython.double[::1]):
+def one_dim_ccontig(a: cython.f64[::1]):
     """
     >>> a = numpy.ones((10,), numpy.double)
     >>> one_dim_ccontig(a)
@@ -33,7 +33,7 @@ def one_dim_ccontig(a: cython.double[::1]):
     return a[0], a.ndim
 
 
-def two_dim(a: cython.double[:,:]):
+def two_dim(a: cython.f64[:,:]):
     """
     >>> a = numpy.ones((10, 10), numpy.double)
     >>> two_dim(a)
@@ -49,7 +49,7 @@ def variable_annotation(a):
     >>> variable_annotation(a)
     2.0
     """
-    b: cython.double[:]
+    b: cython.f64[:]
     b = None
 
     if cython.compiled:
@@ -60,8 +60,7 @@ def variable_annotation(a):
     b[2] += 2
     return b[1]
 
-
-def slice_none(m: cython.double[:]):
+def slice_none(m: cython.f64[:]):
     """
     >>> try:
     ...     a = slice_none(None)
@@ -74,8 +73,7 @@ def slice_none(m: cython.double[:]):
     """
     return 1 if m is None else 2
 
-
-def slice_optional(m: typing.Optional[cython.double[:]]):
+def slice_optional(m: typing.Optional[cython.f64[:]]):
     """
     >>> slice_optional(None)
     1
@@ -93,15 +91,13 @@ def slice_optional(m: typing.Optional[cython.double[:]]):
     """
     return 1 if m is None else 2
 
-
 @cython.nogil
 @cython.cfunc
-def _one_dim_nogil_cfunc(a: cython.double[:]) -> cython.double:
+def _one_dim_nogil_cfunc(a: cython.f64[:]) -> cython.f64:
     a[0] *= 2
     return a[0]
 
-
-def one_dim_nogil_cfunc(a: cython.double[:]):
+def one_dim_nogil_cfunc(a: cython.f64[:]):
     """
     >>> a = numpy.ones((10,), numpy.double)
     >>> one_dim_nogil_cfunc(a)
@@ -110,7 +106,6 @@ def one_dim_nogil_cfunc(a: cython.double[:]):
     with cython.nogil:
         result = _one_dim_nogil_cfunc(a)
     return result
-
 
 def generic_object_memoryview(a: object[:]):
     """
@@ -125,7 +120,6 @@ def generic_object_memoryview(a: object[:]):
         assert cython.typeof(a) == "object[:]", cython.typeof(a)
     return sum
 
-
 def generic_object_memoryview_contig(a: object[::1]):
     """
     >>> a = numpy.ones((10,), dtype=object)
@@ -139,14 +133,12 @@ def generic_object_memoryview_contig(a: object[::1]):
         assert cython.typeof(a) == "object[::1]", cython.typeof(a)
     return sum
 
-
 @cython.cclass
 class C:
-    x: cython.int
+    x: cython.i32
 
     def __init__(self, value):
         self.x = value
-
 
 def ext_type_object_memoryview(a: C[:]):
     """
@@ -160,7 +152,6 @@ def ext_type_object_memoryview(a: C[:]):
     if cython.compiled:
         assert cython.typeof(a) == "C[:]", cython.typeof(a)
     return sum
-
 
 def ext_type_object_memoryview_contig(a: C[::1]):
     """

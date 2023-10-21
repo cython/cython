@@ -7,10 +7,10 @@ cdef void callback(void *data) noexcept:
     free(data)
 
 def create_array(shape, mode, use_callback=False):
-    cdef array result = array(shape, itemsize=sizeof(int),
+    cdef array result = array(shape, itemsize=sizeof(i32),
                               format='i', mode=mode)
-    cdef int *data = <int *> result.data
-    cdef int i, j, cidx, fidx
+    cdef i32 *data = <i32 *> result.data
+    cdef i32 i, j, cidx, fidx
 
     for i in range(shape[0]):
         for j in range(shape[1]):

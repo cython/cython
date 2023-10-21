@@ -1,7 +1,7 @@
 # mode: compile
 
 def f(a, b, c):
-    cdef int i
+    cdef i32 i
     for a in b:
         i = 1
         continue

@@ -8,19 +8,19 @@ from libcpp.vector cimport vector
 np.import_array()
 
 cdef extern from *:
-    void cpp_function_vector1(vector[int])
-    void cpp_function_vector2(vector[int] &)
-    void cpp_function_2_vec_refs(vector[int] &, vector[int] &)
+    void cpp_function_vector1(vector[i32])
+    void cpp_function_vector2(vector[i32] &)
+    void cpp_function_2_vec_refs(vector[i32] &, vector[i32] &)
 
 
 def main():
-    cdef np.ndarray[int, ndim=1, mode="c"] arr = np.zeros(10, dtype='intc')
+    cdef np.ndarray[i32, ndim=1, mode="c"] arr = np.zeros(10, dtype='intc')
     cpp_function_vector1(arr)
     cpp_function_vector2(arr)
     cpp_function_vector2(arr)
     cpp_function_2_vec_refs(arr, arr)
 
-    cdef vector[int] vec
+    cdef vector[i32] vec
     vec.push_back(0)
     cpp_function_vector2(vec)
 

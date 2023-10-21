@@ -2,7 +2,7 @@
 # mode: error
 
 def f(a, b):
-	cdef int i
+	cdef i32 i
 	break # error
 	continue # error
 _ERRORS = u"""

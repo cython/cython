@@ -3,7 +3,7 @@
 def f(x,):
     pass
 
-cdef void g(int x,):
+cdef void g(i32 x,):
     pass
 
 g(0)

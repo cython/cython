@@ -4,12 +4,12 @@
 # These tests check for unsupported use of rvalue-references (&&)
 # and should be removed or cleaned up when support is added.
 
-cdef int&& x
+cdef i32&& x
 
-cdef void foo(int&& x):
+cdef void foo(i32&& x):
     pass
 
-cdef int&& bar():
+cdef i32&& bar():
     pass
 
 cdef extern from *:
@@ -19,7 +19,7 @@ cdef extern from *:
     template <typename T>
     void qux(const T&& x) {}
     """
-    cdef void baz(int x, int&& y)
+    cdef void baz(i32 x, i32&& y)
     cdef void qux[T](const T&& x)
 
 

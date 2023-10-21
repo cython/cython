@@ -1,6 +1,6 @@
-cdef enum otherstuff:
-    sausage, eggs, lettuce
+cdef enum OtherStuff:
+    Sausage, Eggs, Lettuce
 
-cdef struct spamdish:
-    int oz_of_spam
-    otherstuff filler
+cdef struct SpamDish:
+    i32 oz_of_spam
+    OtherStuff filler

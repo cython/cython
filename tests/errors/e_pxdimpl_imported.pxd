@@ -1,13 +1,13 @@
 
 cdef class A:
-    cdef int test(self)
+    cdef i32 test(self)
 
     # Should give error:
     def somefunc(self):
         pass
 
     # While this should *not* be an error...:
-    def __getbuffer__(self, Py_buffer* info, int flags):
+    def __getbuffer__(self, Py_buffer* info, i32 flags):
         pass
     # This neither:
     def __releasebuffer__(self, Py_buffer* info):

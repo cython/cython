@@ -17,6 +17,5 @@ __doc__ = u"""
 swallow = True
 
 class Swallow:
-
-    def spam(w, int x = 42, y = "grail", z = swallow):
+    def spam(w, i32 x = 42, y = "grail", z = swallow):
         print w, x, y, z

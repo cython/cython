@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef int i, j, k
+cdef i32 i, j, k
 cdef object a, b, x
 
 for i from 0 <= i < 10:
@@ -31,4 +31,3 @@ while j:
     else:
         continue
         break
-

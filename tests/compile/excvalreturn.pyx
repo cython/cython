@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef int spam() except -1:
+cdef i32 spam() except -1:
     eggs = 42
 
 spam()

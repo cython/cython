@@ -4,6 +4,6 @@
 # This previously lead to a crash due to an empty module body.
 
 ctypedef fused cinteger:
-    int
-    long
-    Py_ssize_t
+    i32
+    i64
+    isize

@@ -3,4 +3,4 @@
 
 from a cimport b
 
-cdef int **t = b.foo(NULL)
+cdef i32 **t = b.foo(NULL)

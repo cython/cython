@@ -23,11 +23,11 @@ def optional_cstruct(x: Optional[MyStruct]):
 
 # OK
 
-def optional_pytypes(i: Optional[int], f: Optional[float], c: Optional[complex], l: Optional[long]):
+def optional_pytypes(i: Optional[i32], f: Optional[f32], c: Optional[complex], l: Optional[i64]):
     pass
 
 
-def optional_memoryview(d: double[:], o: Optional[double[:]]):
+def optional_memoryview(d: f64[:], o: Optional[f64[:]]):
     pass
 
 

@@ -1,5 +1,5 @@
 cdef class Function:
-    cpdef double evaluate(self, double x) except *
+    cpdef f64 evaluate(self, f64 x) except *
 
 cdef class SinOfSquareFunction(Function):
-    cpdef double evaluate(self, double x) except *
+    cpdef f64 evaluate(self, f64 x) except *

@@ -1,12 +1,11 @@
- 
 cimport dishes
-from dishes cimport spamdish
+from dishes cimport SpamDish
 
-cdef void prepare(spamdish *d):
+cdef void prepare(SpamDish *d):
     d.oz_of_spam = 42
-    d.filler = dishes.sausage
+    d.filler = dishes.Sausage
 
 def serve():
-    cdef spamdish d
+    cdef SpamDish d
     prepare(&d)
     print(f'{d.oz_of_spam} oz spam, filler no. {d.filler}')

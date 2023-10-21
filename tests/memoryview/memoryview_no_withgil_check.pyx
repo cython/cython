@@ -6,6 +6,6 @@
 # __Pyx_ErrOccurredWithGIL for error checking (because it's inefficient
 # inside a nogil block)
 
-def assign(double[:] a, double[:] b):
+def assign(f64[:] a, f64[:] b):
     with nogil:
         a[:] = b[:]

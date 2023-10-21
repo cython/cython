@@ -1,4 +1,4 @@
-ctypedef float ext_dtype
+ctypedef f32 ext_dtype
 
 cdef extern from "bufaccess.h":
-    ctypedef float td_h_double
+    ctypedef f32 td_h_double

@@ -1,7 +1,7 @@
 # mode: compile
 
 def f(a, b):
-    cdef int i = 5
+    cdef i32 i = 5
 
     while a:
         x = 1
@@ -25,4 +25,3 @@ def f(a, b):
         x = 1
         continue
         x = 2
-

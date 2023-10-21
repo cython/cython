@@ -1,7 +1,7 @@
 # mode: error
 
-ctypedef int (*spamfunc)(int, char *) except 42
-ctypedef int (*grailfunc)(int, char *) noexcept
+ctypedef i32 (*spamfunc)(i32, char *) except 42
+ctypedef i32 (*grailfunc)(i32, char *) noexcept
 
 cdef grailfunc grail
 cdef spamfunc spam

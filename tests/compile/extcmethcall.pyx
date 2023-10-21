@@ -2,9 +2,9 @@
 
 cdef class Spam:
 
-    cdef int tons
+    cdef i32 tons
 
-    cdef void add_tons(self, int x):
+    cdef void add_tons(self, i32 x):
         pass
 
 

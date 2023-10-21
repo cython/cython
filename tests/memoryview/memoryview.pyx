@@ -20,7 +20,7 @@ import array as pyarray
 from libc.stdlib cimport malloc, free
 
 cdef extern from "Python.h":
-    cdef int PyBUF_C_CONTIGUOUS
+    cdef i32 PyBUF_C_CONTIGUOUS
 
 include "../buffers/mockbuffers.pxi"
 
@@ -30,8 +30,8 @@ include "../buffers/mockbuffers.pxi"
 def init_obj():
     return 3
 
-cdef passmvs(float[:,::1] mvs, object foo):
-    mvs = array((10,10), itemsize=sizeof(float), format='f')
+cdef passmvs(f32[:, ::1] mvs, object foo):
+    mvs = array((10,10), itemsize=sizeof(f32), format='f')
     foo = init_obj()
 
 cdef object returnobj():
@@ -39,37 +39,36 @@ cdef object returnobj():
     return obj
 
 cdef float[::1] returnmvs_inner():
-    return array((10,), itemsize=sizeof(float), format='f')
+    return array((10,), itemsize=sizeof(f32), format='f')
 
-cdef float[::1] returnmvs():
-    cdef float[::1] mvs = returnmvs_inner()
+cdef f32[::1] returnmvs():
+    cdef f32[::1] mvs = returnmvs_inner()
     return mvs
 
 def f():
-    cdef array arr = array(shape=(10,10), itemsize=sizeof(int), format='i')
+    cdef array arr = array(shape=(10, 10), itemsize=sizeof(i32), format='i')
     cdef memoryview mv = memoryview(arr, PyBUF_C_CONTIGUOUS)
 
 def g():
     cdef object obj = init_obj()
-    cdef int[::1] mview = array((10,), itemsize=sizeof(int), format='i')
+    cdef i32[::1] mview = array((10,), itemsize=sizeof(i32), format='i')
     obj = init_obj()
-    mview = array((10,), itemsize=sizeof(int), format='i')
+    mview = array((10,), itemsize=sizeof(i32), format='i')
 
 cdef class ExtClass(object):
-    cdef int[::1] mview
+    cdef i32[::1] mview
 
     def __init__(self):
-        self.mview = array((10,), itemsize=sizeof(int), format='i')
-        self.mview = array((10,), itemsize=sizeof(int), format='i')
+        self.mview = array((10,), itemsize=sizeof(i32), format='i')
+        self.mview = array((10,), itemsize=sizeof(i32), format='i')
 
 class PyClass(object):
-
     def __init__(self):
-        self.mview = array((10,), itemsize=sizeof(long), format='l')
+        self.mview = array((10,), itemsize=sizeof(i64), format='l')
 
 cdef cdg():
-    cdef double[::1] dmv = array((10,), itemsize=sizeof(double), format='d')
-    dmv = array((10,), itemsize=sizeof(double), format='d')
+    cdef f64[::1] dmv = array((10,), itemsize=sizeof(f64), format='d')
+    dmv = array((10,), itemsize=sizeof(f64), format='d')
 
 cdef class TestExcClassExternalDtype(object):
     cdef ext_dtype[:, :] arr_float
@@ -94,16 +93,15 @@ def test_external_dtype():
     print obj.arr_float[4, 4]
     print obj.arr_double[4, 4]
 
-
 cdef class ExtClassMockedAttr(object):
-    cdef int[:, :] arr
+    cdef i32[:, :] arr
 
     def __init__(self):
         self.arr = IntMockBuffer("self.arr", range(100), (10, 8))
         self.arr[:] = 0
         self.arr[4, 4] = 2
 
-cdef int[:, :] _coerce_to_temp():
+cdef i32[:, :] _coerce_to_temp():
     cdef ExtClassMockedAttr obj = ExtClassMockedAttr()
     return obj.arr
 
@@ -148,14 +146,14 @@ def test_extclass_attribute_dealloc():
     cdef ExtClassMockedAttr obj = ExtClassMockedAttr()
     print obj.arr[4, 4]
 
-cdef float[:,::1] global_mv = array((10,10), itemsize=sizeof(float), format='f')
-global_mv = array((10,10), itemsize=sizeof(float), format='f')
+cdef f32[:, ::1] global_mv = array((10,10), itemsize=sizeof(f32), format='f')
+global_mv = array((10,10), itemsize=sizeof(f32), format='f')
 cdef object global_obj
 
 def assignmvs():
-    cdef int[::1] mv1, mv2
-    cdef int[:] mv3
-    mv1 = array((10,), itemsize=sizeof(int), format='i')
+    cdef i32[::1] mv1, mv2
+    cdef i32[:] mv3
+    mv1 = array((10,), itemsize=sizeof(i32), format='i')
     mv2 = mv1
     mv1 = mv1
     mv1 = mv2
@@ -164,8 +162,8 @@ def assignmvs():
 def call():
     global global_mv
     passmvs(global_mv, global_obj)
-    global_mv = array((3,3), itemsize=sizeof(float), format='f')
-    cdef float[::1] getmvs = returnmvs()
+    global_mv = array((3, 3), itemsize=sizeof(f32), format='f')
+    cdef f32[::1] getmvs = returnmvs()
     returnmvs()
     cdef object obj = returnobj()
     cdg()
@@ -194,7 +192,7 @@ def test_cdef_attribute():
     else:
         print "No AttributeError was raised"
 
-    cdef int[:] myview
+    cdef i32[:] myview
     try:
         print myview
     except UnboundLocalError, e:
@@ -202,7 +200,7 @@ def test_cdef_attribute():
     else:
         print "No UnboundLocalError was raised"
 
-    cdef int[:] otherview
+    cdef i32[:] otherview
     try:
          otherview = myview
     except UnboundLocalError, e:
@@ -225,7 +223,7 @@ def test_nogil_unbound_localerror():
         ...
     UnboundLocalError: local variable 'm' referenced before assignment
     """
-    cdef int[:] m
+    cdef i32[:] m
     with nogil:
         m[0] = 10
 
@@ -236,8 +234,8 @@ def test_nogil_oob():
         ...
     IndexError: Out of bounds on buffer access (axis 0)
     """
-    cdef int[5] a
-    cdef int[:] m = a
+    cdef i32[5] a
+    cdef i32[:] m = a
     with nogil:
         m[5] = 1
 
@@ -296,7 +294,6 @@ def nested_packed_struct(NestedPackedStruct[:] mslice):
     d = buf[0]
     print d['a'], d['b'], d['sub']['a'], d['sub']['b'], d['c']
 
-
 def complex_dtype(long double complex[:] mslice):
     """
     >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
@@ -327,7 +324,7 @@ def complex_struct_dtype(LongComplex[:] mslice):
 #
 # Getting items and index bounds checking
 #
-def get_int_2d(int[:, :] mslice, int i, int j):
+def get_int_2d(i32[:, :] mslice, i32 i, i32 j):
     """
     >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d(C, 1, 1)
@@ -362,7 +359,7 @@ def get_int_2d(int[:, :] mslice, int i, int j):
     cdef object buf = mslice
     return buf[i, j]
 
-def set_int_2d(int[:, :] mslice, int i, int j, int value):
+def set_int_2d(i32[:, :] mslice, i32 i, i32 j, i32 value):
     """
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
@@ -415,12 +412,11 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
     cdef object buf = mslice
     buf[i, j] = value
 
-
 #
 # auto type inference
 # (note that for most numeric types "might_overflow" stops the type inference from working well)
 #
-def type_infer(double[:, :] arg):
+def type_infer(f64[:, :] arg):
     """
     >>> type_infer(DoubleMockBuffer(None, range(6), (2,3)))
     double
@@ -432,23 +428,23 @@ def type_infer(double[:, :] arg):
     print(cython.typeof(a))
     b = arg[0]
     print(cython.typeof(b))
-    c = arg[0,:]
+    c = arg[0, :]
     print(cython.typeof(c))
-    d = arg[:,:]
+    d = arg[:, :]
     print(cython.typeof(d))
 
 #
 # Loop optimization
 #
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
-def memview_iter(double[:, :] arg):
+def memview_iter(f64[:, :] arg):
     """
     >>> memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
     acquired C
     released C
     True
     """
-    cdef double total = 0
+    cdef f64 total = 0
     for mview1d in arg:
         for val in mview1d:
             total += val
@@ -459,7 +455,7 @@ def memview_iter(double[:, :] arg):
 # Test all kinds of indexing and flags
 #
 
-def writable(unsigned short int[:, :, :] mslice):
+def writable(u16[:, :, :] mslice):
     """
     >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
     >>> writable(R)
@@ -471,7 +467,7 @@ def writable(unsigned short int[:, :, :] mslice):
     cdef object buf = mslice
     buf[2, 2, 1] = 23
 
-def strided(int[:] mslice):
+def strided(i32[:] mslice):
     """
     >>> A = IntMockBuffer("A", range(4))
     >>> strided(A)
@@ -486,7 +482,7 @@ def strided(int[:] mslice):
     cdef object buf = mslice
     return buf[2]
 
-def c_contig(int[::1] mslice):
+def c_contig(i32[::1] mslice):
     """
     >>> A = IntMockBuffer(None, range(4))
     >>> c_contig(A)
@@ -495,7 +491,7 @@ def c_contig(int[::1] mslice):
     cdef object buf = mslice
     return buf[2]
 
-def c_contig_2d(int[:, ::1] mslice):
+def c_contig_2d(i32[:, ::1] mslice):
     """
     Multi-dim has separate implementation
 
@@ -506,7 +502,7 @@ def c_contig_2d(int[:, ::1] mslice):
     cdef object buf = mslice
     return buf[1, 3]
 
-def f_contig(int[::1, :] mslice):
+def f_contig(i32[::1, :] mslice):
     """
     >>> A = IntMockBuffer(None, range(4), shape=(2, 2), strides=(1, 2))
     >>> f_contig(A)
@@ -515,7 +511,7 @@ def f_contig(int[::1, :] mslice):
     cdef object buf = mslice
     return buf[0, 1]
 
-def f_contig_2d(int[::1, :] mslice):
+def f_contig_2d(i32[::1, :] mslice):
     """
     Must set up strides manually to ensure Fortran ordering.
 
@@ -526,8 +522,8 @@ def f_contig_2d(int[::1, :] mslice):
     cdef object buf = mslice
     return buf[3, 1]
 
-def generic(int[::view.generic, ::view.generic] mslice1,
-            int[::view.generic, ::view.generic] mslice2):
+def generic(i32[::view.generic, ::view.generic] mslice1,
+            i32[::view.generic, ::view.generic] mslice2):
     """
     >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
     >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
@@ -552,8 +548,8 @@ def generic(int[::view.generic, ::view.generic] mslice1,
     print buf1[2, 2]
     print buf2[2, 2]
 
-#def generic_contig(int[::view.generic_contiguous, :] mslice1,
-#                   int[::view.generic_contiguous, :] mslice2):
+#def generic_contig(i32[::view.generic_contiguous, :] mslice1,
+#                   i32[::view.generic_contiguous, :] mslice2):
 #    """
 #    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
 #    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
@@ -578,11 +574,11 @@ def generic(int[::view.generic, ::view.generic] mslice1,
 #    print buf1[2, 2]
 #    print buf2[2, 2]
 
-ctypedef int td_cy_int
+ctypedef i32 td_cy_int
 cdef extern from "bufaccess.h":
     ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
-    ctypedef float td_h_double # Defined as double
-    ctypedef unsigned int td_h_ushort # Defined as unsigned short
+    ctypedef f32 td_h_double # Defined as double
+    ctypedef u32 td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
 def printbuf_td_cy_int(td_cy_int[:] mslice, shape):
@@ -595,7 +591,7 @@ def printbuf_td_cy_int(td_cy_int[:] mslice, shape):
     ValueError: Buffer dtype mismatch, expected 'td_cy_int' but got 'short'
     """
     cdef object buf = mslice
-    cdef int i
+    cdef i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -610,7 +606,7 @@ def printbuf_td_h_short(td_h_short[:] mslice, shape):
     ValueError: Buffer dtype mismatch, expected 'td_h_short' but got 'int'
     """
     cdef object buf = mslice
-    cdef int i
+    cdef i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -625,7 +621,7 @@ def printbuf_td_h_cy_short(td_h_cy_short[:] mslice, shape):
     ValueError: Buffer dtype mismatch, expected 'td_h_cy_short' but got 'int'
     """
     cdef object buf = mslice
-    cdef int i
+    cdef i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -640,7 +636,7 @@ def printbuf_td_h_ushort(td_h_ushort[:] mslice, shape):
     ValueError: Buffer dtype mismatch, expected 'td_h_ushort' but got 'short'
     """
     cdef object buf = mslice
-    cdef int i
+    cdef i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -655,7 +651,7 @@ def printbuf_td_h_double(td_h_double[:] mslice, shape):
     ValueError: Buffer dtype mismatch, expected 'td_h_double' but got 'float'
     """
     cdef object buf = mslice
-    cdef int i
+    cdef i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -695,11 +691,11 @@ def printbuf_object(object[:] mslice, shape):
     [34, 3] 2
     """
     cdef object buf = mslice
-    cdef int i
+    cdef i32 i
     for i in range(shape[0]):
         print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
 
-def assign_to_object(object[:] mslice, int idx, obj):
+def assign_to_object(object[:] mslice, i32 idx, obj):
     """
     See comments on printbuf_object above.
 
@@ -745,15 +741,13 @@ def assign_temporary_to_object(object[:] mslice):
     cdef object buf = mslice
     buf[1] = {3-2: 2+(2*4)-2}
 
-
-def test_pyview_of_memview(int[:] ints):
+def test_pyview_of_memview(i32[:] ints):
     """
     >>> A = IntMockBuffer(None, [1, 2, 3])
     >>> len(test_pyview_of_memview(A))
     3
     """
     return ints
-
 
 def test_generic_slicing(arg, indirect=False):
     """
@@ -789,21 +783,21 @@ def test_generic_slicing(arg, indirect=False):
     released A
 
     """
-    cdef int[::view.generic, ::view.generic, :] _a = arg
+    cdef i32[::view.generic, ::view.generic, :] _a = arg
     cdef object a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
 
     if indirect:
-        print b.suboffsets[0] // sizeof(int *),
-        print b.suboffsets[1] // sizeof(int),
+        print b.suboffsets[0] // sizeof(i32 *),
+        print b.suboffsets[1] // sizeof(i32),
         print b.suboffsets[2]
     else:
         print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
         print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
 
-    cdef int i, j, k
+    cdef i32 i, j, k
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             for k in range(b.shape[2]):
@@ -838,7 +832,7 @@ def test_indirect_slicing(arg):
     2412
     released A
     """
-    cdef int[::view.indirect, ::view.indirect, :] _a = arg
+    cdef i32[::view.indirect, ::view.indirect, :] _a = arg
     a = _a
     b = a[-5:, ..., -5:100:2]
 
@@ -872,7 +866,7 @@ def test_direct_slicing(arg):
     -1 -1 -1
     released A
     """
-    cdef int[:, :, :] _a = arg
+    cdef i32[:, :, :] _a = arg
     cdef object a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
@@ -880,14 +874,13 @@ def test_direct_slicing(arg):
     print_int_offsets(*b.strides)
     print_int_offsets(*b.suboffsets)
 
-    cdef int i, j, k
+    cdef i32 i, j, k
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             for k in range(b.shape[2]):
                 itemA = a[2 + 2 * i, -4 - j, 1 + k]
                 itemB = b[i, j, k]
                 assert itemA == itemB, (i, j, k, itemA, itemB)
-
 
 def test_slicing_and_indexing(arg):
     """
@@ -900,7 +893,7 @@ def test_slicing_and_indexing(arg):
     [111]
     released A
     """
-    cdef int[:, :, :] _a = arg
+    cdef i32[:, :, :] _a = arg
     cdef object a = _a
     b = a[-5:, 1, 1::2]
     c = b[4:1:-1, ::-1]
@@ -909,7 +902,7 @@ def test_slicing_and_indexing(arg):
     print b.shape
     print_int_offsets(*b.strides)
 
-    cdef int i, j
+    cdef i32 i, j
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             itemA = a[-5 + i, 1, 1 + 2 * j]
@@ -926,7 +919,7 @@ def test_oob():
        ...
     IndexError: Index out of bounds (axis 1)
     """
-    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    cdef i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
     print a[:, 20]
 
 def test_acquire_memoryview():
@@ -940,7 +933,7 @@ def test_acquire_memoryview():
     22
     released A
     """
-    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    cdef i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
     cdef object b = a
 
     print a[2, 4]
@@ -949,7 +942,7 @@ def test_acquire_memoryview():
     del a
 
     print b
-    cdef int[:, :] c = b
+    cdef i32[:, :] c = b
     print b[2, 4]
     print c[2, 4]
 
@@ -963,7 +956,7 @@ def test_acquire_memoryview_slice():
     31
     released A
     """
-    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    cdef i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
     a = a[1:, :6]
 
     cdef object b = a
@@ -974,7 +967,7 @@ def test_acquire_memoryview_slice():
     del a
 
     print b
-    cdef int[:, :] c = b
+    cdef i32[:, :] c = b
     print b[2, 4]
     print c[2, 4]
 
@@ -1004,7 +997,7 @@ cdef class TestPassMemoryviewToSetter:
         return None
 
     @prop.setter
-    def prop(self, double[:] x):
+    def prop(self, f64[:] x):
         print("In prop setter")
 
     @property
@@ -1012,7 +1005,7 @@ cdef class TestPassMemoryviewToSetter:
         return None
 
     @prop_with_reassignment.setter
-    def prop_with_reassignment(self, double[:] x):
+    def prop_with_reassignment(self, f64[:] x):
         # reassignment again requires slightly different code
         if x[0]:
             x = x[1:]
@@ -1028,7 +1021,7 @@ class SingleObject(object):
     def __eq__(self, other):
         return self.value == getattr(other, 'value', None) or self.value == other
 
-def test_assign_scalar(int[:, :] m):
+def test_assign_scalar(i32[:, :] m):
     """
     >>> A = IntMockBuffer("A", [0] * 100, shape=(10, 10))
     >>> test_assign_scalar(A)
@@ -1051,15 +1044,14 @@ def test_assign_scalar(int[:, :] m):
     for i in range(6):
         print " ".join([str(m[i, j]) for j in range(m.shape[1])])
 
-
 def test_contig_scalar_to_slice_assignment():
     """
     >>> test_contig_scalar_to_slice_assignment()
     14 14 14 14
     20 20 20 20
     """
-    cdef int[5][10] a
-    cdef int[:, ::1] _m = a
+    cdef i32[5][10] a
+    cdef i32[:, ::1] _m = a
     m = _m
 
     m[...] = 14
@@ -1079,7 +1071,6 @@ def test_dtype_object_scalar_assignment():
     (<object> m)[:] = SingleObject(3)
     assert m[0] == m[4] == m[-1] == 3
 
-
 def test_assignment_in_conditional_expression(bint left):
     """
     >>> test_assignment_in_conditional_expression(True)
@@ -1093,14 +1084,14 @@ def test_assignment_in_conditional_expression(bint left):
     3.0
     4.0
     """
-    cdef double a[2]
-    cdef double b[2]
+    cdef f64 a[2]
+    cdef f64 b[2]
     a[:] = [1, 2]
     b[:] = [3, 4]
 
-    cdef double[:] A = a
-    cdef double[:] B = b
-    cdef double[:] C, c
+    cdef f64[:] A = a
+    cdef f64[:] B = b
+    cdef f64[:] C, c
 
     # assign new memoryview references
     C = A if left else B
@@ -1113,16 +1104,14 @@ def test_assignment_in_conditional_expression(bint left):
     for i in range(c.shape[0]):
         print c[i]
 
-
 def test_cpython_offbyone_issue_23349():
     """
     >>> print(test_cpython_offbyone_issue_23349())
     testing
     """
-    cdef unsigned char[:] v = bytearray(b"testing")
+    cdef u8[:] v = bytearray(b"testing")
     # the following returns 'estingt' without the workaround
     return bytearray(v).decode('ascii')
-
 
 @cython.test_fail_if_path_exists('//SimpleCallNode')
 @cython.test_assert_path_exists(
@@ -1134,12 +1123,11 @@ def min_max_tree_restructuring():
     >>> min_max_tree_restructuring()
     (1, 3)
     """
-    cdef char a[5]
+    cdef i8 a[5]
     a = [1, 2, 3, 4, 5]
-    cdef char[:] aview = a
+    cdef i8[:] aview = a
 
-    return max(<char>1, aview[0]), min(<char>5, aview[2])
-
+    return max(<i8>1, aview[0]), min(<i8>5, aview[2])
 
 @cython.test_fail_if_path_exists(
     '//MemoryViewSliceNode',
@@ -1148,7 +1136,7 @@ def min_max_tree_restructuring():
     '//MemoryViewIndexNode',
 )
 #@cython.boundscheck(False)  # reduce C code clutter
-def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
+def optimised_index_of_slice(i32[:, :, :] arr, i32 x, i32 y, i32 z):
     """
     >>> arr = IntMockBuffer("A", list(range(10*10*10)), shape=(10,10,10))
     >>> optimised_index_of_slice(arr, 2, 3, 4)
@@ -1184,7 +1172,6 @@ def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
     print(arr[x, y, z], arr[:][x][:][y][:][:][z])
     print(arr[x, y, z], arr[:, :][x][:, :][y][:][z])
 
-
 def test_assign_from_byteslike(byteslike):
     # Once https://python3statement.org/ is accepted, should be just
     # >>> test_assign_from_byteslike(bytes(b'hello'))
@@ -1209,22 +1196,22 @@ def test_assign_from_byteslike(byteslike):
         m[:] = byteslike
 
     cdef void *buf
-    cdef unsigned char[:] mview
+    cdef u8[:] mview
     buf = malloc(5)
     try:
-        mview = <unsigned char[:5]>(buf)
+        mview = <u8[:5]>(buf)
         assign(mview)
-        return (<unsigned char*>buf)[:5]
+        return (<u8*>buf)[:5]
     finally:
         free(buf)
 
-def multiple_memoryview_def(double[:] a, double[:] b):
+def multiple_memoryview_def(f64[:] a, f64[:] b):
     return a[0] + b[0]
 
-cpdef multiple_memoryview_cpdef(double[:] a, double[:] b):
+cpdef multiple_memoryview_cpdef(f64[:] a, f64[:] b):
     return a[0] + b[0]
 
-cdef multiple_memoryview_cdef(double[:] a, double[:] b):
+cdef multiple_memoryview_cdef(f64[:] a, f64[:] b):
     return a[0] + b[0]
 
 multiple_memoryview_cdef_wrapper = multiple_memoryview_cdef
@@ -1251,7 +1238,7 @@ def test_conversion_failures():
             else:
                 assert False, "Conversion should fail!"
 
-def test_is_Sequence(double[:] a):
+def test_is_Sequence(f64[:] a):
     """
     >>> test_is_Sequence(DoubleMockBuffer(None, range(6), shape=(6,)))
     1
@@ -1284,15 +1271,14 @@ match arr:
 
     return isinstance(<object>a, Sequence)
 
-
-ctypedef int aliasT
+ctypedef i32 aliasT
 def test_assignment_typedef():
     """
     >>> test_assignment_typedef()
     1
     2
     """
-    cdef int[2] x
+    cdef i32[2] x
     cdef aliasT[:] y
     x[:] = [1, 2]
     y = x

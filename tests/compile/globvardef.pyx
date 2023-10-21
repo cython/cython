@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef int a_global_int
+cdef i32 a_global_int
 cdef a_global_pyobject
 
 a_global_int = 0

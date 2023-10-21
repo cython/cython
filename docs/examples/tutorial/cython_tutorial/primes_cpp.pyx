@@ -1,11 +1,10 @@
 # distutils: language=c++
 
-
 from libcpp.vector cimport vector
 
-def primes(unsigned int nb_primes):
-    cdef int n, i
-    cdef vector[int] p
+def primes(u32 nb_primes):
+    cdef i32 n, i
+    cdef vector[i32] p
     p.reserve(nb_primes)  # allocate memory for 'nb_primes' elements.
 
     n = 2

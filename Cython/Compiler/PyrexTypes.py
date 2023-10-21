@@ -4868,15 +4868,25 @@ memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
 
 modifiers_and_name_to_type = {
     #(signed, longness, name) : type
+    (None, None, "u8"): c_uchar_type,
+    (None, None, "i8"): c_char_type,
     (0,  0, "char"): c_uchar_type,
     (1,  0, "char"): c_char_type,
     (2,  0, "char"): c_schar_type,
 
+    (None, None, "u16"): c_ushort_type,
+    (None, None, "u32"): c_uint_type,
+    (None, None, "u64"): c_ulong_type,
+    (None, None, "u128"): c_ulonglong_type,
     (0, -1, "int"): c_ushort_type,
     (0,  0, "int"): c_uint_type,
     (0,  1, "int"): c_ulong_type,
     (0,  2, "int"): c_ulonglong_type,
 
+    (None, None, "i16"): c_short_type,
+    (None, None, "i32"): c_int_type,
+    (None, None, "i64"): c_long_type,
+    (None, None, "i128"): c_longlong_type,
     (1, -1, "int"): c_short_type,
     (1,  0, "int"): c_int_type,
     (1,  1, "int"): c_long_type,
@@ -4887,6 +4897,8 @@ modifiers_and_name_to_type = {
     (2,  1, "int"): c_slong_type,
     (2,  2, "int"): c_slonglong_type,
 
+    (None, None, "f32"): c_float_type,
+    (None, None, "f64"): c_double_type,
     (1,  0, "float"):  c_float_type,
     (1,  0, "double"): c_double_type,
     (1,  1, "double"): c_longdouble_type,
@@ -4900,6 +4912,8 @@ modifiers_and_name_to_type = {
     (1,  0, "void"): c_void_type,
     (1,  0, "Py_tss_t"): c_pytss_t_type,
 
+    (None, None, "isize") : c_ssize_t_type,
+    (None, None, "usize") : c_size_t_type,
     (1,  0, "bint"):       c_bint_type,
     (0,  0, "Py_UNICODE"): c_py_unicode_type,
     (0,  0, "Py_UCS4"):    c_py_ucs4_type,
@@ -5298,7 +5312,7 @@ def parse_basic_type(name):
     if base:
         return CPtrType(base)
     #
-    basic_type = simple_c_type(1, 0, name)
+    basic_type = simple_c_type(None, None, name) or simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
     #

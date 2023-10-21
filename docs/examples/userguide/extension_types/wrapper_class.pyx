@@ -1,12 +1,9 @@
- 
 from libc.stdlib cimport malloc, free
 
 # Example C struct
 ctypedef struct my_c_struct:
-    int a
-    int b
-
-
+    i32 a
+    i32 b
 
 cdef class WrapperClass:
     """A wrapper class for a C/C++ data structure"""
@@ -50,7 +47,6 @@ cdef class WrapperClass:
         wrapper._ptr = _ptr
         wrapper.ptr_owner = owner
         return wrapper
-
 
     @staticmethod
     cdef WrapperClass new_struct():

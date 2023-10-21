@@ -5,7 +5,7 @@ cdef class C:
         pass
 
 cdef class D(C):
-    cdef void f(self, int x):
+    cdef void f(self, i32 x):
         pass
 
 # These are declared in the pxd.

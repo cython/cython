@@ -2,10 +2,9 @@
 
 from libcpp.vector cimport vector
 
-
 cdef class Matrix:
     cdef unsigned ncols
-    cdef vector[float] v
+    cdef vector[f32] v
 
     def __cinit__(self, unsigned ncols):
         self.ncols = ncols

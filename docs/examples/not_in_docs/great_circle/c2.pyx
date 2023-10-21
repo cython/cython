@@ -1,9 +1,9 @@
 import math
 
-def great_circle(double lon1, double lat1, double lon2, double lat2):
-    cdef double radius = 3956 # miles
-    cdef double x = math.pi/180.0
-    cdef double a, b, theta, c
+def great_circle(f64 lon1, f64 lat1, f64 lon2, f64 lat2):
+    cdef f64 radius = 3956 # miles
+    cdef f64 x = math.pi/180.0
+    cdef f64 a, b, theta, c
 
     a = (90.0 - lat1)*x
     b = (90.0 - lat2)*x

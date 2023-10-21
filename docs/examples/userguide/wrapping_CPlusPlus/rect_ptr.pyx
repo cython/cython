@@ -8,7 +8,7 @@ cdef class PyRectangle:
     def __cinit__(self):
         self.c_rect = new Rectangle()
 
-    def __init__(self, int x0, int y0, int x1, int y1):
+    def __init__(self, i32 x0, i32 y0, i32 x1, i32 y1):
         self.c_rect.x0 = x0
         self.c_rect.y0 = y0
         self.c_rect.x1 = x1

@@ -2,7 +2,7 @@
 # mode: error
 
 cdef class A:
-    cpdef a(int not_self):
+    cpdef a(i32 not_self):
         pass
 
 _ERRORS = u"""

@@ -15,7 +15,7 @@ def convert_ok():
 cdef union IllegalMix:
     char *s1
     char *s2
-    int i
+    i32 i
 
 
 def convert_nok():

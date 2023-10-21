@@ -1,21 +1,21 @@
 cimport cython
 
-cdef double rand(double a, double b, random=*)
+cdef f64 rand(f64 a, f64 b, random=*)
 
-@cython.locals(i=Py_ssize_t)
-cdef list makeMatrix(Py_ssize_t I, Py_ssize_t J, fill=*)
+@cython.locals(i=isize)
+cdef list make_matrix(isize I, isize J, fill=*)
 
 cdef class NN:
-    cdef Py_ssize_t ni, nh, no
+    cdef isize ni, nh, no
     cdef list ai, ah, ao
     cdef list wi, wo
     cdef list ci, co
 
-    @cython.locals(i=Py_ssize_t, j=Py_ssize_t, k=Py_ssize_t)
+    @cython.locals(i=isize, j=isize, k=isize)
     cpdef update(self, list inputs)
 
-    @cython.locals(i=Py_ssize_t, j=Py_ssize_t, k=Py_ssize_t, change=double)
-    cpdef double backPropagate(self, list targets, double N, M)
+    @cython.locals(i=isize, j=isize, k=isize, change=f64)
+    cpdef f64 back_propagate(self, list targets, f64 N, M)
 
-    @cython.locals(i=Py_ssize_t, p=list, error=double)
-    cpdef train(self, list patterns, Py_ssize_t iterations=*, double N=*, M=*)
+    @cython.locals(i=isize, p=list, error=double)
+    cpdef train(self, list patterns, isize iterations=*, f64 N=*, M=*)

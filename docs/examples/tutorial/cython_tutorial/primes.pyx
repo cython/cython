@@ -1,12 +1,9 @@
-def primes(int nb_primes):
-    cdef int n, i, len_p
-    cdef int[1000] p
+def primes(i32 nb_primes):
+    cdef i32 n, i, len_p
+    cdef i32[1000] p
 
     if nb_primes > 1000:
         nb_primes = 1000
-
-
-
 
     len_p = 0  # The current number of elements in p.
     n = 2

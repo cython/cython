@@ -1,8 +1,8 @@
 # mode: compile
 # --
 
-ctypedef     int Int0
-ctypedef api int Int1
+ctypedef     i32 Int0
+ctypedef api i32 Int1
 
 ctypedef     enum EnumA0: EA0
 ctypedef api enum EnumA1: EA1
@@ -21,14 +21,14 @@ cdef api EnumB1 eb1 = EB1
 # --
 
 ctypedef     struct StructA0:
-    int SA0
+    i32 SA0
 ctypedef api struct StructA1:
-    int SA1
+    i32 SA1
 
 cdef     struct StructB0:
-    int SB0
+    i32 SB0
 cdef api struct StructB1:
-    int SB1
+    i32 SB1
 
 cdef StructA0 sa0 = {'SA0':0}
 cdef StructB0 sb0 = {'SB0':2}

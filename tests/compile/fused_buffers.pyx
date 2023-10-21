@@ -9,8 +9,8 @@
 # still in use
 
 ctypedef fused IntOrFloat:
-    int
-    float
+    i32
+    f32
 
 def f(IntOrFloat[:] x):
     return x

@@ -24,12 +24,11 @@ setup(
 ######## has_inline.pxd ########
 
 from libc.stdlib cimport malloc
-cdef inline double[::1] mview(size_t size):
-    return <double[:size:1]>malloc(size * sizeof(double))
+cdef inline f64[::1] mview(usize size):
+    return <f64[:size:1]>malloc(size * sizeof(f64))
     
 ######## uses_inline.pyx ########
 
 from has_inline cimport mview
 def main():
     return mview(1)
-

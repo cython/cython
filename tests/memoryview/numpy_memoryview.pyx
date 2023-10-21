@@ -200,8 +200,8 @@ def test_transpose_type(a):
     >>> test_transpose_type(a)
     9.0
     """
-    cdef double[:, ::1] m = a
-    cdef double[::1, :] m_transpose = a.T
+    cdef f64[:, ::1] m = a
+    cdef f64[::1, :] m_transpose = a.T
     print m_transpose[6, 4]
 
 
@@ -219,7 +219,7 @@ def test_numpy_like_attributes(cyarray):
     assert cyarray.size == numarray.size, (cyarray.size, numarray.size)
     assert cyarray.nbytes == numarray.nbytes, (cyarray.nbytes, numarray.nbytes)
 
-    cdef int[:, :] mslice = numarray
+    cdef i32[:, :] mslice = numarray
     assert (<object> mslice).base is numarray
 
 def test_copy_and_contig_attributes(a):
@@ -241,11 +241,11 @@ def test_copy_and_contig_attributes(a):
     assert m.is_c_contig() and m.copy().is_c_contig()
     assert m.copy_fortran().is_f_contig() and not m.is_f_contig()
 
-ctypedef int td_cy_int
+ctypedef i32 td_cy_int
 cdef extern from "bufaccess.h":
     ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
-    ctypedef float td_h_double # Defined as double
-    ctypedef unsigned int td_h_ushort # Defined as unsigned short
+    ctypedef f32 td_h_double # Defined as double
+    ctypedef u32 td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
 cdef void dealloc_callback(void *data) noexcept:
@@ -309,13 +309,13 @@ def test_coerce_to_numpy():
     cdef PackedStruct[20] packedstructs
 
     cdef signed char[20] chars
-    cdef short[20] shorts
-    cdef int[20] ints
-    cdef long long[20] longlongs
+    cdef i16[20] shorts
+    cdef i32[20] ints
+    cdef i128[20] longlongs
     cdef td_h_short[20] externs
 
-    cdef float[20] floats
-    cdef double[20] doubles
+    cdef f32[20] floats
+    cdef f64[20] doubles
     cdef long double[20] longdoubles
 
     cdef float complex[20] floatcomplex
@@ -380,12 +380,12 @@ def test_coerce_to_numpy():
     index(<PackedStruct[:4, :5]> <PackedStruct *> packedstructs)
 
     index(<signed char[:4, :5]> <signed char *> chars)
-    index(<short[:4, :5]> <short *> shorts)
-    index(<int[:4, :5]> <int *> ints)
-    index(<long long[:4, :5]> <long long *> longlongs)
+    index(<i16[:4, :5]> <i16 *> shorts)
+    index(<i32[:4, :5]> <i32 *> ints)
+    index(<i128[:4, :5]> <i128 *> longlongs)
 
-    index(<float[:4, :5]> <float *> floats)
-    index(<double[:4, :5]> <double *> doubles)
+    index(<f32[:4, :5]> <f32 *> floats)
+    index(<f64[:4, :5]> <f64 *> doubles)
     index(<long double[:4, :5]> <long double *> longdoubles)
 
     index(<float complex[:4, :5]> <float complex *> floatcomplex)
@@ -405,7 +405,7 @@ def test_memslice_getbuffer():
      [10 12 14]]
     callback called
     """
-    cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
+    cdef i32[:, :] array = create_array((4, 5), mode="c", use_callback=True)
     print(np.asarray(array)[::2, ::2])
 
 cdef class DeallocateMe(object):
@@ -433,7 +433,7 @@ def acquire_release_cycle(obj):
     gc.collect()
 
 cdef packed struct StructArray:
-    int a[4]
+    i32 a[4]
     signed char b[5]
 
 def test_memslice_structarray(data, dtype):
@@ -485,7 +485,7 @@ def test_memslice_structarray(data, dtype):
     a = np.empty((3,), dtype=dtype)
     a[:] = data
     cdef StructArray[:] myslice = a
-    cdef int i, j
+    cdef i32 i, j
     for i in range(3):
         for j in range(4):
             print myslice[i].a[j]
@@ -553,8 +553,8 @@ def test_string_invalid_dims():
     """
 
 ctypedef struct AttributesStruct:
-    int attrib1
-    float attrib2
+    i32 attrib1
+    f32 attrib2
     StringStruct attrib3
 
 def test_struct_attributes():
@@ -593,7 +593,7 @@ cdef getbuffer(Buffer self, Py_buffer *info):
 cdef class Buffer(object):
     cdef Py_ssize_t[2] _shape
     cdef bytes format
-    cdef float[:, :] m
+    cdef f32[:, :] m
     cdef object shape, strides
 
     def __init__(self):
@@ -604,11 +604,11 @@ cdef class Buffer(object):
         self._shape[0] = 10
         self._shape[1] = 20
 
-    def __getbuffer__(self, Py_buffer *info, int flags):
+    def __getbuffer__(self, Py_buffer *info, i32 flags):
         getbuffer(self, info)
 
 cdef class SuboffsetsNoStridesBuffer(Buffer):
-    def __getbuffer__(self, Py_buffer *info, int flags):
+    def __getbuffer__(self, Py_buffer *info, i32 flags):
         getbuffer(self, info)
         info.suboffsets = self._shape
 
@@ -616,15 +616,15 @@ def test_null_strides(Buffer buffer_obj):
     """
     >>> test_null_strides(Buffer())
     """
-    cdef float[:, :] m1 = buffer_obj
-    cdef float[:, ::1] m2 = buffer_obj
-    cdef float[:, ::view.contiguous] m3 = buffer_obj
+    cdef f32[:, :] m1 = buffer_obj
+    cdef f32[:, ::1] m2 = buffer_obj
+    cdef f32[:, ::view.contiguous] m3 = buffer_obj
 
     assert (<object> m1).strides == buffer_obj.strides
     assert (<object> m2).strides == buffer_obj.strides, ((<object> m2).strides, buffer_obj.strides)
     assert (<object> m3).strides == buffer_obj.strides
 
-    cdef int i, j
+    cdef i32 i, j
     for i in range(m1.shape[0]):
         for j in range(m1.shape[1]):
             assert m1[i, j] == buffer_obj.m[i, j]
@@ -644,13 +644,13 @@ def test_null_strides_error(buffer_obj):
     ValueError: Buffer exposes suboffsets but no strides
     """
     # valid
-    cdef float[::view.generic, ::view.generic] full_buf = buffer_obj
+    cdef f32[::view.generic, ::view.generic] full_buf = buffer_obj
 
     # invalid
-    cdef float[:, ::view.indirect] indirect_buf1
-    cdef float[::view.indirect, :] indirect_buf2
-    cdef float[::1, :] fortran_buf1
-    cdef float[::view.contiguous, :] fortran_buf2
+    cdef f32[:, ::view.indirect] indirect_buf1
+    cdef f32[::view.indirect, :] indirect_buf2
+    cdef f32[::1, :] fortran_buf1
+    cdef f32[::view.contiguous, :] fortran_buf2
 
     try:
         indirect_buf1 = buffer_obj
@@ -683,7 +683,7 @@ def test_refcount_GH507():
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def test_boundscheck_and_wraparound(double[:, :] x):
+def test_boundscheck_and_wraparound(f64[:, :] x):
     """
     >>> import numpy as np
     >>> array = np.ones((2,2)) * 3.5
@@ -700,9 +700,9 @@ def test_boundscheck_and_wraparound(double[:, :] x):
 
 
 ctypedef struct SameTypeAfterArraysStructSimple:
-    double a[16]
-    double b[16]
-    double c
+    f64 a[16]
+    f64 b[16]
+    f64 c
 
 def same_type_after_arrays_simple():
     """
@@ -715,15 +715,15 @@ def same_type_after_arrays_simple():
 
 
 ctypedef struct SameTypeAfterArraysStructComposite:
-    int a
-    float b[8]
-    float c
-    unsigned long d
-    int e[5]
-    int f
-    int g
-    double h[4]
-    int i
+    i32 a
+    f32 b[8]
+    f32 c
+    u64 d
+    i32 e[5]
+    i32 f
+    i32 g
+    f64 h[4]
+    i32 i
 
 def same_type_after_arrays_composite():
     """

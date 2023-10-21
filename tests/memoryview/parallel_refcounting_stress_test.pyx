@@ -14,7 +14,7 @@ include "../buffers/mockbuffers.pxi"
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def refcounting_stress_test(int N):
+def refcounting_stress_test(i32 N):
     """
     >>> _ = refcounting_stress_test(5000)
     acquired a
@@ -24,19 +24,19 @@ def refcounting_stress_test(int N):
     released b
     released c
     """
-    selectors = [ randint(0, 3) for _ in range(N) ]
-    cdef int[::1] selectorsview = IntMockBuffer(None, selectors, (N,))
+    selectors = [randint(0, 3) for _ in range(N)]
+    cdef i32[::1] selectorsview = IntMockBuffer(None, selectors, (N,))
     shape = (10, 3)
     size = shape[0]*shape[1]
-    a = [ random() for _ in range(size) ]
-    b = [ random() for _ in range(size) ]
-    c = [ random() for _ in range(size) ]
-    cdef double[:,:] aview = DoubleMockBuffer("a", a, shape)
-    cdef double[:,:] bview = DoubleMockBuffer("b", b, shape)
-    cdef double[:,:] cview = DoubleMockBuffer("c", c, shape)
+    a = [random() for _ in range(size)]
+    b = [random() for _ in range(size)]
+    c = [random() for _ in range(size)]
+    cdef f64[:, :] aview = DoubleMockBuffer("a", a, shape)
+    cdef f64[:, :] bview = DoubleMockBuffer("b", b, shape)
+    cdef f64[:, :] cview = DoubleMockBuffer("c", c, shape)
 
-    cdef int i
-    cdef double total = 0.0
+    cdef i32 i
+    cdef f64 total = 0.0
 
     for i in prange(N, nogil=True):
         total += loopbody(aview, bview, cview, selectorsview[i])
@@ -50,10 +50,10 @@ def refcounting_stress_test(int N):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double loopbody(double[:,:] a, double[:,:] b, double[:,:] c, int selector) nogil:
-    cdef double[:,:] selected
-    cdef double[:] subslice
-    cdef double res = 0
+cdef f64 loopbody(f64[:, :] a, f64[:, :] b, f64[:, :] c, i32 selector) nogil:
+    cdef f64[:, :] selected
+    cdef f64[:] subslice
+    cdef f64 res = 0
 
     if selector % 3 == 1:
         selected = a

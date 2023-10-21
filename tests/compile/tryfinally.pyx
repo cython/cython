@@ -1,7 +1,7 @@
 # mode: compile
 
 def f(a, b, c, x):
-    cdef int i
+    cdef i32 i
     a = b + c
 
     try:
@@ -24,5 +24,3 @@ def use_name_in_finally(name):
         []
     finally:
         name()
-
-

@@ -1,12 +1,12 @@
 # mode: compile
 
-def f(obj, int i, double f, char *s1, char s2[]):
+def f(obj, i32 i, f64 f, i8 *s1, i8 s2[]):
     pass
 
-cdef g(obj, int i, double f, char *s1, char s2[]):
+cdef g(obj, i32 i, f64 f, i8 *s1, i8 s2[]):
     pass
 
-cdef do_g(object (*func)(object, int, double, char*, char*)):
+cdef do_g(object (*func)(object, i32, f64, i8*, i8*)):
     return func(1, 2, 3.14159, "a", "b")
 
 do_g(&g)

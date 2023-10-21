@@ -10,14 +10,13 @@ a = np.zeros(100, dtype=CUSTOM_DTYPE)
 cdef packed struct custom_dtype_struct:
     # The struct needs to be packed since by default numpy dtypes aren't
     # aligned
-    unsigned char x
-    float y
+    u8 x
+    f32 y
 
 def sum(custom_dtype_struct [:] a):
-
     cdef:
-        unsigned char sum_x = 0
-        float sum_y = 0.
+        u8 sum_x = 0
+        f32 sum_y = 0.
 
     for i in range(a.shape[0]):
         sum_x += a[i].x
