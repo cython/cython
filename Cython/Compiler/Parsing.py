@@ -2043,25 +2043,20 @@ def p_try_statement(s):
     s.next()
     body = p_suite(s)
     except_clauses = []
-    is_except_star = False
     else_clause = None
     if s.sy in ('except', 'else'):
-        # The PEG grammar way would be to try to read all the except clauses
-        # and then try again for except* if that fails. It's quicker just to
-        # work out if the first one is except* then work from there though
-        if s.sy == 'except':
-            saved = (s.sy, s.systring, s.position())
-            s.next()
-            is_except_star = s.sy == '*'
-            s.put_back(*saved)
-
         while s.sy == 'except':
-            except_clauses.append(p_except_clause(s, is_except_star=is_except_star))
+            except_clauses.append(p_except_clause(s))
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
 
-        if is_except_star:
+        for clause in except_clauses[1:]:
+            if clause.is_except_star != except_clauses[0].is_except_star:
+                s.error("cannot have both 'except' and 'except*' on the same 'try'", pos=clause.pos)
+                break
+
+        if except_clauses and except_clauses[0].is_except_star:
             except_body = Nodes.ExceptStarChainNode(pos, except_clauses=except_clauses)
             except_clauses = [
                 Nodes.ExceptClauseNode(
@@ -2085,15 +2080,14 @@ def p_try_statement(s):
         s.error("Expected 'except' or 'finally'")
 
 
-def p_except_clause(s, is_except_star=False):
+def p_except_clause(s):
     # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
     s.next()
+    is_except_star = s.sy == '*'
     if is_except_star:
-        s.expect('*')
-    elif s.sy == '*':
-        s.error("cannot have both 'except' and 'except*' on the same 'try'")
+        s.next()
     exc_type = None
     exc_value = None
     is_except_as = False
@@ -2122,7 +2116,8 @@ def p_except_clause(s, is_except_star=False):
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value,
-        body = body, is_except_as=is_except_as)
+        body = body, is_except_as=is_except_as,
+        is_except_star = is_except_star)
 
 def p_include_statement(s, ctx):
     pos = s.position()
