@@ -1842,7 +1842,7 @@ static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt
 
 /////////////// CheckBinaryVersion ///////////////
 
-static unsigned long __Pyx_get_runtime_version() {
+static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
 #if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
     return Py_Version & ~0xFFUL;
