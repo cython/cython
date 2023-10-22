@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+3.0.5 (2023-10-??)
+==================
+
+Bugs fixed
+----------
+
+* A compiler crash was fixed.
+  (Github issue :issue:`5771`)
+
+* A typo in the ``always_allow_keywords`` directive for Python code was fixed.
+  Patch by lk-1984.  (Github issue :issue:`5772`)
+
+
 3.0.4 (2023-10-17)
 ==================
 
