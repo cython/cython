@@ -467,7 +467,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
 #else
     // PySequence_GetItem behaves differently to PyObject_GetItem for i<0
     // and possibly some other cases so can't generally be substituted
-    if (is_list || PyList_CheckExact(o) || PyTuple_CheckExact(o)) {
+    if (is_list || !PyMapping_Check(o)) {
         return PySequence_GetItem(o, i);
     }
 #endif
@@ -538,7 +538,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 #else
     // PySequence_SetItem behaves differently that PyObject_SetItem for i<0
     // and possibly some other cases so can't generally be substituted
-    if (is_list || PyList_CheckExact(o) || PyTuple_CheckExact(o))
+    if (is_list || !PyMapping_Check(o))
     {
         return PySequence_SetItem(o, i, v);
     }
@@ -574,7 +574,7 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
 #if !CYTHON_USE_TYPE_SLOTS
     // PySequence_DelItem behaves differently than PyObject_DelItem for i<0
     // and possibly some other cases so can't generally be substituted
-    if (is_list || PyList_CheckExact(o) || PyTuple_CheckExact(o)) {
+    if (is_list || !PyMapping_Check(o)) {
         return PySequence_DelItem(o, i);
     }
 #else
