@@ -518,9 +518,6 @@ integral = floating = numeric = _FusedType()
 
 type_ordering = [py_int, py_long, py_float, py_complex]
 
-PyTypeObject = type
-PyObject_TypeCheck = isinstance
-
 class CythonDotParallel(object):
     """
     The cython.parallel module.

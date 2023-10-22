@@ -6,10 +6,16 @@ from Cython.Compiler import Options, CythonScope
 class TestShadow(unittest.TestCase):
     def test_all_directives_in_shadow(self):
         missing_directives = []
+        extra_directives = []
         for full_directive in Options.directive_types.keys():
+            directive, *rest = full_directive.split('.')
+
             scope = Options.directive_scopes.get(full_directive)
             if scope and len(scope) == 1 and scope[0] == "module":
-                continue  # module-scoped things can't be used from Cython
+                # module-scoped things can't be used from Cython
+                if hasattr(Shadow, directive):
+                    extra_directives.append(full_directive)
+                continue
             if full_directive == "collection_type":
                 # collection_type is current restricted to utility code only
                 # so doesn't need to be in Shadow
@@ -18,8 +24,6 @@ class TestShadow(unittest.TestCase):
                 # staticmethod is a weird special-case and not really intended to be
                 # used from the cython module
                 continue
-
-            directive, *rest = full_directive.split('.')
 
             if not hasattr(Shadow, directive):
                 missing_directives.append(full_directive)
@@ -31,6 +35,7 @@ class TestShadow(unittest.TestCase):
                         # skip things like "dataclasses" which override attribute lookup
                         break
         self.assertEqual(missing_directives, [])
+        self.assertEqual(extra_directives, [])
 
     def test_all_types_in_shadow(self):
         cython_scope = CythonScope.create_cython_scope(None)
@@ -40,6 +45,11 @@ class TestShadow(unittest.TestCase):
         missing_types = []
         for key in cython_scope.entries.keys():
             if key.startswith('__') and key.endswith('__'):
+                continue
+            if key in ('PyTypeObject', 'PyObject_TypeCheck'):
+                # These are declared in Shadow.py for reasons that look to
+                # be an implementation detail, but it isn't our intention for
+                # users to access them from Pure Python mode.
                 continue
             if not hasattr(Shadow, key):
                 missing_types.append(key)
