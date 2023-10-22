@@ -8378,8 +8378,11 @@ class ExceptClauseNode(Node):
         self.body.annotate(code)
 
 
-class StarExceptHelperNode(StatListNode):
+class ExceptStarChainNode(StatListNode):
     """
+    Implements an 'except*' handler (Python 3.11+ / PEP-654).
+    See https://docs.python.org/3/reference/compound_stmts.html#except-star
+
     Uses a stat list node for implementation (since it's
     mostly implemented in terms of a generated tree of other nodes).
     However, also handles some of

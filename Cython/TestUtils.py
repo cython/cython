@@ -399,7 +399,7 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
         write_file(file_path, content, dedent=dedent, encoding=encoding)
 
 
-def py_parse_code(code):
+def parse_python_code(code):
     """
     Compiles code far enough to get errors from the parser and post-parse stage.
     Is useful for checking for syntax errors, however it doesn't generate runable

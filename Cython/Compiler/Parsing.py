@@ -2046,7 +2046,7 @@ def p_try_statement(s):
     is_except_star = False
     else_clause = None
     if s.sy in ('except', 'else'):
-        # The PEG grammar way would be to try to real all the except clauses
+        # The PEG grammar way would be to try to read all the except clauses
         # and then try again for except* if that fails. It's quicker just to
         # work out if the first one is except* then work from there though
         if s.sy == 'except':
@@ -2055,15 +2055,14 @@ def p_try_statement(s):
             is_except_star = s.sy == '*'
             s.put_back(*saved)
 
-        except_clause_parser = p_except_star_clause if is_except_star else p_except_clause
         while s.sy == 'except':
-            except_clauses.append(except_clause_parser(s))
+            except_clauses.append(p_except_clause(s, is_except_star=is_except_star))
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
 
         if is_except_star:
-            except_body = Nodes.StarExceptHelperNode(pos, except_clauses=except_clauses)
+            except_body = Nodes.ExceptStarChainNode(pos, except_clauses=except_clauses)
             except_clauses = [
                 Nodes.ExceptClauseNode(
                     pos,
@@ -2086,13 +2085,7 @@ def p_try_statement(s):
         s.error("Expected 'except' or 'finally'")
 
 
-def p_except_clause(s):
-    return _p_except_or_except_star_clause(s, False)
-
-def p_except_star_clause(s):
-    return _p_except_or_except_star_clause(s, True)
-
-def _p_except_or_except_star_clause(s, is_except_star):
+def p_except_clause(s, is_except_star=False):
     # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
