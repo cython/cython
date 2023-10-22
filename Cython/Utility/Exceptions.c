@@ -1171,9 +1171,27 @@ static int __Pyx_ValidateStarCatchPatternElement(PyObject *pattern) {
 static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
     if (PyTuple_Check(pattern)) {
         int i;
-        for (i=0; i<PyTuple_GET_SIZE(pattern); ++i) {
+        int size;
+        #if CYTHON_ASSUME_SAFE_MACROS
+        size = PyTuple_GET_SIZE(pattern);
+        #else
+        size = PyTuple_Size(pattern);
+        if (size < 0) return -1;
+        #endif
+        for (i=0; i<size; ++i) {
             int result;
-            if ((result = __Pyx_ValidateStarCatchPatternElement(PyTuple_GET_ITEM(pattern, i)))) {
+            PyObject* item;
+            #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+            item = PySequence_GetItem(pattern, i);
+            if (!item) return -1;
+            #else
+            item = PyTuple_GET_ITEM(pattern, i);
+            #endif
+            result = __Pyx_ValidateStarCatchPatternElement(item);
+            #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(item);
+            #endif
+            if (result) {
                 return result;
             }
         }
@@ -1206,8 +1224,12 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
             if (call_args[1] == NULL) {
                 return -1;
             }
+            #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030C0000
             // We know we have Python 3.11 to be using except* so VectorCall is definitely available
             wrapped = PyObject_Vectorcall(PyExc_BaseExceptionGroup, call_args, 2, NULL);
+            #else
+            wrapped = PyObject_CallFunctionObjArgs(PyExc_BaseExceptionGroup, call_args[0], call_args[1], NULL);
+            #endif
             Py_DECREF(call_args[1]);
 
             if (wrapped == NULL) {
@@ -1234,12 +1256,26 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
         if (pair == NULL) return -1;
 
         assert(PyTuple_CheckExact(pair));
+        #if CYTHON_ASSUME_SAFE_MACROS
+        // Just skip the assert without safe macros - it's a sanity check rather than important
         assert(PyTuple_GET_SIZE(pair) == 2);
+        #endif
 
-        Py_DECREF(*match);
-        *match = Py_NewRef(PyTuple_GET_ITEM(pair, 0));
-        Py_DECREF(*current_exception);
-        *current_exception = Py_NewRef(PyTuple_GET_ITEM(pair, 1));
+        #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
+        Py_SETREF(*match, PySequence_GetItem(pair, 0));
+        if (!*match) {
+            goto limited_api_bad;
+        }
+        Py_SETREF(*current_exception, PySequence_GetItem(pair, 1));
+        if (!*current_exception) {
+            limited_api_bad:
+            Py_DECREF(pair);
+            return -1;
+        }
+        #else
+        Py_SETREF(*match, Py_NewRef(PyTuple_GET_ITEM(pair, 0)));
+        Py_SETREF(*current_exception, Py_NewRef(PyTuple_GET_ITEM(pair, 1)));
+        #endif
 
         Py_DECREF(pair);
         return 0;
