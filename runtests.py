@@ -4,25 +4,25 @@ from __future__ import print_function
 
 import atexit
 import base64
-import os
-import sys
-import re
+import doctest
 import gc
+import glob
 import heapq
 import locale
-import shutil
-import time
-import unittest
-import doctest
 import operator
+import os
+import re
+import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import traceback
+import unittest
 import warnings
 import zlib
-import glob
-from contextlib import contextmanager
 from collections import defaultdict
+from contextlib import contextmanager
 
 try:
     import platform
