@@ -4,25 +4,26 @@ from __future__ import print_function
 
 import atexit
 import base64
-import os
-import sys
-import re
+import doctest
 import gc
+import glob
 import heapq
 import locale
-import shutil
-import time
-import unittest
-import doctest
+import math
 import operator
+import os
+import re
+import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import traceback
+import unittest
 import warnings
 import zlib
-import glob
-from contextlib import contextmanager
 from collections import defaultdict
+from contextlib import contextmanager
 
 try:
     import platform
@@ -1245,15 +1246,18 @@ class CythonCompileTestCase(unittest.TestCase):
             Options.error_on_unknown_names = False
 
         try:
-            CompilationOptions
+            # see configure_cython()
+            CompilationOptions, cython_compile, pyrex_default_options
         except NameError:
-            from Cython.Compiler.Options import CompilationOptions
+            from Cython.Compiler.Options import (
+                CompilationOptions,
+                default_options as pyrex_default_options,
+            )
             from Cython.Compiler.Main import compile as cython_compile
-            from Cython.Compiler.Options import default_options
         common_utility_include_dir = self.common_utility_dir
 
         options = CompilationOptions(
-            default_options,
+            pyrex_default_options,
             include_path = include_dirs,
             output_file = target,
             annotate = annotate,
@@ -1393,7 +1397,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def compile(self, test_directory, module, module_path, workdir, incdir,
                 expect_log, annotate, add_cython_import):
-        expected_errors = expected_warnings = expected_perf_hints = errors = warnings = ()
+        expected_errors = expected_warnings = expected_perf_hints = errors = warnings = perf_hints = ()
         expect_errors = "errors" in expect_log
         expect_warnings = "warnings" in expect_log
         expect_perf_hints = "perf_hints" in expect_log
@@ -2562,9 +2566,11 @@ def main():
         (as_msecs(stage_time), as_msecs(stage_time) / stage_count, stage_count, stage_name)
         for stage_name, (stage_time, stage_count) in merged_pipeline_stats.items()
     ]
+    total_pipeline_time_percent = math.fsum(stats[0] for stats in pipeline_stats) / 100.0
     pipeline_stats.sort(reverse=True)
     sys.stderr.write("Most expensive pipeline stages: %s\n" % ", ".join(
-        "%r: %.2f / %d (%.3f / run)" % (stage_name, total_stage_time, stage_count, stage_time)
+        "%r: %.2f / %d (%.3f / run, %.1f%%)" % (
+            stage_name, total_stage_time, stage_count, stage_time, total_stage_time / total_pipeline_time_percent)
         for total_stage_time, stage_time, stage_count, stage_name in pipeline_stats[:10]
     ))
 
