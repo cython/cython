@@ -4,25 +4,26 @@ from __future__ import print_function
 
 import atexit
 import base64
-import os
-import sys
-import re
+import doctest
 import gc
+import glob
 import heapq
 import locale
-import shutil
-import time
-import unittest
-import doctest
+import math
 import operator
+import os
+import re
+import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import traceback
+import unittest
 import warnings
 import zlib
-import glob
-from contextlib import contextmanager
 from collections import defaultdict
+from contextlib import contextmanager
 
 try:
     import platform
@@ -2565,9 +2566,11 @@ def main():
         (as_msecs(stage_time), as_msecs(stage_time) / stage_count, stage_count, stage_name)
         for stage_name, (stage_time, stage_count) in merged_pipeline_stats.items()
     ]
+    total_pipeline_time_percent = math.fsum(stats[0] for stats in pipeline_stats) / 100.0
     pipeline_stats.sort(reverse=True)
     sys.stderr.write("Most expensive pipeline stages: %s\n" % ", ".join(
-        "%r: %.2f / %d (%.3f / run)" % (stage_name, total_stage_time, stage_count, stage_time)
+        "%r: %.2f / %d (%.3f / run, %.1f%%)" % (
+            stage_name, total_stage_time, stage_count, stage_time, total_stage_time / total_pipeline_time_percent)
         for total_stage_time, stage_time, stage_count, stage_name in pipeline_stats[:10]
     ))
 
