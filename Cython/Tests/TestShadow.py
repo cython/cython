@@ -56,5 +56,5 @@ class TestShadow(unittest.TestCase):
         self.assertEqual(missing_types, [])
 
     # TODO - there's a lot of types that are looked up by `cython_scope.lookup_type` that
-    # it's unfortunately hard to get a definitely list of to confirm that they're present
+    # it's unfortunately hard to get a definite list of to confirm that they're present
     # (because they're obtained by on-the-fly string parsing)

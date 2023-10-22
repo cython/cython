@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.0.4"
+__version__ = "3.0.5.dev0"
 
 try:
     from __builtin__ import basestring
@@ -110,9 +110,9 @@ cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     nonecheck = embedsignature = cdivision = cdivision_warnings = \
-    always_allows_keywords = profile = linetrace = infer_types = \
+    always_allow_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = auto_pickle = cpow = trashcan = \
-    auto_cpdef = c_api_binop_methods = always_allow_keywords = \
+    auto_cpdef = c_api_binop_methods = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     cpp_locals = py2_import = iterable_coroutine = remove_unreachable = \
         lambda _: _EmptyDecoratorAndManager()
