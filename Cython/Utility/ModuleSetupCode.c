@@ -681,8 +681,8 @@ class __Pyx_FakeReference {
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
         PyObject *version_info; // borrowed
-        #endif
         PyObject *py_minor_version = NULL;
+        #endif
         long minor_version = 0;
         PyObject *type, *value, *traceback;
 
@@ -692,13 +692,11 @@ class __Pyx_FakeReference {
         #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
         minor_version = 11; // we don't yet need to distinguish between versions > 11
         // Note that from 3.13, when we do we can use Py_Version
-        CYTHON_UNUSED_VAR(version_info);
-        CYTHON_UNUSED_VAR(py_minor_version);
-        CYTHON_UNUSED_VAR(minor_version);
         #else
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
         if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
         minor_version = PyLong_AsLong(py_minor_version);
+        Py_DECREF(py_minor_version);
         if (minor_version == -1 && PyErr_Occurred()) goto end;
         #endif
 
@@ -736,7 +734,6 @@ class __Pyx_FakeReference {
         Py_XDECREF(code_type);
         Py_XDECREF(exception_table);
         Py_XDECREF(types_module);
-        Py_XDECREF(py_minor_version);
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
