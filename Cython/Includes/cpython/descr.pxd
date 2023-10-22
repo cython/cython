@@ -6,11 +6,11 @@ cdef extern from "Python.h":
 
     struct wrapperbase:
         char* name
-        int offset
+        i32 offset
         void* function
         wrapperfunc wrapper
         char* doc
-        int flags
+        i32 flags
         PyObject* name_strobj
 
     int PyWrapperFlag_KEYWORDS

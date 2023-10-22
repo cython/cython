@@ -34,13 +34,13 @@ cdef extern from "Python.h":
     # or NULL on failure. The pend argument is ignored. It remains
     # only for backward compatibility.
 
-    object PyFloat_FromDouble(double v)
+    object PyFloat_FromDouble(f64 v)
     # Return value: New reference.
     # Create a PyFloatObject object from v, or NULL on failure.
 
-    double PyFloat_AsDouble(object pyfloat) except? -1
+    f64 PyFloat_AsDouble(object pyfloat) except? -1
     # Return a C double representation of the contents of pyfloat.
 
-    double PyFloat_AS_DOUBLE(object pyfloat)
+    f64 PyFloat_AS_DOUBLE(object pyfloat)
     # Return a C double representation of the contents of pyfloat, but
     # without error checking.

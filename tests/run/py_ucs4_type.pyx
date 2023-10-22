@@ -185,7 +185,7 @@ def len_uchar(Py_UCS4 uchar):
     """
     return len(uchar)
 
-def index_uchar(Py_UCS4 uchar, Py_ssize_t i):
+def index_uchar(Py_UCS4 uchar, isize i):
     """
     >>> index_uchar(ord('A'), 0) == ('A', 'A', 'A')
     True
@@ -212,7 +212,7 @@ def count_lower_case_characters(unicode ustring):
     >>> count_lower_case_characters(lower_ustring)
     16
     """
-    cdef Py_ssize_t count = 0
+    cdef isize count = 0
     for uchar in ustring:
          if uchar.islower():
              count += 1
@@ -231,7 +231,7 @@ def count_lower_case_characters_slice(unicode ustring):
     >>> sum([ 1 for uchar in lower_ustring[1:-1] if uchar.islower() ])
     14
     """
-    cdef Py_ssize_t count = 0
+    cdef isize count = 0
     for uchar in ustring[1:-1]:
          if uchar.islower():
              count += 1
@@ -250,7 +250,7 @@ def count_lower_case_characters_slice_reversed(unicode ustring):
     >>> sum([ 1 for uchar in lower_ustring[-2:0:-1] if uchar.islower() ])
     14
     """
-    cdef Py_ssize_t count = 0
+    cdef isize count = 0
     for uchar in ustring[-2:0:-1]:
          if uchar.islower():
              count += 1

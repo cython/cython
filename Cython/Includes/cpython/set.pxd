@@ -1,5 +1,4 @@
 cdef extern from "Python.h":
-
     ############################################################################
     # 7.5.14 Set Objects
     ############################################################################
@@ -72,12 +71,12 @@ cdef extern from "Python.h":
     # The following functions and macros are available for instances
     # of set or frozenset or instances of their subtypes.
 
-    Py_ssize_t PySet_Size(object anyset) except -1
+    isize PySet_Size(object anyset) except -1
     # Return the length of a set or frozenset object. Equivalent to
     # "len(anyset)". Raises a PyExc_SystemError if anyset is not a
     # set, frozenset, or an instance of a subtype.
 
-    Py_ssize_t PySet_GET_SIZE(object anyset)
+    isize PySet_GET_SIZE(object anyset)
     # Macro form of PySet_Size() without error checking.
 
     bint PySet_Contains(object anyset, object key) except -1
@@ -88,11 +87,10 @@ cdef extern from "Python.h":
     # unhashable. Raise PyExc_SystemError if anyset is not a set,
     # frozenset, or an instance of a subtype.
 
-
     # The following functions are available for instances of set or
     # its subtypes but not for instances of frozenset or its subtypes.
 
-    int PySet_Add(object set, object key) except -1
+    i32 PySet_Add(object set, object key) except -1
     # Add key to a set instance. Does not apply to frozenset
     # instances. Return 0 on success or -1 on failure. Raise a
     # TypeError if the key is unhashable. Raise a MemoryError if there
@@ -115,5 +113,5 @@ cdef extern from "Python.h":
     # KeyError if the set is empty. Raise a SystemError if set is an
     # not an instance of set or its subtype.
 
-    int PySet_Clear(object set)
+    i32 PySet_Clear(object set)
     # Empty an existing set of all elements.

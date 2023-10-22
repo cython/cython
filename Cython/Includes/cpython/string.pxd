@@ -29,7 +29,7 @@ cdef extern from "Python.h":
     # on failure. The parameter v must not be NULL; it will not be
     # checked.
 
-    object PyString_FromStringAndSize(char *v, Py_ssize_t len)
+    object PyString_FromStringAndSize(char *v, isize len)
     # Return value: New reference.
     # Return a new string object with the value v and length len on
     # success, and NULL on failure. If v is NULL, the contents of the
@@ -68,10 +68,10 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Identical to PyString_FromFormat() except that it takes exactly two arguments.
 
-    Py_ssize_t PyString_Size(object string) except -1
+    isize PyString_Size(object string) except -1
     # Return the length of the string in string object string.
 
-    Py_ssize_t PyString_GET_SIZE(object string)
+    isize PyString_GET_SIZE(object string)
     # Macro form of PyString_Size() but without error checking.
 
     char* PyString_AsString(object string) except NULL
@@ -89,7 +89,7 @@ cdef extern from "Python.h":
     # checking. Only string objects are supported; no Unicode objects
     # should be passed.
 
-    int PyString_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except -1
+    int PyString_AsStringAndSize(object obj, char **buffer, isize *length) except -1
     # Return a NULL-terminated representation of the contents of the
     # object obj through the output variables buffer and length.
     #
@@ -120,7 +120,7 @@ cdef extern from "Python.h":
     # newpart appended to string. This version decrements the
     # reference count of newpart.
 
-    int _PyString_Resize(PyObject **string, Py_ssize_t newsize) except -1
+    int _PyString_Resize(PyObject **string, isize newsize) except -1
     # A way to resize a string object even though it is
     # ``immutable''. Only use this to build up a brand new string
     # object; don't use this if the string may already be known in
@@ -159,7 +159,7 @@ cdef extern from "Python.h":
     # that has been interned, or a new (``owned'') reference to an
     # earlier interned string object with the same value.
 
-    object PyString_Decode(char *s, Py_ssize_t size, char *encoding, char *errors)
+    object PyString_Decode(char *s, isize size, char *encoding, char *errors)
     #  Return value: New reference.
     # Create an object by decoding size bytes of the encoded buffer s
     # using the codec registered for encoding. encoding and errors
@@ -177,7 +177,7 @@ cdef extern from "Python.h":
     # using the Python codec registry. Return NULL if an exception was
     # raised by the codec.
 
-    object PyString_Encode(char *s, Py_ssize_t size, char *encoding, char *errors)
+    object PyString_Encode(char *s, isize size, char *encoding, char *errors)
     # Return value: New reference.
     # Encode the char buffer of the given size by passing it to the
     # codec registered for encoding and return a Python

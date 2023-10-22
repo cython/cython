@@ -7,7 +7,7 @@
 
 cimport cython
 
-ctypedef Py_ssize_t index_t
+ctypedef isize index_t
 
 ctypedef double complex mycomplex
 

@@ -29,7 +29,7 @@ cdef extern from "Python.h":
     # on failure. The parameter v must not be NULL; it will not be
     # checked.
 
-    bytes PyBytes_FromStringAndSize(char *v, Py_ssize_t len)
+    bytes PyBytes_FromStringAndSize(char *v, isize len)
     # Return value: New reference.
     # Return a new string object with the value v and length len on
     # success, and NULL on failure. If v is NULL, the contents of the
@@ -50,7 +50,7 @@ cdef extern from "Python.h":
     # %u 	unsigned int 	Exactly equivalent to printf("%u").
     # %ld 	long 	Exactly equivalent to printf("%ld").
     # %lu 	unsigned long 	Exactly equivalent to printf("%lu").
-    # %zd 	Py_ssize_t 	Exactly equivalent to printf("%zd").
+    # %zd 	isize 	Exactly equivalent to printf("%zd").
     # %zu 	size_t 	Exactly equivalent to printf("%zu").
     # %i 	int 	Exactly equivalent to printf("%i").
     # %x 	int 	Exactly equivalent to printf("%x").
@@ -72,10 +72,10 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return the bytes representation of object o that implements the buffer protocol.
 
-    Py_ssize_t PyBytes_Size(object string) except -1
+    isize PyBytes_Size(object string) except -1
     # Return the length of the string in string object string.
 
-    Py_ssize_t PyBytes_GET_SIZE(object string)
+    isize PyBytes_GET_SIZE(object string)
     # Macro form of PyBytes_Size() but without error checking.
 
     char* PyBytes_AsString(object string) except NULL
@@ -93,7 +93,7 @@ cdef extern from "Python.h":
     # checking. Only string objects are supported; no Unicode objects
     # should be passed.
 
-    int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except -1
+    i32 PyBytes_AsStringAndSize(object obj, char **buffer, isize *length) except -1
     # Return a NULL-terminated representation of the contents of the
     # object obj through the output variables buffer and length.
     #
@@ -124,7 +124,7 @@ cdef extern from "Python.h":
     # newpart appended to string. This version decrements the
     # reference count of newpart.
 
-    int _PyBytes_Resize(PyObject **string, Py_ssize_t newsize) except -1
+    i32 _PyBytes_Resize(PyObject **string, isize newsize) except -1
     # A way to resize a string object even though it is
     # ``immutable''. Only use this to build up a brand new string
     # object; don't use this if the string may already be known in
@@ -163,7 +163,7 @@ cdef extern from "Python.h":
     # that has been interned, or a new (``owned'') reference to an
     # earlier interned string object with the same value.
 
-    object PyBytes_Decode(char *s, Py_ssize_t size, char *encoding, char *errors)
+    object PyBytes_Decode(char *s, isize size, char *encoding, char *errors)
     #  Return value: New reference.
     # Create an object by decoding size bytes of the encoded buffer s
     # using the codec registered for encoding. encoding and errors
@@ -181,7 +181,7 @@ cdef extern from "Python.h":
     # using the Python codec registry. Return NULL if an exception was
     # raised by the codec.
 
-    object PyBytes_Encode(char *s, Py_ssize_t size, char *encoding, char *errors)
+    object PyBytes_Encode(char *s, isize size, char *encoding, char *errors)
     # Return value: New reference.
     # Encode the char buffer of the given size by passing it to the
     # codec registered for encoding and return a Python

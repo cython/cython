@@ -23,7 +23,7 @@ def test_prange():
     >>> test_prange()
     (9, 9, 45, 45)
     """
-    cdef Py_ssize_t i, j, sum1 = 0, sum2 = 0
+    cdef isize i, j, sum1 = 0, sum2 = 0
 
     with nogil, cython.parallel.parallel():
         for i in prange(10, schedule='dynamic'):
@@ -723,7 +723,7 @@ def test_clean_temps():
     deallocating...
     propagate me
     """
-    cdef Py_ssize_t i
+    cdef isize i
 
     try:
         for i in prange(100, nogil=true, num_threads=1):
@@ -738,7 +738,7 @@ def test_pointer_temps(double x):
     >>> test_pointer_temps(1.0)
     4.0
     """
-    cdef Py_ssize_t i
+    cdef isize i
     cdef double* f
     cdef double[:] arr = array(format="d", shape=(10,), itemsize=sizeof(double))
     arr[0] = 4.0
@@ -795,7 +795,7 @@ def test_inner_private():
     cdef double* not_parallel[2]
     cdef double* inner_vals[2]
     cdef double* outer_vals[2]
-    cdef Py_ssize_t n, m
+    cdef isize n, m
 
     for n in range(2):
         address_of_temp(not_parallel[n], get_value(), 0)

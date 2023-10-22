@@ -8,7 +8,7 @@ from cpython.exc cimport PyErr_SetFromErrno
 cdef extern from "Python.h":
     ctypedef int64_t _PyTime_t
     _PyTime_t _PyTime_GetSystemClock() nogil
-    double _PyTime_AsSecondsDouble(_PyTime_t t) nogil
+    f64 _PyTime_AsSecondsDouble(_PyTime_t t) nogil
 
 from libc.time cimport (
     tm,
@@ -16,19 +16,16 @@ from libc.time cimport (
     localtime as libc_localtime,
 )
 
-
-cdef inline double time() nogil:
+cdef inline f64 time() nogil:
     cdef:
         _PyTime_t tic
 
     tic = _PyTime_GetSystemClock()
     return _PyTime_AsSecondsDouble(tic)
 
-
 cdef inline int _raise_from_errno() except -1 with gil:
     PyErr_SetFromErrno(RuntimeError)
-    return <int> -1  # Let the C compiler know that this function always raises.
-
+    return <i32> -1  # Let the C compiler know that this function always raises.
 
 cdef inline tm localtime() except * nogil:
     """

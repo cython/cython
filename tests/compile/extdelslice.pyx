@@ -1,6 +1,5 @@
 # mode: compile
 
 cdef class Spam:
-
-    def __delslice__(self, Py_ssize_t i, Py_ssize_t j):
+    def __delslice__(self, isize i, isize j):
         pass

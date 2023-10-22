@@ -129,8 +129,8 @@ cdef class D:
         self._a = a
 
     cdef void call_me(self, float[::1] my_arr) noexcept nogil:
-        cdef Py_ssize_t idx
-        cdef float[:] my_arr2 = _get_left_edge(my_arr)
+        cdef isize idx
+        cdef f32[:] my_arr2 = _get_left_edge(my_arr)
         for idx in range(my_arr2.shape[0]):
             my_arr2[idx] = self._a
 

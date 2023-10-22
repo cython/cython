@@ -59,7 +59,7 @@ cdef class ControlFlow:
 
     cdef pub dict assmts
 
-    cdef pub Py_ssize_t in_try_block
+    cdef pub isize in_try_block
 
     cpdef newblock(self, ControlBlock parent=*)
     cpdef nextblock(self, ControlBlock parent=*)

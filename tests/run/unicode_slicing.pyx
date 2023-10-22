@@ -169,8 +169,8 @@ __doc__ = u"""
 """
 
 cdef extern from *:
-    const Py_ssize_t PY_SSIZE_T_MIN
-    const Py_ssize_t PY_SSIZE_T_MAX
+    const isize PY_SSIZE_T_MIN
+    const isize PY_SSIZE_T_MAX
 
 SSIZE_T_MAX = PY_SSIZE_T_MAX
 SSIZE_T_MIN = PY_SSIZE_T_MIN
@@ -180,23 +180,23 @@ import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u"(u'", u"('").replace(u" u'", u" '")
 
-def slice_start_end(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_start_end(unicode s, isize i, isize j):
     print(s[i:j])
 
-def slice_start(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_start(unicode s, isize i, isize j):
     print(s[i:])
 
-def slice_end(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_end(unicode s, isize i, isize j):
     print(s[:i])
 
-def slice_all(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_all(unicode s, isize i, isize j):
     print(s[:])
 
-def slice_start_none(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_start_none(unicode s, isize i, isize j):
     print(s[i:None])
 
-def slice_none_end(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_none_end(unicode s, isize i, isize j):
     print(s[None:i])
 
-def slice_none_none(unicode s, Py_ssize_t i, Py_ssize_t j):
+def slice_none_none(unicode s, isize i, isize j):
     print(s[None:None])

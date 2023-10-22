@@ -6,7 +6,7 @@ set to None
 cimport cython
 
 cdef class MyClass:
-    cdef int a, b
+    cdef i32 a, b
     def __init__(self, a, b):
         self.a = a
         self.b = b
@@ -92,7 +92,7 @@ def check_and_assign(MyClass var):
         print var.a
 
 @cython.nonecheck(true)
-def check_buffer_get(object[int] buf):
+def check_buffer_get(object[i32] buf):
     """
     >>> check_buffer_get(None)
     Traceback (most recent call last):
@@ -101,7 +101,7 @@ def check_buffer_get(object[int] buf):
     return buf[0]
 
 @cython.nonecheck(true)
-def check_buffer_set(object[int] buf):
+def check_buffer_set(object[i32] buf):
     """
     >>> check_buffer_set(None)
     Traceback (most recent call last):
@@ -110,7 +110,7 @@ def check_buffer_set(object[int] buf):
     buf[0] = 1
 
 @cython.nonecheck(true)
-def test_memslice_get(double[:] buf):
+def test_memslice_get(f64[:] buf):
     """
     >>> test_memslice_get(None)
     Traceback (most recent call last):
@@ -119,7 +119,7 @@ def test_memslice_get(double[:] buf):
     return buf[0]
 
 @cython.nonecheck(true)
-def test_memslice_set(double[:] buf):
+def test_memslice_set(f64[:] buf):
     """
     >>> test_memslice_set(None)
     Traceback (most recent call last):
@@ -128,53 +128,53 @@ def test_memslice_set(double[:] buf):
     buf[0] = 1.0
 
 @cython.nonecheck(true)
-def test_memslice_copy(double[:] buf):
+def test_memslice_copy(f64[:] buf):
     """
     >>> test_memslice_copy(None)
     Traceback (most recent call last):
     AttributeError: Cannot access 'copy' attribute of None memoryview slice
     """
-    cdef double[:] copy = buf.copy()
+    cdef f64[:] copy = buf.copy()
 
 @cython.nonecheck(true)
-def test_memslice_transpose(double[:] buf):
+def test_memslice_transpose(f64[:] buf):
     """
     >>> test_memslice_transpose(None)
     Traceback (most recent call last):
     AttributeError: Cannot transpose None memoryview slice
     """
-    cdef double[:] T = buf.T
+    cdef f64[:] T = buf.T
 
 @cython.nonecheck(true)
-def test_memslice_shape(double[:] buf):
+def test_memslice_shape(f64[:] buf):
     """
     >>> test_memslice_shape(None)
     Traceback (most recent call last):
     AttributeError: Cannot access 'shape' attribute of None memoryview slice
     """
-    cdef Py_ssize_t extent = buf.shape[0]
+    cdef isize extent = buf.shape[0]
 
 @cython.nonecheck(true)
-def test_memslice_slice(double[:] buf):
+def test_memslice_slice(f64[:] buf):
     """
     >>> test_memslice_slice(None)
     Traceback (most recent call last):
     TypeError: Cannot slice None memoryview slice
     """
-    cdef double[:] sliced = buf[1:]
+    cdef f64[:] sliced = buf[1:]
 
 @cython.nonecheck(true)
-def test_memslice_slice2(double[:] buf):
+def test_memslice_slice2(f64[:] buf):
     """
     Should this raise an error? It may not slice at all.
     >>> test_memslice_slice(None)
     Traceback (most recent call last):
     TypeError: Cannot slice None memoryview slice
     """
-    cdef double[:] sliced = buf[:]
+    cdef f64[:] sliced = buf[:]
 
 @cython.nonecheck(true)
-def test_memslice_slice_assign(double[:] buf):
+def test_memslice_slice_assign(f64[:] buf):
     """
     >>> test_memslice_slice_assign(None)
     Traceback (most recent call last):
@@ -183,7 +183,7 @@ def test_memslice_slice_assign(double[:] buf):
     buf[...] = 2
 
 @cython.nonecheck(true)
-def test_memslice_slice_assign2(double[:] buf):
+def test_memslice_slice_assign2(f64[:] buf):
     """
     >>> test_memslice_slice_assign2(None)
     Traceback (most recent call last):

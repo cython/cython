@@ -1,7 +1,6 @@
 from .object cimport PyObject
 
 cdef extern from "Python.h":
-
     ############################################################################
     # 7.5.3 Function Objects
     ############################################################################
@@ -49,7 +48,7 @@ cdef extern from "Python.h":
     # Return the argument default values of the function object
     # op. This can be a tuple of arguments or NULL.
 
-    int PyFunction_SetDefaults(object op, object defaults) except -1
+    i32 PyFunction_SetDefaults(object op, object defaults) except -1
     # Set the argument default values for the function object
     # op. defaults must be Py_None or a tuple.
     # Raises SystemError and returns -1 on failure.
@@ -59,7 +58,7 @@ cdef extern from "Python.h":
     # Return the closure associated with the function object op. This
     # can be NULL or a tuple of cell objects.
 
-    int PyFunction_SetClosure(object op, object closure) except -1
+    i32 PyFunction_SetClosure(object op, object closure) except -1
     # Set the closure associated with the function object op. closure
     # must be Py_None or a tuple of cell objects.
     # Raises SystemError and returns -1 on failure.

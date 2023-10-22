@@ -368,7 +368,7 @@ class FusedCFuncDefNode(StatListNode):
 
             for dtype_category, codewriter in dtypes:
                 if dtype_category:
-                    cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
+                    cond = '{{itemsize_match}} and (<isize>arg.ndim) == %d' % (
                                                     specialized_type.ndim,)
                     if dtype.is_int:
                         cond += ' and {{signed_match}}'
@@ -482,12 +482,12 @@ class FusedCFuncDefNode(StatListNode):
                             shape = arg.shape
                             strides = arg.strides
                             for i in range(arg.ndim-1, -1, -1):
-                                if (<Py_ssize_t>strides[i]) != cur_stride:
+                                if (<isize>strides[i]) != cur_stride:
                                     arg_is_pythran_compatible = False
                                     break
-                                cur_stride *= <Py_ssize_t> shape[i]
+                                cur_stride *= <isize> shape[i]
                             else:
-                                arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<Py_ssize_t>arg.ndim) > 1)
+                                arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<isize>arg.ndim) > 1)
                 """)
         pyx_code.named_insertion_point("numpy_dtype_checks")
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
@@ -541,7 +541,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.local_variable_declarations.put_chunk(
             u"""
                 cdef {{memviewslice_cname}} memslice
-                cdef Py_ssize_t itemsize
+                cdef isize itemsize
                 cdef bint dtype_signed
                 cdef char kind
 
@@ -551,7 +551,7 @@ class FusedCFuncDefNode(StatListNode):
         if pythran_types:
             pyx_code.local_variable_declarations.put_chunk(u"""
                 cdef bint arg_is_pythran_compatible
-                cdef Py_ssize_t cur_stride
+                cdef isize cur_stride
             """)
 
         pyx_code.imports.put_chunk(
@@ -708,7 +708,7 @@ class FusedCFuncDefNode(StatListNode):
                     if kwargs is not None and not kwargs:
                         kwargs = None
 
-                    cdef Py_ssize_t i
+                    cdef isize i
 
                     # instance check body
             """)

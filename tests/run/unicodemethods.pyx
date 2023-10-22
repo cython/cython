@@ -608,7 +608,7 @@ def find(unicode s, substring):
     >>> test_find(text, 'sa')
     16
     """
-    cdef Py_ssize_t pos = s.find(substring)
+    cdef isize pos = s.find(substring)
     return pos
 
 @cython.test_fail_if_path_exists(
@@ -636,9 +636,8 @@ def find_start_end(unicode s, substring, start, end):
     >>> test_find_start_end(text, 'sa', None, 19)
     16
     """
-    cdef Py_ssize_t pos = s.find(substring, start, end)
+    cdef isize pos = s.find(substring, start, end)
     return pos
-
 
 # unicode.rfind(s, sub, [start, [end]])
 
@@ -658,7 +657,7 @@ def rfind(unicode s, substring):
     >>> test_rfind(text, 'sa')
     20
     """
-    cdef Py_ssize_t pos = s.rfind(substring)
+    cdef isize pos = s.rfind(substring)
     return pos
 
 @cython.test_fail_if_path_exists(
@@ -686,9 +685,8 @@ def rfind_start_end(unicode s, substring, start, end):
     >>> test_rfind_start_end(text, 'sa', None, 21)
     16
     """
-    cdef Py_ssize_t pos = s.rfind(substring, start, end)
+    cdef isize pos = s.rfind(substring, start, end)
     return pos
-
 
 # unicode.count(s, sub, [start, [end]])
 
@@ -708,7 +706,7 @@ def count(unicode s, substring):
     >>> test_count(text, 'sa')
     2
     """
-    cdef Py_ssize_t pos = s.count(substring)
+    cdef isize pos = s.count(substring)
     return pos
 
 @cython.test_fail_if_path_exists(
@@ -738,9 +736,8 @@ def count_start_end(unicode s, substring, start, end):
     >>> test_count_start_end(text, 'sa', None, 20)
     1
     """
-    cdef Py_ssize_t pos = s.count(substring, start, end)
+    cdef isize pos = s.count(substring, start, end)
     return pos
-
 
 # unicode.replace(s, sub, repl, [maxcount])
 
@@ -778,7 +775,6 @@ def replace_maxcount(unicode s, substring, repl, maxcount):
     """
     return s.replace(substring, repl, maxcount)
 
-
 # unicode * int
 
 @cython.test_fail_if_path_exists(
@@ -787,7 +783,7 @@ def replace_maxcount(unicode s, substring, repl, maxcount):
 @cython.test_assert_path_exists(
     "//MulNode[@is_sequence_mul = True]",
 )
-def multiply(unicode ustring, int mul):
+def multiply(unicode ustring, i32 mul):
     """
     >>> astr = u"abc"
     >>> ustr = u"abcüöä\\U0001F642"
@@ -819,13 +815,12 @@ def multiply(unicode ustring, int mul):
     """
     return ustring * mul
 
-
 #@cython.test_fail_if_path_exists(
 #    "//CoerceToPyTypeNode",
 #    "//CastNode", "//TypecastNode")
 #@cython.test_assert_path_exists(
 #    "//PythonCapiCallNode")
-def multiply_inplace(unicode ustring, int mul):
+def multiply_inplace(unicode ustring, i32 mul):
     """
     >>> astr = u"abc"
     >>> ustr = u"abcüöä\\U0001F642"
@@ -858,14 +853,13 @@ def multiply_inplace(unicode ustring, int mul):
     ustring *= mul
     return ustring
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
 @cython.test_assert_path_exists(
     "//MulNode[@is_sequence_mul = True]",
 )
-def multiply_reversed(unicode ustring, int mul):
+def multiply_reversed(unicode ustring, i32 mul):
     """
     >>> astr = u"abc"
     >>> ustr = u"abcüöä\\U0001F642"
@@ -897,11 +891,10 @@ def multiply_reversed(unicode ustring, int mul):
     """
     return mul * ustring
 
-
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
-def unicode__mul__(unicode ustring, int mul):
+def unicode__mul__(unicode ustring, i32 mul):
     """
     >>> astr = u"abc"
     >>> ustr = u"abcüöä\\U0001F642"

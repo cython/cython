@@ -3,11 +3,10 @@
 from .object cimport PyObject
 
 cdef extern from "Python.h":
-
     # We make these an opaque types. If the user wants specific attributes,
     # they can be declared manually.
 
-    ctypedef long PY_INT64_T  # FIXME: Py2.7+, not defined here but used here
+    ctypedef i64 PY_INT64_T  # FIXME: Py2.7+, not defined here but used here
 
     ctypedef struct PyInterpreterState:
         pass
@@ -26,7 +25,7 @@ cdef extern from "Python.h":
     # The type of the trace function registered using PyEval_SetProfile() and
     # PyEval_SetTrace().
     # Py_tracefunc return -1 when raising an exception, or 0 for success.
-    ctypedef int (*Py_tracefunc)(PyObject *, PyFrameObject *, int, PyObject *)
+    ctypedef i32 (*Py_tracefunc)(PyObject *, PyFrameObject *, int, PyObject *)
 
     # The following values are used for 'what' for tracefunc functions
     enum:
@@ -37,7 +36,6 @@ cdef extern from "Python.h":
         PyTrace_C_CALL
         PyTrace_C_EXCEPTION
         PyTrace_C_RETURN
-
 
     PyInterpreterState * PyInterpreterState_New()
     void PyInterpreterState_Clear(PyInterpreterState *)
@@ -85,7 +83,7 @@ cdef extern from "Python.h":
     void PyGILState_Release(PyGILState_STATE)
 
     # Return 1 if the current thread holds the GIL and 0 otherwise.
-    int PyGILState_Check()
+    i32 PyGILState_Check()
 
     # Routines for advanced debuggers, requested by David Beazley.
     # Don't use unless you know what you are doing!

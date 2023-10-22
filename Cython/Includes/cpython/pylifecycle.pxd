@@ -3,9 +3,8 @@
 from libc.stdio cimport FILE
 from .pystate cimport PyThreadState
 
-
 cdef extern from "Python.h":
-    ctypedef int wchar_t
+    ctypedef i32 wchar_t
 
     void Py_SetProgramName(wchar_t *)
     wchar_t *Py_GetProgramName()
@@ -18,29 +17,28 @@ cdef extern from "Python.h":
     int Py_SetStandardStreamEncoding(const char *encoding, const char *errors)
 
     void Py_Initialize()
-    void Py_InitializeEx(int)
-    void _Py_InitializeEx_Private(int, int)
+    void Py_InitializeEx(i32)
+    void _Py_InitializeEx_Private(i32, i32)
     void Py_Finalize()
-    int Py_FinalizeEx()
-    int Py_IsInitialized()
+    i32 Py_FinalizeEx()
+    i32 Py_IsInitialized()
     PyThreadState *Py_NewInterpreter()
     void Py_EndInterpreter(PyThreadState *)
-
 
     # _Py_PyAtExit is for the atexit module, Py_AtExit is for low-level
     # exit functions.
     void _Py_PyAtExit(void (*func)(object), object)
-    int Py_AtExit(void (*func)())
+    i32 Py_AtExit(void (*func)())
 
     void Py_Exit(int)
 
     # Restore signals that the interpreter has called SIG_IGN on to SIG_DFL.
     void _Py_RestoreSignals()
 
-    int Py_FdIsInteractive(FILE *, const char *)
+    i32 Py_FdIsInteractive(FILE *, const char *)
 
     # Bootstrap __main__ (defined in Modules/main.c)
-    int Py_Main(int argc, wchar_t **argv)
+    i32 Py_Main(i32 argc, wchar_t **argv)
 
     # In getpath.c
     wchar_t *Py_GetProgramFullPath()
@@ -48,7 +46,7 @@ cdef extern from "Python.h":
     wchar_t *Py_GetExecPrefix()
     wchar_t *Py_GetPath()
     void Py_SetPath(const wchar_t *)
-    int _Py_CheckPython3()
+    i32 _Py_CheckPython3()
 
     # In their own files
     const char *Py_GetVersion()
@@ -59,10 +57,10 @@ cdef extern from "Python.h":
     const char *_Py_gitidentifier()
     const char *_Py_gitversion()
 
-    ctypedef void (*PyOS_sighandler_t)(int)
-    PyOS_sighandler_t PyOS_getsig(int)
-    PyOS_sighandler_t PyOS_setsig(int, PyOS_sighandler_t)
+    ctypedef void (*PyOS_sighandler_t)(i32)
+    PyOS_sighandler_t PyOS_getsig(i32)
+    PyOS_sighandler_t PyOS_setsig(i32, PyOS_sighandler_t)
 
     # Random
-    int _PyOS_URandom(void *buffer, Py_ssize_t size)
-    int _PyOS_URandomNonblock(void *buffer, Py_ssize_t size)
+    i32 _PyOS_URandom(void *buffer, isize size)
+    i32 _PyOS_URandomNonblock(void *buffer, isize size)

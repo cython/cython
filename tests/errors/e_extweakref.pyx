@@ -14,6 +14,7 @@ cdef void f():
 	cdef object x
 	x = c.__weakref__
 	c.__weakref__ = x
+
 _ERRORS = u"""
 7:17: Illegal use of special attribute __weakref__
 7:17: Illegal use of special attribute __weakref__

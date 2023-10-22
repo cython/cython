@@ -44,7 +44,6 @@ setup(
     ext_modules=cythonize('**/*.pyx'),
 )
 
-
 ######## py_pkg/__init__.py ########
 
 ######## py_pkg/py_a.pyx ########
@@ -61,7 +60,7 @@ def test():
 
 ######## py_pkg/py_b.pxd ########
 
-ctypedef int py_b_int
+ctypedef i32 py_b_int
 
 ######## py_pkg/py_sub/__init__.py ########
 
@@ -70,11 +69,11 @@ ctypedef int py_b_int
 from .. cimport py_b
 from . cimport py_d
 
-ctypedef int py_c_int
+ctypedef i32 py_c_int
 
 ######## py_pkg/py_sub/py_d.pxd ########
 
-ctypedef int py_d_int
+ctypedef i32 py_d_int
 
 ######## pkg/__init__.py ########
 
@@ -97,7 +96,6 @@ assert pi == 7
 cdef class test_pxd:
     pass
 
-
 def test():
     return (i, pi)
 
@@ -105,8 +103,8 @@ def test():
 ######## pkg/a.pxd ########
 
 cdef class test_pxd:
-    cdef pub int x
-    cdef pub int y
+    cdef pub i32 x
+    cdef pub i32 y
 
 
 ######## pkg/b.pyx ########
@@ -152,12 +150,12 @@ def test():
     obj.y = 2
     return (obj.x, obj.y)
 
-cdef int sum_func(int n, int m):
+cdef i32 sum_func(i32 n, i32 m):
     return n + m
 
 ######## pkg/sub/c.pxd ########
 
-cdef int sum_func(int n, int m)
+cdef i32 sum_func(i32 n, i32 m)
 
 ######## pkg/sub/d.pyx ########
 
@@ -168,7 +166,7 @@ def test():
 
 ######## pkg/sub/tdef.pxd ########
 
-ctypedef int myint
+ctypedef i32 myint
 
 
 ######## pkg/sub/reimport.pxd ########

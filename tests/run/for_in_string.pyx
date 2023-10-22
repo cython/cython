@@ -104,7 +104,7 @@ def for_char_in_enumerate_bytes(bytes s):
     4
     """
     cdef char c
-    cdef Py_ssize_t i
+    cdef isize i
     for i, c in enumerate(s):
         if c == b'C':
             return i
@@ -177,7 +177,7 @@ def for_pyunicode_in_enumerate_unicode(unicode s):
     4
     """
     cdef Py_UNICODE c
-    cdef Py_ssize_t i
+    cdef isize i
     for i, c in enumerate(s):
         if c == u'C':
             return i
@@ -218,7 +218,7 @@ def for_pyucs4_in_enumerate_unicode(unicode s):
     4
     """
     cdef Py_UCS4 c
-    cdef Py_ssize_t i
+    cdef isize i
     for i, c in enumerate(s):
         if c == u'C':
             return i

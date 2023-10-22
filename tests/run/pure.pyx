@@ -154,11 +154,11 @@ def test_declare_c_types(n):
     i13 = cython.declare(cython.longlong, n)
     i14 = cython.declare(cython.ulonglong, n)
 
-    i20 = cython.declare(cython.Py_ssize_t, n)
-    i21 = cython.declare(cython.size_t, n)
+    i20 = cython.declare(cython.isize, n)
+    i21 = cython.declare(cython.usize, n)
     #
-    f00 = cython.declare(cython.float, n)
-    f01 = cython.declare(cython.double, n)
+    f00 = cython.declare(cython.f32, n)
+    f01 = cython.declare(cython.f64, n)
     f02 = cython.declare(cython.longdouble, n)
     #
     #z00 = cython.declare(cython.complex, n+1j)

@@ -23,7 +23,7 @@ cdef extern from "Python.h":
     # Return the contents of the cell object cell, but without checking that
     # cell is non-NULL and is a cell object.
 
-    int PyCell_Set(object cell, PyObject* value) except? -1
+    i32 PyCell_Set(object cell, PyObject* value) except? -1
     # Set the contents of the cell object cell to value. This releases the
     # reference to any current content of the cell. value may be NULL. cell
     # must be non-NULL; if it is not a cell object, -1 will be returned. On

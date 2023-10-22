@@ -15,7 +15,7 @@ def typed_slice():
     """
     cdef slice s
     cdef object z
-    cdef Py_ssize_t a,b,c
+    cdef isize a,b,c
 
     z = slice
     s = slice(1, 2, 3)
@@ -35,7 +35,7 @@ def plain_object_slice():
     """
     cdef object s
     cdef object z
-    cdef Py_ssize_t a,b,c
+    cdef isize a,b,c
 
     s = slice(1, 2, 3)
     s.indices

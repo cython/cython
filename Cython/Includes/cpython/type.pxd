@@ -1,4 +1,3 @@
-
 cdef extern from "Python.h":
     # The C structure of the objects used to describe built-in types.
 
@@ -28,7 +27,7 @@ cdef extern from "Python.h":
     # subtypes. This function must be called after any manual modification
     # of the attributes or base classes of the type.
 
-    bint PyType_HasFeature(object o, int feature)
+    bint PyType_HasFeature(object o, i32 feature)
     # Return true if the type object o sets the feature feature. Type
     # features are denoted by single bit flags.
 
@@ -39,7 +38,7 @@ cdef extern from "Python.h":
     bint PyType_IsSubtype(type a, type b)
     # Return true if a is a subtype of b.
 
-    object PyType_GenericAlloc(object type, Py_ssize_t nitems)
+    object PyType_GenericAlloc(object type, isize nitems)
     # Return value: New reference.
 
     object PyType_GenericNew(type type, object args, object kwds)

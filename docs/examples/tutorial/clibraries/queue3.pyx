@@ -22,7 +22,7 @@ cdef class Queue:
 
     cpdef append(self, i32 value):
         if not cqueue.queue_push_tail(self._c_queue,
-                                      <void*> <Py_ssize_t> value):
+                                      <void*> <isize> value):
             raise MemoryError()
 
     # The `cpdef` feature is obviously not available for the original "extend()"
@@ -36,13 +36,10 @@ cdef class Queue:
         for value in values:
             self.append(value)
 
-
     cdef extend_ints(self, i32* values, usize count):
         cdef int value
         for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
             self.append(value)
-
-
 
     cpdef i32 peek(self) except? -1:
         cdef i32 value = <isize> cqueue.queue_peek_head(self._c_queue)

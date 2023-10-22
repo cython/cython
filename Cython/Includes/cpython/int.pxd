@@ -1,5 +1,5 @@
 cdef extern from "Python.h":
-    ctypedef unsigned long long PY_LONG_LONG
+    ctypedef u128 PY_LONG_LONG
 
     ############################################################################
     # Integer Objects
@@ -16,7 +16,7 @@ cdef extern from "Python.h":
     # Return true if o is of type PyInt_Type, but not a subtype of
     # PyInt_Type.
 
-    object PyInt_FromString(char *str, char **pend, int base)
+    object PyInt_FromString(char *str, char **pend, i32 base)
     # Return value: New reference.
     # Return a new PyIntObject or PyLongObject based on the string
     # value in str, which is interpreted according to the radix in
@@ -34,7 +34,7 @@ cdef extern from "Python.h":
     # warnings are not being suppressed, NULL will be returned in this
     # case.
 
-    object PyInt_FromLong(long ival)
+    object PyInt_FromLong(i64 ival)
     # Return value: New reference.
     # Create a new integer object with a value of ival.
     # The current implementation keeps an array of integer objects for
@@ -43,47 +43,47 @@ cdef extern from "Python.h":
     # object. So it should be possible to change the value of 1. I
     # suspect the behaviour of Python in this case is undefined. :-)
 
-    object PyInt_FromSsize_t(Py_ssize_t ival)
+    object PyInt_FromSsize_t(isize ival)
     # Return value: New reference.
     # Create a new integer object with a value of ival. If the value
     # is larger than LONG_MAX or smaller than LONG_MIN, a long integer
     # object is returned.
 
-    object PyInt_FromSize_t(size_t ival)
+    object PyInt_FromSize_t(usize ival)
     # Return value: New reference.
     # Create a new integer object with a value of ival. If the value
     # exceeds LONG_MAX, a long integer object is returned.
 
-    long PyInt_AsLong(object io) except? -1
+    i64 PyInt_AsLong(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject, if it is
     # not already one, and then return its value. If there is an
     # error, -1 is returned, and the caller should check
     # PyErr_Occurred() to find out whether there was an error, or
     # whether the value just happened to be -1.
 
-    long PyInt_AS_LONG(object io)
+    i64 PyInt_AS_LONG(object io)
     # Return the value of the object io. No error checking is performed.
 
-    unsigned long PyInt_AsUnsignedLongMask(object io) except? -1
+    u64 PyInt_AsUnsignedLongMask(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
-    # value as unsigned long. This function does not check for
+    # value as u64. This function does not check for
     # overflow.
 
     PY_LONG_LONG PyInt_AsUnsignedLongLongMask(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
-    # value as unsigned long long, without checking for overflow.
+    # value as u64 long, without checking for overflow.
 
-    Py_ssize_t PyInt_AsSsize_t(object io) except? -1
+    isize PyInt_AsSsize_t(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
-    # value as Py_ssize_t.
+    # value as isize.
 
-    long PyInt_GetMax()
+    i64 PyInt_GetMax()
     # Return the system's idea of the largest integer it can handle
     # (LONG_MAX, as defined in the system header files).
 
-    int PyInt_ClearFreeList()
+    i32 PyInt_ClearFreeList()
     # Clear the integer free list. Return the number of items that could not be freed.
     # New in version 2.6.

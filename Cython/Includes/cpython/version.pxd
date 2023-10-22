@@ -13,14 +13,14 @@
 
 cdef extern from *:
     # the complete version, e.g. 0x010502B2 == 1.5.2b2
-    int PY_VERSION_HEX
+    i32 PY_VERSION_HEX
 
     # the individual sections as plain numbers
-    int PY_MAJOR_VERSION
-    int PY_MINOR_VERSION
-    int PY_MICRO_VERSION
-    int PY_RELEASE_LEVEL
-    int PY_RELEASE_SERIAL
+    i32 PY_MAJOR_VERSION
+    i32 PY_MINOR_VERSION
+    i32 PY_MICRO_VERSION
+    i32 PY_RELEASE_LEVEL
+    i32 PY_RELEASE_SERIAL
 
     # Note: PY_RELEASE_LEVEL is one of
     #    0xA (alpha)

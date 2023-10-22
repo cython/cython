@@ -6,17 +6,16 @@ __doc__ = """
 ... except (TypeError, AttributeError): pass
 """
 
-
 cdef extern from "external_defs.h":
-    ctypedef float DoubleTypedef
-    ctypedef float LongDoubleTypedef
+    ctypedef f32 DoubleTypedef
+    ctypedef f32 LongDoubleTypedef
 
 cdef pub DoubleTypedef global_tdef
-cdef pub double global_double
+cdef pub f64 global_double
 
 cdef class MyClass:
     cdef readonly:
-        double actual_double
+        f64 actual_double
         DoubleTypedef float_isreally_double
         LongDoubleTypedef float_isreally_longdouble
 
@@ -52,7 +51,6 @@ def longdouble_access():
     """
     cdef object c = MyClass()
     print c.float_isreally_longdouble
-
 
 def readonly():
     cdef object c = MyClass()

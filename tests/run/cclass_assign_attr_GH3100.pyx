@@ -6,7 +6,7 @@ cdef extern from *:
     #define TYPESPECS 0
     #endif
     """
-    int TYPESPECS
+    i32 TYPESPECS
 
 cdef class Foo:
     """
@@ -32,7 +32,7 @@ cdef class ChangeName:
     # the class seems to need some contents for changing the
     # name to cause a problem
     cdef pub str attr1
-    cdef pub int attr2
+    cdef pub i32 attr2
 
 if TYPESPECS:
     __doc__ = """
@@ -60,4 +60,3 @@ else:
     >>> ChangeName.__name__
     'ChangeName'
     """
-

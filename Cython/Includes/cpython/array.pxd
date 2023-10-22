@@ -13,16 +13,16 @@
 
   Usage through Cython buffer interface (Py2.3+):
 
-    >>> def f(arg1, unsigned i, double dx)
-    ...     array.array[double] a = arg1
+    >>> def f(arg1, unsigned i, f64 dx)
+    ...     array.array[f64] a = arg1
     ...     a[i] += dx
 
   Fast C-level new_array(_zeros), resize_array, copy_array, Py_SIZE(obj),
   zero_array
 
-    cdef array.array[double] k = array.copy(d)
-    cdef array.array[double] n = array.array(d, Py_SIZE(d) * 2 )
-    cdef array.array[double] m = array.zeros_like(FLOAT_TEMPLATE)
+    cdef array.array[f64] k = array.copy(d)
+    cdef array.array[f64] n = array.array(d, Py_SIZE(d) * 2 )
+    cdef array.array[f64] m = array.zeros_like(FLOAT_TEMPLATE)
     array.resize(f, 200000)
 
   Zero overhead with naked data pointer views by union:
@@ -33,8 +33,8 @@
     if
     a._d[2] += 0.66   # use as double array without extra casting
 
-    float *subview = vector._f + 10  # starting from 10th element
-    unsigned char *subview_buffer = vector._B + 4
+    f32 *subview = vector._f + 10  # starting from 10th element
+    u16 *subview_buffer = vector._B + 4
 
   Suitable as lightweight arrays intra Cython without speed penalty.
   Replacement for C stack/malloc arrays; no trouble with refcounting,
@@ -67,29 +67,29 @@ from cpython.mem cimport PyObject_Malloc, PyObject_Free
 
 cdef extern from *:  # Hard-coded utility code hack.
     ctypedef class array.array [object arrayobject]
-    ctypedef object GETF(array a, Py_ssize_t ix)
-    ctypedef object SETF(array a, Py_ssize_t ix, object o)
+    ctypedef object GETF(array a, isize ix)
+    ctypedef object SETF(array a, isize ix, object o)
     ctypedef struct arraydescr:  # [object arraydescr]:
-            char typecode
-            int itemsize
-            GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
-            SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+        char typecode
+        i32 itemsize
+        GETF getitem    # PyObject * (*getitem)(struct arrayobject *, isize);
+        SETF setitem    # i32 (*setitem)(struct arrayobject *, isize, PyObject *);
 
     ctypedef union __data_union:
         # views of ob_item:
-        float* as_floats        # direct float pointer access to buffer
-        double* as_doubles      # double ...
-        int*    as_ints
-        unsigned int *as_uints
-        unsigned char *as_uchars
+        f32* as_floats       # direct float pointer access to buffer
+        f64* as_doubles      # double ...
+        i32* as_ints
+        u32 *as_uints
+        u16 *as_uchars
         signed char *as_schars
         char *as_chars
-        unsigned long *as_ulongs
-        long *as_longs
-        unsigned long long *as_ulonglongs
-        long long *as_longlongs
-        short *as_shorts
-        unsigned short *as_ushorts
+        u64 *as_ulongs
+        i64 *as_longs
+        u128 *as_ulonglongs
+        i128 *as_longlongs
+        i16 *as_shorts
+        u16 *as_ushorts
         Py_UNICODE *as_pyunicodes
         void *as_voidptr
 
@@ -97,11 +97,11 @@ cdef extern from *:  # Hard-coded utility code hack.
         cdef __cythonbufferdefaults__ = {'ndim' : 1, 'mode':'c'}
 
         cdef:
-            Py_ssize_t ob_size
+            isize ob_size
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
             __data_union data
 
-        def __getbuffer__(self, Py_buffer* info, int flags):
+        def __getbuffer__(self, Py_buffer* info, i32 flags):
             # This implementation of getbuffer is geared towards Cython
             # requirements, and does not yet fulfill the PEP.
             # In particular strided access is always provided regardless
@@ -115,13 +115,13 @@ cdef extern from *:  # Hard-coded utility code hack.
             info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
             info.len = info.itemsize * item_count
 
-            info.shape = <Py_ssize_t*> PyObject_Malloc(sizeof(Py_ssize_t) + 2)
+            info.shape = <isize*>PyObject_Malloc(sizeof(isize) + 2)
             if not info.shape:
                 raise MemoryError()
             info.shape[0] = item_count      # constant regardless of resizing
             info.strides = &info.itemsize
 
-            info.format = <char*> (info.shape + 1)
+            info.format = <char*>(info.shape + 1)
             info.format[0] = self.ob_descr.typecode
             info.format[1] = 0
             info.obj = self
@@ -129,16 +129,15 @@ cdef extern from *:  # Hard-coded utility code hack.
         def __releasebuffer__(self, Py_buffer* info):
             PyObject_Free(info.shape)
 
-    array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
+    array newarrayobject(PyTypeObject* type, isize size, arraydescr *descr)
 
     # fast resize/realloc
     # not suitable for small increments; reallocation 'to the point'
-    int resize(array self, Py_ssize_t n) except -1
+    i32 resize(array self, isize n) except -1
     # efficient for small increments (not in Py2.3-)
-    int resize_smart(array self, Py_ssize_t n) except -1
+    i32 resize_smart(array self, isize n) except -1
 
-
-cdef inline array clone(array template, Py_ssize_t length, bint zero):
+cdef inline array clone(array template, isize length, bint zero):
     """ fast creation of a new array, given a template array.
     type will be same as template.
     if zero is true, new array will be initialized with zeroes."""
@@ -153,17 +152,17 @@ cdef inline array copy(array self):
     memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
     return op
 
-cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
+cdef inline i32 extend_buffer(array self, char* stuff, isize n) except -1:
     """ efficient appending of new stuff of same type
     (e.g. of same array type)
     n: number of elements (not number of bytes!) """
-    cdef Py_ssize_t itemsize = self.ob_descr.itemsize
-    cdef Py_ssize_t origsize = Py_SIZE(self)
+    cdef isize itemsize = self.ob_descr.itemsize
+    cdef isize origsize = Py_SIZE(self)
     resize_smart(self, origsize + n)
     memcpy(self.data.as_chars + origsize * itemsize, stuff, n * itemsize)
     return 0
 
-cdef inline int extend(array self, array other) except -1:
+cdef inline i32 extend(array self, array other) except -1:
     """ extend array with data from another array; types must match. """
     if self.ob_descr.typecode != other.ob_descr.typecode:
         PyErr_BadArgument()

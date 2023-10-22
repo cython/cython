@@ -1,9 +1,7 @@
-
 cdef extern from "Python.h":
-
     ctypedef struct Py_complex:
-        double imag
-        double real
+        f64 imag
+        f64 real
 
     ############################################################################
     # 7.2.5.2 Complex Numbers as Python Objects
@@ -16,11 +14,11 @@ cdef extern from "Python.h":
         cdef Py_complex cval
 
         @property
-        cdef inline double real(self):
+        cdef inline f64 real(self):
             return self.cval.real
 
         @property
-        cdef inline double imag(self):
+        cdef inline f64 imag(self):
             return self.cval.imag
 
     # PyTypeObject PyComplex_Type
@@ -39,14 +37,14 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Create a new Python complex number object from a C Py_complex value.
 
-    object PyComplex_FromDoubles(double real, double imag)
+    object PyComplex_FromDoubles(f64 real, f64 imag)
     # Return value: New reference.
     # Return a new PyComplexObject object from real and imag.
 
-    double PyComplex_RealAsDouble(object op) except? -1
-    # Return the real part of op as a C double.
+    f64 PyComplex_RealAsDouble(object op) except? -1
+    # Return the real part of op as a C f64.
 
-    double PyComplex_ImagAsDouble(object op) except? -1
+    f64 PyComplex_ImagAsDouble(object op) except? -1
     # Return the imaginary part of op as a C double.
 
     Py_complex PyComplex_AsCComplex(object op)

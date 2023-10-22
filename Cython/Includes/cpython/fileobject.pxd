@@ -12,13 +12,12 @@ third-party code is advised to access the io APIs instead.
 """
 
 cdef extern from "Python.h":
-
     ###########################################################################
     # File Objects
     ###########################################################################
 
-    object PyFile_FromFd(int fd, const char *name, const char *mode, int buffering,
-                         const char *encoding, const char *errors, const char *newline, int closefd)
+    object PyFile_FromFd(i32 fd, const char *name, const char *mode, i32 buffering,
+                         const char *encoding, const char *errors, const char *newline, i32 closefd)
     # Return value: New reference.
     # Create a Python file object from the file descriptor of an already
     # opened file fd. The arguments name, encoding, errors and newline can be
@@ -33,7 +32,7 @@ cdef extern from "Python.h":
 
     # Changed in version 3.2: Ignore name attribute.
 
-    object PyFile_GetLine(object p, int n)
+    object PyFile_GetLine(object p, i32 n)
     # Return value: New reference.
     # Equivalent to p.readline([n]), this function reads one line from the
     # object p. p may be a file object or any object with a readline()
@@ -44,13 +43,13 @@ cdef extern from "Python.h":
     # than 0, however, one line is read regardless of length, but EOFError is
     # raised if the end of the file is reached immediately.
 
-    int PyFile_WriteObject(object obj, object p, int flags) except? -1
+    i32 PyFile_WriteObject(object obj, object p, i32 flags) except? -1
     # Write object obj to file object p. The only supported flag for flags
     # is Py_PRINT_RAW; if given, the str() of the object is written instead of
     # the repr(). Return 0 on success or -1 on failure; the appropriate
     # exception will be set.
 
-    int PyFile_WriteString(const char *s, object p) except? -1
+    i32 PyFile_WriteString(const char *s, object p) except? -1
     # Write string s to file object p. Return 0 on success or -1 on failure;
     # the appropriate exception will be set.
 

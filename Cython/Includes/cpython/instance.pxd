@@ -1,5 +1,4 @@
 cdef extern from "Python.h":
-
     ############################################################################
     # 7.5.2 Instance Objects
     ############################################################################
@@ -8,7 +7,7 @@ cdef extern from "Python.h":
     #
     # Type object for class instances.
 
-    int PyInstance_Check(object obj)
+    i32 PyInstance_Check(object obj)
     # Return true if obj is an instance.
 
     object PyInstance_New(object cls, object arg, object kw)

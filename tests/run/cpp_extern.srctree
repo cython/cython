@@ -48,12 +48,12 @@ setup(
 
 from libcpp cimport vector
 
-cdef pub vector.vector[int] get_vector():
-    return [1,2,3]
+cdef pub vector.vector[i32] get_vector():
+    return [1, 2, 3]
 
 cdef extern from "include_as_c_and_cpp_header.h":
-    cdef size_t size_vector1()
-    cdef size_t size_vector2()
+    cdef usize size_vector1()
+    cdef usize size_vector2()
 
 def test():
     assert size_vector1() == 3
@@ -94,8 +94,8 @@ cdef pub char get_char():
     return 42
 
 cdef extern from "include_from_c_and_cpp_header.h":
-    cdef int get_int1()
-    cdef int get_int2()
+    cdef i32 get_int1()
+    cdef i32 get_int2()
 
 def test():
     assert get_int1() == 42
@@ -125,12 +125,12 @@ extern "C" int get_int2() { return (int)get_char(); }
 
 # distutils: language = c++
 
-cdef pub char get_char():
+cdef pub i8 get_char():
     return 42
 
 cdef extern from "cdefines_header.h":
-    cdef int get_int1()
-    cdef int get_int2()
+    cdef i32 get_int1()
+    cdef i32 get_int2()
 
 def test():
     assert get_int1() == 42

@@ -45,7 +45,7 @@ cdef extern from "Python.h":
     void PyDict_Clear(object p)
     # Empty an existing dictionary of all key-value pairs.
 
-    int PyDict_Contains(object p, object key) except -1
+    i32 PyDict_Contains(object p, object key) except -1
     # Determine if dictionary p contains key. If an item in p is
     # matches key, return 1, otherwise return 0. On error, return
     # -1. This is equivalent to the Python expression "key in p".
@@ -54,22 +54,22 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a new dictionary that contains the same key-value pairs as p.
 
-    int PyDict_SetItem(object p, object key, object val) except -1
+    i32 PyDict_SetItem(object p, object key, object val) except -1
     # Insert value into the dictionary p with a key of key. key must
     # be hashable; if it isn't, TypeError will be raised. Return 0 on
     # success or -1 on failure.
 
-    int PyDict_SetItemString(object p, const char *key, object val) except -1
+    i32 PyDict_SetItemString(object p, const char *key, object val) except -1
     # Insert value into the dictionary p using key as a key. key
     # should be a char*. The key object is created using
     # PyString_FromString(key). Return 0 on success or -1 on failure.
 
-    int PyDict_DelItem(object p, object key) except -1
+    i32 PyDict_DelItem(object p, object key) except -1
     # Remove the entry in dictionary p with key key. key must be
     # hashable; if it isn't, TypeError is raised. Return 0 on success
     # or -1 on failure.
 
-    int PyDict_DelItemString(object p, const char *key) except -1
+    i32 PyDict_DelItemString(object p, const char *key) except -1
     # Remove the entry in dictionary p which has a key specified by
     # the string key. Return 0 on success or -1 on failure.
 
@@ -116,11 +116,11 @@ cdef extern from "Python.h":
     # dictionary p, as in the dictionary method values() (see the
     # Python Library Reference).
 
-    Py_ssize_t PyDict_Size(object p) except -1
+    isize PyDict_Size(object p) except -1
     # Return the number of items in the dictionary. This is equivalent
     # to "len(p)" on a dictionary.
 
-    int PyDict_Next(object p, Py_ssize_t *ppos, PyObject* *pkey, PyObject* *pvalue)
+    i32 PyDict_Next(object p, isize *ppos, PyObject* *pkey, PyObject* *pvalue)
     # Iterate over all key-value pairs in the dictionary p. The int
     # referred to by ppos must be initialized to 0 prior to the first
     # call to this function to start the iteration; the function
@@ -159,7 +159,7 @@ cdef extern from "Python.h":
     #    Py_DECREF(o);
     # }
 
-    int PyDict_Merge(object a, object b, int override) except -1
+    i32 PyDict_Merge(object a, object b, i32 override) except -1
     # Iterate over mapping object b adding key-value pairs to
     # dictionary a. b may be a dictionary, or any object supporting
     # PyMapping_Keys() and PyObject_GetItem(). If override is true,
@@ -168,11 +168,11 @@ cdef extern from "Python.h":
     # matching key in a. Return 0 on success or -1 if an exception was
     # raised.
 
-    int PyDict_Update(object a, object b) except -1
+    i32 PyDict_Update(object a, object b) except -1
     # This is the same as PyDict_Merge(a, b, 1) in C, or a.update(b)
     # in Python. Return 0 on success or -1 if an exception was raised.
 
-    int PyDict_MergeFromSeq2(object a, object seq2, int override) except -1
+    i32 PyDict_MergeFromSeq2(object a, object seq2, i32 override) except -1
     # Update or merge into dictionary a, from the key-value pairs in
     # seq2. seq2 must be an iterable object producing iterable objects
     # of length 2, viewed as key-value pairs. In case of duplicate

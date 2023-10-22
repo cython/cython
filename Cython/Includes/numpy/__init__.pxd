@@ -25,7 +25,7 @@ cdef extern from *:
 
 
 cdef extern from "Python.h":
-    ctypedef Py_ssize_t Py_intptr_t
+    ctypedef isize Py_intptr_t
 
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp

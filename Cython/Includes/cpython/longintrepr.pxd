@@ -6,14 +6,14 @@ cdef extern from "Python.h":
      #include "longintrepr.h"
     #endif
     """
-    ctypedef unsigned int digit
-    ctypedef int sdigit  # Python >= 2.7 only
+    ctypedef u32 digit
+    ctypedef i32 sdigit  # Python >= 2.7 only
 
     ctypedef class __builtin__.py_long [object PyLongObject]:
         cdef digit* ob_digit
 
-    cdef py_long _PyLong_New(Py_ssize_t s)
+    cdef py_long _PyLong_New(isize s)
 
-    cdef long PyLong_SHIFT
+    cdef i64 PyLong_SHIFT
     cdef digit PyLong_BASE
     cdef digit PyLong_MASK

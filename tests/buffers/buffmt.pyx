@@ -30,8 +30,8 @@ if int_align != 4 or sizeof(i32) != 4:
     raise RuntimeError("Alignment or size of int is %d on this system, please report to cython-dev for a testcase fix" % int_align)
 
 cdef class MockBuffer:
-    cdef Py_ssize_t zero
-    cdef Py_ssize_t minusone
+    cdef isize zero
+    cdef isize minusone
     cdef bytes format
     cdef object itemsize
 

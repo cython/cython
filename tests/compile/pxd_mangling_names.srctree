@@ -16,10 +16,10 @@ setup(
 
 ######## a.pxd ########
 
-cdef pub int foo()
+cdef pub i32 foo()
 
 cdef extern from "b.h":
-    cpdef int bar()
+    cpdef i32 bar()
 
 ######## a.py ########
 

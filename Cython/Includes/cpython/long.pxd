@@ -1,7 +1,6 @@
-
 cdef extern from "Python.h":
-    ctypedef long long PY_LONG_LONG
-    ctypedef unsigned long long uPY_LONG_LONG "unsigned PY_LONG_LONG"
+    ctypedef i128 PY_LONG_LONG
+    ctypedef u128 uPY_LONG_LONG "unsigned PY_LONG_LONG"
 
     ############################################################################
     # 7.2.3 Long Integer Objects
@@ -22,19 +21,19 @@ cdef extern from "Python.h":
     bint PyLong_CheckExact(object p)
     # Return true if its argument is a PyLongObject, but not a subtype of PyLongObject.
 
-    object PyLong_FromLong(long v)
+    object PyLong_FromLong(i64 v)
     # Return value: New reference.
     # Return a new PyLongObject object from v, or NULL on failure.
 
-    object PyLong_FromUnsignedLong(unsigned long v)
+    object PyLong_FromUnsignedLong(u64 v)
     # Return value: New reference.
     # Return a new PyLongObject object from a C unsigned long, or NULL on failure.
 
-    object PyLong_FromSsize_t(Py_ssize_t v)
+    object PyLong_FromSsize_t(isize v)
     # Return value: New reference.
     # Return a new PyLongObject object from a C Py_ssize_t, or NULL on failure.)
 
-    object PyLong_FromSize_t(size_t v)
+    object PyLong_FromSize_t(usize v)
     # Return value: New reference.
     # Return a new PyLongObject object from a C size_t, or NULL on failure.
 
@@ -46,11 +45,11 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a new PyLongObject object from a C unsigned long long, or NULL on failure.
 
-    object PyLong_FromDouble(double v)
+    object PyLong_FromDouble(f64 v)
     # Return value: New reference.
     # Return a new PyLongObject object from the integer part of v, or NULL on failure.
 
-    object PyLong_FromString(char *str, char **pend, int base)
+    object PyLong_FromString(char *str, char **pend, i32 base)
     # Return value: New reference.
     # Return a new PyLongObject based on the string value in str,
     # which is interpreted according to the radix in base. If pend is
@@ -63,7 +62,7 @@ cdef extern from "Python.h":
     # inclusive. Leading spaces are ignored. If there are no digits,
     # ValueError will be raised.
 
-    object PyLong_FromUnicode(Py_UNICODE *u, Py_ssize_t length, int base)
+    object PyLong_FromUnicode(Py_UNICODE *u, isize length, i32 base)
     # Return value: New reference.
     # Convert a sequence of Unicode digits to a Python long integer
     # value. The first parameter, u, points to the first character of
@@ -72,7 +71,7 @@ cdef extern from "Python.h":
     # range [2, 36]; if it is out of range, ValueError will be
     # raised.
 
-    # object PyLong_FromUnicodeObject(object u, int base)
+    # object PyLong_FromUnicodeObject(object u, i32 base)
     # Convert a sequence of Unicode digits in the string u to a Python integer
     # value. The Unicode string is first encoded to a byte string using
     # PyUnicode_EncodeDecimal() and then converted using PyLong_FromString().
@@ -85,11 +84,11 @@ cdef extern from "Python.h":
     # PyLong_AsVoidPtr().  If the integer is larger than LONG_MAX, a
     # positive long integer is returned.
 
-    long PyLong_AsLong(object pylong) except? -1
+    i64 PyLong_AsLong(object pylong) except? -1
     # Return a C long representation of the contents of pylong. If
     # pylong is greater than LONG_MAX, an OverflowError is raised.
 
-    long PyLong_AsLongAndOverflow(object pylong, int *overflow) except? -1
+    i64 PyLong_AsLongAndOverflow(object pylong, i32 *overflow) except? -1
     # Return a C long representation of the contents of pylong. If pylong is
     # greater than LONG_MAX or less than LONG_MIN, set *overflow to 1 or -1,
     # respectively, and return -1; otherwise, set *overflow to 0. If any other
@@ -97,7 +96,7 @@ cdef extern from "Python.h":
     # be returned and *overflow will be 0.
     # New in version 2.7.
 
-    PY_LONG_LONG PyLong_AsLongLongAndOverflow(object pylong, int *overflow) except? -1
+    PY_LONG_LONG PyLong_AsLongLongAndOverflow(object pylong, i32 *overflow) except? -1
     # Return a C long long representation of the contents of pylong. If pylong
     # is greater than PY_LLONG_MAX or less than PY_LLONG_MIN, set *overflow to
     # 1 or -1, respectively, and return -1; otherwise, set *overflow to 0. If
@@ -105,12 +104,12 @@ cdef extern from "Python.h":
     # -1 will be returned and *overflow will be 0.
     # New in version 2.7.
 
-    Py_ssize_t PyLong_AsSsize_t(object pylong) except? -1
+    isize PyLong_AsSsize_t(object pylong) except? -1
     # Return a C Py_ssize_t representation of the contents of pylong. If pylong
     # is greater than PY_SSIZE_T_MAX, an OverflowError is raised and -1 will be
     # returned.
 
-    unsigned long PyLong_AsUnsignedLong(object pylong) except? -1
+    u64 PyLong_AsUnsignedLong(object pylong) except? -1
     # Return a C unsigned long representation of the contents of
     # pylong. If pylong is greater than ULONG_MAX, an OverflowError is
     # raised.
@@ -127,7 +126,7 @@ cdef extern from "Python.h":
     # OverflowError will be raised if the value is positive, or a
     # TypeError will be raised if the value is negative.
 
-    unsigned long PyLong_AsUnsignedLongMask(object io) except? -1
+    u64 PyLong_AsUnsignedLongMask(object io) except? -1
     # Return a C unsigned long from a Python long integer, without
     # checking for overflow.
 
@@ -136,7 +135,7 @@ cdef extern from "Python.h":
     # Return a C unsigned long long from a Python long integer,
     # without checking for overflow.
 
-    double PyLong_AsDouble(object pylong) except? -1.0
+    f64 PyLong_AsDouble(object pylong) except? -1.0
     # Return a C double representation of the contents of pylong. If
     # pylong cannot be approximately represented as a double, an
     # OverflowError exception is raised and -1.0 will be returned.

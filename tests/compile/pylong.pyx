@@ -5,7 +5,7 @@ cdef extern from "Python.h":
         pass
 
     ctypedef struct PyObject:
-        Py_ssize_t ob_refcnt
+        isize ob_refcnt
         PyTypeObject *ob_type
 
 cdef extern from "Python.h":

@@ -18,7 +18,7 @@ True
 
 import gc
 
-cdef Py_ssize_t new_unreachable = 0
+cdef isize new_unreachable = 0
 
 def get_new_unreachable():
     return new_unreachable

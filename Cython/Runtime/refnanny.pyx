@@ -1,4 +1,4 @@
-# cython: language_level=3, auto_pickle=False
+# cython: language_level=3, auto_pickle=false
 
 from cpython.ref cimport PyObject, Py_INCREF, Py_CLEAR, Py_XDECREF, Py_XINCREF
 from cpython.exc cimport PyErr_Fetch, PyErr_Restore
@@ -23,7 +23,7 @@ cdef class Context(object):
     cdef readonly object name, filename
     cdef readonly dict refs
     cdef readonly list errors
-    cdef readonly Py_ssize_t start
+    cdef readonly isize start
 
     def __cinit__(self, name, line=0, filename=None):
         self.name = name
@@ -32,7 +32,7 @@ cdef class Context(object):
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
 
-    cdef regref(self, obj, Py_ssize_t lineno, bint is_null):
+    cdef regref(self, obj, isize lineno, bint is_null):
         log(LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
             self.errors.append(f"NULL argument on line {lineno}")
@@ -42,22 +42,22 @@ cdef class Context(object):
         self.refs[id_] = (count + 1, linenumbers)
         linenumbers.append(lineno)
 
-    cdef bint delref(self, obj, Py_ssize_t lineno, bint is_null) except -1:
+    cdef bint delref(self, obj, isize lineno, bint is_null) except -1:
         # returns whether it is ok to do the decref operation
         log(LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
             self.errors.append(f"NULL argument on line {lineno}")
-            return False
+            return false
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
         if count == 0:
             self.errors.append(f"Too many decrefs on line {lineno}, reference acquired on lines {linenumbers!r}")
-            return False
+            return false
         if count == 1:
             del self.refs[id_]
         else:
             self.refs[id_] = (count - 1, linenumbers)
-        return True
+        return true
 
     cdef end(self):
         if self.refs:
@@ -67,8 +67,7 @@ cdef class Context(object):
             self.errors.append(msg)
         return u"\n".join([f'REFNANNY: {error}' for error in self.errors]) if self.errors else None
 
-
-cdef void report_unraisable(filename, Py_ssize_t lineno, object e=None):
+cdef void report_unraisable(filename, isize lineno, object e=None):
     try:
         if e is None:
             import sys
@@ -77,12 +76,11 @@ cdef void report_unraisable(filename, Py_ssize_t lineno, object e=None):
     finally:
         return  # We absolutely cannot exit with an exception
 
-
 # All Python operations must happen after any existing
 # exception has been fetched, in case we are called from
 # exception-handling code.
 
-cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) except NULL:
+cdef PyObject* SetupContext(char* funcname, isize lineno, char* filename) except NULL:
     if Context is None:
         # Context may be None during finalize phase.
         # In that case, we don't want to be doing anything fancy
@@ -100,7 +98,7 @@ cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) e
     PyErr_Restore(type, value, tb)
     return result
 
-cdef void GOTREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
+cdef void GOTREF(PyObject* ctx, PyObject* p_obj, isize lineno):
     if ctx == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     PyErr_Fetch(&type, &value, &tb)
@@ -116,10 +114,10 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
         PyErr_Restore(type, value, tb)
         return  # swallow any exceptions
 
-cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
+cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, isize lineno):
     if ctx == NULL: return 1
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
-    cdef bint decref_ok = False
+    cdef bint decref_ok = false
     PyErr_Fetch(&type, &value, &tb)
     try:
         decref_ok = (<Context>ctx).delref(
@@ -133,15 +131,15 @@ cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
         PyErr_Restore(type, value, tb)
         return decref_ok  # swallow any exceptions
 
-cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
+cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, isize lineno):
     GIVEREF_and_report(ctx, p_obj, lineno)
 
-cdef void INCREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno):
+cdef void INCREF(PyObject* ctx, PyObject* obj, isize lineno):
     Py_XINCREF(obj)
     PyThreadState_Get()  # Check that we hold the GIL
     GOTREF(ctx, obj, lineno)
 
-cdef void DECREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno):
+cdef void DECREF(PyObject* ctx, PyObject* obj, isize lineno):
     if GIVEREF_and_report(ctx, obj, lineno):
         Py_XDECREF(obj)
     PyThreadState_Get()  # Check that we hold the GIL
@@ -171,11 +169,11 @@ cdef void FinishContext(PyObject** ctx):
         return  # swallow any exceptions
 
 ctypedef struct RefNannyAPIStruct:
-    void (*INCREF)(PyObject*, PyObject*, Py_ssize_t)
-    void (*DECREF)(PyObject*, PyObject*, Py_ssize_t)
-    void (*GOTREF)(PyObject*, PyObject*, Py_ssize_t)
-    void (*GIVEREF)(PyObject*, PyObject*, Py_ssize_t)
-    PyObject* (*SetupContext)(char*, Py_ssize_t, char*) except NULL
+    void (*INCREF)(PyObject*, PyObject*, isize)
+    void (*DECREF)(PyObject*, PyObject*, isize)
+    void (*GOTREF)(PyObject*, PyObject*, isize)
+    void (*GIVEREF)(PyObject*, PyObject*, isize)
+    PyObject* (*SetupContext)(char*, isize, char*) except NULL
     void (*FinishContext)(PyObject**)
 
 cdef RefNannyAPIStruct api

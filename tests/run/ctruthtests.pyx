@@ -49,7 +49,7 @@ def test_short(short i):
     else:
         return false
 
-def test_Py_ssize_t(Py_ssize_t i):
+def test_Py_ssize_t(isize i):
     """
     >>> test_Py_ssize_t(0)
     False

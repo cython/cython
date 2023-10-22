@@ -326,7 +326,7 @@ def test_coerce_to_numpy():
     cdef td_h_double[20] h_doubles
     cdef td_h_ushort[20] h_ushorts
 
-    cdef Py_ssize_t idx = 17
+    cdef isize idx = 17
 
     #
     ### Initialize one element in each array
@@ -690,8 +690,8 @@ def test_boundscheck_and_wraparound(f64[:, :] x):
     >>> test_boundscheck_and_wraparound(array)
     """
     # Make sure we don't generate C compiler warnings for unused code here.
-    cdef Py_ssize_t numrow = x.shape[0]
-    cdef Py_ssize_t i
+    cdef isize numrow = x.shape[0]
+    cdef isize i
     for i in range(numrow):
         x[i, 0]
         x[i]

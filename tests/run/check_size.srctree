@@ -79,7 +79,7 @@ typedef struct {
 ######## check_size.pyx ########
 
 cdef class Foo:
-    cdef pub int field0, field1, field2;
+    cdef pub i32 field0, field1, field2;
 
     def __init__(self, f0, f1, f2):
         self.field0 = f0
@@ -89,93 +89,79 @@ cdef class Foo:
 ######## _check_size_exact.pyx ########
 
 cdef extern from "check_size_nominal.h":
-
     ctypedef class check_size.Foo [object FooStructNominal]:
         cdef:
-            int f0
-            int f1
+            i32 f0
+            i32 f1
 
-
-cpdef pub int testme(Foo f) except -1:
+cpdef pub i32 testme(Foo f) except -1:
     return f.f0 + f.f1
 
 ######## _check_size_too_small.pyx ########
 
 cdef extern from "check_size_bigger.h":
-
     ctypedef class check_size.Foo [object FooStructBig]:
         cdef:
-            int f0
-            int f1
-            int f2
+            i32 f0
+            i32 f1
+            i32 f2
 
-
-cpdef pub int testme(Foo f, int f2) except -1:
+cpdef pub i32 testme(Foo f, i32 f2) except -1:
     f.f2 = f2
     return f.f0 + f.f1 + f.f2
 
 ######## _check_size_default.pyx ########
 
 cdef extern from "check_size_smaller.h":
-
     ctypedef class check_size.Foo [object FooStructSmall]:
         cdef:
-            int f9
+            i32 f9
 
-
-cpdef pub int testme(Foo f) except -1:
+cpdef pub i32 testme(Foo f) except -1:
     return f.f9
 
 ######## _check_size_warn.pyx ########
 
 cdef extern from "check_size_smaller.h":
-
     # make sure missing check_size is equivalent to warn
     ctypedef class check_size.Foo [object FooStructSmall, check_size warn]:
         cdef:
-            int f9
+            i32 f9
 
-
-cpdef pub int testme(Foo f) except -1:
+cpdef pub i32 testme(Foo f) except -1:
     return f.f9
 
 ######## _check_size_ignore.pyx ########
 
 cdef extern from "check_size_smaller.h":
-
     # Allow size to be larger
     ctypedef class check_size.Foo [object FooStructSmall, check_size ignore]:
         cdef:
-            int f9
+            i32 f9
 
-
-cpdef pub int testme(Foo f) except -1:
+cpdef pub i32 testme(Foo f) except -1:
     return f.f9
 
 ######## _check_size_error.pyx ########
 
 cdef extern from "check_size_smaller.h":
-
     # Strict checking, will raise an error
     ctypedef class check_size.Foo [object FooStructSmall, check_size error]:
         cdef:
-            int f9
+            i32 f9
 
-
-cpdef pub int testme(Foo f) except -1:
+cpdef pub i32 testme(Foo f) except -1:
     return f.f9
 
 ######## check_size_invalid.pyx ########
 
 cdef extern from "check_size_smaller.h":
-
     # Raise CompileError when using bad value
     ctypedef class check_size.Foo [object FooStructSmall, check_size hihi]:
         cdef:
             int f9
 
-
-cpdef pub int testme(Foo f) except -1:
+cpdef pub i32 testme(Foo f) except -1:
     return f.f9
 
 ######## runner.py ########

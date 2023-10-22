@@ -362,9 +362,9 @@ def unpack_many_int(it):
     >>> unpack_many_int(tuple(items))
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     """
-    cdef int b
-    cdef long f
-    cdef Py_ssize_t h
+    cdef i32 b
+    cdef i64 f
+    cdef isize h
     a,b,c,d,e,f,g,h,i,j,k,l = it
     return a,b,c,d,e,f,g,h,i,j,k,l
 

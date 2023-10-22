@@ -13,10 +13,10 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup, Extension
 
 setup(
-  ext_modules=cythonize([
-    Extension("pkg.m1.a", ["pkg/m1/a.pyx"]),
-    Extension("pkg.m2.b", ["pkg/m2/b.pyx"])
-  ]),
+    ext_modules=cythonize([
+        Extension("pkg.m1.a", ["pkg/m1/a.pyx"]),
+        Extension("pkg.m2.b", ["pkg/m2/b.pyx"])
+    ]),
 )
 
 ######## pkg/__init__.py ########
@@ -47,7 +47,7 @@ outdated, not to be picked up
 # closest version should get found!
 
 cdef class A:
-    cdef pub float x
+    cdef pub f32 x
 
 ######## pkg/m1/a.cython-300000.pxd ########
 

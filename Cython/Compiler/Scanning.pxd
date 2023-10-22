@@ -38,7 +38,7 @@ cdef class PyrexScanner(Scanner):
     cdef pub systring  # EncodedString
     cdef pub list put_back_on_failure
 
-    cdef Py_ssize_t current_level(self)
+    cdef isize current_level(self)
     #cpdef commentline(self, text)
     #cpdef open_bracket_action(self, text)
     #cpdef close_bracket_action(self, text)
@@ -46,7 +46,7 @@ cdef class PyrexScanner(Scanner):
     #cpdef begin_string_action(self, text)
     #cpdef end_string_action(self, text)
     #cpdef unclosed_string_action(self, text)
-    @cython.locals(current_level=Py_ssize_t, new_level=Py_ssize_t)
+    @cython.locals(current_level=isize, new_level=isize)
     cpdef indentation_action(self, text)
     #cpdef eof_action(self, text)
     ##cdef next(self)

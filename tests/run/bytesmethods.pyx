@@ -1,8 +1,8 @@
 cimport cython
 
 cdef extern from *:
-    const Py_ssize_t PY_SSIZE_T_MIN
-    const Py_ssize_t PY_SSIZE_T_MAX
+    const isize PY_SSIZE_T_MIN
+    const isize PY_SSIZE_T_MAX
 
 SSIZE_T_MAX = PY_SSIZE_T_MAX
 SSIZE_T_MIN = PY_SSIZE_T_MIN

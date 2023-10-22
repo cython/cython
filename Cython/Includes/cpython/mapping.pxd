@@ -1,5 +1,4 @@
 cdef extern from "Python.h":
-
     ############################################################################
     # 6.4 Mapping Protocol
     ############################################################################
@@ -8,17 +7,17 @@ cdef extern from "Python.h":
     # Return 1 if the object provides mapping protocol, and 0
     # otherwise. This function always succeeds.
 
-    Py_ssize_t PyMapping_Length(object o) except -1
+    isize PyMapping_Length(object o) except -1
     # Returns the number of keys in object o on success, and -1 on
     # failure. For objects that do not provide mapping protocol, this
     # is equivalent to the Python expression "len(o)".
 
-    int PyMapping_DelItemString(object o, char *key) except -1
+    i32 PyMapping_DelItemString(object o, char *key) except -1
     # Remove the mapping for object key from the object o. Return -1
     # on failure. This is equivalent to the Python statement "del
     # o[key]".
 
-    int PyMapping_DelItem(object o, object key) except -1
+    i32 PyMapping_DelItem(object o, object key) except -1
     # Remove the mapping for object key from the object o. Return -1
     # on failure. This is equivalent to the Python statement "del
     # o[key]".
@@ -57,7 +56,7 @@ cdef extern from "Python.h":
     # failure. This is the equivalent of the Python expression
     # "o[key]".
 
-    int PyMapping_SetItemString(object o, char *key, object v) except -1
+    i32 PyMapping_SetItemString(object o, char *key, object v) except -1
     # Map the object key to the value v in object o. Returns -1 on
     # failure. This is the equivalent of the Python statement "o[key]
     # = v".

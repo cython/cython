@@ -1,5 +1,4 @@
 cdef extern from "Python.h":
-
     ###########################################################################
     # MemoryView Objects
     ###########################################################################
@@ -13,7 +12,7 @@ cdef extern from "Python.h":
     # will be read/write, otherwise it may be either read-only or read/write at
     # the discretion of the exporter.
 
-    object PyMemoryView_FromMemory(char *mem, Py_ssize_t size, int flags)
+    object PyMemoryView_FromMemory(char *mem, isize size, i32 flags)
     # Return value: New reference.
     # Create a memoryview object using mem as the underlying buffer. flags can
     # be one of PyBUF_READ or PyBUF_WRITE.
@@ -25,7 +24,7 @@ cdef extern from "Python.h":
     # simple byte buffers, PyMemoryView_FromMemory() is the preferred function.
 
     object PyMemoryView_GetContiguous(object obj,
-                                      int buffertype,
+                                      i32 buffertype,
                                       char order)
     # Return value: New reference.
     # Create a memoryview object to a contiguous chunk of memory (in either ‘C’

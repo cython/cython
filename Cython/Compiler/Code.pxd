@@ -104,8 +104,8 @@ cdef class CCodeWriter(object):
     cdef object code_config
     cdef object last_pos
     cdef object last_marked_pos
-    cdef Py_ssize_t level
-    cdef pub Py_ssize_t call_level  # debug-only, see Nodes.py
+    cdef isize level
+    cdef pub isize call_level  # debug-only, see Nodes.py
     cdef bint bol
 
     cpdef write(self, s)
@@ -124,4 +124,4 @@ cdef class CCodeWriter(object):
 
 cdef class PyrexCodeWriter:
     cdef pub object f
-    cdef pub Py_ssize_t level
+    cdef pub isize level

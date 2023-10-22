@@ -37,17 +37,17 @@ OverflowError: ...
 cdef extern from *:
     ctypedef u64 size_t
 
-def test(size_t i):
+def test(usize i):
     return i
 
 cdef class A:
-    cdef pub size_t a
-    cdef readonly size_t b
+    cdef pub usize a
+    cdef readonly usize b
 
-    def __init__(self, size_t a, object b):
+    def __init__(self, usize a, object b):
         self.a = a
         self.b = b
 
-    cpdef size_t foo(self, size_t x):
+    cpdef usize foo(self, usize x):
         cdef object o = x
         return o

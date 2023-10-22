@@ -3,7 +3,7 @@
 cimport cython
 
 cdef extern from *:
-    int PY_VERSION_HEX
+    i32 PY_VERSION_HEX
 
 cdef object __Pyx_OrderedDict
 

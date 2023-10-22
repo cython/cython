@@ -16,8 +16,8 @@ from libc.stdlib cimport malloc, free
 include "../testsupport/cythonarrayutil.pxi"
 
 cdef class NotADataclass:
-    cdef cython.int a
-    b: float
+    cdef cython.i32 a
+    b: f32
 
     def __repr__(self):
         return "NADC"
@@ -64,7 +64,7 @@ cdef class BasicDataclass:
     >>> inst2 = BasicDataclass(2.0, NotADataclass(), [])
     >>> inst1 == inst2
     False
-    >>> inst2 = BasicDataclass(2.0, NotADataclass(), [], [1,2,3])
+    >>> inst2 = BasicDataclass(2.0, NotADataclass(), [], [1, 2, 3])
     >>> inst2
     BasicDataclass(a=2.0, b=NADC, c=[], d=[1, 2, 3])
     >>> inst2.c = "Some string"
@@ -85,7 +85,7 @@ cdef class InheritsFromDataclass(BasicDataclass):
     In __post_init__
     InheritsFromDataclass(a=1.0, b=NADC, c=0, d=[], e=5)
     """
-    e: cython.int = 0
+    e: cython.i32 = 0
 
     def __post_init__(self):
         print "In __post_init__"
@@ -101,10 +101,10 @@ cdef class InheritsFromNotADataclass(NotADataclass):
     InheritsFromNotADataclass(c=5)
     """
 
-    c: cython.int = 1
+    c: cython.i32 = 1
 
 cdef struct S:
-    int a
+    i32 a
 
 ctypedef S* S_ptr
 
@@ -127,7 +127,7 @@ cdef class ContainsNonPyFields:
     """
     mystruct: S = cython.dataclasses.field(compare=false)
     mystruct_ptr: S_ptr = field(init=false, repr=false, default_factory=malloc_a_struct)
-    memview: cython.int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
+    memview: cython.i32[:, ::1] = field(default=create_array((3, 1), "c"),  # mutable so not great but OK for a test
                                         compare=false)
 
     def __dealloc__(self):
@@ -153,13 +153,13 @@ cdef class InitClassVars:
     >>> inst1 == inst2  # comparison ignores the initvar
     True
     """
-    a: cython.int = 0
-    b1: InitVar[cython.double] = 1.0
-    b2: py_dataclasses.InitVar[cython.double] = 1.0
+    a: cython.i32 = 0
+    b1: InitVar[cython.f64] = 1.0
+    b2: py_dataclasses.InitVar[cython.f64] = 1.0
     c1: ClassVar[float] = 2.0
     c2: typing.ClassVar[float] = 2.0
-    cdef InitVar[cython.int] d1
-    cdef py_dataclasses.InitVar[cython.int] d2
+    cdef InitVar[cython.i32] d1
+    cdef py_dataclasses.InitVar[cython.i32] d2
     d1 = 5
     d2 = 5
     cdef ClassVar[list] e1
@@ -204,10 +204,10 @@ cdef class TestVisibility:
     >>> hasattr(inst, "d")
     True
     """
-    cdef double a
+    cdef f64 a
     a = 1.0
-    b: cython.double = 2.0
-    cdef pub double c
+    b: cython.f64 = 2.0
+    cdef pub f64 c
     c = 3.0
     cdef pub object d
     d = object()
@@ -222,11 +222,10 @@ cdef class TestFrozen:
     Traceback (most recent call last):
     AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
-    a: cython.double = 2.0
+    a: cython.f64 = 2.0
 
 def get_dataclass_initvar():
     return py_dataclasses.InitVar
-
   
 @dataclass(kw_only=true)
 cdef class TestKwOnly:
@@ -252,9 +251,8 @@ cdef class TestKwOnly:
     TypeError: __init__() needs keyword-only argument b
     """
 
-    a: cython.double = 2.0
-    b: cython.long
-
+    a: cython.f64 = 2.0
+    b: cython.i64
 
 import sys
 if sys.version_info >= (3, 7):

@@ -1,7 +1,6 @@
 from .object cimport PyObject
 
 cdef extern from "Python.h":
-
     #####################################################################
     # 6.2 Number Protocol
     #####################################################################
@@ -215,7 +214,7 @@ cdef extern from "Python.h":
     # failure. The operation is done in-place when o1 supports
     # it. This is the equivalent of the Python statement "o1 |= o2".
 
-    int PyNumber_Coerce(PyObject **p1, PyObject **p2) except -1
+    i32 PyNumber_Coerce(PyObject **p1, PyObject **p2) except -1
     # This function takes the addresses of two variables of type
     # PyObject*. If the objects pointed to by *p1 and *p2 have the
     # same type, increment their reference count and return 0
@@ -250,7 +249,7 @@ cdef extern from "Python.h":
     # Returns the o converted to a Python int or long on success or
     # NULL with a TypeError exception raised on failure.
 
-    Py_ssize_t PyNumber_AsSsize_t(object o, object exc) except? -1
+    isize PyNumber_AsSsize_t(object o, object exc) except? -1
     # Returns o converted to a Py_ssize_t value if o can be
     # interpreted as an integer. If o can be converted to a Python int
     # or long but the attempt to convert to a Py_ssize_t value would

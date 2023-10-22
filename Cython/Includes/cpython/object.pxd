@@ -2,7 +2,6 @@ from libc.stdio cimport FILE
 cimport cpython.type
 
 cdef extern from "Python.h":
-
     ctypedef struct PyObject  # forward declaration
 
     ctypedef object (*newfunc)(cpython.type.type, PyObject*, PyObject*)  # (type, args|NULL, kwargs|NULL)
@@ -10,45 +9,45 @@ cdef extern from "Python.h":
     ctypedef object (*unaryfunc)(object)
     ctypedef object (*binaryfunc)(object, object)
     ctypedef object (*ternaryfunc)(object, object, object)
-    ctypedef int (*inquiry)(object) except -1
-    ctypedef Py_ssize_t (*lenfunc)(object) except -1
-    ctypedef object (*ssizeargfunc)(object, Py_ssize_t)
-    ctypedef object (*ssizessizeargfunc)(object, Py_ssize_t, Py_ssize_t)
-    ctypedef int (*ssizeobjargproc)(object, Py_ssize_t, object) except -1
-    ctypedef int (*ssizessizeobjargproc)(object, Py_ssize_t, Py_ssize_t, object) except -1
-    ctypedef int (*objobjargproc)(object, object, object) except -1
-    ctypedef int (*objobjproc)(object, object) except -1
+    ctypedef i32 (*inquiry)(object) except -1
+    ctypedef isize (*lenfunc)(object) except -1
+    ctypedef object (*ssizeargfunc)(object, isize)
+    ctypedef object (*ssizessizeargfunc)(object, isize, isize)
+    ctypedef i32 (*ssizeobjargproc)(object, isize, object) except -1
+    ctypedef i32 (*ssizessizeobjargproc)(object, isize, isize, object) except -1
+    ctypedef i32 (*objobjargproc)(object, object, object) except -1
+    ctypedef i32 (*objobjproc)(object, object) except -1
 
     ctypedef Py_hash_t (*hashfunc)(object) except -1
     ctypedef object (*reprfunc)(object)
 
-    ctypedef int (*cmpfunc)(object, object) except -2
-    ctypedef object (*richcmpfunc)(object, object, int)
+    ctypedef i32 (*cmpfunc)(object, object) except -2
+    ctypedef object (*richcmpfunc)(object, object, i32)
 
     # The following functions use 'PyObject*' as first argument instead of 'object' to prevent
     # accidental reference counting when calling them during a garbage collection run.
     ctypedef void (*destructor)(PyObject*)
-    ctypedef int (*visitproc)(PyObject*, void *) except -1
-    ctypedef int (*traverseproc)(PyObject*, visitproc, void*) except -1
+    ctypedef i32 (*visitproc)(PyObject*, void *) except -1
+    ctypedef i32 (*traverseproc)(PyObject*, visitproc, void*) except -1
     ctypedef void (*freefunc)(void*)
 
     ctypedef object (*descrgetfunc)(object, object, object)
-    ctypedef int (*descrsetfunc)(object, object, object) except -1
+    ctypedef i32 (*descrsetfunc)(object, object, object) except -1
 
     ctypedef object (*PyCFunction)(object, object)
 
     ctypedef struct PyMethodDef:
         const char* ml_name
         PyCFunction ml_meth
-        int ml_flags
+        i32 ml_flags
         const char* ml_doc
 
     ctypedef struct PyTypeObject:
         const char* tp_name
         const char* tp_doc
-        Py_ssize_t tp_basicsize
-        Py_ssize_t tp_itemsize
-        Py_ssize_t tp_dictoffset
+        isize tp_basicsize
+        isize tp_itemsize
+        isize tp_dictoffset
         unsigned long tp_flags
 
         newfunc tp_new
@@ -75,10 +74,10 @@ cdef extern from "Python.h":
         descrgetfunc tp_descr_get
         descrsetfunc tp_descr_set
 
-        unsigned int tp_version_tag
+        u32 tp_version_tag
 
     ctypedef struct PyObject:
-        Py_ssize_t ob_refcnt
+        isize ob_refcnt
         PyTypeObject *ob_type
 
     cdef PyTypeObject *Py_TYPE(object)
@@ -90,7 +89,7 @@ cdef extern from "Python.h":
     #####################################################################
     # 6.1 Object Protocol
     #####################################################################
-    int PyObject_Print(object o, FILE *fp, int flags) except -1
+    i32 PyObject_Print(object o, FILE *fp, i32 flags) except -1
     # Print an object o, on file fp. Returns -1 on error. The flags
     # argument is used to enable certain printing options. The only
     # option currently supported is Py_PRINT_RAW; if given, the str()
@@ -120,24 +119,24 @@ cdef extern from "Python.h":
 
     object PyObject_GenericGetAttr(object o, object attr_name)
 
-    int PyObject_SetAttrString(object o, const char *attr_name, object v) except -1
+    i32 PyObject_SetAttrString(object o, const char *attr_name, object v) except -1
     # Set the value of the attribute named attr_name, for object o, to
     # the value v. Returns -1 on failure. This is the equivalent of
     # the Python statement "o.attr_name = v".
 
-    int PyObject_SetAttr(object o, object attr_name, object v) except -1
+    i32 PyObject_SetAttr(object o, object attr_name, object v) except -1
     # Set the value of the attribute named attr_name, for object o, to
     # the value v. Returns -1 on failure. This is the equivalent of
     # the Python statement "o.attr_name = v".
 
-    int PyObject_GenericSetAttr(object o, object attr_name, object v) except -1
+    i32 PyObject_GenericSetAttr(object o, object attr_name, object v) except -1
 
-    int PyObject_DelAttrString(object o, const char *attr_name) except -1
+    i32 PyObject_DelAttrString(object o, const char *attr_name) except -1
     # Delete attribute named attr_name, for object o. Returns -1 on
     # failure. This is the equivalent of the Python statement: "del
     # o.attr_name".
 
-    int PyObject_DelAttr(object o, object attr_name) except -1
+    i32 PyObject_DelAttr(object o, object attr_name) except -1
     # Delete attribute named attr_name, for object o. Returns -1 on
     # failure. This is the equivalent of the Python statement "del
     # o.attr_name".
@@ -148,14 +147,14 @@ cdef extern from "Python.h":
     # creates the dictionary if necessary.
     # New in version 3.3.
 
-    int PyObject_GenericSetDict(object o, object value, void *context) except -1
+    i32 PyObject_GenericSetDict(object o, object value, void *context) except -1
     # A generic implementation for the setter of a __dict__ descriptor. This
     # implementation does not allow the dictionary to be deleted.
     # New in version 3.3.
 
-    int Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
+    i32 Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
 
-    object PyObject_RichCompare(object o1, object o2, int opid)
+    object PyObject_RichCompare(object o1, object o2, i32 opid)
     # Return value: New reference.
     # Compare the values of o1 and o2 using the operation specified by
     # opid, which must be one of Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, or
@@ -165,7 +164,7 @@ cdef extern from "Python.h":
     # opid. Returns the value of the comparison on success, or NULL on
     # failure.
 
-    bint PyObject_RichCompareBool(object o1, object o2, int opid) except -1
+    bint PyObject_RichCompareBool(object o1, object o2, i32 opid) except -1
     # Compare the values of o1 and o2 using the operation specified by
     # opid, which must be one of Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, or
     # Py_GE, corresponding to <, <=, ==, !=, >, or >=
@@ -173,14 +172,14 @@ cdef extern from "Python.h":
     # otherwise. This is the equivalent of the Python expression "o1
     # op o2", where op is the operator corresponding to opid.
 
-    int PyObject_Cmp(object o1, object o2, int *result) except -1
+    i32 PyObject_Cmp(object o1, object o2, i32 *result) except -1
     # Compare the values of o1 and o2 using a routine provided by o1,
     # if one exists, otherwise with a routine provided by o2. The
     # result of the comparison is returned in result. Returns -1 on
     # failure. This is the equivalent of the Python statement "result
     # = cmp(o1, o2)".
 
-    int PyObject_Compare(object o1, object o2) except *
+    i32 PyObject_Compare(object o1, object o2) except *
     # Compare the values of o1 and o2 using a routine provided by o1,
     # if one exists, otherwise with a routine provided by o2. Returns
     # the result of the comparison on success. On error, the value
@@ -346,14 +345,14 @@ cdef extern from "Python.h":
     # Return true if the object o is of type type or a subtype of
     # type. Both parameters must be non-NULL.
 
-    Py_ssize_t PyObject_Length(object o) except -1
-    Py_ssize_t PyObject_Size(object o) except -1
+    isize PyObject_Length(object o) except -1
+    isize PyObject_Size(object o) except -1
     # Return the length of object o. If the object o provides either
     # the sequence and mapping protocols, the sequence length is
     # returned. On error, -1 is returned. This is the equivalent to
     # the Python expression "len(o)".
 
-    Py_ssize_t PyObject_LengthHint(object o, Py_ssize_t default) except -1
+    isize PyObject_LengthHint(object o, isize default) except -1
     # Return an estimated length for the object o. First try to return its
     # actual length, then an estimate using __length_hint__(), and finally
     # return the default value. On error, return -1. This is the equivalent to
@@ -366,15 +365,15 @@ cdef extern from "Python.h":
     # failure. This is the equivalent of the Python expression
     # "o[key]".
 
-    int PyObject_SetItem(object o, object key, object v) except -1
+    i32 PyObject_SetItem(object o, object key, object v) except -1
     # Map the object key to the value v. Returns -1 on failure. This
     # is the equivalent of the Python statement "o[key] = v".
 
-    int PyObject_DelItem(object o, object key) except -1
+    i32 PyObject_DelItem(object o, object key) except -1
     # Delete the mapping for key from o. Returns -1 on failure. This
     # is the equivalent of the Python statement "del o[key]".
 
-    int PyObject_AsFileDescriptor(object o) except -1
+    i32 PyObject_AsFileDescriptor(object o) except -1
     # Derives a file-descriptor from a Python object. If the object is
     # an integer or long integer, its value is returned. If not, the
     # object's fileno() method is called if it exists; the method must
@@ -398,7 +397,7 @@ cdef extern from "Python.h":
     # itself if the object is already an iterator. Raises TypeError
     # and returns NULL if the object cannot be iterated.
 
-    Py_ssize_t Py_SIZE(object o)
+    isize Py_SIZE(object o)
 
     object PyObject_Format(object obj, object format_spec)
     # Takes an arbitrary object and returns the result of calling

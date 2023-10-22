@@ -3,12 +3,12 @@
 cdef extern from "Python.h":
 
     ctypedef class __builtin__.list  [object PyListObject]:
-        cdef Py_ssize_t allocated
+        cdef isize allocated
 
     ctypedef class __builtin__.dict  [object PyDictObject]:
         pass
 
-    cdef Py_ssize_t Py_SIZE(object o)
+    cdef isize Py_SIZE(object o)
 
 cdef list L = [1,2,4]
 cdef dict d = {'A': 'a'}

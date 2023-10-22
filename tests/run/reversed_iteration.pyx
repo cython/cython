@@ -80,7 +80,7 @@ def enumerate_reversed_list(list l):
     TypeError: 'NoneType' object is not iterable
     """
     result = []
-    cdef Py_ssize_t i
+    cdef isize i
     for i, item in enumerate(reversed(l)):
         result.append((i, item))
     return result

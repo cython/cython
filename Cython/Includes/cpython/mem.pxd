@@ -1,5 +1,4 @@
 cdef extern from "Python.h":
-
     #####################################################################
     # 9.2 Memory Interface
     #####################################################################
@@ -27,16 +26,16 @@ cdef extern from "Python.h":
     # available for allocating and releasing memory from the Python
     # heap:
 
-    void* PyMem_RawMalloc(size_t n) nogil
-    void* PyMem_Malloc(size_t n)
+    void* PyMem_RawMalloc(usize n) nogil
+    void* PyMem_Malloc(usize n)
     # Allocates n bytes and returns a pointer of type void* to the
     # allocated memory, or NULL if the request fails. Requesting zero
     # bytes returns a distinct non-NULL pointer if possible, as if
     # PyMem_Malloc(1) had been called instead. The memory will not
     # have been initialized in any way.
 
-    void* PyMem_RawCalloc(size_t nelem, size_t elsize) nogil
-    void* PyMem_Calloc(size_t nelem, size_t elsize)
+    void* PyMem_RawCalloc(usize nelem, usize elsize) nogil
+    void* PyMem_Calloc(usize nelem, usize elsize)
     # Allocates nelem elements each whose size in bytes is elsize and
     # returns a pointer of type void* to the allocated memory, or NULL if
     # the request fails. The memory is initialized to zeros. Requesting
@@ -44,8 +43,8 @@ cdef extern from "Python.h":
     # non-NULL pointer if possible, as if PyMem_Calloc(1, 1) had been
     # called instead.
 
-    void* PyMem_RawRealloc(void *p, size_t n) nogil
-    void* PyMem_Realloc(void *p, size_t n)
+    void* PyMem_RawRealloc(void *p, usize n) nogil
+    void* PyMem_Realloc(void *p, usize n)
     # Resizes the memory block pointed to by p to n bytes. The
     # contents will be unchanged to the minimum of the old and the new
     # sizes. If p is NULL, the call is equivalent to PyMem_Malloc(n);
@@ -65,12 +64,12 @@ cdef extern from "Python.h":
     # The following type-oriented macros are provided for
     # convenience. Note that TYPE refers to any C type.
 
-    # TYPE* PyMem_New(TYPE, size_t n)
+    # TYPE* PyMem_New(TYPE, usize n)
     # Same as PyMem_Malloc(), but allocates (n * sizeof(TYPE)) bytes
     # of memory. Returns a pointer cast to TYPE*. The memory will not
     # have been initialized in any way.
 
-    # TYPE* PyMem_Resize(void *p, TYPE, size_t n)
+    # TYPE* PyMem_Resize(void *p, TYPE, usize n)
     # Same as PyMem_Realloc(), but the memory block is resized to (n *
     # sizeof(TYPE)) bytes. Returns a pointer cast to TYPE*.
 
@@ -85,7 +84,6 @@ cdef extern from "Python.h":
 
     # PyMem_MALLOC(), PyMem_REALLOC(), PyMem_FREE().
     # PyMem_NEW(), PyMem_RESIZE(), PyMem_DEL().
-
 
     #####################################################################
     # Raw object memory interface
@@ -114,7 +112,7 @@ cdef extern from "Python.h":
     # the object gets initialized via PyObject_{Init, InitVar} after obtaining
     # the raw memory.
 
-    void* PyObject_Malloc(size_t size)
-    void* PyObject_Calloc(size_t nelem, size_t elsize)
-    void* PyObject_Realloc(void *ptr, size_t new_size)
+    void* PyObject_Malloc(usize size)
+    void* PyObject_Calloc(usize nelem, usize elsize)
+    void* PyObject_Realloc(void *ptr, usize new_size)
     void PyObject_Free(void *ptr)

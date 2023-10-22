@@ -1,17 +1,16 @@
 cdef extern from "Python.h":
-
     ###########################################################################
     # Codec registry and support functions
     ###########################################################################
 
-    int PyCodec_Register(object search_function)
+    i32 PyCodec_Register(object search_function)
     # Register a new codec search function.
 
     # As side effect, this tries to load the encodings package, if not yet
     # done, to make sure that it is always first in the list of search
     # functions.
 
-    int PyCodec_KnownEncoding(const char *encoding)
+    i32 PyCodec_KnownEncoding(const char *encoding)
     # Return 1 or 0 depending on whether there is a registered codec for the
     # given encoding. This function always succeeds.
 
@@ -68,7 +67,7 @@ cdef extern from "Python.h":
 
     # Registry API for Unicode encoding error handlers
 
-    int PyCodec_RegisterError(const char *name, object error) except? -1
+    i32 PyCodec_RegisterError(const char *name, object error) except? -1
     # Register the error handling callback function error under the given
     # name. This callback function will be called by a codec when it
     # encounters unencodable characters/undecodable bytes and name is

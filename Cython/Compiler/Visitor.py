@@ -202,7 +202,7 @@ class TreeVisitor(object):
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
+    @cython.locals(idx=cython.isize)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
