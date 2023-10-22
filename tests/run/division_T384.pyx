@@ -16,7 +16,7 @@ ctypedef struct MyStruct:
 
 @cython.cdivision(false)
 def test(index_t x):
-    cdef index_t y = x // 2
-    cdef MyStruct s
+    let index_t y = x // 2
+    let MyStruct s
     s.a = x + y*1j
     return s.a

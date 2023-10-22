@@ -27,7 +27,7 @@ def assign_py_hash_t(x):
     ...
     TypeError: __index__ ... (type ...float...)
     """
-    cdef Py_hash_t h = x
+    let Py_hash_t h = x
     return h
 
 

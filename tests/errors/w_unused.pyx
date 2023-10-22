@@ -32,8 +32,8 @@ def used(x, y):
     lambda x: x
 
 def unused_and_unassigned():
-    cdef object foo
-    cdef int i
+    let object foo
+    let int i
 
 def unused_generic(*args, **kwargs):
     pass
@@ -55,8 +55,8 @@ _ERRORS = """
 16:4: Unused result in 'r'
 21:4: Unused entry '_unused_one'
 25:4: Unused entry 'Unused'
-35:16: Unused entry 'foo'
-36:13: Unused entry 'i'
+35:15: Unused entry 'foo'
+36:12: Unused entry 'i'
 38:20: Unused argument 'args'
 38:28: Unused argument 'kwargs'
 41:26: Unused argument 'c'

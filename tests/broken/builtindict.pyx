@@ -1,7 +1,7 @@
 cdef i32 f() except -1:
-    cdef dict d
-    cdef object x, z
-    cdef i32 i
+    let dict d
+    let object x, z
+    let i32 i
     z = dict
     d = dict(x)
     d = dict(*x)

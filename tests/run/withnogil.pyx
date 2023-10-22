@@ -3,7 +3,7 @@ def f(x):
     >>> f(1)
     (1, 17)
     """
-    cdef int y
+    let int y
     z = 42
     with nogil:
         y = 17

@@ -49,6 +49,6 @@ def test_modf(x):
     >>> test_modf(2.5)
     (0.5, 2.0)
     """
-    cdef double i
-    cdef double f = modf(x, &i)
+    let double i
+    let double f = modf(x, &i)
     return (f, i)

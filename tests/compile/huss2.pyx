@@ -6,8 +6,8 @@ cdef enum Color:
     blue
 
 cdef void f():
-    cdef Color e
-    cdef i32 i
+    let Color e
+    let i32 i
 
     i = red
     i = red + 1

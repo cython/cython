@@ -78,7 +78,7 @@ def genexpr_range_in_listcomp(L):
     >>> genexpr_range_in_listcomp( [1,2,3] )
     [[0], [0, 1], [0, 1, 2]]
     """
-    cdef int z,d
+    let int z,d
     return [list(d for d in range(z)) for z in L]
 
 
@@ -97,8 +97,8 @@ def genexpr_over_array_slice():
     >>> list(genexpr_over_array_slice())
     [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
     """
-    cdef double x[10]
+    let double x[10]
     for i in range(10):
         x[i] = i
-    cdef int n = 5
+    let int n = 5
     return (n for n in x[:n+1])

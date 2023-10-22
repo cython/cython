@@ -15,7 +15,7 @@ def go_c_empty():
     >>> go_c_empty()
     20
     """
-    cdef int i = 20
+    let int i = 20
     for i in range(4,0):
         print u"Spam!"
     return i

@@ -510,7 +510,7 @@ def complex_finally_clause(x, obj):
     """
     name = 'module'
     l = []
-    cdef object lobj = l
+    let object lobj = l
 
     for i in range(3):
         l[:] = [1, 2, 3]

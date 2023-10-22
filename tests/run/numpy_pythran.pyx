@@ -23,7 +23,7 @@ def _diffuse_numpy(cnp.ndarray[double, ndim=2] u, int N):
     """
     Apply Numpy matrix for the Forward-Euler Approximation
     """
-    cdef cnp.ndarray[double, ndim=2] temp = np.zeros_like(u)
+    let cnp.ndarray[double, ndim=2] temp = np.zeros_like(u)
     mu = 0.1
 
     for n in range(N):
@@ -61,7 +61,7 @@ def access_shape():
     >>> access_shape()
     10
     """
-    cdef cnp.ndarray[double, ndim=2, mode='c'] array_in = \
+    let cnp.ndarray[double, ndim=2, mode='c'] array_in = \
                     1e10 * np.ones((10, 10))
 
     return array_in.shape[0]

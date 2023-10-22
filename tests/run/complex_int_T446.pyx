@@ -41,7 +41,7 @@ def test_coercion(int a, long b, int complex c):
     (3-3j)
     (5-6j)
     """
-    cdef double complex z
+    let double complex z
     z = a; print z
     z = b; print z
     z = c; print z

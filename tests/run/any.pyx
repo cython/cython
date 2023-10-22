@@ -1,6 +1,6 @@
 
 cdef class VerboseGetItem(object):
-    cdef object sequence
+    let object sequence
     def __init__(self, seq):
         self.sequence = seq
     def __getitem__(self, i):
@@ -210,7 +210,7 @@ def any_in_typed_gen(seq):
     5
     False
     """
-    cdef int x
+    let int x
     return any(x for x in seq)
 
 
@@ -292,5 +292,5 @@ def any_in_double_gen(seq):
     3
     False
     """
-    cdef int x
+    let int x
     return any(x for L in seq for x in L)

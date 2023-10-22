@@ -42,7 +42,7 @@ def typed_dictcomp():
     >>> list(typed_dictcomp().items())
     [(A, 1), (A, 1), (A, 1)]
     """
-    cdef A obj
+    let A obj
     return {obj:1 for obj in [A(), A(), A()]}
 
 def iterdict_dictcomp():
@@ -50,7 +50,7 @@ def iterdict_dictcomp():
     >>> sorted(iterdict_dictcomp().items())
     [(1, 'a'), (2, 'b'), (3, 'c')]
     """
-    cdef dict d = dict(a=1,b=2,c=3)
+    let dict d = dict(a=1,b=2,c=3)
     return {d[key]:key for key in d}
 
 def sorted(it):

@@ -14,7 +14,7 @@ def test_cpp_specialization(cython.floating element):
     >>> test_cpp_specialization[cython.f64](10.0)
     vector[double] * double 10.0
     """
-    cdef vector[cython.floating] *v = new vector[cython.floating]()
+    let vector[cython.floating] *v = new vector[cython.floating]()
     v.push_back(element)
     print cython.typeof(v), cython.typeof(element), v.at(0)
 
@@ -29,7 +29,7 @@ def typeid_call(C x):
     >>> typeid_call(1)
     True
     """
-    cdef const type_info* a = &typeid(C)
+    let const type_info* a = &typeid(C)
     return a[0] == tidint[0]
 
 cimport cython
@@ -40,7 +40,7 @@ def typeid_call2(cython.integral x):
     >>> typeid_call2[i32](1)
     True
     """
-    cdef const type_info* a = &typeid(cython.integral)
+    let const type_info* a = &typeid(cython.integral)
     return a[0] == tidint[0]
 
 cdef fused_ref(cython.integral& x):
@@ -66,8 +66,8 @@ def test_nested_fused():
     int
     long
     """
-    cdef vector[i32] vi = [0,1]
-    cdef vector[i64] vl = [0,1]
+    let vector[i32] vi = [0,1]
+    let vector[i64] vl = [0,1]
     print vec_of_fused(vi)
     print vec_of_fused(vl)
 
@@ -84,7 +84,7 @@ def test_nested_fused2():
     ('int', 'float')
     ('long', 'double')
     """
-    cdef map[i32, f32] mif = { 0: 0.0 }
-    cdef map[i64, f64] mld = { 0: 0.0 }
+    let map[i32, f32] mif = { 0: 0.0 }
+    let map[i64, f64] mld = { 0: 0.0 }
     print map_of_fused(mif)
     print map_of_fused(mld)

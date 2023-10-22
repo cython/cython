@@ -14,7 +14,7 @@ def double_to_short_int(double x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef short r = int(x)
+    let short r = int(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -29,7 +29,7 @@ def double_to_pyssizet_int(double x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef isize r = int(x)
+    let isize r = int(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -44,7 +44,7 @@ def int_to_pyssizet_int(int x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef isize r = int(x)
+    let isize r = int(x)
     return r
 
 ## @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -69,7 +69,7 @@ def int_to_short_int(int x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    cdef i16 r = int(x)
+    let i16 r = int(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -82,7 +82,7 @@ def short_to_float_float(i16 x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    cdef float r = float(x)
+    let float r = float(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -95,7 +95,7 @@ def short_to_double_float(i16 x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    cdef double r = float(x)
+    let double r = float(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -108,7 +108,7 @@ def short_to_double_int(i16 x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    cdef double r = int(x)
+    let double r = int(x)
     return r
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
@@ -122,7 +122,7 @@ def float_to_float_float(f32 x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef f32 r = float(x)
+    let f32 r = float(x)
     return r
 
 @cython.test_fail_if_path_exists("//SimpleCallNode",
@@ -137,7 +137,7 @@ def double_to_double_float(f64 x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef f64 r = float(x)
+    let f64 r = float(x)
     return r
 
 # tests that cannot be optimised
@@ -168,7 +168,7 @@ def double_to_double_int(f64 x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef f64 r = int(x)
+    let f64 r = int(x)
     return r
 
 @cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
@@ -186,7 +186,7 @@ def float_to_float_int(f32 x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef f32 r = int(x)
+    let f32 r = int(x)
     return r
 
 @cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
@@ -204,7 +204,7 @@ def float_to_double_int(f32 x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef f64 r = int(x)
+    let f64 r = int(x)
     return r
 
 @cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
@@ -222,7 +222,7 @@ def double_to_float_int(f64 x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef f32 r = int(x)
+    let f32 r = int(x)
     return r
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
@@ -276,7 +276,7 @@ def no_args_int_cint():
     >>> no_args_int_cint()
     0
     """
-    cdef i32 x = int()
+    let i32 x = int()
     return x
 
 @cython.test_fail_if_path_exists("//SimpleCallNode",
@@ -286,6 +286,6 @@ def no_args_float_cdouble():
     >>> no_args_float_cdouble()
     (0.0, 0.0)
     """
-    cdef f64 xd = float()
-    cdef f32 xf = float()
+    let f64 xd = float()
+    let f32 xf = float()
     return xd, xf

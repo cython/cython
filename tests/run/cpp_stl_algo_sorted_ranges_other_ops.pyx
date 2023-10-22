@@ -18,7 +18,7 @@ def test_merge(vector[int] v1, vector[int] v2):
     >>> test_merge([1, 3, 5], [2, 4])
     [1, 2, 3, 4, 5]
     """
-    cdef vector[int] out = vector[int](v1.size() + v2.size())
+    let vector[int] out = vector[int](v1.size() + v2.size())
     merge(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin())
     return out
 
@@ -29,7 +29,7 @@ def test_merge_with_bin_pred(vector[int] v1, vector[int] v2):
     >>> test_merge_with_bin_pred([1, 3, 5], [2, 4])
     [1, 2, 3, 4, 5]
     """
-    cdef vector[int] out = vector[int](v1.size() + v2.size())
+    let vector[int] out = vector[int](v1.size() + v2.size())
     merge(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin(), less)
     return out
 

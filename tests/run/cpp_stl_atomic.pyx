@@ -55,7 +55,7 @@ def stack_allocation_test(int x):
     >>> stack_allocation_test(100000)
     3
     """
-    cdef atomint32_t atom
+    let atomint32_t atom
     atom.store(x)
     try:
         atom.store(0)

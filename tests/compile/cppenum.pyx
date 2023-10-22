@@ -17,11 +17,11 @@ cdef enum struct parrot_state:
     dead = 0
 
 cdef void eggs():
-    cdef Spam s1
+    let Spam s1
     s1 = Spam.a
     s2 = Spam.b
 
-    cdef Cheese c1
+    let Cheese c1
     c1 = Cheese.x
 
 eggs()

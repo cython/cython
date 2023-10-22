@@ -22,8 +22,8 @@ def test_unique_ptr():
     """
     >>> test_unique_ptr()
     """
-    cdef int alloc_count = 0, dealloc_count = 0
-    cdef unique_ptr[CountAllocDealloc] x_ptr
+    let int alloc_count = 0, dealloc_count = 0
+    let unique_ptr[CountAllocDealloc] x_ptr
     x_ptr.reset(new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert alloc_count == 1
     x_ptr.reset()
@@ -33,7 +33,7 @@ def test_unique_ptr():
     ##Repeat the above test with an explicit default_delete type
     alloc_count = 0
     dealloc_count = 0
-    cdef unique_ptr[CountAllocDealloc,default_delete[CountAllocDealloc]] x_ptr2
+    let unique_ptr[CountAllocDealloc,default_delete[CountAllocDealloc]] x_ptr2
     x_ptr2.reset(new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert alloc_count == 1
     x_ptr2.reset()
@@ -42,17 +42,17 @@ def test_unique_ptr():
 
     alloc_count = 0
     dealloc_count = 0
-    cdef unique_ptr[CountAllocDealloc,FreePtr[CountAllocDealloc]] x_ptr3
+    let unique_ptr[CountAllocDealloc,FreePtr[CountAllocDealloc]] x_ptr3
     x_ptr3.reset(new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert x_ptr3.get() != nullptr;
     x_ptr3.reset()
     assert x_ptr3.get() == nullptr;
 
     # Test that make_unique works
-    cdef unique_ptr[int] x_ptr4
+    let unique_ptr[int] x_ptr4
     x_ptr4 = make_unique[int](5)
     assert(x_ptr4) != nullptr
-    cdef unique_ptr[RaiseOnConstruct] x_ptr5
+    let unique_ptr[RaiseOnConstruct] x_ptr5
     try:
         x_ptr5 = make_unique[RaiseOnConstruct]()
     except RuntimeError:
@@ -63,13 +63,13 @@ def test_const_shared_ptr():
     """
     >>> test_const_shared_ptr()
     """
-    cdef int alloc_count = 0, dealloc_count = 0
-    cdef shared_ptr[const CountAllocDealloc] ptr = shared_ptr[const_CountAllocDealloc](
+    let int alloc_count = 0, dealloc_count = 0
+    let shared_ptr[const CountAllocDealloc] ptr = shared_ptr[const_CountAllocDealloc](
         new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert alloc_count == 1
     assert dealloc_count == 0
 
-    cdef shared_ptr[const CountAllocDealloc] ptr2 = ptr
+    let shared_ptr[const CountAllocDealloc] ptr2 = ptr
     assert alloc_count == 1
     assert dealloc_count == 0
 
@@ -99,16 +99,16 @@ def test_assignment_to_base_class():
     """
     >>> test_assignment_to_base_class()
     """
-    cdef shared_ptr[C] derived = shared_ptr[C](new C())
-    cdef shared_ptr[A] base = derived
+    let shared_ptr[C] derived = shared_ptr[C](new C())
+    let shared_ptr[A] base = derived
 
 
 def test_dynamic_pointer_cast():
     """
     >>> test_dynamic_pointer_cast()
     """
-    cdef shared_ptr[B] b = shared_ptr[B](new B())
-    cdef shared_ptr[A] a = dynamic_pointer_cast[A, B](b)
+    let shared_ptr[B] b = shared_ptr[B](new B())
+    let shared_ptr[A] a = dynamic_pointer_cast[A, B](b)
     assert a.get() == b.get()
 
     a = shared_ptr[A](new A())

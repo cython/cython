@@ -1,8 +1,8 @@
 # mode: compile
 
 def test():
-    cdef object a = 1, b = 2
-    cdef char *p = 'abc'
+    let object a = 1, b = 2
+    let char *p = 'abc'
     a += b
     a -= b
     a *= b

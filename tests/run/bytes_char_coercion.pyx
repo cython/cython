@@ -94,7 +94,7 @@ def coerce_char_bytes_assign(char c):
     >>> coerce_char_bytes_assign(ord('A')) == 'A'.encode('ASCII')
     True
     """
-    cdef bytes s = c
+    let bytes s = c
     return s
 
 
@@ -110,7 +110,7 @@ def coerce_uchar_bytes_assign(u8 c):
     >>> b == '\\xff' or b == '\\xff'.encode('ISO-8859-1') # Py2 or Py3
     True
     """
-    cdef bytes s = c
+    let bytes s = c
     return s
 
 
@@ -130,7 +130,7 @@ def coerce_int_bytes_assign(int c):
     Traceback (most recent call last):
     OverflowError: value too large to pack into a byte
     """
-    cdef bytes s = c
+    let bytes s = c
     return s
 
 
@@ -150,7 +150,7 @@ def coerce_uint_bytes_assign(u32 c):
     Traceback (most recent call last):
     OverflowError: value too large to pack into a byte
     """
-    cdef bytes s = c
+    let bytes s = c
     return s
 
 
@@ -159,8 +159,8 @@ def inplace_ops_use_arithmetic():
     >>> print(inplace_ops_use_arithmetic().decode('ascii'))
     bc
     """
-    cdef char* s = 'abc'
-    cdef object x = 1
+    let char* s = 'abc'
+    let object x = 1
     s += 1
     s += 2*x
     s -= 1
@@ -176,5 +176,5 @@ def indexing_to_char(bytes s):
     >>> indexing_to_char('abc'.encode('ascii'))
     98
     """
-    cdef u8 c = s[1]
+    let u8 c = s[1]
     return c

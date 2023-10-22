@@ -134,7 +134,7 @@ def test_memslice_copy(f64[:] buf):
     Traceback (most recent call last):
     AttributeError: Cannot access 'copy' attribute of None memoryview slice
     """
-    cdef f64[:] copy = buf.copy()
+    let f64[:] copy = buf.copy()
 
 @cython.nonecheck(true)
 def test_memslice_transpose(f64[:] buf):
@@ -143,7 +143,7 @@ def test_memslice_transpose(f64[:] buf):
     Traceback (most recent call last):
     AttributeError: Cannot transpose None memoryview slice
     """
-    cdef f64[:] T = buf.T
+    let f64[:] T = buf.T
 
 @cython.nonecheck(true)
 def test_memslice_shape(f64[:] buf):
@@ -152,7 +152,7 @@ def test_memslice_shape(f64[:] buf):
     Traceback (most recent call last):
     AttributeError: Cannot access 'shape' attribute of None memoryview slice
     """
-    cdef isize extent = buf.shape[0]
+    let isize extent = buf.shape[0]
 
 @cython.nonecheck(true)
 def test_memslice_slice(f64[:] buf):
@@ -161,7 +161,7 @@ def test_memslice_slice(f64[:] buf):
     Traceback (most recent call last):
     TypeError: Cannot slice None memoryview slice
     """
-    cdef f64[:] sliced = buf[1:]
+    let f64[:] sliced = buf[1:]
 
 @cython.nonecheck(true)
 def test_memslice_slice2(f64[:] buf):
@@ -171,7 +171,7 @@ def test_memslice_slice2(f64[:] buf):
     Traceback (most recent call last):
     TypeError: Cannot slice None memoryview slice
     """
-    cdef f64[:] sliced = buf[:]
+    let f64[:] sliced = buf[:]
 
 @cython.nonecheck(true)
 def test_memslice_slice_assign(f64[:] buf):

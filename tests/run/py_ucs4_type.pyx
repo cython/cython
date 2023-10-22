@@ -170,7 +170,7 @@ def unicode_method_return_type(Py_UCS4 uchar):
     >>> unicode_method_return_type(ord('a'))
     [False, True]
     """
-    cdef Py_UCS4 uc, ul
+    let Py_UCS4 uc, ul
     uc, ul = uchar.upper(), uchar.lower()
     return [uc == uchar, ul == uchar]
 
@@ -212,7 +212,7 @@ def count_lower_case_characters(unicode ustring):
     >>> count_lower_case_characters(lower_ustring)
     16
     """
-    cdef isize count = 0
+    let isize count = 0
     for uchar in ustring:
          if uchar.islower():
              count += 1
@@ -231,7 +231,7 @@ def count_lower_case_characters_slice(unicode ustring):
     >>> sum([ 1 for uchar in lower_ustring[1:-1] if uchar.islower() ])
     14
     """
-    cdef isize count = 0
+    let isize count = 0
     for uchar in ustring[1:-1]:
          if uchar.islower():
              count += 1
@@ -250,7 +250,7 @@ def count_lower_case_characters_slice_reversed(unicode ustring):
     >>> sum([ 1 for uchar in lower_ustring[-2:0:-1] if uchar.islower() ])
     14
     """
-    cdef isize count = 0
+    let isize count = 0
     for uchar in ustring[-2:0:-1]:
          if uchar.islower():
              count += 1
@@ -264,7 +264,7 @@ def loop_object_over_latin1_unicode_literal():
     >>> ord(result[-1]) == 0xD7
     True
     """
-    cdef object uchar
+    let object uchar
     chars = []
     for uchar in u'abcdefg\xD7':
         chars.append(uchar)
@@ -278,7 +278,7 @@ def loop_object_over_unicode_literal():
     >>> ord(result[-1]) == 0xF8FD
     True
     """
-    cdef object uchar
+    let object uchar
     chars = []
     for uchar in u'abcdefg\uF8FD':
         chars.append(uchar)
@@ -328,7 +328,7 @@ def index_and_in():
     7
     8
     """
-    cdef int i
+    let int i
     for i in range(1,9):
         if u'abcdefgh'[-i] in u'abCDefGh':
             print i
@@ -368,7 +368,7 @@ def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
     >>> uchar_lookup_in_dict(d, u1)
     (1, 1)
     """
-    cdef dict d = obj
+    let dict d = obj
     dval = d[uchar]
     objval = obj[uchar]
     return dval, objval
@@ -384,9 +384,9 @@ def uchar_cast_to_int(Py_UCS4 uchar):
     Traceback (most recent call last):
     ValueError: invalid literal for int() with base 10: ...A...
     """
-    cdef object ustr_object = uchar
-    cdef str ustr_str = str(uchar)
-    cdef unicode ustr_unicode = uchar
+    let object ustr_object = uchar
+    let str ustr_str = str(uchar)
+    let unicode ustr_unicode = uchar
     return <int>uchar, <int>int(ustr_object[0]), <int>int(ustr_str[0]), <int>int(ustr_unicode[0]), <int>int(uchar)
 
 
@@ -400,9 +400,9 @@ def uchar_cast_to_float(Py_UCS4 uchar):
     Traceback (most recent call last):
     ValueError: could not convert string to float: ...A...
     """
-    cdef object ustr_object = uchar
-    cdef str ustr_str = str(uchar)
-    cdef unicode ustr_unicode = uchar
+    let object ustr_object = uchar
+    let str ustr_str = str(uchar)
+    let unicode ustr_unicode = uchar
     return <double>uchar, <double>float(ustr_object[0]), <double>float(ustr_str[0]), <double>float(ustr_unicode[0]), <double>float(uchar)
 
 

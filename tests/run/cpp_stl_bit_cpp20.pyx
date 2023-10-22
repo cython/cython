@@ -14,8 +14,8 @@ def test_bit_cast():
     >>> test_bit_cast()
     129
     """
-    cdef int8_t x = -127
-    cdef result = bit_cast[uint8_t, int8_t](x)
+    let int8_t x = -127
+    let result = bit_cast[uint8_t, int8_t](x)
     return result
 
 def test_has_single_bit():
@@ -24,8 +24,8 @@ def test_has_single_bit():
     >>> test_has_single_bit()
     True
     """
-    cdef uint8_t x = 1
-    cdef bint res = has_single_bit[uint8_t](x)
+    let uint8_t x = 1
+    let bint res = has_single_bit[uint8_t](x)
     return res
 
 def test_bit_ceil():
@@ -34,8 +34,8 @@ def test_bit_ceil():
     >>> test_bit_ceil()
     4
     """
-    cdef uint8_t x = 3
-    cdef uint8_t res = bit_ceil[uint8_t](x)
+    let uint8_t x = 3
+    let uint8_t res = bit_ceil[uint8_t](x)
     return res
 
 def test_bit_floor():
@@ -44,8 +44,8 @@ def test_bit_floor():
     >>> test_bit_floor()
     4
     """
-    cdef uint8_t x = 5
-    cdef uint8_t res = bit_floor[uint8_t](x)
+    let uint8_t x = 5
+    let uint8_t res = bit_floor[uint8_t](x)
     return res
 
 def test_bit_width():
@@ -54,8 +54,8 @@ def test_bit_width():
     >>> test_bit_width()
     3
     """
-    cdef uint8_t x = 5
-    cdef int res = bit_width[uint8_t](x)
+    let uint8_t x = 5
+    let int res = bit_width[uint8_t](x)
     return res
 
 def test_rotl():
@@ -64,9 +64,9 @@ def test_rotl():
     >>> test_rotl()
     209
     """
-    cdef uint8_t x = 29
-    cdef int s = 4
-    cdef uint8_t res = rotl[uint8_t](x, s)
+    let uint8_t x = 29
+    let int s = 4
+    let uint8_t res = rotl[uint8_t](x, s)
     return res
 
 def test_rotr():
@@ -75,9 +75,9 @@ def test_rotr():
     >>> test_rotr()
     142
     """
-    cdef uint8_t x = 29
-    cdef int s = 1
-    cdef uint8_t res = rotr[uint8_t](x, s)
+    let uint8_t x = 29
+    let int s = 1
+    let uint8_t res = rotr[uint8_t](x, s)
     return res
 
 def test_countl_zero():
@@ -86,8 +86,8 @@ def test_countl_zero():
     >>> test_countl_zero()
     3
     """
-    cdef uint8_t x = 24
-    cdef int res = countl_zero[uint8_t](x)
+    let uint8_t x = 24
+    let int res = countl_zero[uint8_t](x)
     return res
 
 def test_countr_zero():
@@ -96,8 +96,8 @@ def test_countr_zero():
     >>> test_countr_zero()
     3
     """
-    cdef uint8_t x = 24
-    cdef int res = countr_zero[uint8_t](x)
+    let uint8_t x = 24
+    let int res = countr_zero[uint8_t](x)
     return res
 
 def test_countl_one():
@@ -106,8 +106,8 @@ def test_countl_one():
     >>> test_countl_one()
     3
     """
-    cdef uint8_t x = 231
-    cdef int res = countl_one[uint8_t](x)
+    let uint8_t x = 231
+    let int res = countl_one[uint8_t](x)
     return res
 
 def test_countr_one():
@@ -116,8 +116,8 @@ def test_countr_one():
     >>> test_countr_one()
     3
     """
-    cdef uint8_t x = 231
-    cdef int res = countr_one[uint8_t](x)
+    let uint8_t x = 231
+    let int res = countr_one[uint8_t](x)
     return res
 
 def test_popcount():
@@ -126,6 +126,6 @@ def test_popcount():
     >>> test_popcount()
     8
     """
-    cdef uint8_t x = 255
-    cdef int res = popcount[uint8_t](x)
+    let uint8_t x = 255
+    let int res = popcount[uint8_t](x)
     return res

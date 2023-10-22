@@ -18,7 +18,7 @@ def call0():
     >>> call0()
     (True, 'yo')
     """
-    cdef A a = A()
+    let A a = A()
     return a.foo()
 
 def call1():
@@ -26,7 +26,7 @@ def call1():
     >>> call1()
     (False, 'yo')
     """
-    cdef A a = A()
+    let A a = A()
     return a.foo(false)
 
 def call2():
@@ -34,5 +34,5 @@ def call2():
     >>> call2()
     (False, 'go')
     """
-    cdef A a = A()
+    let A a = A()
     return a.foo(False, "go")

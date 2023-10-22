@@ -36,7 +36,7 @@ def range_sum_typed(int N):
     >>> range_sum_typed(10)
     45
     """
-    cdef int result = sum(i for i in range(N))
+    let int result = sum(i for i in range(N))
     return result
 
 
@@ -145,7 +145,7 @@ def return_typed_sum_squares_start(seq, int start):
     >>> print(return_typed_sum_squares_start(range(1000), 9))
     332833509
     """
-    cdef int i
+    let int i
     return <int>sum((i*i for i in seq), start)
 
 
@@ -200,7 +200,7 @@ def return_typed_sum_cond_exp(seq):
     >>> return_typed_sum_cond_exp([1,2,3,4])
     2
     """
-    cdef int i
+    let int i
     return <int>sum( 0 if i%2 else 1
                      for i in seq )
 
@@ -216,6 +216,6 @@ def return_typed_sum_cond_exp_in(seq):
     >>> return_typed_sum_cond_exp_in([1,2,3,4,5,6,7,8,9])
     3
     """
-    cdef int i
+    let int i
     return <int>sum( 0 if i%3 in (0,1) else 1
                      for i in seq )

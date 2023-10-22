@@ -112,7 +112,7 @@ def index_literal_char_coerce(i32 i):
     Traceback (most recent call last):
     IndexError: string index out of range
     """
-    cdef char result = b"12345"[i]
+    let char result = b"12345"[i]
     return result
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
@@ -132,7 +132,7 @@ def index_nonliteral_char_coerce(i32 i):
     Traceback (most recent call last):
     IndexError: string index out of range
     """
-    cdef char result = b12345[i]
+    let char result = b12345[i]
     return result
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
@@ -150,7 +150,7 @@ def index_literal_char_coerce_no_check(i32 i):
     >>> index_literal_char_coerce_no_check(4) == ord('5')
     True
     """
-    cdef char result = b"12345"[i]
+    let char result = b"12345"[i]
     return result
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
@@ -168,5 +168,5 @@ def index_nonliteral_char_coerce_no_check(i32 i):
     >>> index_nonliteral_char_coerce_no_check(4) == ord('5')
     True
     """
-    cdef char result = b12345[i]
+    let char result = b12345[i]
     return result

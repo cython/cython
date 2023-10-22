@@ -7,7 +7,7 @@ cdef union AllCharptr:
 
 
 def convert_ok():
-    cdef AllCharptr u
+    let AllCharptr u
     u.s1 = b"abc"
     return u
 
@@ -19,7 +19,7 @@ cdef union IllegalMix:
 
 
 def convert_nok():
-    cdef IllegalMix u
+    let IllegalMix u
     u.i = 5
     return u
 

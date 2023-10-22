@@ -11,7 +11,7 @@ def simple_test():
     """
     >>> simple_test()
     """
-    cdef any u
+    let any u
     assert not u.has_value()
     v = new any(u)
     assert not v.has_value()
@@ -24,7 +24,7 @@ def reset_test():
     """
     >>> reset_test()
     """
-    cdef any a
+    let any a
     assert not a.has_value()
     a = 42
     assert a.has_value()
@@ -35,7 +35,7 @@ def cast_test():
     """
     >>> cast_test()
     """
-    cdef any a
+    let any a
     a = 1
     assert a.type() == typeid(i32)
     assert any_cast[i32](a) == 1
@@ -56,7 +56,7 @@ def emplace_test():
     """
     >>> emplace_test()
     """
-    cdef any a
+    let any a
     a = 42
     assert any_cast[i32](a) == 42
     a.emplace[pair[i32, i32]](1,2)
@@ -70,7 +70,7 @@ def swap_test():
     """
     >>> swap_test()
     """
-    cdef any a, b
+    let any a, b
     a = 42
     b = "hello"
     a.swap(b)

@@ -11,7 +11,7 @@ def simple_test():
     """
     >>> simple_test()
     """
-    cdef optional[int] o
+    let optional[int] o
     assert(not o.has_value())
     o = 5
     assert(o.has_value())
@@ -23,7 +23,7 @@ def operator_test():
     """
     >>> operator_test()
     """
-    cdef optional[int] o1, o2
+    let optional[int] o1, o2
 
     # operator bool
     assert(not o1)
@@ -55,7 +55,7 @@ def misc_methods_test():
     """
 
     # make_optional
-    cdef optional[int] o
+    let optional[int] o
     o = make_optional[int](5)
     assert(o == 5)
 
@@ -64,8 +64,8 @@ def misc_methods_test():
     assert(o == 6)
 
     # emplace
-    cdef optional[pair[int,int]] op
-    cdef pair[int,int]* val_ptr = &op.emplace(1,2)
+    let optional[pair[int,int]] op
+    let pair[int,int]* val_ptr = &op.emplace(1,2)
     assert(op.has_value())
     assert(op.value() == pair[int,int](1,2))
     assert(&op.value() == val_ptr) # check returned reference

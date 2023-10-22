@@ -175,7 +175,7 @@ def cdef_funcptr():
     1 2
     1 2
     """
-    cdef cfuncptr_type cfunc_ptr = get_cfuncptr()
+    let cfuncptr_type cfunc_ptr = get_cfuncptr()
     cfunc_ptr(1, 2)
     cfunc_ptr(1, b=2)
     cfunc_ptr(a=1, b=2)
@@ -195,7 +195,7 @@ def varargs():
     >>> print(varargs())
     abc
     """
-    cdef char[10] buffer
+    let char[10] buffer
     retval = snprintf(buffer, template="abc", size=10)
     if retval < 0:
         raise MemoryError()

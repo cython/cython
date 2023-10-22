@@ -1,7 +1,7 @@
 # mode: error
 
 def f(obj2):
-    cdef i32 *ptr1
+    let i32 *ptr1
     obj1 = obj2[ptr1::] # error
     obj1 = obj2[:ptr1:] # error
     obj1 = obj2[::ptr1] # error

@@ -22,7 +22,7 @@ def copy_int(vector[i32] values):
     >>> copy_int(range(5))
     [0, 1, 2, 3, 4]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     copy(values.begin(), values.end(), back_inserter(out))
     return out
 
@@ -36,7 +36,7 @@ def copy_int_if_odd(vector[i32] values):
     >>> copy_int_if_odd(range(5))
     [1, 3]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     copy_if(values.begin(), values.end(), back_inserter(out), is_odd)
     return out
 
@@ -47,7 +47,7 @@ def copy_int_n(vector[i32] values, i32 count):
     >>> copy_int_n(range(5), 2)
     [0, 1]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     copy_n(values.begin(), count, back_inserter(out))
     return out
 
@@ -69,7 +69,7 @@ def move_int(vector[i32] values):
     >>> move_int(range(5))
     [0, 1, 2, 3, 4]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     move(values.begin(), values.end(), back_inserter(out))
     return out
 
@@ -114,7 +114,7 @@ def string_to_ord(string s):
     >> string_to_ord(b"HELLO")
     [72, 69, 76, 76, 79]
     """
-    cdef vector[i32] ordinals
+    let vector[i32] ordinals
     transform(s.begin(), s.end(), back_inserter(ordinals), to_ord)
     return ordinals
 
@@ -192,7 +192,7 @@ def remove_spaces2(string s):
     >>> print(remove_spaces2(b"Text with some   spaces").decode("ascii"))
     Textwithsomespaces
     """
-    cdef string out
+    let string out
     remove_copy(s.begin(), s.end(), back_inserter(out), ord(" "))
     return out
 
@@ -203,7 +203,7 @@ def remove_whitespace2(string s):
     >>> print(remove_whitespace2(b"Text\n with\tsome \t  whitespaces\n\n").decode("ascii"))
     Textwithsomewhitespaces
     """
-    cdef string out
+    let string out
     remove_copy_if(s.begin(), s.end(), back_inserter(out), &is_whitespace)
     return out
 
@@ -237,7 +237,7 @@ def replace_ints2(vector[i32] values, i32 old, i32 new):
     >>> replace_ints2([5, 7, 4, 2, 8, 6, 1, 9, 0, 3], 8, 88)
     [5, 7, 4, 2, 88, 6, 1, 9, 0, 3]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     replace_copy(values.begin(), values.end(), back_inserter(out), old, new)
     return out
 
@@ -248,7 +248,7 @@ def replace_ints_less_than_five2(vector[i32] values, i32 new):
     >>> replace_ints_less_than_five2([5, 7, 4, 2, 88, 6, 1, 9, 0, 3], 55)
     [5, 7, 55, 55, 88, 6, 55, 9, 55, 55]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     replace_copy_if(values.begin(), values.end(), back_inserter(out), less_than_five, new)
     return out
 
@@ -258,7 +258,7 @@ def test_swap_ints():
     5 3
     3 5
     """
-    cdef i32 a = 5, b = 3
+    let i32 a = 5, b = 3
     print(a, b)
     swap(a, b)
     print(a, b)
@@ -269,7 +269,7 @@ def test_swap_vectors():
     [1, 2, 3] [4, 5, 6]
     [4, 5, 6] [1, 2, 3]
     """
-    cdef vector[i32] a = [1, 2, 3], b = [4, 5, 6]
+    let vector[i32] a = [1, 2, 3], b = [4, 5, 6]
     print(a, b)
     swap(a, b)
     print(a, b)
@@ -280,7 +280,7 @@ def test_swap_ranges():
     [1, 2, 3] [4, 5, 6]
     [4, 5, 6] [1, 2, 3]
     """
-    cdef vector[i32] a = [1, 2, 3], b = [4, 5, 6]
+    let vector[i32] a = [1, 2, 3], b = [4, 5, 6]
     print(a, b)
     swap_ranges(a.begin(), a.end(), b.begin())
     print(a, b)
@@ -318,7 +318,7 @@ def reverse_ints2(vector[i32] values):
     >>> reverse_ints2([1, 2, 3])
     [3, 2, 1]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     reverse_copy(values.begin(), values.end(), back_inserter(out))
     return out
 
@@ -342,8 +342,8 @@ def rotate_ints_about_middle(vector[i32] values):
     >>> rotate_ints_about_middle([1, 2, 3, 4, 5])
     [3, 4, 5, 1, 2]
     """
-    cdef vector[i32] out
-    cdef vector[i32].iterator pivot = values.begin() + values.size()/2
+    let vector[i32] out
+    let vector[i32].iterator pivot = values.begin() + values.size()/2
     rotate_copy(values.begin(), pivot, values.end(), back_inserter(out))
     return out
 
@@ -379,7 +379,7 @@ def unique_ints2(vector[i32] values):
     >>> unique_ints2([1, 2, 3, 1, 2, 3, 3, 4, 5, 4, 5, 6, 7])
     [1, 2, 3, 4, 5, 6, 7]
     """
-    cdef vector[i32] out
+    let vector[i32] out
     sort(values.begin(), values.end())
     unique_copy(values.begin(), values.end(), back_inserter(out))
     return out
@@ -391,6 +391,6 @@ def collapse_spaces2(string text):
     >>> print(collapse_spaces2(b"The      string    with many       spaces!").decode("ascii"))
     The string with many spaces!
     """
-    cdef string out
+    let string out
     unique_copy(text.begin(), text.end(), back_inserter(out), &both_space)
     return out

@@ -146,8 +146,8 @@ def test_cast_template_pointer():
     """
     >>> test_cast_template_pointer()
     """
-    cdef SubClass[i32, f32] *sub = new SubClass[i32, f32]()
-    cdef SuperClass[i32, f32] *sup
+    let SubClass[i32, f32] *sub = new SubClass[i32, f32]()
+    let SuperClass[i32, f32] *sup
 
     sup = sub
     sup = <SubClass[i32, f32] *> sub

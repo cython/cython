@@ -31,7 +31,7 @@ def int_runvar():
     >>> int_runvar()
     [0, 4, 8]
     """
-    cdef int x
+    let int x
     print [x*2 for x in range(5) if x % 2 == 0]
 
 
@@ -43,7 +43,7 @@ def typed():
     >>> typed()
     [A, A, A]
     """
-    cdef A obj
+    let A obj
     print [obj for obj in [A(), A(), A()]]
 
 
@@ -68,7 +68,7 @@ def iterdict():
     >>> iterdict()
     [1, 2, 3]
     """
-    cdef dict d = dict(a=1,b=2,c=3)
+    let dict d = dict(a=1,b=2,c=3)
     l = [d[key] for key in d]
     l.sort()
     print l
@@ -195,7 +195,7 @@ def listcomp_const_condition_false_typed_error():
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef str l
+    let str l
     if not [l for l in [1] if False]:
         return true
     return false

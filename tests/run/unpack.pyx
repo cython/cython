@@ -139,7 +139,7 @@ def unpack_fail_assignment(it):
     >>> it.count
     4
     """
-    cdef object a,b,c
+    let object a,b,c
     a = b = c = 0
     try:
         a, b[0], c = it
@@ -162,7 +162,7 @@ def unpack_partial_typed(it):
     >>> it.count
     4
     """
-    cdef int a,b,c
+    let int a,b,c
     a = b = c = 0
     try:
         a, b, c = it
@@ -202,9 +202,9 @@ def unpack_typed(it):
     >>> it.count
     4
     """
-    cdef int a
-    cdef float b
-    cdef list c
+    let int a
+    let float b
+    let list c
     a,b,c = it
     return a,b,c
 
@@ -362,9 +362,9 @@ def unpack_many_int(it):
     >>> unpack_many_int(tuple(items))
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     """
-    cdef i32 b
-    cdef i64 f
-    cdef isize h
+    let i32 b
+    let i64 f
+    let isize h
     a,b,c,d,e,f,g,h,i,j,k,l = it
     return a,b,c,d,e,f,g,h,i,j,k,l
 
@@ -375,7 +375,7 @@ def unpack_literal_none_to_builtin_type():
     >>> unpack_literal_none_to_builtin_type()
     (None, None, None, None)
     """
-    cdef list a,b,c,d
+    let list a,b,c,d
     a, b = c, d = None, None
     return a,b,c,d
 
@@ -390,7 +390,7 @@ def unpack_literal_none_to_exttype():
     >>> unpack_literal_none_to_exttype()
     (None, None, None, None)
     """
-    cdef ExtType a,b,c,d
+    let ExtType a,b,c,d
     a, b = c, d = None, None
     return a,b,c,d
 

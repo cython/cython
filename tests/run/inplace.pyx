@@ -37,9 +37,9 @@ def arrays():
     >>> arrays()
     19
     """
-    cdef char* buf = <char*>stdlib.malloc(10)
-    cdef int i = 2
-    cdef object j = 2
+    let char* buf = <char*>stdlib.malloc(10)
+    let int i = 2
+    let object j = 2
     buf[2] = 0
     buf[i] += 2
     buf[2] *= 10
@@ -48,9 +48,9 @@ def arrays():
     stdlib.free(buf)
 
 cdef class A:
-    cdef attr
-    cdef int attr2
-    cdef char* buf
+    let attr
+    let int attr2
+    let char* buf
     def __init__(self):
         self.attr = 3
         self.attr2 = 3
@@ -63,7 +63,7 @@ def attributes():
     >>> attributes()
     26 26 26
     """
-    cdef A a = A()
+    let A a = A()
     b = B()
     a.attr += 10
     a.attr *= 2
@@ -81,8 +81,8 @@ def smoketest():
     >>> smoketest()
     10
     """
-    cdef char* buf = <char*>stdlib.malloc(10)
-    cdef A a = A()
+    let char* buf = <char*>stdlib.malloc(10)
+    let A a = A()
     a.buf = buf
     a.buf[identity(1)] = 0
     (a.buf + identity(4) - <int>(2*get_2() - 1))[get_2() - 2*identity(1)] += 10
@@ -107,11 +107,11 @@ def test_side_effects():
     c side effect 4
     ([0, 11, 102, 3, 4], [0, 1, 2, 13, 104])
     """
-    cdef object a = list(range(5))
+    let object a = list(range(5))
     a[side_effect(1)] += 10
     a[c_side_effect(2)] += 100
-    cdef int i
-    cdef int[5] b
+    let int i
+    let int[5] b
     for i from 0 <= i < 5:
         b[i] = i
     b[side_effect(3)] += 10
@@ -181,7 +181,7 @@ def nested_struct_assignment():
     """
     >>> nested_struct_assignment()
     """
-    cdef NestedA nested
+    let NestedA nested
     nested.a.value = 2
     nested.a.value += 3
     assert nested.a.value == 5
@@ -196,7 +196,7 @@ def nested_array_assignment():
     c side effect 0
     c side effect 1
     """
-    cdef ArrayOfA array
+    let ArrayOfA array
     array.a[0].value = 2
     array.a[c_side_effect(0)].value += 3
     assert array.a[0].value == 5
@@ -206,8 +206,8 @@ def nested_array_assignment():
     assert array.a[1].inner.x == 15
 
 cdef class VerboseDict(object):
-    cdef name
-    cdef dict dict
+    let name
+    let dict dict
     def __init__(self, name, **kwds):
         self.name = name
         self.dict = kwds

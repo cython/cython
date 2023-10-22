@@ -47,7 +47,7 @@ def test_derived_vtab():
     >>> test_derived_vtab()
     42
     """
-    cdef Derived d = Derived.__new__(Derived)
+    let Derived d = Derived.__new__(Derived)
     return d.f()
 
 
@@ -78,7 +78,7 @@ def make_new_typed_target():
     CINIT
     True
     """
-    cdef MyType m
+    let MyType m
     m = MyType.__new__(MyType)
     return m
 

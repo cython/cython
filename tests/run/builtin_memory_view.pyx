@@ -29,7 +29,7 @@ def test_create_from_buffer():
     True
     """
     other_view = memoryview(b'argh!')
-    cdef Py_buffer *buf = PyMemoryView_GET_BUFFER(other_view)
+    let Py_buffer *buf = PyMemoryView_GET_BUFFER(other_view)
     return memoryview(buf)
 '''
 

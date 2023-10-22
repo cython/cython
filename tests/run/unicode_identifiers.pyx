@@ -113,7 +113,7 @@ def regular_function():
     >>> regular_function()
     10
     """
-    cdef int variableƑ = 5
+    let int variableƑ = 5
     ναμε2 = 2
     return variableƑ*ναμε2
 

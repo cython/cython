@@ -4,10 +4,10 @@ def simple_values(obj1, obj2, obj3, obj4):
     >>> simple_values(True, False, 23, 'test')
     (0.0, 1.0, False, False)
     """
-    cdef i32 bool1, bool2
-    cdef f32 bool3, bool4
-    cdef i8 *ptr1, *ptr2, *ptr0
-    cdef f32 f
+    let i32 bool1, bool2
+    let f32 bool3, bool4
+    let i8 *ptr1, *ptr2, *ptr0
+    let f32 f
     bool1 = 1
     bool2 = 0
     ptr1 = ptr2 = NULL

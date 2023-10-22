@@ -341,7 +341,7 @@ def equals_many(obj2):
     >>> equals_many(-2**64+1)
     (False, False, False, False, False, False, False, False, False, False, False, False, False, False, True)
     """
-    cdef bint x, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o
+    let bint x, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o
     a = obj2 == 0
     x = 0 == obj2
     assert a == x
@@ -427,7 +427,7 @@ def not_equals_many(obj2):
     >>> not_equals_many(-2**64+1)
     (False, False, False, False, False, False, False, False, False, False, False, False, False, False, True)
     """
-    cdef bint a, b, c, d, e, f, g, h, i, j, k, l, m, n, o
+    let bint a, b, c, d, e, f, g, h, i, j, k, l, m, n, o
     a = obj2 != 0
     x = 0 != obj2
     assert a == x

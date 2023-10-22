@@ -29,16 +29,16 @@ def lshift(i64 a, u64 n):
     """
     if not a:
         return _PyLong_New(0)
-    cdef u64 apos = a if a > 0 else -a
+    let u64 apos = a if a > 0 else -a
     if (apos >> 1) >= <u64>PyLong_BASE:
         raise OverflowError
 
-    cdef u64 index = n // PyLong_SHIFT
-    cdef u64 shift = n % PyLong_SHIFT
+    let u64 index = n // PyLong_SHIFT
+    let u64 shift = n % PyLong_SHIFT
 
-    cdef digit d = apos
-    cdef digit low = (d << shift) & PyLong_MASK
-    cdef digit high = (d >> (PyLong_SHIFT - shift))
+    let digit d = apos
+    let digit low = (d << shift) & PyLong_MASK
+    let digit high = (d >> (PyLong_SHIFT - shift))
 
     if high == 0:
         ret = _PyLong_New(index + 1)

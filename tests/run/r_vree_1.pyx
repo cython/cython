@@ -33,7 +33,7 @@ else:
     """
 
 def test(k):
-    cdef u64 m
+    let u64 m
     m = k
     return m
 

@@ -11,43 +11,43 @@ from libcpp.unordered_set cimport unordered_set
 from libcpp.vector cimport vector
 
 def deque_iterator():
-    cdef deque[i32].iterator begin
-    cdef deque[i32].const_iterator cbegin = begin
+    let deque[i32].iterator begin
+    let deque[i32].const_iterator cbegin = begin
     begin = cbegin
 
 def list_iterator():
-    cdef list[i32].iterator begin
-    cdef list[i32].const_iterator cbegin = begin
+    let list[i32].iterator begin
+    let list[i32].const_iterator cbegin = begin
     begin = cbegin
 
 def map_iterator():
-    cdef map[i32, i32].iterator begin
-    cdef map[i32, i32].const_iterator cbegin = begin
+    let map[i32, i32].iterator begin
+    let map[i32, i32].const_iterator cbegin = begin
     begin = cbegin
 
 def set_iterator():
-    cdef set[i32].iterator begin
-    cdef set[i32].const_iterator cbegin = begin
+    let set[i32].iterator begin
+    let set[i32].const_iterator cbegin = begin
     begin = cbegin
 
 def string_iterator():
-    cdef string.iterator begin
-    cdef string.const_iterator cbegin = begin
+    let string.iterator begin
+    let string.const_iterator cbegin = begin
     begin = cbegin
 
 def map_iterator():
-    cdef unordered_map[i32, i32].iterator begin
-    cdef unordered_map[i32, i32].const_iterator cbegin = begin
+    let unordered_map[i32, i32].iterator begin
+    let unordered_map[i32, i32].const_iterator cbegin = begin
     begin = cbegin
 
 def set_iterator():
-    cdef unordered_set[i32].iterator begin
-    cdef unordered_set[i32].const_iterator cbegin = begin
+    let unordered_set[i32].iterator begin
+    let unordered_set[i32].const_iterator cbegin = begin
     begin = cbegin
 
 def vector_iterator():
-    cdef vector[i32].iterator begin
-    cdef vector[i32].const_iterator cbegin = begin
+    let vector[i32].iterator begin
+    let vector[i32].const_iterator cbegin = begin
     begin = cbegin
 
 _ERRORS = u"""

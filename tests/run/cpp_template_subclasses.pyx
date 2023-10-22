@@ -29,8 +29,8 @@ def testA(x):
     >>> testA(10)
     10.0
     """
-    cdef Base *base
-    cdef A[f64] *a = NULL
+    let Base *base
+    let A[f64] *a = NULL
     try:
         a = new A[f64]()
         base = a
@@ -44,9 +44,9 @@ def testB(x, y):
     >>> testB(1, 2)
     >>> testB(1, 1.5)
     """
-    cdef Base *base
-    cdef A[f64] *a
-    cdef B[i64, f64] *b = NULL
+    let Base *base
+    let A[f64] *a
+    let B[i64, f64] *b = NULL
     try:
         base = a = b = new B[i64, f64]()
         assert base.name() == b"B", base.name()
@@ -61,10 +61,10 @@ def testC(x, y):
     >>> testC(25, [1, 5, 25])
     >>> testC(105, [1, 3, 5, 7, 15, 21, 35, 105])
     """
-    cdef Base *base
-    cdef A[vector[i64]] *a
-    cdef B[i64, vector[i64]] *b
-    cdef C[vector[i64]] *c = NULL
+    let Base *base
+    let A[vector[i64]] *a
+    let B[i64, vector[i64]] *b
+    let C[vector[i64]] *c = NULL
     try:
         base = a = b = c = new C[vector[i64]]()
         assert base.name() == b"C", base.name()
@@ -80,11 +80,11 @@ def testD(x, y):
     >>> testD(2, 0.5)
     >>> testD(4, 0.25)
     """
-    cdef Base *base
-    cdef A[pair[f64, f64]] *a
-    cdef B[i64, pair[f64, f64]] *b
-    cdef C[pair[f64, f64]] *c
-    cdef D[f64] *d = NULL
+    let Base *base
+    let A[pair[f64, f64]] *a
+    let B[i64, pair[f64, f64]] *b
+    let C[pair[f64, f64]] *c
+    let D[f64] *d = NULL
     try:
         base = a = b = c = d = new D[f64]()
         assert base.name() == b"D", base.name()
@@ -100,12 +100,12 @@ def testE(x, y):
     >>> testD(2, 0.5)
     >>> testD(4, 0.25)
     """
-    cdef Base *base
-    cdef A[pair[f64, f64]] *a
-    cdef B[i64, pair[f64, f64]] *b
-    cdef C[pair[f64, f64]] *c
-    cdef D[f64] *d
-    cdef E *e = NULL
+    let Base *base
+    let A[pair[f64, f64]] *a
+    let B[i64, pair[f64, f64]] *b
+    let C[pair[f64, f64]] *c
+    let D[f64] *d
+    let E *e = NULL
     try:
         base = a = b = c = d = e = new E()
         assert base.name() == b"E", base.name()
@@ -161,5 +161,5 @@ def test_subclass_exception_values(bint fire):
     ...
     RuntimeError
     """
-    cdef GetInt getter
+    let GetInt getter
     return getter.get(fire)

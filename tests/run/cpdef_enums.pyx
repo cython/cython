@@ -127,9 +127,9 @@ def test_as_variable_from_cython():
     assert list(PxdEnum) == [RANK_0, RANK_1, RANK_2], list(PxdEnum)
 
 cdef int verify_pure_c() nogil:
-    cdef int x = TWO
-    cdef int y = PyxEnum.THREE
-    cdef int z = SecretPyxEnum.SEVEN
+    let int x = TWO
+    let int y = PyxEnum.THREE
+    let int z = SecretPyxEnum.SEVEN
     return x + y + z
 
 # Use it to suppress warning.

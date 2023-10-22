@@ -16,9 +16,9 @@ def test_subscripted_types():
     list object
     set object
     """
-    cdef typing.Dict[int, float] a = {}
-    cdef List[int] b = []
-    cdef _SET_[object] c = set()
+    let typing.Dict[int, float] a = {}
+    let List[int] b = []
+    let _SET_[object] c = set()
 
     print(cython.typeof(a))
     print(cython.typeof(b))
@@ -33,8 +33,8 @@ cdef class TestClassVar:
         ...
     AttributeError:
     """
-    cdef int regular
-    cdef typing.ClassVar[int] cls
+    let int regular
+    let typing.ClassVar[int] cls
     cls = 5
 
 # because tuple is specifically special cased to go to ctuple where possible
@@ -48,8 +48,8 @@ def test_tuple(typing.Tuple[int, float] a,  typing.Tuple[int, ...] b,
     tuple object
     tuple object
     """
-    cdef typing.Tuple[int, float] x = (a[0], a[1])  # C int/float
-    cdef Tuple[int, ...] y = (1,2.)
+    let typing.Tuple[int, float] x = (a[0], a[1])  # C int/float
+    let Tuple[int, ...] y = (1,2.)
     z = a[0]  # should infer to C int
 
     print(cython.typeof(z))

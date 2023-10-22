@@ -18,7 +18,7 @@ def test_non_optimised():
     True
     """
     # Non-optimized
-    cdef object foo = A
+    let object foo = A
     assert isinstance(A(), foo)
     return true
 
@@ -44,68 +44,68 @@ def test_optimised():
     True
     """
     # Optimized tests.
-    cdef object new_type = type('a',(),{})
+    let object new_type = type('a',(),{})
     assert isinstance(type('a',(),{}), type)
     assert isinstance(new_type, type)
 
-    cdef object boolval = True
+    let object boolval = True
     assert isinstance(boolval, bool)
     assert isinstance(True, bool)
 
-    cdef object intval = int()
+    let object intval = int()
     assert isinstance(intval, int)
     assert isinstance(int(), int)
 
-    cdef object longval = long()
+    let object longval = long()
     assert isinstance(longval, long)
     assert isinstance(long(), long)
 
-    cdef object floatval = float()
+    let object floatval = float()
     assert isinstance(floatval, float)
     assert isinstance(float(), float)
 
-    cdef object bytesval = bytes()
+    let object bytesval = bytes()
     assert isinstance(bytesval, bytes)
     assert isinstance(bytes(), bytes)
 
-    cdef object strval = str()
+    let object strval = str()
     assert isinstance(strval, str)
     assert isinstance(str(), str)
 
-    cdef object unicodeval = unicode()
+    let object unicodeval = unicode()
     assert isinstance(unicodeval, unicode)
     assert isinstance(unicode(), unicode)
 
-    cdef object tupleval = tuple()
+    let object tupleval = tuple()
     assert isinstance(tupleval, tuple)
     assert isinstance(tuple(), tuple)
 
-    cdef object listval = list()
+    let object listval = list()
     assert isinstance(listval, list)
     assert isinstance(list(), list)
 
-    cdef object dictval = dict()
+    let object dictval = dict()
     assert isinstance(dictval, dict)
     assert isinstance(dict(), dict)
 
-    cdef object setval = set()
+    let object setval = set()
     assert isinstance(setval, set)
     assert isinstance(set(), set)
 
-    cdef object sliceval = slice(0)
+    let object sliceval = slice(0)
     assert isinstance(sliceval, slice)
     assert isinstance(slice(0), slice)
 
-    cdef object complexval = complex()
+    let object complexval = complex()
     assert isinstance(complexval, complex)
     assert isinstance(complex(), complex)
 
     assert not isinstance(u"foo", int)
     assert isinstance(A, type)
     assert isinstance(A(), A)
-    cdef type typed_type = A
+    let type typed_type = A
     assert isinstance(A(), typed_type)
-    cdef object untyped_type = A
+    let object untyped_type = A
     assert isinstance(A(), <type>untyped_type)
     return true
 
@@ -170,7 +170,7 @@ def test_nested(x):
     >>> test_nested("a")
     False
     """
-    cdef object a = (x, None)
+    let object a = (x, None)
     if isinstance(a[0], (int, float)):
         return true
     return false

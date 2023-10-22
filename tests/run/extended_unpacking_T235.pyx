@@ -132,7 +132,7 @@ def unpack_typed(t):
     >>> unpack_typed((1,2))
     ([1], 2)
     """
-    cdef list a
+    let list a
     *a, b  = t
     return a,b
 
@@ -356,7 +356,7 @@ def unpack_many_right_loop(it):
     >>> unpack_many_right_loop(iter(range(14)))
     ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
     """
-    cdef int i
+    let int i
     for i in range(1):
         *a,b,c,d,e,f,g,h,i,j = it
     return a,b,c,d,e,f,g,h,i,j

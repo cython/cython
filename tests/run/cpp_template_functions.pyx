@@ -6,9 +6,9 @@ from libcpp.pair cimport pair
 from libcpp.vector cimport vector
 
 cdef extern from "cpp_template_functions_helper.h":
-    cdef T no_arg[T]()
-    cdef T one_param[T](T)
-    cdef pair[T, U] two_params[T, U](T, U)
+    let T no_arg[T]()
+    let T one_param[T](T)
+    let pair[T, U] two_params[T, U](T, U)
     cdef cppclass A[T]:
         pair[T, U] method[U](T, U)
         U part_method[U](pair[T, U])
@@ -17,9 +17,9 @@ cdef extern from "cpp_template_functions_helper.h":
         T overloaded(pair[T, T])
         U overloaded[U](vector[U])
         X overloaded[X](char* s, vector[X])
-    cdef T nested_deduction[T](const T*)
+    let T nested_deduction[T](const T*)
     pair[T, U] pair_arg[T, U](pair[T, U] a)
-    cdef T* pointer_param[T](T*)
+    let T* pointer_param[T](T*)
     cdef cppclass double_pair(pair[f64, f64]):
         double_pair(f64, f64)
 
@@ -49,8 +49,8 @@ def test_method(i32 x, i32 y):
     >>> test_method(5, 10)
     ((5, 10.0), (5.0, 10), (5, 10), (5.0, 10))
     """
-    cdef A[i32] a_int
-    cdef A[f64] a_double
+    let A[i32] a_int
+    let A[f64] a_double
     return (a_int.method[float](x, y), a_double.method[i32](x, y),
         a_int.method(x, y), a_double.method(x, y))
 #    return a_int.method[f64](x, y), a_double.method[i32](x, y)
@@ -60,10 +60,10 @@ def test_part_method(i32 x, i32 y):
     >>> test_part_method(5, 10)
     (10.0, 10, 10.0)
     """
-    cdef A[i32] a_int
-    cdef pair[i32, f64] p_int = (x, y)
-    cdef A[f64] a_double
-    cdef pair[f64, i32] p_double = (x, y)
+    let A[i32] a_int
+    let pair[i32, f64] p_int = (x, y)
+    let A[f64] a_double
+    let pair[f64, i32] p_double = (x, y)
     return (a_int.part_method(p_int),
         a_double.part_method(p_double),
         a_double.part_method_ref(double_pair(x, y)))
@@ -94,7 +94,7 @@ def test_deduce_through_pointers(i32 k):
     >>> test_deduce_through_pointers(5)
     (5, 5.0)
     """
-    cdef f64 x = k
+    let f64 x = k
     return pointer_param(&k)[0], pointer_param(&x)[0]
 
 def test_inference(i32 k):
@@ -110,11 +110,11 @@ def test_overload_GH1583():
     """
     >>> test_overload_GH1583()
     """
-    cdef A[i32] a
+    let A[i32] a
     assert a.overloaded(1.5) == 1
-    cdef pair[i32, i32] p = (2, 3)
+    let pair[i32, i32] p = (2, 3)
     assert a.overloaded(p) == 2
-    cdef vector[f64] v = [0.25, 0.125]
+    let vector[f64] v = [0.25, 0.125]
     assert a.overloaded(v) == 0.25
     assert a.overloaded("s", v) == 0.25
     # GH Issue #1584

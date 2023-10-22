@@ -49,7 +49,7 @@ def call_static_cdef(int x):
     >>> call_static_cdef(2)
     ('cdef', 2)
     """
-    cdef int *x_ptr = &x
+    let int *x_ptr = &x
     return A.static_cdef(x_ptr)
 
 def call_static_cdef2(int x, int y):
@@ -96,7 +96,7 @@ def call_static_pxd_cdef(int x):
     >>> call_static_pxd_cdef(2)
     ('pxd_cdef', 2)
     """
-    cdef int *x_ptr = &x
+    let int *x_ptr = &x
     return FromPxd.static_cdef(x_ptr)
 
 def call_static_pxd_cdef_with_implicit_object(int x):

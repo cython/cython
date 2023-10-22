@@ -9,7 +9,7 @@ cdef extern from *:
 
 
 def pass_py_obj_as_cpp_cont_ref():
-    cdef list ordered_set = [0, 0, 0, 0, 0]
+    let list ordered_set = [0, 0, 0, 0, 0]
     cpp_function_set1(ordered_set)
     cpp_function_set2(ordered_set)
 

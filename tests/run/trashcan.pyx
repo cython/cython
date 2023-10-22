@@ -19,7 +19,7 @@ def assert_no_double_deallocations():
 # See also https://github.com/python/cpython/pull/11841
 def recursion_test(f, int n=2**20):
     x = None
-    cdef int i
+    let int i
     for i in range(n):
         x = f(x)
 

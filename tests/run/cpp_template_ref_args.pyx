@@ -27,8 +27,8 @@ def test_template_ref_arg(int x):
     # Templated reference parameters in method
     # of templated classes were not properly coalesced.
 
-    cdef Foo[size_t] foo
-    cdef Bar[int] bar
+    let Foo[size_t] foo
+    let Bar[int] bar
 
     bar.value = x
 
@@ -39,7 +39,7 @@ def test_template_ref_attr(int x):
     >>> test_template_ref_attr(4)
     (4, 4)
     """
-    cdef Bar[int] bar
+    let Bar[int] bar
     bar.value = x
     return bar.ref().value, bar.const_ref().value
 
@@ -48,8 +48,8 @@ def test_template_ref_const_attr(int x):
     >>> test_template_ref_const_attr(4)
     4
     """
-    cdef vector[int] v
+    let vector[int] v
     v.push_back(x)
-    cdef const vector[int] *configs = &v
-    cdef int value = configs.at(0)
+    let const vector[int] *configs = &v
+    let int value = configs.at(0)
     return value

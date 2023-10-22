@@ -11,7 +11,7 @@ __doc__ = u"""
 ctypedef i128 foo
 
 def set_longlong(i128 ob, foo x, i64 y, val):
-    cdef object tank = {}
+    let object tank = {}
     tank[ob] = val
     tank[x] = val
     tank[y] = val

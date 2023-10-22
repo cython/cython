@@ -62,7 +62,7 @@ def libc_cimports():
     >>> libc_cimports()
     hello
     """
-    cdef char[10] buf
+    let char[10] buf
     sprintf(buf, "%s", b'hello')
     print (<object>buf).decode('ASCII')
 

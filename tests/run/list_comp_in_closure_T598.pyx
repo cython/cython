@@ -21,7 +21,7 @@ def pytyped_list_comp_in_closure():
     >>> pytyped_list_comp_in_closure()
     [0, 4, 8]
     """
-    cdef object x
+    let object x
     x = 'abc'
     def f():
         return x
@@ -35,7 +35,7 @@ def pytyped_list_comp_in_closure_repeated():
     >>> pytyped_list_comp_in_closure_repeated()
     [0, 4, 8]
     """
-    cdef object x
+    let object x
     x = 'abc'
     def f():
         return x
@@ -63,7 +63,7 @@ def pytyped_genexpr_in_closure():
     >>> pytyped_genexpr_in_closure()
     [0, 4, 8]
     """
-    cdef object x
+    let object x
     x = 'abc'
     def f():
         return x
@@ -77,7 +77,7 @@ def pytyped_genexpr_in_closure_repeated():
     >>> pytyped_genexpr_in_closure_repeated()
     [0, 4, 8]
     """
-    cdef object x
+    let object x
     x = 'abc'
     def f():
         return x

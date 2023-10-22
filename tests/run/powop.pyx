@@ -5,7 +5,7 @@ def f(obj2, obj3):
     >>> f(1.0, 2.95)[0] == f(1.0, 2.95)[1]
     True
     """
-    cdef float flt1, flt2, flt3
+    let float flt1, flt2, flt3
     flt2, flt3 = obj2, obj3
 
     flt1 = flt2 ** flt3

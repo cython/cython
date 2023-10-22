@@ -9,7 +9,7 @@ def test_deref(int x):
     >>> test_deref(5)
     (5, 5, 5)
     """
-    cdef int* x_ptr = &x
+    let int* x_ptr = &x
     return cython.operator.dereference(x_ptr), dereference(x_ptr), deref(x_ptr)
 
 def increment_decrement(int x):

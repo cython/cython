@@ -86,7 +86,7 @@ def tuple_none_list():
     Traceback (most recent call last):
     TypeError: ...iterable...
     """
-    cdef list none = None
+    let list none = None
     return tuple(none)
 
 

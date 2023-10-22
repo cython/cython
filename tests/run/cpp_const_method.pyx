@@ -19,7 +19,7 @@ def test_const_get(int x):
     >>> test_const_get(10)
     10
     """
-    cdef const Wrapper[int] *wrapper = new Wrapper[int](x)
+    let const Wrapper[int] *wrapper = new Wrapper[int](x)
     try:
         return const_get(wrapper[0])
     finally:
@@ -33,7 +33,7 @@ def test_const_ref_get(int x):
     >>> test_const_ref_get(100)
     100
     """
-    cdef const Wrapper[int] *wrapper = new Wrapper[int](x)
+    let const Wrapper[int] *wrapper = new Wrapper[int](x)
     try:
         return const_ref_get(wrapper[0])
     finally:
@@ -47,8 +47,8 @@ def test_const_pointer_get(int x):
     >>> test_const_pointer_get(1000)
     1000
     """
-    cdef Wrapper[int] *wrapper = new Wrapper[int](x)
-    cdef const Wrapper[int] *const_wrapper = wrapper
+    let Wrapper[int] *wrapper = new Wrapper[int](x)
+    let const Wrapper[int] *const_wrapper = wrapper
     try:
         return const_wrapper.get()
     finally:
@@ -63,10 +63,10 @@ def test_vector_members(py_a, py_b):
     >>> test_vector_members([1, 2, 3], [4,5, 6])
     ([1, 2, 3], 4)
     """
-    cdef Wrapper[int] *value
-    cdef const Wrapper[int] *const_value
-    cdef vector[const Wrapper[int]*] a
-    cdef vector[wrapInt*] b
+    let Wrapper[int] *value
+    let const Wrapper[int] *const_value
+    let vector[const Wrapper[int]*] a
+    let vector[wrapInt*] b
     for x in py_a:
         a.push_back(new Wrapper[int](x))
     for x in py_b:

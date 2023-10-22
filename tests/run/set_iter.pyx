@@ -25,7 +25,7 @@ def set_iter_comp_typed(set s):
     >>> sorted(set_iter_comp(s))
     [1, 2, 3]
     """
-    cdef int x
+    let int x
     return [x for x in s]
 
 
@@ -90,7 +90,7 @@ def set_iter_enumerate(set s):
     >>> sorted(values)
     ['a', 'b', 'c']
     """
-    cdef int i
+    let int i
     numbers = []
     values = []
     for i, x in enumerate(s):

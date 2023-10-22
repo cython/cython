@@ -12,7 +12,7 @@ def test_set_clear_bound():
     >>> list(test_set_clear_bound())
     []
     """
-    cdef set s1 = set([1])
+    let set s1 = set([1])
     clear = s1.clear
     clear()
     return s1

@@ -3,9 +3,9 @@ def f(obj1, obj2, obj3):
     >>> f(1, 2, 3)
     (-3, -4, 1)
     """
-    cdef int bool1, bool2
-    cdef int int1, int2
-    cdef char *str1
+    let int bool1, bool2
+    let int int1, int2
+    let char *str1
 
     int2 = obj3
     str1 = NULL

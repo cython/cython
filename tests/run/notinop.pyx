@@ -22,7 +22,7 @@ def g(a,b):
     >>> g(2,(1,2,3))
     0
     """
-    cdef int result
+    let int result
     result = a not in b
     return result
 
@@ -43,7 +43,7 @@ def j(b):
     >>> j([1,3,4])
     1
     """
-    cdef int result
+    let int result
     result = 2 not in b
     return result
 
@@ -55,7 +55,7 @@ def k(a):
     >>> k(5)
     1
     """
-    cdef int result = a not in [1,2,3,4]
+    let int result = a not in [1,2,3,4]
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -67,7 +67,7 @@ def m_list(int a):
     >>> m_list(5)
     1
     """
-    cdef int result = a not in [1,2,3,4]
+    let int result = a not in [1,2,3,4]
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -79,7 +79,7 @@ def m_tuple(int a):
     >>> m_tuple(5)
     1
     """
-    cdef int result = a not in (1,2,3,4)
+    let int result = a not in (1,2,3,4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -91,7 +91,7 @@ def m_set(int a):
     >>> m_set(5)
     1
     """
-    cdef int result = a not in {1,2,3,4}
+    let int result = a not in {1,2,3,4}
     return result
 
 cdef bytes bytes_string = b'abcdefg'
@@ -105,7 +105,7 @@ def m_bytes(char a):
     >>> m_bytes(ord('X'))
     1
     """
-    cdef int result = a not in bytes_string
+    let int result = a not in bytes_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -117,7 +117,7 @@ def m_bytes_literal(char a):
     >>> m_bytes_literal(ord('X'))
     1
     """
-    cdef int result = a not in b'abcdefg'
+    let int result = a not in b'abcdefg'
     return result
 
 cdef unicode unicode_string = u'abcdefg\u1234\uF8D2'
@@ -143,7 +143,7 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
     """
-    cdef int result = a not in unicode_string
+    let int result = a not in unicode_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -157,7 +157,7 @@ def m_unicode_literal(Py_UNICODE a):
     >>> m_unicode_literal(ord(py_klingon_character))
     0
     """
-    cdef int result = a not in u'abcdefg\u1234\uF8D2'
+    let int result = a not in u'abcdefg\u1234\uF8D2'
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
@@ -171,7 +171,7 @@ def m_tuple_in_or_notin(int a):
     >>> m_tuple_in_or_notin(5)
     1
     """
-    cdef int result = a not in (1,2,3,4) or a in (3,4)
+    let int result = a not in (1,2,3,4) or a in (3,4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
@@ -185,7 +185,7 @@ def m_tuple_notin_or_notin(int a):
     >>> m_tuple_notin_or_notin(4)
     0
     """
-    cdef int result = a not in (1,2,3,4) or a not in (4,5)
+    let int result = a not in (1,2,3,4) or a not in (4,5)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -199,7 +199,7 @@ def m_tuple_notin_and_notin(int a):
     >>> m_tuple_notin_and_notin(5)
     1
     """
-    cdef int result = a not in (1,2,3,4) and a not in (6,7)
+    let int result = a not in (1,2,3,4) and a not in (6,7)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
@@ -213,7 +213,7 @@ def m_tuple_notin_and_notin_overlap(int a):
     >>> m_tuple_notin_and_notin_overlap(5)
     1
     """
-    cdef int result = a not in (1,2,3,4) and a not in (3,4)
+    let int result = a not in (1,2,3,4) and a not in (3,4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -286,7 +286,7 @@ def n(a):
     >>> n('xxx')
     1
     """
-    cdef int result = a.lower() not in [u'a *',u'b *',u'c *',u'd *']
+    let int result = a.lower() not in [u'a *',u'b *',u'c *',u'd *']
     return result
 
 def p(a):
@@ -296,8 +296,8 @@ def p(a):
     >>> p(1)
     1
     """
-    cdef dict d = {u'a': 1, u'b': 2}
-    cdef int result = a not in d
+    let dict d = {u'a': 1, u'b': 2}
+    let int result = a not in d
     return result
 
 def q(a):
@@ -306,6 +306,6 @@ def q(a):
     Traceback (most recent call last):
     TypeError: 'NoneType' object is not iterable
     """
-    cdef dict d = None
-    cdef int result = a not in d # should fail with a TypeError
+    let dict d = None
+    let int result = a not in d # should fail with a TypeError
     return result

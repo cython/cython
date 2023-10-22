@@ -14,6 +14,6 @@ cdef extern from "string.h":
 from cpython cimport PyUnicode_DecodeUTF8
 
 def spam():
-    cdef char[12] buf
+    let char[12] buf
     memcpy(buf, "Ftang\0Ftang!", sizeof(buf))
     return PyUnicode_DecodeUTF8(buf, sizeof(buf), NULL)

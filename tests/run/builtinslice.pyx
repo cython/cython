@@ -13,9 +13,9 @@ def typed_slice():
     >>> typed_slice()
     (1, 2, 3)
     """
-    cdef slice s
-    cdef object z
-    cdef isize a,b,c
+    let slice s
+    let object z
+    let isize a,b,c
 
     z = slice
     s = slice(1, 2, 3)
@@ -33,9 +33,9 @@ def plain_object_slice():
     >>> plain_object_slice()
     (1, 2, 3)
     """
-    cdef object s
-    cdef object z
-    cdef isize a,b,c
+    let object s
+    let object z
+    let isize a,b,c
 
     s = slice(1, 2, 3)
     s.indices

@@ -68,8 +68,8 @@ def test_GH2059_missing_cast():
     >>> test_GH2059_missing_cast()
     (A, A)
     """
-    cdef A a = A()
-    cdef object o = None
-    cdef A a_first = a or o
-    cdef A a_second = o or a
+    let A a = A()
+    let object o = None
+    let A a_first = a or o
+    let A a_second = o or a
     return a_first, a_second

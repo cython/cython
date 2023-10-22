@@ -1,6 +1,6 @@
 cdef int f() except -1:
-    cdef type t
-    cdef object x
+    let type t
+    let object x
     t = buffer
     t = enumerate
     t = file

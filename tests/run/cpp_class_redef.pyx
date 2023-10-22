@@ -14,7 +14,7 @@ def test_Foo(n):
     >>> test_Foo(1)
     1
     """
-    cdef Foo* foo = NULL
+    let Foo* foo = NULL
     try:
         foo = new Foo()
         foo.set_foo(n)

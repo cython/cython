@@ -39,7 +39,7 @@ def test_set_difference(vector[int] v1, vector[int] v2):
     >>> test_set_difference([1, 2, 5, 5, 5, 9], [2, 5, 7])
     [1, 5, 5, 9]
     """
-    cdef vector[int] diff = vector[int](4)
+    let vector[int] diff = vector[int](4)
     set_difference(v1.begin(), v1.end(), v2.begin(), v2.end(), diff.begin())
     return diff
 
@@ -50,7 +50,7 @@ def test_set_difference_with_bin_pred(vector[int] v1, vector[int] v2):
     >>> test_set_difference_with_bin_pred([1, 2, 5, 5, 5, 9], [2, 5, 7])
     [1, 5, 5, 9]
     """
-    cdef vector[int] diff = vector[int](4)
+    let vector[int] diff = vector[int](4)
     set_difference(v1.begin(), v1.end(), v2.begin(), v2.end(), diff.begin(), less)
     return diff
 
@@ -61,7 +61,7 @@ def test_set_intersection(vector[int] v1, vector[int] v2):
     >>> test_set_intersection([1, 2, 3, 4, 5, 6, 7, 8], [5, 7, 9, 10])
     [5, 7]
     """
-    cdef vector[int] out = vector[int](2)
+    let vector[int] out = vector[int](2)
     set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin())
     return out
 
@@ -72,7 +72,7 @@ def test_set_intersection_with_bin_pred(vector[int] v1, vector[int] v2):
     >>> test_set_intersection_with_bin_pred([1, 2, 3, 4, 5, 6, 7, 8], [5, 7, 9, 10])
     [5, 7]
     """
-    cdef vector[int] out = vector[int](2)
+    let vector[int] out = vector[int](2)
     set_intersection(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin(), less)
     return out
 
@@ -83,7 +83,7 @@ def test_set_symmetric_difference(vector[int] v1, vector[int] v2):
     >>> test_set_symmetric_difference([1, 2, 3, 4, 5, 6, 7, 8], [5, 7, 9, 10])
     [1, 2, 3, 4, 6, 8, 9, 10]
     """
-    cdef vector[int] out = vector[int](8)
+    let vector[int] out = vector[int](8)
     set_symmetric_difference(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin())
     return out
 
@@ -94,7 +94,7 @@ def test_set_symmetric_difference_with_bin_pred(vector[int] v1, vector[int] v2):
     >>> test_set_symmetric_difference_with_bin_pred([1, 2, 3, 4, 5, 6, 7, 8], [5, 7, 9, 10])
     [1, 2, 3, 4, 6, 8, 9, 10]
     """
-    cdef vector[int] out = vector[int](8)
+    let vector[int] out = vector[int](8)
     set_symmetric_difference(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin(), less)
     return out
 
@@ -105,7 +105,7 @@ def test_set_union(vector[int] v1, vector[int] v2):
     >>> test_set_union([1, 2, 3, 4, 5], [3, 4, 5, 6, 7])
     [1, 2, 3, 4, 5, 6, 7]
     """
-    cdef vector[int] out = vector[int](7)
+    let vector[int] out = vector[int](7)
     set_union(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin())
     return out
 
@@ -116,6 +116,6 @@ def test_set_union_with_bin_pred(vector[int] v1, vector[int] v2):
     >>> test_set_union_with_bin_pred([1, 2, 3, 4, 5], [3, 4, 5, 6, 7])
     [1, 2, 3, 4, 5, 6, 7]
     """
-    cdef vector[int] out = vector[int](7)
+    let vector[int] out = vector[int](7)
     set_union(v1.begin(), v1.end(), v2.begin(), v2.end(), out.begin(), less)
     return out

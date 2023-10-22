@@ -22,7 +22,7 @@ def test_conversion(py_obj):
     Traceback (most recent call last):
     TypeError: expected ..., int found
     """
-    cdef string s = py_obj
+    let string s = py_obj
     assert <size_t>len(py_obj) == s.length(), '%d != %d' % (len(py_obj), s.length())
     return s
 
@@ -38,7 +38,7 @@ def test_empty(py_obj):
     >>> test_empty(u_asdf)
     False
     """
-    cdef string a = py_obj
+    let string a = py_obj
     return a.empty()
 
 
@@ -49,7 +49,7 @@ def test_push_back(a):
     >>> test_push_back(u_asdf) == s_asdf + s_s
     True
     """
-    cdef string s = a
+    let string s = a
     s.push_back(<char>ord('s'))
     return s
 
@@ -61,7 +61,7 @@ def test_clear(a):
     >>> test_clear(b_asdf) == s_s[:0]
     True
     """
-    cdef string s = a
+    let string s = a
     s.clear()
     return s
 
@@ -71,7 +71,7 @@ def test_assign(char *a):
     >>> test_assign(b_asdf) == 'ggg'
     True
     """
-    cdef string s = string(a)
+    let string s = string(a)
     s.assign(<char *>"ggg")
     return s.c_str()
 
@@ -95,7 +95,7 @@ def test_bytes_cast(a):
     >>> print(ord(b[4:5]))
     252
     """
-    cdef string s = a
+    let string s = a
     assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
     return <bytes>s
 
@@ -119,7 +119,7 @@ def test_bytearray_cast(a):
     >>> print(ord(b[4:5]))
     252
     """
-    cdef string s = a
+    let string s = a
     assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
     return <bytearray>s
 
@@ -132,7 +132,7 @@ def test_unicode_cast(a):
     >>> print(u)
     abc
     """
-    cdef string s = a
+    let string s = a
     assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
     return <unicode>s
 
@@ -145,6 +145,6 @@ def test_str_cast(a):
     >>> print(s)
     abc
     """
-    cdef string s = a
+    let string s = a
     assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
     return <str>s

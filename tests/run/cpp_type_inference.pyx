@@ -15,7 +15,7 @@ cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Empty(Shape):
         Empty()
 
-    cdef Empty make_Empty "shapes::Empty"()
+    let Empty make_Empty "shapes::Empty"()
 
 from cython cimport typeof
 
@@ -31,7 +31,7 @@ def test_reversed_vector_iteration(L):
     int: 1
     int
     """
-    cdef vector[i32] v = L
+    let vector[i32] v = L
 
     it = v.rbegin()
     while it != v.rend():

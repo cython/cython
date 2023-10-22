@@ -5,7 +5,7 @@
 from cython.operator import typeid
 
 def uninitialized_in_typeid():
-    cdef int i
+    let int i
     print typeid(i) == typeid(i)
 
 _ERRORS = """

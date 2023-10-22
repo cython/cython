@@ -98,12 +98,12 @@ def test_fused_with_pointer():
     breakfast
     humptydumptyfallsplatchbreakfast
     """
-    cdef i32[5] int_array
-    cdef long[5] long_array
-    cdef float[5] float_array
-    cdef string_t[5] string_array
+    let i32[5] int_array
+    let long[5] long_array
+    let float[5] float_array
+    let string_t[5] string_array
 
-    cdef char *s
+    let char *s
 
     strings = [b"humpty", b"dumpty", b"fall", b"splatch", b"breakfast"]
 
@@ -181,7 +181,7 @@ def test_fused_memoryview_def(memview_t a):
     return a[1, 2]
 
 cdef test_specialize(fused_type1 x, fused_type1 *y, composed_t z, other_t *a):
-    cdef fused_type1 result
+    let fused_type1 result
 
     if composed_t is p_double:
         print("double pointer")
@@ -199,15 +199,15 @@ def test_specializations():
     double pointer
     double pointer
     """
-    cdef object (*f)(f64, f64 *, f64 *, i32 *)
+    let object (*f)(f64, f64 *, f64 *, i32 *)
 
-    cdef f64 somedouble = 2.2
-    cdef f64 otherdouble = 3.3
-    cdef i32 someint = 4
+    let f64 somedouble = 2.2
+    let f64 otherdouble = 3.3
+    let i32 someint = 4
 
-    cdef p_double somedouble_p = &somedouble
-    cdef p_double otherdouble_p = &otherdouble
-    cdef p_int someint_p = &someint
+    let p_double somedouble_p = &somedouble
+    let p_double otherdouble_p = &otherdouble
+    let p_int someint_p = &someint
 
     f = test_specialize
     assert f(1.1, somedouble_p, otherdouble_p, someint_p) == 10.6
@@ -284,8 +284,8 @@ def test_fused_declarations(cython.integral i, cython.floating f):
     double
     25 43.56
     """
-    cdef cython.integral squared_int = i * i
-    cdef cython.floating squared_float = f * f
+    let cython.integral squared_int = i * i
+    let cython.floating squared_float = f * f
 
     assert cython.typeof(squared_int) == cython.typeof(i)
     assert cython.typeof(squared_float) == cython.typeof(f)
@@ -336,11 +336,11 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     if array is None:
         print(cython.typeof(array))
         return
-    cdef cython.floating[:] otherarray = array[0:100:1]
+    let cython.floating[:] otherarray = array[0:100:1]
     print(cython.typeof(array), cython.typeof(otherarray),
           array[5], otherarray[6])
-    cdef cython.floating value;
-    cdef cython.floating[:] test_cast = <cython.floating[:1:1]>&value
+    let cython.floating value;
+    let cython.floating[:] test_cast = <cython.floating[:1:1]>&value
 
 def test_fused_memslice_dtype_repeated(cython.floating[:] array1, cython.floating[:] array2):
     """
@@ -491,9 +491,9 @@ def test_cdef_func_with_const_fused_arg():
     (1, 'const int')
     (2.0, 'float')
     """
-    cdef f32 arg0 = 0.0
-    cdef i32 arg1 = 1
-    cdef f32 arg2 = 2.0
+    let f32 arg0 = 0.0
+    let i32 arg1 = 1
+    let f32 arg2 = 2.0
     cdef_func_const_fused_arg(arg0, &arg1, &arg2)
 
 cdef in_check_1(just_float x):
@@ -527,7 +527,7 @@ def test_fused_in_check():
 
 ### see GH3642 - presence of cdef inside "unrelated" caused a type to be incorrectly inferred
 cdef unrelated(cython.floating x):
-    cdef cython.floating t = 1
+    let cython.floating t = 1
     return t
 
 cdef handle_float(float* x): return 'float'
@@ -608,15 +608,15 @@ def test_null_default():
     2.0 1.0
     2.0
     """
-    cdef f64 xd = 2.
-    cdef f64 xd_minus_1
+    let f64 xd = 2.
+    let f64 xd_minus_1
     result = null_default(xd, &xd_minus_1)
     print(result, xd_minus_1)
     result = null_default(xd)
     print(result)
 
-    cdef float xf = 2.
-    cdef float xf_minus_1
+    let float xf = 2.
+    let float xf_minus_1
     result = null_default(xf, &xf_minus_1)
     print(result, xf_minus_1)
     result = null_default(xf)

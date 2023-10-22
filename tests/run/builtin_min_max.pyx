@@ -112,9 +112,9 @@ def test_min2():
     calling __len__
     1
     """
-    cdef int my_int = 1
-    cdef object my_pyint = 2
-    cdef object my_list = loud_list([1,2,3])
+    let int my_int = 1
+    let object my_pyint = 2
+    let object my_list = loud_list([1,2,3])
 
     print min(1, 2)
     print min(2, my_int)
@@ -141,9 +141,9 @@ def test_min3():
     calling __len__
     2
     """
-    cdef int my_int = 1
-    cdef object my_pyint = 2
-    cdef object my_list = loud_list([1,2,3])
+    let int my_int = 1
+    let object my_pyint = 2
+    let object my_list = loud_list([1,2,3])
 
     print min(my_int, my_pyint, len(my_list))
     print min(my_pyint, my_list.__len__(), len(my_list))
@@ -164,9 +164,9 @@ def test_minN():
     calling __len__
     0
     """
-    cdef int my_int = 1
-    cdef object my_pyint = 2
-    cdef object my_list = loud_list([1,2,3])
+    let int my_int = 1
+    let object my_pyint = 2
+    let object my_list = loud_list([1,2,3])
 
     print min(my_int, 2, my_int, 0, my_pyint, my_int, len(my_list))
     print min(my_int, my_int, 0, my_pyint, my_int, len(my_list))
@@ -249,9 +249,9 @@ def test_max2():
     calling __len__
     3
     """
-    cdef int my_int = 1
-    cdef object my_pyint = 2
-    cdef object my_list = loud_list([1,2,3])
+    let int my_int = 1
+    let object my_pyint = 2
+    let object my_list = loud_list([1,2,3])
 
     print max(1, 2)
     print max(2, my_int)
@@ -278,9 +278,9 @@ def test_max3():
     calling __len__
     3
     """
-    cdef int my_int = 1
-    cdef object my_pyint = 2
-    cdef object my_list = loud_list([1,2,3])
+    let int my_int = 1
+    let object my_pyint = 2
+    let object my_list = loud_list([1,2,3])
 
     print max(my_int, my_pyint, len(my_list))
     print max(my_pyint, my_list.__len__(), len(my_list))
@@ -301,9 +301,9 @@ def test_maxN():
     calling __len__
     3
     """
-    cdef int my_int = 1
-    cdef object my_pyint = 2
-    cdef object my_list = loud_list([1,2,3])
+    let int my_int = 1
+    let object my_pyint = 2
+    let object my_list = loud_list([1,2,3])
 
     print max(my_int, 2, my_int, 0, my_pyint, my_int, len(my_list))
     print max(my_int, my_int, 0, my_pyint, my_int, len(my_list))

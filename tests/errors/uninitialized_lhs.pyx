@@ -4,11 +4,11 @@
 # ticket: t739
 
 def index_lhs(a):
-    cdef object idx
+    let object idx
     a[idx] = 1
 
 def slice_lhs(a):
-    cdef object idx
+    let object idx
     a[:idx] = 1
 
 _ERRORS = """

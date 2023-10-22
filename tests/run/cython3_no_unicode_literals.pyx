@@ -139,7 +139,7 @@ def str_type_is_str():
     >>> isinstance(str_string, str_type) or str_type
     True
     """
-    cdef str s = 'abc'
+    let str s = 'abc'
     return str, s
 
 def strip_wrapped_string(s):

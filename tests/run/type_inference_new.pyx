@@ -113,7 +113,7 @@ def test_cf_loop():
     """
     >>> test_cf_loop()
     """
-    cdef int i
+    let int i
     a = 0.0
     for i in range(3):
         a += 1
@@ -123,7 +123,7 @@ def test_cf_loop_intermediate():
     """
     >>> test_cf_loop()
     """
-    cdef int i
+    let int i
     a = 0
     for i in range(3):
         b = a

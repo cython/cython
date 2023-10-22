@@ -11,8 +11,8 @@ cdef class Norwegian(Parrot):
 
 
 def main():
-    cdef Parrot p
-    cdef Norwegian n
+    let Parrot p
+    let Norwegian n
     p = Parrot()
     n = Norwegian()
     print "Parrot:"

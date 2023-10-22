@@ -48,7 +48,7 @@ def go_c_enumerate():
     2 3
     3 4
     """
-    cdef int i,k
+    let int i,k
     for i,k in enumerate(range(1,5)):
         print i, k
 
@@ -61,8 +61,8 @@ def c_enumerate_carray_target():
     2 3
     3 4
     """
-    cdef int k
-    cdef int[1] i
+    let int k
+    let int[1] i
     for i[0],k in enumerate(range(1,5)):
         print i[0], k
 
@@ -74,7 +74,7 @@ def go_c_enumerate_step():
     1 3
     2 5
     """
-    cdef int i,k
+    let int i,k
     for i,k in enumerate(range(1,7,2)):
         print i, k
 
@@ -89,7 +89,7 @@ def py_enumerate_dict(dict d):
     2 True
     :: 2 True
     """
-    cdef int i = 55
+    let int i = 55
     k = 99
     keys = list(d.keys())
     for i,k in enumerate(d):
@@ -146,7 +146,7 @@ def empty_c_enumerate():
     >>> empty_c_enumerate()
     (55, 99)
     """
-    cdef int i = 55, k = 99
+    let int i = 55, k = 99
     for i,k in enumerate(range(0)):
         print i, k
     return i, k
@@ -196,7 +196,7 @@ def multi_c_enumerate():
     2 2 2 3
     3 3 3 4
     """
-    cdef int a,b,c,d
+    let int a,b,c,d
     for a,(b,(c,d)) in enumerate(enumerate(enumerate(range(1,5)))):
         print a,b,c,d
 
@@ -208,7 +208,7 @@ def convert_target_enumerate(L):
     1 3
     2 5
     """
-    cdef int a,b
+    let int a,b
     for a, b in enumerate(L):
         print a,b
 
@@ -220,6 +220,6 @@ def convert_target_enumerate_start(L, int n):
     4 3
     5 5
     """
-    cdef int a,b
+    let int a,b
     for a, b in enumerate(L, n):
         print a,b

@@ -37,7 +37,7 @@ def test_normal_method_overload():
     """
     >>> test_normal_method_overload()
     """
-    cdef Foo f
+    let Foo f
     assert f.baz(1) == b"first"
     assert f.baz(1, 2) == b"second"
 

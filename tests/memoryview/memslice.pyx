@@ -58,7 +58,7 @@ def nousage():
     """
     The challenge here is just compilation.
     """
-    cdef i32[:, :] buf
+    let i32[:, :] buf
 
 @testcase
 def acquire_release(o1, o2):
@@ -74,7 +74,7 @@ def acquire_release(o1, o2):
     acquired B
     released B
     """
-    cdef i32[:] buf
+    let i32[:] buf
     buf = o1
     buf = o2
 
@@ -95,7 +95,7 @@ def acquire_raise(o):
     released A
 
     """
-    cdef i32[:] buf
+    let i32[:] buf
     buf = o
     raise Exception("on purpose")
 
@@ -108,7 +108,7 @@ def acquire_failure1():
     0 3
     released working
     """
-    cdef i32[:] buf
+    let i32[:] buf
     buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
@@ -126,7 +126,7 @@ def acquire_failure2():
     0 3
     released working
     """
-    cdef i32[:] buf = IntMockBuffer("working", range(4))
+    let i32[:] buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer()
@@ -143,7 +143,7 @@ def acquire_failure3():
     0 3
     released working
     """
-    cdef i32[:] buf
+    let i32[:] buf
     buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
@@ -172,7 +172,7 @@ def acquire_nonbuffer1(first, second=None):
       ...
     TypeError:... 'int'...
     """
-    cdef i32[:] buf
+    let i32[:] buf
     buf = first
     buf = second
 
@@ -185,7 +185,7 @@ def acquire_nonbuffer2():
     0 3
     released working
     """
-    cdef i32[:] buf = IntMockBuffer("working", range(4))
+    let i32[:] buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer
@@ -202,7 +202,7 @@ def as_argument(i32[:] bufarg, i32 n):
     0 1 2 3 4 5 END
     released A
     """
-    cdef i32 i
+    let i32 i
     for i in range(n):
         print bufarg[i],
     print 'END'
@@ -218,7 +218,7 @@ def as_argument_defval(i32[:] bufarg=IntMockBuffer('default', range(6)), i32 n=6
     0 1 2 3 4 5 END
     released A
     """
-    cdef i32 i
+    let i32 i
     for i in range(n):
         print bufarg[i],
     print 'END'
@@ -233,8 +233,8 @@ def cdef_assignment(obj, n):
     released A
 
     """
-    cdef i32[:] buf = obj
-    cdef i32 i
+    let i32[:] buf = obj
+    let i32 i
     for i in range(n):
         print buf[i],
     print 'END'
@@ -258,7 +258,7 @@ def forin_assignment(objs, i32 pick):
     2
     released A
     """
-    cdef i32[:] buf
+    let i32[:] buf
     for buf in objs:
         print buf[pick]
 
@@ -270,7 +270,7 @@ def cascaded_buffer_assignment(obj):
     acquired A
     released A
     """
-    cdef i32[:] a, b
+    let i32[:] a, b
     a = b = obj
 
 @testcase
@@ -284,7 +284,7 @@ def tuple_buffer_assignment1(a, b):
     released A
     released B
     """
-    cdef i32[:] x, y
+    let i32[:] x, y
     x, y = a, b
 
 @testcase
@@ -298,7 +298,7 @@ def tuple_buffer_assignment2(tup):
     released A
     released B
     """
-    cdef i32[:] x, y
+    let i32[:] x, y
     x, y = tup
 
 @testcase
@@ -309,7 +309,7 @@ def explicitly_release_buffer():
     released A
     After release
     """
-    cdef i32[:] x = IntMockBuffer("A", range(10))  # , writable=false)
+    let i32[:] x = IntMockBuffer("A", range(10))  # , writable=false)
     del x
     print "After release"
 
@@ -592,7 +592,7 @@ def list_comprehension(i32[:] buf, len):
     >>> list_comprehension(IntMockBuffer(None, [1, 2, 3]), 3)  # , writable=false), 3)
     1|2|3
     """
-    cdef i32 i
+    let i32 i
     print "|".join([str(buf[i]) for i in range(len)])
 
 @testcase
@@ -609,7 +609,7 @@ def wraparound_directive(i32[:] buf, i32 pos_idx, i32 neg_idx):
         ...
     IndexError: Out of bounds on buffer access (axis 0)
     """
-    cdef i32 byneg
+    let i32 byneg
     with cython.wraparound(true):
         byneg = buf[neg_idx]
     return buf[pos_idx] + byneg
@@ -629,7 +629,7 @@ def writable(obj):
     >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
-    cdef u16[:, :, :] buf = obj
+    let u16[:, :, :] buf = obj
     buf[2, 2, 1] = 23
 
 @testcase
@@ -889,7 +889,7 @@ def mixed_get(i32[:] buf, i32 unsafe_idx, i32 safe_idx):
 
 def printbuf_int(i32[:] buf, shape):
     # Utility func
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -919,9 +919,9 @@ def printbuf_int_2d(o, shape):
     released A
     """
     # should make shape builtin
-    cdef const i32[::view.generic, ::view.generic] buf
+    let const i32[::view.generic, ::view.generic] buf
     buf = o
-    cdef i32 i, j
+    let i32 i, j
     for i in range(shape[0]):
         for j in range(shape[1]):
             print buf[i, j],
@@ -937,9 +937,9 @@ def printbuf_float(o, shape):
     """
 
     # should make shape builtin
-    cdef const float[:] buf
+    let const float[:] buf
     buf = o
-    cdef i32 i, j
+    let i32 i, j
     for i in range(shape[0]):
         print buf[i],
     print "END"
@@ -955,7 +955,7 @@ def inplace_operators(i32[:] buf):
     >>> printbuf_int(buf, (2,))
     0 3 END
     """
-    cdef i32 j = 0
+    let i32 j = 0
     buf[1] += 1
     buf[j] *= 2
     buf[0] -= 4
@@ -983,7 +983,7 @@ def printbuf_td_cy_int(td_cy_int[:] buf, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_cy_int' but got 'short'
     """
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -998,7 +998,7 @@ def printbuf_td_h_short(td_h_short[:] buf, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_short' but got 'int'
     """
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -1013,7 +1013,7 @@ def printbuf_td_h_cy_short(const td_h_cy_short[:] buf, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'const td_h_cy_short' but got 'int'
     """
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -1028,7 +1028,7 @@ def printbuf_td_h_ushort(const td_h_ushort[:] buf, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'const td_h_ushort' but got 'short'
     """
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -1043,7 +1043,7 @@ def printbuf_td_h_double(const td_h_double[:] buf, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'const td_h_double' but got 'float'
     """
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
@@ -1084,7 +1084,7 @@ def printbuf_object(object[:] buf, shape):
     {4: 23} 2
     [34, 3] 2
     """
-    cdef i32 i
+    let i32 i
     for i in range(shape[0]):
         print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
 
@@ -1149,8 +1149,8 @@ def check_object_nulled_1d(object[:] buf, i32 idx, obj):
     >>> get_refcount(a) == rc1
     True
     """
-    cdef ObjectMockBuffer omb = buf.base
-    cdef PyObject **data = <PyObject**>(omb.buffer)
+    let ObjectMockBuffer omb = buf.base
+    let PyObject **data = <PyObject**>(omb.buffer)
     Py_CLEAR(data[idx])
     res = buf[idx]  # takes None
     buf[idx] = obj
@@ -1169,8 +1169,8 @@ def check_object_nulled_2d(object[:, ::1] buf, i32 idx1, i32 idx2, obj):
     >>> get_refcount(a) == rc1
     True
     """
-    cdef ObjectMockBuffer omb = buf.base
-    cdef PyObject **data = <PyObject**>(omb.buffer)
+    let ObjectMockBuffer omb = buf.base
+    let PyObject **data = <PyObject**>(omb.buffer)
     Py_CLEAR(data[idx1 + 2*idx2])
     res = buf[idx1, idx2]  # takes None
     buf[idx1, idx2] = obj
@@ -1349,8 +1349,8 @@ def buffer_nogil():
     >>> buffer_nogil()
     (10, 10)
     """
-    cdef i32[:] buf = IntMockBuffer(None, [1,2,3])
-    cdef i32[:] buf2 = IntMockBuffer(None, [4,5,6])
+    let i32[:] buf = IntMockBuffer(None, [1,2,3])
+    let i32[:] buf2 = IntMockBuffer(None, [4,5,6])
 
     with nogil:
         buf[1] = 10
@@ -1381,11 +1381,11 @@ def test_cdef_function(o1, o2=None):
     >>> A = IntMockBuffer("A", range(10))
     >>> test_cdef_function(A)
     acquired A
-    cdef called
+    let called
     6 ham
     released A
     acquired A
-    cdef called
+    let called
     6 eggs
     released A
 
@@ -1395,16 +1395,16 @@ def test_cdef_function(o1, o2=None):
 
     >>> test_cdef_function(A, B)
     acquired A
-    cdef called
+    let called
     6 eggs
     released A
     acquired A
-    cdef called
+    let called
     6 eggs
     released A
     acquired A
     acquired B
-    cdef called
+    let called
     6 1
     released A
     released B
@@ -1435,8 +1435,8 @@ def test_cdef_function2():
     cdef2 called
     6 eggs
     """
-    cdef i32[:] A = global_A
-    cdef object[::view.indirect, :] B = global_B
+    let i32[:] A = global_A
+    let object[::view.indirect, :] B = global_B
 
     cdef_function2(A, B)
 
@@ -1480,8 +1480,8 @@ def test_generic_slicing(arg, indirect=false):
     released A
 
     """
-    cdef i32[::view.generic, ::view.generic, :] a = arg
-    cdef i32[::view.generic, ::view.generic, :] b = a[2:8:2, -4:1:-1, 1:3]
+    let i32[::view.generic, ::view.generic, :] a = arg
+    let i32[::view.generic, ::view.generic, :] b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape[0], b.shape[1], b.shape[2]
 
@@ -1493,7 +1493,7 @@ def test_generic_slicing(arg, indirect=false):
         print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
         print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
 
-    cdef i32 i, j, k
+    let i32 i, j, k
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             for k in range(b.shape[2]):
@@ -1535,17 +1535,17 @@ def test_indirect_slicing(arg):
     2412
     released A
     """
-    cdef i32[::view.indirect, ::view.indirect, :] a = arg
-    cdef i32[::view.indirect, ::view.indirect, :] b = a[-5:, ..., -5:100:2]
-    cdef i32[::view.generic , :: view.generic, :] generic_b = a[-5:, ..., -5:100:2]
-    cdef i32[::view.indirect, ::view.indirect] c = b[..., 0]
+    let i32[::view.indirect, ::view.indirect, :] a = arg
+    let i32[::view.indirect, ::view.indirect, :] b = a[-5:, ..., -5:100:2]
+    let i32[::view.generic , :: view.generic, :] generic_b = a[-5:, ..., -5:100:2]
+    let i32[::view.indirect, ::view.indirect] c = b[..., 0]
 
     # try indexing away leading indirect dimensions
-    cdef i32[::view.indirect, :] d = b[4]
-    cdef i32[:] e = b[4, 2]
+    let i32[::view.indirect, :] d = b[4]
+    let i32[:] e = b[4, 2]
 
-    cdef i32[::view.generic, :] generic_d = generic_b[4]
-    cdef i32[:] generic_e = generic_b[4, 2]
+    let i32[::view.generic, :] generic_d = generic_b[4]
+    let i32[:] generic_e = generic_b[4, 2]
 
     print b.shape[0], b.shape[1], b.shape[2]
     print b.suboffsets[0] // sizeof(i32 *),
@@ -1568,11 +1568,11 @@ def test_indirect_slicing(arg):
 cdef class TestIndexSlicingDirectIndirectDims(object):
     "Test a int[:, ::view.indirect, :] slice"
 
-    cdef Py_ssize_t[3] shape, strides, suboffsets
+    let Py_ssize_t[3] shape, strides, suboffsets
 
-    cdef i32[5] c_array
-    cdef i32 *myarray[5][5]
-    cdef bytes format
+    let i32[5] c_array
+    let i32 *myarray[5][5]
+    let bytes format
 
     def __init__(self):
         cdef i32 i
@@ -1619,8 +1619,8 @@ def test_index_slicing_away_direct_indirect():
     20
     All dimensions preceding dimension 1 must be indexed and not sliced
     """
-    cdef i32[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
-    cdef object a_obj = a
+    let i32[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
+    let object a_obj = a
 
     print a[1][2][3]
     print a[1, 2, 3]
@@ -1660,14 +1660,14 @@ def test_direct_slicing(arg):
     -1 -1 -1
     released A
     """
-    cdef i32[:, :, ::1] a = arg
-    cdef i32[:, :, :] b = a[2:8:2, -4:1:-1, 1:3]
+    let i32[:, :, ::1] a = arg
+    let i32[:, :, :] b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape[0], b.shape[1], b.shape[2]
     print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
     print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
 
-    cdef i32 i, j, k
+    let i32 i, j, k
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             for k in range(b.shape[2]):
@@ -1687,15 +1687,15 @@ def test_slicing_and_indexing(arg):
     [111]
     released A
     """
-    cdef i32[:, :, :] a = arg
-    cdef i32[:, :] b = a[-5:, 1, 1::2]
-    cdef i32[:, :] c = b[4:1:-1, ::-1]
-    cdef i32[:] d = c[2, 1:2]
+    let i32[:, :, :] a = arg
+    let i32[:, :] b = a[-5:, 1, 1::2]
+    let i32[:, :] c = b[4:1:-1, ::-1]
+    let i32[:] d = c[2, 1:2]
 
     print b.shape[0], b.shape[1]
     print_int_offsets(b.strides[0], b.strides[1])
 
-    cdef i32 i, j
+    let i32 i, j
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             itemA = a[-5 + i, 1, 1 + 2 * j]
@@ -1714,7 +1714,7 @@ def test_oob():
        ...
     IndexError: Index out of bounds (axis 1)
     """
-    cdef i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))  # , writable=false)
+    let i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))  # , writable=false)
     print a[:, 20]
 
 
@@ -1736,7 +1736,7 @@ def test_nogil_oob1():
     Index out of bounds (axis 0)
     released A
     """
-    cdef i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    let i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
 
     try:
         nogil_oob(IntMockBuffer("B", range(4 * 9), shape=(4, 9)))
@@ -1757,14 +1757,14 @@ def test_nogil_oob2():
        ...
     IndexError: Index out of bounds (axis 0)
     """
-    cdef i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))  # , writable=false)
+    let i32[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))  # , writable=false)
     with nogil:
         a[100, 9:]
 
 @cython.boundscheck(false)
 cdef i32 cdef_nogil(i32[:, :] a) except 0 nogil:
-    cdef i32 i, j
-    cdef i32[:, :] b = a[::-1, 3:10:2]
+    let i32 i, j
+    let i32[:, :] b = a[::-1, 3:10:2]
     for i in range(b.shape[0]):
         for j in range(b.shape[1]):
             b[i, j] = -b[i, j]
@@ -1783,10 +1783,10 @@ def test_nogil():
     """
     _a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
     assert cdef_nogil(_a) == 4
-    cdef i32[:, :] a = _a
+    let i32[:, :] a = _a
     print a[2, 7]
 
-    cdef i32 length
+    let i32 length
     with nogil:
         length = cdef_nogil(a)
     assert length == 4
@@ -1803,7 +1803,7 @@ def test_convert_slicenode_to_indexnode():
     2
     released A
     """
-    cdef i32[:] a = IntMockBuffer("A", range(10), shape=(10,))  # , writable=false)
+    let i32[:] a = IntMockBuffer("A", range(10), shape=(10,))  # , writable=false)
     with nogil:
         a = a[2:4]
     print a[0]
@@ -1820,13 +1820,13 @@ def test_memslice_prange(arg):
     acquired A
     released A
     """
-    cdef i32[:, :, :] src, dst
+    let i32[:, :, :] src, dst
 
     src = arg
 
     dst = array((<object> src).shape, sizeof(i32), format="i")
 
-    cdef i32 i, j, k
+    let i32 i, j, k
 
     for i in prange(src.shape[0], nogil=true):
         for j in range(src.shape[1]):
@@ -1849,7 +1849,7 @@ def test_clean_temps_prange(i32[:, :] buf):
     acquired A
     released A
     """
-    cdef i32 i
+    let i32 i
     try:
         for i in prange(buf.shape[0], nogil=true):
             buf[1:10, 20] = 0
@@ -1867,7 +1867,7 @@ def test_clean_temps_parallel(i32[:, :] buf):
     acquired A
     released A
     """
-    cdef i32 i
+    let i32 i
     try:
         with nogil, parallel():
             try:
@@ -1900,15 +1900,15 @@ def test_memslice_struct_with_arrays():
     abc
     abc
     """
-    cdef ArrayStruct[10] a1
-    cdef PackedArrayStruct[10] a2
+    let ArrayStruct[10] a1
+    let PackedArrayStruct[10] a2
 
     test_structs_with_arr(a1)
     test_structs_with_arr(a2)
 
 cdef test_structs_with_arr(FusedStruct array[10]):
-    cdef FusedStruct[:] myslice1, myslice2, myslice3, myslice4
-    cdef i32 i, j
+    let FusedStruct[:] myslice1, myslice2, myslice3, myslice4
+    let i32 i, j
 
     myslice1 = <FusedStruct[:10]> array
 
@@ -1948,8 +1948,8 @@ def test_struct_attributes_format():
     >>> test_struct_attributes_format()
     T{i:int_attrib:c:char_attrib:}
     """
-    cdef TestAttrs[10] array
-    cdef TestAttrs[:] struct_memview = array
+    let TestAttrs[10] array
+    let TestAttrs[:] struct_memview = array
     print builtins.memoryview(struct_memview).format
 
 
@@ -2009,14 +2009,14 @@ def test_padded_structs():
     """
     >>> test_padded_structs()
     """
-    cdef ArrayStruct[10] a1
-    cdef PackedArrayStruct[10] a2
-    cdef AlignedNested[10] a3
-    cdef AlignedNestedNormal[10] a4
-    cdef A[10] a5
-    cdef B[10] a6
-    cdef C[10] a7
-    cdef D[10] a8
+    let ArrayStruct[10] a1
+    let PackedArrayStruct[10] a2
+    let AlignedNested[10] a3
+    let AlignedNestedNormal[10] a4
+    let A[10] a5
+    let B[10] a6
+    let C[10] a7
+    let D[10] a8
 
     _test_padded(a1)
     _test_padded(a2)
@@ -2031,9 +2031,9 @@ def test_padded_structs():
 
 cdef _test_padded(FusedPadded myarray[10]):
     # test that the buffer format parser accepts our format string...
-    cdef FusedPadded[:] myslice = <FusedPadded[:10]> myarray
+    let FusedPadded[:] myslice = <FusedPadded[:10]> myarray
     obj = myslice
-    cdef FusedPadded[:] myotherslice = obj
+    let FusedPadded[:] myotherslice = obj
 
 @testcase
 def test_object_indices():
@@ -2043,9 +2043,9 @@ def test_object_indices():
     1
     2
     """
-    cdef i32[3] array
-    cdef i32[:] myslice = array
-    cdef i32 j
+    let i32[3] array
+    let i32[:] myslice = array
+    let i32 j
 
     for i in range(3):
         myslice[i] = i
@@ -2068,8 +2068,8 @@ def test_ellipsis_expr():
     8
     8
     """
-    cdef i32[10] a
-    cdef i32[:] m = a
+    let i32[10] a
+    let i32[:] m = a
 
     _test_ellipsis_expr(m)
     _test_ellipsis_expr(<object> m)
@@ -2084,21 +2084,21 @@ def test_slice_assignment():
     """
     >>> test_slice_assignment()
     """
-    cdef i32[10][100] carray
-    cdef i32 i, j
+    let i32[10][100] carray
+    let i32 i, j
 
     for i in range(10):
         for j in range(100):
             carray[i][j] = i * 100 + j
 
-    cdef i32[:, :] m = carray
-    cdef i32[:, :] copy = m[-6:-1, 60:65].copy()
+    let i32[:, :] m = carray
+    let i32[:, :] copy = m[-6:-1, 60:65].copy()
 
     _test_slice_assignment(m, copy)
     _test_slice_assignment(<object> m, <object> copy)
 
 cdef _test_slice_assignment(slice_2d m, slice_2d copy):
-    cdef i32 i, j
+    let i32 i, j
 
     m[...] = m[::-1, ::-1]
     m[:, :] = m[::-1, ::-1]
@@ -2113,15 +2113,15 @@ def test_slice_assignment_broadcast_leading():
     """
     >>> test_slice_assignment_broadcast_leading()
     """
-    cdef i32[1][10] array1
-    cdef i32[10] array2
-    cdef i32 i
+    let i32[1][10] array1
+    let i32[10] array2
+    let i32 i
 
     for i in range(10):
         array1[0][i] = i
 
-    cdef i32[:, :] a = array1
-    cdef i32[:] b = array2
+    let i32[:, :] a = array1
+    let i32[:] b = array2
 
     _test_slice_assignment_broadcast_leading(a, b)
 
@@ -2131,7 +2131,7 @@ def test_slice_assignment_broadcast_leading():
     _test_slice_assignment_broadcast_leading(<object> a, <object> b)
 
 cdef _test_slice_assignment_broadcast_leading(slice_2d a, slice_1d b):
-    cdef i32 i
+    let i32 i
 
     b[:] = a[:, :]
     b = b[::-1]
@@ -2145,22 +2145,22 @@ def test_slice_assignment_broadcast_strides():
     """
     >>> test_slice_assignment_broadcast_strides()
     """
-    cdef i32[10] src_array
-    cdef i32[10][5] dst_array
-    cdef i32 i, j
+    let i32[10] src_array
+    let i32[10][5] dst_array
+    let i32 i, j
 
     for i in range(10):
         src_array[i] = 10 - 1 - i
 
-    cdef i32[:] src = src_array
-    cdef i32[:, :] dst = dst_array
-    cdef i32[:, :] dst_f = dst.copy_fortran()
+    let i32[:] src = src_array
+    let i32[:, :] dst = dst_array
+    let i32[:, :] dst_f = dst.copy_fortran()
 
     _test_slice_assignment_broadcast_strides(src, dst, dst_f)
     _test_slice_assignment_broadcast_strides(<object> src, <object> dst, <object> dst_f)
 
 cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_2d dst_f):
-    cdef i32 i, j
+    let i32 i, j
 
     dst[1:] = src[-1:-6:-1]
     dst_f[1:] = src[-1:-6:-1]
@@ -2188,8 +2188,8 @@ def test_borrowed_slice():
     5
     5
     """
-    cdef i32 i
-    cdef i32[10] carray
+    let i32 i
+    let i32[10] carray
     carray[:] = range(10)
     _borrowed(carray)
     _not_borrowed(carray)
@@ -2204,7 +2204,7 @@ cdef _not_borrowed(i32[:] m):
         del m
 
 cdef _not_borrowed2(i32[:] m):
-    cdef i32[10] carray
+    let i32[10] carray
     print m[5]
     if object():
         m = carray
@@ -2220,7 +2220,7 @@ class SingleObject(object):
         return self.value == getattr(other, 'value', None) or self.value == other
 
 cdef _get_empty_object_slice(fill=None):
-    cdef array a = array((10,), sizeof(PyObject *), 'O')
+    let array a = array((10,), sizeof(PyObject *), 'O')
     assert a.dtype_is_object
     return a
 
@@ -2241,13 +2241,13 @@ def test_object_dtype_copying():
     5
     1 5
     """
-    cdef i32 i
+    let i32 i
 
     unique = object()
     unique_refcount = get_refcount(unique)
 
-    cdef object[:] m1 = _get_empty_object_slice()
-    cdef object[:] m2 = _get_empty_object_slice()
+    let object[:] m1 = _get_empty_object_slice()
+    let object[:] m2 = _get_empty_object_slice()
 
     for i in range(10):
         m1[i] = SingleObject(i)
@@ -2294,18 +2294,18 @@ def test_scalar_slice_assignment():
     6
     9
     """
-    cdef i32[10] a
-    cdef i32[:] m = a
+    let i32[10] a
+    let i32[:] m = a
 
-    cdef i32[5][10] a2
-    cdef i32[:, ::1] m2 = a2
+    let i32[5][10] a2
+    let i32[:, ::1] m2 = a2
 
     _test_scalar_slice_assignment(m, m2)
     print
     _test_scalar_slice_assignment(<object> m, <object> m2)
 
 cdef _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
-    cdef i32 i, j
+    let i32 i, j
     for i in range(10):
         m[i] = i
 
@@ -2317,15 +2317,15 @@ cdef _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
         for j in range(m2.shape[1]):
             m2[i, j] = i * m2.shape[1] + j
 
-    cdef i32 x = 2, y = -2
-    cdef long value = 1
+    let i32 x = 2, y = -2
+    let long value = 1
     m2[::2,    ::-1] = value
     m2[-2::-2, ::-1] = 2
     m2[::2,    -2::-2] = 0
     m2[-2::-2, -2::-2] = 0
 
 
-    cdef i32[:, :] s = m2[..., 1::2]
+    let i32[:, :] s = m2[..., 1::2]
     for i in range(s.shape[0]):
         for j in range(s.shape[1]):
             assert s[i, j] == i % 2 + 1, (s[i, j], i)
@@ -2355,8 +2355,8 @@ def test_contig_scalar_to_slice_assignment():
     20 20 20 20
     30 30 20 20
     """
-    cdef i32[5][10] a
-    cdef i32[:, ::1] m = a
+    let i32[5][10] a
+    let i32[:, ::1] m = a
 
     m[...] = 14
     print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
@@ -2375,7 +2375,7 @@ def test_dtype_object_scalar_assignment():
     """
     >>> test_dtype_object_scalar_assignment()
     """
-    cdef object[:] m = array((10,), sizeof(PyObject *), 'O')
+    let object[:] m = array((10,), sizeof(PyObject *), 'O')
     m[:] = SingleObject(2)
     assert m[0] == m[4] == m[-1] == 2
 
@@ -2411,7 +2411,7 @@ def test_noneslice_compare(f64[:] m):
     return result, m is None
 
 cdef class NoneSliceAttr(object):
-    cdef f64[:] m
+    let f64[:] m
 
 @testcase
 def test_noneslice_ext_attr():
@@ -2420,7 +2420,7 @@ def test_noneslice_ext_attr():
     AttributeError Memoryview is not initialized
     None
     """
-    cdef NoneSliceAttr obj = NoneSliceAttr()
+    let NoneSliceAttr obj = NoneSliceAttr()
 
     with cython.nonecheck(true):
         try: print obj.m
@@ -2437,8 +2437,8 @@ def test_noneslice_del():
        ...
     UnboundLocalError: local variable 'm' referenced before assignment
     """
-    cdef i32[10] a
-    cdef i32[:] m = a
+    let i32[10] a
+    let i32[:] m = a
 
     with cython.nonecheck(true):
         m = None
@@ -2451,8 +2451,8 @@ def test_noneslice_nogil_check_none(f64[:] m):
     >>> test_noneslice_nogil_check_none(None)
     (True, False)
     """
-    cdef bint is_none = false
-    cdef bint not_none = true
+    let bint is_none = false
+    let bint not_none = true
 
     with nogil:
         is_none = m is None and None is m and m == None and None == m
@@ -2477,8 +2477,8 @@ def test_inplace_assignment():
     >>> test_inplace_assignment()
     10
     """
-    cdef i32[10] a
-    cdef i32[:] m = a
+    let i32[10] a
+    let i32[:] m = a
 
     m[0] = get_int()
     print m[0]
@@ -2495,10 +2495,10 @@ def test_newaxis(i32[:] one_D):
     3
     released A
     """
-    cdef i32[:, :] two_D_1 = one_D[None]
-    cdef i32[:, :] two_D_2 = one_D[None, :]
-    cdef i32[:, :] two_D_3 = one_D[:, None]
-    cdef i32[:, :] two_D_4 = one_D[..., None]
+    let i32[:, :] two_D_1 = one_D[None]
+    let i32[:, :] two_D_2 = one_D[None, :]
+    let i32[:, :] two_D_3 = one_D[:, None]
+    let i32[:, :] two_D_4 = one_D[..., None]
 
     print two_D_1[0, 3]
     print two_D_2[0, 3]
@@ -2528,10 +2528,10 @@ def test_newaxis2(i32[:, :] two_D):
     suboffsets: -1 -1 -1 -1
     released A
     """
-    cdef i32[:, :, :] a = two_D[..., None, 1, None]
-    cdef i32[:, :, :] b = two_D[None, 1, ..., None]
-    cdef i32[:, :, :, :] c = two_D[..., None, 1:, None]
-    cdef i32[:, :, :, :] d = two_D[None, 1:, ..., None]
+    let i32[:, :, :] a = two_D[..., None, 1, None]
+    let i32[:, :, :] b = two_D[None, 1, ..., None]
+    let i32[:, :, :, :] c = two_D[..., None, 1:, None]
+    let i32[:, :, :, :] d = two_D[None, 1:, ..., None]
 
     _print_attributes(a)
     print
@@ -2552,7 +2552,7 @@ def test_const_buffer(const i32[:] a):
     5
     released A
     """
-    cdef const i32[:] c = a
+    let const i32[:] c = a
     print(a[0])
     print(c[-1])
 
@@ -2572,7 +2572,7 @@ def test_loop(i32[:] a, throw_exception):
     acquired A
     released A
     """
-    cdef i32 sum = 0
+    let i32 sum = 0
     for ai in a:
         sum += ai
     if throw_exception:
@@ -2595,7 +2595,7 @@ def test_loop_reassign(i32[:] a):
     15
     released A
     """
-    cdef i32 sum = 0
+    let i32 sum = 0
     for ai in a:
         sum += ai
         print(ai)
@@ -2655,7 +2655,7 @@ def test_local_in_closure(a):
     >>> del inner; ignore_me = gc.collect()
     released A
     """
-    cdef i32[:] a_view = a
+    let i32[:] a_view = a
     def inner():
         return (a_view[0], a_view[1])
     return inner
@@ -2681,7 +2681,7 @@ def test_local_in_generator_expression(a, initialize, execute_now):
     released A2
     2
     """
-    cdef i32[:] a_view
+    let i32[:] a_view
     if initialize:
         a_view = a
     if execute_now:

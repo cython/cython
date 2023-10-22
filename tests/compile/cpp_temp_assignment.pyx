@@ -76,12 +76,12 @@ def test_call_to_function():
 
 def test_assignment_to_name():
     # will fail if move constructors aren't used
-    cdef NoAssign value
+    let NoAssign value
     value = get_NoAssign_Py()
     value = get_NoAssign_Cpp()
 
 def test_assignment_to_scope():
-    cdef NoAssign value
+    let NoAssign value
     value = get_NoAssign_Py()
     value = get_NoAssign_Cpp()
     def inner():

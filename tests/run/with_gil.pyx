@@ -199,7 +199,7 @@ def test_loops_and_boxing():
     m
     done looping
     """
-    cdef char c, *string = "spamham"
+    let char c, *string = "spamham"
 
     with nogil:
         with gil:

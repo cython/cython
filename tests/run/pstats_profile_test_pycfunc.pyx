@@ -131,8 +131,8 @@ def callees(pstats, target_caller):
                 yield callee
 
 def test_profile(long N):
-    cdef long i, n = 0
-    cdef A a = A()
+    let long i, n = 0
+    let A a = A()
     for i from 0 <= i < N:
         n += f_def(i)
         n += f_cdef(i)

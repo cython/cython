@@ -2,7 +2,7 @@
 # mode: error
 
 cdef i32 f_nogil(i32 x) nogil:
-    cdef i32 y
+    let i32 y
     y = x + 10
     return y
 
@@ -12,7 +12,7 @@ def f_gil(x):
     return y
 
 def illegal_gil_usage():
-    cdef i32 res = 0
+    let i32 res = 0
     with nogil(true):
         res = f_gil(res)
 
@@ -29,7 +29,7 @@ def foo(a):
     return a < 10
 
 def non_constant_condition(int x) -> i32:
-    cdef i32 res = x
+    let i32 res = x
     with nogil(x < 10):
         res = f_nogil(res)
 

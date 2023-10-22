@@ -43,7 +43,7 @@ def test_Poly(i32 n, float radius=1):
     >>> test_Poly(1000)      #doctest: +ELLIPSIS
     3.14157...
     """
-    cdef RegularPolygon* poly
+    let RegularPolygon* poly
     try:
         poly = new RegularPolygon(n, radius)
         poly.n = n
@@ -75,7 +75,7 @@ def test_BaseMethods(x):
     >>> test_BaseMethods(false)
     1
     """
-    cdef SubClass* subClass
+    let SubClass* subClass
     try:
         subClass = new SubClass(x)
         return subClass.method()
@@ -118,7 +118,7 @@ def test_init_dealloc():
     end
     """
     print "start"
-    cdef InitDealloc *ptr = new InitDealloc()
+    let InitDealloc *ptr = new InitDealloc()
     print "live"
     del ptr
     print "end"
@@ -139,10 +139,10 @@ def test_templates(long value):
     >>> test_templates(10)
     >>> test_templates(-2)
     """
-    cdef WithTemplate[long] *base = new WithTemplate[long]()
+    let WithTemplate[long] *base = new WithTemplate[long]()
     del base
 
-    cdef ResolveTemplate *resolved = new ResolveTemplate()
+    let ResolveTemplate *resolved = new ResolveTemplate()
     resolved.set_value(value)
     assert resolved.value == resolved.get_value() == value, resolved.value
 
@@ -216,7 +216,7 @@ def test_CppClassWithObjectMemberCopyAssign(name):
     Nothing alive.
     """
     x = new CppClassWithObjectMember(name)
-    cdef vector[CppClassWithObjectMember] v
+    let vector[CppClassWithObjectMember] v
     # Invokes copy constructor.
     v.push_back(deref(x))
     del x
@@ -251,7 +251,7 @@ def test_uncopyable_constructor_argument():
     """
     >>> test_uncopyable_constructor_argument()
     """
-    cdef UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
+    let UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
         unique_ptr[vector[int]](new vector[int]()))
     del c
 
@@ -265,6 +265,6 @@ def test_CppClassWithDocstring():
     >>> test_CppClassWithDocstring()
     OK
     """
-    cdef CppClassWithDocstring *c = new CppClassWithDocstring()
+    let CppClassWithDocstring *c = new CppClassWithDocstring()
     del c
     print "OK"

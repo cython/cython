@@ -84,7 +84,7 @@ def nogil_test(L):
     >>> nogil_test([1,2,3])
     3
     """
-    cdef i32 a
+    let i32 a
     with nogil:
         l = new cpp_list[i32]()
     try:
@@ -96,7 +96,7 @@ def nogil_test(L):
         del l
 
 cdef list to_pylist(cpp_list[i32]& l):
-    cdef list L = []
+    let list L = []
     it = l.begin()
     while it != l.end():
         L.append(deref(it))
@@ -108,8 +108,8 @@ def item_ptr_test(L, i32 x):
     >>> item_ptr_test(range(10), 100)
     [100, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
-    cdef cpp_list[i32] l = L
-    cdef i32* li_ptr = &l.front()
+    let cpp_list[i32] l = L
+    let i32* li_ptr = &l.front()
     li_ptr[0] = x
     return to_pylist(l)
 
@@ -120,7 +120,7 @@ def test_value_type(x):
     >>> test_value_type(2.5)
     2.5
     """
-    cdef cpp_list[f64].value_type val = x
+    let cpp_list[f64].value_type val = x
     return val
 
 def test_value_type_complex(x):
@@ -128,16 +128,16 @@ def test_value_type_complex(x):
     >>> test_value_type_complex(2)
     (2+0j)
     """
-    cdef cpp_list[double complex].value_type val = x
+    let cpp_list[double complex].value_type val = x
     return val
 
 def test_insert():
     """
     >>> test_insert()
     """
-    cdef cpp_list[i32] l
-    cdef cpp_list[i32].size_type count = 5
-    cdef i32 value = 0
+    let cpp_list[i32] l
+    let cpp_list[i32].size_type count = 5
+    let i32 value = 0
 
     l.insert(l.end(), count, value)
 

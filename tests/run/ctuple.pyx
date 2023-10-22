@@ -15,7 +15,7 @@ def simple_convert(*o):
     Traceback (most recent call last):
     TypeError: Expected a sequence of size 2, got size 3
     """
-    cdef (int, double) xy = o
+    let (int, double) xy = o
     return xy
 
 
@@ -31,8 +31,8 @@ def convert_from_list(*o):
     Traceback (most recent call last):
     TypeError: Expected a sequence of size 2, got size 3
     """
-    cdef object values = list(o)
-    cdef (int, double) xy = values
+    let object values = list(o)
+    let (int, double) xy = values
     return xy
 
 
@@ -49,8 +49,8 @@ def convert_from_deque(*o):
     TypeError: Expected a sequence of size 2, got size 3
     """
     from collections import deque
-    cdef object values = deque(o)
-    cdef (int, double) xy = values
+    let object values = deque(o)
+    let (int, double) xy = values
     return xy
 
 
@@ -91,7 +91,7 @@ def packing_tuple(int x, double y):
     >>> packing_tuple(1, 2)
     (1, 2.0)
     """
-    cdef (int, double) xy = (x, y)
+    let (int, double) xy = (x, y)
     assert xy == (x, y), xy
     xy = (x, y) * 1
     assert xy == (x, y), xy
@@ -103,7 +103,7 @@ def packing_list(int x, double y):
     >>> packing_list(1, 2)
     (1, 2.0)
     """
-    cdef (int, double) xy = [x, y]
+    let (int, double) xy = [x, y]
     assert xy == (x, y), xy
     xy = [x, y] * 1
     assert xy == (x, y), xy
@@ -111,7 +111,7 @@ def packing_list(int x, double y):
     return xy
 
 def coerce_packing_tuple(int x, int y):
-    cdef (int, double) xy = (x, y)
+    let (int, double) xy = (x, y)
     """
     >>> coerce_packing_tuple(1, 2)
     (1, 2.0)
@@ -123,9 +123,9 @@ def c_types(int a, double b):
     >>> c_types(1, 2)
     (1, 2.0)
     """
-    cdef int* a_ptr
-    cdef double* b_ptr
-    cdef (int*, double*) ab = (&a, &b)
+    let int* a_ptr
+    let double* b_ptr
+    let (int*, double*) ab = (&a, &b)
     a_ptr, b_ptr = ab
     return a_ptr[0], b_ptr[0]
 
@@ -140,8 +140,8 @@ def union_in_ctuple_literal():
     >>> union_in_ctuple_literal()
     (1, 2.0)
     """
-    cdef (Union,) a = ({"x": 1},)
-    cdef (Union,) b = ({"y": 2},)
+    let (Union,) a = ({"x": 1},)
+    let (Union,) b = ({"y": 2},)
     return a[0].x, b[0].y
 
 
@@ -155,7 +155,7 @@ def union_in_ctuple_dynamic(*values):
     Traceback (most recent call last):
     ValueError: More than one union attribute passed: 'x' and 'y'
     """
-    cdef (int, Union) a = values
+    let (int, Union) a = values
     return a[1].x if a[0] == 1 else a[1].y
 
 
@@ -167,7 +167,7 @@ def call_cdef_ctuple_return_type(int x):
     >>> call_cdef_ctuple_return_type(2)
     (2, 2)
     """
-    cdef (int, int*) res = cdef_ctuple_return_type(x, &x)
+    let (int, int*) res = cdef_ctuple_return_type(x, &x)
     return res[0], res[1][0]
 
 
@@ -184,8 +184,8 @@ def cast_to_ctuple(*o):
     >>> cast_to_ctuple(1, 2.)
     (1, 2.0)
     """
-    cdef int x
-    cdef double y
+    let int x
+    let double y
     x, y = <(int, double)>o
     return x, y
 
@@ -195,9 +195,9 @@ def test_type_inference():
     """
     >>> test_type_inference()
     """
-    cdef int x = 1
-    cdef double y = 2
-    cdef object o = 3
+    let int x = 1
+    let double y = 2
+    let object o = 3
     xy = (x, y)
     assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
     xo = (x, o)

@@ -124,7 +124,7 @@ cdef inline float[:] _get_left_edge(float[::1] arr) nogil:
     return arr[:3]
 
 cdef class D:
-    cdef float _a
+    let float _a
     def __cinit__(self, float a):
         self._a = a
 
@@ -138,8 +138,8 @@ def test_method_with_memoryview_handling():
     """
     >>> test_method_with_memoryview_handling()
     """
-    cdef float[10] static_arr
-    cdef float[::1] view_of_static_arr = <float[:10:1]>static_arr
+    let float[10] static_arr
+    let float[::1] view_of_static_arr = <float[:10:1]>static_arr
     future = run_block_and_wait_with_gil()
     d = D(5.)
     with nogil:

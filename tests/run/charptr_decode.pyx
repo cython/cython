@@ -29,8 +29,8 @@ def slice_charptr_decode_platform_encoding():
     >>> print(str(slice_charptr_decode()).replace("u'", "'"))
     ('a', 'abc', 'abcABCqtp')
     """
-    cdef bytes s = u'abcABCqtp'.encode()
-    cdef char* cstr = s
+    let bytes s = u'abcABCqtp'.encode()
+    let char* cstr = s
     return (cstr[:1].decode(),
             cstr[:3].decode(),
             cstr[:9].decode())
@@ -42,8 +42,8 @@ def slice_charptr_decode_unknown_encoding():
     >>> print(str(slice_charptr_decode_unknown_encoding()).replace("u'", "'"))
     ('abcABCqtp', 'abcABCqtp', 'abc', 'abcABCqt')
     """
-    cdef const char* enc = 'UTF-8'
-    cdef const char* error_handling = 'strict'
+    let const char* enc = 'UTF-8'
+    let const char* error_handling = 'strict'
     return (cstring.decode(enc),
             cstring.decode(enc, error_handling),
             cstring[:3].decode(enc),

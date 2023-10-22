@@ -9,7 +9,7 @@ def simple_parallel_typed():
     >>> simple_parallel_typed()
     (1, 2, [1, 2], [1, 2])
     """
-    cdef int a,c
+    let int a,c
     a, c = d = e = [1,2]
     return a, c, d, e
 
@@ -18,9 +18,9 @@ def simple_parallel_int_mix():
     >>> simple_parallel_int_mix()
     (1, 2, 1, 2, 1, 2, [1, 2], [1, 2])
     """
-    cdef int ai,bi
-    cdef long al,bl
-    cdef object ao, bo
+    let int ai,bi
+    let long al,bl
+    let object ao, bo
     ai, bi = al, bl = ao, bo = c = d = [1,2]
     return ao, bo, ai, bi, al, bl, c, d
 
@@ -29,10 +29,10 @@ def simple_parallel_int_mix_recursive():
     >>> simple_parallel_int_mix_recursive()
     (1, 2, 3, 1, [2, 3], 1, 2, 3, 1, 2, 3, [1, [2, 3]], [1, [2, 3]])
     """
-    cdef int ai, bi, ci
-    cdef long al, bl, cl
-    cdef object ao, bo, co
-    cdef object xo, yo
+    let int ai, bi, ci
+    let long al, bl, cl
+    let object ao, bo, co
+    let object xo, yo
     ai, [bi, ci] = al, [bl, cl] = xo, yo = ao, [bo, co] = c = d = [1, [2, 3]]
     return ao, bo, co, xo, yo, ai, bi, ci, al, bl, cl, c, d
 
@@ -48,8 +48,8 @@ def non_simple_rhs():
     >>> non_simple_rhs()
     1
     """
-    cdef char *a, *b
-    cdef int orig_called = called
+    let char *a, *b
+    let int orig_called = called
     a = b = <char*>get_string()
     assert a is b
     return called - orig_called
@@ -60,7 +60,7 @@ def non_simple_rhs_malloc():
     """
     >>> non_simple_rhs_malloc()
     """
-    cdef char *a, *b, **c
+    let char *a, *b, **c
 
     c = &b
     c[0] = a = <char*>malloc(2)
@@ -69,7 +69,7 @@ def non_simple_rhs_malloc():
 
     # copy from different pointers to make sure they all point to the
     # same memory
-    cdef char[2] x
+    let char[2] x
     x[0] = b[0]
     x[1] = a[1]
 
@@ -91,8 +91,8 @@ def assign_carray():
     assign_carray()
     (1, 2, 3)
     """
-    cdef int *b, *c
-    cdef int[3] a
+    let int *b, *c
+    let int[3] a
     a[0] = 1
     a[1] = 2
     a[2] = 3
@@ -111,7 +111,7 @@ def pyobject_from_cvalue(table, key):
     >>> pyobject_from_cvalue(table, 'X')
     0
     """
-    cdef int num
+    let int num
     num = table.get(key, -1)
     if num < 0:
         num = table[key] = len(table)

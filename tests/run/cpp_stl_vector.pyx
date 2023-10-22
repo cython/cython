@@ -117,7 +117,7 @@ def nogil_test(L):
     >>> nogil_test([1,2,3])
     3
     """
-    cdef i32 a
+    let i32 a
     with nogil:
         v = new vector[i32]()
     try:
@@ -133,8 +133,8 @@ def item_ptr_test(L, i32 i, i32 x):
     >>> item_ptr_test(range(10), 7, 100)
     [0, 1, 2, 3, 4, 5, 6, 100, 8, 9]
     """
-    cdef vector[i32] v = L
-    cdef i32* vi_ptr = &v[i]
+    let vector[i32] v = L
+    let i32* vi_ptr = &v[i]
     vi_ptr[0] = x
     return v
 
@@ -145,7 +145,7 @@ def test_value_type(x):
     >>> test_value_type(2.5)
     2.5
     """
-    cdef vector[f64].value_type val = x
+    let vector[f64].value_type val = x
     return val
 
 def test_value_type_complex(x):
@@ -153,7 +153,7 @@ def test_value_type_complex(x):
     >>> test_value_type_complex(2)
     (2+0j)
     """
-    cdef vector[double complex].value_type val = x
+    let vector[double complex].value_type val = x
     return val
 
 def test_bool_vector_convert(o):
@@ -161,14 +161,14 @@ def test_bool_vector_convert(o):
     >>> test_bool_vector_convert([True, False, None, 3])
     [True, False, False, True]
     """
-    cdef vector[cbool] v = o
+    let vector[cbool] v = o
     return v
 
 def test_bool_vector_get_set():
     """
     >>> test_bool_vector_get_set()
     """
-    cdef vector[cbool] v = range(5)
+    let vector[cbool] v = range(5)
     # Test access.
     assert not v[0], v
     assert v[1], v
@@ -186,12 +186,12 @@ def test_typedef_vector(L):
     >>> test_typedef_vector([0, 1, True])
     ([0, 1, 1, 0, 1, 1], 0, [False, True, True, False, True, True], False)
     """
-    cdef vector_int vi = L
-    cdef vector_int vi2 = vi
+    let vector_int vi = L
+    let vector_int vi2 = vi
     vi.insert(vi.begin(), vi2.begin(), vi2.end())
 
-    cdef vector_bool vb = L
-    cdef vector_bool vb2 = vb
+    let vector_bool vb = L
+    let vector_bool vb2 = vb
     vb.insert(vb.begin(), vb2.begin(), vb2.end())
 
     return vi, vi.at(0), vb, vb.at(0)
@@ -200,9 +200,9 @@ def test_insert():
     """
     >>> test_insert()
     """
-    cdef vector[i32] v
-    cdef vector[i32].size_type count = 5
-    cdef i32 value = 0
+    let vector[i32] v
+    let vector[i32].size_type count = 5
+    let i32 value = 0
 
     v.insert(v.end(), count, value)
 

@@ -46,8 +46,8 @@ def test_new_del():
     2 2
     """
     c,d = constructor_count, destructor_count
-    cdef Rectangle *rect = new Rectangle(10, 20)
-    cdef Circle *circ = new Circle(15)
+    let Rectangle *rect = new Rectangle(10, 20)
+    let Circle *circ = new Circle(15)
     print constructor_count-c, destructor_count-d
     del rect, circ
     print constructor_count-c, destructor_count-d
@@ -83,7 +83,7 @@ def test_rect_area(w, h):
     >>> test_rect_area(3, 4)
     12.0
     """
-    cdef Rectangle *rect = new Rectangle(w, h)
+    let Rectangle *rect = new Rectangle(w, h)
     try:
         return rect.area()
     finally:
@@ -96,8 +96,8 @@ def test_overload_bint_int():
     202
     201
     """
-    cdef Rectangle *rect1 = new Rectangle(10, 20)
-    cdef Rectangle *rect2 = new Rectangle(10, 20)
+    let Rectangle *rect1 = new Rectangle(10, 20)
+    let Rectangle *rect2 = new Rectangle(10, 20)
 
     try:
         print rect1.method(<int> 2)
@@ -112,8 +112,8 @@ def test_square_area(w):
     >>> test_square_area(15)
     (225.0, 225.0)
     """
-    cdef Square *sqr = new Square(w)
-    cdef Rectangle *rect = sqr
+    let Square *sqr = new Square(w)
+    let Rectangle *rect = sqr
     try:
         return rect.area(), sqr.area()
     finally:
@@ -128,8 +128,8 @@ def test_value_call(int w):
     >>> test_value_call(5)
     (25.0, 25.0)
     """
-    cdef Square *sqr = new Square(w)
-    cdef Rectangle *rect = sqr
+    let Square *sqr = new Square(w)
+    let Rectangle *rect = sqr
     try:
         return get_area(sqr[0]), get_area(rect[0])
     finally:
@@ -150,7 +150,7 @@ def test_stack_allocation(int w, int h):
     >>> get_destructor_count() - d
     1
     """
-    cdef Rectangle rect
+    let Rectangle rect
     rect.width = w
     rect.height = h
     print rect.method(<int>5)
@@ -162,18 +162,18 @@ def test_stack_allocation_in_struct():
     >>> get_destructor_count() - d
     1
     """
-    cdef StructWithEmpty swe
+    let StructWithEmpty swe
     sizeof(swe.empty) # use it for something
     return destructor_count
 
 cdef class EmptyHolder:
-    cdef Empty empty
+    let Empty empty
 
 cdef class AnotherEmptyHolder(EmptyHolder):
-    cdef Empty another_empty
+    let Empty another_empty
 
 cdef class EmptyViaStructHolder:
-    cdef StructWithEmpty swe
+    let StructWithEmpty swe
 
 def test_class_member():
     """
@@ -219,14 +219,14 @@ def test_class_in_struct_member():
            destructor_count - start_destructor_count
 
 cdef class TemplateClassMember:
-    cdef vector[int] x
-    cdef vector[vector[Empty]] vec
+    let vector[int] x
+    let vector[vector[Empty]] vec
 
 def test_template_class_member():
     """
     >>> test_template_class_member()
     """
-    cdef vector[Empty] inner
+    let vector[Empty] inner
     inner.push_back(Empty())
     inner.push_back(Empty())
     o = TemplateClassMember()
@@ -240,7 +240,7 @@ def test_template_class_member():
 
 ctypedef vector[int]* vector_int_ptr
 cdef vector[vector_int_ptr] create_to_delete() except *:
-    cdef vector[vector_int_ptr] v
+    let vector[vector_int_ptr] v
     v.push_back(new vector[int]())
     return v
 cdef int f(int x):
@@ -251,7 +251,7 @@ def test_nested_del():
     """
     >>> test_nested_del()
     """
-    cdef vector[vector_int_ptr] v
+    let vector[vector_int_ptr] v
     v.push_back(new vector[int]())
     del v[0]
     del create_to_delete()[f(f(0))]
@@ -261,7 +261,7 @@ def test_nested_del_repeat():
     """
     >>> test_nested_del_repeat()
     """
-    cdef vector[vector_int_ptr] v
+    let vector[vector_int_ptr] v
     v.push_back(new vector[int]())
     del v[0]
     del create_to_delete()[f(f(0))]

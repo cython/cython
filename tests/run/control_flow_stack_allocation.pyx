@@ -8,8 +8,8 @@ cdef struct S:
 
 
 cdef stack_alloc_test(int[2] array_arg, S struct_arg):
-    cdef int[2] array_var
-    cdef S struct_var, struct_var_by_value
+    let int[2] array_var
+    let S struct_var, struct_var_by_value
 
     for i in range(2):
         array_var[i] = array_arg[i]
@@ -27,8 +27,8 @@ def test():
     >>> sorted(d.items())
     [('x', 1), ('y', 2.0)]
     """
-    cdef int[2] array_var
-    cdef S struct_var
+    let int[2] array_var
+    let S struct_var
     for i in range(2):
         array_var[i] = i
     struct_var = [1, 2.0]

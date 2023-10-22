@@ -84,14 +84,14 @@ def test_const_vector(*args):
     >>> test_const_vector(1, 10, 100)
     [1.0, 10.0, 100.0]
     """
-    cdef vector[f64] v
+    let vector[f64] v
     for a in args:
         v.push_back(a)
     return const_vector_to_list(v)
 
 cdef const_vector_to_list(const vector[f64]& cv):
-    cdef vector[f64].const_iterator iter = cv.const_begin()
-    cdef lst = []
+    let vector[f64].const_iterator iter = cv.const_begin()
+    let lst = []
     while iter != cv.const_end():
         lst.append(cython.operator.dereference(iter))
         cython.operator.preincrement(iter)
@@ -125,17 +125,17 @@ def convert_to_vector(I):
     """
     >>> convert_to_vector([1,2,3,4])
     """
-    cdef vector[i32] x = I
+    let vector[i32] x = I
 
 def complex_operators():
     """
     >>> complex_operators()
     [-1.0, 0.0, 0.0, 2.0, 0.0, 2.0]
     """
-    cdef libcpp.complex.complex[f64] a = libcpp.complex.complex[f64](0.0, 1.0)
-    cdef libcpp.complex.complex[f64] r1 = a*a
-    cdef libcpp.complex.complex[f64] r2 = a*2.0
-    cdef libcpp.complex.complex[f64] r3 = 2.0*a
+    let libcpp.complex.complex[f64] a = libcpp.complex.complex[f64](0.0, 1.0)
+    let libcpp.complex.complex[f64] r1 = a*a
+    let libcpp.complex.complex[f64] r2 = a*2.0
+    let libcpp.complex.complex[f64] r3 = 2.0*a
     return [r1.real(), r1.imag(), r2.real(), r2.imag(), r3.real(), r3.imag()]
 
 def pair_comparison():
@@ -143,6 +143,6 @@ def pair_comparison():
     >>> pair_comparison()
     [False, True, False, True, False]
     """
-    cdef pair[f64, f64] p1 = pair[f64, f64](1.0, 2.0)
-    cdef pair[f64, f64] p2 = pair[f64, f64](2.0, 2.0)
+    let pair[f64, f64] p1 = pair[f64, f64](1.0, 2.0)
+    let pair[f64, f64] p2 = pair[f64, f64](2.0, 2.0)
     return [p1==p2, p1==p1, p1>p2, p1<p2, p2>p2]

@@ -1,5 +1,5 @@
 cdef void foo():
-    cdef i32 i, j, k
+    let i32 i, j, k
     i = j = k
     a = b = c
     i = j = c

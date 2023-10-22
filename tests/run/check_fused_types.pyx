@@ -29,9 +29,9 @@ cdef fused composed_t:
     long complex
 
 cdef func(fused_t a, other_t b):
-    cdef i32 int_a
-    cdef string_t string_a
-    cdef other_t other_a
+    let i32 int_a
+    let string_t string_a
+    let other_t other_a
 
     if fused_t is other_t:
         print 'fused_t is other_t'
@@ -62,8 +62,8 @@ def test_int_int():
     fused_t in unresolved_t
     i32 in unresolved_t
     """
-    cdef i32 x = 1
-    cdef i32 y = 2
+    let i32 x = 1
+    let i32 y = 2
 
     func(x, y)
 
@@ -74,8 +74,8 @@ def test_int_long():
     fused_t in unresolved_t
     i32 in unresolved_t
     """
-    cdef i32 x = 1
-    cdef i64 y = 2
+    let i32 x = 1
+    let i64 y = 2
 
     func(x, y)
 
@@ -85,8 +85,8 @@ def test_float_int():
     fused_t in unresolved_t
     i32 in unresolved_t
     """
-    cdef f32 x = 1
-    cdef i32 y = 2
+    let f32 x = 1
+    let i32 y = 2
 
     func(x, y)
 
@@ -96,15 +96,15 @@ def test_string_int():
     fused_t is string_t
     i32 in unresolved_t
     """
-    cdef string_t x = b"spam"
-    cdef i32 y = 2
+    let string_t x = b"spam"
+    let i32 y = 2
 
     func(x, y)
 
 cdef if_then_else(fused_t a, other_t b):
-    cdef other_t other_a
-    cdef string_t string_a
-    cdef fused_t specific_a
+    let other_t other_a
+    let string_t string_a
+    let fused_t specific_a
 
     if fused_t is other_t:
         print 'fused_t is other_t'
@@ -121,7 +121,7 @@ def test_if_then_else_long_long():
     >>> test_if_then_else_long_long()
     fused_t is other_t
     """
-    cdef i64 x = 0, y = 0
+    let i64 x = 0, y = 0
     if_then_else(x, y)
 
 def test_if_then_else_string_int():
@@ -129,8 +129,8 @@ def test_if_then_else_string_int():
     >>> test_if_then_else_string_int()
     fused_t is string_t
     """
-    cdef string_t x = b"spam"
-    cdef i32 y = 0
+    let string_t x = b"spam"
+    let i32 y = 0
     if_then_else(x, y)
 
 def test_if_then_else_float_int():
@@ -138,8 +138,8 @@ def test_if_then_else_float_int():
     >>> test_if_then_else_float_int()
     none of the above
     """
-    cdef f32 x = 0.0
-    cdef i32 y = 1
+    let f32 x = 0.0
+    let i32 y = 1
     if_then_else(x, y)
 
 cdef composed_t composed(composed_t x, composed_t y):
@@ -180,10 +180,10 @@ def test_composed_types():
     spam eggs
     spam
     """
-    cdef double complex a = 0.5 + 0.6j, b = 0.4 -0.2j, result
-    cdef i32 c = 7, d = 8
-    cdef i32 *cp = &c, *dp = &d
-    cdef string_t e = "spam", f = "eggs"
+    let double complex a = 0.5 + 0.6j, b = 0.4 -0.2j, result
+    let i32 c = 7, d = 8
+    let i32 *cp = &c, *dp = &d
+    let string_t e = "spam", f = "eggs"
 
     result = composed(a, b)
     print int(math.ceil(result.real * 10)), int(math.ceil(result.imag * 10))

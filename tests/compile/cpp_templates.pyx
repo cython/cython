@@ -47,5 +47,5 @@ pub i32 func(i32 arg):
 # which is valid C++11, but not valid C++98 because the ">>" would be
 # parsed as a single token.
 pub void use_nested_templates():
-    cdef TemplateTest1[TemplateTest1[i32]] t
+    let TemplateTest1[TemplateTest1[i32]] t
     template_function(t)

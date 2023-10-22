@@ -10,7 +10,7 @@ if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u"L", u"")
 
 def f(x):
-    cdef u128 ull
+    let u128 ull
     ull = x
     return ull + 1
 

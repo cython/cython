@@ -11,11 +11,11 @@ def test_get_runtime_version():
     >>> test_get_runtime_version()
     True
     """
-    cdef u64 rt_version = get_runtime_version()
+    let u64 rt_version = get_runtime_version()
     return PY_VERSION_HEX & ~0xFF == rt_version or  (hex(PY_VERSION_HEX), hex(rt_version))
 
 def iter_hex_versions():
-    cdef i64 major, minor, dot
+    let i64 major, minor, dot
     for major in range(0, 20):
         for minor in range(0, 20, 3):
             for dot in range(0, 20, 3):
@@ -28,8 +28,8 @@ def test_compare_binary_versions_exact():
     >>> test_compare_binary_versions_exact()
     >>> warnings.resetwarnings()
     """
-    cdef i64 major_and_minor = 0xFFFF0000
-    cdef i64 rt_version, ct_version
+    let i64 major_and_minor = 0xFFFF0000
+    let i64 rt_version, ct_version
 
     versions = list(iter_hex_versions())
     for ct_version in versions:
@@ -51,8 +51,8 @@ def test_compare_binary_versions_minimum():
     >>> test_compare_binary_versions_minimum()
     >>> warnings.resetwarnings()
     """
-    cdef i64 major_and_minor = 0xFFFF0000
-    cdef i64 rt_version, ct_version
+    let i64 major_and_minor = 0xFFFF0000
+    let i64 rt_version, ct_version
 
     versions = list(iter_hex_versions())
     for ct_version in versions:

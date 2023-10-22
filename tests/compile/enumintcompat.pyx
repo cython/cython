@@ -7,10 +7,10 @@ cdef enum G:
     b
 
 cdef void f():
-    cdef E e=a
-    cdef G g=b
-    cdef i32 i, j=0
-    cdef f32 f, h=0
+    let E e=a
+    let G g=b
+    let i32 i, j=0
+    let f32 f, h=0
     i = j | e
     i = e | j
     i = j ^ e

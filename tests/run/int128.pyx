@@ -70,7 +70,7 @@ def unsigned_conversion(x):
     Traceback (most recent call last):
     OverflowError: ... to convert...
     """
-    cdef uint128_t n = x
+    let uint128_t n = x
     return n
 
 def signed_conversion(x):
@@ -133,7 +133,7 @@ def signed_conversion(x):
     Traceback (most recent call last):
     OverflowError: ... to convert...
     """
-    cdef int128_t n = x
+    let int128_t n = x
     return n
 
 def get_int_distribution(shuffle=true):
@@ -172,7 +172,7 @@ def intsum(L):
     >>> bigint(intsum(L))
     61084913298497804284622382871263
     """
-    cdef uint128_t i, x = 0
+    let uint128_t i, x = 0
     for i in L:
         x += i
     return x
@@ -198,7 +198,7 @@ def intxor(L):
     >>> bigint(intxor(L * 2))
     0
     """
-    cdef uint128_t i, x = 0
+    let uint128_t i, x = 0
     for i in L:
         x ^= i
     return x

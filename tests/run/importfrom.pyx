@@ -57,8 +57,8 @@ def typed_imports():
 
     import sys
     import types
-    cdef long maxunicode
-    cdef type t
+    let long maxunicode
+    let type t
 
     from sys import maxunicode
     print(maxunicode == sys.maxunicode)

@@ -4,7 +4,7 @@
 from libcpp.string cimport string
 
 cdef foo():
-    cdef string field
+    let string field
     if field:  # field cannot be coerced to bool
         pass
 

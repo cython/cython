@@ -55,8 +55,8 @@ def test_next_permutation(s_in, s_perm):
     >>> test_next_permutation("aba", "bab")
     False
     """
-    cdef string ss = <char*>s_in
-    cdef string expected = <char*>s_perm
+    let string ss = <char*>s_in
+    let string expected = <char*>s_perm
     next_permutation(ss.begin(), ss.end())
     return ss == expected
 
@@ -69,8 +69,8 @@ def test_next_permutation_with_bin_pred(s_in, s_perm):
     >>> test_next_permutation_with_bin_pred("aba", "bab")
     False
     """
-    cdef string ss = <char*>s_in
-    cdef string expected = <char*>s_perm
+    let string ss = <char*>s_in
+    let string expected = <char*>s_perm
     next_permutation(ss.begin(), ss.end(), less_than)
     return ss == expected
 
@@ -83,8 +83,8 @@ def test_prev_permutation(s_in, s_perm):
     >>> test_prev_permutation("aba", "bab")
     False
     """
-    cdef string ss = <char*>s_in
-    cdef string expected = <char*>s_perm
+    let string ss = <char*>s_in
+    let string expected = <char*>s_perm
     prev_permutation(ss.begin(), ss.end())
     return ss == expected
 
@@ -97,7 +97,7 @@ def test_prev_permutation_with_bin_pred(s_in, s_perm):
     >>> test_prev_permutation_with_bin_pred("aba", "bab")
     False
     """
-    cdef string ss = <char*>s_in
-    cdef string expected = <char*>s_perm
+    let string ss = <char*>s_in
+    let string expected = <char*>s_perm
     prev_permutation(ss.begin(), ss.end(), less_than)
     return ss == expected

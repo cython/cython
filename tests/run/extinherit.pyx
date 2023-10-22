@@ -1,12 +1,12 @@
 cdef class Parrot:
-    cdef object name
-    cdef int alive
+    let object name
+    let int alive
 
 cdef class Norwegian(Parrot):
-    cdef object plumage_colour
+    let object plumage_colour
 
 def create():
-    cdef Parrot p
+    let Parrot p
     p = Norwegian()
     p.alive = 1
     return p
@@ -17,8 +17,8 @@ def rest(Norwegian polly):
     >>> rest(p)
     0
     """
-    cdef Parrot fred
-    cdef object spam
+    let Parrot fred
+    let object spam
     spam = None
 
     fred = polly

@@ -98,7 +98,7 @@ def index_literal_pyunicode_coerce(i32 i):
     Traceback (most recent call last):
     IndexError: string index out of range
     """
-    cdef Py_UNICODE result = u"12345"[i]
+    let Py_UNICODE result = u"12345"[i]
     return result
 
 @cython.test_assert_path_exists("//SingleAssignmentNode")
@@ -115,7 +115,7 @@ def index_literal_pyunicode_coerce_no_check(i32 i):
     >>> index_literal_pyunicode_coerce_no_check(4) == '5'
     True
     """
-    cdef Py_UNICODE result = u"12345"[i]
+    let Py_UNICODE result = u"12345"[i]
     return result
 
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
@@ -238,8 +238,8 @@ def index_concat_loop(unicode ustring):
     >>> index_concat_loop(ustring) == ustring
     True
     """
-    cdef i32 i
-    cdef unicode s = u''
+    let i32 i
+    let unicode s = u''
     for i in range(len(ustring)):
         s += ustring[i]
     return s
@@ -253,5 +253,5 @@ def index_join_loop(unicode ustring):
     >>> index_join_loop(ustring) == ustring
     True
     """
-    cdef i32 i
+    let i32 i
     return u''.join([ ustring[i] for i in range(len(ustring)) ])

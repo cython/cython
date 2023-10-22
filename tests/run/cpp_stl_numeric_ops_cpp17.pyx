@@ -121,7 +121,7 @@ def test_inclusive_scan(vector[int] v):
     >>> test_inclusive_scan([1, 2, 3, 4])
     [1, 3, 6, 10]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     inclusive_scan(v.begin(), v.end(), out.begin())
     return out
 
@@ -141,7 +141,7 @@ def test_inclusive_scan_with_bin_op(vector[int] v):
     >>> test_inclusive_scan_with_bin_op([1, 2, 3, 4])
     [1, 3, 6, 10]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     inclusive_scan(v.begin(), v.end(), out.begin(), add_integers)
     return out
 
@@ -161,7 +161,7 @@ def test_inclusive_scan_with_bin_op_and_init(vector[int] v, int init):
     >>> test_inclusive_scan_with_bin_op_and_init([1, 2, 3, 4], 0)
     [1, 3, 6, 10]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, init)
     return out
 
@@ -181,7 +181,7 @@ def test_transform_inclusive_scan(vector[int] v):
     >>> test_transform_inclusive_scan([1, 2, 3, 4])
     [2, 6, 12, 20]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2)
     return out
 
@@ -201,7 +201,7 @@ def test_transform_inclusive_scan_with_init(vector[int] v, int init):
     >>> test_transform_inclusive_scan_with_init([1, 2, 3, 4], 0)
     [2, 6, 12, 20]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, init)
     return out
 
@@ -211,7 +211,7 @@ def test_transform_inclusive_scan_with_execpolicy_and_init(vector[int] v, int in
     >>> test_transform_inclusive_scan_with_execpolicy_and_init([1, 2, 3, 4], 0)
     [2, 6, 12, 20]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     transform_inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, init)
     return out
 
@@ -221,7 +221,7 @@ def test_exclusive_scan(vector[int] v, int init):
     >>> test_exclusive_scan([1, 2, 3, 4], 0)
     [0, 1, 3, 6]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     exclusive_scan(v.begin(), v.end(), out.begin(), init)
     return out
 
@@ -241,7 +241,7 @@ def test_exclusive_scan_with_bin_op(vector[int] v, int init):
     >>> test_exclusive_scan_with_bin_op([1, 2, 3, 4], 0)
     [0, 1, 3, 6]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     exclusive_scan(v.begin(), v.end(), out.begin(), init, add_integers)
     return out
 
@@ -251,7 +251,7 @@ def test_exclusive_scan_with_execpolicy_and_bin_op(vector[int] v, int init):
     >>> test_exclusive_scan_with_execpolicy_and_bin_op([1, 2, 3, 4], 0)
     [0, 1, 3, 6]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers)
     return out
 
@@ -262,7 +262,7 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     >>> test_transform_exclusive_scan_with_execpolicy([1, 2, 3, 4], 0)
     [0, 2, 6, 12]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
 
@@ -272,7 +272,7 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     >>> test_transform_exclusive_scan_with_execpolicy([1, 2, 3, 4], 0)
     [0, 2, 6, 12]
     """
-    cdef vector[int] out = vector[int](v.size())
+    let vector[int] out = vector[int](v.size())
     transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
 

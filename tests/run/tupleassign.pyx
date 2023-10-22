@@ -60,7 +60,7 @@ def assign3_int(t):
     >>> assign3_int(l)
     (1, 2, 3)
     """
-    cdef int a,b,c
+    let int a,b,c
     a,b,c = t
     return (a,b,c)
 
@@ -69,7 +69,7 @@ def assign3_mixed1(t):
     >>> assign3_mixed1(l)
     (1, 2, 3)
     """
-    cdef int a
+    let int a
     a,b,c = t
     return (a,b,c)
 
@@ -78,7 +78,7 @@ def assign3_mixed2(t):
     >>> assign3_mixed2(l)
     (1, 2, 3)
     """
-    cdef int b
+    let int b
     a,b,c = t
     return (a,b,c)
 
@@ -87,12 +87,12 @@ def assign3_mixed3(t):
     >>> assign3_mixed3(l)
     (1, 2, 3)
     """
-    cdef int c
+    let int c
     a,b,c = t
     return (a,b,c)
 
 def assign3_mixed4(t):
-    cdef int b,c
+    let int b,c
     a,b,c = t
     return (a,b,c)
 
@@ -117,7 +117,7 @@ def test_overwrite_int(t):
     >>> test_overwrite_int(t)
     (99, 98)
     """
-    cdef int a,b
+    let int a,b
     a,b = 99,98
     try:
         a,b = t
@@ -132,7 +132,7 @@ def test_overwrite_mixed(t):
     >>> test_overwrite_mixed(t)
     (99, 98)
     """
-    cdef int b
+    let int b
     a,b = 99,98
     try:
         a,b = t
@@ -147,7 +147,7 @@ def test_overwrite_mixed2(t):
     >>> test_overwrite_mixed2(t)
     (99, 98)
     """
-    cdef int a
+    let int a
     a,b = 99,98
     try:
         a,b = t

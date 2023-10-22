@@ -3,8 +3,8 @@ def f(int a):
     >>> f(5)
     5
     """
-    cdef int i,j
-    cdef int *p
+    let int i,j
+    let int *p
     i = a
     p = &i
     j = p[0]

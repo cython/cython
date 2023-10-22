@@ -125,7 +125,7 @@ def iteritems_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int k,v
+    let int k,v
     l = []
     for k,v in d.iteritems():
         l.append((k,v))
@@ -161,7 +161,7 @@ def optimistic_iteritems_int(d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int k,v
+    let int k,v
     l = []
     for k,v in d.iteritems():
         l.append((k,v))
@@ -188,7 +188,7 @@ def iteritems_tuple(dict d):
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
 def iteritems_listcomp(dict d):
-    cdef list l = [(k,v) for k,v in d.iteritems()]
+    let list l = [(k,v) for k,v in d.iteritems()]
     l.sort()
     return l
 
@@ -261,7 +261,7 @@ def iterkeys_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int k
+    let int k
     l = []
     for k in d.iterkeys():
         l.append(k)
@@ -297,7 +297,7 @@ def iterdict_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int k
+    let int k
     l = []
     for k in d:
         l.append(k)
@@ -314,7 +314,7 @@ def iterdict_reassign(dict d):
     >>> iterdict_reassign({})
     []
     """
-    cdef dict d_new = {}
+    let dict d_new = {}
     l = []
     for k in d:
         d = d_new
@@ -332,7 +332,7 @@ def iterdict_listcomp(dict d):
     >>> iterdict_listcomp({})
     []
     """
-    cdef list l = [k for k in d]
+    let list l = [k for k in d]
     l.sort()
     return l
 
@@ -392,7 +392,7 @@ def itervalues_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int v
+    let int v
     l = []
     for v in d.itervalues():
         l.append(v)
@@ -409,7 +409,7 @@ def itervalues_listcomp(dict d):
     >>> itervalues_listcomp({})
     []
     """
-    cdef list l = [v for v in d.itervalues()]
+    let list l = [v for v in d.itervalues()]
     l.sort()
     return l
 
@@ -423,7 +423,7 @@ def itervalues_kwargs(**d):
     >>> itervalues_kwargs()
     []
     """
-    cdef list l = [v for v in d.itervalues()]
+    let list l = [v for v in d.itervalues()]
     l.sort()
     return l
 
@@ -448,7 +448,7 @@ def iterdict_change_size(dict d):
     >>> print( iterdict_change_size({}) )
     DONE
     """
-    cdef int count = 0
+    let int count = 0
     i = -1
     for i in d:
         d[i+1] = 5
@@ -485,7 +485,7 @@ def optimistic_iterdict_change_size(d):
     Traceback (most recent call last):
     RuntimeError: dictionary changed size during iteration
     """
-    cdef int count = 0
+    let int count = 0
     i = -1
     for i in d.iterkeys():
         d[i+1] = 5
@@ -564,7 +564,7 @@ cdef class NotADict:
     ...
     TypeError: descriptor 'values' for 'mappingproxy' objects doesn't apply to a 'iterdict.NotADict' object
     """
-    cdef long v
+    let long v
     def __cinit__(self):
         self.v = 1
     itervalues = type(object.__dict__).values

@@ -205,8 +205,8 @@ def find_first_int_in_set(values, target):
     2
     >>> find_first_int_in_set([1, 2, 3], [4, 5])
     """
-    cdef vector[int] v = values
-    cdef vector[int] t = target
+    let vector[int] v = values
+    let vector[int] t = target
     result = find_first_of(v.begin(), v.end(), t.begin(), t.end())
     if result != v.end():
         return distance(v.begin(), result)

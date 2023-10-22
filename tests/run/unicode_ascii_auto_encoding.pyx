@@ -31,9 +31,9 @@ def from_object():
     """
     >>> from_object()
     """
-    cdef bytes b = b"abc"
-    cdef str s = "abc"
-    cdef unicode u = u"abc"
+    let bytes b = b"abc"
+    let str s = "abc"
+    let unicode u = u"abc"
     assert strcmp(<char*>b, "abc") == 0
     assert strcmp(<char*>s, "abc") == 0
     assert strcmp(<char*>u, "abc") == 0

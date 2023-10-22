@@ -7,7 +7,7 @@ def test_itimer(sec, usec):
     >>> test_itimer(10, 2)
     (10, 2)
     """
-    cdef itimerval t, gtime
+    let itimerval t, gtime
 
     t.it_interval.tv_sec = sec
     t.it_interval.tv_usec = usec
@@ -28,6 +28,6 @@ def test_gettimeofday():
     """
     >>> test_gettimeofday()
     """
-    cdef timeval t
+    let timeval t
     ret = gettimeofday(&t, NULL)
     assert ret == 0

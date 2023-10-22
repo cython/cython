@@ -27,6 +27,6 @@ def qsort(values, direction='lt'):
     >>> qsort(data, 'lt')
     [9, 5, 3, 2, 1]
     """
-    cdef int[5] carray = values[:5]
+    let int[5] carray = values[:5]
     libc_qsort(carray, 5, sizeof(int), lt if direction == 'lt' else gt)
     return carray

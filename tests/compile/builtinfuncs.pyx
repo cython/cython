@@ -1,12 +1,12 @@
 # mode: compile
 
 cdef i32 f() except -1:
-    cdef object x, y = 0, z = 0, w = 0
-    cdef str sstring
-    cdef basestring sustring
-    cdef i32 i
-    cdef i64 lng
-    cdef isize s
+    let object x, y = 0, z = 0, w = 0
+    let str sstring
+    let basestring sustring
+    let i32 i
+    let i64 lng
+    let isize s
     x = abs(y)
     delattr(x, 'spam')
     x = dir(y)

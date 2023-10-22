@@ -19,9 +19,9 @@ def call_empty_cfunc():
     here
     there
     """
-    cdef object py_func = empty_cfunc
+    let object py_func = empty_cfunc
     py_func()
-    cdef object another_py_func = another_empty_cfunc
+    let object another_py_func = another_empty_cfunc
     another_py_func()
 
 cdef f64 square_c(f64 x):
@@ -34,7 +34,7 @@ def call_square_c(x):
     >>> call_square_c(-7)
     49.0
     """
-    cdef object py_func = square_c
+    let object py_func = square_c
     return py_func(x)
 
 def return_square_c():
@@ -77,7 +77,7 @@ def test_global():
     print cython.typeof(global_csqrt)
 
 cdef i128 rad(i128 x):
-    cdef i128 rad = 1
+    let i128 rad = 1
     for p in range(2, <i128>sqrt(<f64>x) + 1):  # MSVC++ fails without the input cast
         if x % p == 0:
             rad *= p
@@ -107,7 +107,7 @@ def call_abc(a, b, c):
     ...
     ValueError: Not a valid abc candidate: (1, 1, 1)
     """
-    cdef object py_func = abc
+    let object py_func = abc
     return py_func(a, b, c)
 
 def return_abc():
@@ -140,7 +140,7 @@ cdef struct my_struct:
     my_union y
 
 cdef my_struct c_struct_builder(f32 which, f32 a, f64 b):
-    cdef my_struct value
+    let my_struct value
     value.which = which
     if which:
         value.y.a = a
@@ -251,7 +251,7 @@ def make_map():
     Traceback (most recent call last):
     TypeError: ...
     """
-    cdef map = {
+    let map = {
         "f1": cfunc_dup_f1,
         "f2": cfunc_dup_f2,
     }

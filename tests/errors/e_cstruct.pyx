@@ -12,8 +12,8 @@ cdef struct Spam:
 cdef struct Grail
 
 cdef void eggs(Spam s):
-    cdef i32 j
-    cdef Grail *gp
+    let i32 j
+    let Grail *gp
     j = s.k # error - undef attribute
     j = s.p # type error
     s.p = j # type error

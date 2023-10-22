@@ -226,8 +226,8 @@ def object_pop_large_int():
     >>> object_pop_large_int()
     {}
     """
-    cdef object foo = {}
-    cdef uint64_t bar = 201213467776703617ULL
+    let object foo = {}
+    let uint64_t bar = 201213467776703617ULL
 
     foo[bar] = None
     assert (<object>bar) in foo

@@ -102,7 +102,7 @@ def typed():
     10
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
-    cdef u8 i
+    let u8 i
     c = ContextManager(255)
     with c as i:
         i += 11

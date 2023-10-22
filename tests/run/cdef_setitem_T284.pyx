@@ -4,20 +4,20 @@ def no_cdef():
     """
     >>> no_cdef()
     """
-    cdef object lst = list(range(11))
+    let object lst = list(range(11))
     ob = 10L
     lst[ob] = -10
-    cdef object dd = {}
+    let object dd = {}
     dd[ob] = -10
 
 def with_cdef():
     """
     >>> with_cdef()
     """
-    cdef list lst = list(range(11))
+    let list lst = list(range(11))
     ob = 10L
     lst[ob] = -10
-    cdef dict dd = {}
+    let dict dd = {}
     dd[ob] = -10
 
 def with_external_list(list L):

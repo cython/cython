@@ -14,5 +14,5 @@ def append_to_none():
     Traceback (most recent call last):
     AttributeError: 'NoneType' object has no attribute 'append'
     """
-    cdef list l = None
+    let list l = None
     l.append(2)

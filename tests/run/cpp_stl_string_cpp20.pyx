@@ -17,8 +17,8 @@ def test_string_starts_with_char(bytes py_str):
     >>> test_string_starts_with_char(b'F')
     False
     """
-    cdef char c = py_str[0]
-    cdef string s = b"ABCDEF"
+    let char c = py_str[0]
+    let string s = b"ABCDEF"
     return s.starts_with(c)
 
 
@@ -30,8 +30,8 @@ def test_string_starts_with_cstr(bytes py_str):
     >>> test_string_starts_with_cstr(b"DEF")
     False
     """
-    cdef char* c = py_str
-    cdef string s = b"ABCDEF"
+    let char* c = py_str
+    let string s = b"ABCDEF"
     return s.starts_with(c)
 
 
@@ -43,8 +43,8 @@ def test_string_ends_with_char(bytes py_str):
     >>> test_string_ends_with_char(b'A')
     False
     """
-    cdef char c = py_str[0]
-    cdef string s = b"ABCDEF"
+    let char c = py_str[0]
+    let string s = b"ABCDEF"
     return s.ends_with(c)
 
 
@@ -56,6 +56,6 @@ def test_string_ends_with_cstr(bytes py_str):
     >>> test_string_ends_with_cstr(b"ABC")
     False
     """
-    cdef char* c = py_str
-    cdef string s = b"ABCDEF"
+    let char* c = py_str
+    let string s = b"ABCDEF"
     return s.ends_with(c)

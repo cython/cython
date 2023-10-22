@@ -11,6 +11,6 @@ if sys.version_info[0] < 3:
     __doc__ = __doc__.replace(u"(b'", u"('").replace(u" b'", u" '")
 
 def do_slice(s, int i, int j):
-    cdef char* ss = s
+    let char* ss = s
     return ss[i:j], ss[i:], ss[:i], ss[:], ss[i:None], ss[None:i], ss[None:None]
 

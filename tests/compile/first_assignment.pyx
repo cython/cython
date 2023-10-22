@@ -8,7 +8,7 @@ cimport cython
     "//SingleAssignmentNode[./NameNode[@name = 'a'] and @first = True]",
     )
 def test_cdef():
-    cdef int a = 1
+    let int a = 1
 
 @cython.test_assert_path_exists(
     "//SingleAssignmentNode",

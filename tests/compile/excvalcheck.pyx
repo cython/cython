@@ -8,8 +8,8 @@ cdef extern void grail() except *
 cdef extern char *tomato() except? NULL
 
 cdef void eggs():
-    cdef i32 i
-    cdef char *p
+    let i32 i
+    let char *p
     i = spam()
     grail()
     p = tomato()

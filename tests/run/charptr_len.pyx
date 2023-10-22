@@ -34,7 +34,7 @@ def lentest_char_c():
     >>> lentest_char_c()
     7
     """
-    cdef isize l = len(s)
+    let isize l = len(s)
     return l
 
 @cython.test_assert_path_exists(
@@ -45,7 +45,7 @@ def lentest_char_c_short():
     >>> lentest_char_c_short()
     7
     """
-    cdef short l = len(s)
+    let short l = len(s)
     return l
 
 @cython.test_assert_path_exists(
@@ -56,7 +56,7 @@ def lentest_char_c_float():
     >>> lentest_char_c_float()
     7.0
     """
-    cdef float l = len(s)
+    let float l = len(s)
     return l
 
 @cython.test_assert_path_exists(
@@ -87,7 +87,7 @@ def lentest_uchar_c():
     >>> lentest_uchar_c()
     7
     """
-    cdef isize l = len(us)
+    let isize l = len(us)
     return l
 
 def lentest_py():
@@ -102,5 +102,5 @@ def lentest_py_c():
     >>> lentest_py_c()
     7
     """
-    cdef isize l = len(pystr)
+    let isize l = len(pystr)
     return l

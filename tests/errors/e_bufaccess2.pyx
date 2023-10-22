@@ -4,27 +4,27 @@ cimport e_bufaccess_pxd # was needed to provoke a bug involving ErrorType
 import cython
 
 def f():
-    cdef object[e_bufaccess_pxd.T] buf
+    let object[e_bufaccess_pxd.T] buf
 
 def withnogil_access_fail():
-    cdef object[i32] buf = None
+    let object[i32] buf = None
     with nogil:
         buf[2] = 2
 
 @cython.boundscheck(false)
 def withnogil_access_ok():
-    cdef object[i32] buf = None
+    let object[i32] buf = None
     with nogil:
         buf[2] = 2 # No error should be triggered here
 
 @cython.boundscheck(false)
 def withnogil_access_fail_2():
-    cdef object[object] buf = None
+    let object[object] buf = None
     with nogil:
         buf[2] = 2 # Not OK as dtype is object
 
 def withnogil_acquire(x):
-    cdef object[i32] buf
+    let object[i32] buf
     with nogil:
         buf = x
 

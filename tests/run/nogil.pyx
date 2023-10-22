@@ -110,29 +110,29 @@ def test_unraisable():
 
 
 cdef int initialize_array() nogil:
-    cdef int[4] a = [1, 2, 3, 4]
+    let int[4] a = [1, 2, 3, 4]
     return a[0] + a[1] + a[2] + a[3]
 
 cdef int copy_array() nogil:
-    cdef int[4] a
+    let int[4] a
     a[:] = [0, 1, 2, 3]
     return a[0] + a[1] + a[2] + a[3]
 
 cdef double copy_array2() nogil:
-    cdef double[4] x = [1.0, 3.0, 5.0, 7.0]
-    cdef double[4] y
+    let double[4] x = [1.0, 3.0, 5.0, 7.0]
+    let double[4] y
     y[:] = x[:]
     return y[0] + y[1] + y[2] + y[3]
 
 cdef double copy_array3() nogil:
-    cdef double[4] x = [2.0, 4.0, 6.0, 8.0]
-    cdef double[4] y
+    let double[4] x = [2.0, 4.0, 6.0, 8.0]
+    let double[4] y
     y = x
     return y[0] + y[1] + y[2] + y[3]
 
 cdef void copy_array_exception(int n) nogil:
-    cdef double[5] a = [1,2,3,4,5]
-    cdef double[6] b
+    let double[5] a = [1,2,3,4,5]
+    let double[6] b
     b[:n] = a
 
 def test_initalize_array():
@@ -179,7 +179,7 @@ def test_copy_array_exception_nogil(n):
         ...
     ValueError: Assignment to slice of wrong length, expected 5, got 20
     """
-    cdef int cn = n
+    let int cn = n
     with nogil:
         copy_array_exception(cn)
 

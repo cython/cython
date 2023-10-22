@@ -1,9 +1,9 @@
 # mode: compile
 
 def f(obj1, obj2, obj3):
-    cdef i32 int1, int2=0, int3=0
-    cdef f32 flt1, *ptr1=NULL
-    cdef i32[42] array1
+    let i32 int1, int2=0, int3=0
+    let f32 flt1, *ptr1=NULL
+    let i32[42] array1
     array1[int2] = 0
     int1 = array1[int2]
     flt1 = ptr1[int2]

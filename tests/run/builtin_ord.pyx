@@ -18,7 +18,7 @@ def ord_Py_UNICODE(unicode s):
     >>> ord_Py_UNICODE(uspace)
     32
     """
-    cdef Py_UNICODE u
+    let Py_UNICODE u
     u = s[0]
     return ord(u)
 
@@ -63,7 +63,7 @@ def compare_to_char(s):
     >>> compare_to_char('x')
     True
     """
-    cdef char c = b'x'
+    let char c = b'x'
     return ord(s) == c
 
 

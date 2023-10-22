@@ -40,7 +40,7 @@ def f():
     42.0
     42.0
     """
-    cdef object c = MyClass()
+    let object c = MyClass()
     print c.actual_double
     print c.float_isreally_double
 
@@ -49,9 +49,9 @@ def longdouble_access():
     >>> longdouble_access()
     42.0
     """
-    cdef object c = MyClass()
+    let object c = MyClass()
     print c.float_isreally_longdouble
 
 def readonly():
-    cdef object c = MyClass()
+    let object c = MyClass()
     c.actual_double = 3

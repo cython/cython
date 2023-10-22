@@ -64,157 +64,157 @@ def assert_raised(f, *args, **kwargs):
     assert raised
 
 def initialization(i128 a, i128 b):
-    cdef wrapped_int w = wrapped_int(a, b)
+    let wrapped_int w = wrapped_int(a, b)
     return w.val
 
 def addition(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return (wa + wb).val
 
 def subtraction(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return (wa - wb).val
 
 def multiplication(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return (wa * wb).val
 
 def division(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return (wa / wb).val
 
 def mod(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return (wa % wb).val
 
 def minus(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return (-wa).val
 
 def plus(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return (+wa).val
 
 def xor(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa ^ wb
 
 def bitwise_and(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa & wb
 
 def bitwise_or(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa | wb
 
 def bitwise_not(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return (~a).val
 
 def address(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return &wa
 
 def iseq(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa == wb
 
 def neq(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa != wb
 
 def less(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa < wb
 
 def leq(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa <= wb
 
 def greater(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa > wb
 
 def geq(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     return wa < wb
 
 def left_shift(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return (wa << b).val
 
 def right_shift(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return (wa >> b).val
 
 def cpp_preincrement(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return preincrement(wa).val
 
 def cpp_predecrement(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return predecrement(wa).val
 
 def cpp_postincrement(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return postincrement(wa).val
 
 def cpp_postdecrement(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return postdecrement(wa).val
 
 def negate(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return (not wa).val
 
 def bool_cast(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     if wa:
         return true
     else:
         return false
 
 def index(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return wa[b].val
 
 def assign_index(i128 a, i128 b, i128 c):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     wb[c] = wa
     return wb.val
 
 def call(i128 a):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     return wa()
 
 def assign_same(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
-    cdef wrapped_int wb = wrapped_int(b)
+    let wrapped_int wa = wrapped_int(a)
+    let wrapped_int wb = wrapped_int(b)
     wa = wb
     return wa.val
 
 def assign_different(i128 a, i128 b):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     wa = b
     return wa.val
 
 def cascaded_assign(i128 a, i128 b, i128 c):
-    cdef wrapped_int wa = wrapped_int(a)
+    let wrapped_int wa = wrapped_int(a)
     a = b = c
     return a.val
 
@@ -280,5 +280,5 @@ def test_only_single_call():
     >>> test_only_single_call()
     False
     """
-    cdef second_call_is_different inst
+    let second_call_is_different inst
     return inst<inst

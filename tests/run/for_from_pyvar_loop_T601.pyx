@@ -10,7 +10,7 @@ def for_from_plain_ulong():
     1
     2
     """
-    cdef object j = 0
+    let object j = 0
     for j from 0 <= j < size2():
         print j
 
@@ -21,7 +21,7 @@ def for_in_plain_ulong():
     1
     2
     """
-    cdef object j = 0
+    let object j = 0
     for j in range(size2()):
         print j
 
@@ -39,7 +39,7 @@ def for_from_ctypedef_ulong():
     1
     2
     """
-    cdef object j = 0
+    let object j = 0
     for j from 0 <= j < size():
         print j
 
@@ -50,7 +50,7 @@ def for_in_ctypedef_ulong():
     1
     2
     """
-    cdef object j = 0
+    let object j = 0
     for j in range(size()):
         print j
 

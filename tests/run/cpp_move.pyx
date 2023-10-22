@@ -19,7 +19,7 @@ def test_move_assignment():
     """
     >>> test_move_assignment()
     """
-    cdef shared_ptr[int] p1, p2
+    let shared_ptr[int] p1, p2
     p1 = make_shared[int](1337)
     p2 = move(p1)
     assert p1 == nullptr
@@ -29,6 +29,6 @@ def test_move_func_call():
     """
     >>> test_move_func_call()
     """
-    cdef shared_ptr[int] p
+    let shared_ptr[int] p
     assert move_helper(p) == b'lvalue-ref'
     assert move_helper(move(p)) == b'rvalue-ref'

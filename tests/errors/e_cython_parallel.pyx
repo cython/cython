@@ -66,7 +66,7 @@ with nogil, cython.parallel.parallel(invalid=true):
     pass
 
 def f(x):
-    cdef i32 i
+    let i32 i
 
     with nogil, cython.parallel.parallel():
         with gil:

@@ -23,7 +23,7 @@ else:
 """
 
 def test_assign():
-    cdef char[17] s
+    let char[17] s
 
     s[ 0] = c'\x10'
     s[ 1] = c'\x21'
@@ -47,7 +47,7 @@ def test_assign():
     return s
 
 def test_array():
-    cdef char* s = [
+    let char* s = [
         c'\x10',
         c'\x21',
         c'\x32',

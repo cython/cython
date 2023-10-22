@@ -13,9 +13,9 @@ cdef extern from *:
     ctypedef void PyObject
 
 def f():
-    cdef void* p1
-    cdef PyObject* p2
-    cdef object a = u"teststring"
+    let void* p1
+    let PyObject* p2
+    let object a = u"teststring"
     p1 = <void*>a
     p2 = <PyObject*>a
     return (<object>p1, <object>p2)

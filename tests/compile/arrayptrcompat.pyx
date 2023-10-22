@@ -4,11 +4,11 @@ cdef enum E:
     Z
 
 cdef void f():
-    cdef i32 *p
-    cdef void *v
-    cdef i32[5] a
-    cdef i32 i = 0
-    cdef E e = Z
+    let i32 *p
+    let void *v
+    let i32[5] a
+    let i32 i = 0
+    let E e = Z
     p = a
     v = a
     p = a + i

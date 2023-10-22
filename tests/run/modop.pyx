@@ -269,7 +269,7 @@ def modint(int int2, int int3):
     >>> modint(9,2)
     1
     """
-    cdef int int1
+    let int int1
     int1 = int2 % int3
     return int1
 
@@ -279,7 +279,7 @@ def modptr():
     >>> print(modptr() if sys.version_info[0] < 3 else 'spameggs')
     spameggs
     """
-    cdef char *str2, *str3
+    let char *str2, *str3
     str2 = "spam%s"
     str3 = "eggs"
     obj1 = str2 % str3  # '%' operator doesn't work on byte strings in Py3

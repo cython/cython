@@ -42,7 +42,7 @@ def for_char_in_bytes(bytes s):
     >>> for_char_in_bytes(bytes_ABC_null)
     'C'
     """
-    cdef char c
+    let char c
     for c in s:
         if c == b'C':
             return 'C'
@@ -83,7 +83,7 @@ def for_char_in_bytes_slice(bytes s):
     >>> for_char_in_bytes_slice(bytes_ABC_null)
     'B'
     """
-    cdef char c
+    let char c
     for c in s[1:-1]:
         if c == c'B':
             return 'B'
@@ -103,8 +103,8 @@ def for_char_in_enumerate_bytes(bytes s):
     >>> for_char_in_enumerate_bytes(bytes_ABC_null)
     4
     """
-    cdef char c
-    cdef isize i
+    let char c
+    let isize i
     for i, c in enumerate(s):
         if c == b'C':
             return i
@@ -138,7 +138,7 @@ def for_char_in_char_ptr(char* c_string):
     [True, False, True, False, True, True, False, True, False, True]
     """
     in_test = []
-    cdef char c
+    let char c
     for c in c_string[:10]:
         in_test.append( c in b'abc' )
     return in_test
@@ -156,7 +156,7 @@ def for_pyunicode_in_unicode(unicode s):
     >>> for_pyunicode_in_unicode(unicode_ABC_null)
     'C'
     """
-    cdef Py_UNICODE c
+    let Py_UNICODE c
     for c in s:
         if c == u'C':
             return 'C'
@@ -176,8 +176,8 @@ def for_pyunicode_in_enumerate_unicode(unicode s):
     >>> for_pyunicode_in_enumerate_unicode(unicode_ABC_null)
     4
     """
-    cdef Py_UNICODE c
-    cdef isize i
+    let Py_UNICODE c
+    let isize i
     for i, c in enumerate(s):
         if c == u'C':
             return i
@@ -197,7 +197,7 @@ def for_pyucs4_in_unicode(unicode s):
     >>> for_pyucs4_in_unicode(unicode_ABC_null)
     'C'
     """
-    cdef Py_UCS4 c
+    let Py_UCS4 c
     for c in s:
         if c == u'C':
             return 'C'
@@ -217,8 +217,8 @@ def for_pyucs4_in_enumerate_unicode(unicode s):
     >>> for_pyucs4_in_enumerate_unicode(unicode_ABC_null)
     4
     """
-    cdef Py_UCS4 c
-    cdef isize i
+    let Py_UCS4 c
+    let isize i
     for i, c in enumerate(s):
         if c == u'C':
             return i

@@ -1,8 +1,8 @@
 # mode: compile
 
 cdef void f(obj):
-    cdef size_t i=0
-    cdef char *p
+    let size_t i=0
+    let char *p
     p = <char *>i
     p = <char *>&i
     obj = <object>p

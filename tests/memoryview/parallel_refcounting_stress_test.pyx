@@ -25,18 +25,18 @@ def refcounting_stress_test(i32 N):
     released c
     """
     selectors = [randint(0, 3) for _ in range(N)]
-    cdef i32[::1] selectorsview = IntMockBuffer(None, selectors, (N,))
+    let i32[::1] selectorsview = IntMockBuffer(None, selectors, (N,))
     shape = (10, 3)
     size = shape[0]*shape[1]
     a = [random() for _ in range(size)]
     b = [random() for _ in range(size)]
     c = [random() for _ in range(size)]
-    cdef f64[:, :] aview = DoubleMockBuffer("a", a, shape)
-    cdef f64[:, :] bview = DoubleMockBuffer("b", b, shape)
-    cdef f64[:, :] cview = DoubleMockBuffer("c", c, shape)
+    let f64[:, :] aview = DoubleMockBuffer("a", a, shape)
+    let f64[:, :] bview = DoubleMockBuffer("b", b, shape)
+    let f64[:, :] cview = DoubleMockBuffer("c", c, shape)
 
-    cdef i32 i
-    cdef f64 total = 0.0
+    let i32 i
+    let f64 total = 0.0
 
     for i in prange(N, nogil=true):
         total += loopbody(aview, bview, cview, selectorsview[i])
@@ -51,9 +51,9 @@ def refcounting_stress_test(i32 N):
 @cython.boundscheck(false)
 @cython.wraparound(false)
 cdef f64 loopbody(f64[:, :] a, f64[:, :] b, f64[:, :] c, i32 selector) nogil:
-    cdef f64[:, :] selected
-    cdef f64[:] subslice
-    cdef f64 res = 0
+    let f64[:, :] selected
+    let f64[:] subslice
+    let f64 res = 0
 
     if selector % 3 == 1:
         selected = a

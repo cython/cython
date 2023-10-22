@@ -14,7 +14,7 @@ ARRAY = new_array()
 
 cdef getmax(const f64[:] x):
     """Example code, should work with both ro and rw memoryviews"""
-    cdef f64 max_val = -float('inf')
+    let f64 max_val = -float('inf')
     for val in x:
         if val > max_val:
             max_val = val
@@ -89,8 +89,8 @@ def test_two_views(x):
     >>> test_two_views(new_array())
     23.0
     """
-    cdef f64[:] rw = x
-    cdef const f64[:] ro = rw
+    let f64[:] rw = x
+    let const f64[:] ro = rw
     rw[0] = 23
     return ro[0]
 
@@ -99,8 +99,8 @@ def test_assign_ro_to_rw(x):
     >>> test_assign_ro_to_rw(new_array())
     2.0
     """
-    cdef const f64[:] ro = x
-    cdef f64[:] rw = np.empty_like(ro)
+    let const f64[:] ro = x
+    let f64[:] rw = np.empty_like(ro)
     rw[:] = ro
     return rw[2]
 
@@ -109,17 +109,17 @@ def test_copy():
     >>> test_copy()
     (1.0, 2.0, 1.0, 1.0, 1.0, 2.0)
     """
-    cdef const f64[:] ro = np.ones(3)
-    cdef const f64[:] ro2 = ro.copy()
-    cdef f64[:] rw = ro.copy()
-    cdef f64[:] rw2 = ro2.copy()
+    let const f64[:] ro = np.ones(3)
+    let const f64[:] ro2 = ro.copy()
+    let f64[:] rw = ro.copy()
+    let f64[:] rw2 = ro2.copy()
     rw[1] = 2
     rw2[2] = 2
     return rw[0], rw[1], rw[2], rw2[0], rw2[1], rw2[2]
 
 cdef getmax_floating(const cython.floating[:] x):
     """Function with fused type, should work with both ro and rw memoryviews"""
-    cdef cython.floating max_val = - float('inf')
+    let cython.floating max_val = - float('inf')
     for val in x:
         if val > max_val:
             max_val = val
@@ -130,10 +130,10 @@ def test_mmview_const_fused_cdef():
 
     >>> test_mmview_const_fused_cdef()
     """
-    cdef f32[:] data_rw = new_array(dtype='float32')
+    let f32[:] data_rw = new_array(dtype='float32')
     assert getmax_floating(data_rw) == 9
 
-    cdef const f32[:] data_ro = new_array(dtype='float32', writeable=false)
+    let const f32[:] data_ro = new_array(dtype='float32', writeable=false)
     assert getmax_floating(data_ro) == 9
 
 def test_mmview_const_fused_def(const cython.floating[:] x):
@@ -153,5 +153,5 @@ def test_mmview_const_fused_def(const cython.floating[:] x):
     >>> test_mmview_const_fused_def(new_array('float64', writeable=false))
     0.0
     """
-    cdef cython.floating result = x[0]
+    let cython.floating result = x[0]
     return result

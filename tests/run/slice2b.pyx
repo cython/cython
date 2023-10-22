@@ -8,7 +8,7 @@ def slice_of_typed_value():
     >>> slice_of_typed_value()
     [1, 2, 3]
     """
-    cdef object a = []
-    cdef list L = [1, 2, 3]
+    let object a = []
+    let list L = [1, 2, 3]
     a[:] = L
     return a

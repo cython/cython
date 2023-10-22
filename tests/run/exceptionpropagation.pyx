@@ -12,7 +12,7 @@ def foo(a):
     Traceback (most recent call last):
     RuntimeError
     """
-    cdef i32 i = obj2int(a)
+    let i32 i = obj2int(a)
     CHKERR(i)
 
 cdef i32* except_expr(bint fire) except <i32*>-1:
@@ -102,8 +102,8 @@ def test_ptr_func(i32 failure_mode):
     exception
     """
     # check that the signature is what we think it is
-    cdef cdef_ptr_func_ptr fptr = cdef_ptr_func
-    cdef i32 a = 100
+    let cdef_ptr_func_ptr fptr = cdef_ptr_func
+    let i32 a = 100
     try:
         out = fptr(&a, failure_mode)
         if out:
@@ -123,7 +123,7 @@ def test_ptr_func2(i32 failure_mode):
     exception
     """
     # as above, but don't go through a function pointer
-    cdef i32 a = 100
+    let i32 a = 100
     try:
         out = cdef_ptr_func(&a, failure_mode)
         if out:

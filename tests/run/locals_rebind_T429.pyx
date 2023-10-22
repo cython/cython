@@ -7,7 +7,7 @@ __doc__ = u"""
 """
 
 def get_locals(x, *args, **kwds):
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return locals()
 
@@ -16,7 +16,7 @@ def get_locals_rebound(x, *args, **kwds):
     >>> get_locals_rebound(1,2,3)
     'REBOUND'
     """
-    cdef int z = 5
+    let int z = 5
     locals = _locals
     y = "hi"
     return locals()

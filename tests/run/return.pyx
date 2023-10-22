@@ -10,7 +10,7 @@ cdef void g():
     return
 
 cdef int h(a):
-    cdef int i
+    let int i
     i = a
     return i
 

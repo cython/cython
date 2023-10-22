@@ -11,8 +11,8 @@ c
 """
 
 def repeat_iter():
-    cdef dict e
-    cdef unicode s
+    let dict e
+    let unicode s
     ret = []
     e = {u"A": u"a", u"B": u"b", u"C": u"c"}
     for s in e.itervalues():

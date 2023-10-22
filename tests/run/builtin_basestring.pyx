@@ -57,7 +57,7 @@ def basestring_typed_variable(obj):
     Traceback (most recent call last):
     TypeError: ...got S...
     """
-    cdef basestring s
+    let basestring s
     s = u'abc'
     assert s
     s = 'abc'

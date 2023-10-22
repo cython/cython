@@ -134,7 +134,7 @@ cdef double return_in_if(double x):
 
 @cython.ufunc
 cdef double nested_loops(double x):
-    cdef double counter=0
+    let double counter=0
     while x>counter:
         counter+=10.
         for i in range(100):

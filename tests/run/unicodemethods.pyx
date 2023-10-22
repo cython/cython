@@ -608,7 +608,7 @@ def find(unicode s, substring):
     >>> test_find(text, 'sa')
     16
     """
-    cdef isize pos = s.find(substring)
+    let isize pos = s.find(substring)
     return pos
 
 @cython.test_fail_if_path_exists(
@@ -636,7 +636,7 @@ def find_start_end(unicode s, substring, start, end):
     >>> test_find_start_end(text, 'sa', None, 19)
     16
     """
-    cdef isize pos = s.find(substring, start, end)
+    let isize pos = s.find(substring, start, end)
     return pos
 
 # unicode.rfind(s, sub, [start, [end]])
@@ -657,7 +657,7 @@ def rfind(unicode s, substring):
     >>> test_rfind(text, 'sa')
     20
     """
-    cdef isize pos = s.rfind(substring)
+    let isize pos = s.rfind(substring)
     return pos
 
 @cython.test_fail_if_path_exists(
@@ -685,7 +685,7 @@ def rfind_start_end(unicode s, substring, start, end):
     >>> test_rfind_start_end(text, 'sa', None, 21)
     16
     """
-    cdef isize pos = s.rfind(substring, start, end)
+    let isize pos = s.rfind(substring, start, end)
     return pos
 
 # unicode.count(s, sub, [start, [end]])
@@ -706,7 +706,7 @@ def count(unicode s, substring):
     >>> test_count(text, 'sa')
     2
     """
-    cdef isize pos = s.count(substring)
+    let isize pos = s.count(substring)
     return pos
 
 @cython.test_fail_if_path_exists(
@@ -736,7 +736,7 @@ def count_start_end(unicode s, substring, start, end):
     >>> test_count_start_end(text, 'sa', None, 20)
     1
     """
-    cdef isize pos = s.count(substring, start, end)
+    let isize pos = s.count(substring, start, end)
     return pos
 
 # unicode.replace(s, sub, repl, [maxcount])

@@ -91,7 +91,7 @@ def self_dependency(int x):
     >>> self_dependency(2)
     (None, None)
     """
-    cdef dict a, b
+    let dict a, b
     a = {1:2}
     b = {2:1}
     for i in range(x):
@@ -107,7 +107,7 @@ def self_dependency_none(int x):
     Traceback (most recent call last):
     AttributeError: 'NoneType' object has no attribute 'get'
     """
-    cdef dict a, b
+    let dict a, b
     a = None
     b = {2:1}
     if x:

@@ -15,7 +15,7 @@ def test():
     >>> test()
     1
     """
-    cdef Curseur c
+    let Curseur c
     c = Curseur()
     c.tri = Tri()
     return c.detail()

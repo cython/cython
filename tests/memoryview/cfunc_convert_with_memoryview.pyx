@@ -29,14 +29,14 @@ def test_memview_wrapping():
     1
     2
     """
-    cdef a = memoryview_func_a
-    cdef b = memoryview_func_b
-    cdef c = memoryview_func_c
-    cdef d = memoryview_func_d
-    cdef e = memoryview_func_e
-    cdef f = memoryview_func_f
-    cdef f64[1] double_arr = [0]
-    cdef i32[1] int_arr = [0]
+    let a = memoryview_func_a
+    let b = memoryview_func_b
+    let c = memoryview_func_c
+    let d = memoryview_func_d
+    let e = memoryview_func_e
+    let f = memoryview_func_f
+    let f64[1] double_arr = [0]
+    let i32[1] int_arr = [0]
 
     a(<f64[:1]> double_arr)
     print(double_arr[0])

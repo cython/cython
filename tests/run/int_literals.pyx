@@ -37,10 +37,10 @@ def c_longs():
     >>> c_longs() == (1, 1, -1, 18446744073709551615)  or  c_longs()
     True
     """
-    cdef long a = 1L
-    cdef u64 ua = 1UL
-    cdef i128 aa = 0xFFFFFFFFFFFFFFFFLL
-    cdef u128 uaa = 0xFFFFFFFFFFFFFFFFULL
+    let long a = 1L
+    let u64 ua = 1UL
+    let i128 aa = 0xFFFFFFFFFFFFFFFFLL
+    let u128 uaa = 0xFFFFFFFFFFFFFFFFULL
     return a, ua, int(aa), uaa
 
 @cython.test_assert_path_exists(
@@ -53,8 +53,8 @@ def negative_c_longs():
     >>> negative_c_longs() == (-1, -9223285636854775809)  or  negative_c_longs()
     True
     """
-    cdef long a = -1L
-    cdef i128 aa = -9223285636854775809LL
+    let long a = -1L
+    let i128 aa = -9223285636854775809LL
     return a, aa
 
 def py_longs():
@@ -131,9 +131,9 @@ def c_oct():
     >>> c_oct()
     (1, -17, 63)
     """
-    cdef i32 a = 0o01
-    cdef i32 b = -0o21
-    cdef i32 c = 0o77
+    let i32 a = 0o01
+    let i32 b = -0o21
+    let i32 c = 0o77
     return a,b,c
 
 def c_oct_py2_legacy():
@@ -141,9 +141,9 @@ def c_oct_py2_legacy():
     >>> c_oct_py2_legacy()
     (1, -17, 63)
     """
-    cdef i32 a = 001
-    cdef i32 b = -021
-    cdef i32 c = 077
+    let i32 a = 001
+    let i32 b = -021
+    let i32 c = 077
     return a, b, c
 
 def py_oct():
@@ -165,9 +165,9 @@ def c_hex():
     >>> c_hex()
     (1, -33, 255)
     """
-    cdef i32 a = 0x01
-    cdef i32 b = -0x21
-    cdef i32 c = 0xFF
+    let i32 a = 0x01
+    let i32 b = -0x21
+    let i32 c = 0xFF
     return a,b,c
 
 def py_hex():
@@ -182,9 +182,9 @@ def c_bin():
     >>> c_bin()
     (1, -2, 15)
     """
-    cdef i32 a = 0b01
-    cdef i32 b = -0b10
-    cdef i32 c = 0b1111
+    let i32 a = 0b01
+    let i32 b = -0b10
+    let i32 c = 0b1111
     return a,b,c
 
 def py_bin():

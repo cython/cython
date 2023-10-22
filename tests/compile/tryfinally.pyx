@@ -1,7 +1,7 @@
 # mode: compile
 
 def f(a, b, c, x):
-    cdef i32 i
+    let i32 i
     a = b + c
 
     try:

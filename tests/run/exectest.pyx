@@ -17,7 +17,7 @@ def test_dict_scope1():
     >>> test_dict_scope1()
     2
     """
-    cdef dict d = {}
+    let dict d = {}
     exec u"b=1+1" in d
     return d[u'b']
 
@@ -73,7 +73,7 @@ def test_dict_scope_tuple2():
     >>> test_dict_scope_tuple2()
     2
     """
-    cdef dict d = {}
+    let dict d = {}
     exec(u"b=1+1", d)   # Py3 compatibility syntax
     return d[u'b']
 

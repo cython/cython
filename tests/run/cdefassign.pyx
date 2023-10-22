@@ -7,11 +7,11 @@ def test(x, int y):
     """
     if True:
         before = 0
-    cdef int a = 4, b = x, c = y
-    cdef int *p = &y
-    cdef object o = int(8)
+    let int a = 4, b = x, c = y
+    let int *p = &y
+    let object o = int(8)
     print a, b, c, p[0], before, g, o
 
 # Also test that pruning cdefs doesn't hurt
 def empty():
-    cdef int i
+    let int i

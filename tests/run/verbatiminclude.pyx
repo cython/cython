@@ -45,7 +45,7 @@ def test_class():
     >>> test_class()
     42
     """
-    cdef C x = C()
+    let C x = C()
     x.val = 42
     return x.val
 

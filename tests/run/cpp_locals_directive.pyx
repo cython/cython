@@ -74,7 +74,7 @@ def maybe_assign_cdef(assign, value):
         ...
     UnboundLocalError: local variable 'x' referenced before assignment
     """
-    cdef C x
+    let C x
     if assign:
         x = C(value)
     print(x.getX())
@@ -179,7 +179,7 @@ cdef class HoldsC:
         ...
     AttributeError: C++ attribute 'value' is not initialized
     """
-    cdef C value
+    let C value
     def __cinit__(self, initialize, print_destructor):
         if initialize:
             self.value = C(10, print_destructor)

@@ -1,9 +1,9 @@
 # mode: compile
 
 cdef void spam():
-    cdef i128 L
-    cdef u128 U
-    cdef object x = object()
+    let i128 L
+    let u128 U
+    let object x = object()
     L = x
     x = L
     U = x

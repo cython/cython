@@ -5,8 +5,8 @@ def f():
     """
     >>> f()
     """
-    cdef int i, j, k
-    cdef char *p
+    let int i, j, k
+    let char *p
     i = sizeof(p)
     i = sizeof(j + k)
     i = sizeof(int)

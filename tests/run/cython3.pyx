@@ -402,7 +402,7 @@ def str_type_is_unicode():
     >>> isinstance(ustring, str_type) or str_type
     True
     """
-    cdef str s = 'abc'
+    let str s = 'abc'
     return str, s
 
 

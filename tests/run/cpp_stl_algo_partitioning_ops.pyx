@@ -21,7 +21,7 @@ def test_is_partitioned():
     True
     False
     """
-    cdef vector[int] values = range(10)
+    let vector[int] values = range(10)
     print(is_partitioned(values.begin(), values.end(), is_even))
 
     partition(values.begin(), values.end(), &is_even)
@@ -56,7 +56,7 @@ def partition_ints_even(vector[int] values):
     >>> partition_ints_even(range(10))
     ([0, 2, 4, 6, 8], [1, 3, 5, 7, 9])
     """
-    cdef vector[int] even_values, odd_values
+    let vector[int] even_values, odd_values
     partition_copy(values.begin(), values.end(), back_inserter(even_values), back_inserter(odd_values), &is_even)
     return even_values, odd_values
 
@@ -84,7 +84,7 @@ def partition_point_ints_even(vector[int] values):
     ([0, 8, 2, 6, 4], [5, 3, 7, 1, 9])
     """
     it = partition_point(values.begin(), values.end(), is_even)
-    cdef vector[int] even_values, odd_values
+    let vector[int] even_values, odd_values
     copy(values.begin(), it, back_inserter(even_values))
     copy(it, values.end(), back_inserter(odd_values))
     return even_values, odd_values

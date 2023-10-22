@@ -1,5 +1,5 @@
 def f():
-    cdef int i
+    let int i
     try:
         i = 1
         raise x
@@ -10,7 +10,7 @@ def f():
         i = 4
 
 def g():
-    cdef int i
+    let int i
     try:
         i = 1
         raise x

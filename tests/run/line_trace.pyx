@@ -36,7 +36,7 @@ cdef int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, 
     """
     This is (more or less) what CPython does in sysmodule.c, function trace_trampoline().
     """
-    cdef PyObject *tmp
+    let PyObject *tmp
 
     if what == PyTrace_CALL:
         if _traceobj is NULL:
@@ -143,7 +143,7 @@ def cy_add(a,b):
 
 
 def cy_add_with_nogil(a,b):
-    cdef int z, x=a, y=b         # 1
+    let int z, x=a, y=b         # 1
     with nogil:                  # 2
         z = 0                    # 3
         z += cy_add_nogil(x, y)  # 4
@@ -378,7 +378,7 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     >>> result[5:]  # py
     [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0)]
     """
-    cdef int x = 1
+    let int x = 1
     trace = ['NO ERROR']
     exception = None
     trace_func = _create__failing_line_trace_func(trace)

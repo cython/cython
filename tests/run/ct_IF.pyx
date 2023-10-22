@@ -9,7 +9,7 @@ def f():
     >>> f()
     1
     """
-    cdef int i
+    let int i
     IF YES:
         i = 1
     ELIF NO:
@@ -23,7 +23,7 @@ def g():
     >>> g()
     2
     """
-    cdef int i
+    let int i
     IF NO:
         i = 1
     ELIF YES:
@@ -37,7 +37,7 @@ def h():
     >>> h()
     3
     """
-    cdef int i
+    let int i
     IF NO:
         i = 1
     ELIF NO:

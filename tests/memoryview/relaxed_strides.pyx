@@ -46,7 +46,7 @@ def test_one_sized(array):
     ... else: print(1.0)
     1.0
     """
-    cdef f64[::1] a = array
+    let f64[::1] a = array
     a[0] += 1.
     return array
 
@@ -58,7 +58,7 @@ def test_zero_sized(array):
     >>> a = np.arange(10, dtype=np.double)[100:200:10]
     >>> if NUMPY_HAS_RELAXED_STRIDES: _ = test_zero_sized(a)
     """
-    cdef f64[::1] a = array
+    let f64[::1] a = array
     return a
 
 def test_zero_sized_multidim_ccontig(array):
@@ -69,7 +69,7 @@ def test_zero_sized_multidim_ccontig(array):
     >>> a = np.zeros((4,4,4))[::2, 2:2, ::2]
     >>> if NUMPY_HAS_RELAXED_STRIDES: _ = test_zero_sized_multidim_ccontig(a)
     """
-    cdef f64[:, :, ::1] a = array
+    let f64[:, :, ::1] a = array
     return a
 
 def test_zero_sized_multidim_fcontig(array):
@@ -80,5 +80,5 @@ def test_zero_sized_multidim_fcontig(array):
     >>> a = np.zeros((4, 4, 4))[::2, 2:2, ::2]
     >>> if NUMPY_HAS_RELAXED_STRIDES: _ = test_zero_sized_multidim_fcontig(a)
     """
-    cdef f64[::1, :, :] a = array
+    let f64[::1, :, :] a = array
     return a

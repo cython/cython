@@ -49,7 +49,7 @@ def test_types():
     """
     >>> test_types()
     """
-    cdef int a = 1, b = 2
+    let int a = 1, b = 2
     assert typeof(&a - &b) == "ptrdiff_t", typeof(&a - &b)
     assert typeof((&a - &b) + 1) == "ptrdiff_t", typeof((&a - &b) + 1)
     assert typeof(&a + (&b - &a)) == "int *", typeof(&a + (&b - &a))

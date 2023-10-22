@@ -10,8 +10,8 @@ def test_pymalloc():
     >>> test_pymalloc()
     3
     """
-    cdef char* m2
-    cdef char* m = <char*> mem.PyMem_Malloc(20)
+    let char* m2
+    let char* m = <char*> mem.PyMem_Malloc(20)
     assert m
     try:
         m[0] = 1
@@ -33,7 +33,7 @@ def test_gilstate():
 
     # cython used to have invalid definition for PyGILState_STATE, which was
     # making the following code fail to compile
-    cdef PyGILState_STATE gstate = PyGILState_Ensure()
+    let PyGILState_STATE gstate = PyGILState_Ensure()
     # TODO assert that GIL is taken
     PyGILState_Release(gstate)
     return 'ok'

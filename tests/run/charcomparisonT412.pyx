@@ -7,7 +7,7 @@ def f():
     True
     """
 
-    cdef char a
+    let char a
     a = 62
     print (a == '>')
     print (a == <char>'>')

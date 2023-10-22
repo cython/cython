@@ -48,6 +48,6 @@ def copy_int(vector[int] values):
     >>> copy_int(range(5))
     [0, 1, 2, 3, 4]
     """
-    cdef vector[int] out
+    let vector[int] out
     copy(seq, values.begin(), values.end(), back_inserter(out))
     return out

@@ -27,7 +27,7 @@ def test():
     >>> test()
     9
     """
-    cdef int i
+    let int i
     for i in prange(10, nogil=true):
         var = Test(i)
     print(var.get_value())

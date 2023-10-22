@@ -16,9 +16,9 @@ def repeated_literals():
     p1: [4, 4]
     p2: [5, 5]
     """
-    cdef i32 i
-    cdef i32* p1 = [4, 4]
-    cdef i32* p2 = [5, 5]
+    let i32 i
+    let i32* p1 = [4, 4]
+    let i32* p2 = [5, 5]
 
     print "p1: %s" % [p1[i] for i in range(2)]
     print "p2: %s" % [p2[i] for i in range(2)]
@@ -28,13 +28,13 @@ def test_ints(i32 x):
     >>> test_ints(100)
     (100, 100, 100)
     """
-    cdef list L = [1, 2, 3, x]
-    cdef i32* Li = [1, 2, 3, x]
-    cdef i32** Lii = [Li, &x]
+    let list L = [1, 2, 3, x]
+    let i32* Li = [1, 2, 3, x]
+    let i32** Lii = [Li, &x]
     return L[3], Li[3], Lii[1][0]
 
 def test_chars(foo):
-    cdef char** ss = [b"a", b"bc", foo]
+    let char** ss = [b"a", b"bc", foo]
     return ss[0], ss[1], ss[2]
 
 cdef struct MyStruct:
@@ -51,7 +51,7 @@ def test_struct(i32 x, y):
     -5 -10 True
     1 2 False
     """
-    cdef MyStruct* aa = [[x, y, NULL], [x+1, y+1, NULL]]
+    let MyStruct* aa = [[x, y, NULL], [x+1, y+1, NULL]]
     print_struct(aa[0])
     print_struct([1, 2, <f64**>1])
 

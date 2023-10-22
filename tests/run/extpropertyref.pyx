@@ -26,8 +26,8 @@ def tomato():
     >>> 'tomato (line 16)' in lines or lines
     True
     """
-    cdef Spam spam
-    cdef object lettuce
+    let Spam spam
+    let object lettuce
     spam = Spam()
     lettuce = spam.eggs
     return lettuce
@@ -40,7 +40,7 @@ def breakfast():
     """
     >>> breakfast()
     """
-    cdef Bacon myslices = Bacon()
+    let Bacon myslices = Bacon()
     myslices.is_a_vegetable = True
     assert myslices.is_a_vegetable, myslices.is_a_vegetable
     del myslices.is_a_vegetable

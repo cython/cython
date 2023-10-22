@@ -28,7 +28,7 @@ def syntax2():
 
 
 def types(l):
-    cdef int a,b
+    let int a,b
     a, *b = (1,2,3,4)
     a, *b = l
 

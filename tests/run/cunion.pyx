@@ -6,17 +6,17 @@ cdef union Spam:
 cdef Spam spam, ham
 
 cdef void eggs_i(Spam s):
-    cdef i32 j
+    let i32 j
     j = s.i
     s.i = j
 
 cdef void eggs_c(Spam s):
-    cdef char c
+    let char c
     c = s.c
     s.c = c
 
 cdef void eggs_p(Spam s):
-    cdef float *p
+    let float *p
     p = s.p[0]
     s.p[0] = p
 
@@ -40,7 +40,7 @@ def test_p():
     """
     >>> test_p()
     """
-    cdef float f
+    let float f
     spam.p[0] = &f
     eggs_p(spam)
 
@@ -61,7 +61,7 @@ def test_charptr_to_py():
     >>> result['s3'] == b'abc'
     True
     """
-    cdef AllCharptr u
+    let AllCharptr u
     u.s1 = b"abc"
     return u
 
@@ -114,5 +114,5 @@ def test_safe_type_mix_from_to_py(v):
     >>> result['z'] != 0
     True
     """
-    cdef SafeMix u = v
+    let SafeMix u = v
     return u

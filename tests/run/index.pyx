@@ -122,9 +122,9 @@ def test_unsigned_long():
     """
     >>> test_unsigned_long()
     """
-    cdef i32 i
-    cdef u64 ix
-    cdef D = {}
+    let i32 i
+    let u64 ix
+    let D = {}
     for i from 0 <= i < <i32>sizeof(u64) * 8:
         ix = (<u64>1) << i
         D[ix] = True
@@ -138,9 +138,9 @@ def test_unsigned_short():
     """
     >>> test_unsigned_short()
     """
-    cdef i32 i
-    cdef u16 ix
-    cdef D = {}
+    let i32 i
+    let u16 ix
+    let D = {}
     for i from 0 <= i < <i32>sizeof(u16) * 8:
         ix = (<u16>1) << i
         D[ix] = True
@@ -154,9 +154,9 @@ def test_long_long():
     """
     >>> test_long_long()
     """
-    cdef i32 i
-    cdef i128 ix
-    cdef D = {}
+    let i32 i
+    let i128 ix
+    let D = {}
     for i from 0 <= i < <i32>sizeof(i128) * 8:
         ix = (<i128>1) << i
         D[ix] = True
@@ -198,7 +198,7 @@ def test_ulong_long():
     """
     >>> test_ulong_long()
     """
-    cdef u128 ix
+    let u128 ix
 
     L = [1, 2, 3]
     try:

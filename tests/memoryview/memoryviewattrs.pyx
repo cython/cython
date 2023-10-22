@@ -22,7 +22,7 @@ def test_shape_stride_suboffset():
     77 11 1
     -1 -1 -1
     '''
-    cdef char[:, :, :] larr = array((5, 7, 11), 1, 'c')
+    let char[:, :, :] larr = array((5, 7, 11), 1, 'c')
     print larr.shape[0], larr.shape[1], larr.shape[2]
     print larr.strides[0], larr.strides[1], larr.strides[2]
     print larr.suboffsets[0], larr.suboffsets[1], larr.suboffsets[2]
@@ -34,7 +34,7 @@ def test_shape_stride_suboffset():
     print larr.suboffsets[0], larr.suboffsets[1], larr.suboffsets[2]
     print
 
-    cdef char[:, :, :] c_contig = larr.copy()
+    let char[:, :, :] c_contig = larr.copy()
     print c_contig.shape[0], c_contig.shape[1], c_contig.shape[2]
     print c_contig.strides[0], c_contig.strides[1], c_contig.strides[2]
     print c_contig.suboffsets[0], c_contig.suboffsets[1], c_contig.suboffsets[2]
@@ -46,17 +46,17 @@ def test_copy_to():
     0 1 2 3 4 5 6 7
     0 1 2 3 4 5 6 7
     '''
-    cdef i32[:, :, :] from_mvs, to_mvs
+    let i32[:, :, :] from_mvs, to_mvs
     from_mvs = np.arange(8, dtype=np.int32).reshape(2, 2, 2)
 
-    cdef i32 *from_data = <i32 *> from_mvs._data
+    let i32 *from_data = <i32 *> from_mvs._data
     print ' '.join(str(from_data[i]) for i in range(2 * 2 * 2))
 
     to_mvs = array((2, 2, 2), sizeof(i32), 'i')
     to_mvs[...] = from_mvs
 
     # TODO Mark: remove this _data attribute
-    cdef i32 *to_data = <i32*>to_mvs._data
+    let i32 *to_data = <i32*>to_mvs._data
     print ' '.join(str(from_data[i]) for i in range(2 * 2 * 2))
     print ' '.join(str(to_data[i]) for i in range(2 * 2 * 2))
 
@@ -64,11 +64,11 @@ def test_overlapping_copy():
     """
     >>> test_overlapping_copy()
     """
-    cdef i32 i, array[10]
+    let i32 i, array[10]
     for i in range(10):
         array[i] = i
 
-    cdef i32[:] slice = array
+    let i32[:] slice = array
     slice[...] = slice[::-1]
 
     for i in range(10):
@@ -80,9 +80,9 @@ def test_copy_return_type():
     60.0
     60.0
     """
-    cdef f64[:, :, :] a = np.arange(5 * 5 * 5, dtype=np.float64).reshape(5, 5, 5)
-    cdef f64[:, ::1] c_contig = a[..., 0].copy()
-    cdef f64[::1, :] f_contig = a[..., 0].copy_fortran()
+    let f64[:, :, :] a = np.arange(5 * 5 * 5, dtype=np.float64).reshape(5, 5, 5)
+    let f64[:, ::1] c_contig = a[..., 0].copy()
+    let f64[::1, :] f_contig = a[..., 0].copy_fortran()
 
     print(c_contig[2, 2])
     print(f_contig[2, 2])
@@ -91,12 +91,12 @@ def test_partly_overlapping():
     """
     >>> test_partly_overlapping()
     """
-    cdef i32 i, array[10]
+    let i32 i, array[10]
     for i in range(10):
         array[i] = i
 
-    cdef i32[:] slice = array
-    cdef i32[:] slice2 = slice[:5]
+    let i32[:] slice = array
+    let i32[:] slice2 = slice[:5]
     slice2[...] = slice[4:9]
 
     for i in range(5):
@@ -110,7 +110,7 @@ def test_nonecheck1():
       ...
     UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
-    cdef i32[:, :, :] uninitialized
+    let i32[:, :, :] uninitialized
     print uninitialized.is_c_contig()
 
 @cython.nonecheck(true)
@@ -121,7 +121,7 @@ def test_nonecheck2():
       ...
     UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
-    cdef i32[:, :, :] uninitialized
+    let i32[:, :, :] uninitialized
     print uninitialized.is_f_contig()
 
 @cython.nonecheck(true)
@@ -132,7 +132,7 @@ def test_nonecheck3():
       ...
     UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
-    cdef i32[:, :, :] uninitialized
+    let i32[:, :, :] uninitialized
     uninitialized.copy()
 
 @cython.nonecheck(true)
@@ -143,7 +143,7 @@ def test_nonecheck4():
       ...
     UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
-    cdef i32[:, :, :] uninitialized
+    let i32[:, :, :] uninitialized
     uninitialized.copy_fortran()
 
 @cython.nonecheck(true)
@@ -154,7 +154,7 @@ def test_nonecheck5():
       ...
     UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
-    cdef i32[:, :, :] uninitialized
+    let i32[:, :, :] uninitialized
     uninitialized._data
 
 def test_copy_mismatch():
@@ -164,8 +164,8 @@ def test_copy_mismatch():
        ...
     ValueError: got differing extents in dimension 0 (got 2 and 3)
     '''
-    cdef i32[:, :, ::1] mv1  = array((2, 2, 3), sizeof(i32), 'i')
-    cdef i32[:, :, ::1] mv2  = array((3, 2, 3), sizeof(i32), 'i')
+    let i32[:, :, ::1] mv1  = array((2, 2, 3), sizeof(i32), 'i')
+    let i32[:, :, ::1] mv2  = array((3, 2, 3), sizeof(i32), 'i')
 
     mv1[...] = mv2
 
@@ -179,8 +179,8 @@ def test_is_contiguous():
     one sized strided contig True True
     strided False
     """
-    cdef i32[::1, :, :] fort_contig = array((1, 1, 1), sizeof(i32), 'i', mode='fortran')
-    cdef i32[:, :, :] strided = fort_contig
+    let i32[::1, :, :] fort_contig = array((1, 1, 1), sizeof(i32), 'i', mode='fortran')
+    let i32[:, :, :] strided = fort_contig
 
     print 'one sized is_c/f_contig', fort_contig.is_c_contig(), fort_contig.is_f_contig()
     fort_contig = array((2, 2, 2), sizeof(i32), 'i', mode='fortran')
@@ -205,10 +205,10 @@ def call():
     3000
     1 1 1000
     '''
-    cdef i32[::1] mv1, mv2, mv3
-    cdef array arr = array((3,), sizeof(i32), 'i')
+    let i32[::1] mv1, mv2, mv3
+    let array arr = array((3,), sizeof(i32), 'i')
     mv1 = arr
-    cdef i32 *data
+    let i32 *data
     data = <i32*>arr.data
     data[0] = 1000
     data[1] = 2000
@@ -225,7 +225,7 @@ def call():
 
     mv3 = mv2
 
-    cdef i32 *mv3_data = <i32*>mv3._data
+    let i32 *mv3_data = <i32*>mv3._data
 
     print (<i32*>mv1._data)[2]
 
@@ -245,8 +245,8 @@ def two_dee():
     1 2 3 -4
     1 2 3 -4
     '''
-    cdef i64[:, ::1] mv1, mv2, mv3
-    cdef array arr = array((2, 2), sizeof(i64), 'l')
+    let i64[:, ::1] mv1, mv2, mv3
+    let array arr = array((2, 2), sizeof(i64), 'l')
 
     assert len(arr) == 2
 
@@ -257,7 +257,7 @@ def two_dee():
     else:
         assert false, "UnboundLocalError not raised for uninitialised memory view"
 
-    cdef i64 *arr_data
+    let i64 *arr_data
     arr_data = <i64*>arr.data
 
     mv1 = arr
@@ -292,11 +292,11 @@ def fort_two_dee():
     1 3 2 -4
     1 2 3 -4
     '''
-    cdef array arr = array((2, 2), sizeof(i64), 'l', mode='fortran')
-    cdef i64[::1, :] mv1, mv2, mv4
-    cdef i64[:, ::1] mv3
+    let array arr = array((2, 2), sizeof(i64), 'l', mode='fortran')
+    let i64[::1, :] mv1, mv2, mv4
+    let i64[:, ::1] mv3
 
-    cdef i64 *arr_data
+    let i64 *arr_data
     arr_data = <i64*>arr.data
 
     mv1 = arr

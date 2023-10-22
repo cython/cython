@@ -12,6 +12,6 @@ cdef const_args(const i32 a, const i32 *b, const (i32*) c, i32 *const d, i32 **c
     f = NULL     # OK, the pointer is not const
 
 def call_const_args(x):
-    cdef i32 k = x
-    cdef i32* arr = [x]
+    let i32 k = x
+    let i32* arr = [x]
     const_args(x, &k, &k, &k, &arr, &arr)

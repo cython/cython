@@ -10,5 +10,5 @@ def test():
     """
     >>> test()
     """
-    cdef type t
+    let type t
     t = Spam

@@ -3,11 +3,11 @@
 cimport cython
 
 cdef extern from "cpp_references_helper.h":
-    cdef i32& ref_func(i32&)
-    cdef i32& except_ref_func "ref_func" (i32&) except +
+    let i32& ref_func(i32&)
+    let i32& except_ref_func "ref_func" (i32&) except +
 
-    cdef i32 ref_var_value
-    cdef i32& ref_var
+    let i32 ref_var_value
+    let i32& ref_var
 
 def test_ref_func(i32 x):
     """
@@ -25,7 +25,7 @@ def test_ref_func_address(i32 x):
     >>> test_ref_func_address(7)
     7
     """
-    cdef i32* i_ptr = &ref_func(x)
+    let i32* i_ptr = &ref_func(x)
     return i_ptr[0]
 
 def test_except_ref_func_address(i32 x):
@@ -35,7 +35,7 @@ def test_except_ref_func_address(i32 x):
     >>> test_except_ref_func_address(7)
     7
     """
-    cdef i32* i_ptr = &except_ref_func(x)
+    let i32* i_ptr = &except_ref_func(x)
     return i_ptr[0]
 
 def test_ref_var(i32 x):
@@ -55,7 +55,7 @@ def test_ref_assign(i32 x):
     >>> test_ref_assign(19)
     19.0
     """
-    cdef f64 d = ref_func(x)
+    let f64 d = ref_func(x)
     return d
 
 @cython.infer_types(true)

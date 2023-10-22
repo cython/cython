@@ -1,14 +1,14 @@
 cdef void ftang():
-    cdef int x
+    let int x
     x = 0
 
 cdef int foo(int i, char c):
-    cdef float f, g
+    let float f, g
     f = 0
     g = 0
 
 cdef spam(int i, obj, object object):
-    cdef char c
+    let char c
     c = 0
 
 def test():

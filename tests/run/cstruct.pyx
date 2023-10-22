@@ -12,22 +12,22 @@ cdef struct Grail:
 cdef Spam spam, ham
 
 cdef void eggs_i(Spam s):
-    cdef int j
+    let int j
     j = s.i
     s.i = j
 
 cdef void eggs_c(Spam s):
-    cdef char c
+    let char c
     c = s.c
     s.c = c
 
 cdef void eggs_p(Spam s):
-    cdef float *p
+    let float *p
     p = s.p[0]
     s.p[0] = p
 
 cdef void eggs_g(Spam s):
-    cdef float *p
+    let float *p
     p = s.p[0]
     s.p[0] = p
 
@@ -51,7 +51,7 @@ def test_p():
     """
     >>> test_p()
     """
-    cdef float f
+    let float f
     spam.p[0] = &f
     eggs_p(spam)
 
@@ -59,7 +59,7 @@ def test_g():
     """
     >>> test_g()
     """
-    cdef Grail l
+    let Grail l
     spam.g = &l
     eggs_g(spam)
 
@@ -72,8 +72,8 @@ def assign_fields_in_loop():
     >>> assign_fields_in_loop()
     2
     """
-    cdef int i = 0
-    cdef Ints s
+    let int i = 0
+    let Ints s
     for s.a, s.b in enumerate(range(3)):
         assert s.a == s.b
         assert s.a == i

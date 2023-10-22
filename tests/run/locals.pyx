@@ -8,7 +8,7 @@ def get_locals(x, *args, **kwds):
     >>> sorted( get_locals(1).items() )  # args and kwds should *always* be present even if not passed
     [('args', ()), ('kwds', {}), ('x', 1), ('y', 'hi'), ('z', 5)]
     """
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return locals()
 
@@ -19,7 +19,7 @@ def get_vars(x, *args, **kwds):
     >>> sorted( get_vars(1).items() )
     [('args', ()), ('kwds', {}), ('x', 1), ('y', 'hi'), ('z', 5)]
     """
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return vars()
 
@@ -30,7 +30,7 @@ def get_dir(x, *args, **kwds):
     >>> sorted( get_dir(1) )
     ['args', 'kwds', 'x', 'y', 'z']
     """
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return dir()
 
@@ -45,7 +45,7 @@ def in_locals(x, *args, **kwds):
     >>> in_locals('kwds')
     True
     """
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return x in locals()
 
@@ -60,7 +60,7 @@ def in_dir(x, *args, **kwds):
     >>> in_dir('kwds')
     True
     """
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return x in dir()
 
@@ -75,7 +75,7 @@ def in_vars(x, *args, **kwds):
     >>> in_vars('kwds')
     True
     """
-    cdef int z = 5
+    let int z = 5
     y = "hi"
     return x in vars()
 
@@ -89,7 +89,7 @@ def locals_ctype():
     >>> locals_ctype()
     False
     """
-    cdef int *p = NULL
+    let int *p = NULL
     return 'p' in locals()
 
 def locals_ctype_inferred():
@@ -97,7 +97,7 @@ def locals_ctype_inferred():
     >>> locals_ctype_inferred()
     False
     """
-    cdef int *p = NULL
+    let int *p = NULL
     b = p
     return 'b' in locals()
 
@@ -122,7 +122,7 @@ def buffers_in_locals(object[char, ndim=1] a):
     >>> sorted(buffers_in_locals(b'abcdefg'))
     ['a', 'b']
     """
-    cdef object[u8, ndim=1] b = a
+    let object[u8, ndim=1] b = a
 
     return locals()
 

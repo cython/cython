@@ -203,8 +203,8 @@ def slice_charp(py_string_arg):
     >>> print("%s" % slice_charp('abcdefg'))
     bc
     """
-    cdef bytes py_string = py_string_arg.encode(u'ASCII')
-    cdef char* s = py_string
+    let bytes py_string = py_string_arg.encode(u'ASCII')
+    let char* s = py_string
     return s[1:3].decode(u'ASCII')
 
 
@@ -213,9 +213,9 @@ def slice_charp_repeat(py_string_arg):
     >>> print("%s" % slice_charp_repeat('abcdefg'))
     cd
     """
-    cdef bytes py_string = py_string_arg.encode(u'ASCII')
-    cdef char* s = py_string
-    cdef bytes slice_val = s[1:6]
+    let bytes py_string = py_string_arg.encode(u'ASCII')
+    let char* s = py_string
+    let bytes slice_val = s[1:6]
     s = slice_val
     return s[1:3].decode(u'ASCII')
 

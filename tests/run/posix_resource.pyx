@@ -20,7 +20,7 @@ def test_getrlimit():
     0
     True
     """
-    cdef rlimit rlim
+    let rlimit rlim
     rlim.rlim_cur = 0
 
     ret = getrlimit(RLIMIT_CPU, &rlim)
@@ -33,6 +33,6 @@ def test_getrusage():
     >>> test_getrusage()
     0
     """
-    cdef rusage r
+    let rusage r
     ret = getrusage(RUSAGE_SELF, &r)
     return ret

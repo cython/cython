@@ -19,8 +19,8 @@ def local_c_and_s():
     98
     bcdefg
     """
-    cdef char c = 'b'
-    cdef char* s = 'bcdefg'
+    let char c = 'b'
+    let char* s = 'bcdefg'
     pys = s
     print c
     print (pys.decode(u'ASCII'))

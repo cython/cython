@@ -8,7 +8,7 @@ def test_time():
     """
     >>> test_time()
     """
-    cdef time_t t1, t2
+    let time_t t1, t2
     t1 = time(NULL)
     assert t1 != 0
     t1 = time(&t2)
@@ -20,10 +20,10 @@ def test_mktime():
     >>> test_mktime()  # doctest:+ELLIPSIS
     (986138177, ...'Sun Apr  1 15:16:17 2001\\n')
     """
-    cdef tm t, gmt
-    cdef time_t tt
-    cdef char *ct
-    cdef char *tz
+    let tm t, gmt
+    let time_t tt
+    let char *ct
+    let char *tz
 
     tz = getenv("TZ")
     setenv("TZ", "UTC", 1)

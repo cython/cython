@@ -9,7 +9,7 @@ def test_midpoint_integer(int a, int b):
     >>> test_midpoint_integer(2, 6)
     4
     """
-    cdef int res = midpoint[int](a, b)
+    let int res = midpoint[int](a, b)
     return res
 
 
@@ -19,5 +19,5 @@ def test_midpoint_float(float a, float b):
     >>> test_midpoint_float(2, 6)
     4.0
     """
-    cdef float res = midpoint[float](a, b)
+    let float res = midpoint[float](a, b)
     return res

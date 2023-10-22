@@ -10,9 +10,9 @@ cdef extern from "arithmetic_analyse_types_helper.h":
         char *msg
     cdef struct longlong_return:
         char *msg
-    cdef short_return f(i16)
-    cdef int_return f(i32)
-    cdef longlong_return f(i128)
+    let short_return f(i16)
+    let int_return f(i32)
+    let longlong_return f(i128)
 
 def short_binop(i16 val):
     """
@@ -24,7 +24,7 @@ def short_binop(i16 val):
     assert typeof(val + val) == "int", typeof(val + val)
     assert typeof(val - val) == "int", typeof(val - val)
     assert typeof(val & val) == "int", typeof(val & val)
-    cdef int_return x = f(val + val)
+    let int_return x = f(val + val)
     return x.msg.decode('ASCII')
 
 def short_unnop(i16 val):
@@ -34,7 +34,7 @@ def short_unnop(i16 val):
     >>> print(short_unnop(3))
     int called
     """
-    cdef int_return x = f(-val)
+    let int_return x = f(-val)
     return x.msg.decode('ASCII')
 
 def longlong_binop(i128 val):
@@ -42,7 +42,7 @@ def longlong_binop(i128 val):
     >>> print(longlong_binop(3))
     long long called
     """
-    cdef longlong_return x = f(val * val)
+    let longlong_return x = f(val * val)
     return x.msg.decode('ASCII')
 
 def longlong_unnop(i128 val):
@@ -50,7 +50,7 @@ def longlong_unnop(i128 val):
     >>> print(longlong_unnop(3))
     long long called
     """
-    cdef longlong_return x = f(~val)
+    let longlong_return x = f(~val)
     return x.msg.decode('ASCII')
 
 def test_bint(bint a):

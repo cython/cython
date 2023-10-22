@@ -17,9 +17,9 @@ def cast_cast_cast(arg):
     >>> x.get_i()
     42
     """
-    cdef object x
-    cdef void *p = <void *>arg
-    cdef int i
+    let object x
+    let void *p = <void *>arg
+    let int i
     x = <object>p
     p = <void *>x
     x = (<object>p).foo

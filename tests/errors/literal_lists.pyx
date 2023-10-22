@@ -1,7 +1,7 @@
 # mode: error
 
 def f():
-    cdef i32* p
+    let i32* p
     if return_false():
         p = [1, 2, 3]
 

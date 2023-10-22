@@ -10,7 +10,7 @@ def test_constructor(x, y, int color):
     >>> try: test_constructor(1,None,255)
     ... except TypeError: pass
     """
-    cdef Point p = Point(x, y, color)
+    let Point p = Point(x, y, color)
     return p
 
 
@@ -32,7 +32,7 @@ def test_constructor_kwds(x, y, color):
     Traceback (most recent call last):
     TypeError:... int...
     """
-    cdef Point p = Point(x=x, y=y, color=color)
+    let Point p = Point(x=x, y=y, color=color)
     return p
 
 
@@ -54,7 +54,7 @@ def test_dict_construction(x, y, color):
     >>> try: test_dict_construction("foo", 5, 64)
     ... except TypeError: pass
     """
-    cdef Point p = {'color': color, 'x': x, 'y': y}
+    let Point p = {'color': color, 'x': x, 'y': y}
     return p
 
 def test_list_construction(x, y, color):
@@ -64,7 +64,7 @@ def test_list_construction(x, y, color):
     >>> try: test_list_construction("foo", 5, 64)
     ... except TypeError: pass
     """
-    cdef Point p = [x, y, color]
+    let Point p = [x, y, color]
     return p
 
 '''
@@ -76,7 +76,7 @@ def test_tuple_construction(x, y, color):
     >>> try: test_tuple_construction("foo", 5, 64)
     ... except TypeError: pass
     """
-    cdef Point p = (x, y, color)
+    let Point p = (x, y, color)
     return p
 '''
 
@@ -91,7 +91,7 @@ def test_union_constructor(n,x):
     >>> test_union_constructor(None, 2.0)
     2.0
     """
-    cdef int_or_float u
+    let int_or_float u
     if n is None:
         u = int_or_float(x=x)
         return u.x
@@ -111,8 +111,8 @@ def test_pointers(int n, double x):
     2.71828
     True
     """
-    cdef with_pointers a = [True, {'n': n}, NULL]
-    cdef with_pointers b = with_pointers(False, {'x': x}, NULL)
+    let with_pointers a = [True, {'n': n}, NULL]
+    let with_pointers b = with_pointers(False, {'x': x}, NULL)
     print a.data.n
     print b.data.x
     print a.ptr == b.ptr == NULL
@@ -192,5 +192,5 @@ def test_array_field_init():
     >>> test_array_field_init()
     [1, 2, 3, 4]
     """
-    cdef ArrayFieldStruct s = ArrayFieldStruct([1, 2, 3, 4])
+    let ArrayFieldStruct s = ArrayFieldStruct([1, 2, 3, 4])
     print(s.arr);

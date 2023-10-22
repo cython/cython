@@ -34,7 +34,7 @@ def test_types(bint a):
     """
     >>> test_types(None)
     """
-    cdef bint b = a
+    let bint b = a
     assert typeof(a) == 'bint', typeof(a)
     assert typeof(b) == 'bint', typeof(b)
     c = b

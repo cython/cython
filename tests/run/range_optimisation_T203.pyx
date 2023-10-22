@@ -30,7 +30,7 @@ def for_from_range(a, b):
     range(-5, -10, 2)
     100
     """
-    cdef int i = 100
+    let int i = 100
     print u"range(%s)" % a
     for i in range(a):
         print u"at", i
@@ -52,7 +52,7 @@ def for_from_bound_reassignment(int bound, int fake_bound):
     at 4
     5
     """
-    cdef int i = 100
+    let int i = 100
     for i from 0 <= i < bound:
         print u"at", i
         bound = fake_bound
@@ -66,7 +66,7 @@ def for_from_step_reassignment(int bound, int step, int fake_step):
     at 10
     15
     """
-    cdef int i = 100
+    let int i = 100
     for i from 0 <= i < bound by step:
         print u"at", i
         step = fake_step
@@ -81,7 +81,7 @@ def for_from_target_reassignment(int bound, int factor):
     at 7
     15
     """
-    cdef int i = 100
+    let int i = 100
     for i from 0 <= i < bound:
         print u"at", i
         i *= factor
@@ -96,7 +96,7 @@ def for_from_py_target_reassignment(int bound, int factor):
     at 7
     15
     """
-    cdef object i
+    let object i
     for i from 0 <= i < bound:
         print u"at", i
         i *= factor
@@ -132,7 +132,7 @@ def for_in_target_reassignment(int bound, int factor):
     at 9
     18
     """
-    cdef int i = 100
+    let int i = 100
     for i in range(bound):
         print u"at", i
         i *= factor
@@ -149,7 +149,7 @@ def test_func(int n):
     at 4
     5
     """
-    cdef int i = 100
+    let int i = 100
     for i from 0 <= i < get_bound(n):
         print u"at", i
     return i

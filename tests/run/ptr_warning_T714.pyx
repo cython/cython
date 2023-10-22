@@ -7,8 +7,8 @@ def test_ptr():
     >>> test_ptr()
     123
     """
-    cdef int a
-    cdef int *ptr
+    let int a
+    let int *ptr
 
     ptr = &a
     ptr[0] = 123

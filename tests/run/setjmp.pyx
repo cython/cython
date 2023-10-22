@@ -16,7 +16,7 @@ def nonzero(int x):
     True
 
     """
-    cdef jmp_buf ctx
+    let jmp_buf ctx
     if setjmp(ctx) == 0:
         check_nonzero(ctx, x)
         return true

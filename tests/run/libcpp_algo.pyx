@@ -18,7 +18,7 @@ def heapsort(l, bool reverse=false):
     >>> heapsort([3, 5, 1, 0, 2, 4], reverse=true)
     [5, 4, 3, 2, 1, 0]
     """
-    cdef vector[int] v = l
+    let vector[int] v = l
 
     if reverse:
         make_heap(v.begin(), v.end(), &greater)

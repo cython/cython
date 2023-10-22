@@ -1,11 +1,11 @@
 # mode: error
 
 cdef extern from *:
-    cdef void f()
-    cdef void (*fp)() nogil
+    let void f()
+    let void (*fp)() nogil
 
-    cdef void g() nogil
-    cdef void (*gp)()
+    let void g() nogil
+    let void (*gp)()
 
 gp = g
 

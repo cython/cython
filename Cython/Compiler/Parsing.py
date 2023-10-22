@@ -2384,7 +2384,7 @@ def p_statement(s, ctx, first_statement = 0):
         cdef_flag = 1
         overridable = 1
         s.next()
-    elif s.sy in ("pub",):
+    elif s.sy in ("pub", "let",):
         cdef_flag = 1
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
@@ -3269,6 +3269,9 @@ def p_cdef_statement(s, ctx):
         return p_struct_enum(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring == 'fused':
         return p_fused_definition(s, pos, ctx)
+    elif s.sy == "let":
+        s.next()
+        return p_c_func_or_var_declaration(s, pos, ctx)
     else:
         return p_c_func_or_var_declaration(s, pos, ctx)
 

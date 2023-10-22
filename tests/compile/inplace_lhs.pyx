@@ -4,14 +4,14 @@ cdef struct S:
     i32 q
 
 def test():
-    cdef i32 i = 1, j = 2, k = 3
-    cdef f32 x = 1, y = 2, z = 3
-    cdef object a = 1, b = 2, c = 3, d = 4, e = 5
-    cdef i32[3] m
+    let i32 i = 1, j = 2, k = 3
+    let f32 x = 1, y = 2, z = 3
+    let object a = 1, b = 2, c = 3, d = 4, e = 5
+    let i32[3] m
     m[0] = 0
     m[1] = 1
     m[2] = 1
-    cdef S s = [1]
+    let S s = [1]
 
     global g
     i += j + k

@@ -2,7 +2,7 @@
 # tag: all, builtins, werror
 
 cdef class VerboseGetItem(object):
-    cdef object sequence
+    let object sequence
     def __init__(self, seq):
         self.sequence = seq
     def __getitem__(self, i):
@@ -222,7 +222,7 @@ def all_in_typed_gen(seq):
     4
     False
     """
-    cdef int x
+    let int x
     return all(x for x in seq)
 
 
@@ -286,5 +286,5 @@ def all_in_double_gen(seq):
     1
     False
     """
-    cdef int x
+    let int x
     return all(x for L in seq for x in L)
