@@ -1,5 +1,5 @@
 cdef class Spam:
-    cdef pub i32 tons
+    pub i32 tons
     cdef readonly f32 tastiness
     cdef i32 temperature
 

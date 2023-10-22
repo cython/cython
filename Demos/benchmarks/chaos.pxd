@@ -5,7 +5,7 @@ cdef extern from "math.h":
 
 @cython.final
 cdef class GVector:
-    cdef pub f64 x, y, z
+    pub f64 x, y, z
 
     cpdef f64 Mag(self)
     cpdef f64 dist(self, GVector other)

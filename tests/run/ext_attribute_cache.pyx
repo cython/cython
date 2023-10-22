@@ -18,7 +18,7 @@ cdef class ImplicitAttrCache(object):
     >>> print(flag)
     True
     """
-    cdef pub i32 x
+    pub i32 x
     cdef object y
 
 @cython.type_version_tag(true)
@@ -28,7 +28,7 @@ cdef class ExplicitAttrCache(object):
     >>> print(flag)
     True
     """
-    cdef pub i32 x
+    pub i32 x
     cdef object y
 
 @cython.type_version_tag(false)
@@ -37,5 +37,5 @@ cdef class NoAttrCache(object):
     >>> test_flag(NoAttrCache)
     False
     """
-    cdef pub i32 x
+    pub i32 x
     cdef object y

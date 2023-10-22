@@ -34,7 +34,7 @@ def tomato():
 
 cdef class Bacon(object):
     cdef object number_of_slices
-    cdef pub object is_a_vegetable
+    pub object is_a_vegetable
 
 def breakfast():
     """

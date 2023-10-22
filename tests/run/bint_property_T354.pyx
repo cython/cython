@@ -8,7 +8,7 @@ cdef class Test:
     >>> t.some_public_bool
     True
     """
-    cdef pub bint some_public_bool
+    pub bint some_public_bool
     cdef readonly bint some_ro_bool
 
     def __init__(self, bint boolval):

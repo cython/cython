@@ -11,7 +11,7 @@ cdef class SuperSpam(Spam):
 cdef class MegaSpam:
     pass
 
-cdef pub class UltraSpam [type UltraSpam_Type, object UltraSpam_Object]:
+pub class UltraSpam [type UltraSpam_Type, object UltraSpam_Object]:
     cdef dict __dict__
 
 

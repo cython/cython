@@ -117,7 +117,7 @@ cdef class ExtTypeRefCycle:
     >>> find_name(ExtTypeRefCycle)
     1
     """
-    cdef pub object ref
+    pub object ref
     cdef int x
     def __dealloc__(self):
         add_name(self)
@@ -154,7 +154,7 @@ cdef class ExtTypeRefCycleRaise:
     >>> find_name(ExtTypeRefCycleRaise)
     1
     """
-    cdef pub object ref
+    pub object ref
     def __dealloc__(self):
         add_name(self)
         raise RuntimeError("Cleaning up !")

@@ -5,19 +5,19 @@ cimport cython
 from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
-    cdef pub set children
-    cdef pub set parents
-    cdef pub set positions
-    cdef pub list stats
-    cdef pub dict gen
-    cdef pub set bounded
+    pub set children
+    pub set parents
+    pub set positions
+    pub list stats
+    pub dict gen
+    pub set bounded
 
     # Big integer bitsets
-    cdef pub object i_input
-    cdef pub object i_output
-    cdef pub object i_gen
-    cdef pub object i_kill
-    cdef pub object i_state
+    pub object i_input
+    pub object i_output
+    pub object i_gen
+    pub object i_kill
+    pub object i_state
 
     cpdef bint empty(self)
     cpdef detach(self)
@@ -27,39 +27,39 @@ cdef class ExitBlock(ControlBlock):
     cpdef bint empty(self)
 
 cdef class NameAssignment:
-    cdef pub bint is_arg
-    cdef pub bint is_deletion
-    cdef pub object lhs
-    cdef pub object rhs
-    cdef pub object entry
-    cdef pub object pos
-    cdef pub set refs
-    cdef pub object bit
-    cdef pub object inferred_type
-    cdef pub object rhs_scope
+    pub bint is_arg
+    pub bint is_deletion
+    pub object lhs
+    pub object rhs
+    pub object entry
+    pub object pos
+    pub set refs
+    pub object bit
+    pub object inferred_type
+    pub object rhs_scope
 
 cdef class AssignmentList:
-    cdef pub object bit
-    cdef pub object mask
-    cdef pub list stats
+    pub object bit
+    pub object mask
+    pub list stats
 
 cdef class AssignmentCollector(TreeVisitor):
     cdef list assignments
 
 @cython.final
 cdef class ControlFlow:
-    cdef pub set blocks
-    cdef pub set entries
-    cdef pub list loops
-    cdef pub list exceptions
+    pub set blocks
+    pub set entries
+    pub list loops
+    pub list exceptions
 
-    cdef pub ControlBlock entry_point
-    cdef pub ExitBlock exit_point
-    cdef pub ControlBlock block
+    pub ControlBlock entry_point
+    pub ExitBlock exit_point
+    pub ControlBlock block
 
-    cdef pub dict assmts
+    pub dict assmts
 
-    cdef pub isize in_try_block
+    pub isize in_try_block
 
     cpdef newblock(self, ControlBlock parent=*)
     cpdef nextblock(self, ControlBlock parent=*)

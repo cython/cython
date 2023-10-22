@@ -31,8 +31,8 @@ cdef class Foo:
 cdef class ChangeName:
     # the class seems to need some contents for changing the
     # name to cause a problem
-    cdef pub str attr1
-    cdef pub i32 attr2
+    pub str attr1
+    pub i32 attr2
 
 if TYPESPECS:
     __doc__ = """

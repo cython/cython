@@ -5,12 +5,12 @@ cdef i32 IMPOSSIBLE, SOLVED, OPEN
 cdef i32 ASCENDING, DESCENDING
 
 cdef class Dir:
-    cdef pub i32 x, y
+    pub i32 x, y
 
 @cython.final
 cdef class Done:
-    cdef pub i32 count
-    cdef pub list cells
+    pub i32 count
+    pub list cells
 
     cdef Done clone(self)
     cdef inline i32 set_done(self, i32 i, v) except -123
@@ -29,16 +29,16 @@ cdef class Done:
 
 @cython.final
 cdef class Node:
-    cdef pub tuple pos
-    cdef pub i32 id
-    cdef pub list links
+    pub tuple pos
+    pub i32 id
+    pub list links
 
 @cython.final
 cdef class Hex:
-    cdef pub list nodes_by_id
-    cdef pub dict nodes_by_pos
-    cdef pub i32 size
-    cdef pub i32 count
+    pub list nodes_by_id
+    pub dict nodes_by_pos
+    pub i32 size
+    pub i32 count
 
     cdef i32 link_nodes(self) except -123
     cdef bint contains_pos(self, tuple pos)
@@ -47,9 +47,9 @@ cdef class Hex:
 
 @cython.final
 cdef class Pos:
-    cdef pub Hex hex
-    cdef pub Done done
-    cdef pub i32[8] tiles
+    pub Hex hex
+    pub Done done
+    pub i32[8] tiles
 
     cdef Pos clone(self)
 

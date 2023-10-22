@@ -15,7 +15,7 @@ True
 cdef enum SECRET:
     NONPUBLIC = 23 + 42
 
-cdef pub enum FOO:
+pub enum FOO:
     BAR = 3
     HONK = 3+2+1
     NOWPUBLIC = NONPUBLIC

@@ -129,7 +129,7 @@ Not Python syntax!
 
 ######## write_module_header.pyx ########
 
-cdef pub i32 func():
+pub i32 func():
     return 1
 
 
@@ -138,7 +138,7 @@ cdef pub i32 func():
 
 ######## overwrite_module_header.pyx ########
 
-cdef pub i32 func():
+pub i32 func():
     return 1
 
 
@@ -149,7 +149,7 @@ static int external_function(int x) {
 
 ######## refuse_to_overwrite_header.pyx ########
 
-cdef pub i32 func():
+pub i32 func():
     return 1
 
 
@@ -164,7 +164,7 @@ cdef api i32 func():
 
 ######## overwrite_module_api_header.pyx ########
 
-cdef pub i32 func():
+pub i32 func():
     return 1
 
 

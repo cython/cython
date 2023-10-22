@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
+from .Scanning import PyrexScanner, FileSourceDescriptor, contextual_keywords, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -2384,6 +2384,8 @@ def p_statement(s, ctx, first_statement = 0):
         cdef_flag = 1
         overridable = 1
         s.next()
+    elif s.sy in ("pub",):
+        cdef_flag = 1
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
             s.error('cdef statement not allowed here')
@@ -3472,8 +3474,8 @@ def p_struct_enum(s, pos, ctx):
 def p_visibility(s, prev_visibility):
     pos = s.position()
     visibility = prev_visibility
-    if s.sy == 'IDENT' and s.systring in ("extern", "pub", "public", "readonly"):
-        if s.systring == "pub":
+    if s.sy in ("pub",) or s.sy == 'IDENT' and s.systring in ("extern", "pub", "public", "readonly"):
+        if s.sy == "pub":
             visibility = "public"
         else:
             visibility = s.systring

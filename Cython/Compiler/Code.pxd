@@ -7,53 +7,53 @@ cdef class UtilityCodeBase(object):
     cpdef format_code(self, code_string, replace_empty_lines=*)
 
 cdef class UtilityCode(UtilityCodeBase):
-    cdef pub object name
-    cdef pub object proto
-    cdef pub object impl
-    cdef pub object init
-    cdef pub object cleanup
-    cdef pub object proto_block
-    cdef pub object requires
-    cdef pub dict _cache
-    cdef pub list specialize_list
-    cdef pub object file
+    pub object name
+    pub object proto
+    pub object impl
+    pub object init
+    pub object cleanup
+    pub object proto_block
+    pub object requires
+    pub dict _cache
+    pub list specialize_list
+    pub object file
 
     cpdef none_or_sub(self, s, context)
 
 cdef class FunctionState:
-    cdef pub set names_taken
-    cdef pub object owner
-    cdef pub object scope
+    pub set names_taken
+    pub object owner
+    pub object scope
 
-    cdef pub object error_label
-    cdef pub size_t label_counter
-    cdef pub set labels_used
-    cdef pub object return_label
-    cdef pub object continue_label
-    cdef pub object break_label
-    cdef pub list yield_labels
+    pub object error_label
+    pub size_t label_counter
+    pub set labels_used
+    pub object return_label
+    pub object continue_label
+    pub object break_label
+    pub list yield_labels
 
-    cdef pub object return_from_error_cleanup_label # not used in __init__ ?
+    pub object return_from_error_cleanup_label # not used in __init__ ?
 
-    cdef pub object exc_vars
-    cdef pub object current_except
-    cdef pub bint in_try_finally
-    cdef pub bint can_trace
-    cdef pub bint gil_owned
+    pub object exc_vars
+    pub object current_except
+    pub bint in_try_finally
+    pub bint can_trace
+    pub bint gil_owned
 
-    cdef pub list temps_allocated
-    cdef pub dict temps_free
-    cdef pub dict temps_used_type
-    cdef pub set zombie_temps
-    cdef pub size_t temp_counter
-    cdef pub list collect_temps_stack
+    pub list temps_allocated
+    pub dict temps_free
+    pub dict temps_used_type
+    pub set zombie_temps
+    pub usize temp_counter
+    pub list collect_temps_stack
 
-    cdef pub object closure_temps
-    cdef pub bint should_declare_error_indicator
-    cdef pub bint uses_error_indicator
-    cdef pub bint error_without_exception
+    pub object closure_temps
+    pub bint should_declare_error_indicator
+    pub bint uses_error_indicator
+    pub bint error_without_exception
 
-    cdef pub bint needs_refnanny
+    pub bint needs_refnanny
 
     @cython.locals(n=size_t)
     cpdef new_label(self, name=*)
@@ -67,30 +67,30 @@ cdef class FunctionState:
     cpdef list temps_in_use(self)
 
 cdef class IntConst:
-    cdef pub object cname
-    cdef pub object value
-    cdef pub bint is_long
+    pub object cname
+    pub object value
+    pub bint is_long
 
 cdef class PyObjectConst:
-    cdef pub object cname
-    cdef pub object type
+    pub object cname
+    pub object type
 
 cdef class StringConst:
-    cdef pub object cname
-    cdef pub object text
-    cdef pub object escaped_value
-    cdef pub dict py_strings
-    cdef pub list py_versions
+    pub object cname
+    pub object text
+    pub object escaped_value
+    pub dict py_strings
+    pub list py_versions
 
     @cython.locals(intern=bint, is_str=bint, is_unicode=bint)
     cpdef get_py_string_const(self, encoding, identifier=*, is_str=*, py3str_cstring=*)
 
 ## cdef class PyStringConst:
-##     cdef pub object cname
-##     cdef pub object encoding
-##     cdef pub bint is_str
-##     cdef pub bint is_unicode
-##     cdef pub bint intern
+##     pub object cname
+##     pub object encoding
+##     pub bint is_str
+##     pub bint is_unicode
+##     pub bint intern
 
 #class GlobalState(object):
 
@@ -105,7 +105,7 @@ cdef class CCodeWriter(object):
     cdef object last_pos
     cdef object last_marked_pos
     cdef isize level
-    cdef pub isize call_level  # debug-only, see Nodes.py
+    pub isize call_level  # debug-only, see Nodes.py
     cdef bint bol
 
     cpdef write(self, s)
@@ -123,5 +123,5 @@ cdef class CCodeWriter(object):
     cdef indent(self)
 
 cdef class PyrexCodeWriter:
-    cdef pub object f
-    cdef pub isize level
+    pub object f
+    pub isize level

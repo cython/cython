@@ -6,7 +6,7 @@ cdef f64 _helper(f64 a):
     return a + 1
 
 cdef class A:
-    cdef pub i32 a, b
+    pub i32 a, b
     def __init__(self, b=0):
         self.a = 3
         self.b = b

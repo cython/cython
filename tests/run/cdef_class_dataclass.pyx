@@ -207,9 +207,9 @@ cdef class TestVisibility:
     cdef f64 a
     a = 1.0
     b: cython.f64 = 2.0
-    cdef pub f64 c
+    pub f64 c
     c = 3.0
-    cdef pub object d
+    pub object d
     d = object()
 
 @dataclass(frozen=true)

@@ -24,4 +24,4 @@ cdef class Spam:
 
 # not declared in the pxd
 cdef class Bot:
-    cdef pub Bot e
+    pub Bot e

@@ -11,12 +11,12 @@ setup(
 
 ############# a.pyx ###############
 
-cdef pub f():
+pub f():
     pass
     
 ############# b.pyx ###############
 
-cdef pub g():
+pub g():
     pass
     
 ############# include_both.pyx ####

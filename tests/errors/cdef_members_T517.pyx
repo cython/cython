@@ -6,7 +6,7 @@ ctypedef void* VoidP
 cdef class Spam:
     cdef          VoidP vp0
     cdef readonly VoidP vp2
-    cdef pub      VoidP vp1
+    pub           VoidP vp1
 
 ctypedef struct Foo:
     int i
@@ -14,7 +14,7 @@ ctypedef struct Foo:
 cdef class Bar:
     cdef          Foo foo0
     cdef readonly Foo foo2
-    cdef pub      Foo foo1
+    pub           Foo foo1
     pass
 
 _ERRORS = u"""
@@ -24,4 +24,3 @@ _ERRORS = u"""
 9:24: Cannot convert 'VoidP' to Python object
 9:24: Cannot convert Python object to 'VoidP'
 """
-

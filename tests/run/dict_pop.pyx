@@ -35,7 +35,7 @@ def dict_pop_default(dict d, key, default):
     return d.pop(key, default), d
 
 cdef class MyType:
-    cdef pub i32 i
+    pub i32 i
     def __init__(self, i):
         self.i = i
 

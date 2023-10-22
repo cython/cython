@@ -1,4 +1,4 @@
-cdef pub enum Truth:
+pub enum Truth:
    FALSE = 0
    TRUE = 1
 

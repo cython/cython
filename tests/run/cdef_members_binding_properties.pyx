@@ -83,16 +83,16 @@ if sys.version_info < (2,5):
                __doc__.split('TYPE_FIXES_REQUIRED')[1].replace('\nAttributeError: ...', '\nTypeError: ...'))
 
 cdef class A:
-    cdef pub i16 h
-    cdef pub i32 i
-    cdef pub i64 l
-    cdef pub i128 q
-    cdef pub f32 f
-    cdef pub f64 d
-    cdef pub long double g
-    cdef pub float complex Zf
-    cdef pub double complex Zd
-    cdef pub long double complex Zg
+    pub i16 h
+    pub i32 i
+    pub i64 l
+    pub i128 q
+    pub f32 f
+    pub f64 d
+    pub long double g
+    pub float complex Zf
+    pub double complex Zd
+    pub long double complex Zg
 
     cdef readonly i16 ro_h
     cdef readonly i32 ro_i
@@ -119,15 +119,15 @@ cdef class A:
 
 cdef class B:
     cdef object a0
-    cdef pub object a1
+    pub object a1
     cdef readonly object a2
 
     cdef list b0
-    cdef pub list b1
+    pub list b1
     cdef readonly list b2
 
     cdef A c0
-    cdef pub A c1
+    pub A c1
     cdef readonly A c2
 
     def __cinit__(self):

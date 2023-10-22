@@ -5,7 +5,7 @@ cdef class WaveFunction(Function):
     cdef f64 offset
 
     # Available in Python-space:
-    cdef pub f64 freq
+    pub f64 freq
 
     # Available in Python-space, but only for reading:
     cdef readonly f64 scale

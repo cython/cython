@@ -25,7 +25,7 @@ cdef struct mystruct_t:
 ctypedef union myunion_t:
     extern_long a
 
-cdef pub class MyExt [ type MyExtType, object MyExtObject ]:
+pub class MyExt [ type MyExtType, object MyExtObject ]:
     cdef u8 a
 
 ctypedef char *string_t

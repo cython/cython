@@ -25,7 +25,7 @@ cdef class MockBuffer:
     cdef bint writable
 
     cdef readonly object received_flags, release_ok
-    cdef pub object fail
+    pub object fail
 
     def __init__(self, label, data, shape=None, strides=None, format=None, writable=true, offset=0):
         # It is important not to store references to data after the constructor

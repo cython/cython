@@ -5,7 +5,7 @@ cimport numpy as np
 import numpy as np
 
 cdef class ExtensionType(object):
-    cdef pub i32 dummy
+    pub i32 dummy
 
     def __init__(self, n):
         self.dummy = n

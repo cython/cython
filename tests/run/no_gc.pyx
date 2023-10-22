@@ -34,7 +34,7 @@ cdef class DisableGC:
     True
     """
 
-    cdef pub object requires_cleanup
+    pub object requires_cleanup
 
     def __cinit__(self):
         self.requires_cleanup = (

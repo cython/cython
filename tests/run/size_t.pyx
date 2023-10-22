@@ -41,7 +41,7 @@ def test(usize i):
     return i
 
 cdef class A:
-    cdef pub usize a
+    pub usize a
     cdef readonly usize b
 
     def __init__(self, usize a, object b):

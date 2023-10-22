@@ -46,13 +46,13 @@ cdef class AlignFunctionDefinitions(CythonTransform):
 
 @cython.final
 cdef class YieldNodeCollector(TreeVisitor):
-    cdef pub list yields
-    cdef pub list returns
-    cdef pub list finallys
-    cdef pub list excepts
-    cdef pub bint has_return_value
-    cdef pub bint has_yield
-    cdef pub bint has_await
+    pub list yields
+    pub list returns
+    pub list finallys
+    pub list excepts
+    pub bint has_return_value
+    pub bint has_yield
+    pub bint has_await
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):

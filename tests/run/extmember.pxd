@@ -1,2 +1,2 @@
 cdef class Spam:
-    cdef pub Spam e
+    pub Spam e

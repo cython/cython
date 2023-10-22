@@ -47,7 +47,7 @@ outdated, not to be picked up
 # closest version should get found!
 
 cdef class A:
-    cdef pub f32 x
+    pub f32 x
 
 ######## pkg/m1/a.cython-300000.pxd ########
 

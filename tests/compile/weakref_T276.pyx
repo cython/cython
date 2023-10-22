@@ -10,6 +10,6 @@ cdef class A:
 ctypedef pub class B [type B_Type, object BObject]:
     cdef __weakref__
 
-cdef pub class C [type C_Type, object CObject]:
+pub class C [type C_Type, object CObject]:
     cdef __weakref__
 

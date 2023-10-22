@@ -79,7 +79,7 @@ typedef struct {
 ######## check_size.pyx ########
 
 cdef class Foo:
-    cdef pub i32 field0, field1, field2;
+    pub i32 field0, field1, field2;
 
     def __init__(self, f0, f1, f2):
         self.field0 = f0

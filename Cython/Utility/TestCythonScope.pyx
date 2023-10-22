@@ -11,7 +11,7 @@ cdef extern from *:
 
 @cname('__pyx_TestClass')
 cdef class TestClass(object):
-    cdef pub i32 value
+    pub i32 value
 
     def __init__(self, i32 value):
         self.value = value

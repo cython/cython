@@ -16,7 +16,7 @@ setup(
 
 ######## a.pxd ########
 
-cdef pub i32 foo()
+pub i32 foo()
 
 cdef extern from "b.h":
     cpdef i32 bar()

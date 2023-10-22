@@ -103,8 +103,8 @@ def test():
 ######## pkg/a.pxd ########
 
 cdef class test_pxd:
-    cdef pub i32 x
-    cdef pub i32 y
+    pub i32 x
+    pub i32 y
 
 
 ######## pkg/b.pyx ########
