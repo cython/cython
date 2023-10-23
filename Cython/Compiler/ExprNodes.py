@@ -13484,7 +13484,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 if needs_cpp_exception_conversion(self):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
-                env.use_utility_code(UtilityCode.load_cached("InContainers", "CppInSTL.cpp"))
+                env.use_utility_code(UtilityCode.load_cached("InContainers", "CppSupport.cpp"))
                 # coerce operand1 to
                 # - key_type, if it exists (e.g. std::map)
                 # - the type pointed to by the iterators
@@ -13591,7 +13591,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 operand2.result(),
                 operand1.result())
         elif self.operator in ['in', 'not_in']:
-            return "(%s __operator_in_containers_helpers__::is_in(%s,%s))" % (
+            return "(%s __pyx_operator_in_containers_helpers__::is_in(%s,%s))" % (
                 "!" if self.operator == 'not_in' else "",
                 operand1.result(),
                 operand2.result())
