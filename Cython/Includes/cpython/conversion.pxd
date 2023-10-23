@@ -2,7 +2,7 @@
 
 from .object cimport PyObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef struct va_list
 
     i32 PyOS_snprintf(char *str, size_t size, const char *format, ...)

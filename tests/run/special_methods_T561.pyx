@@ -99,7 +99,7 @@ if sys.version_info >= (2,5):
     VS __index__ 0
 """
 
-cdef extern from *:
+extern from *:
     # type specs require a bug fix in Py3.8+ for some of these tests.
     const int CYTHON_USE_TYPE_SPECS
 

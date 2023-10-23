@@ -1,4 +1,4 @@
-cdef extern from "<deque>" namespace "std" nogil:
+extern from "<deque>" namespace "std" nogil:
     cdef cppclass deque[T,ALLOCATOR=*]:
         ctypedef T value_type
         ctypedef ALLOCATOR allocator_type

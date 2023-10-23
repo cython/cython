@@ -1,5 +1,5 @@
-cdef extern from *:
-    int new(int new)
+extern from *:
+    fn i32 new(i32 new)
 
 def new(x):
     """

@@ -14,14 +14,12 @@ cdef class ExtensionType:
     from PyObject *.
     """
 
-
 # Pull tp_clear for PyTypeObject as I did not find another way to access it
 # from Cython code.
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef struct PyTypeObject:
         void (*tp_clear)(object)
-
 
 cdef class TpClearFixture:
     """

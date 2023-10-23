@@ -3,7 +3,7 @@
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     u64 PY_VERSION_HEX
     u64 Py_TPFLAGS_HAVE_VERSION_TAG
     ctypedef struct PyTypeObject:

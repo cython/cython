@@ -4,7 +4,7 @@
 # cpp will convert function arguments to a type if it has suitable constructor
 # we do not want that when calling from cython
 
-cdef extern from "no_such_file.cpp" nogil:
+extern from "no_such_file.cpp" nogil:
     cppclass wrapped_int:
         i128 val
         wrapped_int()

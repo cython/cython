@@ -7,7 +7,7 @@ import sys
 
 from cpython.ref cimport PyObject, Py_INCREF, Py_XDECREF
 
-cdef extern from "frameobject.h":
+extern from "frameobject.h":
     ctypedef struct PyFrameObject:
         PyObject *f_trace
 
@@ -16,10 +16,9 @@ from cpython.pystate cimport (
     PyTrace_CALL, PyTrace_EXCEPTION, PyTrace_LINE, PyTrace_RETURN,
     PyTrace_C_CALL, PyTrace_C_EXCEPTION, PyTrace_C_RETURN)
 
-cdef extern from *:
-    void PyEval_SetProfile(Py_tracefunc cfunc, PyObject *obj)
-    void PyEval_SetTrace(Py_tracefunc cfunc, PyObject *obj)
-
+extern from *:
+    fn void PyEval_SetProfile(Py_tracefunc cfunc, PyObject *obj)
+    fn void PyEval_SetTrace(Py_tracefunc cfunc, PyObject *obj)
 
 map_trace_types = {
     PyTrace_CALL:        'call',
@@ -30,7 +29,6 @@ map_trace_types = {
     PyTrace_C_EXCEPTION: 'cexc',
     PyTrace_C_RETURN:    'cret',
 }.get
-
 
 fn int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* _arg) except -1:
     """
@@ -69,7 +67,6 @@ fn int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, Py
 
     return 0
 
-
 def _create_trace_func(trace):
     local_names = {}
 
@@ -98,7 +95,6 @@ def _create_trace_func(trace):
         return _trace_func
     return _trace_func
 
-
 def _create_failing_call_trace_func(trace):
     func = _create_trace_func(trace)
     def _trace_func(frame, event, arg):
@@ -109,7 +105,6 @@ def _create_failing_call_trace_func(trace):
         return _trace_func
 
     return _trace_func
-
 
 def _create__failing_line_trace_func(trace):
     func = _create_trace_func(trace)
@@ -123,7 +118,6 @@ def _create__failing_line_trace_func(trace):
         return _trace_func
     return _trace_func
 
-
 def _create_disable_tracing(trace):
     func = _create_trace_func(trace)
     def _trace_func(frame, event, arg):
@@ -136,36 +130,30 @@ def _create_disable_tracing(trace):
 
     return _trace_func
 
-
-def cy_add(a,b):
+def cy_add(a, b):
     x = a + b     # 1
     return x      # 2
 
-
-def cy_add_with_nogil(a,b):
+def cy_add_with_nogil(a, b):
     let int z, x=a, y=b         # 1
     with nogil:                  # 2
         z = 0                    # 3
         z += cy_add_nogil(x, y)  # 4
     return z                     # 5
 
-
 def global_name(global_name):
     # See GH #1836: accessing "frame.f_locals" deletes locals from globals dict.
     return global_name + 321
 
-
 fn int cy_add_nogil(int a, int b) except -1 nogil:
     x = a + b   # 1
     return x    # 2
-
 
 def cy_try_except(func):
     try:
         return func()
     except KeyError as exc:
         raise AttributeError(exc.args[0])
-
 
 # CPython 3.11 has an issue when these Python functions are implemented inside of doctests and the trace function fails.
 # https://github.com/python/cpython/issues/94381
@@ -184,7 +172,6 @@ def py_add_with_nogil(a,b):
 
 def py_return(retval=123): return retval
 """, plain_python_functions)
-
 
 def run_trace(func, *args, bint with_sys=false):
     """
@@ -248,7 +235,6 @@ def run_trace(func, *args, bint with_sys=false):
             PyEval_SetTrace(NULL, NULL)
     return trace
 
-
 def run_trace_with_exception(func, bint with_sys=false, bint fail=false):
     """
     >>> py_return = plain_python_functions["py_return"]
@@ -304,7 +290,6 @@ def run_trace_with_exception(func, bint with_sys=false, bint fail=false):
             PyEval_SetTrace(NULL, NULL)
     return trace[1:]
 
-
 def fail_on_call_trace(func, *args):
     """
     >>> py_add = plain_python_functions["py_add"]
@@ -324,7 +309,6 @@ def fail_on_call_trace(func, *args):
     finally:
         PyEval_SetTrace(NULL, NULL)
     assert not trace
-
 
 def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     """
@@ -401,7 +385,6 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     else:
         assert x == 5
     return trace
-
 
 def disable_trace(func, *args, bint with_sys=false):
     """

@@ -48,7 +48,7 @@ py_reserved_words = [
 ]
 
 contextual_keywords = [
-    "pub", "fn", "let",
+    "pub", "fn", "let", "extern",
 ]
 
 pyx_reserved_words = py_reserved_words + contextual_keywords + [

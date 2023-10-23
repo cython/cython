@@ -20,7 +20,7 @@ setup(
 
 ######## pkg/a.pyx ########
 
-cdef extern from "alib.h":
+extern from "alib.h":
     i32 c_function(i32 x)
 
 def test():

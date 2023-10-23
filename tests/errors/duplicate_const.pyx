@@ -1,6 +1,6 @@
 # mode: error
 
-cdef extern from *:
+extern from *:
     cdef const const i32 a
     cdef const volatile i32 b
     cdef volatile const i32 c

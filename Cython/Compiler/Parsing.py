@@ -2384,7 +2384,7 @@ def p_statement(s, ctx, first_statement = 0):
         cdef_flag = 1
         overridable = 1
         s.next()
-    elif s.sy in ("pub", "fn", "let",):
+    elif s.sy in ("pub", "fn", "let", "extern"):
         cdef_flag = 1
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
@@ -3480,7 +3480,7 @@ def p_struct_enum(s, pos, ctx):
 def p_visibility(s, prev_visibility):
     pos = s.position()
     visibility = prev_visibility
-    if s.sy in ("pub",) or s.sy == 'IDENT' and s.systring in ("extern", "pub", "public", "readonly"):
+    if s.sy in ("pub", "extern") or s.sy == 'IDENT' and s.systring in ("public", "readonly"):
         if s.sy == "pub":
             visibility = "public"
         else:

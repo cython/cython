@@ -1,6 +1,6 @@
 from .utility cimport pair
 
-cdef extern from "<map>" namespace "std" nogil:
+extern from "<map>" namespace "std" nogil:
     cdef cppclass map[T, U, COMPARE=*, ALLOCATOR=*]:
         ctypedef T key_type
         ctypedef U mapped_type

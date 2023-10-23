@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     # PyTypeObject PySlice_Type
     #
     # The type object for slice objects. This is the same as slice and types.SliceType

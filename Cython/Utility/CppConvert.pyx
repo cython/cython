@@ -2,7 +2,7 @@
 
 #################### string.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass string "{{type}}":
         string() except +
         string(char* c_str, usize size) except +
@@ -18,13 +18,13 @@ fn string {{cname}}(object o) except *:
 
 #cimport cython
 #from libcpp.string cimport string
-cdef extern from *:
+extern from *:
     cdef cppclass string "{{type}}":
         char* data()
         usize size()
 
 {{for py_type in ['PyObject', 'PyUnicode', 'PyStr', 'PyBytes', 'PyByteArray']}}
-cdef extern from *:
+extern from *:
     cdef object __Pyx_{{py_type}}_FromStringAndSize(const char*, usize)
 
 @cname("{{cname.replace("PyObject", py_type, 1)}}")
@@ -34,7 +34,7 @@ fn inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
 
 #################### vector.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass vector "std::vector" [T]:
         void push_back(T&) except +
 
@@ -47,12 +47,12 @@ fn vector[X] {{cname}}(object o) except *:
 
 #################### vector.to_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass vector "std::vector" [T]:
         usize size()
         T& operator[](usize)
 
-cdef extern from "Python.h":
+extern from "Python.h":
     void Py_INCREF(object)
     list PyList_New(isize size)
     void PyList_SET_ITEM(object list, isize i, object o)
@@ -78,7 +78,7 @@ fn object {{cname}}(const vector[X]& v):
 
 #################### list.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass cpp_list "std::list" [T]:
         void push_back(T&) except +
 
@@ -93,7 +93,7 @@ fn cpp_list[X] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     cdef cppclass cpp_list "std::list" [T]:
         cppclass const_iterator:
             T& operator*()
@@ -103,7 +103,7 @@ cdef extern from *:
         const_iterator end()
         usize size()
 
-cdef extern from "Python.h":
+extern from "Python.h":
     void Py_INCREF(object)
     list PyList_New(isize size)
     void PyList_SET_ITEM(object list, isize i, object o)
@@ -131,7 +131,7 @@ fn object {{cname}}(const cpp_list[X]& v):
 
 #################### set.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass set "std::{{maybe_unordered}}set" [T]:
         void insert(T&) except +
 
@@ -146,7 +146,7 @@ fn set[X] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     cdef cppclass cpp_set "std::{{maybe_unordered}}set" [T]:
         cppclass const_iterator:
             T& operator*()
@@ -161,7 +161,7 @@ fn object {{cname}}(const cpp_set[X]& s):
 
 #################### pair.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair() except +
         pair(T&, U&) except +
@@ -173,7 +173,7 @@ fn pair[X, Y] {{cname}}(object o) except *:
 
 #################### pair.to_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         T first
         U second
@@ -184,7 +184,7 @@ fn object {{cname}}(const pair[X, Y]& p):
 
 #################### map.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair(T&, U&) except +
     cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
@@ -210,7 +210,7 @@ fn map[X, Y] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
         cppclass value_type:
             T first
@@ -235,7 +235,7 @@ fn object {{cname}}(const map[X, Y]& s):
 
 #################### complex.from_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass std_complex "std::complex" [T]:
         std_complex()
         std_complex(T, T) except +
@@ -247,7 +247,7 @@ fn std_complex[X] {{cname}}(object o) except *:
 
 #################### complex.to_py ####################
 
-cdef extern from *:
+extern from *:
     cdef cppclass std_complex "std::complex" [T]:
         X real()
         X imag()

@@ -865,7 +865,7 @@ def inplace_operators(object[i32] buf):
 # simply a header file typedef for floats and unsigned.
 
 ctypedef i32 td_cy_int
-cdef extern from "bufaccess.h":
+extern from "bufaccess.h":
     ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
     ctypedef f32 td_h_double # Defined as double
     ctypedef u32 td_h_ushort # Defined as unsigned short

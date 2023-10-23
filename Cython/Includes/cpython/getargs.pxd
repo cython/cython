@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     #####################################################################
     # 5.5 Parsing arguments and building values
     #####################################################################

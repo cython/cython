@@ -1,9 +1,9 @@
 ##################### UFuncDefinition ######################
 
-cdef extern from *:
+extern from *:
     ctypedef int npy_intp
     struct PyObject
-    PyObject* __Pyx_NewRef(object)
+    fn PyObject* __Pyx_NewRef(object)
     {{inline_func_declaration}}
 
 # variable names have to come from tempita to avoid duplication

@@ -13,19 +13,19 @@ IF 1:
 
     include "c.pxi"
 
-    cdef extern from "d.h":
+    extern from "d.h":
         pass
 
 ######## a.pxd ########
-cdef extern from "a.h":
+extern from "a.h":
     pass
 
 ######## b.pxd ########
-cdef extern from "b.h":
+extern from "b.h":
     fn void something()
 
 ######## c.pxi ########
-cdef extern from "c.h":
+extern from "c.h":
     pass
 
 ######## a.h ########

@@ -2,7 +2,7 @@
 # mode: compile
 # ticket: t767
 
-cdef extern from "templates.h":
+extern from "templates.h":
     cdef cppclass TemplateTest1[T]:
         TemplateTest1()
         T value
@@ -16,7 +16,7 @@ cdef extern from "templates.h":
         T getValue1()
         U getValue2()
 
-    void template_function[T](TemplateTest1[T] &)
+    fn void template_function[T](TemplateTest1[T] &)
 
 cdef TemplateTest1[int] a
 cdef TemplateTest1[int]* b = new TemplateTest1[int]()

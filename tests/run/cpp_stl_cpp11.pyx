@@ -14,7 +14,6 @@ from libcpp.set cimport set
 from libcpp.deque cimport deque
 from libcpp.functional cimport reference_wrapper
 
-
 def test_reference_wrapper():
     """
     >>> test_reference_wrapper()
@@ -26,7 +25,6 @@ def test_reference_wrapper():
     ref_wrap_vector.push_back(reference_wrapper[int](x))
     assert ref_wrap_vector[0].get() == 1
     return "pass"
-
 
 def test_vector_functionality():
     """
@@ -44,7 +42,6 @@ def test_vector_functionality():
     assert const_data[0] == 77
     return "pass"
 
-
 def test_queue_functionality():
     """
     >>> test_queue_functionality()
@@ -59,7 +56,6 @@ def test_queue_functionality():
     assert int_queue2.size() == 1
     return "pass"
 
-
 def test_deque_functionality():
     """
     >>> test_deque_functionality()
@@ -70,7 +66,6 @@ def test_deque_functionality():
     int_deque.push_back(77)
     int_deque.shrink_to_fit()
     return "pass"
-
 
 def test_priority_queue_functionality():
     """
@@ -85,7 +80,6 @@ def test_priority_queue_functionality():
     assert int_queue.size() == 0
     assert int_queue2.size() == 1
     return "pass"
-
 
 def test_set_functionality():
     """
@@ -102,7 +96,6 @@ def test_set_functionality():
     assert int_set.erase(int_set.const_begin(), int_set.const_end()) == int_set.end()
     return "pass"
 
-
 def test_map_functionality():
     """
     >>> test_map_functionality()
@@ -114,7 +107,6 @@ def test_map_functionality():
     int_map[77] = NULL
     data = int_map.const_at(77)
     return "pass"
-
 
 def test_unordered_set_functionality():
     """
@@ -154,11 +146,9 @@ def test_unordered_set_functionality():
     assert int_set.load_factor() > 0
     return "pass"
 
-
-cdef extern from "cpp_unordered_map_helper.h":
+extern from "cpp_unordered_map_helper.h":
     cdef cppclass IntVectorHash:
         pass
-
 
 def test_unordered_map_functionality():
     """

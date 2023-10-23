@@ -1,6 +1,6 @@
 # 5.2.4.2.2 Characteristics of floating types <float.h>
 
-cdef extern from "<float.h>":
+extern from "<float.h>":
 
     const float FLT_RADIX
 

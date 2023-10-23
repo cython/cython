@@ -1,4 +1,4 @@
-cdef extern from *:
+extern from *:
     """
     #if defined(_WIN32) || defined(MS_WINDOWS) || defined(_MSC_VER)
       #include "stdlib.h"
@@ -9,6 +9,6 @@ cdef extern from *:
     #endif
     """
     # using "myapp_" prefix in the C code to prevent C naming conflicts
-    void msleep "myapp_sleep"(int milliseconds) nogil
+    fn void msleep "myapp_sleep"(i32 milliseconds) nogil
 
 msleep(milliseconds=1)

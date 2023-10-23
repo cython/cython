@@ -1,6 +1,6 @@
 from libcpp cimport bool
 
-cdef extern from "<functional>" namespace "std" nogil:
+extern from "<functional>" namespace "std" nogil:
     cdef cppclass function[T]:
         function() except +
         function(T*) except +

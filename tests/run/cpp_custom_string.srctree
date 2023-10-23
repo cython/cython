@@ -42,7 +42,7 @@ typedef MyString MyTypedefString;
 
 # distutils: language = c++
 
-cdef extern from "my_string.cpp":
+extern from "my_string.cpp":
   cdef cppclass MyString:
     pass
 

@@ -1,4 +1,4 @@
-cdef extern from *:
+extern from *:
     ctypedef u8 Py_UCS1  # uint8_t
     ctypedef u16 Py_UCS2  # uint16_t
 

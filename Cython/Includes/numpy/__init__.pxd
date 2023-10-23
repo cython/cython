@@ -16,7 +16,7 @@ from cpython.object cimport PyObject, PyTypeObject, PyObject_TypeCheck
 cimport libc.stdio as stdio
 
 
-cdef extern from *:
+extern from *:
     # Leave a marker that the NumPy declarations came from Cython and not from NumPy itself.
     # See https://github.com/cython/cython/issues/3573
     """
@@ -24,10 +24,10 @@ cdef extern from *:
     """
 
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef isize Py_intptr_t
 
-cdef extern from "numpy/arrayobject.h":
+extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
     ctypedef size_t npy_uintp
 
@@ -797,18 +797,18 @@ fn inline tuple PyDataType_SHAPE(dtype d):
     else:
         return ()
 
-cdef extern from "numpy/ndarrayobject.h":
+extern from "numpy/ndarrayobject.h":
     PyTypeObject PyTimedeltaArrType_Type
     PyTypeObject PyDatetimeArrType_Type
     ctypedef int64_t npy_timedelta
     ctypedef int64_t npy_datetime
 
-cdef extern from "numpy/ndarraytypes.h":
+extern from "numpy/ndarraytypes.h":
     ctypedef struct PyArray_DatetimeMetaData:
         NPY_DATETIMEUNIT base
         int64_t num
 
-cdef extern from "numpy/arrayscalars.h":
+extern from "numpy/arrayscalars.h":
 
     # abstract types
     ctypedef class numpy.generic [object PyObject]:
@@ -863,7 +863,7 @@ cdef extern from "numpy/arrayscalars.h":
 # ufunc API
 #
 
-cdef extern from "numpy/ufuncobject.h":
+extern from "numpy/ufuncobject.h":
 
     ctypedef void (*PyUFuncGenericFunction) (char **, npy_intp *, npy_intp *, void *)
 

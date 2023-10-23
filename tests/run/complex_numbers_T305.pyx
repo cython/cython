@@ -6,7 +6,6 @@ cimport cython
 
 DEF C21 = 2-1j
 
-
 cdef class Complex3j:
     """
     >>> Complex3j() == 3j
@@ -220,7 +219,7 @@ fn cdouble test_conjugate_nogil(cdouble z) nogil:
     return z.conjugate()
 test_conjugate_nogil(0) # use it
 
-## cdef extern from "complex_numbers_T305.h":
+## extern from "complex_numbers_T305.h":
 ##     ctypedef f64 double_really_float "myfloat"
 ##     ctypedef f32 float_really_double "mydouble"
 ##     ctypedef f32 real_float "myfloat"

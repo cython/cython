@@ -2,7 +2,7 @@
 
 ctypedef void (*sighandler_t)(int SIGNUM) noexcept nogil
 
-cdef extern from "<signal.h>" nogil:
+extern from "<signal.h>" nogil:
 
     ctypedef int sig_atomic_t
 

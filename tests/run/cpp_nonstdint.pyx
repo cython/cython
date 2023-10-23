@@ -1,6 +1,6 @@
 # tag: cpp, no-cpp-locals
 
-cdef extern from "cpp_nonstdint.h":
+extern from "cpp_nonstdint.h":
     ctypedef int Int24
     ctypedef int Int56
     ctypedef int Int88

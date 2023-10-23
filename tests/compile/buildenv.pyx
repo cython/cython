@@ -8,8 +8,7 @@ import os
 import sys
 from distutils import sysconfig
 
-
-cdef extern from *:
+extern from *:
     """
     #ifndef PyLong_SHIFT
     #define PyLong_SHIFT 0
@@ -66,7 +65,6 @@ cdef extern from *:
     cdef int PyLong_SHIFT
     cdef int digit
     cdef int sdigit
-
 
 def config_var(name, default=''):
     return sysconfig.get_config_var(name) or default

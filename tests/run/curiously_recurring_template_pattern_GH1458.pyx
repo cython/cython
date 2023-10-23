@@ -1,6 +1,6 @@
 # tag: cpp
 
-cdef extern from "curiously_recurring_template_pattern_GH1458_suport.h":
+extern from "curiously_recurring_template_pattern_GH1458_suport.h":
     cdef cppclass Base[T, Derived]:
         Base(T)
         Derived half()

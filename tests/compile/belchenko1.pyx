@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef extern from *:
+extern from *:
     ctypedef int intptr_t
 
 fn int _is_aligned(void *ptr):

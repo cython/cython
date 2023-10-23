@@ -33,7 +33,7 @@ public:
 
 ######## assign.pxd ########
 
-cdef extern from "assign.cpp" nogil:
+extern from "assign.cpp" nogil:
     cppclass wrapped_int:
         long long val
         wrapped_int()

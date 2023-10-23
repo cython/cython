@@ -1,6 +1,6 @@
 from .object cimport PyObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     #####################################################################
     # 6.2 Number Protocol
     #####################################################################

@@ -1,5 +1,5 @@
 # mode: compile
 
-cdef extern from "cheese.h":
+extern from "cheese.h":
     pass
 

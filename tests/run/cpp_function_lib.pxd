@@ -1,10 +1,10 @@
 from libcpp.functional cimport function
 
-cdef extern from "cpp_function_lib.cpp":
+extern from "cpp_function_lib.cpp":
     # CPP is include here so that it doesn't need to be compiled externally
     pass
 
-cdef extern from "cpp_function_lib.h":
+extern from "cpp_function_lib.h":
     double add_one(double, int)
     double add_two(double a, int b)
 

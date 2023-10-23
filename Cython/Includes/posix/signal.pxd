@@ -2,7 +2,7 @@
 
 from posix.types cimport pid_t, sigset_t, uid_t
 
-cdef extern from "<signal.h>" nogil:
+extern from "<signal.h>" nogil:
 
     cdef union sigval:
         int  sival_int

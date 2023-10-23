@@ -1,6 +1,6 @@
 from .pystate cimport PyFrameObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ###########################################################################
     # Generator Objects
     ###########################################################################

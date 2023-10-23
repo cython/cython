@@ -6,7 +6,7 @@
 
 from __future__ import print_function
 
-cdef extern from *:
+extern from *:
     fn object __pyx_test_dep(object)
 
 @cname('__pyx_TestClass')

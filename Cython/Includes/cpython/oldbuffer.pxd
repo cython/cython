@@ -3,7 +3,7 @@
 # These functions are no longer available in Python 3, use the new
 # buffer interface instead.
 
-cdef extern from "Python.h":
+extern from "Python.h":
     cdef enum _:
         Py_END_OF_BUFFER
     #    This constant may be passed as the size parameter to

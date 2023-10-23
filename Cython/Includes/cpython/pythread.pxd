@@ -1,4 +1,4 @@
-cdef extern from "pythread.h":
+extern from "pythread.h":
     ctypedef void *PyThread_type_lock
     ctypedef void *PyThread_type_sema
 

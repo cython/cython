@@ -4,7 +4,7 @@
 from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast, make_unique
 from libcpp cimport nullptr
 
-cdef extern from "cpp_smart_ptr_helper.h":
+extern from "cpp_smart_ptr_helper.h":
     cdef cppclass CountAllocDealloc:
         CountAllocDealloc(int*, int*)
 
@@ -14,9 +14,7 @@ cdef extern from "cpp_smart_ptr_helper.h":
     cdef cppclass RaiseOnConstruct:
         pass
 
-
 ctypedef const CountAllocDealloc const_CountAllocDealloc
-
 
 def test_unique_ptr():
     """
@@ -58,7 +56,6 @@ def test_unique_ptr():
     except RuntimeError:
         pass  # good - this is what we expect
 
-
 def test_const_shared_ptr():
     """
     >>> test_const_shared_ptr()
@@ -81,7 +78,6 @@ def test_const_shared_ptr():
     assert alloc_count == 1
     assert dealloc_count == 1
 
-
 cdef cppclass A:
     void some_method():  # Force this to be a polymorphic class for dynamic cast.
         pass
@@ -94,14 +90,12 @@ cdef cppclass C(B):
 
 cdef shared_ptr[A] holding_subclass = shared_ptr[A](new C())
 
-
 def test_assignment_to_base_class():
     """
     >>> test_assignment_to_base_class()
     """
     let shared_ptr[C] derived = shared_ptr[C](new C())
     let shared_ptr[A] base = derived
-
 
 def test_dynamic_pointer_cast():
     """

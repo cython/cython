@@ -18,7 +18,7 @@ cdef class A:
     def terminate(self):
         pass
 
-cdef extern from "foo.h":
+extern from "foo.h":
     cdef class pxdimpl.B [object MyB]:
         def otherfunc(self):
             pass

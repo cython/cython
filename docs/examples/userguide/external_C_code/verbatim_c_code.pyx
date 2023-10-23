@@ -1,4 +1,4 @@
-cdef extern from *:
+extern from *:
     """
     /* This is C code which will be put
      * in the .c file output by Cython */

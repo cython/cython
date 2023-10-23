@@ -1,7 +1,7 @@
 # mode: error
 # tag: cpp
 
-cdef extern from *:
+extern from *:
     fn i32 decl_invalid() except +nogil
 
     fn i32 decl2_ok() except + nogil  # comment following

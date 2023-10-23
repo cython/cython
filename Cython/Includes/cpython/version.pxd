@@ -11,7 +11,7 @@
 # compile time.  This will keep your C code portable.
 
 
-cdef extern from *:
+extern from *:
     # the complete version, e.g. 0x010502B2 == 1.5.2b2
     i32 PY_VERSION_HEX
 

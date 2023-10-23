@@ -1,4 +1,4 @@
-cdef extern from "<limits>" namespace "std" nogil:
+extern from "<limits>" namespace "std" nogil:
     enum float_round_style:
         round_indeterminate       = -1
         round_toward_zero         = 0

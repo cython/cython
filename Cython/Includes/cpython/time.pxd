@@ -5,7 +5,7 @@ Cython implementation of (parts of) the standard library time module.
 from libc.stdint cimport int64_t
 from cpython.exc cimport PyErr_SetFromErrno
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef int64_t _PyTime_t
     _PyTime_t _PyTime_GetSystemClock() nogil
     f64 _PyTime_AsSecondsDouble(_PyTime_t t) nogil

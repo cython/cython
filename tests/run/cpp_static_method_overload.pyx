@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, no-cpp-locals
 
-cdef extern from *:
+extern from *:
     """
     struct Foo
     {

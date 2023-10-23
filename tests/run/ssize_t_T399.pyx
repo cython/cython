@@ -48,7 +48,7 @@ Traceback (most recent call last):
 OverflowError: ...
 """
 
-cdef extern from *:
+extern from *:
     ctypedef long ssize_t # XXX This should generate a warning !!!
     ssize_t PY_SSIZE_T_MAX
     ssize_t PY_SSIZE_T_MIN

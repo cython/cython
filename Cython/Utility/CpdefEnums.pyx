@@ -2,7 +2,7 @@
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     i32 PY_VERSION_HEX
 
 cdef object __Pyx_OrderedDict
@@ -70,7 +70,7 @@ if PY_VERSION_HEX >= 0x03060000:
 #################### EnumType ####################
 #@requires: EnumBase
 
-cdef extern from *:
+extern from *:
     object {{enum_to_pyint_func}}({{name}} value)
 
 cdef dict __Pyx_globals = globals()

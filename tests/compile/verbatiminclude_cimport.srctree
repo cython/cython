@@ -25,7 +25,7 @@ from verbatim cimport DEFINE_ONCE as DEFINE_B
 ######## verbatim.pxd ########
 
 # Check that we include this only once
-cdef extern from *:
+extern from *:
     """
     #ifdef DEFINE_ONCE
     #error "DEFINE_ONCE already defined"

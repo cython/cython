@@ -1,4 +1,4 @@
-cdef extern from *:
+extern from *:
     """
     struct CrunchyType {
         int number;

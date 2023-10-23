@@ -1,3 +1,3 @@
 
-cdef extern from "math.h":
+extern from "math.h":
     cpdef double pxd_sqrt "sqrt"(double)

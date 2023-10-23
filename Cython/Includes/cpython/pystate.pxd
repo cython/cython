@@ -2,7 +2,7 @@
 
 from .object cimport PyObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     # We make these an opaque types. If the user wants specific attributes,
     # they can be declared manually.
 

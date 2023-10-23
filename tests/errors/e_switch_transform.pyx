@@ -4,7 +4,7 @@
 
 import cython
 
-cdef extern from *:
+extern from *:
     enum:
         ONE "1"
         ONE_AGAIN "1+0"

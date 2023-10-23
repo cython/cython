@@ -7,7 +7,7 @@ from cython.view cimport _testscope as viewtester
 
 from cpython cimport PyObject
 
-cdef extern from *:
+extern from *:
     # TestClass stuff
     cdef struct __pyx_TestClass_obj:
         int value

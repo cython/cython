@@ -10,7 +10,7 @@
 # the POSIX standard doesn't even specify that time_t must be an integral
 # type).
 
-cdef extern from "<sys/types.h>":
+extern from "<sys/types.h>":
     ctypedef long blkcnt_t
     ctypedef long blksize_t
     ctypedef long clockid_t

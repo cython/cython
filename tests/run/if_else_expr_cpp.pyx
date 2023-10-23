@@ -1,7 +1,7 @@
 # mode: run
 # tag: condexpr, cpp
 
-cdef extern from "if_else_expr_cpp_helper.h":
+extern from "if_else_expr_cpp_helper.h":
     cdef cppclass Holder:
         int value
         Holder()

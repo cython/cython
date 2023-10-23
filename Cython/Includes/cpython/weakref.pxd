@@ -1,6 +1,6 @@
 from .object cimport PyObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     bint PyWeakref_Check(object ob)
     # Return true if ob is either a reference or proxy object.
 

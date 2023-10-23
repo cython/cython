@@ -1,4 +1,4 @@
-cdef extern from *:
+extern from *:
     cpdef enum: # ExternPxd
         FOUR "4"
         EIGHT "8"

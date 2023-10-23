@@ -7,11 +7,10 @@ __doc__ = u"""
     Imag: 42.0
 """
 
-cdef extern from "complexobject.h":
-
+extern from "complexobject.h":
     struct Py_complex:
-        double real
-        double imag
+        f64 real
+        f64 imag
 
     ctypedef class __builtin__.complex [object PyComplexObject]:
         cdef Py_complex cval

@@ -1,2 +1,2 @@
-cdef extern from "lunch.h":
+extern from "lunch.h":
     void eject_tomato(f32)

@@ -3,7 +3,7 @@
 # import dereference and increment operators
 from cython.operator cimport dereference as deref, preincrement as inc
 
-cdef extern from "<vector>" namespace "std":
+extern from "<vector>" namespace "std":
     cdef cppclass vector[T]:
         cppclass iterator:
             T operator*()

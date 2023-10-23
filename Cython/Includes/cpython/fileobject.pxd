@@ -11,7 +11,7 @@ error reporting in the interpreter;
 third-party code is advised to access the io APIs instead.
 """
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ###########################################################################
     # File Objects
     ###########################################################################

@@ -1,4 +1,4 @@
-cdef extern from "struct_field_adaptation.h":
+extern from "struct_field_adaptation.h":
     """
     #define HAS_NEWLY_ADDED_FIELD  (C_LIB_VERSION >= 20)
 

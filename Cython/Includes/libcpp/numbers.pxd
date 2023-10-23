@@ -1,4 +1,4 @@
-cdef extern from "<numbers>" namespace "std::numbers" nogil:
+extern from "<numbers>" namespace "std::numbers" nogil:
     # C++20 mathematical constants
     const double e
     const double log2e

@@ -15,7 +15,7 @@ setup(
 
 cimport cython
 
-cdef extern from "header.h":
+extern from "header.h":
     ctypedef i32 extern_int
     ctypedef i64 extern_long
 

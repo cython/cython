@@ -8,7 +8,7 @@ import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '")
 
-cdef extern from "string.h":
+extern from "string.h":
     void memcpy(char *d, char *s, int n)
 
 from cpython cimport PyUnicode_DecodeUTF8

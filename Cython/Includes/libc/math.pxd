@@ -1,4 +1,4 @@
-cdef extern from "<math.h>" nogil:
+extern from "<math.h>" nogil:
     const double M_E
     const double e "M_E"  # as in Python's math module
     const double M_LOG2E

@@ -47,7 +47,7 @@
               : (see revision control)
 """
 
-cdef extern from *:
+extern from *:
     """
     #if CYTHON_COMPILING_IN_PYPY
     #ifdef _MSC_VER
@@ -65,7 +65,7 @@ from cpython.ref cimport PyTypeObject, Py_TYPE
 from cpython.exc cimport PyErr_BadArgument
 from cpython.mem cimport PyObject_Malloc, PyObject_Free
 
-cdef extern from *:  # Hard-coded utility code hack.
+extern from *:  # Hard-coded utility code hack.
     ctypedef class array.array [object arrayobject]
     ctypedef object GETF(array a, isize ix)
     ctypedef object SETF(array a, isize ix, object o)

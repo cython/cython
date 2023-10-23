@@ -1,6 +1,6 @@
 # distutils: language = c++
 
-cdef extern from "<vector>" namespace "std":
+extern from "<vector>" namespace "std":
     cdef cppclass vector[T]:
         cppclass iterator:
             T operator*()

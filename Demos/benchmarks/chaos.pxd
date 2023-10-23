@@ -1,6 +1,6 @@
 cimport cython
 
-cdef extern from "math.h":
+extern from "math.h":
     cpdef f64 sqrt(f64 x)
 
 @cython.final

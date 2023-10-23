@@ -1,4 +1,4 @@
-cdef extern from "<vector>" namespace "std" nogil:
+extern from "<vector>" namespace "std" nogil:
     cdef cppclass vector[T,ALLOCATOR=*]:
         ctypedef T value_type
         ctypedef ALLOCATOR allocator_type

@@ -19,7 +19,7 @@ setup(
 
 ######## site-packages/b/other.pxd ########
 
-cdef extern from "foo.c":
+extern from "foo.c":
     int foo(int)
 
 ######## site-packages/b/foo.c ########

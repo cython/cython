@@ -1,6 +1,6 @@
 from .object cimport PyObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     bint PyByteArray_Check(object o)
     # Return true if the object o is a bytearray object or an instance of a subtype of the bytearray type.
 

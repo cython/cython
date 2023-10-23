@@ -1,7 +1,7 @@
 # mode: compile
 # tag: struct, union, enum, cdefextern
 
-cdef extern from *:
+extern from *:
     """
     struct spam { int a; };
     struct flat_spam { int a; };

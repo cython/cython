@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef extern from *:
+extern from *:
     fn void foo(i32[])
 
     ctypedef i32 MyInt

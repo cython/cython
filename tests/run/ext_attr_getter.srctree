@@ -159,7 +159,7 @@ class OpaqueFoo(Foo):
 
 # Access base Foo fields from C via aliased field names
 
-cdef extern from "foo.h":
+extern from "foo.h":
 
     ctypedef class foo_extension.Foo [object FooStructNominal]:
         cdef:
@@ -182,7 +182,7 @@ def check_pyobj(Foo f):
 # Access base Foo fields from C via getter functions
 
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque, check_size ignore]:
         @property
         fn inline i32 fieldM0(self):
@@ -249,7 +249,7 @@ def check_meaning_of_life(getter.Foo f):
 
 # TEST: Make sure not all decorators are accepted.
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         @classmethod
@@ -261,7 +261,7 @@ cdef extern from "foo.h":
 
 # TEST: Make sure not all decorators are accepted.
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         fn inline i32 field0(self):
@@ -276,7 +276,7 @@ cdef extern from "foo.h":
 
 # TEST: Properties must be declared "inline".
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         fn i32 field0(self):
@@ -287,7 +287,7 @@ cdef extern from "foo.h":
 
 # TEST: Properties must have a non-void return type.
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         fn void field0(self):
@@ -298,7 +298,7 @@ cdef extern from "foo.h":
 
 # TEST: Properties must have the right signature.
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         fn i32 field0():
@@ -309,7 +309,7 @@ cdef extern from "foo.h":
 
 # TEST: Properties must have the right signature.
 
-cdef extern from "foo.h":
+extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         fn i32 field0(x, y):

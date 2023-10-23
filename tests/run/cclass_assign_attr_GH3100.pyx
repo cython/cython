@@ -1,4 +1,4 @@
-cdef extern from *:
+extern from *:
     """
     #ifdef CYTHON_USE_TYPE_SPECS
     #define TYPESPECS 1

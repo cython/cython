@@ -2,7 +2,7 @@
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     cdef cppclass Foo:
         Foo operator++()
         Foo operator--()

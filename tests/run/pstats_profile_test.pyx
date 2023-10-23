@@ -117,23 +117,20 @@ u"""
 
 cimport cython
 
-
 # FIXME: With type specs, cpdef methods are currently counted twice.
 # https://github.com/cython/cython/issues/2137
-cdef extern from *:
+extern from *:
     int CYTHON_USE_TYPE_SPECS
 
 CPDEF_METHODS_COUNT_TWICE = CYTHON_USE_TYPE_SPECS
 
-
 def callees(pstats, target_caller):
     pstats.calc_callees()
     for (_, _, caller), callees in pstats.all_callees.items():
-      if caller == target_caller:
-        for (file, line, callee) in callees.keys():
-            if 'pyx' in file:
-                yield callee
-
+        if caller == target_caller:
+            for (file, line, callee) in callees.keys():
+                if 'pyx' in file:
+                    yield callee
 
 def test_profile(long N):
     let long i, n = 0

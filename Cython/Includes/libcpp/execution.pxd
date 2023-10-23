@@ -1,5 +1,5 @@
 
-cdef extern from "<execution>" namespace "std::execution" nogil:
+extern from "<execution>" namespace "std::execution" nogil:
     cdef cppclass sequenced_policy:
         pass
     cdef cppclass parallel_policy:

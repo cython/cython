@@ -3,7 +3,7 @@
 from libc.stdio cimport FILE
 from .pystate cimport PyThreadState
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef i32 wchar_t
 
     void Py_SetProgramName(wchar_t *)

@@ -21,7 +21,7 @@ __doc__ = u"""
     True
 """
 
-cdef extern from *:
+extern from *:
     ctypedef class __builtin__.list [ object PyListObject ]:
         pass
 

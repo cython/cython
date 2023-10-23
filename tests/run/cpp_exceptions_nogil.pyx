@@ -4,7 +4,7 @@
 fn int raise_TypeError() except *:
     raise TypeError("custom")
 
-cdef extern from "cpp_exceptions_nogil_helper.h" nogil:
+extern from "cpp_exceptions_nogil_helper.h" nogil:
     fn void foo "foo"(int i) except +
     fn void bar "foo"(int i) except +ValueError
     fn void spam"foo"(int i) except +raise_TypeError

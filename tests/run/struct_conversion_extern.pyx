@@ -3,12 +3,11 @@ Note: this tests if the necessary utility code is included in the module env,
 despite potentially being already created before.
 """
 
-cdef extern from "struct_conversion_extern_header.h":
+extern from "struct_conversion_extern_header.h":
     cdef struct my_date_t:
         int year
         int month
         int day
-
 
 def test_extern_struct():
     """

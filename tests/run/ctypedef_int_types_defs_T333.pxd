@@ -1,4 +1,4 @@
-cdef extern from "ctypedef_int_types_chdr_T333.h":
+extern from "ctypedef_int_types_chdr_T333.h":
     ctypedef int SChar     ## "signed char"
     ctypedef int UChar     ## "unsigned char"
     ctypedef int SShort    ## "signed short"
@@ -10,6 +10,6 @@ cdef extern from "ctypedef_int_types_chdr_T333.h":
     ctypedef int SLongLong ## "signed PY_LONG_LONG"
     ctypedef int ULongLong ## "unsigned PY_LONG_LONG"
 
-cdef extern from *:
+extern from *:
     ctypedef int ExtSInt "signed short"
     ctypedef int ExtUInt "unsigned short"

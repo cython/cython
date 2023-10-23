@@ -1,7 +1,7 @@
 # mode: compile
 # tag: struct, union, enum, cdefextern
 
-cdef extern from "cheese.h":
+extern from "cheese.h":
     ctypedef i32 camembert
 
     struct roquefort:

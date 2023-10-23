@@ -6,7 +6,7 @@
 
 from cython.parallel cimport prange
 
-cdef extern from *:
+extern from *:
     """
     class Test {
     public:

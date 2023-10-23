@@ -1,8 +1,8 @@
 # cython: language_level=3
 
-cdef extern from "math.h":
-    f64 c_lgamma "lgamma" (f64)
-    f64 c_exp "exp" (f64)
+extern from "math.h":
+    fn f64 c_lgamma "lgamma" (f64)
+    fn f64 c_exp "exp" (f64)
 
 def exp(n):
     """Return e**n."""

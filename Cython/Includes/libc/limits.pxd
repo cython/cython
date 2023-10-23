@@ -1,6 +1,6 @@
 # 5.2.4.2.1 Sizes of integer types <limits.h>
 
-cdef extern from "<limits.h>":
+extern from "<limits.h>":
     const int CHAR_BIT
     const int MB_LEN_MAX
 

@@ -1,5 +1,5 @@
 
-cdef extern from "<atomic>" namespace "std" nogil:
+extern from "<atomic>" namespace "std" nogil:
 
     cdef enum memory_order:
         memory_order_relaxed

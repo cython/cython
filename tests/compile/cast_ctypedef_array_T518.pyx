@@ -1,13 +1,13 @@
 # ticket: t518
 # mode: compile
 
-cdef extern from "cast_ctypedef_array_T518_helper.h":
+extern from "cast_ctypedef_array_T518_helper.h":
     cdef struct __foo_struct:
        i32 i, j
     ctypedef __foo_struct foo_t[1]
 
-    void foo_init(foo_t)
-    void foo_clear(foo_t)
+    fn void foo_init(foo_t)
+    fn void foo_clear(foo_t)
 
 cdef foo_t value
 foo_init(value)

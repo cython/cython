@@ -1,7 +1,6 @@
 # ticket: t258
 
-cdef extern from "Python.h":
-
+extern from "Python.h":
     ctypedef class __builtin__.list  [object PyListObject]:
         cdef isize allocated
 
@@ -12,7 +11,6 @@ cdef extern from "Python.h":
 
 cdef list L = [1,2,4]
 cdef dict d = {'A': 'a'}
-
 
 def test_list(list L):
     """

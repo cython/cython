@@ -28,7 +28,7 @@ from libcpp cimport bool
 # This isn't specifically a C++ test, but the C++ standard library concurrency tools
 # are a convenient way of getting condition variables and mutexes.
 
-cdef extern from *:
+extern from *:
     """
     #include <condition_variable>
     #include <mutex>
@@ -94,11 +94,11 @@ cdef extern from *:
             });
     }
     """
-    void wait_for_waiting() nogil
-    void set_triggered() nogil
+    fn void wait_for_waiting() nogil
+    fn void set_triggered() nogil
     cppclass bool_future:
         bool get() nogil
-    bool_future run_block_and_wait_with_gil() nogil
+    fn bool_future run_block_and_wait_with_gil() nogil
 
 cdef class C:
     fn int some_c_method(self) except -1 nogil:
@@ -124,13 +124,13 @@ fn inline float[:] _get_left_edge(float[::1] arr) nogil:
     return arr[:3]
 
 cdef class D:
-    let float _a
+    cdef float _a
     def __cinit__(self, float a):
         self._a = a
 
     fn void call_me(self, float[::1] my_arr) noexcept nogil:
-        cdef isize idx
-        cdef f32[:] my_arr2 = _get_left_edge(my_arr)
+        let isize idx
+        let f32[:] my_arr2 = _get_left_edge(my_arr)
         for idx in range(my_arr2.shape[0]):
             my_arr2[idx] = self._a
 

@@ -3,7 +3,7 @@
 
 from libcpp.vector cimport vector
 
-cdef extern from *:
+extern from *:
     cdef cppclass Foo[T]:
         pass
 

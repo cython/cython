@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, cpp11
 
-cdef extern from *:
+extern from *:
     """
     enum class Enum1 {
         Item1 = 1,
@@ -23,14 +23,12 @@ cdef extern from *:
         Item4
         Item5
 
-
 def test_enum_to_list():
     """
     >>> test_enum_to_list()
     """
     assert list(Enum1) == [1, 2]
     assert list(Enum2) == [4, 5]
-
 
 def test_enum_doc():
     """
@@ -40,7 +38,6 @@ def test_enum_doc():
     True
     """
     pass
-
 
 def to_from_py_conversion(Enum1 val):
     """
@@ -62,7 +59,6 @@ def to_from_py_conversion(Enum1 val):
     ValueError: 3 is not a valid Enum1
     """
     return val
-
 
 def test_pickle():
     """

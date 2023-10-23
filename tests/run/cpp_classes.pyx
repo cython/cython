@@ -3,8 +3,7 @@
 
 from libcpp.vector cimport vector
 
-cdef extern from "shapes.h" namespace "shapes":
-
+extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
         float area()
 

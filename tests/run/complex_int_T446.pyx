@@ -2,13 +2,12 @@
 
 import cython
 
-cdef extern from *:
+extern from *:
     """
     #if defined _MSC_VER && defined __cplusplus
     #define CYTHON_CCOMPLEX 0
     #endif
     """
-
 
 def test_arith(int complex a, int complex b):
     """
@@ -46,7 +45,6 @@ def test_coercion(int a, long b, int complex c):
     z = b; print z
     z = c; print z
     return z + a + b + c
-
 
 def test_conjugate(long complex z):
     """

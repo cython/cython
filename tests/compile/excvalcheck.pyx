@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef extern from "excvalcheck.h":
+extern from "excvalcheck.h":
     pass
 
 cdef extern i32 spam() except -1

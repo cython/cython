@@ -5,7 +5,7 @@
 from libc.string cimport const_char, const_void
 
 
-cdef extern from "<stdio.h>" nogil:
+extern from "<stdio.h>" nogil:
 
     ctypedef struct FILE
     cdef FILE *stdin

@@ -1,6 +1,6 @@
 # tag: cpp, no-cpp-locals
 
-cdef extern from "cpp_nested_classes_support.h":
+extern from "cpp_nested_classes_support.h":
     cdef cppclass A:
         cppclass B:
             i32 square(i32)

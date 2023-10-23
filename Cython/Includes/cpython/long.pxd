@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef i128 PY_LONG_LONG
     ctypedef u128 uPY_LONG_LONG "unsigned PY_LONG_LONG"
 

@@ -11,7 +11,7 @@ from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
 import cython
 
-cdef extern from "shapes.h" namespace "shapes":
+extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
         float area() const
 
@@ -123,7 +123,6 @@ def test_init_dealloc():
     del ptr
     print "end"
 
-
 cdef cppclass WithTemplate[T]:
     T value
     void set_value(T value):
@@ -229,7 +228,6 @@ def test_CppClassWithObjectMemberCopyAssign(name):
     v.clear()
     print "Nothing alive."
 
-
 # Github issue #1886.
 pub cppclass PublicCppClassWithObjectMember:
   object o
@@ -240,7 +238,6 @@ def test_PublicCppClassWithObjectMember():
   """
   cdef PublicCppClassWithObjectMember c
   assert c.o is None
-
 
 cdef cppclass UncopyableConstructorArgument:
     unique_ptr[vector[int]] member

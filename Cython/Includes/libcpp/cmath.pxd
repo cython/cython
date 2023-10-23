@@ -1,5 +1,5 @@
 
-cdef extern from "<cmath>" namespace "std" nogil:
+extern from "<cmath>" namespace "std" nogil:
     # all C99 functions
     float acos(float x) except +
     double acos(double x) except +

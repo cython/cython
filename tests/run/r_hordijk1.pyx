@@ -12,7 +12,7 @@ import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace("Error, e", "Error as e")
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef class __builtin__.list [object PyListObject]:
         pass
 

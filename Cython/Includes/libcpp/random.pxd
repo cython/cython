@@ -1,7 +1,7 @@
 from libc.stdint cimport uint_fast32_t, uint_fast64_t
 
 
-cdef extern from "<random>" namespace "std" nogil:
+extern from "<random>" namespace "std" nogil:
     cdef cppclass random_device:
         ctypedef uint_fast32_t result_type
         random_device() except +

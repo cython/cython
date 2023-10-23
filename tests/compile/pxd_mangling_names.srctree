@@ -18,7 +18,7 @@ setup(
 
 pub i32 foo()
 
-cdef extern from "b.h":
+extern from "b.h":
     cpdef i32 bar()
 
 ######## a.py ########

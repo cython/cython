@@ -5,7 +5,7 @@ from cython.operator import (preincrement, predecrement,
                              postincrement, postdecrement)
 from libcpp cimport bool
 
-cdef extern from "cpp_operator_exc_handling_helper.hpp" nogil:
+extern from "cpp_operator_exc_handling_helper.hpp" nogil:
     cppclass wrapped_int:
         i128 val
         wrapped_int()

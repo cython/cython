@@ -1,6 +1,6 @@
 from cpython.ref cimport PyObject
 
-cdef extern from *:
+extern from *:
     ctypedef isize Py_intptr_t
 
 python_string = "foo"

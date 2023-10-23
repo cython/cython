@@ -1,7 +1,7 @@
 # tag: cpp, cpp11
 # mode: compile
 
-cdef extern from *:
+extern from *:
     """
     template <typename T>
     void accept(T&& x) { (void) x; }

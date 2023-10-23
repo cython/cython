@@ -2,10 +2,10 @@
 # deprecated cimport for backwards compatibility:
 from libc.string cimport const_char
 
-cdef extern from "<string>" namespace "std::string" nogil:
+extern from "<string>" namespace "std::string" nogil:
     const size_t npos
 
-cdef extern from "<string>" namespace "std" nogil:
+extern from "<string>" namespace "std" nogil:
     cdef cppclass string:
         ctypedef char value_type
 

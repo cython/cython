@@ -1,4 +1,4 @@
-cdef extern from "<queue>" namespace "std" nogil:
+extern from "<queue>" namespace "std" nogil:
     cdef cppclass queue[T]:
         queue() except +
         queue(queue&) except +

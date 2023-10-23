@@ -7,7 +7,7 @@ Test Python def functions without extern types
 cy = __import__("cython")
 cimport cython
 
-cdef extern from *:
+extern from *:
     i32 __Pyx_CyFunction_Check(object)
 
 cdef class Base(object):

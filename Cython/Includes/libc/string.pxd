@@ -1,13 +1,13 @@
 # 7.21 String handling <string.h>
 
-cdef extern from *:
+extern from *:
     # deprecated backwards compatibility declarations
     ctypedef const char const_char "const char"
     ctypedef const signed char const_schar "const signed char"
     ctypedef const unsigned char const_uchar "const unsigned char"
     ctypedef const void const_void "const void"
 
-cdef extern from "<string.h>" nogil:
+extern from "<string.h>" nogil:
 
     void *memcpy  (void *pto, const void *pfrom, size_t size)
     void *memmove (void *pto, const void *pfrom, size_t size)

@@ -5,7 +5,7 @@ cimport cython
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
 
-cdef extern from "cpp_template_functions_helper.h":
+extern from "cpp_template_functions_helper.h":
     let T no_arg[T]()
     let T one_param[T](T)
     let pair[T, U] two_params[T, U](T, U)

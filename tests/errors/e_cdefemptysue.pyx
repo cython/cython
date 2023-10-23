@@ -1,13 +1,13 @@
 # mode: error
 
 cdef struct spam:
-	pass
+    pass
 
 ctypedef union eggs:
-	pass
+    pass
 
 cdef enum ham:
-	pass
+    pass
 
 
 cdef struct flat_spam: pass

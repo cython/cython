@@ -10,7 +10,7 @@ from libcpp.vector cimport vector
 from libcpp.memory cimport shared_ptr, make_shared
 from cython.operator cimport dereference as deref
 
-cdef extern from "cpp_iterators_simple.h":
+extern from "cpp_iterators_simple.h":
     cdef cppclass DoublePointerIter:
         DoublePointerIter(f64* start, i32 len)
         f64* begin()
@@ -180,7 +180,7 @@ def test_iteration_in_generator_reassigned():
             del vint
         del orig_vint
 
-cdef extern from *:
+extern from *:
     """
     std::vector<int> make_vec1() {
         std::vector<int> vint;
@@ -241,7 +241,7 @@ def test_const_iterator_calculations(py_v):
         last == cfirst
     ]
 
-cdef extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
+extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
     cdef cppclass HasIterableAttribute:
         vector[i32] vec
         HasIterableAttribute()
@@ -273,7 +273,7 @@ def test_iteration_over_attribute_of_call():
     for i in get_object_with_iterable_attribute().vec:
         print(i)
 
-cdef extern from *:
+extern from *:
     # TODO: support make_shared[const i32]
     shared_ptr[const i32] make_shared_const_int "std::make_shared<const int>"(i32)
 
@@ -381,7 +381,7 @@ def test_non_built_in_reversed_function(py_v):
 # expressions and iteration from c++ const attributes so in this
 # file as a related issue.  Mainly a test that it compiles.
 # GH-5558
-cdef extern from *:
+extern from *:
     """
     struct ConstNumberHolder {
         const int num;

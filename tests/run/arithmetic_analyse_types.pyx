@@ -3,7 +3,7 @@
 
 from cython cimport typeof
 
-cdef extern from "arithmetic_analyse_types_helper.h":
+extern from "arithmetic_analyse_types_helper.h":
     cdef struct short_return:
         char *msg
     cdef struct int_return:

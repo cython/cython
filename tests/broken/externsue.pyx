@@ -1,4 +1,4 @@
-cdef extern from "externsue.h":
+extern from "externsue.h":
     enum Eggs:
         Runny, Firm, Hard
 

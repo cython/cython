@@ -86,7 +86,7 @@ flt0 = flt1 = flt2 = 7
 
 # distutils: language = c++
 
-cdef extern from "a_api.h":
+extern from "a_api.h":
      i32 import_a() except -1
      ctypedef f32 flt
      i32 int1, int2, int3
@@ -127,11 +127,11 @@ void inita(void)
 
 ######## d.pyx ########
 
-cdef extern from "a.h":
+extern from "a.h":
      pass
-cdef extern from "inita.h":
+extern from "inita.h":
      pass
-cdef extern from "a.h":
+extern from "a.h":
      void inita() except *
      ctypedef f32 flt
      i32 int2, int4

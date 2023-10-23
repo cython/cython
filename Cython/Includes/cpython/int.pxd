@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef u128 PY_LONG_LONG
 
     ############################################################################

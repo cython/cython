@@ -21,7 +21,7 @@
 # To avoid this we make the above convention.  Note, you can
 # always locally override this convention by putting something like
 #
-#     cdef extern from "Python.h":
+#     extern from "Python.h":
 #         PyObject* PyNumber_Add(PyObject *o1, PyObject *o2)
 #
 # in your .pyx file or into a cimported .pxd file.  You just have to

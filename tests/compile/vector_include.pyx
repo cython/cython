@@ -11,7 +11,7 @@ from libcpp.vector cimport vector
 from spam import *
 
 # Use the imports (details don't matter).
-cdef extern from *:
+extern from *:
     """
     #include <vector>
     std::vector<int> get_vector()

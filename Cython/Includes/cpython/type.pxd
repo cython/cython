@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     # The C structure of the objects used to describe built-in types.
 
     ############################################################################

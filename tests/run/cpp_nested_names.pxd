@@ -2,7 +2,7 @@
 
 from libcpp.string cimport string
 
-cdef extern from "cpp_nested_names_helper.h":
+extern from "cpp_nested_names_helper.h":
     cdef cppclass Outer:
         cppclass Nested:
             cppclass NestedNested:

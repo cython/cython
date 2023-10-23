@@ -17,7 +17,7 @@ setup(
 
 ######## subtest.pyx ########
 
-cdef extern from *:
+extern from *:
     """
     /* Copied from CPython's _testcapi.c module */
     static PyObject *run_in_subinterpreter(const char *code) {

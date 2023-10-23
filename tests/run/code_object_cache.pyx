@@ -7,7 +7,7 @@
 
 cimport cython
 
-cdef extern from *:
+extern from *:
     # evil hack to access the internal utility function
     ctypedef struct PyCodeObject
     ctypedef struct __Pyx_CodeObjectCacheEntry:

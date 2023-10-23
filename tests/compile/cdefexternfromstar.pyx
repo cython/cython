@@ -1,4 +1,4 @@
 # mode: compile
 
-cdef extern from *:
+extern from *:
     i32 spam

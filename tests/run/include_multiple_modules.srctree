@@ -24,8 +24,8 @@ pub g():
 # This is just checking that a and b don't duplicate any names
 # and thus it's possible to include them both in one place
 
-cdef extern from "a.h":
+extern from "a.h":
     pass
     
-cdef extern from "b.h":
+extern from "b.h":
     pass

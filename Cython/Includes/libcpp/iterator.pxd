@@ -3,7 +3,7 @@
 
 from libc.stddef import ptrdiff_t
 
-cdef extern from "<iterator>" namespace "std" nogil:
+extern from "<iterator>" namespace "std" nogil:
     cdef cppclass iterator[Category,T,Distance,Pointer,Reference]:
         pass
     cdef cppclass output_iterator_tag:

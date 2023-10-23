@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, werror
 
-cdef extern from "vector" namespace "std":
+extern from "vector" namespace "std":
     cdef cppclass vector[T]:
         T at(i32)
         void push_back(T t)

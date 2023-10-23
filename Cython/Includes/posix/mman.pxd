@@ -4,7 +4,7 @@
 
 from posix.types cimport off_t, mode_t
 
-cdef extern from "<sys/mman.h>" nogil:
+extern from "<sys/mman.h>" nogil:
     enum: PROT_EXEC                 # protection bits for mmap/mprotect
     enum: PROT_READ
     enum: PROT_WRITE

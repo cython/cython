@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef extern from "string.h":
+extern from "string.h":
     void memcpy(void* des, void* src, i32 size)
 
 fn void f():

@@ -1,7 +1,7 @@
-cdef extern from "cpp_overload_wrapper_lib.cpp":
+extern from "cpp_overload_wrapper_lib.cpp":
     pass
 
-cdef extern from "cpp_overload_wrapper_lib.h":
+extern from "cpp_overload_wrapper_lib.h":
     void voidfunc()
     f64 doublefunc(f64 a, f64 b, f64 c)
 

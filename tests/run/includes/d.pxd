@@ -1,2 +1,2 @@
-cdef extern from "d.h":
+extern from "d.h":
     cdef int d

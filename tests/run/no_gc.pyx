@@ -8,18 +8,16 @@ from cpython.ref cimport PyObject, Py_TYPE
 
 # Force non-gc'd PyTypeObject when safety is guaranteed by user but not provable
 
-cdef extern from *:
+extern from *:
     ctypedef struct PyTypeObject:
         void (*tp_clear)(object)
         void (*tp_traverse)(object)
-
 
 def is_tp_clear_null(obj):
     return (<PyTypeObject*>Py_TYPE(obj)).tp_clear is NULL
 
 def is_tp_traverse_null(obj):
     return (<PyTypeObject*>Py_TYPE(obj)).tp_traverse is NULL
-
 
 @cython.no_gc
 cdef class DisableGC:

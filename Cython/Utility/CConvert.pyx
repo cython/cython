@@ -1,6 +1,6 @@
 #################### FromPyStructUtility ####################
 
-cdef extern from *:
+extern from *:
     ctypedef struct PyTypeObject:
         char* tp_name
     PyTypeObject *Py_TYPE(obj)
@@ -26,7 +26,7 @@ fn {{struct_type}} {{funcname}}(obj) except *:
 
 #################### FromPyUnionUtility ####################
 
-cdef extern from *:
+extern from *:
     ctypedef struct PyTypeObject:
         char* tp_name
     PyTypeObject *Py_TYPE(obj)
@@ -72,7 +72,7 @@ fn object {{cname}}({{return_type.ctype}} (*f)({{ ', '.join(arg.type_cname for a
 
 #################### carray.from_py ####################
 
-cdef extern from *:
+extern from *:
     object PyErr_Format(exc, const char *format, ...)
 
 @cname("{{cname}}")
@@ -102,7 +102,7 @@ fn int {{cname}}(object o, {{base_type}} *v, isize length) except -1:
 
 #################### carray.to_py ####################
 
-cdef extern from *:
+extern from *:
     void Py_INCREF(object o)
     tuple PyTuple_New(isize size)
     list PyList_New(isize size)

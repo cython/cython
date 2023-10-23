@@ -27,13 +27,13 @@ setup(ext_modules=ext_modules)
 
 ######## src/a.pyx ########
 
-cdef extern from "helper.h":
+extern from "helper.h":
     i32 value1
 
-cdef extern from "subdir/helper.h":
+extern from "subdir/helper.h":
     i32 value2
 
-cdef extern from "pkg/pkg_helper.h":
+extern from "pkg/pkg_helper.h":
     i32 value3
 
 assert value1 == 100
@@ -52,13 +52,13 @@ i32 value2 = 200;
 
 ######## src/pkg/b.pyx ########
 
-cdef extern from "../fake/helper.h":
+extern from "../fake/helper.h":
     i32 value2
 
-cdef extern from "pkg_helper.h":
+extern from "pkg_helper.h":
     i32 value3
 
-cdef extern from "subdir/pkg_helper.h":
+extern from "subdir/pkg_helper.h":
     i32 value4
 
 assert value2 == 200

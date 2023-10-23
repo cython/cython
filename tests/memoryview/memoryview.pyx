@@ -20,8 +20,8 @@ cimport cython
 import array as pyarray
 from libc.stdlib cimport malloc, free
 
-cdef extern from "Python.h":
-    let i32 PyBUF_C_CONTIGUOUS
+extern from "Python.h":
+    cdef i32 PyBUF_C_CONTIGUOUS
 
 include "../buffers/mockbuffers.pxi"
 
@@ -576,7 +576,7 @@ def generic(i32[::view.generic, ::view.generic] mslice1,
 #    print buf2[2, 2]
 
 ctypedef i32 td_cy_int
-cdef extern from "bufaccess.h":
+extern from "bufaccess.h":
     ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
     ctypedef f32 td_h_double # Defined as double
     ctypedef u32 td_h_ushort # Defined as unsigned short

@@ -3,7 +3,7 @@
 
 from cython.operator cimport dereference as deref
 
-cdef extern from "cpp_templates_helper.h":
+extern from "cpp_templates_helper.h":
     cdef cppclass Wrap[T]:
         Wrap(T)
         void set(T)

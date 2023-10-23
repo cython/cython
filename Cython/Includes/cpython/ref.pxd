@@ -1,6 +1,6 @@
 from .object cimport PyObject, PyTypeObject, Py_TYPE  # legacy imports for re-export
 
-cdef extern from "Python.h":
+extern from "Python.h":
     #####################################################################
     # 3. Reference Counts
     #####################################################################

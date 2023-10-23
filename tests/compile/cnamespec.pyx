@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef extern from *:
+extern from *:
     """
     int c_a, c_b;
     """
@@ -18,7 +18,7 @@ fn f64 spam "c_spam" (i32 i, f32 f):
     let foo *p
     global b
     if i:
-      d = spam(a, f)
+        d = spam(a, f)
     let foo q
     q.i = 7
     p = &q

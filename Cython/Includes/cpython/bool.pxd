@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
 
     ############################################################################
     # 7.2.2 Boolean Objects

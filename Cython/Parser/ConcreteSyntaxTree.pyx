@@ -1,10 +1,10 @@
-cdef extern from "graminit.c":
+extern from "graminit.c":
     ctypedef struct grammar:
         pass
     cdef grammar _PyParser_Grammar
     cdef int Py_file_input
 
-cdef extern from "node.h":
+extern from "node.h":
     ctypedef struct node
     void PyNode_Free(node* n)
     int NCH(node* n)
@@ -13,7 +13,7 @@ cdef extern from "node.h":
     short TYPE(node* n)
     char* STR(node* n)
 
-cdef extern from "parsetok.h":
+extern from "parsetok.h":
     ctypedef struct perrdetail:
         pass
     fn void PyParser_SetError(perrdetail *err) except *

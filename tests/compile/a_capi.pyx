@@ -28,5 +28,5 @@ pub void g(Blarg *x):
 pub api void h(Zax *x):
     pass
 
-cdef extern from "a_capi.h":
+extern from "a_capi.h":
     pass

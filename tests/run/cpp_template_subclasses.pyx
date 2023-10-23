@@ -5,7 +5,7 @@ from cython.operator import dereference as deref
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
 
-cdef extern from "cpp_template_subclasses_helper.h":
+extern from "cpp_template_subclasses_helper.h":
     cdef cppclass Base:
         char* name()
 

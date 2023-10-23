@@ -25,7 +25,7 @@ setup(
 # distutils: extra_compile_args = -std=c++11
 
 
-cdef extern from * namespace "Namespace":
+extern from * namespace "Namespace":
     """
     namespace Namespace {
         enum class Cheese {

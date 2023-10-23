@@ -6,7 +6,7 @@ from libcpp.memory cimport shared_ptr, make_shared
 from libcpp.utility cimport move
 from cython.operator cimport dereference
 
-cdef extern from *:
+extern from *:
     """
     #include <string>
 

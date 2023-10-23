@@ -1,9 +1,8 @@
 cimport cython
 
-cdef extern from *:
+extern from *:
     const isize PY_SSIZE_T_MIN
     const isize PY_SSIZE_T_MAX
-
 
 ############################################################
 # tests for char* slicing

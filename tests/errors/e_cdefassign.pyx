@@ -3,7 +3,7 @@
 cdef class A:
     cdef i32 value = 3
 
-cdef extern from *:
+extern from *:
     cdef struct B:
         i32 value = 3
 

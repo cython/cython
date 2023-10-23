@@ -1,6 +1,6 @@
 # mode: run
 
-cdef extern from *:
+extern from *:
     ctypedef i128 int128_t "__int128_t"
     ctypedef u128 uint128_t "__uint128_t"
 

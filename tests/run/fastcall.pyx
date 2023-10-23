@@ -9,14 +9,13 @@ from collections import deque
 
 pack = struct.pack
 
-
 def deque_methods(v):
     """
     >>> deque_methods(2)
     [1, 2, 3, 4]
     """
     d = deque([1, 3, 4])
-    assert list(d) == [1,3,4]
+    assert list(d) == [1, 3, 4]
     if sys.version_info >= (3, 5):
         d.insert(1, v)
     else:
@@ -24,14 +23,13 @@ def deque_methods(v):
         d.rotate(-1)
         d.appendleft(2)
         d.rotate(1)
-    assert list(d) == [1,2,3,4]
+    assert list(d) == [1, 2, 3, 4]
     d.rotate(len(d) // 2)
-    assert list(d) == [3,4,1,2]
+    assert list(d) == [3, 4, 1, 2]
     d.rotate(len(d) // 2)
-    assert list(d) == [1,2,3,4]
+    assert list(d) == [1, 2, 3, 4]
 
     return list(d)
-
 
 def struct_methods(v):
     """
@@ -53,7 +51,6 @@ def struct_methods(v):
         local_pack('f', v),
     ]
 
-
 cdef class SelfCast:
     """
     >>> f = SelfCast()
@@ -66,8 +63,7 @@ cdef class SelfCast:
     def index_of_self(self, list orbit not None):
         return orbit.index(self)
 
-
-cdef extern from *:
+extern from *:
     """
     #ifdef NDEBUG
     int DEBUG_MODE = 0;
@@ -77,7 +73,6 @@ cdef extern from *:
     """
     int PyCFunction_GET_FLAGS(op)
     int DEBUG_MODE
-
 
 def has_fastcall(meth):
     """
@@ -91,7 +86,6 @@ def has_fastcall(meth):
         return true
     return bool(PyCFunction_GET_FLAGS(meth) & 0x80)
 
-
 def assert_fastcall(meth):
     """
     Assert that ``meth`` uses ``METH_FASTCALL`` if the Python
@@ -100,7 +94,6 @@ def assert_fastcall(meth):
     # getattr uses METH_FASTCALL on CPython >= 3.7
     if has_fastcall(getattr) and not has_fastcall(meth):
         raise AssertionError(f"{meth} does not use METH_FASTCALL")
-
 
 @cython.binding(false)
 def fastcall_function(**kw):

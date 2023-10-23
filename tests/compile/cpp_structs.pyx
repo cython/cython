@@ -3,8 +3,7 @@
 
 from cython.view import array
 
-cdef extern from "point.h" namespace "geometry":
-
+extern from "point.h" namespace "geometry":
     cdef struct Point:
         f64 x
         f64 y

@@ -25,7 +25,7 @@ setup(
 # distutils: language = c++
 # distutils: libraries = MATH_LIBS
 
-cdef extern from "my_lib_helper.cpp" namespace "A":
+extern from "my_lib_helper.cpp" namespace "A":
     i32 x
 
 ######## my_lib_helper.cpp #######

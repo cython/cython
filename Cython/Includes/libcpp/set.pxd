@@ -1,6 +1,6 @@
 from .utility cimport pair
 
-cdef extern from "<set>" namespace "std" nogil:
+extern from "<set>" namespace "std" nogil:
     cdef cppclass set[T]:
         ctypedef T value_type
 

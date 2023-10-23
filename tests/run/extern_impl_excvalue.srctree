@@ -16,13 +16,13 @@ setup(
 
 fn int bar() except *
 
-cdef extern from "bar_impl.c":
+extern from "bar_impl.c":
     struct mystruct:
         int (*func_ptr)(int param) nogil
 
 ######## foo.pyx ########
 
-cdef extern from "bar_impl.c":
+extern from "bar_impl.c":
     int bar() except *
 
 ######## bar_impl.c ########

@@ -8,7 +8,7 @@ cimport cython
 
 from libcpp cimport bool as cppbool
 
-cdef extern from *:
+extern from *:
     r"""
     static void print_C_destructor();
 

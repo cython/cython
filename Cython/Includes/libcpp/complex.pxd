@@ -1,6 +1,6 @@
 # Note: add integer versions of the functions?
 
-cdef extern from "<complex>" namespace "std" nogil:
+extern from "<complex>" namespace "std" nogil:
     cdef cppclass complex[T]:
         complex() except +
         complex(T, T) except +

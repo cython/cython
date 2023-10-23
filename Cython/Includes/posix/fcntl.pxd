@@ -2,7 +2,7 @@
 
 from posix.types cimport mode_t, off_t, pid_t
 
-cdef extern from "<fcntl.h>" nogil:
+extern from "<fcntl.h>" nogil:
 
     enum: F_DUPFD
     enum: F_DUPFD_CLOEXEC

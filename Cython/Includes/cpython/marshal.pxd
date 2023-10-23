@@ -1,6 +1,6 @@
 from libc.stdio cimport FILE
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ###########################################################################
     # Data marshalling support
     ###########################################################################

@@ -26,7 +26,7 @@ def make_ext(modname, pyxfilename):
 
 ######## mymodule.pyx ########
 
-cdef extern from "myheader.h":
+extern from "myheader.h":
     int test_value
 
 header_value = test_value

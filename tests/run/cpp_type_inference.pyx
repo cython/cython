@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, werror
 
-cdef extern from "shapes.h" namespace "shapes":
+extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
         f32 area()
 
@@ -65,7 +65,7 @@ def test_stack_allocated(bint b=true):
     assert typeof(e2) == "Empty", typeof(e2)
     assert typeof(e) == "Empty", typeof(e)
 
-cdef extern from *:
+extern from *:
     """
     template <typename T>
     struct MyTemplate {};

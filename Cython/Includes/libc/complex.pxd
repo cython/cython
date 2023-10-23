@@ -1,4 +1,4 @@
-cdef extern from "<complex.h>" nogil:
+extern from "<complex.h>" nogil:
     # Trigonometric functions.
     double complex cacos(double complex z)
     double complex casin(double complex z)

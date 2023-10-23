@@ -12,7 +12,7 @@ fn void foo(i32&& x):
 fn i32&& bar():
     pass
 
-cdef extern from *:
+extern from *:
     """
     void baz(int x, int&& y) {}
 

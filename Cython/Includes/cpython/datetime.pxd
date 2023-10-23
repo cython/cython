@@ -1,11 +1,11 @@
 from cpython.object cimport PyObject
 from cpython.version cimport PY_VERSION_HEX
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef struct PyTypeObject:
         pass
 
-cdef extern from "datetime.h":
+extern from "datetime.h":
     """
     /* Backport for Python 2.x */
     #if PY_MAJOR_VERSION < 3

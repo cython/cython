@@ -14,7 +14,7 @@ def fail_exceptmaybeminus2(bad):
     fptr_b = exceptmaybeminus2
     fptr_c = exceptmaybeminus2
 
-cdef extern from *:
+extern from *:
     # define this as extern since Cython converts internal "except*" to "except -1"
     fn i32 exceptstar(i32 bad) except *
 

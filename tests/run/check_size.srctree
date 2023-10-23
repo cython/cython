@@ -88,7 +88,7 @@ cdef class Foo:
 
 ######## _check_size_exact.pyx ########
 
-cdef extern from "check_size_nominal.h":
+extern from "check_size_nominal.h":
     ctypedef class check_size.Foo [object FooStructNominal]:
         cdef:
             i32 f0
@@ -99,7 +99,7 @@ cpdef pub i32 testme(Foo f) except -1:
 
 ######## _check_size_too_small.pyx ########
 
-cdef extern from "check_size_bigger.h":
+extern from "check_size_bigger.h":
     ctypedef class check_size.Foo [object FooStructBig]:
         cdef:
             i32 f0
@@ -112,7 +112,7 @@ cpdef pub i32 testme(Foo f, i32 f2) except -1:
 
 ######## _check_size_default.pyx ########
 
-cdef extern from "check_size_smaller.h":
+extern from "check_size_smaller.h":
     ctypedef class check_size.Foo [object FooStructSmall]:
         cdef:
             i32 f9
@@ -122,7 +122,7 @@ cpdef pub i32 testme(Foo f) except -1:
 
 ######## _check_size_warn.pyx ########
 
-cdef extern from "check_size_smaller.h":
+extern from "check_size_smaller.h":
     # make sure missing check_size is equivalent to warn
     ctypedef class check_size.Foo [object FooStructSmall, check_size warn]:
         cdef:
@@ -133,7 +133,7 @@ cpdef pub i32 testme(Foo f) except -1:
 
 ######## _check_size_ignore.pyx ########
 
-cdef extern from "check_size_smaller.h":
+extern from "check_size_smaller.h":
     # Allow size to be larger
     ctypedef class check_size.Foo [object FooStructSmall, check_size ignore]:
         cdef:
@@ -144,7 +144,7 @@ cpdef pub i32 testme(Foo f) except -1:
 
 ######## _check_size_error.pyx ########
 
-cdef extern from "check_size_smaller.h":
+extern from "check_size_smaller.h":
     # Strict checking, will raise an error
     ctypedef class check_size.Foo [object FooStructSmall, check_size error]:
         cdef:
@@ -155,7 +155,7 @@ cpdef pub i32 testme(Foo f) except -1:
 
 ######## check_size_invalid.pyx ########
 
-cdef extern from "check_size_smaller.h":
+extern from "check_size_smaller.h":
     # Raise CompileError when using bad value
     ctypedef class check_size.Foo [object FooStructSmall, check_size hihi]:
         cdef:

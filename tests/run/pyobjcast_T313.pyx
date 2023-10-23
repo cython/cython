@@ -9,7 +9,7 @@ teststring
 teststring
 """
 
-cdef extern from *:
+extern from *:
     ctypedef void PyObject
 
 def f():

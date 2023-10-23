@@ -3,10 +3,9 @@
 
 from libcpp.set cimport set
 
-cdef extern from *:
-    void cpp_function_set1(set[i32] arg)
-    void cpp_function_set2(set[i32]& arg)
-
+extern from *:
+    fn void cpp_function_set1(set[i32] arg)
+    fn void cpp_function_set2(set[i32]& arg)
 
 def pass_py_obj_as_cpp_cont_ref():
     let list ordered_set = [0, 0, 0, 0, 0]
@@ -15,5 +14,5 @@ def pass_py_obj_as_cpp_cont_ref():
 
 
 _ERRORS = """
-14:22: Cannot pass Python object as C++ data structure reference (set[int] &), will pass by copy.
+13:22: Cannot pass Python object as C++ data structure reference (set[int] &), will pass by copy.
 """

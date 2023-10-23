@@ -1,7 +1,7 @@
 # tag: cpp
 # mode: error
 
-cdef extern from *:
+extern from *:
     cdef cppclass Foo:
         Foo()
         Foo(i32)

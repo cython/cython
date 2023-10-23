@@ -1,6 +1,6 @@
 from libcpp cimport bool, nullptr_t, nullptr
 
-cdef extern from "<memory>" namespace "std" nogil:
+extern from "<memory>" namespace "std" nogil:
     cdef cppclass default_delete[T]:
         default_delete()
 

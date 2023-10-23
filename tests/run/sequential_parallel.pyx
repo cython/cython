@@ -230,7 +230,7 @@ def test_pure_mode():
     with pure_parallel.parallel():
         print pure_parallel.threadid()
 
-cdef extern from "types.h":
+extern from "types.h":
     ctypedef i16 actually_long_t
     ctypedef i64 actually_short_t
 
@@ -766,7 +766,7 @@ def test_prange_in_with(i32 x, ctx):
         return l[0]
 
 
-cdef extern from *:
+extern from *:
     """
     #ifdef _OPENMP
     #define _get_addr(_x, _idx) &_x

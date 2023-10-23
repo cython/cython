@@ -7,11 +7,10 @@ from libcpp.vector cimport vector
 
 np.import_array()
 
-cdef extern from *:
-    void cpp_function_vector1(vector[i32])
-    void cpp_function_vector2(vector[i32] &)
-    void cpp_function_2_vec_refs(vector[i32] &, vector[i32] &)
-
+extern from *:
+    fn void cpp_function_vector1(vector[i32])
+    fn void cpp_function_vector2(vector[i32] &)
+    fn void cpp_function_2_vec_refs(vector[i32] &, vector[i32] &)
 
 def main():
     let np.ndarray[i32, ndim=1, mode="c"] arr = np.zeros(10, dtype='intc')
@@ -26,8 +25,8 @@ def main():
 
 
 _ERRORS = """
+18:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
 19:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-20:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-21:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-21:33: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+20:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+20:33: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
 """

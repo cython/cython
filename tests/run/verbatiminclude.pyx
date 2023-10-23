@@ -1,7 +1,7 @@
-cdef extern from "verbatiminclude.h":
+extern from "verbatiminclude.h":
     long cube(long)
 
-cdef extern from *:
+extern from *:
     """
     static long square(long x)
     {
@@ -10,17 +10,17 @@ cdef extern from *:
     """
     i64 square(long)
 
-cdef extern from "verbatiminclude.h":
+extern from "verbatiminclude.h":
     "typedef int myint;"
     ctypedef i32 myint
 
-cdef extern from "verbatiminclude.h":
+extern from "verbatiminclude.h":
     "#undef long"
 
 cdef class C:
     cdef myint val
 
-cdef extern from "Python.h":
+extern from "Python.h":
     """
     #define my_SET_SIZE(obj, size)  __Pyx_SET_SIZE(obj, size)
     """

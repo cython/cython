@@ -1,6 +1,6 @@
 from .object cimport PyObject, PyTypeObject
 
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef object (*wrapperfunc)(self, args, void* wrapped)
     ctypedef object (*wrapperfunc_kwds)(self, args, void* wrapped, kwds)
 

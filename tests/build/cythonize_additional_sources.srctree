@@ -15,7 +15,7 @@ setup(
 
 # distutils: sources=alib.c
 
-cdef extern from "alib.h":
+extern from "alib.h":
     i32 c_function(i32 x)
 
 def test():

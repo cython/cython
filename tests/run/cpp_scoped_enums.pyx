@@ -3,7 +3,7 @@
 
 from libcpp.limits cimport numeric_limits
 
-cdef extern from *:
+extern from *:
     """
     enum class Enum1 {
         Item1,
@@ -15,7 +15,7 @@ cdef extern from *:
         Item2
 
 
-cdef extern from * namespace "Namespace1":
+extern from * namespace "Namespace1":
     """
     namespace Namespace1 {
         enum class Enum2 {
@@ -28,13 +28,11 @@ cdef extern from * namespace "Namespace1":
         Item1
         Item2
 
-
 cdef enum class Enum3(int):
     a = 1
     b = 2
 
-
-cdef extern from *:
+extern from *:
     """
     enum class sorted
     {
@@ -46,8 +44,7 @@ cdef extern from *:
         a
         b
 
-
-cdef extern from *:
+extern from *:
     """
     #include <limits>
 
@@ -57,7 +54,6 @@ cdef extern from *:
     """
     enum class LongIntEnum(long int):
         val
-
 
 def test_compare_enums():
     """
@@ -74,7 +70,6 @@ def test_compare_enums():
         x == Enum1.Item2,
         y == Enum1.Item1
     )
-
         
 def test_compare_namespace_enums():
     """
@@ -92,7 +87,6 @@ def test_compare_namespace_enums():
         z == Enum2.Item2,
         w == Enum2.Item1
     )
-
 
 def test_coerce_to_from_py_value(object i):
     """
@@ -117,7 +111,6 @@ def test_coerce_to_from_py_value(object i):
         y == int(i)
     )
 
-
 def test_reserved_cname():
     """
     >>> test_reserved_cname()
@@ -125,7 +118,6 @@ def test_reserved_cname():
     """
     let Enum4 x = Enum4.a
     return Enum4.a == int(1)
-
 
 def test_large_enum():
     """

@@ -12,22 +12,19 @@ from cpython.ref cimport PyObject, Py_TYPE
 # Pull tp_clear for PyTypeObject as I did not find another way to access it
 # from Cython code.
 
-cdef extern from *:
+extern from *:
     ctypedef struct PyTypeObject:
         void (*tp_clear)(object)
 
     ctypedef struct __pyx_CyFunctionObject:
         PyObject* func_closure
 
-
 def is_tp_clear_null(obj):
     return (<PyTypeObject*>Py_TYPE(obj)).tp_clear is NULL
-
 
 def is_closure_tp_clear_null(func):
     return is_tp_clear_null(
         <object>(<__pyx_CyFunctionObject*>func).func_closure)
-
 
 @cython.no_gc_clear
 cdef class DisableTpClear:
@@ -55,7 +52,6 @@ cdef class DisableTpClear:
         if pto.tp_clear != NULL:
             pto.tp_clear(self)
 
-
 cdef class ReallowTpClear(DisableTpClear):
     """
     >>> import gc
@@ -70,7 +66,6 @@ cdef class ReallowTpClear(DisableTpClear):
     """
     pub object attr
 
-
 def test_closure_without_clear(str x):
     """
     >>> c = test_closure_without_clear('abc')
@@ -84,7 +79,6 @@ def test_closure_without_clear(str x):
     def c(str s):
         return x + 'xyz' + s
     return c
-
 
 def test_closure_with_clear(list x):
     """

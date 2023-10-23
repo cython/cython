@@ -1,7 +1,7 @@
 from .object cimport PyObject
 from .pyport cimport uint64_t
 
-cdef extern from "Python.h":
+extern from "Python.h":
     # On Python 2, PyDict_GetItemWithError is called _PyDict_GetItemWithError
     """
     #if PY_MAJOR_VERSION <= 2

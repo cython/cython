@@ -1,7 +1,7 @@
 from libcpp cimport bool
 from libcpp.typeinfo cimport type_info
 
-cdef extern from "<any>" namespace "std" nogil:
+extern from "<any>" namespace "std" nogil:
     cdef cppclass any:
         any()
         any(any&) except +

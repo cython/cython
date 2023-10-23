@@ -1,4 +1,4 @@
-cdef extern from "<forward_list>" namespace "std" nogil:
+extern from "<forward_list>" namespace "std" nogil:
     cdef cppclass forward_list[T,ALLOCATOR=*]:
         ctypedef T value_type
         ctypedef ALLOCATOR allocator_type

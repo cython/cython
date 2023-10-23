@@ -3,7 +3,7 @@
 from posix.types cimport off_t
 
 
-cdef extern from "<sys/uio.h>" nogil:
+extern from "<sys/uio.h>" nogil:
 
     cdef struct iovec:
         void  *iov_base

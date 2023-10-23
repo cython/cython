@@ -2,7 +2,7 @@
 # ticket: t698
 # distutils: extra_compile_args=-fwrapv
 
-cdef extern from *:
+extern from *:
     i32 INT_MAX
     i64 LONG_MAX
 

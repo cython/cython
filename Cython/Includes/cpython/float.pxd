@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     """
     #if PY_MAJOR_VERSION >= 3
       #define __Pyx_PyFloat_FromString(obj)  PyFloat_FromString(obj)

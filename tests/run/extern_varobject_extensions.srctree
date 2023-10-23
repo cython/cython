@@ -21,7 +21,7 @@ lst = list
 
 ###### classes.pxd ################
 
-cdef extern from *:
+extern from *:
     # apart from list, these are all variable sized types
     # and Cython shouldn't trip up about the struct size
     ctypedef class dummy_module.tpl [object PyTupleObject]:

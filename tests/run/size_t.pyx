@@ -34,7 +34,7 @@ OverflowError: ...
 """
 
 # XXX This should generate a warning !!!
-cdef extern from *:
+extern from *:
     ctypedef u64 size_t
 
 def test(usize i):

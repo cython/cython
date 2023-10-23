@@ -1,6 +1,6 @@
 from libcpp cimport bool
 
-cdef extern from "<typeinfo>" namespace "std" nogil:
+extern from "<typeinfo>" namespace "std" nogil:
     cdef cppclass type_info:
         const char* name()
         int before(const type_info&)

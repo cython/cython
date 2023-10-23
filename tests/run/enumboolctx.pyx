@@ -14,7 +14,7 @@ def enum_boolctx(Truth arg):
     else:
         return false
 
-cdef extern from *:
+extern from *:
     enum: FALSE_VALUE "(0)"
     enum: TRUE_VALUE "(1)"
 

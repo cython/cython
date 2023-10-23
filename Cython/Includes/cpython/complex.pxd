@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     ctypedef struct Py_complex:
         f64 imag
         f64 real

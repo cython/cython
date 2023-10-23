@@ -1,4 +1,4 @@
-cdef extern from "c-algorithms/src/queue.h":
+extern from "c-algorithms/src/queue.h":
     ctypedef struct Queue:
         pass
     ctypedef void* QueueValue

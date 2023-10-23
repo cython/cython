@@ -17,7 +17,7 @@ fn out(s, result_type=None):
 fn iout(int s, result_type=None):
     print '%s [%s]' % (s, result_type)
 
-cdef extern from "cpp_operators_helper.h" nogil:
+extern from "cpp_operators_helper.h" nogil:
     cdef cppclass TestOps:
         const_char* operator+() except +
         const_char* operator-() except +

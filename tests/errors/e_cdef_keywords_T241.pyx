@@ -10,7 +10,7 @@ cdef class A:
 
 from libc.string cimport strcmp
 
-cdef extern from "string.h":
+extern from "string.h":
     char *strstr(char*, char*)
 
 

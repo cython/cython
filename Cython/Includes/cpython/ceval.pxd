@@ -1,4 +1,4 @@
-cdef extern from "Python.h":
+extern from "Python.h":
     void PyEval_InitThreads()
         # Initialize and acquire the global interpreter lock.
 

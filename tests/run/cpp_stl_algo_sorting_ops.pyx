@@ -104,7 +104,7 @@ def partial_sort_ints_reverse2(vector[int] values, int k):
     partial_sort_copy(values.begin(), values.end(), output.begin(), output.end(), greater[int]())
     return output
 
-cdef extern from *:
+extern from *:
     """
     struct Employee
     {
@@ -155,7 +155,6 @@ def test_stable_sort():
     for e in employees:
         print("%s, %s" % (e.age, <str>(e.name).decode("ascii")))
 
-
 def second_smallest(vector[int] values):
     """
     Test nth_element using the default operator<.
@@ -165,7 +164,6 @@ def second_smallest(vector[int] values):
     """
     nth_element(values.begin(), values.begin() + 1, values.end())
     return values[1]
-
 
 def second_largest(vector[int] values):
     """

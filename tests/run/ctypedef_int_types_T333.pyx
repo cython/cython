@@ -3,7 +3,7 @@
 
 # -------------------------------------------------------------------
 
-cdef extern from "ctypedef_int_types_chdr_T333.h":
+extern from "ctypedef_int_types_chdr_T333.h":
      ctypedef i32 SChar     ## "signed char"
      ctypedef i32 UChar     ## "unsigned char"
      ctypedef i32 SShort    ## "signed short"
@@ -506,7 +506,7 @@ cdef class MyClass:
 
 # -------------------------------------------------------------------
 
-cdef extern from *:
+extern from *:
     ctypedef signed   MySInt1 "signed short"
     ctypedef unsigned MyUInt1 "unsigned short"
 
@@ -534,7 +534,7 @@ def test_MyUInt1(MyUInt1 x):
    """
    return x
 
-cdef extern from *:
+extern from *:
     ctypedef signed   MySInt2 "signed short"
     ctypedef unsigned MyUInt2 "unsigned short"
 

@@ -5,7 +5,7 @@
 # than the standard C cast operator which can be written "<T>(expression)" in
 # Cython.
 
-cdef extern from * nogil:
+extern from * nogil:
     fn T dynamic_cast[T](void *) except +   # nullptr may also indicate failure
     fn T static_cast[T](void *)
     fn T reinterpret_cast[T](void *)

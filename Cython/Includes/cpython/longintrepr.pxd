@@ -1,6 +1,6 @@
 # Internals of the "long" type (Python 2) or "int" type (Python 3).
 
-cdef extern from "Python.h":
+extern from "Python.h":
     """
     #if PY_MAJOR_VERSION < 3
      #include "longintrepr.h"

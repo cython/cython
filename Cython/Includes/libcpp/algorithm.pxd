@@ -3,7 +3,7 @@ from libcpp.utility cimport pair
 from libc.stddef import ptrdiff_t
 
 
-cdef extern from "<algorithm>" namespace "std" nogil:
+extern from "<algorithm>" namespace "std" nogil:
     # Non-modifying sequence operations
     bool all_of[Iter, Pred](Iter first, Iter last, Pred pred) except +
     bool all_of[ExecutionPolicy, Iter, Pred](ExecutionPolicy&& policy, Iter first, Iter last, Pred pred) except +

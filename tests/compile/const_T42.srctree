@@ -5,7 +5,7 @@ PYTHON -c "import test"
 ######## test.pyx ########
 # distutils: language = c++
 
-cdef extern from "test.h":
+extern from "test.h":
     ctypedef struct c_Test "Test":
         const char *getString() except +RuntimeError
 

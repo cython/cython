@@ -1,5 +1,5 @@
 
-cdef extern from "Python.h":
+extern from "Python.h":
 
     ###########################################################################
     # Warning:

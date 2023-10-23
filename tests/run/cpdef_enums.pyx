@@ -58,7 +58,7 @@ Traceback (most recent call last):
 NameError: ...name 'IntEnum' is not defined
 """
 
-cdef extern from *:
+extern from *:
     cpdef enum: # ExternPyx
         ONE "1"
         TEN "10"
@@ -89,7 +89,7 @@ cdef enum cdefPyxDocEnum:
     """
     FIVE_AND_SEVEN = 5077
 
-cdef extern from *:
+extern from *:
     """
     enum ExternHasDuplicates {
         EX_DUP_A,

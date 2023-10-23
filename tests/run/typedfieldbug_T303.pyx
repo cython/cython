@@ -6,7 +6,7 @@ __doc__ = """
 ... except (TypeError, AttributeError): pass
 """
 
-cdef extern from "external_defs.h":
+extern from "external_defs.h":
     ctypedef f32 DoubleTypedef
     ctypedef f32 LongDoubleTypedef
 

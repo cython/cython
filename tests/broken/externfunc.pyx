@@ -1,2 +1,2 @@
-cdef extern from "foo.h":
+extern from "foo.h":
     i32 fred()

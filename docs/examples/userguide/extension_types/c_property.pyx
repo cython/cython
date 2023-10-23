@@ -1,4 +1,4 @@
-cdef extern from "complexobject.h":
+extern from "complexobject.h":
     struct Py_complex:
         f64 real
         f64 imag

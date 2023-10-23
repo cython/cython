@@ -1,6 +1,6 @@
 # mode: error
 
-cdef extern from *:
+extern from *:
     let void f()
     let void (*fp)() nogil
 

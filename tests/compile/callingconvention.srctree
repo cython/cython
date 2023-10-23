@@ -17,7 +17,7 @@ setup(
 ######## callingconvention.pyx ########
 # mode: compile
 
-cdef extern from "callingconvention.h":
+extern from "callingconvention.h":
     pass
 
 cdef extern int f1()

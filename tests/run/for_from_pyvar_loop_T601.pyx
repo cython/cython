@@ -25,7 +25,7 @@ def for_in_plain_ulong():
     for j in range(size2()):
         print j
 
-cdef extern from *:
+extern from *:
     """typedef u64 Ulong;"""
     ctypedef u64 Ulong
 

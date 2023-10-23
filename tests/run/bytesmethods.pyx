@@ -1,6 +1,6 @@
 cimport cython
 
-cdef extern from *:
+extern from *:
     const isize PY_SSIZE_T_MIN
     const isize PY_SSIZE_T_MAX
 
@@ -12,7 +12,6 @@ b_a = b'a'
 b_b = b'b'
 
 import sys
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -43,7 +42,6 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     else:
       return s.startswith(sub, start, stop)
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
@@ -72,7 +70,6 @@ def bytes_endswith(bytes s, sub, start=None, stop=None):
       return s.endswith(sub, start)
     else:
       return s.endswith(sub, start, stop)
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -169,7 +166,6 @@ def bytes_decode(bytes s, start=None, stop=None):
     else:
         return s[start:stop].decode('utf8')
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
@@ -181,7 +177,6 @@ def bytes_decode_utf16(bytes s):
     abc
     """
     return s.decode('utf16')
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -196,7 +191,6 @@ def bytes_decode_utf16_le(bytes s):
     """
     return s.decode('utf_16_le')
 
-
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
@@ -209,7 +203,6 @@ def bytes_decode_utf16_be(bytes s):
     abc
     """
     return s.decode('utf_16_be')
-
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -250,7 +243,6 @@ def bytes_decode_unbound_method(bytes s, start=None, stop=None):
     else:
         return bytes.decode(s[start:stop], 'utf8')
 
-
 @cython.test_assert_path_exists(
     "//SimpleCallNode",
     "//SimpleCallNode//NoneCheckNode",
@@ -263,7 +255,6 @@ def bytes_join(bytes s, *args):
     result = s.join(args)
     assert cython.typeof(result) == 'Python object', cython.typeof(result)
     return result
-
 
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode//NoneCheckNode",

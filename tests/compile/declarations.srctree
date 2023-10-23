@@ -17,7 +17,7 @@ setup(
 ######## declarations.pyx ########
 # mode: compile
 
-cdef extern from "declarations.h":
+extern from "declarations.h":
     pass
 
 cdef extern char *cp

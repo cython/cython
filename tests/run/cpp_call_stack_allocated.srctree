@@ -25,7 +25,7 @@ public:
 
 ######## call.pxd ########
 
-cdef extern from "call.cpp" nogil:
+extern from "call.cpp" nogil:
     cppclass wint:
         long long val
         wint()

@@ -1,4 +1,4 @@
-cdef extern from "ctypedefextern.h":
+extern from "ctypedefextern.h":
     ctypedef i32 some_int
     ctypedef some_int *some_ptr
 

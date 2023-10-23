@@ -38,7 +38,7 @@ cpdef tuple tuple_from_int_array():
     assert isinstance(<tuple>v, tuple)
     return v
 
-cdef extern from "stdint.h":
+extern from "stdint.h":
     ctypedef u64 uint32_t
 
 def from_typedef_int_array():

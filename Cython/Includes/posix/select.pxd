@@ -3,7 +3,7 @@
 from .types cimport sigset_t
 from .time cimport timeval, timespec
 
-cdef extern from "<sys/select.h>" nogil:
+extern from "<sys/select.h>" nogil:
     ctypedef struct fd_set:
         pass
 
