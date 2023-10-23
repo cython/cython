@@ -5,7 +5,7 @@ from __future__ import print_function
 
 from cpython.object cimport PyTypeObject
 
-cdef gobble(a, b):
+fn gobble(a, b):
     print(a, b)
 
 def tp_new_ptr(exttype):

@@ -37,12 +37,12 @@ cdef extern int ia[]
 cdef extern int iaa[][3]
 cdef extern int a(int[][3], int[][3][5])
 
-cdef void f():
-    cdef void *p=NULL
+fn void f():
+    let void *p = NULL
     global ifnp, cpa
     ifnp = <int (*)() noexcept>p
 
-cdef char *g():
+fn char *g():
     pass
 
 f()

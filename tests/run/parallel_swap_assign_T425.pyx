@@ -19,7 +19,6 @@ def swap(a,b):
     a,b = b,a
     return a,b
 
-
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
@@ -37,7 +36,6 @@ def swap5(a,b,c,d,e):
     a,b,c,d,e = e,d,c,b,a
     return a,b,c,d,e
 
-
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
@@ -47,7 +45,7 @@ def swap5(a,b,c,d,e):
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
-cdef bint c_swap_cmp5(a, b, c, d, e):
+fn bint c_swap_cmp5(a, b, c, d, e):
     a,b,c,d,e = e,d,c,b,a
     return a > b > c > d > e
 
@@ -57,7 +55,6 @@ def swap_cmp5(a,b,c,d,e):
     True
     """
     return c_swap_cmp5(a,b,c,d,e)
-
 
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
@@ -75,7 +72,6 @@ def swap_py(a,b):
     """
     a,a = b,a
     return a,b
-
 
 cdef class A:
     cdef readonly object x
@@ -107,7 +103,6 @@ def swap_attr_values(A a, A b):
     a.x, a.y, b.x, b.y = a.y, b.x, b.y, a.x # shift by one
     a.x, a.y, b.x, b.y = b.x, b.y, a.x, a.y # shift by two
     a.x, a.y, b.x, b.y = b.y, b.x, a.y, a.x # reverse
-
 
 cdef class B:
     cdef readonly A a1
@@ -162,7 +157,6 @@ def swap_recursive_attr_values(B a, B b):
     a.a1, a.a1.x, a.a2.y, a.a2, a.a1.y, a.a2.x = a.a2, a.a2.y, a.a1.x, a.a1, a.a2.x, a.a1.y
     b.a1, b.a1.x, b.a2.y, b.a2, b.a1.y, b.a2.x = b.a2, b.a2.y, b.a1.x, b.a1, b.a2.x, b.a1.y
 
-
 @cython.test_assert_path_exists(
 #    "//ParallelAssignmentNode",
 #    "//ParallelAssignmentNode/SingleAssignmentNode",
@@ -189,7 +183,6 @@ def swap_list_items(list a, int i, int j):
     """
     a[i], a[j] = a[j], a[i]
 
-
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
@@ -201,7 +194,6 @@ def swap_list_items(list a, int i, int j):
     )
 def swap_list_items_py1(list a, int i, int j):
     a[i], a[j] = a[j+1], a[i]
-
 
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",

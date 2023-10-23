@@ -178,7 +178,7 @@ def multiplied_lists_nonconst_expression(x):
     """
     return [1,2,3] * (x*2)
 
-cdef side_effect(int x):
+fn side_effect(int x):
     print x
     return x
 

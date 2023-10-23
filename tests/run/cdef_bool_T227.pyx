@@ -26,5 +26,5 @@ def call_cfoo(a):
     """
     return cfoo(a)
 
-cdef cfoo(bool a):
+fn cfoo(bool a):
     return a == True

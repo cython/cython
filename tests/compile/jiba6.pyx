@@ -3,7 +3,7 @@
 cdef extern from "string.h":
     void memcpy(void* des, void* src, i32 size)
 
-cdef void f():
+fn void f():
     let f32[3] f1
     let f32* f2
     f2 = f1 + 1

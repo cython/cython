@@ -7,7 +7,7 @@ from libcpp.algorithm cimport (includes, set_difference, set_intersection,
 from libcpp.vector cimport vector
 
 
-cdef bool less(int a, int b):
+fn bool less(int a, int b):
     return a < b
 
 def test_includes(vector[int] v1, vector[int] v2):

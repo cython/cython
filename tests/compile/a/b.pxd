@@ -1,1 +1,1 @@
-cdef i32 **foo(void*)
+fn i32 **foo(void*)

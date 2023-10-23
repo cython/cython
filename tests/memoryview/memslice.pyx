@@ -1370,7 +1370,7 @@ class UniqueObject(object):
 
 objs = [[UniqueObject("spam")], [UniqueObject("ham")], [UniqueObject("eggs")]]
 addref(*[obj for L in objs for obj in L])
-cdef cdef_function(i32[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None, objs)):
+fn cdef_function(i32[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None, objs)):
     print 'cdef called'
     print buf1[6], buf2[1, 0]
     buf2[1, 0] = UniqueObject("eggs")
@@ -1420,7 +1420,7 @@ cdef i32[:] global_A = IntMockBuffer("Global_A", range(10))
 addref(*[obj for L in objs for obj in L])
 cdef object[::view.indirect, :] global_B = ObjectMockBuffer(None, objs)
 
-cdef cdef_function2(i32[:] buf1, object[::view.indirect, :] buf2 = global_B):
+fn cdef_function2(i32[:] buf1, object[::view.indirect, :] buf2 = global_B):
     print 'cdef2 called'
     print buf1[6], buf2[1, 0]
     buf2[1, 0] = UniqueObject("eggs")
@@ -1718,7 +1718,7 @@ def test_oob():
     print a[:, 20]
 
 
-cdef i32 nogil_oob(i32[:, :] a) except 0 nogil:
+fn i32 nogil_oob(i32[:, :] a) except 0 nogil:
     a[100, 9:]
     return 1
 
@@ -1762,7 +1762,7 @@ def test_nogil_oob2():
         a[100, 9:]
 
 @cython.boundscheck(false)
-cdef i32 cdef_nogil(i32[:, :] a) except 0 nogil:
+fn i32 cdef_nogil(i32[:, :] a) except 0 nogil:
     let i32 i, j
     let i32[:, :] b = a[::-1, 3:10:2]
     for i in range(b.shape[0]):
@@ -1906,7 +1906,7 @@ def test_memslice_struct_with_arrays():
     test_structs_with_arr(a1)
     test_structs_with_arr(a2)
 
-cdef test_structs_with_arr(FusedStruct array[10]):
+fn test_structs_with_arr(FusedStruct array[10]):
     let FusedStruct[:] myslice1, myslice2, myslice3, myslice4
     let i32 i, j
 
@@ -2029,7 +2029,7 @@ def test_padded_structs():
     # struct properly -- fix this
     #_test_padded(a8)
 
-cdef _test_padded(FusedPadded myarray[10]):
+fn _test_padded(FusedPadded myarray[10]):
     # test that the buffer format parser accepts our format string...
     let FusedPadded[:] myslice = <FusedPadded[:10]> myarray
     obj = myslice
@@ -2074,7 +2074,7 @@ def test_ellipsis_expr():
     _test_ellipsis_expr(m)
     _test_ellipsis_expr(<object> m)
 
-cdef _test_ellipsis_expr(slice_1d m):
+fn _test_ellipsis_expr(slice_1d m):
     m[4] = 8
     m[...] = m[...]
     print m[4]
@@ -2097,7 +2097,7 @@ def test_slice_assignment():
     _test_slice_assignment(m, copy)
     _test_slice_assignment(<object> m, <object> copy)
 
-cdef _test_slice_assignment(slice_2d m, slice_2d copy):
+fn _test_slice_assignment(slice_2d m, slice_2d copy):
     let i32 i, j
 
     m[...] = m[::-1, ::-1]
@@ -2130,7 +2130,7 @@ def test_slice_assignment_broadcast_leading():
 
     _test_slice_assignment_broadcast_leading(<object> a, <object> b)
 
-cdef _test_slice_assignment_broadcast_leading(slice_2d a, slice_1d b):
+fn _test_slice_assignment_broadcast_leading(slice_2d a, slice_1d b):
     let i32 i
 
     b[:] = a[:, :]
@@ -2159,7 +2159,7 @@ def test_slice_assignment_broadcast_strides():
     _test_slice_assignment_broadcast_strides(src, dst, dst_f)
     _test_slice_assignment_broadcast_strides(<object> src, <object> dst, <object> dst_f)
 
-cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_2d dst_f):
+fn _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_2d dst_f):
     let i32 i, j
 
     dst[1:] = src[-1:-6:-1]
@@ -2195,15 +2195,15 @@ def test_borrowed_slice():
     _not_borrowed(carray)
     _not_borrowed2(carray)
 
-cdef _borrowed(i32[:] m):
+fn _borrowed(i32[:] m):
     print m[5]
 
-cdef _not_borrowed(i32[:] m):
+fn _not_borrowed(i32[:] m):
     print m[5]
     if object():
         del m
 
-cdef _not_borrowed2(i32[:] m):
+fn _not_borrowed2(i32[:] m):
     let i32[10] carray
     print m[5]
     if object():
@@ -2219,7 +2219,7 @@ class SingleObject(object):
     def __eq__(self, other):
         return self.value == getattr(other, 'value', None) or self.value == other
 
-cdef _get_empty_object_slice(fill=None):
+fn _get_empty_object_slice(fill=None):
     let array a = array((10,), sizeof(PyObject *), 'O')
     assert a.dtype_is_object
     return a
@@ -2304,7 +2304,7 @@ def test_scalar_slice_assignment():
     print
     _test_scalar_slice_assignment(<object> m, <object> m2)
 
-cdef _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
+fn _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
     let i32 i, j
     for i in range(10):
         m[i] = i
@@ -2605,7 +2605,7 @@ def test_loop_reassign(i32[:] a):
 
 
 @testcase
-def test_arg_in_closure(i32 [:] a):
+def test_arg_in_closure(i32[:] a):
     """
     >>> A = IntMockBuffer("A", range(6), shape=(6,))
     >>> inner = test_arg_in_closure(A)
@@ -2622,7 +2622,7 @@ def test_arg_in_closure(i32 [:] a):
     return inner
 
 
-cdef arg_in_closure_cdef(i32 [:] a):
+fn arg_in_closure_cdef(i32[:] a):
     def inner():
         return (a[0], a[1])
     return inner

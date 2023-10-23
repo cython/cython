@@ -3,7 +3,7 @@
 def call5():
     b(1,2,3,4,5)
 
-cdef b(a, b, c=1, d=2):
+fn b(a, b, c=1, d=2):
     pass
 
 _ERRORS = u"""

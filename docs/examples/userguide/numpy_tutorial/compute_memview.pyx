@@ -2,12 +2,12 @@ import numpy as np
 
 DTYPE = np.intc
 
-cdef i32 clip(i32 a, i32 min_value, i32 max_value):
+fn i32 clip(i32 a, i32 min_value, i32 max_value):
     return min(max(a, min_value), max_value)
 
 def compute(i32[:, :] array_1, i32[:, :] array_2, i32 a, i32 b, i32 c):
-    cdef isize x_max = array_1.shape[0]
-    cdef isize y_max = array_1.shape[1]
+    let isize x_max = array_1.shape[0]
+    let isize y_max = array_1.shape[1]
 
     # array_1.shape is now a C array, no it's not possible
     # to compare it simply by using == without a for-loop.
@@ -16,10 +16,10 @@ def compute(i32[:, :] array_1, i32[:, :] array_2, i32 a, i32 b, i32 c):
     assert tuple(array_1.shape) == tuple(array_2.shape)
 
     result = np.zeros((x_max, y_max), dtype=DTYPE)
-    cdef i32[:, :] result_view = result
+    let i32[:, :] result_view = result
 
-    cdef i32 tmp
-    cdef isize x, y
+    let i32 tmp
+    let isize x, y
 
     for x in range(x_max):
         for y in range(y_max):

@@ -5,10 +5,10 @@ from libcpp cimport bool
 from libcpp.algorithm cimport equal, lexicographical_compare
 from libcpp.vector cimport vector
 
-cdef bool compare(int a, int b):
+fn bool compare(int a, int b):
     return a == b
 
-cdef bool less_than(char a, char b):
+fn bool less_than(char a, char b):
     return a < b
 
 def test_equal(vector[int] v1, vector[int] v2):

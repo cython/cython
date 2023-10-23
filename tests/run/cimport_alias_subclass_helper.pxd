@@ -1,2 +1,2 @@
 cdef class Base:
-    cdef bint foo(self)
+    fn bint foo(self)

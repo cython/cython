@@ -90,22 +90,17 @@ cimport cython
 cdef class ExtTypePass:
     pass
 
-
 cdef class ExtTypePxdDocstring:
     """ho, ho, ho!"""
-
 
 cdef class ExtTypeAttributes:
     cdef int a
     cdef readonly list b
 
-
 cdef class TypedMethod:
     @cython.locals(x='char[:]')
     cpdef meth(self)
 
-
 cpdef int func(x, int y, z) except? -1  # argument names should not matter, types should
 
-
-cdef int sum_generator_expression(int a)
+fn int sum_generator_expression(int a)

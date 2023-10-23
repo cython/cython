@@ -89,7 +89,7 @@ def test_const_vector(*args):
         v.push_back(a)
     return const_vector_to_list(v)
 
-cdef const_vector_to_list(const vector[f64]& cv):
+fn const_vector_to_list(const vector[f64]& cv):
     let vector[f64].const_iterator iter = cv.const_begin()
     let lst = []
     while iter != cv.const_end():

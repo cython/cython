@@ -14,7 +14,7 @@ cdef class MyExtType:
     def __cinit__(self):
         self.attr = 123
 
-cdef attr(MyExtType x):
+fn attr(MyExtType x):
     return x is None and 321 or x.attr
 
 
@@ -120,7 +120,7 @@ def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
 
 ### builtin types (using list)
 
-cdef litem(list L, int item):
+fn litem(list L, int item):
     return L is None and 321 or L[item]
 
 

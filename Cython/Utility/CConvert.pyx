@@ -9,7 +9,7 @@ cdef extern from *:
     int __Pyx_RaiseUnexpectedTypeError(const char *expected, object obj) except 0
 
 @cname("{{funcname}}")
-cdef {{struct_type}} {{funcname}}(obj) except *:
+fn {{struct_type}} {{funcname}}(obj) except *:
     cdef {{struct_type}} result
     if not PyMapping_Check(obj):
         __Pyx_RaiseUnexpectedTypeError(b"a mapping", obj)
@@ -35,7 +35,7 @@ cdef extern from *:
     int __Pyx_RaiseUnexpectedTypeError(const char *expected, object obj) except 0
 
 @cname("{{funcname}}")
-cdef {{struct_type}} {{funcname}}(obj) except *:
+fn {{struct_type}} {{funcname}}(obj) except *:
     cdef {{struct_type}} result
     cdef isize length
     if not PyMapping_Check(obj):
@@ -63,7 +63,7 @@ cdef {{struct_type}} {{funcname}}(obj) except *:
 #################### cfunc.to_py ####################
 
 @cname("{{cname}}")
-cdef object {{cname}}({{return_type.ctype}} (*f)({{ ', '.join(arg.type_cname for arg in args) }}) {{except_clause}}):
+fn object {{cname}}({{return_type.ctype}} (*f)({{ ', '.join(arg.type_cname for arg in args) }}) {{except_clause}}):
     def wrap({{ ', '.join('{arg.ctype} {arg.name}'.format(arg=arg) for arg in args) }}):
         """wrap({{', '.join(('{arg.name}: {arg.type_displayname}'.format(arg=arg) if arg.type_displayname else arg.name) for arg in args)}}){{if return_type.type_displayname}} -> {{return_type.type_displayname}}{{endif}}"""
         {{'' if return_type.type.is_void else 'return '}}f({{ ', '.join(arg.name for arg in args) }})
@@ -76,7 +76,7 @@ cdef extern from *:
     object PyErr_Format(exc, const char *format, ...)
 
 @cname("{{cname}}")
-cdef int {{cname}}(object o, {{base_type}} *v, isize length) except -1:
+fn int {{cname}}(object o, {{base_type}} *v, isize length) except -1:
     cdef isize i = length
     try:
         i = len(o)
@@ -110,7 +110,7 @@ cdef extern from *:
     void PyList_SET_ITEM(object p, isize pos, object o)
 
 @cname("{{cname}}")
-cdef inline list {{cname}}({{base_type}} *v, isize length):
+fn inline list {{cname}}({{base_type}} *v, isize length):
     cdef usize i
     cdef object value
     l = PyList_New(length)
@@ -121,7 +121,7 @@ cdef inline list {{cname}}({{base_type}} *v, isize length):
     return l
 
 @cname("{{to_tuple_cname}}")
-cdef inline tuple {{to_tuple_cname}}({{base_type}} *v, isize length):
+fn inline tuple {{to_tuple_cname}}({{base_type}} *v, isize length):
     cdef usize i
     cdef object value
     t = PyTuple_New(length)

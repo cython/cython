@@ -13,10 +13,10 @@ def libc_int_abs(int x):
     return c_int_abs(x)
 
 
-cdef int gt(const void* v1, const void* v2) noexcept nogil:
+fn int gt(const void* v1, const void* v2) noexcept nogil:
     return ((<int*>v1)[0] - (<int*>v2)[0])
 
-cdef int lt(const void* v1, const void* v2) noexcept nogil:
+fn int lt(const void* v1, const void* v2) noexcept nogil:
     return - gt(v1, v2)
 
 def qsort(values, direction='lt'):

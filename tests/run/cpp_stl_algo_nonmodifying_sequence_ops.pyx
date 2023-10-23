@@ -10,10 +10,8 @@ from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-
-cdef bool is_odd(int i):
+fn bool is_odd(int i):
     return i % 2
-
 
 def all_odd(vector[int] values):
     """
@@ -26,7 +24,6 @@ def all_odd(vector[int] values):
     """
     return all_of(values.begin(), values.end(), is_odd)
 
-
 def any_odd(vector[int] values):
     """
     Test any_of with is_odd predicate.
@@ -37,7 +34,6 @@ def any_odd(vector[int] values):
     False
     """
     return any_of(values.begin(), values.end(), is_odd)
-
 
 def none_odd(vector[int] values):
     """
@@ -50,7 +46,6 @@ def none_odd(vector[int] values):
     """
     return none_of(values.begin(), values.end(), is_odd)
 
-
 def count_ones(vector[int] values):
     """
     Test count.
@@ -60,11 +55,9 @@ def count_ones(vector[int] values):
     """
     return count(values.begin(), values.end(), 1)
 
-
-cdef void add_one(int &i):
+fn void add_one(int &i):
     # https://github.com/cython/cython/issues/1863
     (&i)[0] += 1
-
 
 def increment_ints(vector[int] values):
     """
@@ -76,7 +69,6 @@ def increment_ints(vector[int] values):
     for_each(values.begin(), values.end(), &add_one)
     return values
 
-
 def count_odd(vector[int] values):
     """
     Test count_if with is_odd predicate.
@@ -87,7 +79,6 @@ def count_odd(vector[int] values):
     0
     """
     return count_if(values.begin(), values.end(), is_odd)
-
 
 def mirror_ends(string data):
     """
@@ -105,7 +96,6 @@ def mirror_ends(string data):
     """
     return string(data.begin(), mismatch(data.begin(), data.end(), data.rbegin()).first)
 
-
 def mismatch_ints(vector[int] values1, vector[int] values2):
     """
     Test mismatch(first1, last1, first2).
@@ -120,7 +110,6 @@ def mismatch_ints(vector[int] values1, vector[int] values2):
         return
     return deref(result.first), deref(result.second)
 
-
 def is_int_in(vector[int] values, int target):
     """
     Test find.
@@ -131,7 +120,6 @@ def is_int_in(vector[int] values, int target):
     False
     """
     return find(values.begin(), values.end(), target) != values.end()
-
 
 def find_odd(vector[int] values):
     """
@@ -147,7 +135,6 @@ def find_odd(vector[int] values):
     else:
         return None
 
-
 def find_even(vector[int] values):
     """
     Test find_if_not using is_odd predicate.
@@ -161,7 +148,6 @@ def find_even(vector[int] values):
         return deref(result)
     else:
         return None
-
 
 def find_last_int_sequence(vector[int] values, vector[int] target):
     """
@@ -177,10 +163,8 @@ def find_last_int_sequence(vector[int] values, vector[int] target):
     else:
         return None
 
-
-cdef bool is_equal(int lhs, int rhs):
+fn bool is_equal(int lhs, int rhs):
     return lhs == rhs
-
 
 def find_last_int_sequence2(vector[int] values, vector[int] target):
     """
@@ -195,7 +179,6 @@ def find_last_int_sequence2(vector[int] values, vector[int] target):
         return distance(values.begin(), result)
     else:
         return None
-
 
 def find_first_int_in_set(values, target):
     """
@@ -213,7 +196,6 @@ def find_first_int_in_set(values, target):
     else:
         return None
 
-
 def find_first_int_in_set2(vector[int] values, vector[int] target):
     """
     Test find_first_of with is_equal predicate.
@@ -227,7 +209,6 @@ def find_first_int_in_set2(vector[int] values, vector[int] target):
         return distance(values.begin(), result)
     else:
         return None
-
 
 def find_adjacent_int(vector[int] values):
     """
@@ -243,7 +224,6 @@ def find_adjacent_int(vector[int] values):
     else:
         return None
 
-
 def find_adjacent_int2(vector[int] values):
     """
     Test find_adjacent with is_equal predicate.
@@ -258,7 +238,6 @@ def find_adjacent_int2(vector[int] values):
     else:
         return None
 
-
 def in_quote(string quote, string word):
     """
     Test search using cppreference example.
@@ -269,7 +248,6 @@ def in_quote(string quote, string word):
     False
     """
     return search(quote.begin(), quote.end(), word.begin(), word.end()) != quote.end()
-
 
 def in_quote2(string quote, string word):
     """
@@ -282,7 +260,6 @@ def in_quote2(string quote, string word):
     """
     return search(quote.begin(), quote.end(), word.begin(), word.end(), &is_equal) != quote.end()
 
-
 def consecutive_values(string c, int count, char v):
     """
     Test search_n using cppreference example (without std::begin and std::end).
@@ -293,7 +270,6 @@ def consecutive_values(string c, int count, char v):
     True
     """
     return search_n(c.begin(), c.end(), count, v) != c.end()
-
 
 def consecutive_values2(string c, int count, char v):
     """

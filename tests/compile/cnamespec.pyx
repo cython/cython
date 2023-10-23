@@ -13,7 +13,7 @@ ctypedef enum blarg "c_blarg":
     x "c_x"
     y "c_y" = 42
 
-cdef f64 spam "c_spam" (i32 i, f32 f):
+fn f64 spam "c_spam" (i32 i, f32 f):
     let f64 d "c_d"
     let foo *p
     global b
@@ -26,5 +26,5 @@ cdef f64 spam "c_spam" (i32 i, f32 f):
     p.i = x
     p.i = y
 
-cdef inline f64 spam2 "c_spam2" (i32 i, f32 f):
-    return spam(i,f)
+fn inline f64 spam2 "c_spam2" (i32 i, f32 f):
+    return spam(i, f)

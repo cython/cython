@@ -5,6 +5,6 @@ def test(x):
     """
     return retinput(x)
 
-cdef inline int retinput(int x):
+fn inline int retinput(int x):
     o = x
     return o

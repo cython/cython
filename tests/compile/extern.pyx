@@ -7,7 +7,7 @@ cdef extern void spam(char c)
 cdef extern i32 eggs():
     pass
 
-cdef i32 grail():
+fn i32 grail():
     pass
 
 grail()

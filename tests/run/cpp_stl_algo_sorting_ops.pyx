@@ -11,7 +11,6 @@ from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-
 def is_sorted_ints(vector[int] values):
     """
     Test is_sorted.
@@ -22,7 +21,6 @@ def is_sorted_ints(vector[int] values):
     True
     """
     return is_sorted(values.begin(), values.end())
-
 
 def initial_sorted_elements(vector[int] values):
     """
@@ -46,7 +44,6 @@ def initial_sorted_elements(vector[int] values):
     sorted_end = is_sorted_until(values.begin(), values.end())
     return distance(values.begin(), sorted_end)
 
-
 def sort_ints(vector[int] values):
     """Test sort using the default operator<.
 
@@ -56,7 +53,6 @@ def sort_ints(vector[int] values):
     sort(values.begin(), values.end())
     return values
 
-
 def sort_ints_reverse(vector[int] values):
     """Test sort using a standard library comparison function object.
 
@@ -65,7 +61,6 @@ def sort_ints_reverse(vector[int] values):
     """
     sort(values.begin(), values.end(), greater[int]())
     return values
-
 
 def partial_sort_ints(vector[int] values, int k):
     """
@@ -77,7 +72,6 @@ def partial_sort_ints(vector[int] values, int k):
     partial_sort(values.begin(), values.begin() + k, values.end())
     return values
 
-
 def partial_sort_ints_reverse(vector[int] values, int k):
     """
     Test partial_sort using a standard library comparison function object.
@@ -87,7 +81,6 @@ def partial_sort_ints_reverse(vector[int] values, int k):
     """
     partial_sort(values.begin(), values.begin() + k, values.end(), greater[int]())
     return values
-
 
 def partial_sort_ints2(vector[int] values, int k):
     """
@@ -100,7 +93,6 @@ def partial_sort_ints2(vector[int] values, int k):
     partial_sort_copy(values.begin(), values.end(), output.begin(), output.end())
     return output
 
-
 def partial_sort_ints_reverse2(vector[int] values, int k):
     """
     Test partial_sort_copy using a standard library comparison function object.
@@ -111,7 +103,6 @@ def partial_sort_ints_reverse2(vector[int] values, int k):
     output = vector[int](2)
     partial_sort_copy(values.begin(), values.end(), output.begin(), output.end(), greater[int]())
     return output
-
 
 cdef extern from *:
     """
@@ -134,7 +125,7 @@ cdef extern from *:
         int age
         string name
 
-cdef bool Employee_greater(const Employee& lhs, const Employee& rhs):
+fn bool Employee_greater(const Employee& lhs, const Employee& rhs):
     return lhs.age > rhs.age
 
 def test_stable_sort():

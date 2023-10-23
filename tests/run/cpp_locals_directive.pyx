@@ -45,7 +45,7 @@ cdef extern from *:
     C make_C(int) except +  # needs a temp to receive
 
 # this function just makes sure the output from the destructor can be captured by doctest
-cdef void print_C_destructor "print_C_destructor" () with gil:
+fn void print_C_destructor "print_C_destructor" () with gil:
     print("~C()")
 
 def maybe_assign_infer(assign, value, do_print):
@@ -149,7 +149,7 @@ def uses_temp(value):
     print(x.getX())
 
 # c should not be optional - it isn't easy to check this, but we can at least check it compiles
-cdef void has_argument(C c):
+fn void has_argument(C c):
     print(c.getX())
 
 def call_has_argument():
@@ -187,7 +187,7 @@ cdef class HoldsC:
     def getCX(self):
         return self.value.getX()
 
-cdef acceptC(C& c):
+fn acceptC(C& c):
     return c.getX()
 
 @cython.cpp_locals(false)

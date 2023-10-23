@@ -8,7 +8,7 @@ cdef extern from "Python.h":
     ctypedef class __builtin__.dict  [object PyDictObject]:
         pass
 
-    cdef isize Py_SIZE(object o)
+    fn isize Py_SIZE(object o)
 
 cdef list L = [1,2,4]
 cdef dict d = {'A': 'a'}

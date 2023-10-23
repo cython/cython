@@ -1,7 +1,7 @@
 # mode: run
 # ticket: t693
 
-cdef double complex func(double complex x):                                                  
+fn double complex func(double complex x):                                                  
     print "hello"
     return x
 

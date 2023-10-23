@@ -28,7 +28,7 @@ cdef fused composed_t:
     int complex
     long complex
 
-cdef func(fused_t a, other_t b):
+fn func(fused_t a, other_t b):
     let i32 int_a
     let string_t string_a
     let other_t other_a
@@ -101,7 +101,7 @@ def test_string_int():
 
     func(x, y)
 
-cdef if_then_else(fused_t a, other_t b):
+fn if_then_else(fused_t a, other_t b):
     let other_t other_a
     let string_t string_a
     let fused_t specific_a
@@ -142,7 +142,7 @@ def test_if_then_else_float_int():
     let i32 y = 1
     if_then_else(x, y)
 
-cdef composed_t composed(composed_t x, composed_t y):
+fn composed_t composed(composed_t x, composed_t y):
     if composed_t in base_t_p_p or composed_t is string_t:
         if string_t == composed_t:
             print x.decode('ascii'), y.decode('ascii')

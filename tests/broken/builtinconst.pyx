@@ -1,4 +1,4 @@
-cdef int f() except -1:
+fn int f() except -1:
     let type t
     let object x
     t = buffer

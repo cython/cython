@@ -1,19 +1,13 @@
 from __future__ import print_function
 
-
 cdef class A:
-
-    cdef foo(self):
+    fn foo(self):
         print("A")
 
-
 cdef class B(A):
-
-    cdef foo(self, x=None):
+    fn foo(self, x=None):
         print("B", x)
 
-
 cdef class C(B):
-
-    cpdef foo(self, x=True, i32 k=3):
+    cpdef foo(self, x=true, i32 k=3):
         print("C", x, k)

@@ -1,6 +1,6 @@
 # mode: error
 
-cdef cdef_yield():
+fn cdef_yield():
     yield
 
 cpdef cpdef_yield():

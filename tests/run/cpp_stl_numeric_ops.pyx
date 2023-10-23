@@ -6,20 +6,20 @@ from libcpp.vector cimport vector
 from libcpp cimport bool
 
 # Subtracts two integers.
-cdef int subtract_integers(int lhs, int rhs):
+fn int subtract_integers(int lhs, int rhs):
     return lhs - rhs
 
 # Adds two integers.
-cdef int add_integers(int lhs, int rhs):
+fn int add_integers(int lhs, int rhs):
     return lhs + rhs
 
 # Multiplies two integers.
-cdef int multiply_integers(int lhs, int rhs):
+fn int multiply_integers(int lhs, int rhs):
     return lhs * rhs
 
 # Determines equality for two integers.
 # If lhs == rhs, returns true. Returns false otherwise.
-cdef bool is_equal(int lhs, int rhs):
+fn bool is_equal(int lhs, int rhs):
     return lhs == rhs
 
 def test_inner_product(vector[int] v1, vector[int] v2, int init):

@@ -26,7 +26,7 @@ def const_iteration_test(L):
     finally:
         del l
 
-cdef list const_to_pylist(cpp_list[int]& l):
+fn list const_to_pylist(cpp_list[int]& l):
     let list L = []
     it = l.cbegin()
     while it != l.cend():

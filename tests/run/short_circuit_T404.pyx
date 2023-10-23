@@ -1,6 +1,6 @@
 # ticket: t404
 
-cdef long foo(long x):
+fn long foo(long x):
     print "foo(%s)" % x
     return x
 

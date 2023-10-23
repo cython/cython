@@ -1,7 +1,7 @@
 # mode: error
 # tag: werror
 
-cdef useless_semicolon():
+fn useless_semicolon():
     let i32 i;
     pass;
 

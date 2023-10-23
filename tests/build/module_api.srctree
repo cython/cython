@@ -22,8 +22,8 @@ setup(
 
 ctypedef api f32 flt
 
-cdef i32 int0
-cdef f32 flt0
+fn i32 int0
+fn f32 flt0
 
 cdef api i32 int1
 cdef api f32 flt1

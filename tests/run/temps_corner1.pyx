@@ -2,7 +2,7 @@ cdef class A:
     def numerator(self):
         return self
 
-cdef int  bitsize(A a):
+fn int bitsize(A a):
     return 1
 
 coeffs = [A()]

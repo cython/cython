@@ -83,7 +83,7 @@ cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = 
     a.append(o)
     return a
 
-cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None):
+fn c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None):
     print(typeof(a), typeof(b), typeof(c), typeof(d), typeof(n))
     a.append(b)
     a.append(c)
@@ -377,8 +377,8 @@ _WARNINGS = """
 34:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 60:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 60:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-86:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
-86:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+86:42: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
+86:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 144:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 144:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 149:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.

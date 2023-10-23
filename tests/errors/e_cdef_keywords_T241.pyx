@@ -1,11 +1,11 @@
 # ticket: t241
 # mode: error
 
-cdef some_function(x, y):
+fn some_function(x, y):
     pass
 
 cdef class A:
-    cdef some_method(self, x, y=1):
+    fn some_method(self, x, y=1):
         pass
 
 from libc.string cimport strcmp

@@ -35,7 +35,7 @@ cdef class WrapperClass:
 
 
     @staticmethod
-    cdef WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
+    fn WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
         """Factory function to create WrapperClass objects from
         given my_c_struct pointer.
 
@@ -49,7 +49,7 @@ cdef class WrapperClass:
         return wrapper
 
     @staticmethod
-    cdef WrapperClass new_struct():
+    fn WrapperClass new_struct():
         """Factory function to create WrapperClass objects with
         newly allocated my_c_struct"""
         cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))

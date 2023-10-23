@@ -113,7 +113,7 @@ def test_ptr(i32 i):
     finally:
         del w
 
-cdef f64 f(f64 x):
+fn f64 f(f64 x):
     return x*x
 
 def test_func_ptr(f64 x):

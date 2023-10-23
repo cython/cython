@@ -7,8 +7,7 @@ from libcpp cimport bool
 from libcpp.algorithm cimport merge, inplace_merge
 from libcpp.vector cimport vector
 
-
-cdef bool less(int a, int b):
+fn bool less(int a, int b):
     return a < b
 
 def test_merge(vector[int] v1, vector[int] v2):

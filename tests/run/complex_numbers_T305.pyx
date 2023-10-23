@@ -215,7 +215,7 @@ def test_conjugate_typedef(cdouble z):
     """
     return z.conjugate()
 
-cdef cdouble test_conjugate_nogil(cdouble z) nogil:
+fn cdouble test_conjugate_nogil(cdouble z) nogil:
     # Really just a compile test.
     return z.conjugate()
 test_conjugate_nogil(0) # use it

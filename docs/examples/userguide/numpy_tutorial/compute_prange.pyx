@@ -15,14 +15,14 @@ ctypedef fused my_type:
     i128
 
 # We declare our plain c function nogil
-cdef my_type clip(my_type a, my_type min_value, my_type max_value) nogil:
+fn my_type clip(my_type a, my_type min_value, my_type max_value) nogil:
     return min(max(a, min_value), max_value)
 
 @cython.boundscheck(false)
 @cython.wraparound(false)
 def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type b, my_type c):
-    cdef isize x_max = array_1.shape[0]
-    cdef isize y_max = array_1.shape[1]
+    let isize x_max = array_1.shape[0]
+    let isize y_max = array_1.shape[1]
 
     assert tuple(array_1.shape) == tuple(array_2.shape)
 
@@ -34,10 +34,10 @@ def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type
         dtype = np.longlong
 
     result = np.zeros((x_max, y_max), dtype=dtype)
-    cdef my_type[:, ::1] result_view = result
+    let my_type[:, ::1] result_view = result
 
-    cdef my_type tmp
-    cdef isize x, y
+    let my_type tmp
+    let isize x, y
 
     # We use prange here.
     for x in prange(x_max, nogil=true):

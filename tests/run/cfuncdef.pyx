@@ -1,13 +1,13 @@
-cdef void ftang():
+fn void ftang():
     let int x
     x = 0
 
-cdef int foo(int i, char c):
+fn int foo(int i, char c):
     let float f, g
     f = 0
     g = 0
 
-cdef spam(int i, obj, object object):
+fn spam(int i, obj, object object):
     let char c
     c = 0
 

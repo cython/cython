@@ -82,11 +82,11 @@ assert_stats(profile, func.__name__)
 
 
 ######## collatz.pyx ###########
-# cython: linetrace=True
+# cython: linetrace=true
 
 cimport cython
 
-@cython.binding(True)
+@cython.binding(true)
 def collatz(n):
     while n > 1:
         if n % 2 == 0:
@@ -94,8 +94,7 @@ def collatz(n):
         else:
             n = 3*n+1
 
-
-@cython.binding(True)
+@cython.binding(true)
 cpdef cp_collatz(n):
     while n > 1:
         if n % 2 == 0:
@@ -103,8 +102,7 @@ cpdef cp_collatz(n):
         else:
             n = 3*n+1
 
-
-@cython.binding(True)
+@cython.binding(true)
 def cy_generator(int n):
    x = 1
    for i in range(n):
@@ -113,13 +111,11 @@ def cy_generator(int n):
        while <object>(i + x) < n + 10:
            i += 2
 
-
-@cython.binding(True)
+@cython.binding(true)
 def run_generator(n):
     assert len(list(cy_generator(n))) == n
 
-
-@cython.binding(True)
+@cython.binding(true)
 async def cy_coro(int n):
     while n > 1:
         if n % 2 == 0:
@@ -128,8 +124,7 @@ async def cy_coro(int n):
             n = 3*n+1
     x = <object> n  # make sure the computation does not get discarded
 
-
-@cython.binding(True)
+@cython.binding(true)
 def run_coro(n):
     coro = cy_coro(n)
     try:
@@ -139,8 +134,7 @@ def run_coro(n):
     else:
         assert False, "Coroutine did not raise"
 
-
-@cython.binding(True)
+@cython.binding(true)
 class PyClass(object):
     def py_pymethod(self):
         x = 1
@@ -148,8 +142,7 @@ class PyClass(object):
             a = x + 2
         return a * 3
 
-
-@cython.binding(True)
+@cython.binding(true)
 cdef class CClass:
     def c_pymethod(self, c=2):
         for i in range(10):
@@ -163,7 +156,7 @@ cdef class CClass:
         z = self.c_pymethod(a) + self.cmethod(r)
         return z * 2
 
-    cdef cmethod(self, s):
+    fn cmethod(self, s):
         for i in range(10):
             p = s + 3
         return p * 5

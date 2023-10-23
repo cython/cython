@@ -101,10 +101,10 @@ cdef extern from *:
     bool_future run_block_and_wait_with_gil() nogil
 
 cdef class C:
-    cdef int some_c_method(self) except -1 nogil:
+    fn int some_c_method(self) except -1 nogil:
         return 0
 
-    cdef int call_a_method_with_an_error_return(self) except -1 nogil:
+    fn int call_a_method_with_an_error_return(self) except -1 nogil:
         return self.some_c_method()
 
 def test_method_with_error_return():
@@ -120,7 +120,7 @@ def test_method_with_error_return():
     assert future.get()
 
 
-cdef inline float[:] _get_left_edge(float[::1] arr) nogil:
+fn inline float[:] _get_left_edge(float[::1] arr) nogil:
     return arr[:3]
 
 cdef class D:
@@ -128,7 +128,7 @@ cdef class D:
     def __cinit__(self, float a):
         self._a = a
 
-    cdef void call_me(self, float[::1] my_arr) noexcept nogil:
+    fn void call_me(self, float[::1] my_arr) noexcept nogil:
         cdef isize idx
         cdef f32[:] my_arr2 = _get_left_edge(my_arr)
         for idx in range(my_arr2.shape[0]):

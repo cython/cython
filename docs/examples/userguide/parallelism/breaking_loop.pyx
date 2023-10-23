@@ -1,7 +1,7 @@
 from cython.parallel import prange
 
-cdef i32 func(isize n) except -1:
-    cdef isize i
+fn i32 func(isize n) except -1:
+    let isize i
 
     for i in prange(n, nogil=true):
         if i == 8:

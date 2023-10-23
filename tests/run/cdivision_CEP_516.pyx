@@ -140,10 +140,9 @@ def complex_expression(i32 a, i32 b, i32 c, i32 d):
     """
     return (a // verbose_call(b)) % (verbose_call(c) // d)
 
-cdef i32 verbose_call(i32 x):
+fn i32 verbose_call(i32 x):
     print u"verbose_call(%s)" % x
     return x
-
 
 # These may segfault with cdivision
 
@@ -200,6 +199,6 @@ def c_div_const_test(a, b):
     """
     return c_div_const(a, b)
 
-cdef i64 c_div_const(const i64 a, i32 b):
+fn i64 c_div_const(const i64 a, i32 b):
     let i64 c = a / b
     return c

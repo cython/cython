@@ -35,9 +35,7 @@ cdef extern from "shapes.h" namespace "shapes":
         This is a docstring !
         """
 
-
     int constructor_count, destructor_count
-
 
 def test_new_del():
     """
@@ -52,7 +50,6 @@ def test_new_del():
     del rect, circ
     print constructor_count-c, destructor_count-d
 
-
 def test_default_constructor():
     """
     >>> test_default_constructor()
@@ -63,7 +60,6 @@ def test_default_constructor():
         return shape.area()
     finally:
         del shape
-
 
 def test_constructor_nogil():
     """
@@ -77,7 +73,6 @@ def test_constructor_nogil():
     finally:
         del shape
 
-
 def test_rect_area(w, h):
     """
     >>> test_rect_area(3, 4)
@@ -88,7 +83,6 @@ def test_rect_area(w, h):
         return rect.area()
     finally:
         del rect
-
 
 def test_overload_bint_int():
     """
@@ -106,7 +100,6 @@ def test_overload_bint_int():
         del rect1
         del rect2
 
-
 def test_square_area(w):
     """
     >>> test_square_area(15)
@@ -119,8 +112,7 @@ def test_square_area(w):
     finally:
         del sqr
 
-
-cdef double get_area(Rectangle s):
+fn double get_area(Rectangle s):
     return s.area()
 
 def test_value_call(int w):
@@ -134,7 +126,6 @@ def test_value_call(int w):
         return get_area(sqr[0]), get_area(rect[0])
     finally:
         del sqr
-
 
 cdef struct StructWithEmpty:
     Empty empty
@@ -191,7 +182,6 @@ def test_class_member():
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
 
-
 def test_derived_class_member():
     """
     >>> test_derived_class_member()
@@ -237,15 +227,13 @@ def test_template_class_member():
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
 
-
 ctypedef vector[int]* vector_int_ptr
-cdef vector[vector_int_ptr] create_to_delete() except *:
+fn vector[vector_int_ptr] create_to_delete() except *:
     let vector[vector_int_ptr] v
     v.push_back(new vector[int]())
     return v
-cdef int f(int x):
+fn int f(int x):
     return x
-
 
 def test_nested_del():
     """
@@ -255,7 +243,6 @@ def test_nested_del():
     v.push_back(new vector[int]())
     del v[0]
     del create_to_delete()[f(f(0))]
-
 
 def test_nested_del_repeat():
     """

@@ -47,7 +47,7 @@ cdef class SelfInClosure(object):
         """
         return self.closure_method_cdef_attr_c(t)
 
-    cdef closure_method_cdef_attr_c(self, Test t):
+    fn closure_method_cdef_attr_c(self, Test t):
         t.x = 2
         self._t = t
         self.x = 1

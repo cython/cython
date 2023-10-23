@@ -3,14 +3,12 @@
 def f(x, y):
     x = y
 
-
-cdef void g(int i, float f, char *p):
+fn void g(int i, float f, char *p):
     f = i
 
 
-cdef h(int i, obj):
+fn h(int i, obj):
     i = obj
-
 
 def z(a, b, c):
     """
@@ -21,7 +19,6 @@ def z(a, b, c):
     g(1, 2.0, "spam")
     g(a, b, c)
 
-
 def fail0(a, b):
     """
     >>> fail0(1,2)
@@ -30,7 +27,6 @@ def fail0(a, b):
     """
     f()
 
-
 def fail1(a, b):
     """
     >>> fail1(1,2)
@@ -38,7 +34,6 @@ def fail1(a, b):
     TypeError: f() takes exactly 2 positional arguments (1 given)
     """
     f(a)
-
 
 def failtype():
     """

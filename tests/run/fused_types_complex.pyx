@@ -8,9 +8,8 @@ cimport cython
 # We used to generate invalid C code for the fused default value assignment
 # (int -> complex) with CYTHON_CCOMPLEX=0.
 
-cdef cython.numeric fused_numeric_default(int a = 1, cython.numeric x = 0):
+fn cython.numeric fused_numeric_default(int a = 1, cython.numeric x = 0):
     return x + a
-
 
 def test_fused_numeric_default(int a, x):
     """

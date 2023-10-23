@@ -1,6 +1,6 @@
 # mode: error
 
-cdef void foo(obj):
+fn void foo(obj):
     let i32 i1
     let char *p1
     let i32 *p2

@@ -1,2 +1,2 @@
 cdef class C:
-    cdef void f(self) nogil
+    fn void f(self) nogil

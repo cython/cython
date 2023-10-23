@@ -79,7 +79,7 @@ def attribute_access(arg):
 
 cdef int count = 0
 
-cdef object getFoo():
+fn object getFoo():
      global count
      count += 1
      return Foo()

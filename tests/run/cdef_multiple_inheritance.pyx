@@ -2,7 +2,7 @@ cimport cython
 
 cdef class CBase(object):
     cdef int a
-    cdef c_method(self):
+    fn c_method(self):
         return "CBase"
     cpdef cpdef_method(self):
         return "CBase"
@@ -28,7 +28,7 @@ cdef class BothBound(CBase, PyBase):
     >>> isinstance(b, PyBase)
     True
     """
-    cdef c_method(self):
+    fn c_method(self):
         return "Both"
     cpdef cp_method(self):
         return "Both"
@@ -64,7 +64,7 @@ cdef class BothUnbound(CBase, PyBase):
     >>> isinstance(b, PyBase)
     True
     """
-    cdef c_method(self):
+    fn c_method(self):
         return "Both"
     cpdef cp_method(self):
         return "Both"

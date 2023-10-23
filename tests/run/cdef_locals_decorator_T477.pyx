@@ -2,11 +2,11 @@
 
 import cython
 @cython.locals(x=f64)
-cdef func(x):
+fn func(x):
     return x**2
 
 @cython.locals(x=f64)
-cdef func_defval(x=0):
+fn func_defval(x=0):
     return x**2
 
 def test():

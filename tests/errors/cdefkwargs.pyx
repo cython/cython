@@ -19,5 +19,5 @@ def call4():
 
 # the called function:
 
-cdef b(a, b, c=1, d=2):
+fn b(a, b, c=1, d=2):
     pass

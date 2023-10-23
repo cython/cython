@@ -9,11 +9,9 @@ def call_f(x):
     """
     return f(x)
 
-
-cdef f(x):                # def  here => works fine
-   def g(y): return y*x   # cdef here => compile error
-   return g(x)            # faults@ INCREF(.*cur_scope->.*v_x
-
+fn f(x):                     # def  here => works fine
+    def g(y): return y * x   # cdef here => compile error
+    return g(x)              # faults@ INCREF(.*cur_scope->.*v_x
 
 def closure_in_void():
     """
@@ -25,11 +23,9 @@ def closure_in_void():
     add_gen(l)
     return l[0]
 
-
-cdef void add_gen(l):
+fn void add_gen(l):
     x = "abc"
     l.append((c for c in x))
-
 
 def closure_in_int():
     """
@@ -41,7 +37,6 @@ def closure_in_int():
     add_gen_int(l)
     return l[0]
 
-
-cdef int add_gen_int(l):
+fn int add_gen_int(l):
     x = "abc"
     l.append((c for c in x))

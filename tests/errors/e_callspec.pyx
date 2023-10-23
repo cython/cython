@@ -7,30 +7,30 @@ ctypedef i32 USERTYPE
 # Functions
 
 @cython.callspec("")
-cdef void h1(): pass
+fn void h1(): pass
 
 @cython.callspec("__cdecl")
-cdef void __cdecl h2(): pass
+fn void __cdecl h2(): pass
 
 @cython.callspec("__stdcall")
-cdef void __stdcall h3(): pass
+fn void __stdcall h3(): pass
 
 @cython.callspec("__fastcall")
-cdef void __fastcall h4(): pass
+fn void __fastcall h4(): pass
 
-cdef USERTYPE h5(): return 0
+fn USERTYPE h5(): return 0
 
-cdef USERTYPE __cdecl h6(): return 0
+fn USERTYPE __cdecl h6(): return 0
 
-cdef USERTYPE __stdcall h7(): return 0
+fn USERTYPE __stdcall h7(): return 0
 
-cdef USERTYPE __fastcall h8(): return 0
-
-@cython.callspec("__cdecl")
-cdef void __stdcall herr1(): pass # fail
+fn USERTYPE __fastcall h8(): return 0
 
 @cython.callspec("__cdecl")
-cdef void __fastcall herr2(): pass # fail
+fn void __stdcall herr1(): pass # fail
+
+@cython.callspec("__cdecl")
+fn void __fastcall herr2(): pass # fail
 
 # Pointer typedefs
 
@@ -45,11 +45,11 @@ ctypedef USERTYPE (__fastcall *PT8)()
 
 # Pointers
 
-cdef void (*p1)()
-cdef void (__cdecl *p2)()
-cdef void (__stdcall *p3)()
-cdef void (__fastcall *p4)()
-cdef USERTYPE (*p5)()
+fn void (*p1)()
+fn void (__cdecl *p2)()
+fn void (__stdcall *p3)()
+fn void (__fastcall *p4)()
+fn USERTYPE (*p5)()
 cdef USERTYPE (__cdecl *p6)()
 cdef USERTYPE (__stdcall *p7)()
 cdef USERTYPE (__fastcall *p8)()
@@ -84,8 +84,8 @@ p8 = pt8 = h8
 #p2 = h4 # fail
 
 _ERRORS = u"""
-30:25: cannot have both '__stdcall' and '__cdecl' calling conventions
-33:26: cannot have both '__fastcall' and '__cdecl' calling conventions
+30:23: cannot have both '__stdcall' and '__cdecl' calling conventions
+33:24: cannot have both '__fastcall' and '__cdecl' calling conventions
 """
 #31:14: Cannot assign type 'void (__cdecl )(void)' to 'void (*)(void)'
 #32:14: Cannot assign type 'void (__stdcall )(void)' to 'void (*)(void)'

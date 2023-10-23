@@ -1,4 +1,4 @@
 # mode: compile
 
 cdef extern:
-    cdef func(i32[])
+    fn func(i32[])

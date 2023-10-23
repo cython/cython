@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef void spam():
+fn void spam():
     eggs = None
 
 spam()

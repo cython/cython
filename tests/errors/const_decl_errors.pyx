@@ -10,8 +10,8 @@ cdef const i32 x = 10
 cdef struct S:
     int member
 
-cdef func(const i32 a, const i32* b, const (i32*) c, const S s, i32 *const d, i32 **const e, i32 *const *f,
-          const S *const t):
+fn func(const i32 a, const i32* b, const (i32*) c, const S s, i32 *const d, i32 **const e, i32 *const *f,
+        const S *const t):
     a = 10
     c = NULL
     b[0] = 100

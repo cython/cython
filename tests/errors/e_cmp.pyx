@@ -1,6 +1,6 @@
 # mode: error
 
-cdef void foo():
+fn void foo():
 	cdef i32 bool, int1
 	cdef char *ptr2
 	cdef i32 *ptr3

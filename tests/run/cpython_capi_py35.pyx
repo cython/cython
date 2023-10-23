@@ -7,7 +7,7 @@
 
 from cpython cimport mem
 
-cdef short _assert_calloc(short* s, int n) except -1 with gil:
+fn short _assert_calloc(short* s, int n) except -1 with gil:
     """Assert array ``s`` of length ``n`` is zero and return 3."""
     assert not s[0] and not s[n - 1]
     s[0] += 1

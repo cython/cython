@@ -1,6 +1,6 @@
 # mode: error
 
-cdef spam(i32 i, char *s = "blarg", f32 f): # can't have default value
+fn spam(i32 i, char *s = "blarg", f32 f):  # can't have default value
     pass
 
 def swallow(x, y = 42, z): # non-default after default
@@ -18,8 +18,8 @@ cdef class Grail:
         pass
 
 _ERRORS = u"""
-3:9: Non-default argument follows default argument
-3:36: Non-default argument following default argument
+3:7: Non-default argument follows default argument
+3:34: Non-default argument following default argument
 6:23: Non-default argument following default argument
 11:19: This argument cannot have a default value
 14:22: This argument cannot have a non-None default value

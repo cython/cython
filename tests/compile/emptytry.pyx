@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef void f():
+fn void f():
     try:
         pass
     finally:

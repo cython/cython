@@ -1,4 +1,3 @@
-
 cimport cython
 
 cdef extern from *:
@@ -135,9 +134,8 @@ def slice_charptr_decode_large_bounds():
             cstring[PY_SSIZE_T_MIN:PY_SSIZE_T_MIN].decode('UTF-8'),
             cstring[PY_SSIZE_T_MAX:PY_SSIZE_T_MAX].decode('UTF-8'))
 
-
-cdef return1(): return 1
-cdef return3(): return 3
-cdef return4(): return 4
-cdef return5(): return 5
-cdef return9(): return 9
+fn return1(): return 1
+fn return3(): return 3
+fn return4(): return 4
+fn return5(): return 5
+fn return9(): return 9

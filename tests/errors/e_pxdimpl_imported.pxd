@@ -1,6 +1,6 @@
 
 cdef class A:
-    cdef i32 test(self)
+    fn i32 test(self)
 
     # Should give error:
     def somefunc(self):

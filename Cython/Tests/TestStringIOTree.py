@@ -5,7 +5,7 @@ from Cython import StringIOTree as stringtree
 code = """
 cdef int spam                   # line 1
 
-cdef ham():
+fn ham():
     a = 1
     b = 2
     c = 3

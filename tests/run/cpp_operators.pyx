@@ -11,18 +11,14 @@ from cython.operator cimport typeid, dereference as deref
 from libc.string cimport const_char
 from libcpp cimport bool
 
-
-cdef out(s, result_type=None):
+fn out(s, result_type=None):
     print '%s [%s]' % (s.decode('ascii'), result_type)
 
-
-cdef iout(int s, result_type=None):
+fn iout(int s, result_type=None):
     print '%s [%s]' % (s, result_type)
-
 
 cdef extern from "cpp_operators_helper.h" nogil:
     cdef cppclass TestOps:
-
         const_char* operator+() except +
         const_char* operator-() except +
         const_char* operator*() except +
@@ -293,7 +289,6 @@ def test_cmp():
     out(t[0] < 1, typeof(t[0] < 1))
     del t
 
-
 def test_index_call():
     """
     >>> test_index_call()
@@ -304,7 +299,6 @@ def test_index_call():
     out(t[0][100], typeof(t[0][100]))
     out(t[0](100), typeof(t[0](100)))
     del t
-
 
 def test_index_assignment():
     """
@@ -317,7 +311,6 @@ def test_index_assignment():
     t[0][99] = 123
     iout(t[0](100), typeof(t[0](100)))
     del t
-
 
 def test_bool_op():
     """
@@ -345,7 +338,6 @@ def test_bool_cond():
     assert (TruthClass(false) and TruthClass(true)).value == False
     assert (TruthClass(true) and TruthClass(false)).value == False
     assert (TruthClass(true) and TruthClass(true)).value == True
-
 
 ctypedef int* int_ptr
 

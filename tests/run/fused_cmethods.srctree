@@ -133,17 +133,17 @@ from cython cimport integral
 
 cdef class Registers:
     cdef unsigned long long regs[1]
-    cdef void nonFusedTop(self, unsigned short regId, unsigned int value)
-    cdef void regWriteWithOpWords(self, unsigned short regId, integral value)
-    cdef void nonFusedMiddle(self, unsigned short regId, unsigned int value)
-    cdef void setFullFlags(self, integral reg0, unsigned int reg1)
-    cdef void nonFusedBottom(self, unsigned short regId, unsigned int value)
-    cdef void lastFusedImplFirst(self, integral reg0, unsigned int reg1)
+    fn void nonFusedTop(self, unsigned short regId, unsigned int value)
+    fn void regWriteWithOpWords(self, unsigned short regId, integral value)
+    fn void nonFusedMiddle(self, unsigned short regId, unsigned int value)
+    fn void setFullFlags(self, integral reg0, unsigned int reg1)
+    fn void nonFusedBottom(self, unsigned short regId, unsigned int value)
+    fn void lastFusedImplFirst(self, integral reg0, unsigned int reg1)
 
 
 cdef class SubRegisters(Registers):
-    cdef void fusedSub(self, integral reg0, unsigned int reg1)
-    cdef void nonFusedSub(self, unsigned short regId, unsigned int value)
+    fn void fusedSub(self, integral reg0, unsigned int reg1)
+    fn void nonFusedSub(self, unsigned short regId, unsigned int value)
 
 
 ######## pkg/registers.pyx ########
@@ -154,32 +154,32 @@ cdef class Registers:
     def __init__(self):
         pass
 
-    cdef void lastFusedImplFirst(self, integral reg0, unsigned int reg1):
+    fn void lastFusedImplFirst(self, integral reg0, unsigned int reg1):
         called.append("lastFusedImplFirst was called")
 
-    cdef void nonFusedTop(self, unsigned short regId, unsigned int value):
+    fn void nonFusedTop(self, unsigned short regId, unsigned int value):
         called.append("nonFusedTop was called")
 
-    cdef void regWriteWithOpWords(self, unsigned short regId, integral value):
+    fn void regWriteWithOpWords(self, unsigned short regId, integral value):
         called.append("regWriteWithOpWords was called")
         self.regs[regId] = value
         called.append("regWriteWithOpWords leave function")
 
-    cdef void nonFusedMiddle(self, unsigned short regId, unsigned int value):
+    fn void nonFusedMiddle(self, unsigned short regId, unsigned int value):
         called.append("nonFusedMiddle was called")
 
-    cdef void setFullFlags(self, integral reg0, unsigned int reg1):
+    fn void setFullFlags(self, integral reg0, unsigned int reg1):
         called.append("setFullFlags was called")
 
-    cdef void nonFusedBottom(self, unsigned short regId, unsigned int value):
+    fn void nonFusedBottom(self, unsigned short regId, unsigned int value):
         called.append("nonFusedBottom was called")
 
 
 cdef class SubRegisters(Registers):
-    cdef void fusedSub(self, integral reg0, unsigned int reg1):
+    fn void fusedSub(self, integral reg0, unsigned int reg1):
         called.append("fusedSub was called")
 
-    cdef void nonFusedSub(self, unsigned short regId, unsigned int value):
+    fn void nonFusedSub(self, unsigned short regId, unsigned int value):
         called.append("nonFusedSub was called")
 
 
@@ -188,9 +188,9 @@ cdef class SubRegisters(Registers):
 from .registers cimport *
 
 cdef class SubSubRegisters(SubRegisters):
-    cdef void fusedSubSubFirst(self, integral reg0, unsigned int reg1)
-    cdef void nonFusedSubSub(self, unsigned short regId, unsigned int value)
-    cdef void fusedSubSubLast(self, integral reg0, unsigned int reg1)
+    fn void fusedSubSubFirst(self, integral reg0, unsigned int reg1)
+    fn void nonFusedSubSub(self, unsigned short regId, unsigned int value)
+    fn void fusedSubSubLast(self, integral reg0, unsigned int reg1)
 
 
 ######## pkg/sub.pyx ########
@@ -198,11 +198,11 @@ cdef class SubSubRegisters(SubRegisters):
 from . import called
 
 cdef class SubSubRegisters(SubRegisters):
-    cdef void fusedSubSubFirst(self, integral reg0, unsigned int reg1):
+    fn void fusedSubSubFirst(self, integral reg0, unsigned int reg1):
         called.append("fusedSubSubFirst was called")
 
-    cdef void nonFusedSubSub(self, unsigned short regId, unsigned int value):
+    fn void nonFusedSubSub(self, unsigned short regId, unsigned int value):
         called.append("nonFusedSubSub was called")
 
-    cdef void fusedSubSubLast(self, integral reg0, unsigned int reg1):
+    fn void fusedSubSubLast(self, integral reg0, unsigned int reg1):
         called.append("fusedSubSubLast was called")

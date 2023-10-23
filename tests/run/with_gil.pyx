@@ -19,7 +19,7 @@ def redirect_stderr(func, *args, **kwargs):
     func(*args, **kwargs)
     sys.stderr = stderr
 
-cdef void puts(char *string) with gil:
+fn void puts(char *string) with gil:
     """
     We need this for doctest, used from nogil sections.
     """
@@ -259,7 +259,7 @@ cpdef test_cpdef():
 
 # Now test some cdef functions with different return types
 
-cdef void void_nogil_ignore_exception() noexcept nogil:
+fn void void_nogil_ignore_exception() noexcept nogil:
     with gil:
         raise ExceptionWithMsg("This is swallowed")
 
@@ -267,7 +267,7 @@ cdef void void_nogil_ignore_exception() noexcept nogil:
     with gil:
         print "unreachable"
 
-cdef void void_nogil_nested_gil() noexcept nogil:
+fn void void_nogil_nested_gil() noexcept nogil:
     with gil:
         with nogil:
             with gil:
@@ -304,7 +304,7 @@ def test_nogil_void_funcs_with_nogil():
         void_nogil_nested_gil()
 
 
-cdef PyObject *nogil_propagate_exception() except NULL nogil:
+fn PyObject *nogil_propagate_exception() except NULL nogil:
     with nogil:
         with gil:
             raise Exception("This exception propagates!")
@@ -320,7 +320,7 @@ def test_nogil_propagate_exception():
     nogil_propagate_exception()
 
 
-cdef with_gil_raise() with gil:
+fn with_gil_raise() with gil:
     raise Exception("This exception propagates!")
 
 def test_release_gil_call_gil_func():
@@ -423,7 +423,7 @@ def test_nogil_try_finally_return_in_with_gil(x):
 
     print "I am not executed"
 
-cdef void nogil_try_finally_return() nogil:
+fn void nogil_try_finally_return() nogil:
     try:
         with gil:
             raise Exception("I am swallowed in nogil code... right?")
@@ -444,7 +444,7 @@ def test_nogil_try_finally_return():
     with nogil:
         nogil_try_finally_return()
 
-cdef int error_func() except -1 with gil:
+fn int error_func() except -1 with gil:
     raise Exception("propagate this")
 
 def test_nogil_try_finally_error_label():
@@ -471,7 +471,7 @@ def void_with_python_objects():
         _void_with_python_objects()
 
 
-cdef void _void_with_python_objects() nogil:
+fn void _void_with_python_objects() nogil:
     c = 123
     with gil:
         obj1 = [123]
@@ -486,13 +486,13 @@ def void_with_py_arg_reassigned(x):
         _void_with_py_arg_reassigned(x)
 
 
-cdef void _void_with_py_arg_reassigned(x) nogil:
+fn void _void_with_py_arg_reassigned(x) nogil:
     c = 123
     with gil:
         x = [456]
 
 
-cdef void test_timing_callback() with gil:
+fn void test_timing_callback() with gil:
   pass
 
 def test_timing(long N):

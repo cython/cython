@@ -53,7 +53,7 @@ def complex_conjugate_nonsimple_float():
     x = float(1.0).conjugate()
     return x
 
-cdef f64 float_result():
+fn f64 float_result():
     return 1.0
 
 def complex_conjugate_nonsimple():

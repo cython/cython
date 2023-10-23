@@ -5,17 +5,17 @@ cdef union Spam:
 
 cdef Spam spam, ham
 
-cdef void eggs_i(Spam s):
+fn void eggs_i(Spam s):
     let i32 j
     j = s.i
     s.i = j
 
-cdef void eggs_c(Spam s):
+fn void eggs_c(Spam s):
     let char c
     c = s.c
     s.c = c
 
-cdef void eggs_p(Spam s):
+fn void eggs_p(Spam s):
     let float *p
     p = s.p[0]
     s.p[0] = p

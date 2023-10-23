@@ -7,11 +7,11 @@ cdef extern from "nogil.h":
         void e1() nogil
         i32 *e2() nogil
 
-cdef void f(i32 x) nogil:
+fn void f(i32 x) nogil:
         cdef i32 y
         y = 42
 
-cdef void h(object x) nogil:
+fn void h(object x) nogil:
         cdef void *p=<void*>None
         g2(x)
         g2(<object>p)

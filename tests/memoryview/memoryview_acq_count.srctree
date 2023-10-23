@@ -34,7 +34,7 @@ cdef isize i
 for i in prange(1000000, nogil=true, num_threads=16):
     use_slice(m[::2])
 
-cdef i32 use_slice(i32[:] m) except -1 nogil:
+fn i32 use_slice(i32[:] m) except -1 nogil:
     cdef i32[:] m2 = m[1:]
     m = m2[:-1]
     del m, m2

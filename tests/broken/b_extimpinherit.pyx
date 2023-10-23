@@ -1,7 +1,6 @@
 cdef class Parrot:
-
-    cdef describe(self):
+    fn describe(self):
         print "This is a parrot."
 
-    cdef action(self):
+    fn action(self):
         print "Polly wants a cracker!"

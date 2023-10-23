@@ -315,7 +315,7 @@ def test_nan_init():
         c1 = 16
 
 
-cdef void nogil_print(char *s) noexcept with gil:
+fn void nogil_print(char *s) noexcept with gil:
     print s.decode('ascii')
 
 def test_else_clause():
@@ -406,7 +406,7 @@ def test_nested_break_continue():
 
     print i
 
-cdef i32 parallel_return() noexcept nogil:
+fn i32 parallel_return() noexcept nogil:
     let i32 i
 
     for i in prange(10):
@@ -475,7 +475,7 @@ def test_parallel_exceptions_unnested():
         print mylist[0]
         print e.args, sum
 
-cdef i32 parallel_exc_cdef() except -3:
+fn i32 parallel_exc_cdef() except -3:
     let i32 i, j
     for i in prange(10, nogil=true):
         for j in prange(10, num_threads=6):
@@ -484,7 +484,7 @@ cdef i32 parallel_exc_cdef() except -3:
 
     return 0
 
-cdef i32 parallel_exc_cdef_unnested() except -3:
+fn i32 parallel_exc_cdef_unnested() except -3:
     let i32 i
     for i in prange(10, nogil=true):
         with gil:
@@ -529,7 +529,7 @@ def test_parallel_exc_cpdef():
     parallel_exc_cpdef_unnested()
     parallel_exc_cpdef()
 
-cdef i32 parallel_exc_nogil_swallow() except -1:
+fn i32 parallel_exc_nogil_swallow() except -1:
     let i32 i, j
     for i in prange(10, nogil=true):
         try:
@@ -541,7 +541,7 @@ cdef i32 parallel_exc_nogil_swallow() except -1:
 
     return 0
 
-cdef i32 parallel_exc_nogil_swallow_unnested() except -1:
+fn i32 parallel_exc_nogil_swallow_unnested() except -1:
     let i32 i
     with nogil:
         try:
@@ -638,7 +638,7 @@ def test_parallel_with_gil_continue_unnested():
     print sum
 
 
-cdef i32 inner_parallel_section() noexcept nogil:
+fn i32 inner_parallel_section() noexcept nogil:
     let i32 j, sum = 0
     for j in prange(10):
         sum += j
@@ -654,10 +654,10 @@ def outer_parallel_section():
         sum += inner_parallel_section()
     return sum
 
-cdef i32 nogil_cdef_except_clause() except -1 nogil:
+fn i32 nogil_cdef_except_clause() except -1 nogil:
     return 1
 
-cdef void nogil_cdef_except_star() except * nogil:
+fn void nogil_cdef_except_star() except * nogil:
     pass
 
 def test_nogil_cdef_except_clause():
@@ -681,7 +681,7 @@ def test_num_threads_compile():
         for i in prange(10):
             pass
 
-cdef i32 chunksize() noexcept nogil:
+fn i32 chunksize() noexcept nogil:
     return 3
 
 def test_chunksize():
@@ -815,11 +815,11 @@ def test_inner_private():
 
     print('ok')
 
-cdef void prange_exception_checked_function(i32* ptr, i32 id) except * nogil:
+fn void prange_exception_checked_function(i32* ptr, i32 id) except * nogil:
     # requires the GIL after each call
     ptr[0] = id;
 
-cdef void prange_call_exception_checked_function_impl(i32* arr, i32 N) nogil:
+fn void prange_call_exception_checked_function_impl(i32* arr, i32 N) nogil:
     # Inside a nogil function, prange can't be sure the GIL has been released.
     # Therefore Cython must release the GIL itself.
     # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL

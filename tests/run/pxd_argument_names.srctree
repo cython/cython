@@ -16,21 +16,19 @@ setup(
 
 ######## a.pxd ########
 
-cdef int do_stuff(int foo) except -1
+fn int do_stuff(int foo) except -1
 
 ######## a.pyx ########
 
-cdef int do_stuff(int bar) except -1:
+fn int do_stuff(int bar) except -1:
     if bar == 0:
         raise ValueError()
     return bar
 
-
-cdef call_do_stuff(int x):
+fn call_do_stuff(int x):
     # The keyword argument name is surprising, but actually correct.
     # The caller signature is defined by the .pxd file, not the implementation.
     return do_stuff(foo=x)
-
 
 def test():
     assert do_stuff(1) == 1

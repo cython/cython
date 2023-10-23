@@ -4,7 +4,7 @@ cimport cython
 
 DTYPE = np.intc
 
-cdef i32 clip(i32 a, i32 min_value, i32 max_value):
+fn i32 clip(i32 a, i32 min_value, i32 max_value):
     return min(max(a, min_value), max_value)
 
 @cython.boundscheck(false)

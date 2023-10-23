@@ -1,6 +1,6 @@
 # cython: language_level=3
 
-cdef f64 f(f64 x) except? -2:
+fn f64 f(f64 x) except? -2:
     return x ** 2 - x
 
 def integrate_f(f64 a, f64 b, i32 N):

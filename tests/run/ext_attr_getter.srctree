@@ -185,23 +185,23 @@ def check_pyobj(Foo f):
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque, check_size ignore]:
         @property
-        cdef inline i32 fieldM0(self):
+        fn inline i32 fieldM0(self):
             return PyFoo_GET0M(self)
 
         @property
-        cdef inline i32 fieldF1(self) except -123:
+        fn inline i32 fieldF1(self) except -123:
             return PyFoo_Get1F(self)
 
         @property
-        cdef inline i32 fieldM2(self):
+        fn inline i32 fieldM2(self):
             return PyFoo_GET2M(self)
 
         @property
-        cdef inline i32 *vector(self):
+        fn inline i32 *vector(self):
             return PyFoo_GetV(self)
 
         @property
-        cdef inline i32 meaning_of_life(self) except -99:
+        fn inline i32 meaning_of_life(self) except -99:
             cdef i32 ret = 21
             ret *= 2
             return ret
@@ -253,7 +253,7 @@ cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
         @classmethod
-        cdef inline i32 field0(cls):
+        fn inline i32 field0(cls):
             print('in classmethod of Foo')
 
 
@@ -264,11 +264,11 @@ cdef extern from "foo.h":
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
-        cdef inline i32 field0(self):
+        fn inline i32 field0(self):
             pass
 
         @field0.getter
-        cdef inline void field1(self):
+        fn inline void field1(self):
             pass
 
 
@@ -279,7 +279,7 @@ cdef extern from "foo.h":
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
-        cdef i32 field0(self):
+        fn i32 field0(self):
             pass
 
 
@@ -290,7 +290,7 @@ cdef extern from "foo.h":
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
-        cdef void field0(self):
+        fn void field0(self):
             pass
 
 
@@ -301,7 +301,7 @@ cdef extern from "foo.h":
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
-        cdef i32 field0():
+        fn i32 field0():
             pass
 
 
@@ -312,7 +312,7 @@ cdef extern from "foo.h":
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
         @property
-        cdef i32 field0(x, y):
+        fn i32 field0(x, y):
             pass
 
 

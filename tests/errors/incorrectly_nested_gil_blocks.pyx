@@ -7,13 +7,13 @@ with nogil:
     with nogil:
         pass
 
-cdef void without_gil() nogil:
+fn void without_gil() nogil:
    # This is not an error, as 'func' *may* be called without the GIL, but it
    # may also be held.
     with nogil:
         pass
 
-cdef void with_gil() with gil:
+fn void with_gil() with gil:
     # This is an error, as the GIL is acquired already
     with gil:
         pass

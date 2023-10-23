@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef void spam():
+fn void spam():
     let i32 i, j=0, k=0
     for i from 0 <= i < 10:
         j = k

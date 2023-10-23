@@ -6,7 +6,7 @@ cdef enum Spam:
     D, E, F
     G = 42
 
-cdef void eggs():
+fn void eggs():
     let Spam s1, s2 = A
     let i32 i
     s1 = s2

@@ -66,7 +66,7 @@ cdef extern from *:
     # might raise C++ exception (thus needs a temp)
     NoAssign get_NoAssign_Cpp() except +
 
-cdef internal_cpp_func(NoAssign arg):
+fn internal_cpp_func(NoAssign arg):
     pass
 
 def test_call_to_function():

@@ -7,7 +7,7 @@
 (10, 10, 0)
 """
 
-cdef int get_step():
+fn int get_step():
     """
     This should only be called once, when used in range().
     """

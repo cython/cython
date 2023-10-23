@@ -95,7 +95,7 @@ def nogil_test(L):
     finally:
         del l
 
-cdef list to_pylist(cpp_list[i32]& l):
+fn list to_pylist(cpp_list[i32]& l):
     let list L = []
     it = l.begin()
     while it != l.end():

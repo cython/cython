@@ -6,16 +6,14 @@ __doc__ = u"""
 
 
 cdef class Parrot:
-
-    cdef void describe(self):
+    fn void describe(self):
         print u"This parrot is resting."
 
     def describe_python(self):
         self.describe()
 
 cdef class Norwegian(Parrot):
-
-    cdef void describe(self):
+    fn void describe(self):
         print u"Lovely plumage!"
 
 def test():

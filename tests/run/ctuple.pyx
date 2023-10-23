@@ -2,7 +2,6 @@
 
 import cython
 
-
 def simple_convert(*o):
     """
     >>> simple_convert(1, 2)
@@ -17,7 +16,6 @@ def simple_convert(*o):
     """
     let (int, double) xy = o
     return xy
-
 
 def convert_from_list(*o):
     """
@@ -35,7 +33,6 @@ def convert_from_list(*o):
     let (int, double) xy = values
     return xy
 
-
 def convert_from_deque(*o):
     """
     >>> convert_from_deque(1, 2)
@@ -52,7 +49,6 @@ def convert_from_deque(*o):
     let object values = deque(o)
     let (int, double) xy = values
     return xy
-
 
 def indexing((int, double) xy):
     """
@@ -73,7 +69,7 @@ def unpacking((int, double) xy):
     x, y = xy
     return x, y
 
-cdef (int, double) side_effect((int, double) xy):
+fn (int, double) side_effect((int, double) xy):
     print "called with", xy
     return xy
 
@@ -129,11 +125,9 @@ def c_types(int a, double b):
     a_ptr, b_ptr = ab
     return a_ptr[0], b_ptr[0]
 
-
 cdef union Union:
     int x
     double y
-
 
 def union_in_ctuple_literal():
     """
@@ -143,7 +137,6 @@ def union_in_ctuple_literal():
     let (Union,) a = ({"x": 1},)
     let (Union,) b = ({"y": 2},)
     return a[0].x, b[0].y
-
 
 def union_in_ctuple_dynamic(*values):
     """
@@ -158,8 +151,7 @@ def union_in_ctuple_dynamic(*values):
     let (int, Union) a = values
     return a[1].x if a[0] == 1 else a[1].y
 
-
-cdef (int, int*) cdef_ctuple_return_type(int x, int* x_ptr):
+fn (int, int*) cdef_ctuple_return_type(int x, int* x_ptr):
     return x, x_ptr
 
 def call_cdef_ctuple_return_type(int x):
@@ -170,14 +162,12 @@ def call_cdef_ctuple_return_type(int x):
     let (int, int*) res = cdef_ctuple_return_type(x, &x)
     return res[0], res[1][0]
 
-
 cpdef (int, double) cpdef_ctuple_return_type(int x, double y):
     """
     >>> cpdef_ctuple_return_type(1, 2)
     (1, 2.0)
     """
     return x, y
-
 
 def cast_to_ctuple(*o):
     """
@@ -188,7 +178,6 @@ def cast_to_ctuple(*o):
     let double y
     x, y = <(int, double)>o
     return x, y
-
 
 @cython.infer_types(true)
 def test_type_inference():
@@ -202,7 +191,6 @@ def test_type_inference():
     assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
     xo = (x, o)
     assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
-
 
 @cython.locals(a=(int,int), b=(cython.long,cython.float))
 def test_pure_python_declaration(x, y):
@@ -224,7 +212,6 @@ def test_pure_python_declaration(x, y):
     print(cython.typeof(a))
     print(cython.typeof(b))
     return (a, b)
-
 
 def test_equality((int, int) ab, (int, int) cd, (int, int) ef):
     """

@@ -191,10 +191,10 @@ cdef extern from *:
     """
     let vector[i32] make_vec1() except +
 
-cdef vector[i32] make_vec2() except *:
+fn vector[i32] make_vec2() except *:
     return make_vec1()
 
-cdef vector[i32] make_vec3():
+fn vector[i32] make_vec3():
     try:
         return make_vec1()
     except:
@@ -247,7 +247,7 @@ cdef extern from "cpp_iterators_over_attribute_of_rvalue_support.h":
         HasIterableAttribute()
         HasIterableAttribute(vector[i32])
 
-cdef HasIterableAttribute get_object_with_iterable_attribute():
+fn HasIterableAttribute get_object_with_iterable_attribute():
     return HasIterableAttribute()
 
 def test_iteration_over_attribute_of_call():
@@ -376,7 +376,6 @@ def test_non_built_in_reversed_function(py_v):
         vint.push_back(e)
     for e in reversed(vint):
         print(e)
-
 
 # Not strictly a C++ iterator test, but an issue with generator
 # expressions and iteration from c++ const attributes so in this

@@ -8,7 +8,7 @@ __doc__ = """
 (1, 1.2, None, None)
 """
 
-cdef c_function(int a, float b, c, list d):
+fn c_function(int a, float b, c, list d):
     return a,b,c,d
 
 def call_with_tuple(*args):

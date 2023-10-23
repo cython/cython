@@ -247,25 +247,25 @@ cdef extern from "numpy/arrayobject.h":
         # Instead, we use properties that map to the corresponding C-API functions.
 
         @property
-        cdef inline PyObject* base(self) nogil:
+        fn inline PyObject* base(self) nogil:
             """Returns a borrowed reference to the object owning the data/memory.
             """
             return PyArray_BASE(self)
 
         @property
-        cdef inline dtype descr(self):
+        fn inline dtype descr(self):
             """Returns an owned reference to the dtype of the array.
             """
             return <dtype>PyArray_DESCR(self)
 
         @property
-        cdef inline int ndim(self) nogil:
+        fn inline int ndim(self) nogil:
             """Returns the number of dimensions in the array.
             """
             return PyArray_NDIM(self)
 
         @property
-        cdef inline npy_intp *shape(self) nogil:
+        fn inline npy_intp *shape(self) nogil:
             """Returns a pointer to the dimensions/shape of the array.
             The number of elements matches the number of dimensions of the array (ndim).
             Can return NULL for 0-dimensional arrays.
@@ -273,20 +273,20 @@ cdef extern from "numpy/arrayobject.h":
             return PyArray_DIMS(self)
 
         @property
-        cdef inline npy_intp *strides(self) nogil:
+        fn inline npy_intp *strides(self) nogil:
             """Returns a pointer to the strides of the array.
             The number of elements matches the number of dimensions of the array (ndim).
             """
             return PyArray_STRIDES(self)
 
         @property
-        cdef inline npy_intp size(self) nogil:
+        fn inline npy_intp size(self) nogil:
             """Returns the total size (in number of elements) of the array.
             """
             return PyArray_SIZE(self)
 
         @property
-        cdef inline char* data(self) nogil:
+        fn inline char* data(self) nogil:
             """The pointer to the data buffer as a char*.
             This is provided for legacy reasons to avoid direct struct field access.
             For new code that needs this access, you probably want to cast the result
@@ -776,27 +776,26 @@ ctypedef npy_clongdouble clongdouble_t
 
 ctypedef npy_cdouble     complex_t
 
-cdef inline object PyArray_MultiIterNew1(a):
+fn inline object PyArray_MultiIterNew1(a):
     return PyArray_MultiIterNew(1, <void*>a)
 
-cdef inline object PyArray_MultiIterNew2(a, b):
+fn inline object PyArray_MultiIterNew2(a, b):
     return PyArray_MultiIterNew(2, <void*>a, <void*>b)
 
-cdef inline object PyArray_MultiIterNew3(a, b, c):
+fn inline object PyArray_MultiIterNew3(a, b, c):
     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)
 
-cdef inline object PyArray_MultiIterNew4(a, b, c, d):
+fn inline object PyArray_MultiIterNew4(a, b, c, d):
     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)
 
-cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):
+fn inline object PyArray_MultiIterNew5(a, b, c, d, e):
     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
 
-cdef inline tuple PyDataType_SHAPE(dtype d):
+fn inline tuple PyDataType_SHAPE(dtype d):
     if PyDataType_HASSUBARRAY(d):
         return <tuple>d.subarray.shape
     else:
         return ()
-
 
 cdef extern from "numpy/ndarrayobject.h":
     PyTypeObject PyTimedeltaArrType_Type
@@ -972,11 +971,11 @@ cdef extern from "numpy/ufuncobject.h":
 
     int _import_umath() except -1
 
-cdef inline void set_array_base(ndarray arr, object base):
+fn inline void set_array_base(ndarray arr, object base):
     Py_INCREF(base) # important to do this before stealing the reference below!
     PyArray_SetBaseObject(arr, base)
 
-cdef inline object get_array_base(ndarray arr):
+fn inline object get_array_base(ndarray arr):
     base = PyArray_BASE(arr)
     if base is NULL:
         return None
@@ -984,26 +983,26 @@ cdef inline object get_array_base(ndarray arr):
 
 # Versions of the import_* functions which are more suitable for
 # Cython code.
-cdef inline int import_array() except -1:
+fn inline int import_array() except -1:
     try:
         __pyx_import_array()
     except Exception:
         raise ImportError("numpy.core.multiarray failed to import")
 
-cdef inline int import_umath() except -1:
+fn inline int import_umath() except -1:
     try:
         _import_umath()
     except Exception:
         raise ImportError("numpy.core.umath failed to import")
 
-cdef inline int import_ufunc() except -1:
+fn inline int import_ufunc() except -1:
     try:
         _import_umath()
     except Exception:
         raise ImportError("numpy.core.umath failed to import")
 
 
-cdef inline bint is_timedelta64_object(object obj):
+fn inline bint is_timedelta64_object(object obj):
     """
     Cython equivalent of `isinstance(obj, np.timedelta64)`
 
@@ -1017,8 +1016,7 @@ cdef inline bint is_timedelta64_object(object obj):
     """
     return PyObject_TypeCheck(obj, &PyTimedeltaArrType_Type)
 
-
-cdef inline bint is_datetime64_object(object obj):
+fn inline bint is_datetime64_object(object obj):
     """
     Cython equivalent of `isinstance(obj, np.datetime64)`
 
@@ -1032,8 +1030,7 @@ cdef inline bint is_datetime64_object(object obj):
     """
     return PyObject_TypeCheck(obj, &PyDatetimeArrType_Type)
 
-
-cdef inline npy_datetime get_datetime64_value(object obj) nogil:
+fn inline npy_datetime get_datetime64_value(object obj) nogil:
     """
     returns the int64 value underlying scalar numpy datetime64 object
 
@@ -1042,15 +1039,13 @@ cdef inline npy_datetime get_datetime64_value(object obj) nogil:
     """
     return (<PyDatetimeScalarObject*>obj).obval
 
-
-cdef inline npy_timedelta get_timedelta64_value(object obj) nogil:
+fn inline npy_timedelta get_timedelta64_value(object obj) nogil:
     """
     returns the int64 value underlying scalar numpy timedelta64 object
     """
     return (<PyTimedeltaScalarObject*>obj).obval
 
-
-cdef inline NPY_DATETIMEUNIT get_datetime64_unit(object obj) nogil:
+fn inline NPY_DATETIMEUNIT get_datetime64_unit(object obj) nogil:
     """
     returns the unit part of the dtype for a numpy datetime64 object.
     """

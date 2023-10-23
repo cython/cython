@@ -16,14 +16,14 @@ setup(
 cdef class A:
     pass
 
-cdef int foo(int)
+fn int foo(int)
 
 ######## other.pyx ########
 
 cdef class A:
     pass
 
-cdef int foo(int a):
+fn int foo(int a):
      return a**2
 
 ######## pkg/__init__.py ########
@@ -49,7 +49,7 @@ print(A, foo(10))
 
 cimport other
 
-cdef call_fooptr(int (*fptr)(int)):
+fn call_fooptr(int (*fptr)(int)):
     return fptr(10)
 
 def call_other_foo():

@@ -1,6 +1,5 @@
-cdef sorteditems(d):
+fn sorteditems(d):
     return tuple(sorted(d.items()))
-
 
 def spam(x, y, z):
     """
@@ -122,7 +121,6 @@ def t_kwonly(*a, k):
     True
     """
     return a
-
 
 def test_no_copy_args(func, **kw):
     """

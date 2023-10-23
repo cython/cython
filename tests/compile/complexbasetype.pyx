@@ -2,7 +2,7 @@
 
 cdef extern (int *[42]) spam, grail, swallow
 
-cdef (int (*)()) brian():
+fn (int (*)()) brian():
     return NULL
 
 brian()

@@ -17,6 +17,6 @@ cdef class TransitionMap:
     cpdef iteritems(self)
 
     @cython.locals(map=list, lo=cython.isize, mid=cython.isize, hi=cython.isize)
-    cdef split(self, i64 code)
+    fn split(self, i64 code)
 
-    cdef get_special(self, event)
+    fn get_special(self, event)

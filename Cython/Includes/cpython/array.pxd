@@ -137,7 +137,7 @@ cdef extern from *:  # Hard-coded utility code hack.
     # efficient for small increments (not in Py2.3-)
     i32 resize_smart(array self, isize n) except -1
 
-cdef inline array clone(array template, isize length, bint zero):
+fn inline array clone(array template, isize length, bint zero):
     """ fast creation of a new array, given a template array.
     type will be same as template.
     if zero is true, new array will be initialized with zeroes."""
@@ -146,13 +146,13 @@ cdef inline array clone(array template, isize length, bint zero):
         memset(op.data.as_chars, 0, length * op.ob_descr.itemsize)
     return op
 
-cdef inline array copy(array self):
+fn inline array copy(array self):
     """ make a copy of an array. """
     cdef array op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
     memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
     return op
 
-cdef inline i32 extend_buffer(array self, char* stuff, isize n) except -1:
+fn inline i32 extend_buffer(array self, char* stuff, isize n) except -1:
     """ efficient appending of new stuff of same type
     (e.g. of same array type)
     n: number of elements (not number of bytes!) """
@@ -162,12 +162,12 @@ cdef inline i32 extend_buffer(array self, char* stuff, isize n) except -1:
     memcpy(self.data.as_chars + origsize * itemsize, stuff, n * itemsize)
     return 0
 
-cdef inline i32 extend(array self, array other) except -1:
+fn inline i32 extend(array self, array other) except -1:
     """ extend array with data from another array; types must match. """
     if self.ob_descr.typecode != other.ob_descr.typecode:
         PyErr_BadArgument()
     return extend_buffer(self, other.data.as_chars, Py_SIZE(other))
 
-cdef inline void zero(array self):
+fn inline void zero(array self):
     """ set all elements of array to zero. """
     memset(self.data.as_chars, 0, Py_SIZE(self) * self.ob_descr.itemsize)

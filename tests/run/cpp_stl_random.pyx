@@ -124,7 +124,7 @@ ctypedef fused any_dist:
     fisher_f_distribution[f64]
     student_t_distribution[f64]
 
-cdef sample_or_range(any_dist dist, bint sample):
+fn sample_or_range(any_dist dist, bint sample):
     """
     This helper function returns a sample if `sample` is truthy and the range of the distribution
     if `sample` is falsy. We use a fused type to avoid duplicating the conditional statement in each

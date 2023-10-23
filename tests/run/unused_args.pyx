@@ -1,11 +1,11 @@
-cdef c_unused_simple(a, b, c):
+fn c_unused_simple(a, b, c):
     """
     >>> c_unused_simple(1, 2, 3)
     3
     """
     return a + b
 
-cdef c_unused_optional(a, b, c=1, d=2):
+fn c_unused_optional(a, b, c=1, d=2):
     """
     >>> c_unused_optional(1, 2)
     4

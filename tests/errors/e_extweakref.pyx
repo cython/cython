@@ -9,7 +9,7 @@ cdef class D:
 cdef class E:
 	cdef readonly object __weakref__
 
-cdef void f():
+fn void f():
 	cdef C c = C()
 	cdef object x
 	x = c.__weakref__

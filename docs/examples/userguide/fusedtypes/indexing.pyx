@@ -8,7 +8,7 @@ ctypedef fused fused_type2:
     f64
     f32
 
-cdef cfunc(fused_type1 arg1, fused_type1 arg2):
+fn cfunc(fused_type1 arg1, fused_type1 arg2):
     print("cfunc called:", cython.typeof(arg1), arg1, cython.typeof(arg2), arg2)
 
 cpdef cpfunc(fused_type1 a, fused_type2 b):

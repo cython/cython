@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef void __stdcall f():
+fn void __stdcall f():
     pass
 
 f()

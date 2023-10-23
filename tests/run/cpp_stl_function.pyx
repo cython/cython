@@ -47,7 +47,7 @@ cdef class FunctionKeeper:
     """
     cdef cpp_function_lib.FunctionKeeper* function_keeper
     
-    cdef function[f64(f64, i32) noexcept]* _get_function_ptr_from_name(self, function_name):
+    fn function[f64(f64, i32) noexcept]* _get_function_ptr_from_name(self, function_name):
         cdef function[f64(f64, i32) noexcept] *f
         
         if function_name == 'add_one':

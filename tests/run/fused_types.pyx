@@ -33,7 +33,7 @@ def test_pure():
     print(mytype(10))
 
 
-cdef cdef_func_with_fused_args(fused_type1 x, fused_type1 y, fused_type2 z):
+fn cdef_func_with_fused_args(fused_type1 x, fused_type1 y, fused_type2 z):
     if fused_type1 is string_t:
         print(x.decode('ascii'), y.decode('ascii'), z.decode('ascii'))
     else:
@@ -55,7 +55,7 @@ def test_cdef_func_with_fused_args():
     print(cdef_func_with_fused_args(10, 20, b'butter'))
     print(cdef_func_with_fused_args(4.2, 8.6, b'bunny'))
 
-cdef fused_type1 fused_with_pointer(fused_type1 *array):
+fn fused_type1 fused_with_pointer(fused_type1 *array):
     for i in range(5):
         if fused_type1 is string_t:
             print(array[i].decode('ascii'))
@@ -180,7 +180,7 @@ def test_fused_memoryview_def(memview_t a):
     """
     return a[1, 2]
 
-cdef test_specialize(fused_type1 x, fused_type1 *y, composed_t z, other_t *a):
+fn test_specialize(fused_type1 x, fused_type1 *y, composed_t z, other_t *a):
     let fused_type1 result
 
     if composed_t is p_double:
@@ -234,7 +234,7 @@ def test_specializations():
     # print test_specialize[f64](1.1, somedouble_p, otherdouble_p)
     # print
 
-cdef opt_args(integral x, floating y = 4.0):
+fn opt_args(integral x, floating y = 4.0):
     print(x, y)
 
 def test_opt_args():
@@ -436,7 +436,7 @@ cdef fused ints_t:
     i32
     i64
 
-cdef _test_index_fused_args(cython.floating f, ints_t i):
+fn _test_index_fused_args(cython.floating f, ints_t i):
     print(cython.typeof(f), cython.typeof(i))
 
 def test_index_fused_args(cython.floating f, ints_t i):
@@ -447,7 +447,7 @@ def test_index_fused_args(cython.floating f, ints_t i):
     """
     _test_index_fused_args[cython.floating, ints_t](f, i)
 
-cdef _test_index_const_fused_args(const cython.floating f, const ints_t i):
+fn _test_index_const_fused_args(const cython.floating f, const ints_t i):
     print((cython.typeof(f), cython.typeof(i)))
 
 def test_index_const_fused_args(const cython.floating f, const ints_t i):
@@ -473,9 +473,9 @@ def test_composite(fused_composite x):
     else:
         return 2 * x
 
-cdef cdef_func_const_fused_arg(const cython.floating val,
-                               const fused_type1 * ptr_to_const,
-                               const (cython.floating *) const_ptr):
+fn cdef_func_const_fused_arg(const cython.floating val,
+                             const fused_type1 * ptr_to_const,
+                             const (cython.floating *) const_ptr):
     print((val, cython.typeof(val)))
     print((ptr_to_const[0], cython.typeof(ptr_to_const[0])))
     print((const_ptr[0], cython.typeof(const_ptr[0])))
@@ -496,15 +496,15 @@ def test_cdef_func_with_const_fused_arg():
     let f32 arg2 = 2.0
     cdef_func_const_fused_arg(arg0, &arg1, &arg2)
 
-cdef in_check_1(just_float x):
+fn in_check_1(just_float x):
     return just_float in floating
 
-cdef in_check_2(just_float x, floating y):
+fn in_check_2(just_float x, floating y):
     # the "floating" on the right-hand side of the in statement should not be specialized
     # - the test should still work.
     return just_float in floating
 
-cdef in_check_3(floating x):
+fn in_check_3(floating x):
     # the floating on the left-hand side of the in statement should be specialized
     # but the one of the right-hand side should not (so that the test can still work).
     return floating in floating
@@ -526,13 +526,13 @@ def test_fused_in_check():
     print(in_check_3[f32](1.0))
 
 ### see GH3642 - presence of cdef inside "unrelated" caused a type to be incorrectly inferred
-cdef unrelated(cython.floating x):
+fn unrelated(cython.floating x):
     let cython.floating t = 1
     return t
 
-cdef handle_float(float* x): return 'float'
+fn handle_float(float* x): return 'float'
 
-cdef handle_double(f64* x): return 'double'
+fn handle_double(f64* x): return 'double'
 
 def convert_to_ptr(cython.floating x):
     """
@@ -548,12 +548,12 @@ def convert_to_ptr(cython.floating x):
     elif cython.floating is f64:
         return handle_double(&x)
 
-cdef f64 get_double():
+fn f64 get_double():
     return 1.0
-cdef float get_float():
+fn float get_float():
     return 0.0
 
-cdef call_func_pointer(cython.floating (*f)()):
+fn call_func_pointer(cython.floating (*f)()):
     return f()
 
 def test_fused_func_pointer():
@@ -565,10 +565,10 @@ def test_fused_func_pointer():
     print(call_func_pointer(get_double))
     print(call_func_pointer(get_float))
 
-cdef f64 get_double_from_int(i32 i):
+fn f64 get_double_from_int(i32 i):
     return i
 
-cdef call_func_pointer_with_1(cython.floating (*f)(cython.integral)):
+fn call_func_pointer_with_1(cython.floating (*f)(cython.integral)):
     return f(1)
 
 def test_fused_func_pointer2():
@@ -578,7 +578,7 @@ def test_fused_func_pointer2():
     """
     print(call_func_pointer_with_1(get_double_from_int))
 
-cdef call_function_that_calls_fused_pointer(object (*f)(cython.floating (*)(cython.integral))):
+fn call_function_that_calls_fused_pointer(object (*f)(cython.floating (*)(cython.integral))):
     if cython.floating is f64 and cython.integral is i32:
         return 5*f(get_double_from_int)
     else:
@@ -593,7 +593,7 @@ def test_fused_func_pointer_multilevel():
     print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[f64, i32]))
     print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[float, i32]))
 
-cdef null_default(cython.floating x, cython.floating *x_minus_1_out=NULL):
+fn null_default(cython.floating x, cython.floating *x_minus_1_out=NULL):
     # On C++ a void* can't be assigned to a regular pointer, therefore setting up
     # needs to avoid going through a void* temp
     if x_minus_1_out:
@@ -622,7 +622,7 @@ def test_null_default():
     result = null_default(xf)
     print(result)
 
-cdef cython.numeric fused_numeric_default(i32 a = 1, cython.numeric x = 0):
+fn cython.numeric fused_numeric_default(i32 a = 1, cython.numeric x = 0):
     return x + a
 
 def test_fused_numeric_default(i32 a, x):

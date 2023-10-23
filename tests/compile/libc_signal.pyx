@@ -2,7 +2,7 @@
 
 from libc.signal cimport *
 
-cdef void sighdl(i32 signum) noexcept nogil:
+fn void sighdl(i32 signum) noexcept nogil:
     pass
 
 cdef sighandler_t h

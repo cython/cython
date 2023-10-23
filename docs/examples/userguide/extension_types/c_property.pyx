@@ -7,11 +7,11 @@ cdef extern from "complexobject.h":
         cdef Py_complex cval
 
         @property
-        cdef inline f64 real(self):
+        fn inline f64 real(self):
             return self.cval.real
 
         @property
-        cdef inline f64 imag(self):
+        fn inline f64 imag(self):
             return self.cval.imag
 
 def cprint(complex c):

@@ -12,7 +12,7 @@ def new_array(dtype='float', writeable=true):
 
 ARRAY = new_array()
 
-cdef getmax(const f64[:] x):
+fn getmax(const f64[:] x):
     """Example code, should work with both ro and rw memoryviews"""
     let f64 max_val = -float('inf')
     for val in x:
@@ -20,11 +20,11 @@ cdef getmax(const f64[:] x):
             max_val = val
     return max_val
 
-cdef update_array(f64 [:] x):
+fn update_array(f64[:] x):
     """Modifying a ro memoryview should raise an error"""
     x[0] = 23.
 
-cdef getconst(const f64 [:] x):
+fn getconst(const f64[:] x):
     """Should accept ro memoryviews"""
     return x[0]
 
@@ -117,7 +117,7 @@ def test_copy():
     rw2[2] = 2
     return rw[0], rw[1], rw[2], rw2[0], rw2[1], rw2[2]
 
-cdef getmax_floating(const cython.floating[:] x):
+fn getmax_floating(const cython.floating[:] x):
     """Function with fused type, should work with both ro and rw memoryviews"""
     let cython.floating max_val = - float('inf')
     for val in x:

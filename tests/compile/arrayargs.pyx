@@ -1,17 +1,17 @@
 # mode: compile
 
 cdef extern from *:
-    cdef void foo(i32[])
+    fn void foo(i32[])
 
     ctypedef i32 MyInt
-    cdef void foo(MyInt[])
+    fn void foo(MyInt[])
 
     struct MyStruct:
         pass
-    cdef void bar(MyStruct[])
+    fn void bar(MyStruct[])
 
     ctypedef MyStruct* MyStructP
-    cdef void baz(MyStructP[])
+    fn void baz(MyStructP[])
 
 cdef struct OtherStruct:
     i32 a

@@ -10,7 +10,7 @@ cdef class BaseClass:
     >>> obj.call_base()
     True
     """
-    cdef method(self):
+    fn method(self):
         return true
 
     def call_base(self):
@@ -26,7 +26,7 @@ cdef class Child(BaseClass):
     >>> obj.call_child()
     True
     """
-    cdef method(self):
+    fn method(self):
         return true
 
     def call_child(self):

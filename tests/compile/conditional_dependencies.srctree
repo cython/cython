@@ -22,7 +22,7 @@ cdef extern from "a.h":
 
 ######## b.pxd ########
 cdef extern from "b.h":
-    cdef void something()
+    fn void something()
 
 ######## c.pxi ########
 cdef extern from "c.h":

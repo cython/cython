@@ -6,7 +6,7 @@
 # Cython.
 
 cdef extern from * nogil:
-    cdef T dynamic_cast[T](void *) except +   # nullptr may also indicate failure
-    cdef T static_cast[T](void *)
-    cdef T reinterpret_cast[T](void *)
-    cdef T const_cast[T](void *)
+    fn T dynamic_cast[T](void *) except +   # nullptr may also indicate failure
+    fn T static_cast[T](void *)
+    fn T reinterpret_cast[T](void *)
+    fn T const_cast[T](void *)

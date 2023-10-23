@@ -14,7 +14,7 @@ cdef class Spam:
     def __init__(self, eggs):
         self.eggs = eggs
 
-cdef object tomato(Spam s):
+fn object tomato(Spam s):
     food = s.eggs.ham
     return food
 

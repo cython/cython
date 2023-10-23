@@ -25,7 +25,7 @@ def spam(a=0):
 cpdef eggs():
     pass
 
-cdef ham():
+fn ham():
     pass
 
 cdef class SomeClass(object):

@@ -12,7 +12,6 @@ try:
 except NameError:
     def next(it): return it.next()
 
-
 def finally_except():
     """
     >>> try:
@@ -30,7 +29,6 @@ def finally_except():
     finally:
         raise TypeError
 
-
 def finally_pass():
     """
     >>> finally_pass()
@@ -41,7 +39,6 @@ def finally_pass():
         raise ValueError()
     finally:
         pass
-
 
 def except_finally_reraise():
     """
@@ -72,7 +69,6 @@ def except_finally_reraise():
                 break
         assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
         raise
-
 
 def except_finally_reraise_new():
     """
@@ -125,13 +121,11 @@ def finally_exception_check_return():
             assert sys.exc_info() == (None, None, None), str(sys.exc_info())
         return 1
 
-
-cdef void swallow():
+fn void swallow():
     try:
         raise TypeError()
     except:
         return
-
 
 def finally_exception_check_swallow():
     """
@@ -174,7 +168,6 @@ def finally_exception_check_swallow():
         else:
             assert sys.exc_info() == (None, None, None), str(sys.exc_info())
 
-
 def finally_exception_break_check():
     """
     >>> if not IS_PY3:
@@ -208,7 +201,6 @@ def finally_exception_break_check():
             break
     assert sys.exc_info() == (None, None, None), str(sys.exc_info())
     return i
-
 
 def finally_exception_break_check_with_swallowed_raise():
     """
@@ -257,7 +249,6 @@ def finally_exception_break_check_with_swallowed_raise():
     assert sys.exc_info() == (None, None, None), str(sys.exc_info())
     return i
 
-
 def try_return_cy():
     """
     >>> def try_return_py():
@@ -275,7 +266,7 @@ def try_return_cy():
     finally:
         return 2
 
-cdef int try_return_c():
+fn int try_return_c():
     try:
         return 1
     finally:
@@ -288,7 +279,7 @@ def call_try_return_c():
     """
     return try_return_c()
 
-cdef int try_return_with_exception():
+fn int try_return_with_exception():
     try:
         raise TypeError
     finally:
@@ -330,7 +321,6 @@ def try_continue(a):
             i+=1
     return i
 
-
 def try_return_none_1():
     """
     >>> try_return_none_1()
@@ -344,7 +334,7 @@ cdef extern from *:
     ctypedef struct PyObject
     void Py_INCREF(object)
 
-cdef PyObject* _none():
+fn PyObject* _none():
     ret = None
     Py_INCREF(ret)
     return <PyObject*> ret
@@ -369,7 +359,6 @@ def try_break():
         except:
             break
 
-
 def empty_try():
     """
     >>> empty_try()
@@ -379,7 +368,6 @@ def empty_try():
         pass
     finally:
         return 1
-
 
 def empty_try_in_except_raise(raise_in_finally):
     """
@@ -399,7 +387,6 @@ def empty_try_in_except_raise(raise_in_finally):
             if raise_in_finally:
                 raise TypeError('OLA')
         raise
-
 
 def try_all_cases(x):
     """
@@ -438,7 +425,6 @@ def try_all_cases(x):
             elif x == 'return':
                 return 3
     return 4
-
 
 def finally_yield(x):
     """
@@ -481,7 +467,6 @@ def finally_yield(x):
                 return
         finally:
             yield 1
-
 
 def complex_finally_clause(x, obj):
     """

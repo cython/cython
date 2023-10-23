@@ -6,11 +6,11 @@ cimport cython
 
 from libc.math cimport sqrt
 
-cdef void empty_cfunc():
+fn void empty_cfunc():
     print "here"
 
 # same signature
-cdef void another_empty_cfunc():
+fn void another_empty_cfunc():
     print "there"
 
 def call_empty_cfunc():
@@ -24,7 +24,7 @@ def call_empty_cfunc():
     let object another_py_func = another_empty_cfunc
     another_py_func()
 
-cdef f64 square_c(f64 x):
+fn f64 square_c(f64 x):
     return x * x
 
 def call_square_c(x):
@@ -76,7 +76,7 @@ def test_global():
     print cython.typeof(sqrt)
     print cython.typeof(global_csqrt)
 
-cdef i128 rad(i128 x):
+fn i128 rad(i128 x):
     let i128 rad = 1
     for p in range(2, <i128>sqrt(<f64>x) + 1):  # MSVC++ fails without the input cast
         if x % p == 0:
@@ -87,7 +87,7 @@ cdef i128 rad(i128 x):
             break
     return rad
 
-cdef bint abc(i128 a, i128 b, i128 c) except -1:
+fn bint abc(i128 a, i128 b, i128 c) except -1:
     if a + b != c:
         raise ValueError("Not a valid abc candidate: (%s, %s, %s)" % (a, b, c))
     return rad(a*b*c) < c
@@ -121,7 +121,7 @@ def return_abc():
     return abc
 
 ctypedef f64 foo
-cdef foo test_typedef_cfunc(foo x):
+fn foo test_typedef_cfunc(foo x):
     return x
 
 def test_typedef(x):
@@ -139,7 +139,7 @@ cdef struct my_struct:
     f32 which
     my_union y
 
-cdef my_struct c_struct_builder(f32 which, f32 a, f64 b):
+fn my_struct c_struct_builder(f32 which, f32 a, f64 b):
     let my_struct value
     value.which = which
     if which:
@@ -166,7 +166,7 @@ def return_struct_builder():
     """
     return c_struct_builder
 
-cdef object test_object_params_cfunc(a, b):
+fn object test_object_params_cfunc(a, b):
     return a, b
 
 def test_object_params(a, b):
@@ -176,7 +176,7 @@ def test_object_params(a, b):
     """
     return (<object>test_object_params_cfunc)(a, b)
 
-cdef tuple test_builtin_params_cfunc(list a, dict b):
+fn tuple test_builtin_params_cfunc(list a, dict b):
     return a, b
 
 def test_builtin_params(a, b):
@@ -207,7 +207,7 @@ cdef class A:
 cdef class B(A):
     pass
 
-cdef A test_cdef_class_params_cfunc(A a, B b):
+fn A test_cdef_class_params_cfunc(A a, B b):
     return b
 
 def test_cdef_class_params(a, b):
@@ -224,10 +224,10 @@ def test_cdef_class_params(a, b):
 # There were a few cases where duplicate utility code definitions (i.e. with the same name)
 # could be generated, causing C compile errors. This file tests them.
 
-cdef cfunc_dup_f1(x, r):
+fn cfunc_dup_f1(x, r):
     return "f1"
 
-cdef cfunc_dup_f2(x1, r):
+fn cfunc_dup_f2(x1, r):
     return "f2"
 
 def make_map():
@@ -262,7 +262,7 @@ cdef class HasCdefFunc:
     def __init__(self, x):
         self.x = x
 
-    cdef i32 func(self, i32 y):
+    fn i32 func(self, i32 y):
         return self.x + y
 
 def test_unbound_methods():

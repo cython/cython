@@ -59,12 +59,12 @@ def recursive_parallel_assignment_from_call_right_reversed():
 cdef int call_count = 0
 cdef int next_expected_arg = 1
 
-cdef reset():
+fn reset():
     global call_count, next_expected_arg
     call_count = 0
     next_expected_arg = 1
 
-cdef int intval(int x) except -1:
+fn int intval(int x) except -1:
     global call_count, next_expected_arg
     call_count += 1
     assert next_expected_arg == x, "calls not in source code order: expected %d, found %d" % (next_expected_arg, x)

@@ -10,7 +10,7 @@ ctypedef struct s:    # FIXME: this might be worth an error ...
     i32 x
 s()
 
-cdef i32 x():
+fn i32 x():
     return 0
 
 x()()

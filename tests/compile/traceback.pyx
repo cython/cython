@@ -3,7 +3,7 @@
 def spam():
     raise Exception
 
-cdef int grail() except -1:
+fn int grail() except -1:
     raise Exception
 
 def tomato():

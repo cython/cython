@@ -7,10 +7,10 @@ from libcpp.algorithm cimport is_permutation, next_permutation, prev_permutation
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 
-cdef bool compare(int a, int b):
+fn bool compare(int a, int b):
     return a == b
 
-cdef bool less_than(char a, char b):
+fn bool less_than(char a, char b):
     return a < b
 
 def test_is_permutation(vector[int] v1, vector[int] v2):

@@ -11,7 +11,7 @@ def def_test():
     i[0] = j
     let i32 *i = NULL # pointer variables are special case
 
-cdef cdef_test():
+fn cdef_test():
     let i32 j = 10
     i[0] = j
     print "%d" % i[0]

@@ -12,7 +12,7 @@ cdef class FinalType(object):
     """
 
     @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=true]")
-    cdef cdef_method(self):
+    fn cdef_method(self):
         pass
 
     @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=true]")
@@ -51,7 +51,7 @@ cdef class BaseTypeWithFinalMethods(object):
 
     @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=true]")
     @cython.final
-    cdef cdef_method(self):
+    fn cdef_method(self):
         pass
 
     @cython.test_assert_path_exists("//AttributeNode[@entry.is_final_cmethod=true]")

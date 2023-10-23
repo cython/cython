@@ -10,8 +10,7 @@ from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.execution cimport seq
 
-
-cdef bool less(int a, int b):
+fn bool less(int a, int b):
     return a < b
 
 def test_min_element(vector[int] v):

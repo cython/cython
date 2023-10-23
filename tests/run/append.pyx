@@ -17,7 +17,7 @@ cdef class C:
     """
     def __init__(self, value):
         self.append(value)
-    cdef append(self, value):
+    fn append(self, value):
         print u"appending", value
         return value
 

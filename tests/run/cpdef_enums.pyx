@@ -126,7 +126,7 @@ def test_as_variable_from_cython():
     assert list(PyxEnum) == [TWO, THREE, FIVE], list(PyxEnum)
     assert list(PxdEnum) == [RANK_0, RANK_1, RANK_2], list(PxdEnum)
 
-cdef int verify_pure_c() nogil:
+fn int verify_pure_c() nogil:
     let int x = TWO
     let int y = PyxEnum.THREE
     let int z = SecretPyxEnum.SEVEN

@@ -16,18 +16,18 @@ from libc.time cimport (
     localtime as libc_localtime,
 )
 
-cdef inline f64 time() nogil:
+fn inline f64 time() nogil:
     cdef:
         _PyTime_t tic
 
     tic = _PyTime_GetSystemClock()
     return _PyTime_AsSecondsDouble(tic)
 
-cdef inline int _raise_from_errno() except -1 with gil:
+fn inline int _raise_from_errno() except -1 with gil:
     PyErr_SetFromErrno(RuntimeError)
     return <i32> -1  # Let the C compiler know that this function always raises.
 
-cdef inline tm localtime() except * nogil:
+fn inline tm localtime() except * nogil:
     """
     Analogue to the stdlib time.localtime.  The returned struct
     has some entries that the stdlib version does not: tm_gmtoff, tm_zone

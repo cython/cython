@@ -1,7 +1,7 @@
 # mode: run
 
 
-cdef int grail():
+fn int grail():
     let int (*spam)()
     spam = &grail
     spam = grail
@@ -9,19 +9,16 @@ cdef int grail():
     assert spam == grail
     assert spam == &grail
 
-
 ctypedef int funcptr_t()
 
-cdef funcptr_t* get_grail():
+fn funcptr_t* get_grail():
     return &grail
-
 
 def test_assignments():
     """
     >>> test_assignments()
     """
     grail()
-
 
 def test_return_value():
     """
@@ -31,7 +28,6 @@ def test_return_value():
     g = get_grail()
     return g == &grail
 
-
 def call_cfuncptr():
     """
     >>> call_cfuncptr()
@@ -40,7 +36,7 @@ def call_cfuncptr():
     spam = grail
     spam()
 
-cdef int exceptminus2(int bad) except -2:
+fn int exceptminus2(int bad) except -2:
     if bad:
         raise RuntimeError
     else:
@@ -72,7 +68,7 @@ def call_exceptminus2_through_exceptmaybeminus2_pointer(bad):
     fptr = exceptminus2
     return fptr(bad)
 
-cdef int noexcept_func():  # noexcept
+fn int noexcept_func():  # noexcept
     return 0
 
 def call_noexcept_func_except_star():

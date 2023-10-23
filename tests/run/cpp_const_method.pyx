@@ -13,7 +13,6 @@ cdef cppclass Wrapper[T]:
     T get() const:
         return this.value
 
-
 def test_const_get(int x):
     """
     >>> test_const_get(10)
@@ -25,7 +24,7 @@ def test_const_get(int x):
     finally:
         del wrapper
 
-cdef int const_get(const Wrapper[int] wrapper):
+fn int const_get(const Wrapper[int] wrapper):
     return wrapper.get()
 
 def test_const_ref_get(int x):
@@ -39,7 +38,7 @@ def test_const_ref_get(int x):
     finally:
         del wrapper
 
-cdef int const_ref_get(const Wrapper[int] &wrapper):
+fn int const_ref_get(const Wrapper[int] &wrapper):
     return wrapper.get()
 
 def test_const_pointer_get(int x):
@@ -53,7 +52,6 @@ def test_const_pointer_get(int x):
         return const_wrapper.get()
     finally:
         del wrapper
-
 
 # TODO: parse vector[Wrapper[int]*]
 ctypedef Wrapper[int] wrapInt
@@ -79,7 +77,7 @@ def test_vector_members(py_a, py_b):
         for value in b:
             del value
 
-cdef vector_members(vector[const Wrapper[int]*] a, const vector[wrapInt*] b):
+fn vector_members(vector[const Wrapper[int]*] a, const vector[wrapInt*] b):
     # TODO: Cython-level error.
     # b[0].set(100)
 

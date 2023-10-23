@@ -6,8 +6,7 @@ cdef struct S:
     int x
     float y
 
-
-cdef stack_alloc_test(int[2] array_arg, S struct_arg):
+fn stack_alloc_test(int[2] array_arg, S struct_arg):
     let int[2] array_var
     let S struct_var, struct_var_by_value
 
@@ -17,7 +16,6 @@ cdef stack_alloc_test(int[2] array_arg, S struct_arg):
     struct_var_by_value = struct_var
 
     return [ i for i in array_var ], struct_var_by_value
-
 
 def test():
     """

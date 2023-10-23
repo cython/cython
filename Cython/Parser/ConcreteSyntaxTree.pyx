@@ -16,8 +16,8 @@ cdef extern from "node.h":
 cdef extern from "parsetok.h":
     ctypedef struct perrdetail:
         pass
-    cdef void PyParser_SetError(perrdetail *err) except *
-    cdef node * PyParser_ParseStringFlagsFilenameEx(
+    fn void PyParser_SetError(perrdetail *err) except *
+    fn node * PyParser_ParseStringFlagsFilenameEx(
         const char * s,
         const char * filename,
         grammar * g,
@@ -44,7 +44,7 @@ def extract_names(path):
 
 cdef dict type_names = {}
 
-cdef print_tree(node* n, indent=""):
+fn print_tree(node* n, indent=""):
     if not type_names:
         type_names.update(extract_names(
             os.path.join(distutils.sysconfig.get_python_inc(), 'token.h')))

@@ -4,7 +4,7 @@
 cdef Fα1()
 cdef class Γναμε2:
     pub i32 α
-    cdef boring_cdef(self)
-    cdef εxciting_cdef(self)
+    fn boring_cdef(self)
+    fn εxciting_cdef(self)
     cpdef boring_cpdef(self)
     cpdef εxciting_cpdef(self)

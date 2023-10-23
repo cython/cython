@@ -55,12 +55,12 @@ cdef class Bclass:
     def __init__(self, value):
         self.value = value
         self.anotherValue = value + 1
-    cdef Bstruct asStruct(self):
+    fn Bstruct asStruct(self):
         return Bstruct(value=self.value)
-    cdef f64 getOtherValue(self):
+    fn f64 getOtherValue(self):
         return self.anotherValue
 
-cdef i64 Bfunc(Btypedef x):
+fn i64 Bfunc(Btypedef x):
     return x[0]
 
 @cython.cclass

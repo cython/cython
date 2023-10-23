@@ -1,11 +1,9 @@
 cimport cython
 
-cdef sorteditems(d):
+fn sorteditems(d):
     return tuple(sorted(d.items()))
 
-
 cdef class Silly:
-
     def __init__(self, *a):
         """
         >>> s = Silly(1,2,3, 'test')
@@ -157,7 +155,6 @@ cdef class Silly:
         True
         """
         return a
-
 
 def test_no_copy_args(func, **kw):
     """

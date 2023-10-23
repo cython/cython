@@ -5,7 +5,7 @@ cdef enum Color:
     white
     blue
 
-cdef void f():
+fn void f():
     let Color e
     let i32 i
 

@@ -18,13 +18,13 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef dict specialattribute_handlers
     cdef usize lambda_counter
     cdef usize genexpr_counter
-    cdef _visit_assignment_node(self, node, list expr_list)
+    fn _visit_assignment_node(self, node, list expr_list)
 
 #def eliminate_rhs_duplicates(list expr_list_list, list ref_node_sequence)
 #def sort_common_subsequences(list items)
 @cython.locals(starred_targets=isize, lhs_size=isize, rhs_size=isize)
-cdef flatten_parallel_assignments(list input, list output)
-cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs_args, list rhs_args)
+fn flatten_parallel_assignments(list input, list output)
+fn map_starred_assignment(list lhs_targets, list starred_assignments, list lhs_args, list rhs_args)
 
 #class PxdPostParse(CythonTransform, SkipDeclarations):
 #class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
@@ -65,8 +65,8 @@ cdef class CreateClosureClasses(CythonTransform):
     cdef module_scope
     cdef generator_class
 
-    cdef create_class_from_scope(self, node, target_module_scope, inner_node=*)
-    cdef find_entries_used_in_closures(self, node)
+    fn create_class_from_scope(self, node, target_module_scope, inner_node=*)
+    fn find_entries_used_in_closures(self, node)
 
 #cdef class InjectGilHandling(VisitorTransform, SkipDeclarations):
 #    cdef bint nogil
@@ -78,4 +78,4 @@ cdef class GilCheck(VisitorTransform):
     cdef bint current_gilstat_node_knows_gil_state
 
 cdef class TransformBuiltinMethods(EnvTransform):
-    cdef visit_cython_attribute(self, node)
+    fn visit_cython_attribute(self, node)

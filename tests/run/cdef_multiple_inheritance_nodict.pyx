@@ -3,7 +3,7 @@
 
 cdef class CBase(object):
     cdef int a
-    cdef c_method(self):
+    fn c_method(self):
         return "CBase"
     cpdef cpdef_method(self):
         return "CBase"
@@ -28,7 +28,7 @@ cdef class Both(CBase, PyBase):
     >>> isinstance(b, PyBase)
     True
     """
-    cdef c_method(self):
+    fn c_method(self):
         return "Both"
     cpdef cp_method(self):
         return "Both"

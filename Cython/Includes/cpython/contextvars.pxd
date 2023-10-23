@@ -108,7 +108,7 @@ cdef extern from "Python.h":
     # before `PyContextVar_Set()` that returned `token` was called.
     # This function returns 0 on success and -1 on error.
 
-cdef inline object get_value(var, default_value=None):
+fn inline object get_value(var, default_value=None):
     """Return a new reference to the value of the context variable,
     or the default value of the context variable,
     or None if no such value or default was found.
@@ -124,7 +124,7 @@ cdef inline object get_value(var, default_value=None):
         Py_XDECREF(value)  # PyContextVar_Get() returned an owned reference as 'PyObject*'
     return pyvalue
 
-cdef inline object get_value_no_default(var, default_value=None):
+fn inline object get_value_no_default(var, default_value=None):
     """Return a new reference to the value of the context variable,
     or the provided default value if no such value was found.
 

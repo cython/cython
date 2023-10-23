@@ -22,7 +22,7 @@ myfunc (line 39) ; >>> add_log("def")
 import sys
 log = []
 
-cdef cdeffunc():
+fn cdeffunc():
     """>>> add_log("cdef")"""
 cdeffunc() # make sure it's being used
 
@@ -75,7 +75,7 @@ cdef class MyCdefClass:
     cpdef cpdef_method(self):
         """>>> add_log("cpdef class method")"""
 
-    cdef cdef_method(self):
+    fn cdef_method(self):
         """>>> add_log("cdef class cmethod")"""
 
     def __cinit__(self):

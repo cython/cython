@@ -42,7 +42,7 @@ cdef struct MyStruct:
     i32 y
     f64** data
 
-cdef print_struct(MyStruct a):
+fn print_struct(MyStruct a):
     print a.x, a.y, a.data == NULL
 
 def test_struct(i32 x, y):

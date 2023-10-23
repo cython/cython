@@ -1,11 +1,11 @@
 # cython: remove_unreachable=false
 # mode: error
 
-cdef void g():
+fn void g():
 	cdef i32 i
 	return i # error
 
-cdef int h():
+fn int h():
 	cdef i32 *p
 	return # error
 	return p # error

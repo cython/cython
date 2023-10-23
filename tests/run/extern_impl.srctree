@@ -13,7 +13,7 @@ setup(
 
 ######## foo.pxd ########
 
-cdef void bar() except *
+fn void bar() except *
 
 ######## foo.pyx ########
 

@@ -1,6 +1,6 @@
 # ticket: t252
 
-cdef cf(default=None):
+fn cf(default=None):
     return default
 
 cpdef cpf(default=100):

@@ -10,7 +10,7 @@ ctypedef fused string_t:
     bytes
     unicode
 
-cdef cython.integral myfunc(cython.integral i, bunch_of_types s):
+fn cython.integral myfunc(cython.integral i, bunch_of_types s):
     # Only one of these branches will be compiled for each specialization!
     if cython.integral is int:
         print('i is int')

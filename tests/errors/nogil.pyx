@@ -1,23 +1,23 @@
 # cython: remove_unreachable=false
 # mode: error
 
-cdef object f(object x) nogil:
+fn object f(object x) nogil:
     pass
 
-cdef void g(i32 x) nogil:
+fn void g(i32 x) nogil:
     let object z
     z = None
 
-cdef void h(i32 x) nogil:  # allowed
+fn void h(i32 x) nogil:  # allowed
     p()
 
-cdef object p() nogil:
+fn object p() nogil:
     pass
 
-cdef void r() nogil:  # allowed
+fn void r() nogil:  # allowed
     q()  # allowed
 
-cdef object m():
+fn object m():
     let object x, y = 0, obj
     let int i, j, k
     global fred
@@ -71,13 +71,13 @@ cdef object m():
         finally:
             pass
 
-cdef void q():
+fn void q():
     pass
 
 cdef class C:
     pass
 
-cdef void t(C c) nogil:
+fn void t(C c) nogil:
     pass
 
 def ticket_338():
@@ -90,29 +90,29 @@ def bare_pyvar_name(object x):
     with nogil:
         x
 
-cdef int fstrings(i32 x, object obj) except -1 nogil:
+fn int fstrings(i32 x, object obj) except -1 nogil:
     f""         # allowed
     f"a"        # allowed
     f"a"f"b"    # allowed
     f"{x}"
     f"{obj}"
 
-cdef void slice_array() nogil:
+fn void slice_array() nogil:
     with gil:
         b = [1, 2, 3, 4]
     let int[4] a = b[:]
 
-cdef i32[:] main() nogil:
+fn i32[:] main() nogil:
     let i32[4] a = [1,2,3,4]
     return a
 
 
 _ERRORS = u"""
-4:5: Function with Python return type cannot be declared nogil
-7:5: Function declared nogil has Python locals or temporaries
+4:0: Function with Python return type cannot be declared nogil
+7:0: Function declared nogil has Python locals or temporaries
 9:4: Assignment of Python object not allowed without gil
 12:5: Discarding owned Python object not allowed without gil
-14:5: Function with Python return type cannot be declared nogil
+14:0: Function with Python return type cannot be declared nogil
 18:5: Calling gil-requiring function not allowed without gil
 27:9: Calling gil-requiring function not allowed without gil
 29:8: Assignment of Python object not allowed without gil

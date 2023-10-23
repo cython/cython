@@ -27,14 +27,14 @@ assert C().bar() == 'C.bar'
 
 ######## base.pxd ########
 cdef class A(object):
-    cdef foo(self)
+    fn foo(self)
 
 cdef class B(A):
     cpdef foo(self)
 
 ######## base.pyx ########
 cdef class A(object):
-    cdef foo(self):
+    fn foo(self):
         return "A.foo"
 
     def foo1(self):

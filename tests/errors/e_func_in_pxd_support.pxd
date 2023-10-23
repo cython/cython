@@ -1,4 +1,4 @@
-cdef foo():
+fn foo():
     return 1
 
 pub inline foo2():

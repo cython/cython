@@ -26,7 +26,7 @@ cdef class MyInt2(int):
     def test(self, arg):
         return self._test(arg)
 
-    cdef _test(self, arg):
+    fn _test(self, arg):
         return self + arg
 
 cdef class MyInt3(MyInt2):
@@ -38,5 +38,5 @@ cdef class MyInt3(MyInt2):
     >>> MyInt3(2).test(3)
     6
     """
-    cdef _test(self, arg):
+    fn _test(self, arg):
         return self + arg + 1

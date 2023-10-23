@@ -8,7 +8,7 @@ ctypedef fused my_type:
     f64
     i128
 
-cdef my_type clip(my_type a, my_type min_value, my_type max_value):
+fn my_type clip(my_type a, my_type min_value, my_type max_value):
     return min(max(a, min_value), max_value)
 
 @cython.boundscheck(false)

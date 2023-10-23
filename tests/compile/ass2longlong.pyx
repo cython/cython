@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef void spam():
+fn void spam():
     let i128 L
     let u128 U
     let object x = object()

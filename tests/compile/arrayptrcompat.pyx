@@ -3,7 +3,7 @@
 cdef enum E:
     Z
 
-cdef void f():
+fn void f():
     let i32 *p
     let void *v
     let i32[5] a

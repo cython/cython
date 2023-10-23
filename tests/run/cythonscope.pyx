@@ -16,19 +16,19 @@ cdef extern from *:
     cdef PyObject *TestClassType "__pyx_TestClass_type"
 
     # This is a cdef function
-    cdef __pyx_TestClass_New(int)
+    fn __pyx_TestClass_New(int)
 
     # These are methods and therefore have no prototypes
-    cdef __pyx_TestClass_cdef_method(TestClass self, int value)
-    cdef __pyx_TestClass_cpdef_method(TestClass self, int value, int skip_dispatch)
-    cdef __pyx_TestClass_def_method(object self, object value)
+    fn __pyx_TestClass_cdef_method(TestClass self, int value)
+    fn __pyx_TestClass_cpdef_method(TestClass self, int value, int skip_dispatch)
+    fn __pyx_TestClass_def_method(object self, object value)
 
-    cdef __pyx_TestClass_cdef_cname(TestClass self, int value)
-    cdef __pyx_TestClass_cpdef_cname(TestClass self, int value, int skip_dispatch)
-    cdef __pyx_TestClass_def_cname(object self, object value)
+    fn __pyx_TestClass_cdef_cname(TestClass self, int value)
+    fn __pyx_TestClass_cpdef_cname(TestClass self, int value, int skip_dispatch)
+    fn __pyx_TestClass_def_cname(object self, object value)
 
-    cdef __pyx_test_dep(object)
-    cdef __pyx_test_call_other_cy_util(object)
+    fn __pyx_test_dep(object)
+    fn __pyx_test_call_other_cy_util(object)
 
 
 def test_cdef_cython_utility():

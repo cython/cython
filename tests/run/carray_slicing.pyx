@@ -108,11 +108,11 @@ def slice_charptr_for_loop_c_dynamic_bounds():
     print [ chr(c) for c in cstring[return1():return5()] ]
     print [ chr(c) for c in cstring[return4():return9()] ]
 
-cdef return1(): return 1
-cdef return3(): return 3
-cdef return4(): return 4
-cdef return5(): return 5
-cdef return9(): return 9
+fn return1(): return 1
+fn return3(): return 3
+fn return4(): return 4
+fn return5(): return 5
+fn return9(): return 9
 
 #### BROKEN: this test assumes that the result of a char* iteration
 #### becomes a bytes object, which is not the case when applying

@@ -11,7 +11,7 @@ cdef class OwnedPointer:
 
 
     @staticmethod
-    cdef create(void* ptr):
+    fn create(void* ptr):
         p = OwnedPointer()
         p.ptr = ptr
         return p

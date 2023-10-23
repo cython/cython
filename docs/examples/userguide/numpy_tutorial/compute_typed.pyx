@@ -7,7 +7,7 @@ DTYPE = np.intc
 
 # cdef means here that this function is a plain C function (so faster).
 # To get all the benefits, we type the arguments and the return value.
-cdef i32 clip(i32 a, i32 min_value, i32 max_value):
+fn i32 clip(i32 a, i32 min_value, i32 max_value):
     return min(max(a, min_value), max_value)
 
 def compute(array_1, array_2, i32 a, i32 b, i32 c):
@@ -15,8 +15,8 @@ def compute(array_1, array_2, i32 a, i32 b, i32 c):
     # can only be used at the top indentation level (there are non-trivial
     # problems with allowing them in other places, though we'd love to see
     # good and thought out proposals for it).
-    cdef isize x_max = array_1.shape[0]
-    cdef isize y_max = array_1.shape[1]
+    let isize x_max = array_1.shape[0]
+    let isize y_max = array_1.shape[1]
 
     assert array_1.shape == array_2.shape
     assert array_1.dtype == DTYPE
@@ -33,10 +33,10 @@ def compute(array_1, array_2, i32 a, i32 b, i32 c):
     # datatype size, it will simply wrap around like in C, rather than raise
     # an error like in Python.
 
-    cdef i32 tmp
+    let i32 tmp
 
-    # Py_ssize_t is the proper C type for Python array indices.
-    cdef isize x, y
+    # isize is the proper C type for Python array indices.
+    let isize x, y
 
     for x in range(x_max):
         for y in range(y_max):

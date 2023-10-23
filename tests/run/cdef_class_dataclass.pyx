@@ -108,7 +108,7 @@ cdef struct S:
 
 ctypedef S* S_ptr
 
-cdef S_ptr malloc_a_struct():
+fn S_ptr malloc_a_struct():
     return <S_ptr>malloc(sizeof(S))
 
 @dataclass

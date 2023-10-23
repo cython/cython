@@ -767,19 +767,19 @@ non-important content
     def test_yield(self):
         # Not terribly useful, but make sure the yield turns
         #  a function into a generator
-        def fn(y):
+        def func(y):
             f'y:{yield y*2}'
             f'{yield}'
 
-        g = fn(4)
+        g = func(4)
         self.assertEqual(next(g), 8)
         self.assertEqual(next(g), None)
 
     def test_yield_send(self):
-        def fn(x):
+        def func(x):
             yield f'x:{yield (lambda i: x * i)}'
 
-        g = fn(10)
+        g = func(10)
         the_lambda = next(g)
         self.assertEqual(the_lambda(4), 40)
         self.assertEqual(g.send('string'), 'x:string')

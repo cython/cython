@@ -30,7 +30,7 @@ pub pub_func3(public_string_t x, api_string_t y):
 cdef api api_func3(public_string_t x, api_string_t y):
     pass
 
-cdef opt_func(x = None):
+fn opt_func(x = None):
     pass
 
 _ERRORS = u"""

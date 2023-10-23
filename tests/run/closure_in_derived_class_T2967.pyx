@@ -3,7 +3,7 @@
 # ticket: 2967
 
 cdef class BaseClass:
-    cdef func(self):
+    fn func(self):
         pass
 cdef class ClosureInsideExtensionClass(BaseClass):
     """
@@ -11,7 +11,7 @@ cdef class ClosureInsideExtensionClass(BaseClass):
     >>> y.test(42)
     43
     """
-    cdef func(self):
+    fn func(self):
         a = 1
         return (lambda x : x+a)
     def test(self, b):

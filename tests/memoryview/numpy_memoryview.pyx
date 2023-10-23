@@ -248,7 +248,7 @@ cdef extern from "bufaccess.h":
     ctypedef u32 td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
-cdef void dealloc_callback(void *data) noexcept:
+fn void dealloc_callback(void *data) noexcept:
     print "deallocating..."
 
 def build_numarray(array array):
@@ -578,7 +578,7 @@ def test_struct_attributes():
 #
 ### Test for NULL strides (C contiguous buffers)
 #
-cdef getbuffer(Buffer self, Py_buffer *info):
+fn getbuffer(Buffer self, Py_buffer *info):
     info.buf = &self.m[0, 0]
     info.len = 10 * 20
     info.ndim = 2

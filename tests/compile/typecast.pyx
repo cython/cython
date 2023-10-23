@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef void f(obj):
+fn void f(obj):
     let size_t i=0
     let char *p
     p = <char *>i

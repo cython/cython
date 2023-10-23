@@ -139,7 +139,7 @@ for i in prange(10, nogil=true, schedule='static', chunksize=-1):
 for i in prange(10, nogil=true, schedule='runtime', chunksize=10):
     pass
 
-cdef i32 chunksize():
+fn i32 chunksize():
     return 10
 
 for i in prange(10, nogil=true, schedule='static', chunksize=chunksize()):

@@ -1,7 +1,7 @@
 # mode: error
 # tag: werror
 
-cdef foo():
+fn foo():
     pass
 
 def foo():

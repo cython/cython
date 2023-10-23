@@ -1,7 +1,7 @@
 cimport dishes
 from dishes cimport SpamDish
 
-cdef void prepare(SpamDish *d):
+fn void prepare(SpamDish *d):
     d.oz_of_spam = 42
     d.filler = dishes.Sausage
 

@@ -6,7 +6,7 @@ cdef enum E:
 cdef enum G:
     b
 
-cdef void f():
+fn void f():
     let E e=a
     let G g=b
     let i32 i, j=0

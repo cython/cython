@@ -115,7 +115,7 @@ def test_cython_array_index():
     print f_array[9, 8]
     print f_array[6, 1]
 
-cdef i32 *getp(i32 dim1=10, i32 dim2=10, dim3=1) except NULL:
+fn i32 *getp(i32 dim1=10, i32 dim2=10, dim3=1) except NULL:
     print "getp()"
 
     let i32 *p = <i32 *> malloc(dim1 * dim2 * dim3 * sizeof(i32))
@@ -128,7 +128,7 @@ cdef i32 *getp(i32 dim1=10, i32 dim2=10, dim3=1) except NULL:
 
     return p
 
-cdef void callback_free_data(void *p) noexcept:
+fn void callback_free_data(void *p) noexcept:
     print 'callback free data called'
     free(p)
 

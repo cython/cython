@@ -6,13 +6,13 @@ cdef extern from *:
     template <typename T>
     void accept(T&& x) { (void) x; }
     """
-    cdef void accept[T](T&& x)
+    fn void accept[T](T&& x)
 
-cdef int make_int_py() except *:
+fn int make_int_py() except *:
     # might raise Python exception (thus needs a temp)
     return 1
 
-cdef int make_int_cpp() except +:
+fn int make_int_cpp() except +:
     # might raise C++ exception (thus needs a temp)
     return 1
 

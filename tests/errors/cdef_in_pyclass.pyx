@@ -1,9 +1,9 @@
 # mode: error
 
 class Pyclass(object):
-    cdef bad(self):
+    fn bad(self):
         pass
 
 _ERRORS = """
- 4:9: cdef statement not allowed here
+ 4:4: cdef statement not allowed here
 """

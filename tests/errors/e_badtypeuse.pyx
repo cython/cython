@@ -17,7 +17,7 @@ cdef void a_nada[88]   # incomplete element type
 cdef struct Eggs:
 	i32 spam[]
 
-cdef f(Grail g,   # incomplete argument type
+fn f(Grail g,   # incomplete argument type
 	void v,         # incomplete argument type
 	i32 a[]):
 		pass
@@ -38,7 +38,7 @@ _ERRORS = u"""
 18:9: Variable type 'int []' is incomplete
 #19:1: Function argument cannot be void
 21:1: Use spam() rather than spam(void) to declare a function with no arguments.
-20:7: Argument type 'Grail' is incomplete
+20:5: Argument type 'Grail' is incomplete
 21:1: Invalid use of 'void'
 25:5: 'NoSuchType' is not a type identifier
 """

@@ -52,8 +52,8 @@ pub vector.vector[i32] get_vector():
     return [1, 2, 3]
 
 cdef extern from "include_as_c_and_cpp_header.h":
-    cdef usize size_vector1()
-    cdef usize size_vector2()
+    fn usize size_vector1()
+    fn usize size_vector2()
 
 def test():
     assert size_vector1() == 3
@@ -94,8 +94,8 @@ pub i8 get_char():
     return 42
 
 cdef extern from "include_from_c_and_cpp_header.h":
-    cdef i32 get_int1()
-    cdef i32 get_int2()
+    fn i32 get_int1()
+    fn i32 get_int2()
 
 def test():
     assert get_int1() == 42
@@ -129,8 +129,8 @@ pub i8 get_char():
     return 42
 
 cdef extern from "cdefines_header.h":
-    cdef i32 get_int1()
-    cdef i32 get_int2()
+    fn i32 get_int1()
+    fn i32 get_int2()
 
 def test():
     assert get_int1() == 42

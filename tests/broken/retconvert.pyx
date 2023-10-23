@@ -1,6 +1,6 @@
 def f():
     return 42
 
-cdef int g():
+fn int g():
     let object x
     return x

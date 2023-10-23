@@ -3,13 +3,13 @@
 cdef class Spam:
     pass
 
-cdef Spam foo():
+fn Spam foo():
     return blarg()
     #cdef Spam grail
     #grail = blarg()
     #return grail
 
-cdef object blarg():
+fn object blarg():
     pass
 
 foo()

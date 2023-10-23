@@ -1,5 +1,5 @@
 cdef class ExtType:
-    cdef c_method(self):
+    fn c_method(self):
         return self
 
     def method(self):

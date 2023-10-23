@@ -9,7 +9,7 @@ cdef extern from *:
     cdef const char* __Pyx_PyObject_AsStringAndSize(object, isize*) except NULL
 
 @cname("{{cname}}")
-cdef string {{cname}}(object o) except *:
+fn string {{cname}}(object o) except *:
     cdef isize length = 0
     cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
     return string(data, length)
@@ -28,7 +28,7 @@ cdef extern from *:
     cdef object __Pyx_{{py_type}}_FromStringAndSize(const char*, usize)
 
 @cname("{{cname.replace("PyObject", py_type, 1)}}")
-cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
+fn inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
     return __Pyx_{{py_type}}_FromStringAndSize(s.data(), s.size())
 {{endfor}}
 
@@ -39,7 +39,7 @@ cdef extern from *:
         void push_back(T&) except +
 
 @cname("{{cname}}")
-cdef vector[X] {{cname}}(object o) except *:
+fn vector[X] {{cname}}(object o) except *:
     cdef vector[X] v
     for item in o:
         v.push_back(<X>item)
@@ -59,7 +59,7 @@ cdef extern from "Python.h":
     const isize PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
-cdef object {{cname}}(const vector[X]& v):
+fn object {{cname}}(const vector[X]& v):
     if v.size() > <usize>PY_SSIZE_T_MAX:
         raise MemoryError()
     v_size_signed = <isize>v.size()
@@ -83,7 +83,7 @@ cdef extern from *:
         void push_back(T&) except +
 
 @cname("{{cname}}")
-cdef cpp_list[X] {{cname}}(object o) except *:
+fn cpp_list[X] {{cname}}(object o) except *:
     cdef cpp_list[X] l
     for item in o:
         l.push_back(<X>item)
@@ -110,7 +110,7 @@ cdef extern from "Python.h":
     cdef isize PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
-cdef object {{cname}}(const cpp_list[X]& v):
+fn object {{cname}}(const cpp_list[X]& v):
     if v.size() > <usize>PY_SSIZE_T_MAX:
         raise MemoryError()
 
@@ -136,7 +136,7 @@ cdef extern from *:
         void insert(T&) except +
 
 @cname("{{cname}}")
-cdef set[X] {{cname}}(object o) except *:
+fn set[X] {{cname}}(object o) except *:
     cdef set[X] s
     for item in o:
         s.insert(<X>item)
@@ -156,7 +156,7 @@ cdef extern from *:
         const_iterator end()
 
 @cname("{{cname}}")
-cdef object {{cname}}(const cpp_set[X]& s):
+fn object {{cname}}(const cpp_set[X]& s):
     return {v for v in s}
 
 #################### pair.from_py ####################
@@ -167,7 +167,7 @@ cdef extern from *:
         pair(T&, U&) except +
 
 @cname("{{cname}}")
-cdef pair[X, Y] {{cname}}(object o) except *:
+fn pair[X, Y] {{cname}}(object o) except *:
     x, y = o
     return pair[X, Y](<X>x, <Y>y)
 
@@ -179,7 +179,7 @@ cdef extern from *:
         U second
 
 @cname("{{cname}}")
-cdef object {{cname}}(const pair[X, Y]& p):
+fn object {{cname}}(const pair[X, Y]& p):
     return p.first, p.second
 
 #################### map.from_py ####################
@@ -194,7 +194,7 @@ cdef extern from *:
     int PY_MAJOR_VERSION
 
 @cname("{{cname}}")
-cdef map[X, Y] {{cname}}(object o) except *:
+fn map[X, Y] {{cname}}(object o) except *:
     cdef map[X, Y] m
     if PY_MAJOR_VERSION < 3:
         for key, value in o.iteritems():
@@ -223,7 +223,7 @@ cdef extern from *:
         const_iterator end()
 
 @cname("{{cname}}")
-cdef object {{cname}}(const map[X, Y]& s):
+fn object {{cname}}(const map[X, Y]& s):
     o = {}
     cdef const map[X, Y].value_type *key_value
     cdef map[X, Y].const_iterator iter = s.begin()
@@ -241,7 +241,7 @@ cdef extern from *:
         std_complex(T, T) except +
 
 @cname("{{cname}}")
-cdef std_complex[X] {{cname}}(object o) except *:
+fn std_complex[X] {{cname}}(object o) except *:
     cdef double complex z = o
     return std_complex[X](<X>z.real, <X>z.imag)
 
@@ -253,7 +253,7 @@ cdef extern from *:
         X imag()
 
 @cname("{{cname}}")
-cdef object {{cname}}(const std_complex[X]& z):
+fn object {{cname}}(const std_complex[X]& z):
     cdef double complex tmp
     tmp.real = <f64>z.real()
     tmp.imag = <f64>z.imag()

@@ -143,19 +143,18 @@ def test():
 
 from ..a cimport test_pxd
 
-
 def test():
     cdef test_pxd obj = test_pxd()
     obj.x = 1
     obj.y = 2
     return (obj.x, obj.y)
 
-cdef i32 sum_func(i32 n, i32 m):
+fn i32 sum_func(i32 n, i32 m):
     return n + m
 
 ######## pkg/sub/c.pxd ########
 
-cdef i32 sum_func(i32 n, i32 m)
+fn i32 sum_func(i32 n, i32 m)
 
 ######## pkg/sub/d.pyx ########
 

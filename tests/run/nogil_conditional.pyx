@@ -18,7 +18,7 @@ def test(int x):
     return x
 
 
-cdef int f_nogil(int x) nogil:
+fn int f_nogil(int x) nogil:
     let int y
     y = x + 10
     return y
@@ -30,11 +30,11 @@ def f_gil(x):
     return y
 
 
-cdef int with_gil_func() except? -1 with gil:
+fn int with_gil_func() except? -1 with gil:
     raise Exception("error!")
 
 
-cdef int nogil_func() except? -1 nogil:
+fn int nogil_func() except? -1 nogil:
     with_gil_func()
 
 
@@ -51,7 +51,7 @@ def test_nogil_exception_propagation():
                 nogil_func()
 
 
-cdef int write_unraisable() noexcept nogil:
+fn int write_unraisable() noexcept nogil:
     with gil:
         raise ValueError()
 

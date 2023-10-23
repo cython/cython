@@ -1,6 +1,6 @@
 # cython: linetrace=true
 
-cdef void foo(int err) except * nogil:
+fn void foo(int err) except * nogil:
     with gil:
         raise ValueError(err)
 

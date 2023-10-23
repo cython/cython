@@ -9,19 +9,19 @@ try:
 except ImportError:
     from io import StringIO
 
-cdef int func_implicit(int a, int b):
+fn int func_implicit(int a, int b):
     raise RuntimeError
 
-cdef int func_noexcept(int a, int b) noexcept:
+fn int func_noexcept(int a, int b) noexcept:
     raise RuntimeError
 
-cdef int func_star(int a, int b) except *:
+fn int func_star(int a, int b) except *:
     raise RuntimeError
 
-cdef int func_value(int a, int b) except -1:
+fn int func_value(int a, int b) except -1:
     raise RuntimeError
 
-cdef func_return_obj_implicit(int a, int b):
+fn func_return_obj_implicit(int a, int b):
     raise RuntimeError
 
 cdef int(*ptr_func_implicit)(int, int)
@@ -135,9 +135,9 @@ def test_pure_noexcept():
     func_pure_noexcept()
 
 _WARNINGS = """
-12:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
-12:36: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-15:5: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
-24:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+12:0: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
+12:34: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+15:0: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
+24:41: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 27:38: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 """

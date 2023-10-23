@@ -2,7 +2,7 @@ ctypedef fused my_fused_type:
     i32
     f64
 
-cdef func(my_fused_type *a):
+fn func(my_fused_type *a):
     print(a[0])
 
 cdef i32 b = 3

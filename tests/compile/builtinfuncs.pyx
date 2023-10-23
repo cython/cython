@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef i32 f() except -1:
+fn i32 f() except -1:
     let object x, y = 0, z = 0, w = 0
     let str sstring
     let basestring sustring

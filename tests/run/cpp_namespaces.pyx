@@ -7,7 +7,7 @@ cdef extern from "cpp_namespaces_helper.h" namespace "A":
         f64 x
         A_t k
     A_t A_func(A_t first, A_t)
-    cdef void f(A_t)
+    fn void f(A_t)
 
 cdef extern from "cpp_namespaces_helper.h" namespace "outer":
     i32 outer_value

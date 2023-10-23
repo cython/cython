@@ -32,7 +32,7 @@ map_trace_types = {
 }.get
 
 
-cdef int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* _arg) except -1:
+fn int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* _arg) except -1:
     """
     This is (more or less) what CPython does in sysmodule.c, function trace_trampoline().
     """
@@ -155,7 +155,7 @@ def global_name(global_name):
     return global_name + 321
 
 
-cdef int cy_add_nogil(int a, int b) except -1 nogil:
+fn int cy_add_nogil(int a, int b) except -1 nogil:
     x = a + b   # 1
     return x    # 2
 

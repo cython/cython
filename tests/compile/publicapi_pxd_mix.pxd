@@ -52,14 +52,14 @@ pub  api class Bar3 [type PyBar3_Type, object PyBar3_Object]: pass
 cdef extern from *:
     void foo()
 
-cdef inline     void bar (): pass
-cdef            void bar0()
+fn inline       void bar (): pass
+fn              void bar0()
 pub             void bar1()
 cdef        api void bar2()
 pub         api void bar3()
 
-cdef inline     void* spam (object o) except NULL: return NULL
-cdef            void* spam0(object o) except NULL
+fn inline       void* spam (object o) except NULL: return NULL
+fn              void* spam0(object o) except NULL
 pub             void* spam1(object o) except NULL
 cdef        api void* spam2(object o) except NULL nogil
 pub         api void* spam3(object o) except NULL with gil

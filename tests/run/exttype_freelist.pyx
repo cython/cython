@@ -287,10 +287,10 @@ cdef class ExtTypeWithCMethods:
         assert self.cattr == 0
         self.cattr = 1
 
-    cdef int get_cattr(self):
+    fn int get_cattr(self):
         return self.cattr
 
-    cdef set_cattr(self, int value):
+    fn set_cattr(self, int value):
         self.cattr = value
 
 
@@ -397,10 +397,10 @@ cdef class ExtSubTypeWithMoreCMethods(ExtSubTypeWithCMethods):
         assert self.cattr == 1
         self.cattr = 2
 
-    cdef int get_cattr2(self):
+    fn int get_cattr2(self):
         return self.cattr
 
-    cdef set_cattr2(self, int value):
+    fn set_cattr2(self, int value):
         self.cattr = value
 
 

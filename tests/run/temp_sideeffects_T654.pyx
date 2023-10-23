@@ -6,7 +6,7 @@
 
 arg_order = []
 
-cdef int f():
+fn int f():
     arg_order.append(1)
     return 1
 
@@ -14,7 +14,7 @@ def g():
     arg_order.append(2)
     return 2
 
-cdef call2(int x, object o):
+fn call2(int x, object o):
     return x, o
 
 def test_c_call():
@@ -31,12 +31,12 @@ def test_c_call():
 # module globals
 
 cdef object X = 1
-cdef redefine_global():
+fn redefine_global():
     global X
     x,X = X,2
     return x
 
-cdef call3(object x1, int o, object x2):
+fn call3(object x1, int o, object x2):
     return (x1, o, x2)
 
 def test_global_redefine():

@@ -8,19 +8,19 @@ from libcpp.execution cimport seq
 from libcpp.vector cimport vector
 
 # Subtracts two integers.
-cdef int subtract_integers(int lhs, int rhs):
+fn int subtract_integers(int lhs, int rhs):
     return lhs - rhs
 
 # Adds two integers.
-cdef int add_integers(int lhs, int rhs):
+fn int add_integers(int lhs, int rhs):
     return lhs + rhs
 
 # Multiplies two integers.
-cdef int multiply_integers(int lhs, int rhs):
+fn int multiply_integers(int lhs, int rhs):
     return lhs * rhs
 
 # Multiplies a integer with 2
-cdef int multiply_with_2(int val):
+fn int multiply_with_2(int val):
     return 2*val
 
 def test_reduce(vector[int] v, int init):

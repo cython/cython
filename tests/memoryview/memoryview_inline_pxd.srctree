@@ -24,7 +24,7 @@ setup(
 ######## has_inline.pxd ########
 
 from libc.stdlib cimport malloc
-cdef inline f64[::1] mview(usize size):
+fn inline f64[::1] mview(usize size):
     return <f64[:size:1]>malloc(size * sizeof(f64))
     
 ######## uses_inline.pyx ########

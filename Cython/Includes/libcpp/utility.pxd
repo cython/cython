@@ -27,4 +27,4 @@ cdef extern from * namespace "cython_std" nogil:
 
     #endif
     """
-    cdef T move[T](T)
+    fn T move[T](T)

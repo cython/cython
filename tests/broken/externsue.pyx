@@ -12,7 +12,7 @@ cdef extern Eggs e
 cdef extern Spam s
 cdef extern Soviet u
 
-cdef void tomato():
+fn void tomato():
     global e
     e = Runny
     e = Firm

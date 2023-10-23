@@ -2,10 +2,8 @@
 
 from cpython.pythread cimport *
 
-
-cdef Py_tss_t *pass_py_tss_t_ptr(Py_tss_t *value):
+fn Py_tss_t *pass_py_tss_t_ptr(Py_tss_t *value):
     return value
-
 
 def tss_create_delete():
     """
@@ -22,7 +20,6 @@ def tss_create_delete():
     after_delete = PyThread_tss_is_created(&tss_key) != 0
     return (after_create, after_delete)
 
-
 def tss_alloc_free():
     """
     >>> tss_alloc_free()
@@ -36,7 +33,6 @@ def tss_alloc_free():
     after_alloc = PyThread_tss_is_created(ptr_key) != 0
     PyThread_tss_free(ptr_key)
     return after_alloc
-
 
 def tss_alloc_create_delete_free():
     """
@@ -56,7 +52,6 @@ def tss_alloc_create_delete_free():
     after_delete = PyThread_tss_is_created(ptr_key) != 0
     PyThread_tss_free(ptr_key)
     return (after_alloc, after_create, after_delete)
-
 
 def tss_set_get():
     """

@@ -1,7 +1,7 @@
 # cython: remove_unreachable=false
 # mode: error
 
-cdef i32 f_nogil(i32 x) nogil:
+fn i32 f_nogil(i32 x) nogil:
     let i32 y
     y = x + 10
     return y

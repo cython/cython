@@ -2367,7 +2367,7 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if not ctx.allow_struct_enum_decorator and s.sy not in ('def', 'cdef', 'cpdef', 'class', 'async'):
+        if not ctx.allow_struct_enum_decorator and s.sy not in ("def", "fn", "cdef", "cpdef", "class", "async"):
             if s.sy == 'IDENT' and s.systring == 'async':
                 pass  # handled below
             else:
@@ -2384,7 +2384,7 @@ def p_statement(s, ctx, first_statement = 0):
         cdef_flag = 1
         overridable = 1
         s.next()
-    elif s.sy in ("pub", "let",):
+    elif s.sy in ("pub", "fn", "let",):
         cdef_flag = 1
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
@@ -3269,6 +3269,9 @@ def p_cdef_statement(s, ctx):
         return p_struct_enum(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring == 'fused':
         return p_fused_definition(s, pos, ctx)
+    elif s.sy == "fn":
+        s.next()
+        return p_c_func_or_var_declaration(s, pos, ctx)
     elif s.sy == "let":
         s.next()
         return p_c_func_or_var_declaration(s, pos, ctx)

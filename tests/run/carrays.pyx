@@ -10,9 +10,8 @@ def test1():
     x[1][1] = 4
     return f(x)[1]
 
-cdef int* f(int x[2][2]):
+fn int* f(int x[2][2]):
     return x[0]
-
 
 def assign_index_in_loop():
     """
@@ -29,7 +28,6 @@ def assign_index_in_loop():
 
     assert a[0] == b[0]
     return b[0]
-
 
 def test2():
     """
@@ -52,7 +50,6 @@ def test3():
     let int a[MY_SIZE_A]
     let int b[MY_SIZE_B]
     return sizeof(a)/sizeof(int), sizeof(b)/sizeof(int)
-
 
 from libc cimport limits
 

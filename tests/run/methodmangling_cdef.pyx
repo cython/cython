@@ -3,7 +3,7 @@
 def call_cdt_private_cdef(CDefTest o):
     return o._CDefTest__private_cdef()
 
-cdef __c_func():
+fn __c_func():
     return "cdef function"
 
 cdef __c_var = "Shouldn't see this"
@@ -35,7 +35,7 @@ cdef class CDefTest:
 
     def __private(self): return 8
 
-    cdef __private_cdef(self): return 8
+    fn __private_cdef(self): return 8
 
     def get(self):
         """
@@ -92,4 +92,4 @@ cdef class InPxd:
     def __init__(self):
         self.__y = 2
 
-    cdef int __private_cdef(self): return 8
+    fn int __private_cdef(self): return 8

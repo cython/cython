@@ -50,7 +50,7 @@ def refcounting_stress_test(i32 N):
 
 @cython.boundscheck(false)
 @cython.wraparound(false)
-cdef f64 loopbody(f64[:, :] a, f64[:, :] b, f64[:, :] c, i32 selector) nogil:
+fn f64 loopbody(f64[:, :] a, f64[:, :] b, f64[:, :] c, i32 selector) nogil:
     let f64[:, :] selected
     let f64[:] subslice
     let f64 res = 0

@@ -50,12 +50,12 @@ pub  api class Bar3 [type PyBar3_Type, object PyBar3_Object]: pass
 
 # --
 
-cdef     void bar0(): pass
+fn       void bar0(): pass
 pub      void bar1(): pass
 cdef api void bar2(): pass
 pub  api void bar3(): pass
 
-cdef     void* spam0(object o) except NULL: return NULL
+fn       void* spam0(object o) except NULL: return NULL
 pub      void* spam1(object o) except NULL: return NULL
 cdef api void* spam2(object o) except NULL: return NULL
 pub  api void* spam3(object o) except NULL: return NULL

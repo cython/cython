@@ -49,5 +49,5 @@ def mod_int_c(i32 a, i32 b):
 assert mod_int_c(-1, 10) < 0
 
 # unraisable exceptions should produce a warning
-cdef i32 no_exc_propagate() noexcept:
+fn i32 no_exc_propagate() noexcept:
     raise TypeError()

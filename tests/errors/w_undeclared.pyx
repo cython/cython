@@ -7,7 +7,7 @@ def foo():
     return a
 
 cdef class Bar:
-    cdef int baz(self, a):
+    fn int baz(self, a):
         res = 0
         for i in range(3):
             res += i

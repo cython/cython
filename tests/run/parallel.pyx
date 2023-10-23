@@ -8,7 +8,7 @@ from libc.stdlib cimport malloc, free
 
 openmp.omp_set_nested(1)
 
-cdef int forward(int x) nogil:
+fn int forward(int x) nogil:
     return x
 
 def test_parallel():
@@ -32,7 +32,7 @@ def test_parallel():
 
     free(buf)
 
-cdef int get_num_threads() noexcept with gil:
+fn int get_num_threads() noexcept with gil:
     print "get_num_threads called"
     return 3
 
@@ -98,11 +98,11 @@ def test_parallel_catch():
 '''
 
 
-cdef void parallel_exception_checked_function(int* ptr, int id) except * nogil:
+fn void parallel_exception_checked_function(int* ptr, int id) except * nogil:
     # requires the GIL after each call
     ptr[0] = id;
 
-cdef void parallel_call_exception_checked_function_impl(int* arr, int num_threads) nogil:
+fn void parallel_call_exception_checked_function_impl(int* arr, int num_threads) nogil:
     # Inside a nogil function, parallel can't be sure that the GIL has been released.
     # Therefore Cython must release the GIL itself.
     # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL

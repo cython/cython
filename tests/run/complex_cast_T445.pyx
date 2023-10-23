@@ -30,7 +30,7 @@ def complex_int_double_cast(f64 x, double complex z):
 
 cdef i32 side_effect_counter = 0
 
-cdef double complex side_effect(double complex z):
+fn double complex side_effect(double complex z):
     global side_effect_counter
     side_effect_counter += 1
     print "side effect", side_effect_counter, z

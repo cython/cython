@@ -19,5 +19,5 @@ a = bar()
 
 ######## include/test.ext.pxd ########
 
-cdef inline int bar():
+fn inline int bar():
     return 5

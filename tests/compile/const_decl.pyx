@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef const_args(const i32 a, const i32 *b, const (i32*) c, i32 *const d, i32 **const e, i32 *const *f):
+fn const_args(const i32 a, const i32 *b, const (i32*) c, i32 *const d, i32 **const e, i32 *const *f):
     print a
     print b[0]
     b = NULL     # OK, the pointer itself is not const

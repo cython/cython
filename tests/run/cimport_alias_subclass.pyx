@@ -4,7 +4,7 @@
 cimport cimport_alias_subclass_helper as cash
 
 cdef class Derived(cash.Base):
-    cdef bint foo(self):
+    fn bint foo(self):
         print "Hello"
 
 def run():

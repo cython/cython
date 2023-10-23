@@ -109,7 +109,7 @@ cdef extern from "<memory>" namespace "std" nogil:
     unique_ptr[T] make_unique[T](...) except +
 
     # No checking on the compatibility of T and U.
-    cdef shared_ptr[T] static_pointer_cast[T, U](const shared_ptr[U]&)
-    cdef shared_ptr[T] dynamic_pointer_cast[T, U](const shared_ptr[U]&)
-    cdef shared_ptr[T] const_pointer_cast[T, U](const shared_ptr[U]&)
-    cdef shared_ptr[T] reinterpret_pointer_cast[T, U](const shared_ptr[U]&)
+    fn shared_ptr[T] static_pointer_cast[T, U](const shared_ptr[U]&)
+    fn shared_ptr[T] dynamic_pointer_cast[T, U](const shared_ptr[U]&)
+    fn shared_ptr[T] const_pointer_cast[T, U](const shared_ptr[U]&)
+    fn shared_ptr[T] reinterpret_pointer_cast[T, U](const shared_ptr[U]&)

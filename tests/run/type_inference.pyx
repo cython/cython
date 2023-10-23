@@ -232,7 +232,7 @@ def builtin_type_methods():
     append(1)
     assert l == [1], str(l)
 
-cdef i32 cfunc(i32 x):
+fn i32 cfunc(i32 x):
     return x+1
 
 def c_functions():
@@ -427,10 +427,10 @@ def loop_over_struct_ptr():
         pass
     return typeof(i)
 
-cdef unicode retu():
+fn unicode retu():
     return u"12345"
 
-cdef bytes retb():
+fn bytes retb():
     return b"12345"
 
 def conditional(x):
@@ -464,9 +464,8 @@ def double_inference():
     o_d = d_a * some_float_value()
     return (d_a,d_b,d_c,o_d), (typeof(d_a), typeof(d_b), typeof(d_c), typeof(o_d))
 
-cdef object some_float_value():
+fn object some_float_value():
     return 2.0
-
 
 @infer_types(None)
 @cython.test_fail_if_path_exists('//DefNode//NameNode[@type.is_pyobject = True]')

@@ -21,7 +21,7 @@ def test_bool(bool a):
     return a
 
 
-cdef bool may_raise_exception(bool value, exception) except *:
+fn bool may_raise_exception(bool value, exception) except *:
     if exception:
         raise exception
     else:

@@ -1,7 +1,7 @@
 cdef class Spam:
     pass
 
-cdef f(Spam s):
+fn f(Spam s):
     pass
 
 def g():

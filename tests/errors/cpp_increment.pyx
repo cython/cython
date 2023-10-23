@@ -11,7 +11,7 @@ cdef extern from *:
         Bar operator++(int)
         Bar operator--(int)
 
-cdef void foo():
+fn void foo():
     let Foo f
     let Bar b
     cython.operator.postincrement(f)

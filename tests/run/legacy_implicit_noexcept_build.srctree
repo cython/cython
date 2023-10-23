@@ -13,13 +13,13 @@ setup(
 
 ######## bar.pyx ########
 
-cdef int func_noexcept() noexcept:
+fn int func_noexcept() noexcept:
     raise RuntimeError()
 
-cdef int func_implicit():
+fn int func_implicit():
     raise RuntimeError()
 
-cdef int func_return_value() except -1:
+fn int func_return_value() except -1:
     raise RuntimeError()
 
 func_noexcept()

@@ -63,7 +63,7 @@ timeit(integrate_f1, "Typed vars")
 
 # Typed func
 
-cdef f64 f2(f64 x) except? -2:
+fn f64 f2(f64 x) except? -2:
     return x ** 2 - x
 
 def integrate_f2(f64 a, f64 b, i32 N):

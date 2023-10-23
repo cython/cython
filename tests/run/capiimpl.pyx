@@ -25,7 +25,7 @@ KeyError: 'two'
 """
 
 pub api class Foo [type FooType, object FooObject]:
-    cdef void bar(self):
+    fn void bar(self):
         pass
 
 pub api void bar():

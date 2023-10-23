@@ -6,8 +6,8 @@ from ..Plex.Scanners cimport Scanner
 
 cdef unicode any_string_prefix, IDENT
 
-cdef get_lexicon()
-cdef initial_compile_time_env()
+fn get_lexicon()
+fn initial_compile_time_env()
 
 ## methods commented with '##' out are used by Parsing.py when compiled.
 
@@ -38,7 +38,7 @@ cdef class PyrexScanner(Scanner):
     pub systring  # EncodedString
     pub list put_back_on_failure
 
-    cdef isize current_level(self)
+    fn isize current_level(self)
     #cpdef commentline(self, text)
     #cpdef open_bracket_action(self, text)
     #cpdef close_bracket_action(self, text)
@@ -60,4 +60,4 @@ cdef class PyrexScanner(Scanner):
     ##cdef expect_newline(self, message=*, bint ignore_semicolon=*)
     ##cdef int enter_async(self) except -1
     ##cdef int exit_async(self) except -1
-    cdef void error_at_scanpos(self, str message) except *
+    fn void error_at_scanpos(self, str message) except *

@@ -1,9 +1,9 @@
 cimport cython
 
-cdef f64 rand(f64 a, f64 b, random=*)
+fn f64 rand(f64 a, f64 b, random=*)
 
 @cython.locals(i=isize)
-cdef list make_matrix(isize I, isize J, fill=*)
+fn list make_matrix(isize I, isize J, fill=*)
 
 cdef class NN:
     cdef isize ni, nh, no

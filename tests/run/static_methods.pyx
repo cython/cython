@@ -10,15 +10,15 @@ cdef class A:
         return 'def', x
 
     @staticmethod
-    cdef static_cdef(int* x):
+    fn static_cdef(int* x):
         return 'cdef', x[0]
 
     @staticmethod
-    cdef static_cdef2(int* x, int* y):
+    fn static_cdef2(int* x, int* y):
         return 'cdef2', x[0] + y[0]
 
     @staticmethod
-    cdef static_cdef_untyped(a, b):
+    fn static_cdef_untyped(a, b):
         return 'cdef_utyped', a, b
 
 #     @staticmethod
@@ -84,11 +84,11 @@ def call_static_list_comprehension_GH1540(int x):
 
 cdef class FromPxd:
     @staticmethod
-    cdef static_cdef(int* x):
+    fn static_cdef(int* x):
         return 'pxd_cdef', x[0]
 
     @staticmethod
-    cdef static_cdef_with_implicit_object(obj):
+    fn static_cdef_with_implicit_object(obj):
         return obj+1
 
 def call_static_pxd_cdef(int x):

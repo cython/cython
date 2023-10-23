@@ -3,7 +3,7 @@
 
 from libcpp.string cimport string
 
-cdef foo():
+fn foo():
     let string field
     if field:  # field cannot be coerced to bool
         pass

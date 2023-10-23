@@ -5,11 +5,9 @@ from libcpp cimport bool
 from libcpp.algorithm cimport make_heap, sort_heap
 from libcpp.vector cimport vector
 
-
 # XXX should use std::greater, but I don't know how to wrap that.
-cdef inline bool greater(const int &x, const int &y):
+fn inline bool greater(const int &x, const int &y):
     return x > y
-
 
 def heapsort(l, bool reverse=false):
     """

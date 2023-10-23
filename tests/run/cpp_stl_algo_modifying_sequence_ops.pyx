@@ -26,7 +26,7 @@ def copy_int(vector[i32] values):
     copy(values.begin(), values.end(), back_inserter(out))
     return out
 
-cdef bool is_odd(i32 i):
+fn bool is_odd(i32 i):
     return i % 2
 
 def copy_int_if_odd(vector[i32] values):
@@ -104,7 +104,7 @@ def fill_int_n(vector[i32] array, i32 count, i32 value):
     fill_n(array.begin(), count, value)
     return array
 
-cdef i32 to_ord(u8 c):
+fn i32 to_ord(u8 c):
     return c
 
 def string_to_ord(string s):
@@ -118,7 +118,7 @@ def string_to_ord(string s):
     transform(s.begin(), s.end(), back_inserter(ordinals), to_ord)
     return ordinals
 
-cdef i32 add_ints(i32 lhs, i32 rhs):
+fn i32 add_ints(i32 lhs, i32 rhs):
     return lhs + rhs
 
 def add_int_vectors(vector[i32] lhs, vector[i32] rhs):
@@ -132,7 +132,7 @@ def add_int_vectors(vector[i32] lhs, vector[i32] rhs):
     return lhs
 
 cdef i32 i = 0
-cdef i32 generator():
+fn i32 generator():
     return postincrement(i)
 
 def generate_ints(i32 count):
@@ -147,7 +147,7 @@ def generate_ints(i32 count):
     return out
 
 cdef i32 j = 0
-cdef i32 generator2():
+fn i32 generator2():
     return postincrement(j)
 
 def generate_n_ints(i32 count):
@@ -171,7 +171,7 @@ def remove_spaces(string s):
     s.erase(remove(s.begin(), s.end(), ord(" ")), s.end())
     return s
 
-cdef bool is_whitespace(u8 c) except -1:
+fn bool is_whitespace(u8 c) except -1:
     # std::isspace from <cctype>
     return chr(c) in " \f\n\r\t\v"
 
@@ -217,7 +217,7 @@ def replace_ints(vector[i32] values, i32 old, i32 new):
     replace(values.begin(), values.end(), old, new)
     return values
 
-cdef bool less_than_five(i32 i):
+fn bool less_than_five(i32 i):
     return i < 5
 
 def replace_ints_less_than_five(vector[i32] values, i32 new):
@@ -358,7 +358,7 @@ def unique_ints(vector[i32] values):
     values.erase(unique(values.begin(), values.end()), values.end())
     return values
 
-cdef bool both_space(u8 lhs, u8 rhs):
+fn bool both_space(u8 lhs, u8 rhs):
     return lhs == rhs == ord(' ')
 
 def collapse_spaces(string text):

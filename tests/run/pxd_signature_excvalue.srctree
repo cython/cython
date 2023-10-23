@@ -13,14 +13,14 @@ setup(
 
 ######## foo.pxd ########
 
-cdef int bar(int i) except *
+fn int bar(int i) except *
 
-cdef int (*var_opt)(int) except? -1
-cdef int (*var_orig)(int) except *
+fn int (*var_opt)(int) except? -1
+fn int (*var_orig)(int) except *
 
 ######## foo.pyx ########
 
-cdef int bar(int i) except *:
+fn int bar(int i) except *:
     if i == 10:
         raise ValueError()
     return i + 1

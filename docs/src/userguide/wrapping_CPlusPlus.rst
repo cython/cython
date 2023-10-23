@@ -503,8 +503,8 @@ created using the Python C API. ::
         };
         """
         cdef PyObject* CustomLogicError
-        cdef void create_custom_exceptions()
-        cdef void custom_exception_handler()
+        fn void create_custom_exceptions()
+        fn void custom_exception_handler()
 
         cdef cppclass Raiser:
             Raiser() noexcept

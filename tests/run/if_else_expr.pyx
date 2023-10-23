@@ -10,7 +10,6 @@ cdef class Foo:
     def __repr__(self):
         return '<Foo>'
 
-
 cpdef test_type_cast(Foo obj, cond):
     """
     # Regression test: obj must be cast to (PyObject *) here
@@ -21,10 +20,8 @@ cpdef test_type_cast(Foo obj, cond):
     """
     return [obj] if cond else obj
 
-
-cdef func(Foo foo, dict data):
+fn func(Foo foo, dict data):
     return foo, data
-
 
 @cython.test_fail_if_path_exists('//PyTypeTestNode')
 def test_cpp_pyobject_cast(Foo obj1, Foo obj2, cond):
@@ -33,7 +30,6 @@ def test_cpp_pyobject_cast(Foo obj1, Foo obj2, cond):
     (<Foo>, None)
     """
     return func(obj1 if cond else obj2, obj1.data if cond else obj2.data)
-
 
 def test_charptr_coercion(x):
     """
@@ -44,7 +40,6 @@ def test_charptr_coercion(x):
     """
     let char* s = b'abc' if x else b'def'
     return s.decode('ascii')
-
 
 def test_syntax():
     """
@@ -57,7 +52,6 @@ def test_syntax():
     z = 0 if 1.else 1
     return x, y, z
 
-
 from libc cimport math
 
 def test_cfunc_ptrs(double x, bint round_down):
@@ -68,7 +62,6 @@ def test_cfunc_ptrs(double x, bint round_down):
     3.0
     """
     return (math.floor if round_down else math.ceil)(x)
-
 
 def performance_gh5197(patternsList):
     """
@@ -114,7 +107,7 @@ def performance_gh5197(patternsList):
         except Exception as e:
             matched.append('Error at Indx:%s-%s' %(_, patternsList[_]))
 
-cdef accept_int(int x):
+fn accept_int(int x):
     return x
 
 def test_mixed_int_bool_coercion(x):

@@ -21,4 +21,4 @@ def test():
 
 ######## a.pxd ########
 
-cdef inline int inlined_func(int x)
+fn inline int inlined_func(int x)

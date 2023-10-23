@@ -6,5 +6,5 @@ cimport cython
 # leading to compile-errors that the type wasn't defined. The test is intentionally minimal since
 # anything more thorough ends up creating the utility code
 @cython.locals(x=complex)
-cdef f(x):
+fn f(x):
     pass

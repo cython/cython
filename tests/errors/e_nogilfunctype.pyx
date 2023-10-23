@@ -2,7 +2,7 @@
 # tag: warnings
 
 cdef extern from *:
-    cdef void f()
+    fn void f()
     cdef void (*fp)() nogil
     ctypedef void (*fp_t)() nogil
 

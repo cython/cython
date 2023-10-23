@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef char *f():
+fn char *f():
     raise Exception
 
 f()

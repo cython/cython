@@ -4,7 +4,7 @@ from posix.unistd cimport *
 from posix.fcntl  cimport *
 
 
-cdef int noisy_function() except -1:
+fn int noisy_function() except -1:
     let int ret = 0
     ret = printf(b"012%s6789\n", "345")
     assert ret == 11  # printf()

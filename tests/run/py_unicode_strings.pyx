@@ -5,12 +5,11 @@ import sys
 
 from libc.string cimport memcpy
 
-cdef assert_Py_UNICODE_equal(const Py_UNICODE* u1, const Py_UNICODE* u2):
+fn assert_Py_UNICODE_equal(const Py_UNICODE* u1, const Py_UNICODE* u2):
     let size_t i = 0
     while u1[i] != 0 and u2[i] != 0 and u1[i] == u2[i]:
         i += 1
     assert u1[i] == u2[i], f"Mismatch at position {i}: {<long>u1[i]} != {<long>u2[i]} ({u1!r} != {u2!r})"
-
 
 ctypedef Py_UNICODE* LPWSTR
 
@@ -25,7 +24,6 @@ cdef unicode uwide_literal = u'\U00020000\U00020001'
 cdef Py_UNICODE* c_pu_wide_literal = u'\U00020000\U00020001'
 
 memcpy(c_pu_arr, c_pu_str, sizeof(Py_UNICODE) * (len(uobj) + 1))
-
 
 def test_c_to_python():
     """
@@ -74,7 +72,6 @@ def test_c_to_python():
     assert not u''
     assert c_pu_str
     assert c_pu_empty
-
 
 def test_python_to_c():
     """

@@ -6,10 +6,10 @@
 
 cdef i32&& x
 
-cdef void foo(i32&& x):
+fn void foo(i32&& x):
     pass
 
-cdef i32&& bar():
+fn i32&& bar():
     pass
 
 cdef extern from *:
@@ -19,14 +19,14 @@ cdef extern from *:
     template <typename T>
     void qux(const T&& x) {}
     """
-    cdef void baz(i32 x, i32&& y)
-    cdef void qux[T](const T&& x)
+    fn void baz(i32 x, i32&& y)
+    fn void qux[T](const T&& x)
 
 
 _ERRORS="""
 7:8: C++ rvalue-references cannot be declared
-9:13: Rvalue-reference as function argument not supported
-12:14: Rvalue-reference as function return type not supported
-22:17: Rvalue-reference as function argument not supported
-23:20: Rvalue-reference as function argument not supported
+9:11: Rvalue-reference as function argument not supported
+12:12: Rvalue-reference as function return type not supported
+22:15: Rvalue-reference as function argument not supported
+23:18: Rvalue-reference as function argument not supported
 """

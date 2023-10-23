@@ -21,7 +21,7 @@ def foo():
 
 ######## bar.pxd ########
 
-cdef inline void empty():
+fn inline void empty():
     print("empty")
 
 

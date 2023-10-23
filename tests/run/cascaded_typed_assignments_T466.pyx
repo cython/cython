@@ -38,7 +38,7 @@ def simple_parallel_int_mix_recursive():
 
 cdef int called = 0
 
-cdef char* get_string():
+fn char* get_string():
     global called
     called += 1
     return "abcdefg"
