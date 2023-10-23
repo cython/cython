@@ -2314,7 +2314,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
     if (kwargs == NULL) {
         #if CYTHON_VECTORCALL
-        #if Py_VERSION_HEX < 0x03090000
+        #if PY_VERSION_HEX < 0x03090000
         vectorcallfunc f = _PyVectorcall_Function(func);
         #else
         vectorcallfunc f = PyVectorcall_Function(func);
