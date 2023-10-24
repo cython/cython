@@ -149,7 +149,7 @@ def invalid_ctuple_syntax(a: (cython.i32, cython.i32), b: (i32, i32)):
     result: (cython.i32, cython.i32, cython.i32, cython.i32) = a + b
     return result
 
-MyStruct = cython.struct(x=cython.i32, y=cython.i32, data=cython.f64)
+MyStruct = cython.r#struct(x=cython.i32, y=cython.i32, data=cython.f64)
 
 @cython.ccall
 def struct_io(s : MyStruct) -> MyStruct:

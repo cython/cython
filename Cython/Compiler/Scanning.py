@@ -47,11 +47,8 @@ py_reserved_words = [
     "from", "yield", "with",
 ]
 
-contextual_keywords = [
+pyx_reserved_words = py_reserved_words + [
     "pub", "extern", "fn", "let", "enum",
-]
-
-pyx_reserved_words = py_reserved_words + contextual_keywords + [
     "include", "ctypedef", "cdef", "cpdef",
     "cimport", "DEF", "IF", "ELIF", "ELSE"
 ]
@@ -460,6 +457,8 @@ class PyrexScanner(Scanner):
                     self.keywords.pop('exec', None)
                 else:
                     sy = self.keywords[systring]  # intern
+            elif systring.startswith("r#"):
+                systring = systring[2:]
             systring = self.context.intern_ustring(systring)
         if self.put_back_on_failure is not None:
             self.put_back_on_failure.append((sy, systring, self.position()))

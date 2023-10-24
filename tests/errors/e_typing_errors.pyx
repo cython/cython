@@ -13,7 +13,7 @@ def optional_cython_types(Optional[cython.i32] i, Optional[cython.f64] d, Option
                           Optional[cython.complex] c, Optional[cython.i64] l, Optional[cython.i128] ll):
     pass
 
-MyStruct = cython.struct(a=cython.i32, b=cython.f64)
+MyStruct = cython.r#struct(a=cython.i32, b=cython.f64)
 
 def optional_cstruct(Optional[MyStruct] x):
     pass

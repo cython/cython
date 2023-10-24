@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor, contextual_keywords, tentatively_scan
+from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin

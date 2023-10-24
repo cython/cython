@@ -2,7 +2,7 @@
 Common tests shared by test_unicode, test_userstring and test_bytes.
 """
 
-import unittest, string, sys, struct
+import unittest, string, sys, r#struct
 #from test import support
 #from collections import UserList
 
@@ -352,7 +352,7 @@ class BaseTest:
 
         self.checkraises(TypeError, 'hello', 'expandtabs', 42, 42)
         # This test is only valid when sizeof(int) == sizeof(void*) == 4.
-        if sys.maxsize < (1 << 32) and struct.calcsize('P') == 4:
+        if sys.maxsize < (1 << 32) and r#struct.calcsize('P') == 4:
             self.checkraises(OverflowError,
                              '\ta\n\tb', 'expandtabs', sys.maxsize)
 
@@ -672,7 +672,7 @@ class BaseTest:
         self.checkraises(TypeError, 'hello', 'replace', 42, 'h')
         self.checkraises(TypeError, 'hello', 'replace', 'h', 42)
 
-    @unittest.skipIf(sys.maxsize > (1 << 32) or struct.calcsize('P') != 4,
+    @unittest.skipIf(sys.maxsize > (1 << 32) or r#struct.calcsize('P') != 4,
                      'only applies to 32-bit platforms')
     def test_replace_overflow(self):
         # Check for overflow checking on 32 bit machines

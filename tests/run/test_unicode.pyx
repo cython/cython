@@ -2314,7 +2314,7 @@ class UnicodeTest(CommonTest,
     # This test only affects 32-bit platforms because expandtabs can only take
     # an int as the max value, not a 64-bit C long.  If expandtabs is changed
     # to take a 64-bit long, this test should apply to all platforms.
-    @unittest.skipIf(sys.maxsize > (1 << 32) or struct.calcsize('P') != 4,
+    @unittest.skipIf(sys.maxsize > (1 << 32) or r#struct.calcsize('P') != 4,
                      'only applies to 32-bit platforms')
     def test_expandtabs_overflows_gracefully(self):
         self.assertRaises(OverflowError, 't\tt\t'.expandtabs, sys.maxsize)
@@ -2325,7 +2325,7 @@ class UnicodeTest(CommonTest,
         self.assertIs(s.expandtabs(), s)
 
     def test_raiseMemError(self):
-        if struct.calcsize('P') == 8:
+        if r#struct.calcsize('P') == 8:
             # 64 bits pointers
             ascii_struct_size = 48
             compact_struct_size = 72
