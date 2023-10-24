@@ -76,7 +76,7 @@ def test_tuple_construction(x, y, colour):
     return p
 '''
 
-cdef union int_or_float:
+union int_or_float:
     i32 n
     f64 x
 

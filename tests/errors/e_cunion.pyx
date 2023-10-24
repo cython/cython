@@ -1,22 +1,19 @@
 # mode: error
 
-cdef union AllCharptr:
+union AllCharptr:
     char *s1
     char *s2
     char *s3
-
 
 def convert_ok():
     let AllCharptr u
     u.s1 = b"abc"
     return u
 
-
-cdef union IllegalMix:
+union IllegalMix:
     char *s1
     char *s2
     i32 i
-
 
 def convert_nok():
     let IllegalMix u
@@ -25,5 +22,5 @@ def convert_nok():
 
 
 _ERRORS = """
-24:11: Cannot convert 'IllegalMix' to Python object
+21:11: Cannot convert 'IllegalMix' to Python object
 """

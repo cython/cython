@@ -21,7 +21,7 @@ ctypedef union union_type_not_boolean:
 if union_type_not_boolean:
     print("INVALID CODE")
 
-cdef union union_not_boolean:
+union union_not_boolean:
     i32 i
     f32 f
 

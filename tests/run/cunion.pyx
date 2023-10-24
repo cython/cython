@@ -1,4 +1,4 @@
-cdef union Spam:
+union Spam:
     i32 i
     char c
     f32 *p[42]
@@ -44,7 +44,7 @@ def test_p():
     spam.p[0] = &f
     eggs_p(spam)
 
-cdef union AllCharptr:
+union AllCharptr:
     char* s1
     char* s2
     char* s3
@@ -65,7 +65,7 @@ def test_charptr_to_py():
     u.s1 = b"abc"
     return u
 
-cdef union SafeMix:
+union SafeMix:
     i8 c
     u8 uc
     signed char sc

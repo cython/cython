@@ -3,9 +3,8 @@
 from posix.types cimport pid_t, sigset_t, uid_t
 
 extern from "<signal.h>" nogil:
-
-    cdef union sigval:
-        int  sival_int
+    union sigval:
+        i32  sival_int
         void *sival_ptr
 
     struct sigevent:

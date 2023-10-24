@@ -1,4 +1,4 @@
-cdef union Food:
+union Food:
     char *spam
     f32 *eggs
 

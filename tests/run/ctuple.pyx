@@ -125,7 +125,7 @@ def c_types(i32 a, f64 b):
     a_ptr, b_ptr = ab
     return a_ptr[0], b_ptr[0]
 
-cdef union Union:
+union Union:
     i32 x
     f64 y
 

@@ -131,7 +131,7 @@ def test_typedef(x):
     """
     return (<object>test_typedef_cfunc)(x)
 
-cdef union my_union:
+union my_union:
     f32 a
     f64 b
 
