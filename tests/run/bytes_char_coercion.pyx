@@ -50,7 +50,7 @@ def coerce_uchar_bytes_cast(u8 c):
 
 @cython.test_assert_path_exists("//CoerceIntToBytesNode")
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
-def coerce_int_bytes_cast(int c):
+def coerce_int_bytes_cast(i32 c):
     """
     Explicit int -> bytes coercion
 
@@ -116,7 +116,7 @@ def coerce_uchar_bytes_assign(u8 c):
 
 @cython.test_assert_path_exists("//CoerceIntToBytesNode")
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
-def coerce_int_bytes_assign(int c):
+def coerce_int_bytes_assign(i32 c):
     """
     Implicit int -> bytes coercion in assignments
 

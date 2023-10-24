@@ -47,7 +47,7 @@ def call2(f):
     Traceback (most recent call last):
     TypeError: m() needs keyword-only argument c
     """
-    f(1,2)
+    f(1, 2)
 
 def call3(f):
     """
@@ -76,7 +76,7 @@ def call3(f):
     Traceback (most recent call last):
     TypeError: m() takes at most 2 positional arguments (3 given)
     """
-    f(1,2,3)
+    f(1, 2, 3)
 
 def call4(f):
     """
@@ -90,7 +90,7 @@ def call4(f):
     Traceback (most recent call last):
     TypeError: e() takes at most 3 positional arguments (4 given)
     """
-    f(1,2,3,4)
+    f(1, 2, 3, 4)
 
 def call2c(f):
     """
@@ -203,7 +203,7 @@ def call2cfex(f):
     f(1,2, c=1, f=2, e=0, x=25)
 
 def call6argscfexy(f):
-    args = (1,2,3,4,5,6)
+    args = (1, 2, 3, 4, 5, 6)
     f(*args, c=1, f=2, e=3, x=25, y=11)
 
 def call6cfexy(f):
@@ -223,36 +223,36 @@ def call6dfexy(f):
 # the called functions:
 
 def b(a, b, c):
-    print a,b,c
+    print a, b, c
 
 def c(a, b, c=1):
-    print a,b,c
+    print a, b, c
 
 def d(a, b, *, c = 88):
-    print a,b,c
+    print a, b, c
 
 def e(a, b, c = 88, **kwds):
     kwlist = list(kwds.items())
     kwlist.sort()
-    print a,b,c, kwlist
+    print a, b, c, kwlist
 
 def f(a, b, *, c, d = 42):
-    print a,b,c,d
+    print a, b, c, d
 
 def g(a, b, *, c, d = 42, e = 17, f, **kwds):
     kwlist = list(kwds.items())
     kwlist.sort()
-    print a,b,c,d,e,f, kwlist
+    print a, b, c, d, e, f, kwlist
 
 def h(a, b, *args, c, d = 42, e = 17, f, **kwds):
     kwlist = list(kwds.items())
     kwlist.sort()
-    print a,b,c,d,e,f, args, kwlist
+    print a, b, c, d, e, f, args, kwlist
 
 def k(a, b, c=1, *args, d = 42, e = 17, f, **kwds):
     kwlist = list(kwds.items())
     kwlist.sort()
-    print a,b,c,d,e,f, args, kwlist
+    print a, b, c, d, e, f, args, kwlist
 
 def m(a, b=1, *, c):
-    print a,b,c
+    print a, b, c

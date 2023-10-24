@@ -3,8 +3,8 @@ def f(obj1, obj2, obj3):
     >>> f(1, 2, 3)
     (-3, -4, 1)
     """
-    let int bool1, bool2
-    let int int1, int2
+    let i32 bool1, bool2
+    let i32 int1, int2
     let char *str1
 
     int2 = obj3

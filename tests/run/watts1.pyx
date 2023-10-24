@@ -3,7 +3,7 @@ def test():
     >>> test() == 55 + 66
     True
     """
-    let int a,b
+    let i32 a, b
     let object foo = (55,66)
-    a,b = foo
+    a, b = foo
     return a + b

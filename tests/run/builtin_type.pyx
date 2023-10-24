@@ -41,7 +41,7 @@ def type_type():
 
 cpdef type pass_type(type x):
     """
-    >>> pass_type(int) == int
+    >>> pass_type(i32) == int
     True
     >>> class MyType(object): pass
     >>> pass_type(MyType) == MyType

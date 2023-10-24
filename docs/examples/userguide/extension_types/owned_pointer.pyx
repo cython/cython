@@ -1,6 +1,4 @@
- 
 from libc.stdlib cimport free
-
 
 cdef class OwnedPointer:
     cdef void* ptr
@@ -8,7 +6,6 @@ cdef class OwnedPointer:
     def __dealloc__(self):
         if self.ptr is not NULL:
             free(self.ptr)
-
 
     @staticmethod
     fn create(void* ptr):

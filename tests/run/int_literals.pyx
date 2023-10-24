@@ -37,7 +37,7 @@ def c_longs():
     >>> c_longs() == (1, 1, -1, 18446744073709551615)  or  c_longs()
     True
     """
-    let long a = 1L
+    let i64 a = 1L
     let u64 ua = 1UL
     let i128 aa = 0xFFFFFFFFFFFFFFFFLL
     let u128 uaa = 0xFFFFFFFFFFFFFFFFULL
@@ -53,7 +53,7 @@ def negative_c_longs():
     >>> negative_c_longs() == (-1, -9223285636854775809)  or  negative_c_longs()
     True
     """
-    let long a = -1L
+    let i64 a = -1L
     let i128 aa = -9223285636854775809LL
     return a, aa
 
@@ -134,7 +134,7 @@ def c_oct():
     let i32 a = 0o01
     let i32 b = -0o21
     let i32 c = 0o77
-    return a,b,c
+    return a, b, c
 
 def c_oct_py2_legacy():
     """
@@ -168,7 +168,7 @@ def c_hex():
     let i32 a = 0x01
     let i32 b = -0x21
     let i32 c = 0xFF
-    return a,b,c
+    return a, b, c
 
 def py_hex():
     """
@@ -185,7 +185,7 @@ def c_bin():
     let i32 a = 0b01
     let i32 b = -0b10
     let i32 c = 0b1111
-    return a,b,c
+    return a, b, c
 
 def py_bin():
     """

@@ -95,7 +95,7 @@ cdef class MyCdefClass:
         False
         """
 
-    def __richcmp__(self, other, int op):
+    def __richcmp__(self, other, i32 op):
         """
         Should not be included, as it can't be looked up with getattr in Py 2
 

@@ -4,8 +4,8 @@ from posix.unistd cimport *
 from posix.fcntl  cimport *
 
 
-fn int noisy_function() except -1:
-    let int ret = 0
+fn i32 noisy_function() except -1:
+    let i32 ret = 0
     ret = printf(b"012%s6789\n", "345")
     assert ret == 11  # printf()
     ret = printf(b"012%d6789\n", 345)
@@ -27,8 +27,8 @@ def test_silent_stdout():
     """
     >>> test_silent_stdout()
     """
-    let int ret
-    let int stdout_save, dev_null
+    let i32 ret
+    let i32 stdout_save, dev_null
     stdout_save = dup(STDOUT_FILENO)
     assert stdout_save != -1
     dev_null = open(b"/dev/null", O_WRONLY, 0)
@@ -47,7 +47,7 @@ def test_silent_stdout():
 
 
 cdef class silent_fd:
-    let int fd_save, fd
+    let i32 fd_save, fd
 
     def __cinit__(self, int fd=-1):
         self.fd_save = -1

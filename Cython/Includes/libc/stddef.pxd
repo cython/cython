@@ -4,6 +4,6 @@ extern from "<stddef.h>":
 
     ctypedef signed int ptrdiff_t
 
-    ctypedef unsigned int size_t
+    ctypedef u32 size_t
 
-    ctypedef int wchar_t
+    ctypedef i32 wchar_t

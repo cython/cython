@@ -2,5 +2,5 @@
 
 def func():
     ustring = u'abc'
-    cdef char* s = ustring
+    let char* s = ustring
     return s[0]    # returns u'a'

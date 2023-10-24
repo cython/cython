@@ -8,7 +8,7 @@ def single_except(a, x):
     Traceback (most recent call last):
     TypeError: test
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -28,7 +28,7 @@ def single_except_builtin(a, x):
     Traceback (most recent call last):
     TypeError: test
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -48,7 +48,7 @@ def single_except_expression(a, x):
     Traceback (most recent call last):
     TypeError: test
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -77,7 +77,7 @@ def single_except_global_tuple(x):
     Traceback (most recent call last):
     AttributeError: test
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -88,14 +88,14 @@ def single_except_global_tuple(x):
     return i
 
 
-def double_except_no_raise(a,b):
+def double_except_no_raise(a, b):
     """
     >>> double_except_no_raise(TypeError, ValueError)
     1
     """
     d = a or b  # mark used
 
-    let int i
+    let i32 i
     try:
         i = 1
     except a:
@@ -115,7 +115,7 @@ def double_except_raise(x, a, b):
     >>> double_except_raise(None, TypeError, ValueError)
     1
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -133,7 +133,7 @@ def target_except_no_raise(a):
     """
     d = a  # mark used
 
-    let int i
+    let i32 i
     try:
         i = 1
     except a, b:
@@ -152,7 +152,7 @@ def target_except_raise(x, a):
     >>> target_except_raise(None, TypeError)
     1
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -176,7 +176,7 @@ def tuple_except_builtin(x):
     >>> tuple_except_builtin(None)
     1
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -192,7 +192,7 @@ def normal_and_bare_except_no_raise(a):
     """
     d = a  # mark used
 
-    let int i
+    let i32 i
     try:
         i = 1
     except a:
@@ -216,7 +216,7 @@ def normal_and_bare_except_raise(x, a):
     >>> normal_and_bare_except_raise(None, TypeError)
     1
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
@@ -237,7 +237,7 @@ def tuple_except_index_target_no_raise(a, b, c):
     """
     d = a or b or c  # mark used
 
-    let int i
+    let i32 i
     try:
         i = 1
     except (a, b), c[1]:
@@ -267,22 +267,22 @@ def tuple_except_index_target_raise(x, a, b, c):
     >>> l[0] is None, isinstance(l[1], ValueError)
     (True, True)
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:
             raise x
     except (a, b), c[1]:
         i = 2
-        assert isinstance(c[1], (a,b))
+        assert isinstance(c[1], (a, b))
     return i
 
-def loop_bare_except_no_raise(a, b, int c):
+def loop_bare_except_no_raise(a, b, i32 c):
     """
     >>> loop_bare_except_no_raise(TypeError, range(2), 2)
     (1, 3528)
     """
-    let int i = 1
+    let i32 i = 1
     for a in b:
         try:
             c = c * 42
@@ -290,7 +290,7 @@ def loop_bare_except_no_raise(a, b, int c):
             i = 17
     return i,c
 
-def loop_bare_except_raise(a, b, int c):
+def loop_bare_except_raise(a, b, i32 c):
     """
     >>> loop_bare_except_raise(TypeError, range(2), 2)
     (1, 3528)
@@ -299,7 +299,7 @@ def loop_bare_except_raise(a, b, int c):
     >>> loop_bare_except_raise(TypeError, range(4), 2)
     (17, 6223392)
     """
-    let int i = 1
+    let i32 i = 1
     for a in b:
         try:
             c = c * 42
@@ -319,7 +319,7 @@ def bare_except_reraise_no_raise(l):
     """
     d = l  # mark used
 
-    let int i
+    let i32 i
     try:
         i = 1
     except:
@@ -345,7 +345,7 @@ def bare_except_reraise_raise(x, l):
     >>> l
     [None]
     """
-    let int i
+    let i32 i
     try:
         i = 1
         if x:

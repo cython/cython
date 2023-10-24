@@ -1,6 +1,6 @@
 def primes(i32 nb_primes):
-    cdef i32 n, i, len_p
-    cdef i32[1000] p
+    let i32 n, i, len_p
+    let i32[1000] p
 
     if nb_primes > 1000:
         nb_primes = 1000

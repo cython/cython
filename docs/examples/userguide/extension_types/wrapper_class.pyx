@@ -15,7 +15,7 @@ cdef class WrapperClass:
 
     def __dealloc__(self):
         # De-allocate if not null and flag is set
-        if self._ptr is not NULL and self.ptr_owner is True:
+        if self._ptr is not NULL and self.ptr_owner is true:
             free(self._ptr)
             self._ptr = NULL
 
@@ -33,9 +33,8 @@ cdef class WrapperClass:
     def b(self):
         return self._ptr.b if self._ptr is not NULL else None
 
-
     @staticmethod
-    fn WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
+    fn WrapperClass from_ptr(my_c_struct *_ptr, bint owner=false):
         """Factory function to create WrapperClass objects from
         given my_c_struct pointer.
 
@@ -43,7 +42,7 @@ cdef class WrapperClass:
         the extension type to ``free`` the structure pointed to by ``_ptr``
         when the wrapper object is deallocated."""
         # Fast call to __new__() that bypasses the __init__() constructor.
-        cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
+        let WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
         wrapper._ptr = _ptr
         wrapper.ptr_owner = owner
         return wrapper
@@ -52,10 +51,10 @@ cdef class WrapperClass:
     fn WrapperClass new_struct():
         """Factory function to create WrapperClass objects with
         newly allocated my_c_struct"""
-        cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
+        let my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
 
         if _ptr is NULL:
             raise MemoryError
         _ptr.a = 0
         _ptr.b = 0
-        return WrapperClass.from_ptr(_ptr, owner=True)
+        return WrapperClass.from_ptr(_ptr, owner=true)

@@ -25,7 +25,7 @@ def test_ptr2():
     else:
         return 3
 
-def test_int(int i):
+def test_int(i32 i):
     """
     >>> test_int(0)
     False
@@ -37,7 +37,7 @@ def test_int(int i):
     else:
         return false
 
-def test_short(short i):
+def test_short(i16 i):
     """
     >>> test_short(0)
     False
@@ -62,7 +62,7 @@ def test_Py_ssize_t(isize i):
         return false
 
 cdef class TestExtInt:
-    let int i
+    let i32 i
     def __init__(self, i): self.i = i
 
 def test_attr_int(TestExtInt e):
@@ -78,12 +78,12 @@ def test_attr_int(TestExtInt e):
         return false
 
 ctypedef union _aux:
-    size_t i
+    usize i
     void *p
 
 cdef class TestExtPtr:
     let void* p
-    def __init__(self, int i):
+    def __init__(self, i32 i):
         cdef _aux aux
         aux.i = i
         self.p = aux.p

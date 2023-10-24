@@ -287,7 +287,7 @@ cdef class Ext:
         return "string"
 
     cpdef Ext clone(self):
-        return Ext(1,2)
+        return Ext(1, 2)
 
 def foo():
     pass
@@ -330,8 +330,7 @@ cpdef u8 f_uc(u8 c):
 cpdef signed char f_sc(signed char c):
     return c
 
-
-cpdef short f_s(short s):
+cpdef i16 f_s(i16 s):
     return s
 
 cpdef u16 f_us(u16 s):
@@ -347,13 +346,11 @@ cpdef u32 f_ui(u32 i):
 cpdef bint f_bint(bint i):
     return i
 
-
 cpdef i64 f_l(i64 l):
     return l
 
 cpdef u64 f_ul(u64 l):
     return l
-
 
 cpdef i128 f_L(i128 L):
     return L

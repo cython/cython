@@ -1,9 +1,9 @@
 
 def call_iter1(x):
     """
-    >>> [ i for i in iter([1,2,3]) ]
+    >>> [i for i in iter([1, 2, 3])]
     [1, 2, 3]
-    >>> [ i for i in call_iter1([1,2,3]) ]
+    >>> [i for i in call_iter1([1, 2, 3])]
     [1, 2, 3]
     """
     return iter(x)

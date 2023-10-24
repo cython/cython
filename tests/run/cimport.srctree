@@ -16,14 +16,14 @@ setup(
 cdef class A:
     pass
 
-fn int foo(int)
+fn i32 foo(int)
 
 ######## other.pyx ########
 
 cdef class A:
     pass
 
-fn int foo(int a):
+fn i32 foo(int a):
      return a**2
 
 ######## pkg/__init__.py ########

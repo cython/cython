@@ -7,7 +7,7 @@ cdef class C:
         "This is an unusable docstring."
     def __dealloc__(self):
         "This is an unusable docstring."
-    def __richcmp__(self, other, int op):
+    def __richcmp__(self, other, i32 op):
         "This is an unusable docstring."
     def __nonzero__(self):
         "This is an unusable docstring."

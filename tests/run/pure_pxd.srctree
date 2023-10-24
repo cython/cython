@@ -103,4 +103,4 @@ cdef class TypedMethod:
 
 cpdef int func(x, int y, z) except? -1  # argument names should not matter, types should
 
-fn int sum_generator_expression(int a)
+fn i32 sum_generator_expression(int a)

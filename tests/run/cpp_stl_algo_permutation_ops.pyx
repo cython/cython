@@ -7,13 +7,13 @@ from libcpp.algorithm cimport is_permutation, next_permutation, prev_permutation
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 
-fn bool compare(int a, int b):
+fn bool compare(i32 a, i32 b):
     return a == b
 
 fn bool less_than(char a, char b):
     return a < b
 
-def test_is_permutation(vector[int] v1, vector[int] v2):
+def test_is_permutation(vector[i32] v1, vector[i32] v2):
     """
     Test is_permutation.
 
@@ -24,7 +24,7 @@ def test_is_permutation(vector[int] v1, vector[int] v2):
     """
     return is_permutation(v1.begin(), v1.end(), v2.begin())
 
-def test_is_permutation_with_bin_pred(vector[int] v1, vector[int] v2):
+def test_is_permutation_with_bin_pred(vector[i32] v1, vector[i32] v2):
     """
     Test is_permutation with binary predicate
 
@@ -35,7 +35,7 @@ def test_is_permutation_with_bin_pred(vector[int] v1, vector[int] v2):
     """
     return is_permutation(v1.begin(), v1.end(), v2.begin(), compare)
 
-def test_is_permutation_with_second_range_and_bin_pred(vector[int] v1, vector[int] v2):
+def test_is_permutation_with_second_range_and_bin_pred(vector[i32] v1, vector[i32] v2):
     """
     Test is_permutation with second range and binary predicate
 

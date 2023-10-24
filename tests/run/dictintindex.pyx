@@ -118,7 +118,7 @@ def test_get_longlong_big():
     >>> test_get_longlong_big()
     3
     """
-    let u32 shift = sizeof(long)+2
+    let u32 shift = sizeof(i32)+2
     let i128 big = 1
     let i128 key = big<<shift
     d = {big<<shift:3}
@@ -145,7 +145,7 @@ def test_get_ulonglong_big():
     >>> test_get_ulonglong_big()
     3
     """
-    let u32 shift = sizeof(long)+2
+    let u32 shift = sizeof(i32)+2
     let u128 big = 1
     let u128 key = big<<shift
     d = {big<<shift:3}
@@ -224,7 +224,7 @@ def test_del_longlong_big():
     Traceback (most recent call last):
     KeyError: ...
     """
-    let i32 shift = sizeof(long)+2
+    let i32 shift = sizeof(i32)+2
     let i128 big = 1
     let i128 key = big<<shift
     d = {big<<shift:1}
@@ -237,7 +237,7 @@ def test_del_ulonglong_big():
     Traceback (most recent call last):
     KeyError: ...
     """
-    let u32 shift = sizeof(long)+2
+    let u32 shift = sizeof(i32)+2
     let u128 big = 1
     let u128 key = big<<shift
     d = {big<<shift:1}

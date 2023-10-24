@@ -319,7 +319,7 @@ def explicitly_release_buffer():
 @testcase
 def get_int_2d(i32[:, :] buf, i32 i, i32 j):
     """
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
@@ -355,7 +355,7 @@ def get_int_2d(i32[:, :] buf, i32 i, i32 j):
 def get_int_2d_uintindex(i32[:, :] buf, u32 i, u32 j):
     """
     Unsigned indexing:
-    >>> C = IntMockBuffer("C", range(6), (2,3))  # , writable=false)
+    >>> C = IntMockBuffer("C", range(6), (2, 3))  # , writable=false)
     >>> get_int_2d_uintindex(C, 0, 0)
     acquired C
     released C
@@ -375,7 +375,7 @@ def set_int_2d(i32[:, :] buf, i32 i, i32 j, i32 value):
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
 
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
     released C
@@ -937,7 +937,7 @@ def printbuf_float(o, shape):
     """
 
     # should make shape builtin
-    let const float[:] buf
+    let const f32[:] buf
     buf = o
     let i32 i, j
     for i in range(shape[0]):
@@ -1349,8 +1349,8 @@ def buffer_nogil():
     >>> buffer_nogil()
     (10, 10)
     """
-    let i32[:] buf = IntMockBuffer(None, [1,2,3])
-    let i32[:] buf2 = IntMockBuffer(None, [4,5,6])
+    let i32[:] buf = IntMockBuffer(None, [1, 2, 3])
+    let i32[:] buf2 = IntMockBuffer(None, [4, 5, 6])
 
     with nogil:
         buf[1] = 10
@@ -1568,11 +1568,11 @@ def test_indirect_slicing(arg):
 cdef class TestIndexSlicingDirectIndirectDims(object):
     "Test a int[:, ::view.indirect, :] slice"
 
-    let Py_ssize_t[3] shape, strides, suboffsets
+    cdef Py_ssize_t[3] shape, strides, suboffsets
 
-    let i32[5] c_array
-    let i32 *myarray[5][5]
-    let bytes format
+    cdef i32[5] c_array
+    cdef i32 *myarray[5][5]
+    cdef bytes format
 
     def __init__(self):
         cdef i32 i
@@ -2318,7 +2318,7 @@ fn _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
             m2[i, j] = i * m2.shape[1] + j
 
     let i32 x = 2, y = -2
-    let long value = 1
+    let i64 value = 1
     m2[::2,    ::-1] = value
     m2[-2::-2, ::-1] = 2
     m2[::2,    -2::-2] = 0
@@ -2411,7 +2411,7 @@ def test_noneslice_compare(f64[:] m):
     return result, m is None
 
 cdef class NoneSliceAttr(object):
-    let f64[:] m
+    cdef f64[:] m
 
 @testcase
 def test_noneslice_ext_attr():

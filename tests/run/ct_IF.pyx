@@ -9,7 +9,7 @@ def f():
     >>> f()
     1
     """
-    let int i
+    let i32 i
     IF YES:
         i = 1
     ELIF NO:
@@ -23,7 +23,7 @@ def g():
     >>> g()
     2
     """
-    let int i
+    let i32 i
     IF NO:
         i = 1
     ELIF YES:
@@ -37,7 +37,7 @@ def h():
     >>> h()
     3
     """
-    let int i
+    let i32 i
     IF NO:
         i = 1
     ELIF NO:

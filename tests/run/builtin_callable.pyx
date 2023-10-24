@@ -17,7 +17,7 @@ def test_callable(x):
     >>> test_callable(C())
     False
 
-    >>> test_callable(int)
+    >>> test_callable(i32)
     True
     >>> test_callable(test_callable)
     True

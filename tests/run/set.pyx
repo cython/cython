@@ -61,7 +61,7 @@ def test_set_add():
     s1.add(1)
     s1.add('a')
     s1.add(1)
-    s1.add((1,2))
+    s1.add((1, 2))
     return s1
 
 
@@ -108,7 +108,7 @@ def test_set_update(v=None):
     s1.update((1,))
     s1.update('abc')
     s1.update(set([1]))
-    s1.update(frozenset((1,2)))
+    s1.update(frozenset((1, 2)))
     if v is not None:
         s1.update(v)
     return s1
@@ -143,7 +143,7 @@ def test_object_update(v=None):
     s1.update((1,))
     s1.update('abc')
     s1.update(set([1]))
-    s1.update(frozenset((1,2)))
+    s1.update(frozenset((1, 2)))
     if v is not None:
         s1.update(v)
     return s1

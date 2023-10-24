@@ -3,15 +3,15 @@ extern from "c-algorithms/src/queue.h":
         pass
     ctypedef void* QueueValue
 
-    Queue* queue_new()
-    void queue_free(Queue* queue)
+    fn Queue* queue_new()
+    fn void queue_free(Queue* queue)
 
-    i32 queue_push_head(Queue* queue, QueueValue data)
-    QueueValue  queue_pop_head(Queue* queue)
-    QueueValue queue_peek_head(Queue* queue)
+    fn i32 queue_push_head(Queue* queue, QueueValue data)
+    fn QueueValue queue_pop_head(Queue* queue)
+    fn QueueValue queue_peek_head(Queue* queue)
 
-    i32 queue_push_tail(Queue* queue, QueueValue data)
-    QueueValue queue_pop_tail(Queue* queue)
-    QueueValue queue_peek_tail(Queue* queue)
+    fn i32 queue_push_tail(Queue* queue, QueueValue data)
+    fn QueueValue queue_pop_tail(Queue* queue)
+    fn QueueValue queue_peek_tail(Queue* queue)
 
-    bint queue_is_empty(Queue* queue)
+    fn bint queue_is_empty(Queue* queue)

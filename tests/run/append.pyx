@@ -46,9 +46,9 @@ def test_append(L):
     """
     print L.append(1)
     print L.append(2)
-    print L.append((3,4))
+    print L.append((3, 4))
     try:
-        print L.append(5,6)
+        print L.append(5, 6)
     except TypeError:
         print u"got error"
     return L
@@ -63,7 +63,7 @@ def test_append_typed(list L not None):
     """
     print L.append(1)
     L.append(2)
-    print L.append((3,4))
+    print L.append((3, 4))
     return L
 
 
@@ -82,9 +82,9 @@ def append_unused_retval(L):
     """
     L.append(1)
     L.append(2)
-    L.append((3,4))
+    L.append((3, 4))
     try:
-        L.append(5,6)
+        L.append(5, 6)
     except TypeError:
         print u"got error"
     return L

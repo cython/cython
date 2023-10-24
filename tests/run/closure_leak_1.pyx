@@ -3,7 +3,7 @@
 
 def reassign_args(x, *args):
     """
-    >>> reassign_args(1, [1,2,3,4])
+    >>> reassign_args(1, [1, 2, 3, 4])
     """
     a,args = args[0], args[1:]
     b = False

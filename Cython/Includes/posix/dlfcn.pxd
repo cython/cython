@@ -2,7 +2,7 @@
 # https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/dlfcn.h.html
 
 extern from "<dlfcn.h>" nogil:
-    void *dlopen(const char *, int)
+    void *dlopen(const char *, i32)
     char *dlerror()
     void *dlsym(void *, const char *)
     int dlclose(void *)

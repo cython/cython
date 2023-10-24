@@ -78,7 +78,7 @@ TYPE_FIXES_REQUIRED:
 """
 
 import sys
-if sys.version_info < (2,5):
+if sys.version_info < (2, 5):
     __doc__ = (__doc__.split('TYPE_FIXES_REQUIRED')[0] +
                __doc__.split('TYPE_FIXES_REQUIRED')[1].replace('\nAttributeError: ...', '\nTypeError: ...'))
 

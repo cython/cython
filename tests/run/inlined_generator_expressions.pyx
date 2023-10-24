@@ -1,7 +1,7 @@
 
 cimport cython
 
-## def range_tuple_genexp(int N):
+## def range_tuple_genexp(i32 N):
 ##     """
 ##     >>> range_tuple_genexp(5)
 ##     (0, 1, 2, 3, 4)
@@ -13,7 +13,7 @@ cimport cython
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
                                  '//ForInStatNode')
-def range_sum(int N):
+def range_sum(i32 N):
     """
     >>> sum(range(10))
     45
@@ -29,14 +29,14 @@ def range_sum(int N):
 @cython.test_fail_if_path_exists('//SimpleCallNode',
                                  '//CoerceFromPyTypeNode//InlinedGeneratorExpressionNode',
                                  '//ForInStatNode')
-def range_sum_typed(int N):
+def range_sum_typed(i32 N):
     """
     >>> sum(range(10))
     45
     >>> range_sum_typed(10)
     45
     """
-    let int result = sum(i for i in range(N))
+    let i32 result = sum(i for i in range(N))
     return result
 
 
@@ -48,21 +48,21 @@ def range_sum_typed(int N):
                                  '//CoerceFromPyTypeNode//InlinedGeneratorExpressionNode',
                                  '//TypecastNode//InlinedGeneratorExpressionNode',
                                  '//ForInStatNode')
-def return_range_sum_cast(int N):
+def return_range_sum_cast(i32 N):
     """
     >>> sum(range(10))
     45
     >>> return_range_sum_cast(10)
     45
     """
-    return <int>sum(i for i in range(N))
+    return <i32>sum(i for i in range(N))
 
 
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
                                  '//ForInStatNode')
-def return_range_sum(int N):
+def return_range_sum(i32 N):
     """
     >>> sum(range(10))
     45
@@ -76,7 +76,7 @@ def return_range_sum(int N):
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
                                  '//ForInStatNode')
-def return_range_sum_squares(int N):
+def return_range_sum_squares(i32 N):
     """
     >>> sum([i*i for i in range(10)])
     285
@@ -112,7 +112,7 @@ def return_sum_squares(seq):
 @cython.test_assert_path_exists('//ForInStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode')
-def return_sum_squares_start(seq, int start):
+def return_sum_squares_start(seq, i32 start):
     """
     >>> sum([i*i for i in range(10)], -1)
     284
@@ -133,7 +133,7 @@ def return_sum_squares_start(seq, int start):
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode',
     "//InlinedGeneratorExpressionNode//CoerceToPyTypeNode")
-def return_typed_sum_squares_start(seq, int start):
+def return_typed_sum_squares_start(seq, i32 start):
     """
     >>> sum([i*i for i in range(10)], -1)
     284
@@ -145,14 +145,14 @@ def return_typed_sum_squares_start(seq, int start):
     >>> print(return_typed_sum_squares_start(range(1000), 9))
     332833509
     """
-    let int i
-    return <int>sum((i*i for i in seq), start)
+    let i32 i
+    return <i32>sum((i*i for i in seq), start)
 
 
 @cython.test_assert_path_exists('//ForInStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode')
-def return_sum_of_listcomp_consts_start(seq, int start):
+def return_sum_of_listcomp_consts_start(seq, i32 start):
     """
     >>> sum([1 for i in range(10) if i > 3], -1)
     5
@@ -174,7 +174,7 @@ def return_sum_of_listcomp_consts_start(seq, int start):
                                 # hope this breaks one day
                                 "//CoerceFromPyTypeNode//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode')
-def return_typed_sum_of_listcomp_consts_start(seq, int start):
+def return_typed_sum_of_listcomp_consts_start(seq, i32 start):
     """
     >>> sum([1 for i in range(10) if i > 3], -1)
     5
@@ -186,7 +186,7 @@ def return_typed_sum_of_listcomp_consts_start(seq, int start):
     >>> print(return_typed_sum_of_listcomp_consts_start(range(10000), 9))
     10005
     """
-    return <int>sum([1 for i in seq if i > 3], start)
+    return <i32>sum([1 for i in seq if i > 3], start)
 
 
 @cython.test_assert_path_exists(
@@ -197,11 +197,11 @@ def return_typed_sum_of_listcomp_consts_start(seq, int start):
     "//InlinedGeneratorExpressionNode//CoerceToPyTypeNode")
 def return_typed_sum_cond_exp(seq):
     """
-    >>> return_typed_sum_cond_exp([1,2,3,4])
+    >>> return_typed_sum_cond_exp([1, 2, 3, 4])
     2
     """
-    let int i
-    return <int>sum( 0 if i%2 else 1
+    let i32 i
+    return <i32>sum( 0 if i%2 else 1
                      for i in seq )
 
 
@@ -216,6 +216,6 @@ def return_typed_sum_cond_exp_in(seq):
     >>> return_typed_sum_cond_exp_in([1,2,3,4,5,6,7,8,9])
     3
     """
-    let int i
-    return <int>sum( 0 if i%3 in (0,1) else 1
+    let i32 i
+    return <i32>sum( 0 if i%3 in (0, 1) else 1
                      for i in seq )

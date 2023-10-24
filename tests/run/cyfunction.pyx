@@ -176,7 +176,7 @@ def codeof(func):
 def varnamesof(func):
     code = codeof(func)
     varnames = code.co_varnames
-    if sys.version_info < (2,5):
+    if sys.version_info < (2, 5):
         pos = {'a':0, 'x':1, 'b':2, 'l':3, 'm':4}
         varnames = tuple(sorted(varnames, key=pos.__getitem__))
     return varnames
@@ -184,7 +184,7 @@ def varnamesof(func):
 def namesof(func):
     code = codeof(func)
     names = code.co_names
-    if sys.version_info < (2,5):
+    if sys.version_info < (2, 5):
         names = ()
     return names
 

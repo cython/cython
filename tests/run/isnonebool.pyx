@@ -1,4 +1,4 @@
-def test_and(a,b):
+def test_and(a, b):
     """
     >>> test_and(None, None)
     True
@@ -9,7 +9,7 @@ def test_and(a,b):
     """
     return a is None and b is None
 
-def test_more(a,b):
+def test_more(a, b):
     """
     >>> test_more(None, None)
     True
@@ -22,7 +22,7 @@ def test_more(a,b):
     """
     return a is None and (b is None or b == 1)
 
-def test_more_c(a,b):
+def test_more_c(a, b):
     """
     >>> test_more_c(None, None)
     True

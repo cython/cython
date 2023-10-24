@@ -33,7 +33,7 @@ cdef class TestClassVar:
         ...
     AttributeError:
     """
-    let int regular
+    let i32 regular
     let typing.ClassVar[int] cls
     cls = 5
 

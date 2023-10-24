@@ -23,7 +23,7 @@ cdef class ItCount(object):
 
 def kunterbunt(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> kunterbunt(1, (2,), (3,4,5), (6,(7,(8,9))), 0)
+    >>> kunterbunt(1, (2,), (3, 4, 5), (6,(7,(8, 9))), 0)
     (8, 9, (8, 9), (6, (7, (8, 9))), 0)
     """
     obj1, = obj2
@@ -35,33 +35,33 @@ def kunterbunt(obj1, obj2, obj3, obj4, obj5):
 
 def unpack_tuple(tuple it):
     """
-    >>> unpack_tuple((1,2,3))
+    >>> unpack_tuple((1, 2, 3))
     (1, 2, 3)
 
-    >>> a,b,c = None   # doctest: +ELLIPSIS
+    >>> a, b, c = None   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
     >>> unpack_tuple(None)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
     """
-    a,b,c = it
-    return a,b,c
+    a, b, c = it
+    return a, b, c
 
 def unpack_list(list it):
     """
-    >>> unpack_list([1,2,3])
+    >>> unpack_list([1, 2, 3])
     (1, 2, 3)
 
-    >>> a,b,c = None   # doctest: +ELLIPSIS
+    >>> a, b, c = None   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
     >>> unpack_list(None)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
     """
-    a,b,c = it
-    return a,b,c
+    a, b, c = it
+    return a, b, c
 
 def unpack_to_itself(it):
     """
@@ -69,13 +69,13 @@ def unpack_to_itself(it):
     >>> it, it = it
     >>> it
     1
-    >>> unpack_to_itself([1,2])
+    >>> unpack_to_itself([1, 2])
     2
-    >>> unpack_to_itself((1,2))
+    >>> unpack_to_itself((1, 2))
     2
     >>> unpack_to_itself(_it(2))
     1
-    >>> unpack_to_itself((1,2,3))
+    >>> unpack_to_itself((1, 2, 3))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 2)
     >>> unpack_to_itself(_it(3))
@@ -89,28 +89,28 @@ def unpack_partial(it):
     """
     >>> it = _it(2)
     >>> a = b = c = 0
-    >>> try: a,b,c = it
+    >>> try: a, b, c = it
     ... except ValueError: pass
     ... else: print("DID NOT FAIL!")
     >>> a, b, c
     (0, 0, 0)
-    >>> unpack_partial([1,2])
+    >>> unpack_partial([1, 2])
     (0, 0, 0)
-    >>> unpack_partial((1,2))
+    >>> unpack_partial((1, 2))
     (0, 0, 0)
     >>> unpack_partial(_it(2))
     (0, 0, 0)
 
-    >>> it = ItCount([1,2])
+    >>> it = ItCount([1, 2])
     >>> a = b = c = 0
-    >>> try: a,b,c = it
+    >>> try: a, b, c = it
     ... except ValueError: pass
     ... else: print("DID NOT FAIL!")
     >>> a, b, c
     (0, 0, 0)
     >>> it.count
     3
-    >>> it = ItCount([1,2])
+    >>> it = ItCount([1, 2])
     >>> unpack_partial(it)
     (0, 0, 0)
     >>> it.count
@@ -129,7 +129,7 @@ def unpack_fail_assignment(it):
     >>> a = b = c = 0
     >>> try: a, b[0], c = it
     ... except TypeError: pass
-    >>> a,b,c
+    >>> a, b, c
     (1, 0, 0)
     >>> it.count
     4
@@ -139,7 +139,7 @@ def unpack_fail_assignment(it):
     >>> it.count
     4
     """
-    let object a,b,c
+    let object a, b, c
     a = b = c = 0
     try:
         a, b[0], c = it
@@ -162,7 +162,7 @@ def unpack_partial_typed(it):
     >>> it.count
     4
     """
-    let int a,b,c
+    let i32 a, b, c
     a = b = c = 0
     try:
         a, b, c = it
@@ -202,74 +202,74 @@ def unpack_typed(it):
     >>> it.count
     4
     """
-    let int a
-    let float b
+    let i32 a
+    let f32 b
     let list c
-    a,b,c = it
-    return a,b,c
+    a, b, c = it
+    return a, b, c
 
 def failure_too_many(it):
     """
-    >>> try: a,b,c = [1,2,3,4]
+    >>> try: a, b, c = [1, 2, 3, 4]
     ... except ValueError: pass
-    >>> failure_too_many([1,2,3,4])
+    >>> failure_too_many([1, 2, 3, 4])
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
 
-    >>> try: a,b,c = [1,2,3,4]
+    >>> try: a, b, c = [1, 2, 3, 4]
     ... except ValueError: pass
-    >>> failure_too_many((1,2,3,4))
+    >>> failure_too_many((1, 2, 3, 4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
 
-    >>> a,b,c = set([1,2,3,4])    # doctest: +ELLIPSIS
+    >>> a, b, c = set([1, 2, 3, 4])    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: too many values to unpack...
-    >>> failure_too_many(set([1,2,3,4]))
+    >>> failure_too_many(set([1, 2, 3, 4]))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
 
-    >>> a,b,c = _it(4)    # doctest: +ELLIPSIS
+    >>> a, b, c = _it(4)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: too many values to unpack...
     >>> failure_too_many(_it(4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
     """
-    a,b,c = it
-    return a,b,c
+    a, b, c = it
+    return a, b, c
 
 
 def failure_too_few(it):
     """
-    >>> try: a,b,c = [1,2]
+    >>> try: a, b, c = [1, 2]
     ... except ValueError: pass
-    >>> failure_too_few([1,2])
+    >>> failure_too_few([1, 2])
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
 
-    >>> try: a,b,c = (1,2)
+    >>> try: a, b, c = (1, 2)
     ... except ValueError: pass
-    >>> failure_too_few((1,2))
+    >>> failure_too_few((1, 2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
 
-    >>> try: a,b,c = set([1,2])
+    >>> try: a, b, c = set([1, 2])
     ... except ValueError: pass
     ... else: print("DID NOT FAIL!")
-    >>> failure_too_few(set([1,2]))
+    >>> failure_too_few(set([1, 2]))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
 
-    >>> try: a,b,c = _it(2)
+    >>> try: a, b, c = _it(2)
     ... except ValueError: pass
     ... else: print("DID NOT FAIL!")
     >>> failure_too_few(_it(2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
     """
-    a,b,c = it
-    return a,b,c
+    a, b, c = it
+    return a, b, c
 
 
 def _it_failure(N):
@@ -279,43 +279,43 @@ def _it_failure(N):
 
 def failure_while_unpacking(it):
     """
-    >>> a,b,c = _it_failure(0)
+    >>> a, b, c = _it_failure(0)
     Traceback (most recent call last):
     ValueError: huhu
     >>> failure_while_unpacking(_it_failure(0))
     Traceback (most recent call last):
     ValueError: huhu
 
-    >>> a,b,c = _it_failure(1)
+    >>> a, b, c = _it_failure(1)
     Traceback (most recent call last):
     ValueError: huhu
     >>> failure_while_unpacking(_it_failure(1))
     Traceback (most recent call last):
     ValueError: huhu
 
-    >>> a,b,c = _it_failure(2)
+    >>> a, b, c = _it_failure(2)
     Traceback (most recent call last):
     ValueError: huhu
     >>> failure_while_unpacking(_it_failure(2))
     Traceback (most recent call last):
     ValueError: huhu
 
-    >>> a,b,c = _it_failure(3)
+    >>> a, b, c = _it_failure(3)
     Traceback (most recent call last):
     ValueError: huhu
     >>> failure_while_unpacking(_it_failure(3))
     Traceback (most recent call last):
     ValueError: huhu
 
-    >>> a,b,c = _it_failure(4)    # doctest: +ELLIPSIS
+    >>> a, b, c = _it_failure(4)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: too many values to unpack...
     >>> failure_while_unpacking(_it_failure(4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
     """
-    a,b,c = it
-    return a,b,c
+    a, b, c = it
+    return a, b, c
 
 def unpack_many(it):
     """
@@ -329,8 +329,8 @@ def unpack_many(it):
     >>> unpack_many(tuple(items))
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     """
-    a,b,c,d,e,f,g,h,i,j,k,l = it
-    return a,b,c,d,e,f,g,h,i,j,k,l
+    a, b, c, d, e, f, g, h, i, j,k,l = it
+    return a, b, c, d, e, f, g, h, i, j,k,l
 
 def unpack_many_tuple(tuple it):
     """
@@ -338,8 +338,8 @@ def unpack_many_tuple(tuple it):
     >>> unpack_many_tuple(tuple(items))
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     """
-    a,b,c,d,e,f,g,h,i,j,k,l = it
-    return a,b,c,d,e,f,g,h,i,j,k,l
+    a, b, c, d, e, f, g, h, i, j,k,l = it
+    return a, b, c, d, e, f, g, h, i, j,k,l
 
 def unpack_many_list(list it):
     """
@@ -347,8 +347,8 @@ def unpack_many_list(list it):
     >>> unpack_many_list(list(items))
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     """
-    a,b,c,d,e,f,g,h,i,j,k,l = it
-    return a,b,c,d,e,f,g,h,i,j,k,l
+    a, b, c, d, e, f, g, h, i, j,k,l = it
+    return a, b, c, d, e, f, g, h, i, j,k,l
 
 def unpack_many_int(it):
     """
@@ -365,8 +365,8 @@ def unpack_many_int(it):
     let i32 b
     let i64 f
     let isize h
-    a,b,c,d,e,f,g,h,i,j,k,l = it
-    return a,b,c,d,e,f,g,h,i,j,k,l
+    a, b, c, d, e, f, g, h, i, j,k,l = it
+    return a, b, c, d, e, f, g, h, i, j,k,l
 
 
 @cython.test_fail_if_path_exists('//PyTypeTestNode')
@@ -375,9 +375,9 @@ def unpack_literal_none_to_builtin_type():
     >>> unpack_literal_none_to_builtin_type()
     (None, None, None, None)
     """
-    let list a,b,c,d
+    let list a, b, c, d
     a, b = c, d = None, None
-    return a,b,c,d
+    return a, b, c, d
 
 
 cdef class ExtType:
@@ -390,9 +390,9 @@ def unpack_literal_none_to_exttype():
     >>> unpack_literal_none_to_exttype()
     (None, None, None, None)
     """
-    let ExtType a,b,c,d
+    let ExtType a, b, c, d
     a, b = c, d = None, None
-    return a,b,c,d
+    return a, b, c, d
 
 
 # Github issue #1523

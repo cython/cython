@@ -58,7 +58,7 @@ def len_str(str s):
     "//PythonCapiCallNode")
 def len_list(list s):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> len(l)
     4
     >>> len_list(l)
@@ -74,7 +74,7 @@ def len_list(list s):
     "//PythonCapiCallNode")
 def len_tuple(tuple s):
     """
-    >>> t = (1,2,3,4)
+    >>> t = (1, 2, 3, 4)
     >>> len(t)
     4
     >>> len_tuple(t)
@@ -106,7 +106,7 @@ def len_dict(dict s):
     "//PythonCapiCallNode")
 def len_set(set s):
     """
-    >>> s = _set((1,2,3,4))
+    >>> s = _set((1, 2, 3, 4))
     >>> len(s)
     4
     >>> len_set(s)
@@ -122,7 +122,7 @@ def len_set(set s):
     "//PythonCapiCallNode")
 def len_frozenset(frozenset s):
     """
-    >>> s = _frozenset((1,2,3,4))
+    >>> s = _frozenset((1, 2, 3, 4))
     >>> len(s)
     4
     >>> len_frozenset(s)

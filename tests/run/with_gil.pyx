@@ -444,7 +444,7 @@ def test_nogil_try_finally_return():
     with nogil:
         nogil_try_finally_return()
 
-fn int error_func() except -1 with gil:
+fn i32 error_func() except -1 with gil:
     raise Exception("propagate this")
 
 def test_nogil_try_finally_error_label():

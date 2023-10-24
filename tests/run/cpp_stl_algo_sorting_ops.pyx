@@ -11,7 +11,7 @@ from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-def is_sorted_ints(vector[int] values):
+def is_sorted_ints(vector[i32] values):
     """
     Test is_sorted.
 
@@ -22,7 +22,7 @@ def is_sorted_ints(vector[int] values):
     """
     return is_sorted(values.begin(), values.end())
 
-def initial_sorted_elements(vector[int] values):
+def initial_sorted_elements(vector[i32] values):
     """
     Test is_sorted_until.
 
@@ -44,7 +44,7 @@ def initial_sorted_elements(vector[int] values):
     sorted_end = is_sorted_until(values.begin(), values.end())
     return distance(values.begin(), sorted_end)
 
-def sort_ints(vector[int] values):
+def sort_ints(vector[i32] values):
     """Test sort using the default operator<.
 
     >>> sort_ints([5, 7, 4, 2, 8, 6, 1, 9, 0, 3])
@@ -53,7 +53,7 @@ def sort_ints(vector[int] values):
     sort(values.begin(), values.end())
     return values
 
-def sort_ints_reverse(vector[int] values):
+def sort_ints_reverse(vector[i32] values):
     """Test sort using a standard library comparison function object.
 
     >>> sort_ints_reverse([5, 7, 4, 2, 8, 6, 1, 9, 0, 3])
@@ -62,7 +62,7 @@ def sort_ints_reverse(vector[int] values):
     sort(values.begin(), values.end(), greater[int]())
     return values
 
-def partial_sort_ints(vector[int] values, int k):
+def partial_sort_ints(vector[i32] values, i32 k):
     """
     Test partial_sort using the default operator<.
 
@@ -72,7 +72,7 @@ def partial_sort_ints(vector[int] values, int k):
     partial_sort(values.begin(), values.begin() + k, values.end())
     return values
 
-def partial_sort_ints_reverse(vector[int] values, int k):
+def partial_sort_ints_reverse(vector[i32] values, i32 k):
     """
     Test partial_sort using a standard library comparison function object.
 
@@ -82,25 +82,25 @@ def partial_sort_ints_reverse(vector[int] values, int k):
     partial_sort(values.begin(), values.begin() + k, values.end(), greater[int]())
     return values
 
-def partial_sort_ints2(vector[int] values, int k):
+def partial_sort_ints2(vector[i32] values, i32 k):
     """
     Test partial_sort_copy using the default operator<.
 
     >>> partial_sort_ints2([4, 2, 3, 1, 5], 2)
     [1, 2]
     """
-    output = vector[int](2)
+    output = vector[i32](2)
     partial_sort_copy(values.begin(), values.end(), output.begin(), output.end())
     return output
 
-def partial_sort_ints_reverse2(vector[int] values, int k):
+def partial_sort_ints_reverse2(vector[i32] values, i32 k):
     """
     Test partial_sort_copy using a standard library comparison function object.
 
     >>> partial_sort_ints_reverse2([4, 2, 3, 1, 5], 2)
     [5, 4]
     """
-    output = vector[int](2)
+    output = vector[i32](2)
     partial_sort_copy(values.begin(), values.end(), output.begin(), output.end(), greater[int]())
     return output
 
@@ -109,7 +109,7 @@ extern from *:
     struct Employee
     {
         Employee() = default;
-        Employee(int age, std::string name): age(age), name(name) {}
+        Employee(i32 age, std::string name): age(age), name(name) {}
         int age;
         std::string name;  // Does not participate in comparisons
     };
@@ -121,7 +121,7 @@ extern from *:
     """
     cppclass Employee:
         Employee()
-        Employee(int, string)
+        Employee(i32, string)
         int age
         string name
 
@@ -155,7 +155,7 @@ def test_stable_sort():
     for e in employees:
         print("%s, %s" % (e.age, <str>(e.name).decode("ascii")))
 
-def second_smallest(vector[int] values):
+def second_smallest(vector[i32] values):
     """
     Test nth_element using the default operator<.
 
@@ -165,7 +165,7 @@ def second_smallest(vector[int] values):
     nth_element(values.begin(), values.begin() + 1, values.end())
     return values[1]
 
-def second_largest(vector[int] values):
+def second_largest(vector[i32] values):
     """
     Test nth_element using a standard library comparison function object.
 

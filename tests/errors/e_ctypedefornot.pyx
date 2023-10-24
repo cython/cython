@@ -3,10 +3,10 @@
 cdef struct Foo
 
 ctypedef struct Foo:
-	i32 i
+    i32 i
 
 ctypedef struct Blarg:
-	char c
+    char c
 
 cdef struct Blarg
 

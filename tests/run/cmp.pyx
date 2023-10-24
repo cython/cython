@@ -62,7 +62,7 @@ def cascaded_mix_pyright(f64 a, f64 b, c):
 
 def typed_cmp(list L):
     """
-    >>> typed_cmp([1,2,3])
+    >>> typed_cmp([1, 2, 3])
     False
     False
     False

@@ -26,7 +26,7 @@ def go_c():
     Spam!
     Spam!
     """
-    let int i
+    let i32 i
     for i in range(4):
         print u"Spam!"
 
@@ -38,18 +38,18 @@ def go_c_enumerate():
     True
     True
     """
-    let int i,k
+    let i32 i,k
     for i,k in enumerate(range(4)):
         print i == k
 
-def go_c_int(int a, int b):
+def go_c_int(i32 a, i32 b):
     """
-    >>> go_c_int(1,5)
+    >>> go_c_int(1, 5)
     Spam!
     Spam!
     """
-    let int i
-    for i in range(a,b,2):
+    let i32 i
+    for i in range(a, b,2):
         print u"Spam!"
 
 def go_c_all():
@@ -59,7 +59,7 @@ def go_c_all():
     Spam!
     Spam!
     """
-    let int i
+    let i32 i
     for i in range(8,2,-2):
         print u"Spam!"
 
@@ -71,7 +71,7 @@ def go_c_all_exprs(x):
     Spam!
     Spam!
     """
-    let long i
+    let i64 i
     for i in range(4*x,2*x,-3):
         print u"Spam!"
 
@@ -81,7 +81,7 @@ def go_c_const_exprs():
     Spam!
     Spam!
     """
-    let int i
+    let i32 i
     for i in range(4*2+1,2*2,-2-1):
         print u"Spam!"
 
@@ -94,7 +94,7 @@ def go_c_calc(x):
     Spam!
     Spam!
     """
-    let long i
+    let i64 i
     for i in range(2*f(x),f(x), -2):
         print u"Spam!"
 
@@ -103,7 +103,7 @@ def go_c_calc_ret(x):
     >>> go_c_calc_ret(2)
     6
     """
-    let long i
+    let i64 i
     for i in range(2*f(x),f(x), -2):
         if i < 2*f(x):
             return i
@@ -113,7 +113,7 @@ def go_c_ret():
     >>> go_c_ret()
     2
     """
-    let int i
+    let i32 i
     for i in range(4):
         if i > 1:
             return i

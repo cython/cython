@@ -6,7 +6,7 @@ extern from "<list>" namespace "std" nogil:
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
         # but cython doesn't support deferred access on template arguments
-        ctypedef size_t size_type
+        ctypedef usize size_type
         ctypedef ptrdiff_t difference_type
 
         cppclass const_iterator
@@ -16,8 +16,8 @@ extern from "<list>" namespace "std" nogil:
             value_type& operator*()
             iterator operator++()
             iterator operator--()
-            iterator operator++(int)
-            iterator operator--(int)
+            iterator operator++(i32)
+            iterator operator--(i32)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -30,8 +30,8 @@ extern from "<list>" namespace "std" nogil:
             const value_type& operator*()
             const_iterator operator++()
             const_iterator operator--()
-            const_iterator operator++(int)
-            const_iterator operator--(int)
+            const_iterator operator++(i32)
+            const_iterator operator--(i32)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -44,8 +44,8 @@ extern from "<list>" namespace "std" nogil:
             value_type& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
-            reverse_iterator operator++(int)
-            reverse_iterator operator--(int)
+            reverse_iterator operator++(i32)
+            reverse_iterator operator--(i32)
             bint operator==(reverse_iterator)
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
@@ -57,8 +57,8 @@ extern from "<list>" namespace "std" nogil:
             const value_type& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
-            const_reverse_iterator operator++(int)
-            const_reverse_iterator operator--(int)
+            const_reverse_iterator operator++(i32)
+            const_reverse_iterator operator--(i32)
             bint operator==(reverse_iterator)
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
@@ -66,7 +66,7 @@ extern from "<list>" namespace "std" nogil:
 
         list() except +
         list(list&) except +
-        list(size_t, T&) except +
+        list(usize, T&) except +
         #list operator=(list&)
         bint operator==(list&, list&)
         bint operator!=(list&, list&)
@@ -74,7 +74,7 @@ extern from "<list>" namespace "std" nogil:
         bint operator>(list&, list&)
         bint operator<=(list&, list&)
         bint operator>=(list&, list&)
-        void assign(size_t, T&) except +
+        void assign(usize, T&) except +
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
@@ -88,8 +88,8 @@ extern from "<list>" namespace "std" nogil:
         iterator erase(iterator, iterator)
         T& front()
         iterator insert(iterator, T&)
-        void insert(iterator, size_t, T&)
-        size_t max_size()
+        void insert(iterator, usize, T&)
+        usize max_size()
         void merge(list&) except +
         #void merge(list&, BinPred)
         void pop_back()
@@ -104,9 +104,9 @@ extern from "<list>" namespace "std" nogil:
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
         const_reverse_iterator crend()
-        void resize(size_t, T&) except +
+        void resize(usize, T&) except +
         void reverse()
-        size_t size()
+        usize size()
         void sort() except +
         #void sort(BinPred)
         void splice(iterator, list&)

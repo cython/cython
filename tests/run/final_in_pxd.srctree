@@ -18,18 +18,18 @@ cimport cython
 
 cdef class ExtType:
     @cython.final
-    fn int final_func(self)
+    fn i32 final_func(self)
 
 @cython.final
 cdef class FinalExtType:
-    fn int func(self)
+    fn i32 func(self)
 
 @cython.final
 cdef class FinalExtSubType(ExtType):
-    fn int func(self)
+    fn i32 func(self)
 
 cdef class NonFinalSubType(ExtType):
-    fn int func(self)
+    fn i32 func(self)
 
 
 ######## a.py ########

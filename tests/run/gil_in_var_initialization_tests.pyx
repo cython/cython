@@ -101,10 +101,10 @@ extern from *:
     fn bool_future run_block_and_wait_with_gil() nogil
 
 cdef class C:
-    fn int some_c_method(self) except -1 nogil:
+    fn i32 some_c_method(self) except -1 nogil:
         return 0
 
-    fn int call_a_method_with_an_error_return(self) except -1 nogil:
+    fn i32 call_a_method_with_an_error_return(self) except -1 nogil:
         return self.some_c_method()
 
 def test_method_with_error_return():
@@ -125,7 +125,7 @@ fn inline float[:] _get_left_edge(float[::1] arr) nogil:
 
 cdef class D:
     cdef float _a
-    def __cinit__(self, float a):
+    def __cinit__(self, f32 a):
         self._a = a
 
     fn void call_me(self, float[::1] my_arr) noexcept nogil:
@@ -138,8 +138,8 @@ def test_method_with_memoryview_handling():
     """
     >>> test_method_with_memoryview_handling()
     """
-    let float[10] static_arr
-    let float[::1] view_of_static_arr = <float[:10:1]>static_arr
+    let f32[10] static_arr
+    let f32[::1] view_of_static_arr = <float[:10:1]>static_arr
     future = run_block_and_wait_with_gil()
     d = D(5.)
     with nogil:

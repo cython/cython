@@ -95,13 +95,13 @@ def g5(Bla arg=Bla()):
 
 
 cdef int GLB6 = 7
-def f6(int arg=GLB6):
+def f6(i32 arg=GLB6):
     """
     >>> f6()
     7
     """
     return arg
-def g6(int arg=7):
+def g6(i32 arg=7):
     """
     >>> g6()
     7

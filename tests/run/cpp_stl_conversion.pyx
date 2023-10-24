@@ -91,7 +91,7 @@ def test_bint_vector(o):
 
     >>> test_bint_vector([False, True])
     [False, True]
-    >>> test_bint_vector(py_xrange(0,5))
+    >>> test_bint_vector(py_xrange(0, 5))
     [False, True, True, True, True]
     >>> test_bint_vector(["", "hello"])
     [False, True]

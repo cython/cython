@@ -53,7 +53,7 @@ def test_outer_inner_carg():
     long
     """
     x = 1
-    def inner(double y):
+    def inner(f64 y):
         return x + y
     print inner(1)
     return cython.typeof(x)

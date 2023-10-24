@@ -21,7 +21,7 @@ def set_item(obj, key, value):
     return obj
 
 
-def set_item_int(obj, int key, value):
+def set_item_int(obj, i32 key, value):
     """
     >>> set_item_int([1, 2, 3], 1, -1)
     [1, -1, 3]
@@ -59,7 +59,7 @@ def del_item(obj, key):
     return obj
 
 
-def del_item_int(obj, int key):
+def del_item_int(obj, i32 key):
     """
     >>> del_item_int([1, 2, 3], 1)
     [1, 3]

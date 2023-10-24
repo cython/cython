@@ -89,7 +89,7 @@ def test_getFoo():
     >>> test_getFoo()
     1
     """
-    let int old_count = count
+    let i32 old_count = count
     let Foo x = getFoo()
     return count - old_count
 
@@ -98,7 +98,7 @@ def test_getFooCast():
     >>> test_getFooCast()
     1
     """
-    let int old_count = count
+    let i32 old_count = count
     let Foo x = <Foo?>getFoo()
     return count - old_count
 

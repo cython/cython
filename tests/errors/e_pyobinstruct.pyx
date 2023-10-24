@@ -3,11 +3,12 @@
 cdef object x
 
 cdef struct spam:
-	object parrot
+    object parrot
 
 def f():
-	cdef spam s
-	s.parrot = x
+    let spam s
+    s.parrot = x
+
 _ERRORS = u"""
-6:8: C struct/union member cannot be a Python object
+6:11: C struct/union member cannot be a Python object
 """

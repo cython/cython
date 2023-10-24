@@ -1,9 +1,9 @@
 # mode: compile
 
 extern from *:
-    ctypedef int intptr_t
+    ctypedef i32 intptr_t
 
-fn int _is_aligned(void *ptr):
-    return ((<intptr_t>ptr) & ((sizeof(int))-1)) == 0
+fn i32 _is_aligned(void *ptr):
+    return ((<intptr_t>ptr) & ((sizeof(i32))-1)) == 0
 
 _is_aligned(NULL)

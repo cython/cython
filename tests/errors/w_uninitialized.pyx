@@ -113,7 +113,7 @@ def class_py3k_args():
     kwargs = {}
 
 def uninitialized_in_sizeof():
-    let int i
+    let i32 i
     print sizeof(i)
 
 _ERRORS = """

@@ -34,7 +34,7 @@ def genexpr():
 
 cdef class A:
     def __repr__(self): return u"A"
-    def __richcmp__(one, other, int op): return one is other
+    def __richcmp__(one, other, i32 op): return one is other
     def __hash__(self): return id(self) % 65536
 
 def typed_dictcomp():

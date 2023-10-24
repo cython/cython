@@ -1,5 +1,5 @@
-t = (1,2,3)
-l = [1,2,3]
+t = (1, 2, 3)
+l = [1, 2, 3]
 
 def assign3(t):
     """
@@ -10,15 +10,15 @@ def assign3(t):
     >>> assign3((1,))
     Traceback (most recent call last):
     ValueError: need more than 1 value to unpack
-    >>> assign3((1,2))
+    >>> assign3((1, 2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
-    >>> assign3((1,2,3,4))
+    >>> assign3((1, 2, 3, 4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
     """
-    a,b,c = t
-    return (a,b,c)
+    a, b, c = t
+    return (a, b, c)
 
 def assign3_typed(tuple t):
     """
@@ -27,74 +27,74 @@ def assign3_typed(tuple t):
     >>> assign3_typed(l)
     Traceback (most recent call last):
     TypeError: Argument 't' has incorrect type (expected tuple, got list)
-    >>> a,b,c = (1,) # doctest: +ELLIPSIS
+    >>> a, b, c = (1,) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
     >>> assign3_typed((1,))
     Traceback (most recent call last):
     ValueError: need more than 1 value to unpack
-    >>> a,b,c = (1,2) # doctest: +ELLIPSIS
+    >>> a, b, c = (1, 2) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
-    >>> assign3_typed((1,2))
+    >>> assign3_typed((1, 2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
-    >>> a,b,c = (1,2,3,4)    # doctest: +ELLIPSIS
+    >>> a, b, c = (1, 2, 3, 4)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
-    >>> assign3_typed((1,2,3,4))
+    >>> assign3_typed((1, 2, 3, 4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
-    >>> a,b = 99,98
-    >>> a,b = t     # doctest: +ELLIPSIS
+    >>> a, b = 99,98
+    >>> a, b = t     # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
-    >>> a,b
+    >>> a, b
     (99, 98)
     """
-    a,b,c = t
-    return (a,b,c)
+    a, b, c = t
+    return (a, b, c)
 
 def assign3_int(t):
     """
     >>> assign3_int(l)
     (1, 2, 3)
     """
-    let int a,b,c
-    a,b,c = t
-    return (a,b,c)
+    let i32 a, b, c
+    a, b, c = t
+    return (a, b, c)
 
 def assign3_mixed1(t):
     """
     >>> assign3_mixed1(l)
     (1, 2, 3)
     """
-    let int a
-    a,b,c = t
-    return (a,b,c)
+    let i32 a
+    a, b, c = t
+    return (a, b, c)
 
 def assign3_mixed2(t):
     """
     >>> assign3_mixed2(l)
     (1, 2, 3)
     """
-    let int b
-    a,b,c = t
-    return (a,b,c)
+    let i32 b
+    a, b, c = t
+    return (a, b, c)
 
 def assign3_mixed3(t):
     """
     >>> assign3_mixed3(l)
     (1, 2, 3)
     """
-    let int c
-    a,b,c = t
-    return (a,b,c)
+    let i32 c
+    a, b, c = t
+    return (a, b, c)
 
 def assign3_mixed4(t):
-    let int b,c
-    a,b,c = t
-    return (a,b,c)
+    let i32 b,c
+    a, b, c = t
+    return (a, b, c)
 
 def test_overwrite(t):
     """
@@ -103,12 +103,12 @@ def test_overwrite(t):
     >>> test_overwrite(t)
     (99, 98)
     """
-    a,b = 99,98
+    a, b = 99,98
     try:
-        a,b = t
+        a, b = t
     except ValueError:
         pass
-    return (a,b)
+    return (a, b)
 
 def test_overwrite_int(t):
     """
@@ -117,13 +117,13 @@ def test_overwrite_int(t):
     >>> test_overwrite_int(t)
     (99, 98)
     """
-    let int a,b
-    a,b = 99,98
+    let i32 a, b
+    a, b = 99,98
     try:
-        a,b = t
+        a, b = t
     except ValueError:
         pass
-    return (a,b)
+    return (a, b)
 
 def test_overwrite_mixed(t):
     """
@@ -132,13 +132,13 @@ def test_overwrite_mixed(t):
     >>> test_overwrite_mixed(t)
     (99, 98)
     """
-    let int b
-    a,b = 99,98
+    let i32 b
+    a, b = 99,98
     try:
-        a,b = t
+        a, b = t
     except ValueError:
         pass
-    return (a,b)
+    return (a, b)
 
 def test_overwrite_mixed2(t):
     """
@@ -147,10 +147,10 @@ def test_overwrite_mixed2(t):
     >>> test_overwrite_mixed2(t)
     (99, 98)
     """
-    let int a
-    a,b = 99,98
+    let i32 a
+    a, b = 99,98
     try:
-        a,b = t
+        a, b = t
     except ValueError:
         pass
-    return (a,b)
+    return (a, b)

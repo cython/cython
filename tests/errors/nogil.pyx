@@ -19,7 +19,7 @@ fn void r() nogil:  # allowed
 
 fn object m():
     let object x, y = 0, obj
-    let int i, j, k
+    let i32 i, j, k
     global fred
     q()
     with nogil:
@@ -90,7 +90,7 @@ def bare_pyvar_name(object x):
     with nogil:
         x
 
-fn int fstrings(i32 x, object obj) except -1 nogil:
+fn i32 fstrings(i32 x, object obj) except -1 nogil:
     f""         # allowed
     f"a"        # allowed
     f"a"f"b"    # allowed
@@ -100,10 +100,10 @@ fn int fstrings(i32 x, object obj) except -1 nogil:
 fn void slice_array() nogil:
     with gil:
         b = [1, 2, 3, 4]
-    let int[4] a = b[:]
+    let i32[4] a = b[:]
 
 fn i32[:] main() nogil:
-    let i32[4] a = [1,2,3,4]
+    let i32[4] a = [1, 2, 3, 4]
     return a
 
 

@@ -165,7 +165,7 @@ def list_bool_result_true():
     >>> list_bool_result_true()
     True
     """
-    if [1,2,3]:
+    if [1, 2, 3]:
         return true
     else:
         return false

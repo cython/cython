@@ -19,14 +19,14 @@ cdef class cclass:
 
     def test_self_args(self, *args):
         """
-        >>> cclass().test_self_args(1,2,3)
+        >>> cclass().test_self_args(1, 2, 3)
         ('cclass', (1, 2, 3))
         """
         return cython.typeof(self), args
 
     def test_args(*args):
         """
-        >>> cclass().test_args(1,2,3)
+        >>> cclass().test_args(1, 2, 3)
         ('Python object', (1, 2, 3))
         """
         return cython.typeof(args[0]), args[1:]

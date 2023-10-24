@@ -11,7 +11,7 @@
 [-3, -2, -1, 0, 1, 2]
 """
 
-fn c_g(int a, int b):
+fn c_g(i32 a, i32 b):
     return (a, b)
 
 def py_g(a, b):

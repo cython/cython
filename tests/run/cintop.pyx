@@ -22,9 +22,9 @@ def f():
     >>> f()
     (45, 111)
     """
-    let int int1, int2, int3
+    let i32 int1, int2, int3
     let char char1
-    let long long1, long2
+    let i64 long1, long2
     int2 = 42
     int3 = 7
     char1 = c'C'

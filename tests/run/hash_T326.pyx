@@ -26,7 +26,7 @@ cdef class A:
             return self.a
 
 
-cpdef long __hash__(long x):
+cpdef long __hash__(i64 x):
     """
     >>> __hash__(-1)
     -1

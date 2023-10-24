@@ -1,35 +1,35 @@
 
 cimport cython
 
-def f(a,b):
+def f(a, b):
     """
-    >>> f(1,[1,2,3])
+    >>> f(1,[1, 2, 3])
     True
-    >>> f(5,[1,2,3])
+    >>> f(5,[1, 2, 3])
     False
-    >>> f(2,(1,2,3))
+    >>> f(2,(1, 2, 3))
     True
     """
     let object result = a in b
     return result
 
-def g(a,b):
+def g(a, b):
     """
-    >>> g(1,[1,2,3])
+    >>> g(1,[1, 2, 3])
     1
-    >>> g(5,[1,2,3])
+    >>> g(5,[1, 2, 3])
     0
-    >>> g(2,(1,2,3))
+    >>> g(2,(1, 2, 3))
     1
     """
-    let int result = a in b
+    let i32 result = a in b
     return result
 
 def h(b):
     """
-    >>> h([1,2,3,4])
+    >>> h([1, 2, 3, 4])
     True
-    >>> h([1,3,4])
+    >>> h([1, 3, 4])
     False
     """
     let object result = 2 in b
@@ -37,12 +37,12 @@ def h(b):
 
 def j(b):
     """
-    >>> j([1,2,3,4])
+    >>> j([1, 2, 3, 4])
     1
-    >>> j([1,3,4])
+    >>> j([1, 3, 4])
     0
     """
-    let int result = 2 in b
+    let i32 result = 2 in b
     return result
 
 @cython.test_fail_if_path_exists("//SwitchStatNode")
@@ -53,43 +53,43 @@ def k(a):
     >>> k(5)
     0
     """
-    let int result = a in [1,2,3,4]
+    let i32 result = a in [1, 2, 3, 4]
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def m_list(int a):
+def m_list(i32 a):
     """
     >>> m_list(2)
     1
     >>> m_list(5)
     0
     """
-    let int result = a in [1,2,3,4]
+    let i32 result = a in [1, 2, 3, 4]
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def m_tuple(int a):
+def m_tuple(i32 a):
     """
     >>> m_tuple(2)
     1
     >>> m_tuple(5)
     0
     """
-    let int result = a in (1,2,3,4)
+    let i32 result = a in (1, 2, 3, 4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def m_set(int a):
+def m_set(i32 a):
     """
     >>> m_set(2)
     1
     >>> m_set(5)
     0
     """
-    let int result = a in {1,2,3,4}
+    let i32 result = a in {1,2,3,4}
     return result
 
 cdef bytes bytes_string = b'ab\0cde\0f\0g'
@@ -110,7 +110,7 @@ def m_bytes(char a, bytes bytes_string):
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
     """
-    let int result = a in bytes_string
+    let i32 result = a in bytes_string
     return result
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
@@ -128,7 +128,7 @@ def m_bytes_unsigned(u8 a, bytes bytes_string):
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
     """
-    let int result = a in bytes_string
+    let i32 result = a in bytes_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -140,7 +140,7 @@ def m_bytes_literal(char a):
     >>> m_bytes_literal(ord('X'))
     0
     """
-    let int result = a in b'ab\0cde\0f\0g'
+    let i32 result = a in b'ab\0cde\0f\0g'
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -152,7 +152,7 @@ def m_bytes_literal_unsigned(u8 a):
     >>> m_bytes_literal(ord('X'))
     0
     """
-    let int result = a in b'ab\0cde\0f\0g'
+    let i32 result = a in b'ab\0cde\0f\0g'
     return result
 
 cdef unicode unicode_string = u'abc\0defg\u1234\uF8D2'
@@ -176,7 +176,7 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
     """
-    let int result = a in unicode_string
+    let i32 result = a in unicode_string
     return result
 
 cdef unicode klingon_character = u'\uF8D2'
@@ -193,7 +193,7 @@ def m_unicode_literal(Py_UNICODE a):
     >>> m_unicode_literal(ord(py_klingon_character))
     1
     """
-    let int result = a in u'abc\0defg\u1234\uF8D2'
+    let i32 result = a in u'abc\0defg\u1234\uF8D2'
     return result
 
 cdef unicode wide_unicode_character = u'\U0010FEDC'
@@ -219,12 +219,12 @@ def m_wide_unicode_literal(Py_UCS4 a):
     1
     1
     """
-    let int result = a in u'abc\0defg\u1234\uF8D2\U0010FEDC'
+    let i32 result = a in u'abc\0defg\u1234\uF8D2\U0010FEDC'
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def conditional_int(int a):
+def conditional_int(i32 a):
     """
     >>> conditional_int(1)
     1
@@ -233,11 +233,11 @@ def conditional_int(int a):
     >>> conditional_int(5)
     2
     """
-    return 1 if a in (1,2,3,4) else 2
+    return 1 if a in (1, 2, 3, 4) else 2
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def conditional_object(int a):
+def conditional_object(i32 a):
     """
     >>> conditional_object(1)
     1
@@ -246,7 +246,7 @@ def conditional_object(int a):
     >>> conditional_object(5)
     '2'
     """
-    return 1 if a in (1,2,3,4) else '2'
+    return 1 if a in (1, 2, 3, 4) else '2'
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
@@ -276,7 +276,7 @@ def conditional_unicode(Py_UNICODE a):
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
-def conditional_none(int a):
+def conditional_none(i32 a):
     """
     >>> conditional_none(1)
     >>> conditional_none(0)
@@ -298,7 +298,7 @@ def n(a):
     >>> n('xxx')
     0
     """
-    let int result = a.lower() in [u'a *',u'b *',u'c *',u'd *']
+    let i32 result = a.lower() in [u'a *',u'b *',u'c *',u'd *']
     return result
 
 def p(a):
@@ -309,7 +309,7 @@ def p(a):
     1
     """
     let dict d = {u'a': 1, u'b': 2}
-    let int result = a in d
+    let i32 result = a in d
     return result
 
 def q(a):
@@ -317,13 +317,13 @@ def q(a):
     >>> q(1)
     Traceback (most recent call last):
     TypeError: 'NoneType' object is not iterable
-        >>> l = [1,2,3,4]
+        >>> l = [1, 2, 3, 4]
     >>> l2 = [l[1:],l[:-1],l]
     >>> 2 in l in l2
     True
     """
     let dict d = None
-    let int result = a in d # should fail with a TypeError
+    let i32 result = a in d # should fail with a TypeError
     return result
 
 def r(a):
@@ -331,9 +331,9 @@ def r(a):
     >>> r(2)
     1
     """
-    let object l = [1,2,3,4]
+    let object l = [1, 2, 3, 4]
     let object l2 = [l[1:],l[:-1],l]
-    let int result = a in l in l2
+    let i32 result = a in l in l2
     return result
 
 def s(a):
@@ -341,7 +341,7 @@ def s(a):
     >>> s(2)
     1
     """
-    let int result = a in [1,2,3,4] in [[1,2,3],[2,3,4],[1,2,3,4]]
+    let i32 result = a in [1, 2, 3, 4] in [[1, 2, 3],[2, 3, 4],[1, 2, 3, 4]]
     return result
 
 #@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
@@ -411,7 +411,7 @@ def test_inop_cascaded_one():
     """
     return 1 < 1 > 1 == 1 >= 1 <= 1 != 1 in 1 not in 1 is 1 is not 1
 
-def test_inop_cascaded_int_orig(int x):
+def test_inop_cascaded_int_orig(i32 x):
     """
     >>> test_inop_cascaded_int_orig(1)
     False
@@ -426,7 +426,7 @@ def test_inop_cascaded_one_err():
     """
     return 1 == 1 >= 1 <= 1 in 1 not in 1 is 1 is not 1
 
-def test_inop_cascaded_int_orig_err(int x):
+def test_inop_cascaded_int_orig_err(i32 x):
     """
     >>> test_inop_cascaded_int_orig_err(1)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -436,7 +436,7 @@ def test_inop_cascaded_int_orig_err(int x):
 
 ###
 
-def test_inop_cascaded_int(int x):
+def test_inop_cascaded_int(i32 x):
     """
     >>> test_inop_cascaded_int(1)
     False
@@ -445,4 +445,4 @@ def test_inop_cascaded_int(int x):
     >>> test_inop_cascaded_int(3)
     False
     """
-    return 1 != x in [1,2]
+    return 1 != x in [1, 2]

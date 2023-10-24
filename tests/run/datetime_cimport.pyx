@@ -7,7 +7,7 @@ import sys
 
 import_datetime()
 
-def test_date(int year, int month, int day):
+def test_date(i32 year, i32 month, i32 day):
     '''
     >>> val = test_date(2012, 12, 31)
     >>> print(val)
@@ -16,7 +16,7 @@ def test_date(int year, int month, int day):
     val = date(year, month, day)
     return val
 
-def test_time(int hour, int minute, int second, int microsecond):
+def test_time(i32 hour, i32 minute, i32 second, i32 microsecond):
     '''
     >>> val = test_time(12, 20, 55, 0)
     >>> print(val)
@@ -25,7 +25,7 @@ def test_time(int hour, int minute, int second, int microsecond):
     val = time(hour, minute, second, microsecond)
     return val
 
-def test_datetime(int year, int month, int day, int hour, int minute, int second, int microsecond):
+def test_datetime(i32 year, i32 month, i32 day, i32 hour, i32 minute, i32 second, i32 microsecond):
     '''
     >>> val = test_datetime(2012, 12, 31, 12, 20, 55, 0)
     >>> print(val)
@@ -34,7 +34,7 @@ def test_datetime(int year, int month, int day, int hour, int minute, int second
     val = datetime(year, month, day, hour, minute, second, microsecond)
     return val
 
-def test_timedelta(int days, int seconds, int useconds):
+def test_timedelta(i32 days, i32 seconds, i32 useconds):
     '''
     >>> val = test_timedelta(30, 0, 0)
     >>> print(val)
@@ -43,7 +43,7 @@ def test_timedelta(int days, int seconds, int useconds):
     val = timedelta(days, seconds, useconds)
     return val
 
-def test_timezone(int days, int seconds, int useconds, str name):
+def test_timezone(i32 days, i32 seconds, i32 useconds, str name):
     '''
     >>> val = test_timezone(0, 3600, 0, 'CET')
     >>> print(val)

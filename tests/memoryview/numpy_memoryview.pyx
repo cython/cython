@@ -502,7 +502,7 @@ def test_structarray_errors(StructArray[:] a):
        ...
     ValueError: Expected a dimension of size 4, got 6
 
-    >>> dtype = np.dtype([('a', '(4,4)i'), ('b', '5b')])
+    >>> dtype = np.dtype([('a', '(4, 4)i'), ('b', '5b')])
     >>> test_structarray_errors(np.empty((5,), dtype=dtype))
     Traceback (most recent call last):
        ...
@@ -519,7 +519,7 @@ def test_structarray_errors(StructArray[:] a):
        ...
     ValueError: Expected a dimension of size 4, got 6
 
-    >>> dtype = np.dtype([('a', '(4,4)i'), ('b', 'S5')])
+    >>> dtype = np.dtype([('a', '(4, 4)i'), ('b', 'S5')])
     >>> test_structarray_errors(np.empty((5,), dtype=dtype))
     Traceback (most recent call last):
        ...
@@ -686,7 +686,7 @@ def test_refcount_GH507():
 def test_boundscheck_and_wraparound(f64[:, :] x):
     """
     >>> import numpy as np
-    >>> array = np.ones((2,2)) * 3.5
+    >>> array = np.ones((2, 2)) * 3.5
     >>> test_boundscheck_and_wraparound(array)
     """
     # Make sure we don't generate C compiler warnings for unused code here.

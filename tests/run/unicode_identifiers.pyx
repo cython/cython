@@ -45,7 +45,7 @@ if sys.version_info[0] > 2:
     >>> C().Ƒ()
 
     Test generation of locals()
-    >>> sorted(Γναμε2().boring_function(1,2).keys())
+    >>> sorted(Γναμε2().boring_function(1, 2).keys())
     ['self', 'somevalue', 'x', 'ναμε5', 'ναμε6']
 
     >>> Γναμε2().boring_cpdef() - Γναμε2().εxciting_cpdef()
@@ -113,7 +113,7 @@ def regular_function():
     >>> regular_function()
     10
     """
-    let int variableƑ = 5
+    let i32 variableƑ = 5
     ναμε2 = 2
     return variableƑ*ναμε2
 

@@ -62,7 +62,7 @@ def test_set_erase(vals, int to_remove):
     [-1, 1, 3]
     """
     let set[int] s = set[int]()
-    let size_t ret
+    let usize ret
     for v in vals:
         s.insert(v)
     ret = s.erase(to_remove)
@@ -139,7 +139,7 @@ def test_unordered_set_erase(vals, int to_remove):
     [-1, 1, 3]
     """
     let unordered_set[int] us = unordered_set[int]()
-    let size_t ret
+    let usize ret
     for v in vals:
         us.insert(v)
     ret = us.erase(to_remove)
@@ -168,7 +168,7 @@ def test_iterator_stack_allocated():
     """
     let set[int] myset = set[int]()
     let unordered_set[int] myuset = unordered_set[int]()
-    let int ckey = 5
+    let i32 ckey = 5
     it = myset.const_find(ckey)
     assert it == myset.const_end()
     uit = myuset.const_find(ckey)

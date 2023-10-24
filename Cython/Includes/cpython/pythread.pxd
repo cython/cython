@@ -26,14 +26,14 @@ extern from "pythread.h":
         PY_LOCK_INTR
 
     usize PyThread_get_stacksize()
-    i32 PyThread_set_stacksize(size_t)
+    i32 PyThread_set_stacksize(usize)
 
     # Thread Local Storage (TLS) API deprecated in CPython 3.7+
     int PyThread_create_key()
-    void PyThread_delete_key(int)
-    int PyThread_set_key_value(int, void *)
-    void * PyThread_get_key_value(int)
-    void PyThread_delete_key_value(int key)
+    void PyThread_delete_key(i32)
+    int PyThread_set_key_value(i32, void *)
+    void * PyThread_get_key_value(i32)
+    void PyThread_delete_key_value(i32 key)
 
     # Cleanup after a fork
     void PyThread_ReInitTLS()

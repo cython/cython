@@ -6,7 +6,7 @@ from libcpp cimport nullptr
 
 extern from "cpp_smart_ptr_helper.h":
     cdef cppclass CountAllocDealloc:
-        CountAllocDealloc(int*, int*)
+        CountAllocDealloc(i32*, int*)
 
     cdef cppclass FreePtr[T]:
         pass
@@ -20,7 +20,7 @@ def test_unique_ptr():
     """
     >>> test_unique_ptr()
     """
-    let int alloc_count = 0, dealloc_count = 0
+    let i32 alloc_count = 0, dealloc_count = 0
     let unique_ptr[CountAllocDealloc] x_ptr
     x_ptr.reset(new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert alloc_count == 1
@@ -60,7 +60,7 @@ def test_const_shared_ptr():
     """
     >>> test_const_shared_ptr()
     """
-    let int alloc_count = 0, dealloc_count = 0
+    let i32 alloc_count = 0, dealloc_count = 0
     let shared_ptr[const CountAllocDealloc] ptr = shared_ptr[const_CountAllocDealloc](
         new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert alloc_count == 1

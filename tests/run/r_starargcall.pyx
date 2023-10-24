@@ -7,5 +7,5 @@ def eggs():
     Args: 1 2 3
     Args: buckle my shoe
     """
-    spam(*(1,2,3))
+    spam(*(1, 2, 3))
     spam(*[u"buckle",u"my",u"shoe"])

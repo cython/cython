@@ -4,7 +4,7 @@
 cdef class Bar:
     cdef list _operands
 
-    fn int _operands(self):
+    fn i32 _operands(self):
         return -1
 
 

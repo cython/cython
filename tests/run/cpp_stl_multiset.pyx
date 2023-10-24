@@ -61,7 +61,7 @@ def test_multiset_erase(vals, int to_remove):
     [-1, 1, 3]
     """
     let multiset[int] ms = multiset[int]()
-    let size_t ret
+    let usize ret
     for v in vals:
         ms.insert(v)
     ret = ms.erase(to_remove)
@@ -138,7 +138,7 @@ def test_unordered_multiset_erase(vals, int to_remove):
     [-1, 1, 3]
     """
     let unordered_multiset[int] ums = unordered_multiset[int]()
-    let size_t ret
+    let usize ret
     for v in vals:
         ums.insert(v)
     ret = ums.erase(to_remove)

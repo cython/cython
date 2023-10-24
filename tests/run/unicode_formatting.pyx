@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 
 
-def ascii_format(a, int b, list c):
+def ascii_format(a, i32 b, list c):
     """
     >>> print(ascii_format('x', 2, [1]))
     -'x'-2-[1]-
@@ -12,7 +12,7 @@ def ascii_format(a, int b, list c):
     return '-%a-%a-%a-' % (a, b, c)
 
 
-def repr_format(a, int b, list c):
+def repr_format(a, i32 b, list c):
     """
     >>> print(repr_format('x', 2, [1]))
     -'x'-2-[1]-
@@ -20,7 +20,7 @@ def repr_format(a, int b, list c):
     return '-%r-%r-%r-' % (a, b, c)
 
 
-def str_format(a, int b, list c):
+def str_format(a, i32 b, list c):
     """
     >>> print(str_format('x', 2, [1]))
     -x-2-[1]-
@@ -28,7 +28,7 @@ def str_format(a, int b, list c):
     return '-%s-%s-%s-' % (a, b, c)
 
 
-def mix_format(a, int b, list c):
+def mix_format(a, i32 b, list c):
     """
     >>> print(mix_format('x', 2, [1]))
     -x-2-[1]-

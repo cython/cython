@@ -18,7 +18,7 @@ extern from "<vector>" namespace "std":
         iterator end()
 
 cdef vector[i32] *v = new vector[i32]()
-cdef int i
+cdef i32 i
 for i in range(10):
     v.push_back(i)
 

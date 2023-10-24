@@ -45,7 +45,7 @@ def lentest_char_c_short():
     >>> lentest_char_c_short()
     7
     """
-    let short l = len(s)
+    let i16 l = len(s)
     return l
 
 @cython.test_assert_path_exists(
@@ -56,7 +56,7 @@ def lentest_char_c_float():
     >>> lentest_char_c_float()
     7.0
     """
-    let float l = len(s)
+    let f32 l = len(s)
     return l
 
 @cython.test_assert_path_exists(

@@ -39,13 +39,13 @@ def test_unicode(n):
     return u"\u00fc\u00f6\u00e4"[n]
 
 def test_int_list(n):
-    return [1,2,3,4][n]
+    return [1, 2, 3, 4][n]
 
 def test_str_list(n):
     return ["a","bcd","efg","xyz"][n]
 
 def test_int_tuple(n):
-    return (1,2,3,4)[n]
+    return (1, 2, 3, 4)[n]
 
 def test_str_tuple(n):
     return ("a","bcd","efg","xyz")[n]

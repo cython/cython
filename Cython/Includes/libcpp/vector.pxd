@@ -6,7 +6,7 @@ extern from "<vector>" namespace "std" nogil:
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
         # but cython doesn't support deferred access on template arguments
-        ctypedef size_t size_type
+        ctypedef usize size_type
         ctypedef ptrdiff_t difference_type
 
         cppclass const_iterator
@@ -16,8 +16,8 @@ extern from "<vector>" namespace "std" nogil:
             T& operator*()
             iterator operator++()
             iterator operator--()
-            iterator operator++(int)
-            iterator operator--(int)
+            iterator operator++(i32)
+            iterator operator--(i32)
             iterator operator+(size_type)
             iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -42,8 +42,8 @@ extern from "<vector>" namespace "std" nogil:
             const T& operator*()
             const_iterator operator++()
             const_iterator operator--()
-            const_iterator operator++(int)
-            const_iterator operator--(int)
+            const_iterator operator++(i32)
+            const_iterator operator--(i32)
             const_iterator operator+(size_type)
             const_iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -68,8 +68,8 @@ extern from "<vector>" namespace "std" nogil:
             T& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
-            reverse_iterator operator++(int)
-            reverse_iterator operator--(int)
+            reverse_iterator operator++(i32)
+            reverse_iterator operator--(i32)
             reverse_iterator operator+(size_type)
             reverse_iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -93,8 +93,8 @@ extern from "<vector>" namespace "std" nogil:
             const T& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
-            const_reverse_iterator operator++(int)
-            const_reverse_iterator operator--(int)
+            const_reverse_iterator operator++(i32)
+            const_reverse_iterator operator--(i32)
             const_reverse_iterator operator+(size_type)
             const_reverse_iterator operator-(size_type)
             difference_type operator-(iterator)

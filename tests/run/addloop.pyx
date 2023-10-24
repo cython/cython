@@ -32,7 +32,7 @@ def add_c(max):
     >>> add_c(10)
     46
     """
-    let int x,i
+    let i32 x, i
     x = 1
     for i from 0 <= i < max:
         x = x + i

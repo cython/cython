@@ -16,7 +16,7 @@ PYCVAR = contextvars.ContextVar("pycvar")
 def disable_for_pypy737(f):
     import sys
     # will be fixed in PyPy 7.3.8
-    if hasattr(sys, 'pypy_version_info') and sys.pypy_version_info < (7,3,8):
+    if hasattr(sys, 'pypy_version_info') and sys.pypy_version_info < (7, 3, 8):
         return None
     return f
 

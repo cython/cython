@@ -327,7 +327,7 @@ def complex_struct_dtype(LongComplex[:] mslice):
 #
 def get_int_2d(i32[:, :] mslice, i32 i, i32 j):
     """
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
@@ -365,7 +365,7 @@ def set_int_2d(i32[:, :] mslice, i32 i, i32 j, i32 value):
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
 
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
     released C
@@ -419,13 +419,13 @@ def set_int_2d(i32[:, :] mslice, i32 i, i32 j, i32 value):
 #
 def type_infer(f64[:, :] arg):
     """
-    >>> type_infer(DoubleMockBuffer(None, range(6), (2,3)))
+    >>> type_infer(DoubleMockBuffer(None, range(6), (2, 3)))
     double
     double[:]
     double[:]
     double[:, :]
     """
-    a = arg[0,0]
+    a = arg[0, 0]
     print(cython.typeof(a))
     b = arg[0]
     print(cython.typeof(b))
@@ -440,7 +440,7 @@ def type_infer(f64[:, :] arg):
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 def memview_iter(f64[:, :] arg):
     """
-    >>> memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    >>> memview_iter(DoubleMockBuffer("C", range(6), (2, 3)))
     acquired C
     released C
     True
@@ -496,7 +496,7 @@ def c_contig_2d(i32[:, ::1] mslice):
     """
     Multi-dim has separate implementation
 
-    >>> A = IntMockBuffer(None, range(12), shape=(3,4))
+    >>> A = IntMockBuffer(None, range(12), shape=(3, 4))
     >>> c_contig_2d(A)
     7
     """
@@ -516,7 +516,7 @@ def f_contig_2d(i32[::1, :] mslice):
     """
     Must set up strides manually to ensure Fortran ordering.
 
-    >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
+    >>> A = IntMockBuffer(None, range(12), shape=(4, 3), strides=(1, 4))
     >>> f_contig_2d(A)
     7
     """
@@ -526,8 +526,8 @@ def f_contig_2d(i32[::1, :] mslice):
 def generic(i32[::view.generic, ::view.generic] mslice1,
             i32[::view.generic, ::view.generic] mslice2):
     """
-    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
-    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> A = IntMockBuffer("A", [[0, 1, 2], [3, 4, 5], [6, 7, 8]])
+    >>> B = IntMockBuffer("B", [[0, 1, 2], [3, 4, 5], [6, 7, 8]], shape=(3, 3), strides=(1, 3))
     >>> generic(A, B)
     acquired A
     acquired B
@@ -552,8 +552,8 @@ def generic(i32[::view.generic, ::view.generic] mslice1,
 #def generic_contig(i32[::view.generic_contiguous, :] mslice1,
 #                   i32[::view.generic_contiguous, :] mslice2):
 #    """
-#    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
-#    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+#    >>> A = IntMockBuffer("A", [[0, 1, 2], [3, 4, 5], [6, 7, 8]])
+#    >>> B = IntMockBuffer("B", [[0, 1, 2], [3, 4, 5], [6, 7, 8]], shape=(3, 3), strides=(1, 3))
 #    >>> generic_contig(A, B)
 #    acquired A
 #    acquired B
@@ -987,7 +987,7 @@ cdef class TestPassMemoryviewToSetter:
     acquired dmb
     In prop_with_reassignment setter
     released dmb
-    >>> dmb = DoubleMockBuffer("dmb", range(1,3), shape=(2,))
+    >>> dmb = DoubleMockBuffer("dmb", range(1, 3), shape=(2,))
     >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
     acquired dmb
     In prop_with_reassignment setter

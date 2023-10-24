@@ -21,7 +21,6 @@ cdef class Spline:
     cpdef (i64, i64) GetDomain(self)
     cpdef i64 GetIndex(self, u)
 
-
 @cython.final
 cdef class Chaosgame:
     cdef list splines

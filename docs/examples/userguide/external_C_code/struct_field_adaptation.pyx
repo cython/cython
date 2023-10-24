@@ -13,15 +13,15 @@ extern from "struct_field_adaptation.h":
 
     # Normal declarations provided by the C header file:
     ctypedef struct StructType:
-        int field1
-        int field2
+        i32 field1
+        i32 field2
 
-    StructType *get_struct_ptr()
+    fn StructType *get_struct_ptr()
 
     # Special declarations conditionally provided above:
-    bint HAS_NEWLY_ADDED_FIELD
-    int get_newly_added_field "_mylib_get_newly_added_field" (StructType *struct_ptr)
-    void set_newly_added_field "_mylib_set_newly_added_field" (StructType *struct_ptr, int value)
+    fn bint HAS_NEWLY_ADDED_FIELD
+    fn i32 get_newly_added_field "_mylib_get_newly_added_field" (StructType *struct_ptr)
+    fn void set_newly_added_field "_mylib_set_newly_added_field" (StructType *struct_ptr, i32 value)
 
 
 cdef StructType *some_struct_ptr = get_struct_ptr()

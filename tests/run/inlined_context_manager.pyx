@@ -4,7 +4,7 @@ cimport cython
 
 @cython.final
 cdef class TypedContextManager(object):
-    fn double __enter__(self):  # not callable from Python !
+    fn f64 __enter__(self):  # not callable from Python !
         return 2.0
 
     # FIXME: inline __exit__() as well

@@ -68,7 +68,7 @@ def simple_pop_typed(list L):
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
-def index_pop(L, int i):
+def index_pop(L, i32 i):
     """
     >>> L = list(range(10))
     >>> index_pop(L, 2)
@@ -104,7 +104,7 @@ def index_pop(L, int i):
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
-def index_pop_typed(list L, int i):
+def index_pop_typed(list L, i32 i):
     """
     >>> L = list(range(10))
     >>> index_pop_typed(L, 2)

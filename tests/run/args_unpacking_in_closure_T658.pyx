@@ -2,7 +2,7 @@
 # tag: closures
 # ticket: t658
 
-def outer(int x, *args, **kwargs):
+def outer(i32 x, *args, **kwargs):
     """
     >>> inner = outer(1, 2, a=3)
     >>> inner()

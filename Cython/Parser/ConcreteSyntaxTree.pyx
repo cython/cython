@@ -8,8 +8,8 @@ extern from "node.h":
     ctypedef struct node
     void PyNode_Free(node* n)
     int NCH(node* n)
-    node* CHILD(node* n, int ix)
-    node* RCHILD(node* n, int ix)
+    node* CHILD(node* n, i32 ix)
+    node* RCHILD(node* n, i32 ix)
     short TYPE(node* n)
     char* STR(node* n)
 
@@ -23,7 +23,7 @@ extern from "parsetok.h":
         grammar * g,
         int start,
         perrdetail * err_ret,
-        int * flags)
+        i32 * flags)
 
 import distutils.sysconfig
 import os

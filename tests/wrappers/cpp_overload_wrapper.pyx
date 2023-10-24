@@ -44,14 +44,13 @@ cdef class DoubleKeeper:
         """
         return self.keeper.transmogrify(value)
 
-
 def voidfunc():
     """
     >>> voidfunc()
     """
     cppwrap_lib.voidfunc()
 
-def doublefunc(double x, double y, double z):
+def doublefunc(f64 x, f64 y, f64 z):
     """
     >>> doublefunc(1.0, 2.0, 3.0) == 1.0 + 2.0 + 3.0
     True

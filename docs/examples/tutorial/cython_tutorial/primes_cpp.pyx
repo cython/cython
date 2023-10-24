@@ -3,8 +3,8 @@
 from libcpp.vector cimport vector
 
 def primes(u32 nb_primes):
-    cdef i32 n, i
-    cdef vector[i32] p
+    let i32 n, i
+    let vector[i32] p
     p.reserve(nb_primes)  # allocate memory for 'nb_primes' elements.
 
     n = 2

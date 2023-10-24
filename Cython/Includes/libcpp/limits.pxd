@@ -22,21 +22,21 @@ extern from "<limits>" namespace "std" nogil:
         T min()
         @staticmethod
         T max()
-        const int digits
-        const int  digits10
+        const i32 digits
+        const i32  digits10
         const bint is_signed
         const bint is_integer
         const bint is_exact
-        const int radix
+        const i32 radix
         @staticmethod
         T epsilon()
         @staticmethod
         T round_error()
 
-        const int  min_exponent
-        const int  min_exponent10
-        const int  max_exponent
-        const int  max_exponent10
+        const i32  min_exponent
+        const i32  min_exponent10
+        const i32  max_exponent
+        const i32  max_exponent10
 
         const bint has_infinity
         const bint has_quiet_NaN

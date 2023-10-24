@@ -13,7 +13,7 @@ extern from *:
     ctypedef struct __Pyx_CodeObjectCacheEntry:
         int code_line
         PyCodeObject* code_object
-    int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line)
+    int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, i32 count, int code_line)
 
 def test_lowlevel_bisect2(*indices):
     """

@@ -1,4 +1,3 @@
-
 cimport cython
 
 @cython.locals(x=isize)

@@ -6,7 +6,7 @@ from libc.stdint cimport *
 
 from libcpp.atomic cimport atomic
 
-def int_test(int x):
+def int_test(i32 x):
     """
     >>> int_test(55)
     3
@@ -27,7 +27,7 @@ def int_test(int x):
 
 ctypedef atomic[int32_t] atomint32_t
 
-def typedef_test(int x):
+def typedef_test(i32 x):
     """
     >>> typedef_test(55)
     3
@@ -46,7 +46,7 @@ def typedef_test(int x):
     finally:
         del atom
 
-def stack_allocation_test(int x):
+def stack_allocation_test(i32 x):
     """
     >>> stack_allocation_test(55)
     3
@@ -66,7 +66,7 @@ def stack_allocation_test(int x):
     finally:
         pass
 
-def nogil_int_test(int x):
+def nogil_int_test(i32 x):
     """
     >>> nogil_int_test(55)
     55

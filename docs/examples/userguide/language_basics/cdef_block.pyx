@@ -8,5 +8,5 @@ cdef:
     f32 a
     Spam *p
 
-    void f(Spam *s) except *:
+    fn void f(Spam *s) except *:
         print(s.tons, "Tons of spam")

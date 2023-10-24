@@ -1,16 +1,16 @@
 # tests copied from test/test_bool.py in Py2.7
 
-fn assertEqual(a,b):
-    assert a == b, '%r != %r' % (a,b)
+fn assertEqual(a, b):
+    assert a == b, '%r != %r' % (a, b)
 
-fn assertIs(a,b):
-    assert a is b, '%r is not %r' % (a,b)
+fn assertIs(a, b):
+    assert a is b, '%r is not %r' % (a, b)
 
-fn assertIsNot(a,b):
-    assert a is not b, '%r is %r' % (a,b)
+fn assertIsNot(a, b):
+    assert a is not b, '%r is %r' % (a, b)
 
-fn assertNotIsInstance(a,b):
-    assert not isinstance(a,b), 'isinstance(%r, %s)' % (a,b)
+fn assertNotIsInstance(a, b):
+    assert not isinstance(a, b), 'isinstance(%r, %s)' % (a, b)
 
 def test_int():
     """

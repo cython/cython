@@ -8,11 +8,11 @@ extern from *:
     """
     fn void accept[T](T&& x)
 
-fn int make_int_py() except *:
+fn i32 make_int_py() except *:
     # might raise Python exception (thus needs a temp)
     return 1
 
-fn int make_int_cpp() except +:
+fn i32 make_int_cpp() except +:
     # might raise C++ exception (thus needs a temp)
     return 1
 

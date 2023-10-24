@@ -16,7 +16,7 @@ def test_modify():
     <BLANKLINE>
     (4, 0)
     """
-    let int i, n = 5
+    let i32 i, n = 5
     for i in range(n):
         print i
         n = 0
@@ -36,7 +36,7 @@ def test_negindex():
     2
     (2, 0)
     """
-    let int i, n = 5
+    let i32 i, n = 5
     for i in range(n+1, 1, -1):
         print i
         n = 0
@@ -55,7 +55,7 @@ def test_negindex_inferred():
     2
     (2, 0)
     """
-    let int n = 5
+    let i32 n = 5
     for i in range(n, 1, -1):
         print i
         n = 0
@@ -75,7 +75,7 @@ def test_fix():
     <BLANKLINE>
     4
     """
-    let int i
+    let i32 i
     for i in range(5):
         print i
     print
@@ -93,7 +93,7 @@ def test_break():
     <BLANKLINE>
     (2, 0)
     """
-    let int i, n = 5
+    let i32 i, n = 5
     for i in range(n):
         print i
         n = 0
@@ -115,7 +115,7 @@ def test_return():
     2
     (2, 0)
     """
-    let int i, n = 5
+    let i32 i, n = 5
     for i in range(n):
         print i
         n = 0
@@ -141,6 +141,6 @@ def test_enum_range():
     """
     let RangeEnum n = EnumValue3
     for i in range(n):
-        assert 0 <= <int>i < <int>n
+        assert 0 <= <i32>i < <int>n
         assert cython.typeof(i) == "RangeEnum", cython.typeof(i)
     return cython.typeof(i)

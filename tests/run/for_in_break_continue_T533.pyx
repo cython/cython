@@ -46,7 +46,7 @@ def for_from():
 
 def for_in_break2(data, avoid):
     """
-    >>> for_in_break2([1,2,3,None], avoid=[1,2,3])
+    >>> for_in_break2([1,2,3,None], avoid=[1, 2, 3])
     3
     >>> for_in_break2([1,2,3,None], avoid=[1])
     1

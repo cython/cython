@@ -20,54 +20,53 @@ def get_refcount(obj):
     return (<PyObject*>obj).ob_refcnt
 
 cdef class RefCountInMeth(object):
-    cdef double value
+    cdef f64 value
 
     def __cinit__(self):
         self.value = 1.5
 
-    fn double c_get_value(self) nogil:
+    fn f64 c_get_value(self) nogil:
         return self.value
 
-    fn double c_get_value_if(self) nogil:
-        cdef double v
-        if 9>4:
+    fn f64 c_get_value_if(self) nogil:
+        let f64 v
+        if 9 > 4:
             v = 2.3
         return self.value
 
-    fn int c_meth(self):
-        cdef int v
+    fn i32 c_meth(self):
+        let i32 v
 
         v = get_refcount(self)
         return v
 
-    fn int c_meth_if(self):
-        cdef int v
-        if 5>6:
+    fn i32 c_meth_if(self):
+        let i32 v
+        if 5 > 6:
             v = 7
         v = get_refcount(self)
         return v
 
     def chk_meth(self):
-        cdef int a,b
+        let i32 a, b
 
         a = get_refcount(self)
         b = self.c_meth()
-        return a==b
+        return a == b
 
     def chk_meth_if(self):
-        cdef int a,b
+        let i32 a, b
 
         a = get_refcount(self)
         b = self.c_meth_if()
-        return a==b
+        return a == b
 
     def chk_nogil(self):
-        cdef double v
+        let f64 v
         v = self.c_get_value()
-        return v==self.value
+        return v == self.value
 
     def chk_nogil_if(self):
-        cdef double v
+        let f64 v
         v = self.c_get_value_if()
-        return v==self.value
-
+        return v == self.value

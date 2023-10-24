@@ -7,16 +7,16 @@ __doc__ = u"""
 """
 
 def get_locals(x, *args, **kwds):
-    let int z = 5
+    let i32 z = 5
     y = "hi"
     return locals()
 
 def get_locals_rebound(x, *args, **kwds):
     """
-    >>> get_locals_rebound(1,2,3)
+    >>> get_locals_rebound(1, 2, 3)
     'REBOUND'
     """
-    let int z = 5
+    let i32 z = 5
     locals = _locals
     y = "hi"
     return locals()

@@ -24,8 +24,8 @@ def complex_int_double_cast(f64 x, double complex z):
     >>> complex_int_double_cast(2.5, 2.5 + 3.5j)
     ((2+0j), (2+3j))
     """
-    let int complex xx = <int complex>x
-    let int complex zz = <int complex>z
+    let i32 complex xx = <int complex>x
+    let i32 complex zz = <int complex>z
     return xx, zz
 
 cdef i32 side_effect_counter = 0
@@ -45,5 +45,5 @@ def test_side_effect(i32 complex z):
     side effect 2 (3-4j)
     (3-4j)
     """
-    let int complex zz = <int complex>side_effect(z)
+    let i32 complex zz = <int complex>side_effect(z)
     return zz

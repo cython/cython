@@ -1,17 +1,17 @@
 # mode: run
 # tag: cpp, werror
 
-fn int raise_py_error() except *:
+fn i32 raise_py_error() except *:
     raise TypeError("custom")
 
 extern from "cpp_exceptions_helper.h":
-    fn int raise_int_raw "raise_int"(bint fire) except +
-    fn int raise_int_value "raise_int"(bint fire) except +ValueError
-    fn int raise_int_custom "raise_int"(bint fire) except +raise_py_error
+    fn i32 raise_int_raw "raise_int"(bint fire) except +
+    fn i32 raise_int_value "raise_int"(bint fire) except +ValueError
+    fn i32 raise_int_custom "raise_int"(bint fire) except +raise_py_error
 
-    fn int raise_index_raw "raise_index"(bint fire) except +
-    fn int raise_index_value "raise_index"(bint fire) except +ValueError
-    fn int raise_index_custom "raise_index"(bint fire) except +raise_py_error
+    fn i32 raise_index_raw "raise_index"(bint fire) except +
+    fn i32 raise_index_value "raise_index"(bint fire) except +ValueError
+    fn i32 raise_index_custom "raise_index"(bint fire) except +raise_py_error
 
     fn void raise_domain_error() except +
     fn void raise_ios_failure() except +
@@ -22,7 +22,7 @@ extern from "cpp_exceptions_helper.h":
     fn void raise_underflow() except +
 
     fn raise_or_throw(bint py) except +
-    fn int raise_or_throw_int(bint py) except +*
+    fn i32 raise_or_throw_int(bint py) except +*
 
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +

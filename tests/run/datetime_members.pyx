@@ -16,7 +16,7 @@ from cpython.datetime cimport timedelta_days, timedelta_seconds, timedelta_micro
 
 import_datetime()
 
-def test_date(int year, int month, int day):
+def test_date(i32 year, i32 month, i32 day):
     '''
     >>> test_date(2012,12,31)
     (True, True, True)
@@ -26,8 +26,8 @@ def test_date(int year, int month, int day):
            o.month == date_month(o), \
            o.day == date_day(o)
 
-def test_datetime(int year, int month, int day, int hour,
-                  int minute, int second, int microsecond, int fold):
+def test_datetime(i32 year, i32 month, i32 day, i32 hour,
+                  i32 minute, i32 second, i32 microsecond, i32 fold):
     '''
     >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345, 0)
     (True, True, True, True, True, True, True, True, True)
@@ -47,7 +47,7 @@ def test_datetime(int year, int month, int day, int hour,
            o.tzinfo == datetime_tzinfo(o), \
            o.fold == datetime_fold(o)
 
-def test_time(int hour, int minute, int second, int microsecond, int fold):
+def test_time(i32 hour, i32 minute, i32 second, i32 microsecond, i32 fold):
     '''
     >>> test_time(12, 30, 59, 12345, 0)
     (True, True, True, True, True, True)
@@ -62,7 +62,7 @@ def test_time(int hour, int minute, int second, int microsecond, int fold):
            o.tzinfo == time_tzinfo(o), \
            o.fold == time_fold(o)
 
-def test_timedelta(int days, int seconds, int microseconds):
+def test_timedelta(i32 days, i32 seconds, i32 microseconds):
     '''
     >>> test_timedelta(30, 1440, 123456)
     (True, True, True)

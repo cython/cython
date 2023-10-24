@@ -6,7 +6,7 @@ extern from *:
         ONE "1"
         ONE_AGAIN "1+0"
 
-def is_not_one(int i):
+def is_not_one(i32 i):
     """
     >>> is_not_one(1)
     False

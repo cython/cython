@@ -1,17 +1,17 @@
 # 7.14 Signal handling <signal.h>
 
-ctypedef void (*sighandler_t)(int SIGNUM) noexcept nogil
+ctypedef void (*sighandler_t)(i32 SIGNUM) noexcept nogil
 
 extern from "<signal.h>" nogil:
 
-    ctypedef int sig_atomic_t
+    ctypedef i32 sig_atomic_t
 
     sighandler_t SIG_DFL
     sighandler_t SIG_IGN
     sighandler_t SIG_ERR
 
-    sighandler_t signal        (int signum, sighandler_t action)
-    int          raise_"raise" (int signum)
+    sighandler_t signal        (i32 signum, sighandler_t action)
+    int          raise_"raise" (i32 signum)
 
     # Signals
     enum:

@@ -3,11 +3,11 @@
 def f(x, y):
     x = y
 
-fn void g(int i, float f, char *p):
+fn void g(i32 i, f32 f, char *p):
     f = i
 
 
-fn h(int i, obj):
+fn h(i32 i, obj):
     i = obj
 
 def z(a, b, c):
@@ -21,7 +21,7 @@ def z(a, b, c):
 
 def fail0(a, b):
     """
-    >>> fail0(1,2)
+    >>> fail0(1, 2)
     Traceback (most recent call last):
     TypeError: f() takes exactly 2 positional arguments (0 given)
     """
@@ -29,7 +29,7 @@ def fail0(a, b):
 
 def fail1(a, b):
     """
-    >>> fail1(1,2)
+    >>> fail1(1, 2)
     Traceback (most recent call last):
     TypeError: f() takes exactly 2 positional arguments (1 given)
     """

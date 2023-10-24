@@ -55,7 +55,7 @@ def test_bit_width():
     3
     """
     let uint8_t x = 5
-    let int res = bit_width[uint8_t](x)
+    let i32 res = bit_width[uint8_t](x)
     return res
 
 def test_rotl():
@@ -65,7 +65,7 @@ def test_rotl():
     209
     """
     let uint8_t x = 29
-    let int s = 4
+    let i32 s = 4
     let uint8_t res = rotl[uint8_t](x, s)
     return res
 
@@ -76,7 +76,7 @@ def test_rotr():
     142
     """
     let uint8_t x = 29
-    let int s = 1
+    let i32 s = 1
     let uint8_t res = rotr[uint8_t](x, s)
     return res
 
@@ -87,7 +87,7 @@ def test_countl_zero():
     3
     """
     let uint8_t x = 24
-    let int res = countl_zero[uint8_t](x)
+    let i32 res = countl_zero[uint8_t](x)
     return res
 
 def test_countr_zero():
@@ -97,7 +97,7 @@ def test_countr_zero():
     3
     """
     let uint8_t x = 24
-    let int res = countr_zero[uint8_t](x)
+    let i32 res = countr_zero[uint8_t](x)
     return res
 
 def test_countl_one():
@@ -107,7 +107,7 @@ def test_countl_one():
     3
     """
     let uint8_t x = 231
-    let int res = countl_one[uint8_t](x)
+    let i32 res = countl_one[uint8_t](x)
     return res
 
 def test_countr_one():
@@ -117,7 +117,7 @@ def test_countr_one():
     3
     """
     let uint8_t x = 231
-    let int res = countr_one[uint8_t](x)
+    let i32 res = countr_one[uint8_t](x)
     return res
 
 def test_popcount():
@@ -127,5 +127,5 @@ def test_popcount():
     8
     """
     let uint8_t x = 255
-    let int res = popcount[uint8_t](x)
+    let i32 res = popcount[uint8_t](x)
     return res

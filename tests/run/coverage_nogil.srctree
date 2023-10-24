@@ -37,7 +37,7 @@ include "_coverage_test_nogil.pxi"
 #  1
 #  2
 #  3
-fn int func1(int a, int b) nogil:  #  4
+fn i32 func1(int a, int b) nogil:  #  4
     cdef int x                       #  5
     with gil:                        #  6
         x = 1                        #  7
@@ -45,7 +45,7 @@ fn int func1(int a, int b) nogil:  #  4
     return x + c                     #  9
 # 10
 # 11
-fn int func2(int a) with gil:  # 12
+fn i32 func2(int a) with gil:  # 12
     return a * 2                 # 13
 # 14
 # 15

@@ -38,7 +38,7 @@ def from_object():
     assert strcmp(<char*>s, "abc") == 0
     assert strcmp(<char*>u, "abc") == 0
 
-def slice_as_objects(char* ascii_data, int start, int end):
+def slice_as_objects(char* ascii_data, i32 start, i32 end):
     """
     >>> x = slice_as_objects('grok', 1, 3)
     >>> isinstance(x, auto_string_type) or type(x)

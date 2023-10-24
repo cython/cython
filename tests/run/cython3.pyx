@@ -56,7 +56,7 @@ def truediv(x):
     return x / 2
 
 
-def truediv_int(int x):
+def truediv_int(i32 x):
     """
     >>> truediv_int(4)
     2.0
@@ -67,7 +67,7 @@ def truediv_int(int x):
 
 
 @cython.cdivision(true)
-def cdiv_int(int x):
+def cdiv_int(i32 x):
     """
     >>> cdiv_int(4)
     2
@@ -302,7 +302,7 @@ def nested_except_gh3666(a=false, b=false):
 
 def print_function(*args):
     """
-    >>> print_function(1,2,3)
+    >>> print_function(1, 2, 3)
     1 2 3
     """
     print(*args) # this isn't valid Py2 syntax
@@ -612,7 +612,7 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     """
     >>> annotation_syntax(1)
     3
-    >>> annotation_syntax(1,3)
+    >>> annotation_syntax(1, 3)
     4
 
     >>> len(annotation_syntax.__annotations__)

@@ -1,4 +1,4 @@
-fn int f() except -1:
+fn i32 f() except -1:
     let type t
     let object x
     t = buffer

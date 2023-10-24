@@ -84,7 +84,7 @@ def conditional_not_none(a, dict d not None):
     return d.get(1)
 
 @cython.test_fail_if_path_exists('//NoneCheckNode')
-def self_dependency(int x):
+def self_dependency(i32 x):
     """
     >>> self_dependency(1)
     (1, 2)
@@ -95,11 +95,11 @@ def self_dependency(int x):
     a = {1:2}
     b = {2:1}
     for i in range(x):
-        a,b = b,a
+        a, b = b, a
     return a.get(2), b.get(1)
 
 @cython.test_assert_path_exists('//NoneCheckNode')
-def self_dependency_none(int x):
+def self_dependency_none(i32 x):
     """
     >>> self_dependency_none(false)
     1
@@ -111,7 +111,7 @@ def self_dependency_none(int x):
     a = None
     b = {2:1}
     if x:
-        a,b = b,a
+        a, b = b, a
     return b.get(2)
 
 @cython.test_fail_if_path_exists('//NoneCheckNode')

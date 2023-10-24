@@ -1,10 +1,10 @@
 from libc.setjmp cimport *
 
-fn void check_nonzero(jmp_buf ctx, int x) nogil:
+fn void check_nonzero(jmp_buf ctx, i32 x) nogil:
     if x == 0:
         longjmp(ctx, 1)
 
-def nonzero(int x):
+def nonzero(i32 x):
     """
     >>> nonzero(-1)
     True
@@ -23,7 +23,6 @@ def nonzero(int x):
     else:
         return false
 
-
 from libc.string cimport strcpy
 cdef char[256] error_msg
 cdef jmp_buf error_ctx
@@ -31,11 +30,11 @@ fn void error(char msg[]) nogil:
     strcpy(error_msg,msg)
     longjmp(error_ctx, 1)
 
-fn void c_call(int x) nogil:
+fn void c_call(i32 x) nogil:
     if x<=0:
         error(b"expected a positive value")
 
-def execute_c_call(int x):
+def execute_c_call(i32 x):
     """
     >>> execute_c_call(+2)
     >>> execute_c_call(+1)

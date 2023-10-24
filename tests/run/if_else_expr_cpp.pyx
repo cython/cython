@@ -5,7 +5,7 @@ extern from "if_else_expr_cpp_helper.h":
     cdef cppclass Holder:
         int value
         Holder()
-        Holder(int value)
+        Holder(i32 value)
 
     cdef Holder v1
     cdef Holder v2

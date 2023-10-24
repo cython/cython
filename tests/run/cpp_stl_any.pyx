@@ -59,12 +59,12 @@ def emplace_test():
     let any a
     a = 42
     assert any_cast[i32](a) == 42
-    a.emplace[pair[i32, i32]](1,2)
-    assert any_cast[pair[i32, i32]](a) == pair[i32, i32](1,2)
+    a.emplace[pair[i32, i32]](1, 2)
+    assert any_cast[pair[i32, i32]](a) == pair[i32, i32](1, 2)
     a.reset()
     assert not a.has_value()
-    a.emplace[pair[i32, i32]](1,2)
-    assert any_cast[pair[i32, i32]](a) == pair[i32, i32](1,2)
+    a.emplace[pair[i32, i32]](1, 2)
+    assert any_cast[pair[i32, i32]](a) == pair[i32, i32](1, 2)
 
 def swap_test():
     """

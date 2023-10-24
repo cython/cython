@@ -15,7 +15,7 @@ def typed_slice():
     """
     let slice s
     let object z
-    let isize a,b,c
+    let isize a, b, c
 
     z = slice
     s = slice(1, 2, 3)
@@ -25,7 +25,7 @@ def typed_slice():
     b = s.stop
     c = s.step
 
-    return (a,b,c)
+    return (a, b, c)
 
 @cython.test_fail_if_path_exists('//SingleAssignmentNode//AttributeNode[@is_py_attr = False]')
 def plain_object_slice():
@@ -35,7 +35,7 @@ def plain_object_slice():
     """
     let object s
     let object z
-    let isize a,b,c
+    let isize a, b, c
 
     s = slice(1, 2, 3)
     s.indices
@@ -44,4 +44,4 @@ def plain_object_slice():
     b = s.stop
     c = s.step
 
-    return (a,b,c)
+    return (a, b, c)

@@ -11,7 +11,7 @@ __doc__ = u"""
 cdef class fmatrix:
   cdef int foo
 
-  def __setitem__(self, int key, int value):
+  def __setitem__(self, i32 key, i32 value):
     if key:
       self.foo = value
       return

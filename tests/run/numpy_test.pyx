@@ -163,8 +163,8 @@ def put_range_long_1d(np.ndarray[i64] arr):
 def test_c_contig(np.ndarray[i32, ndim=2, mode='c'] arr):
     """
     Test contiguous access modes:
-    >>> c_arr = np.array(np.arange(12, dtype='i').reshape(3,4), order='C')
-    >>> f_arr = np.array(np.arange(12, dtype='i').reshape(3,4), order='F')
+    >>> c_arr = np.array(np.arange(12, dtype='i').reshape(3, 4), order='C')
+    >>> f_arr = np.array(np.arange(12, dtype='i').reshape(3, 4), order='F')
     >>> test_c_contig(c_arr)
     0 1 2 3
     4 5 6 7
@@ -185,8 +185,8 @@ def test_c_contig(np.ndarray[i32, ndim=2, mode='c'] arr):
 def test_f_contig(np.ndarray[i32, ndim=2, mode='fortran'] arr):
     """
     Test contiguous access modes:
-    >>> c_arr = np.array(np.arange(12, dtype='i').reshape(3,4), order='C')
-    >>> f_arr = np.array(np.arange(12, dtype='i').reshape(3,4), order='F')
+    >>> c_arr = np.array(np.arange(12, dtype='i').reshape(3, 4), order='C')
+    >>> f_arr = np.array(np.arange(12, dtype='i').reshape(3, 4), order='F')
     >>> test_f_contig(f_arr)
     0 1 2 3
     4 5 6 7
@@ -296,7 +296,7 @@ def test_dtype(dtype, inc1):
     """
     if dtype in ("g", np.longdouble,
                  "G", np.clongdouble):
-        if sizeof(double) == sizeof(long double): # MSVC
+        if sizeof(f64) == sizeof(long double): # MSVC
             return
     if dtype in ('F', 'D', 'G'):
         a = np.array([0, 10+10j], dtype=dtype)
@@ -322,7 +322,7 @@ def test_recordarray():
     >>> test_recordarray()
     """
     let object[DoubleInt] arr
-    arr = np.array([(5,5), (4, 6)], dtype=np.dtype('i,i'))
+    arr = np.array([(5, 5), (4, 6)], dtype=np.dtype('i,i'))
     let DoubleInt rec
     rec = arr[0]
     if rec.x != 5: print u"failed"
@@ -442,7 +442,7 @@ def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     ->
 
     array([(22, 23)],
-          dtype={'names':['f0','f1'], 'formats':['i1','!i4'], 'offsets':[0,4], 'itemsize':8, 'aligned':True})
+          dtype={'names':['f0','f1'], 'formats':['i1','!i4'], 'offsets':[0, 4], 'itemsize':8, 'aligned':True})
 
 
     >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=true))))

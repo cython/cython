@@ -66,8 +66,8 @@ def test_nested_fused():
     int
     long
     """
-    let vector[i32] vi = [0,1]
-    let vector[i64] vl = [0,1]
+    let vector[i32] vi = [0, 1]
+    let vector[i64] vl = [0, 1]
     print vec_of_fused(vi)
     print vec_of_fused(vl)
 

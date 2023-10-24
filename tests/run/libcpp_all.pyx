@@ -123,7 +123,7 @@ assert list_alloc_int.size() == 10
 ##Something about the default params breaks the auto-conversion...
 def convert_to_vector(I):
     """
-    >>> convert_to_vector([1,2,3,4])
+    >>> convert_to_vector([1, 2, 3, 4])
     """
     let vector[i32] x = I
 

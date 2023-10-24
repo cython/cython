@@ -119,7 +119,7 @@ cdef class ContainsNonPyFields:
     TypeError: __init__() takes ... 1 positional ...
     >>> ContainsNonPyFields(mystruct={'a': 1 })  # doctest: +ELLIPSIS
     ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' at ...>)
-    >>> ContainsNonPyFields(mystruct={'a': 1 }, memview=create_array((2,2), "c"))  # doctest: +ELLIPSIS
+    >>> ContainsNonPyFields(mystruct={'a': 1 }, memview=create_array((2, 2), "c"))  # doctest: +ELLIPSIS
     ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' at ...>)
     >>> ContainsNonPyFields(mystruct={'a': 1 }, mystruct_ptr=0)
     Traceback (most recent call last):

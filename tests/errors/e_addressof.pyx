@@ -4,7 +4,7 @@ cdef class Ext:
     cdef i32 a
     cdef object o
 
-def f(int a):
+def f(i32 a):
     let Ext e = Ext()
     x = &a  # ok
 

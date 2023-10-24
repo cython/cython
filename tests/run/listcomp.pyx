@@ -31,7 +31,7 @@ def int_runvar():
     >>> int_runvar()
     [0, 4, 8]
     """
-    let int x
+    let i32 x
     print [x*2 for x in range(5) if x % 2 == 0]
 
 
@@ -133,7 +133,7 @@ def sorted_listcomp(sequence):
     []
     >>> sorted_listcomp([1])
     [2]
-    >>> sorted_listcomp([3,2,4])
+    >>> sorted_listcomp([3, 2, 4])
     [3, 4, 5]
     """
     return sorted([ n+1 for n in sequence ])

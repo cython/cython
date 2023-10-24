@@ -30,7 +30,7 @@ extern from "Python.h":
     void _Py_PyAtExit(void (*func)(object), object)
     i32 Py_AtExit(void (*func)())
 
-    void Py_Exit(int)
+    void Py_Exit(i32)
 
     # Restore signals that the interpreter has called SIG_IGN on to SIG_DFL.
     void _Py_RestoreSignals()

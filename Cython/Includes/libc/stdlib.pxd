@@ -11,10 +11,10 @@ extern from "<stdlib.h>" nogil:
     long atol (const char *string)
     long long atoll (const char *string)
     double atof (const char *string)
-    long strtol (const char *string, char **tailptr, int base)
-    unsigned long int strtoul (const char *string, char **tailptr, int base)
-    long long int strtoll (const char *string, char **tailptr, int base)
-    unsigned long long int strtoull (const char *string, char **tailptr, int base)
+    long strtol (const char *string, char **tailptr, i32 base)
+    u64 strtoul (const char *string, char **tailptr, i32 base)
+    i128 strtoll (const char *string, char **tailptr, i32 base)
+    u128 strtoull (const char *string, char **tailptr, i32 base)
     float strtof (const char *string, char **tailptr)
     double strtod (const char *string, char **tailptr)
     long double strtold (const char *string, char **tailptr)
@@ -22,19 +22,19 @@ extern from "<stdlib.h>" nogil:
     # 7.20.2 Pseudo-random sequence generation functions
     enum: RAND_MAX
     int rand ()
-    void srand (unsigned int seed)
+    void srand (u32 seed)
 
     # 7.20.3 Memory management functions
-    void *calloc (size_t count, size_t eltsize)
+    void *calloc (usize count, usize eltsize)
     void free (void *ptr)
-    void *malloc (size_t size)
-    void *realloc (void *ptr, size_t newsize)
+    void *malloc (usize size)
+    void *realloc (void *ptr, usize newsize)
 
     # 7.20.4 Communication with the environment
     enum: EXIT_FAILURE
     enum: EXIT_SUCCESS
-    void exit (int status)
-    void _exit (int status)
+    void exit (i32 status)
+    void _exit (i32 status)
     int atexit (void (*function) ())
     void abort ()
     char *getenv (const char *name)
@@ -42,27 +42,27 @@ extern from "<stdlib.h>" nogil:
 
     #7.20.5 Searching and sorting utilities
     void *bsearch (const void *key, const void *array,
-                   size_t count, size_t size,
+                   usize count, usize size,
                    int (*compare)(const void *, const void *))
-    void qsort (void *array, size_t count, size_t size,
+    void qsort (void *array, usize count, usize size,
                 int (*compare)(const void *, const void *))
 
     # 7.20.6 Integer arithmetic functions
-    int abs (int number)
-    long int labs (long int number)
-    long long int llabs (long long int number)
+    int abs (i32 number)
+    i64 labs (i64 number)
+    i128 llabs (i128 number)
     ctypedef struct div_t:
         int quot
         int rem
-    div_t div (int numerator, int denominator)
+    div_t div (i32 numerator, i32 denominator)
     ctypedef struct ldiv_t:
-        long int quot
-        long int rem
-    ldiv_t ldiv (long int numerator, long int denominator)
+        i64 quot
+        i64 rem
+    ldiv_t ldiv (i64rator, i64 denominator)
     ctypedef struct lldiv_t:
-        long long int quot
-        long long int rem
-    lldiv_t lldiv (long long int numerator, long long int denominator)
+        i128 quot
+        i128 rem
+    lldiv_t lldiv (i128 numerator, i128 denominator)
 
 
     # 7.20.7 Multibyte/wide character conversion functions

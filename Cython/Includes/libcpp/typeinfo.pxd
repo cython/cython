@@ -7,4 +7,4 @@ extern from "<typeinfo>" namespace "std" nogil:
         bool operator==(const type_info&)
         bool operator!=(const type_info&)
         # C++11-only
-        size_t hash_code()
+        usize hash_code()

@@ -15,7 +15,7 @@ def test_defaults_none():
     >>> get_defaults(test_defaults_none)
     """
 
-def test_defaults_literal(a=1, b=(1,2,3)):
+def test_defaults_literal(a=1, b=(1, 2, 3)):
     """
     >>> get_defaults(test_defaults_literal) is get_defaults(test_defaults_literal)
     True
@@ -56,7 +56,7 @@ def test_defaults_nonliteral():
     """
     ret = []
     for i in {}, []:
-        def foo(a, b=0, c=i, d=(1,2,3)):
+        def foo(a, b=0, c=i, d=(1, 2, 3)):
             return c, d
         ret.append(foo)
     return ret

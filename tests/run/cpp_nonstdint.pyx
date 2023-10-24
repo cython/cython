@@ -1,10 +1,10 @@
 # tag: cpp, no-cpp-locals
 
 extern from "cpp_nonstdint.h":
-    ctypedef int Int24
-    ctypedef int Int56
-    ctypedef int Int88
-    ctypedef int Int512
+    ctypedef i32 Int24
+    ctypedef i32 Int56
+    ctypedef i32 Int88
+    ctypedef i32 Int512
 
 cdef object one = 1
 

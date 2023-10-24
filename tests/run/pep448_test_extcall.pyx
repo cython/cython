@@ -51,7 +51,7 @@ except ImportError:
 
 # We're defining four helper functions
 
-def e(a,b):
+def e(a, b):
     print(a, b)
 
 def f(*a, **k):
@@ -422,7 +422,7 @@ def call_many_kwargs():
     for i in range(512):
         key = 'k%d' % i
         d[key] = i
-    a, b = f2(1, *(2,3), **d)
+    a, b = f2(1, *(2, 3), **d)
     return len(a), len(b), b == d
 
 
@@ -493,7 +493,7 @@ def call_kwargs_modified_while_building():
 
     x = {Name("a"):1, Name("b"):2}
     def f(a, b):
-        print(a,b)
+        print(a, b)
     f(**x)
 '''
 

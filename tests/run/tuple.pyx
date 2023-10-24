@@ -4,7 +4,7 @@ cimport cython
 
 def f(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> f(1,2,3,4,5)
+    >>> f(1, 2, 3, 4, 5)
     ()
     """
     obj1 = ()
@@ -13,7 +13,7 @@ def f(obj1, obj2, obj3, obj4, obj5):
 
 def g(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> g(1,2,3,4,5)
+    >>> g(1, 2, 3, 4, 5)
     (2,)
     """
     obj1 = ()
@@ -23,7 +23,7 @@ def g(obj1, obj2, obj3, obj4, obj5):
 
 def h(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> h(1,2,3,4,5)
+    >>> h(1, 2, 3, 4, 5)
     (2, 3)
     """
     obj1 = ()
@@ -34,7 +34,7 @@ def h(obj1, obj2, obj3, obj4, obj5):
 
 def j(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> j(1,2,3,4,5)
+    >>> j(1, 2, 3, 4, 5)
     (2, 3, 4)
     """
     obj1 = ()
@@ -46,7 +46,7 @@ def j(obj1, obj2, obj3, obj4, obj5):
 
 def k(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> k(1,2,3,4,5)
+    >>> k(1, 2, 3, 4, 5)
     (2, 3, 4)
     """
     obj1 = ()
@@ -59,7 +59,7 @@ def k(obj1, obj2, obj3, obj4, obj5):
 
 def l(obj1, obj2, obj3, obj4, obj5):
     """
-    >>> l(1,2,3,4,5)
+    >>> l(1, 2, 3, 4, 5)
     (17, 42, 88)
     """
     obj1 = ()
@@ -99,7 +99,7 @@ def tuple_of_tuple_literal():
     >>> tuple_of_tuple_literal()
     (1, 2, 3)
     """
-    return tuple(tuple(tuple((1,2,3))))
+    return tuple(tuple(tuple((1, 2, 3))))
 
 
 @cython.test_fail_if_path_exists(
@@ -108,7 +108,7 @@ def tuple_of_tuple_literal():
 )
 def tuple_of_args_tuple(*args):
     """
-    >>> tuple_of_args_tuple(1,2,3)
+    >>> tuple_of_args_tuple(1, 2, 3)
     (1, 2, 3)
     """
     return tuple(tuple(tuple(args)))
@@ -132,7 +132,7 @@ def tuple_of_object(ob):
 )
 def tuple_of_tuple_or_none(tuple x):
     """
-    >>> tuple_of_tuple_or_none((1,2,3))
+    >>> tuple_of_tuple_or_none((1, 2, 3))
     (1, 2, 3)
     >>> tuple_of_tuple_or_none(None)   # doctest: +ELLIPSIS
     Traceback (most recent call last):

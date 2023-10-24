@@ -15,7 +15,7 @@ cdef class PyRectangle:
         return self.c_rect.get_area()
 
     def get_size(self):
-        cdef i32 width, height
+        let i32 width, height
         self.c_rect.get_size(&width, &height)
         return width, height
 

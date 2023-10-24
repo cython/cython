@@ -24,7 +24,7 @@ def get_new_unreachable():
     return new_unreachable
 
 cdef int counter = 0
-fn int next_counter():
+fn i32 next_counter():
     global counter
     counter += 1
     return counter

@@ -29,7 +29,7 @@ def g():
 
 def h():
     let object obj1a, obj2a, obj3a, obj1b, obj2b, obj3b
-    let int int1, int2
+    let i32 int1, int2
     let char *ptr1, *ptr2
     int2, ptr2, obj1b = 1, "test", 3
     int1, ptr1, obj1a = int2, ptr2, obj1b

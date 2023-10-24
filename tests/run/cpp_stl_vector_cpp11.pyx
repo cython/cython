@@ -8,13 +8,13 @@ from libcpp.vector cimport vector
 
 def const_iteration_test(L):
     """
-    >>> const_iteration_test([1,2,4,8])
+    >>> const_iteration_test([1, 2, 4, 8])
     1
     2
     4
     8
     """
-    v = new vector[int]()
+    v = new vector[i32]()
     try:
         for a in L:
             v.push_back(a)

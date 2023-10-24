@@ -6,7 +6,7 @@ def new(x):
     >>> new(3)
     3
     """
-    let int new = x
+    let i32 new = x
     return new
 
 def x(new):

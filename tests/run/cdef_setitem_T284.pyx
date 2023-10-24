@@ -22,7 +22,7 @@ def with_cdef():
 
 def with_external_list(list L):
     """
-    >>> with_external_list([1,2,3])
+    >>> with_external_list([1, 2, 3])
     [1, -10, 3]
     >>> with_external_list(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):

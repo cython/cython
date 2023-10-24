@@ -1,13 +1,13 @@
 fn void ftang():
-    let int x
+    let i32 x
     x = 0
 
-fn int foo(int i, char c):
-    let float f, g
+fn i32 foo(i32 i, char c):
+    let f32 f, g
     f = 0
     g = 0
 
-fn spam(int i, obj, object object):
+fn spam(i32 i, obj, object object):
     let char c
     c = 0
 

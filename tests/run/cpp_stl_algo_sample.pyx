@@ -15,7 +15,7 @@ def sample_multiple(population_size, int sample_size):
     (7, 7)
     """
     cdef:
-        vector[int] x, y
+        vector[i32] x, y
         int i
         mt19937 rd = mt19937(1)
 
@@ -31,7 +31,7 @@ def sample_single(population_size):
     True
     """
     cdef:
-        vector[int] x
+        vector[i32] x
         int i
         mt19937 rd = mt19937(1)
 

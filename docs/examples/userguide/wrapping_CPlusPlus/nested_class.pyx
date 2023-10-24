@@ -9,9 +9,9 @@ extern from "<vector>" namespace "std":
             bint operator!=(iterator)
         vector()
         void push_back(T&)
-        T& operator[](int)
-        T& at(int)
+        T& operator[](i32)
+        T& at(i32)
         iterator begin()
         iterator end()
 
-cdef vector[int].iterator iter  #iter is declared as being of type vector<int>::iterator
+cdef vector[i32].iterator iter  #iter is declared as being of type vector<int>::iterator

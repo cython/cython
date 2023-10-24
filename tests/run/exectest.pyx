@@ -88,7 +88,7 @@ def test_dict_scope_tuple3(d1, d2):
 
 def test_def(d, varref):
     """
-    >>> d = dict(seq = [1,2,3,4])
+    >>> d = dict(seq = [1, 2, 3, 4])
     >>> add_iter = test_def(d, 'seq')
     >>> list(add_iter())
     [2, 3, 4, 5]

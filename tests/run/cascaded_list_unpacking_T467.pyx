@@ -5,8 +5,8 @@ def simple_parallel_assignment_from_call():
     >>> simple_parallel_assignment_from_call()
     (2, 1, 2, 1, 2, 1, 2, [1, 2], [1, 2])
     """
-    let int ai, bi
-    let long al, bl
+    let i32 ai, bi
+    let i64 al, bl
     let object ao, bo
     reset()
     ai, bi = al, bl = ao, bo = c = d = [intval(1), intval(2)]
@@ -17,7 +17,7 @@ def recursive_parallel_assignment_from_call_left():
     >>> recursive_parallel_assignment_from_call_left()
     (3, 1, 2, 3, 1, 2, 3, (1, 2), 3, [(1, 2), 3])
     """
-    let int ai, bi, ci
+    let i32 ai, bi, ci
     let object ao, bo, co
     reset()
     (ai, bi), ci = (ao, bo), co = t,o = d = [(intval(1), intval(2)), intval(3)]
@@ -28,7 +28,7 @@ def recursive_parallel_assignment_from_call_right():
     >>> recursive_parallel_assignment_from_call_right()
     (3, 1, 2, 3, 1, 2, 3, 1, (2, 3), [1, (2, 3)])
     """
-    let int ai, bi, ci
+    let i32 ai, bi, ci
     let object ao, bo, co
     reset()
     ai, (bi, ci) = ao, (bo, co) = o,t = d = [intval(1), (intval(2), intval(3))]
@@ -39,7 +39,7 @@ def recursive_parallel_assignment_from_call_left_reversed():
     >>> recursive_parallel_assignment_from_call_left_reversed()
     (3, 1, 2, 3, 1, 2, 3, (1, 2), 3, [(1, 2), 3])
     """
-    let int ai, bi, ci
+    let i32 ai, bi, ci
     let object ao, bo, co
     reset()
     d = t,o = (ao, bo), co = (ai, bi), ci = [(intval(1), intval(2)), intval(3)]
@@ -50,7 +50,7 @@ def recursive_parallel_assignment_from_call_right_reversed():
     >>> recursive_parallel_assignment_from_call_right_reversed()
     (3, 1, 2, 3, 1, 2, 3, 1, (2, 3), [1, (2, 3)])
     """
-    let int ai, bi, ci
+    let i32 ai, bi, ci
     let object ao, bo, co
     reset()
     d = o,t = ao, (bo, co) = ai, (bi, ci) = [intval(1), (intval(2), intval(3))]
@@ -64,7 +64,7 @@ fn reset():
     call_count = 0
     next_expected_arg = 1
 
-fn int intval(int x) except -1:
+fn i32 intval(i32 x) except -1:
     global call_count, next_expected_arg
     call_count += 1
     assert next_expected_arg == x, "calls not in source code order: expected %d, found %d" % (next_expected_arg, x)

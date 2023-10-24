@@ -7,7 +7,7 @@ extern from "<unordered_set>" namespace "std" nogil:
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
         # but cython doesn't support deferred access on template arguments
-        ctypedef size_t size_type
+        ctypedef usize size_type
         ctypedef ptrdiff_t difference_type
 
         cppclass const_iterator
@@ -17,8 +17,8 @@ extern from "<unordered_set>" namespace "std" nogil:
             value_type& operator*()
             iterator operator++()
             iterator operator--()
-            iterator operator++(int)
-            iterator operator--(int)
+            iterator operator++(i32)
+            iterator operator--(i32)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -30,8 +30,8 @@ extern from "<unordered_set>" namespace "std" nogil:
             const value_type& operator*()
             const_iterator operator++()
             const_iterator operator--()
-            const_iterator operator++(int)
-            const_iterator operator--(int)
+            const_iterator operator++(i32)
+            const_iterator operator--(i32)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -46,7 +46,7 @@ extern from "<unordered_set>" namespace "std" nogil:
         const_iterator const_begin "begin"()
         const_iterator cbegin()
         void clear()
-        size_t count(const T&)
+        usize count(const T&)
         bint empty()
         iterator end()
         const_iterator const_end "end"()
@@ -56,25 +56,25 @@ extern from "<unordered_set>" namespace "std" nogil:
         iterator erase(iterator)
         iterator const_erase "erase"(const_iterator)
         iterator erase(const_iterator, const_iterator)
-        size_t erase(const T&)
+        usize erase(const T&)
         iterator find(const T&)
         const_iterator const_find "find"(const T&)
         pair[iterator, bint] insert(const T&) except +
         iterator insert(const_iterator, const T&) except +
         void insert[InputIt](InputIt, InputIt) except +
-        size_t max_size()
-        size_t size()
+        usize max_size()
+        usize size()
         void swap(unordered_set&)
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
         float load_factor()
-        void rehash(size_t)
-        void reserve(size_t)
-        size_t bucket_count()
-        size_t max_bucket_count()
-        size_t bucket_size(size_t)
-        size_t bucket(const T&)
+        void rehash(usize)
+        void reserve(usize)
+        usize bucket_count()
+        usize max_bucket_count()
+        usize bucket_size(usize)
+        usize bucket(const T&)
         # C++20
         bint contains(const T&)
 
@@ -84,7 +84,7 @@ extern from "<unordered_set>" namespace "std" nogil:
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
         # but cython doesn't support deferred access on template arguments
-        ctypedef size_t size_type
+        ctypedef usize size_type
         ctypedef ptrdiff_t difference_type
 
         cppclass const_iterator
@@ -93,7 +93,7 @@ extern from "<unordered_set>" namespace "std" nogil:
             iterator(iterator&) except +
             value_type& operator*()
             iterator operator++()
-            iterator operator++(int)
+            iterator operator++(i32)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -104,7 +104,7 @@ extern from "<unordered_set>" namespace "std" nogil:
             operator=(iterator&) except +
             const value_type& operator*()
             const_iterator operator++()
-            const_iterator operator++(int)
+            const_iterator operator++(i32)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -119,7 +119,7 @@ extern from "<unordered_set>" namespace "std" nogil:
         const_iterator const_begin "begin"()
         const_iterator cbegin()
         void clear()
-        size_t count(const T&)
+        usize count(const T&)
         bint empty()
         iterator end()
         const_iterator const_end "end"()
@@ -129,24 +129,24 @@ extern from "<unordered_set>" namespace "std" nogil:
         iterator erase(iterator)
         iterator const_erase "erase"(const_iterator)
         iterator erase(const_iterator, const_iterator)
-        size_t erase(const T&)
+        usize erase(const T&)
         iterator find(const T&)
         const_iterator const_find "find"(const T&)
         iterator insert(const T&) except +
         iterator insert(const_iterator, const T&) except +
         void insert[InputIt](InputIt, InputIt) except +
-        size_t max_size()
-        size_t size()
+        usize max_size()
+        usize size()
         void swap(unordered_multiset&)
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
         float load_factor()
-        void rehash(size_t)
-        void reserve(size_t)
-        size_t bucket_count()
-        size_t max_bucket_count()
-        size_t bucket_size(size_t)
-        size_t bucket(const T&)
+        void rehash(usize)
+        void reserve(usize)
+        usize bucket_count()
+        usize max_bucket_count()
+        usize bucket_size(usize)
+        usize bucket(const T&)
         # C++20
         bint contains(const T&)

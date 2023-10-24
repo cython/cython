@@ -36,13 +36,13 @@ cdef class Queue:
         for value in values:
             self.append(value)
 
-    cdef extend_ints(self, i32* values, usize count):
-        cdef int value
+    fn extend_ints(self, i32* values, usize count):
+        let i32 value
         for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
             self.append(value)
 
     cpdef i32 peek(self) except? -1:
-        cdef i32 value = <isize> cqueue.queue_peek_head(self._c_queue)
+        let i32 value = <isize>cqueue.queue_peek_head(self._c_queue)
 
         if value == 0:
             # this may mean that the queue is empty,
@@ -54,7 +54,7 @@ cdef class Queue:
     cpdef i32 pop(self) except? -1:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
-        return <isize> cqueue.queue_pop_head(self._c_queue)
+        return <isize>cqueue.queue_pop_head(self._c_queue)
 
     def __bool__(self):
         return not cqueue.queue_is_empty(self._c_queue)

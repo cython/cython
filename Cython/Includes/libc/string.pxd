@@ -8,43 +8,42 @@ extern from *:
     ctypedef const void const_void "const void"
 
 extern from "<string.h>" nogil:
+    fn void *memcpy  (void *pto, const void *pfrom, usize size)
+    fn void *memmove (void *pto, const void *pfrom, usize size)
+    fn void *memset  (void *block, i32 c, usize size)
+    fn i32  memcmp   (const void *a1, const void *a2, usize size)
+    fn void *memchr  (const void *block, i32 c, usize size)
 
-    void *memcpy  (void *pto, const void *pfrom, size_t size)
-    void *memmove (void *pto, const void *pfrom, size_t size)
-    void *memset  (void *block, int c, size_t size)
-    int  memcmp   (const void *a1, const void *a2, size_t size)
-    void *memchr  (const void *block, int c, size_t size)
+    fn void *memchr  (const void *block, i32 c, usize size)
+    fn void *memrchr (const void *block, i32 c, usize size)
 
-    void *memchr  (const void *block, int c, size_t size)
-    void *memrchr (const void *block, int c, size_t size)
+    fn usize strlen   (const char *s)
+    fn char   *strcpy  (char *pto, const char *pfrom)
+    fn char   *strncpy (char *pto, const char *pfrom, usize size)
+    fn char   *strdup  (const char *s)
+    fn char   *strndup (const char *s, usize size)
+    fn char   *strcat  (char *pto, const char *pfrom)
+    fn char   *strncat (char *pto, const char *pfrom, usize size)
 
-    size_t strlen   (const char *s)
-    char   *strcpy  (char *pto, const char *pfrom)
-    char   *strncpy (char *pto, const char *pfrom, size_t size)
-    char   *strdup  (const char *s)
-    char   *strndup (const char *s, size_t size)
-    char   *strcat  (char *pto, const char *pfrom)
-    char   *strncat (char *pto, const char *pfrom, size_t size)
+    fn i32 strcmp (const char *s1, const char *s2)
+    fn i32 strcasecmp (const char *s1, const char *s2)
+    fn i32 strncmp (const char *s1, const char *s2, usize size)
+    fn i32 strncasecmp (const char *s1, const char *s2, usize n)
 
-    int strcmp (const char *s1, const char *s2)
-    int strcasecmp (const char *s1, const char *s2)
-    int strncmp (const char *s1, const char *s2, size_t size)
-    int strncasecmp (const char *s1, const char *s2, size_t n)
+    fn i32    strcoll (const char *s1, const char *s2)
+    fn usize strxfrm (char *pto, const char *pfrom, usize size)
 
-    int    strcoll (const char *s1, const char *s2)
-    size_t strxfrm (char *pto, const char *pfrom, size_t size)
+    fn char *strerror (i32 errnum)
 
-    char *strerror (int errnum)
+    fn char *strchr  (const char *string, i32 c)
+    fn char *strrchr (const char *string, i32 c)
 
-    char *strchr  (const char *string, int c)
-    char *strrchr (const char *string, int c)
+    fn char *strstr     (const char *haystack, const char *needle)
+    fn char *strcasestr (const char *haystack, const char *needle)
 
-    char *strstr     (const char *haystack, const char *needle)
-    char *strcasestr (const char *haystack, const char *needle)
+    fn usize strcspn (const char *string, const char *stopset)
+    fn usize strspn  (const char *string, const char *set)
+    fn char * strpbrk (const char *string, const char *stopset)
 
-    size_t strcspn (const char *string, const char *stopset)
-    size_t strspn  (const char *string, const char *set)
-    char * strpbrk (const char *string, const char *stopset)
-
-    char *strtok (char *newstring, const char *delimiters)
-    char *strsep (char **string_ptr, const char *delimiter)
+    fn char *strtok (char *newstring, const char *delimiters)
+    fn char *strsep (char **string_ptr, const char *delimiter)

@@ -14,25 +14,25 @@ cimport cython
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def any_item(x):
     """
-    >>> any_item([0,0,1,0,0])
+    >>> any_item([0, 0, 1, 0, 0])
     True
-    >>> any_item([0,0,0,0,1])
+    >>> any_item([0, 0, 0, 0, 1])
     True
-    >>> any_item([0,0,0,0,0])
+    >>> any_item([0, 0, 0, 0, 0])
     False
 
-    >>> any(VerboseGetItem([0,0,1,0,0]))
+    >>> any(VerboseGetItem([0, 0, 1, 0, 0]))
     0
     1
     2
     True
-    >>> any_item(VerboseGetItem([0,0,1,0,0]))
+    >>> any_item(VerboseGetItem([0, 0, 1, 0, 0]))
     0
     1
     2
     True
 
-    >>> any(VerboseGetItem([0,0,0,0,0]))
+    >>> any(VerboseGetItem([0, 0, 0, 0, 0]))
     0
     1
     2
@@ -40,7 +40,7 @@ def any_item(x):
     4
     5
     False
-    >>> any_item(VerboseGetItem([0,0,0,0,0]))
+    >>> any_item(VerboseGetItem([0, 0, 0, 0, 0]))
     0
     1
     2
@@ -62,17 +62,17 @@ def any_item(x):
 )
 def any_in_simple_gen(seq):
     """
-    >>> any_in_simple_gen([0,1,0])
+    >>> any_in_simple_gen([0, 1, 0])
     True
-    >>> any_in_simple_gen([0,0,0])
+    >>> any_in_simple_gen([0, 0, 0])
     False
 
-    >>> any_in_simple_gen(VerboseGetItem([0,0,1,0,0]))
+    >>> any_in_simple_gen(VerboseGetItem([0, 0, 1, 0, 0]))
     0
     1
     2
     True
-    >>> any_in_simple_gen(VerboseGetItem([0,0,0,0,0]))
+    >>> any_in_simple_gen(VerboseGetItem([0, 0, 0, 0, 0]))
     0
     1
     2
@@ -94,17 +94,17 @@ def any_in_simple_gen(seq):
 )
 def any_in_simple_gen_scope(seq):
     """
-    >>> any_in_simple_gen_scope([0,1,0])
+    >>> any_in_simple_gen_scope([0, 1, 0])
     True
-    >>> any_in_simple_gen_scope([0,0,0])
+    >>> any_in_simple_gen_scope([0, 0, 0])
     False
 
-    >>> any_in_simple_gen_scope(VerboseGetItem([0,0,1,0,0]))
+    >>> any_in_simple_gen_scope(VerboseGetItem([0, 0, 1, 0, 0]))
     0
     1
     2
     True
-    >>> any_in_simple_gen_scope(VerboseGetItem([0,0,0,0,0]))
+    >>> any_in_simple_gen_scope(VerboseGetItem([0, 0, 0, 0, 0]))
     0
     1
     2
@@ -129,14 +129,14 @@ def any_in_simple_gen_scope(seq):
 )
 def any_in_conditional_gen(seq):
     """
-    >>> any_in_conditional_gen([3,6,9])
+    >>> any_in_conditional_gen([3, 6, 9])
     False
-    >>> any_in_conditional_gen([0,3,7])
+    >>> any_in_conditional_gen([0, 3, 7])
     True
-    >>> any_in_conditional_gen([1,0,1])
+    >>> any_in_conditional_gen([1, 0, 1])
     True
 
-    >>> any_in_conditional_gen(VerboseGetItem([0,0,3,0,0]))
+    >>> any_in_conditional_gen(VerboseGetItem([0, 0, 3, 0, 0]))
     0
     1
     2
@@ -144,7 +144,7 @@ def any_in_conditional_gen(seq):
     4
     5
     False
-    >>> any_in_conditional_gen(VerboseGetItem([0,3,0,1,1]))
+    >>> any_in_conditional_gen(VerboseGetItem([0, 3, 0, 1, 1]))
     0
     1
     2
@@ -191,17 +191,17 @@ def any_lower_case_characters(unicode ustring):
 )
 def any_in_typed_gen(seq):
     """
-    >>> any_in_typed_gen([0,1,0])
+    >>> any_in_typed_gen([0, 1, 0])
     True
-    >>> any_in_typed_gen([0,0,0])
+    >>> any_in_typed_gen([0, 0, 0])
     False
 
-    >>> any_in_typed_gen(VerboseGetItem([0,0,1,0,0]))
+    >>> any_in_typed_gen(VerboseGetItem([0, 0, 1, 0, 0]))
     0
     1
     2
     True
-    >>> any_in_typed_gen(VerboseGetItem([0,0,0,0,0]))
+    >>> any_in_typed_gen(VerboseGetItem([0, 0, 0, 0, 0]))
     0
     1
     2
@@ -210,7 +210,7 @@ def any_in_typed_gen(seq):
     5
     False
     """
-    let int x
+    let i32 x
     return any(x for x in seq)
 
 
@@ -225,17 +225,17 @@ def any_in_typed_gen(seq):
 )
 def any_in_gen_builtin_name(seq):
     """
-    >>> any_in_gen_builtin_name([0,1,0])
+    >>> any_in_gen_builtin_name([0, 1, 0])
     True
-    >>> any_in_gen_builtin_name([0,0,0])
+    >>> any_in_gen_builtin_name([0, 0, 0])
     False
 
-    >>> any_in_gen_builtin_name(VerboseGetItem([0,0,1,0,0]))
+    >>> any_in_gen_builtin_name(VerboseGetItem([0, 0, 1, 0, 0]))
     0
     1
     2
     True
-    >>> any_in_gen_builtin_name(VerboseGetItem([0,0,0,0,0]))
+    >>> any_in_gen_builtin_name(VerboseGetItem([0, 0, 0, 0, 0]))
     0
     1
     2
@@ -259,17 +259,17 @@ def any_in_gen_builtin_name(seq):
 )
 def any_in_double_gen(seq):
     """
-    >>> any(x for L in [[0,0,0],[0,0,1],[0,0,0]] for x in L)
+    >>> any(x for L in [[0, 0, 0],[0, 0, 1],[0, 0, 0]] for x in L)
     True
-    >>> any_in_double_gen([[0,0,0],[0,0,1],[0,0,0]])
+    >>> any_in_double_gen([[0, 0, 0],[0, 0, 1],[0, 0, 0]])
     True
 
-    >>> any(x for L in [[0,0,0],[0,0,0],[0,0,0]] for x in L)
+    >>> any(x for L in [[0, 0, 0],[0, 0, 0],[0, 0, 0]] for x in L)
     False
-    >>> any_in_double_gen([[0,0,0],[0,0,0],[0,0,0]])
+    >>> any_in_double_gen([[0, 0, 0],[0, 0, 0],[0, 0, 0]])
     False
 
-    >>> any_in_double_gen([VerboseGetItem([0,0,0]), VerboseGetItem([0,0,1,0,0])])
+    >>> any_in_double_gen([VerboseGetItem([0, 0, 0]), VerboseGetItem([0, 0, 1, 0, 0])])
     0
     1
     2
@@ -278,7 +278,7 @@ def any_in_double_gen(seq):
     1
     2
     True
-    >>> any_in_double_gen([VerboseGetItem([0,0,0]),VerboseGetItem([0,0]),VerboseGetItem([0,0,0])])
+    >>> any_in_double_gen([VerboseGetItem([0, 0, 0]),VerboseGetItem([0, 0]),VerboseGetItem([0, 0, 0])])
     0
     1
     2
@@ -292,5 +292,5 @@ def any_in_double_gen(seq):
     3
     False
     """
-    let int x
+    let i32 x
     return any(x for L in seq for x in L)

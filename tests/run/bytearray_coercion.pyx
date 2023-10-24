@@ -137,7 +137,7 @@ def assign_to_index(bytearray b, value):
     return b
 
 
-def check_bounds(int cvalue):
+def check_bounds(i32 cvalue):
     """
     >>> check_bounds(0)
     0
@@ -170,7 +170,7 @@ def check_bounds(int cvalue):
     return b[0]
 
 
-def nogil_assignment(bytearray x, int value):
+def nogil_assignment(bytearray x, i32 value):
     """
     >>> b = bytearray(b'abc')
     >>> nogil_assignment(b, ord('y'))

@@ -5,5 +5,5 @@ __doc__ = u"""
     []
 """
 
-fiches_CP = [1,2,3]
+fiches_CP = [1, 2, 3]
 fiches_CP[:] = []

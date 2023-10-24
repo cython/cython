@@ -10,9 +10,9 @@ extern from *:
     cdef cppclass Bar:
         pass
 
-cdef vector[vector[int]] a
-cdef vector[vector[const int]] b
-cdef vector[vector[vector[int]]] c
-cdef vector[vector[vector[const int]]] d
+cdef vector[vector[i32]] a
+cdef vector[vector[const i32]] b
+cdef vector[vector[vector[i32]]] c
+cdef vector[vector[vector[const i32]]] d
 cdef Foo[Foo[Bar]] e
 cdef Foo[Foo[const Bar]] f

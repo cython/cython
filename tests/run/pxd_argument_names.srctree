@@ -16,11 +16,11 @@ setup(
 
 ######## a.pxd ########
 
-fn int do_stuff(int foo) except -1
+fn i32 do_stuff(int foo) except -1
 
 ######## a.pyx ########
 
-fn int do_stuff(int bar) except -1:
+fn i32 do_stuff(int bar) except -1:
     if bar == 0:
         raise ValueError()
     return bar

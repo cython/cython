@@ -25,9 +25,9 @@ def _reversed(it):
 @cython.test_fail_if_path_exists('//ForInStatNode/IteratorNode//SimpleCallNode')
 def reversed_list(list l):
     """
-    >>> [ i for i in _reversed([1,2,3,4]) ]
+    >>> [ i for i in _reversed([1, 2, 3, 4]) ]
     [4, 3, 2, 1]
-    >>> reversed_list([1,2,3,4])
+    >>> reversed_list([1, 2, 3, 4])
     [4, 3, 2, 1]
     >>> reversed_list([])
     []
@@ -47,9 +47,9 @@ def reversed_list(list l):
 @cython.test_fail_if_path_exists('//ForInStatNode/IteratorNode//SimpleCallNode')
 def reversed_tuple(tuple t):
     """
-    >>> [ i for i in _reversed((1,2,3,4)) ]
+    >>> [ i for i in _reversed((1, 2, 3, 4)) ]
     [4, 3, 2, 1]
-    >>> reversed_tuple((1,2,3,4))
+    >>> reversed_tuple((1, 2, 3, 4))
     [4, 3, 2, 1]
     >>> reversed_tuple(())
     []
@@ -69,9 +69,9 @@ def reversed_tuple(tuple t):
 @cython.test_fail_if_path_exists('//ForInStatNode/IteratorNode//SimpleCallNode')
 def enumerate_reversed_list(list l):
     """
-    >>> list(enumerate(_reversed([1,2,3])))
+    >>> list(enumerate(_reversed([1, 2, 3])))
     [(0, 3), (1, 2), (2, 1)]
-    >>> enumerate_reversed_list([1,2,3])
+    >>> enumerate_reversed_list([1, 2, 3])
     [(0, 3), (1, 2), (2, 1)]
     >>> enumerate_reversed_list([])
     []
@@ -310,7 +310,7 @@ def reversed_range_step3_py_obj_left(a, i32 b):
     Traceback (most recent call last):
     TypeError: ...int...
     """
-    let long i
+    let i64 i
     result = []
     for i in reversed(range(a, b, 3)):
         result.append(i)
@@ -321,7 +321,7 @@ def reversed_range_step3_py_obj_right(i32 a, b):
     Traceback (most recent call last):
     TypeError: ...int...
     """
-    let long i
+    let i64 i
     result = []
     for i in reversed(range(a, b, 3)):
         result.append(i)
@@ -332,7 +332,7 @@ def reversed_range_step3_neg_py_obj_left(a, i32 b):
     Traceback (most recent call last):
     TypeError: ...int...
     """
-    let long i
+    let i64 i
     result = []
     for i in reversed(range(a, b, -3)):
         result.append(i)
@@ -343,7 +343,7 @@ def reversed_range_step3_neg_py_obj_right(i32 a, b):
     Traceback (most recent call last):
     TypeError: ...int...
     """
-    let long i
+    let i64 i
     result = []
     for i in reversed(range(a, b, -3)):
         result.append(i)

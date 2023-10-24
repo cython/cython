@@ -5,8 +5,7 @@ try:
 except ImportError:
     from io import StringIO
 
-
-def test(int x):
+def test(i32 x):
     """
     >>> test(0)
     110
@@ -17,26 +16,21 @@ def test(int x):
             x = f_gil(x)
     return x
 
-
-fn int f_nogil(int x) nogil:
-    let int y
+fn i32 f_nogil(i32 x) nogil:
+    let i32 y
     y = x + 10
     return y
-
 
 def f_gil(x):
     y = 0
     y = x + 100
     return y
 
-
-fn int with_gil_func() except? -1 with gil:
+fn i32 with_gil_func() except? -1 with gil:
     raise Exception("error!")
 
-
-fn int nogil_func() except? -1 nogil:
+fn i32 nogil_func() except? -1 nogil:
     with_gil_func()
-
 
 def test_nogil_exception_propagation():
     """
@@ -50,11 +44,9 @@ def test_nogil_exception_propagation():
             with nogil(true):
                 nogil_func()
 
-
-fn int write_unraisable() noexcept nogil:
+fn i32 write_unraisable() noexcept nogil:
     with gil:
         raise ValueError()
-
 
 def test_unraisable():
     """
@@ -71,13 +63,12 @@ def test_unraisable():
         sys.stderr = old_stderr
     return stderr.getvalue().strip()
 
-
 def test_nested():
     """
     >>> test_nested()
     240
     """
-    let int res = 0
+    let i32 res = 0
 
     with nogil(true):
         res = f_nogil(res)
@@ -95,17 +86,15 @@ def test_nested():
 
     return res
 
-
-DEF FREE_GIL = True
-DEF FREE_GIL_FALSE = False
-
+DEF FREE_GIL = true
+DEF FREE_GIL_FALSE = false
 
 def test_nested_condition_false():
     """
     >>> test_nested_condition_false()
     220
     """
-    let int res = 0
+    let i32 res = 0
 
     with gil(FREE_GIL_FALSE):
         res = f_gil(res)
@@ -124,7 +113,7 @@ def test_try_finally():
     >>> test_try_finally()
     113
     """
-    let int res = 0
+    let i32 res = 0
 
     try:
         with nogil(true):
@@ -142,12 +131,10 @@ def test_try_finally():
 
     return res
 
-
 ctypedef fused number_or_object:
-    int
-    float
+    i32
+    f32
     object
-
 
 def test_fused(number_or_object x) -> number_or_object:
     """
@@ -167,11 +154,9 @@ def test_fused(number_or_object x) -> number_or_object:
 
     return res
 
-
 ctypedef fused int_or_object:
-    int
+    i32
     object
-
 
 def test_fused_object(int_or_object x):
     """
@@ -180,7 +165,7 @@ def test_fused_object(int_or_object x):
     >>> test_fused_object[int](1000)
     1000
     """
-    let int res = 0
+    let i32 res = 0
 
     if int_or_object is object:
         with nogil(false):
@@ -221,7 +206,6 @@ def test_fused_object(int_or_object x):
 
     return res
 
-
 def test_fused_int(int_or_object x):
     """
     >>> test_fused_int[object]("spam")
@@ -229,22 +213,22 @@ def test_fused_int(int_or_object x):
     >>> test_fused_int[int](1000)
     1452
     """
-    let int res = 0
+    let i32 res = 0
 
-    if int_or_object is int:
+    if int_or_object is i32:
         res += x
 
         try:
-            with nogil(int_or_object is int):
+            with nogil(int_or_object is i32):
                 try:
-                    with gil(int_or_object is int):
+                    with gil(int_or_object is i32):
                         res = f_gil(res)
                     with gil:
                         res = f_gil(res)
                     with gil(false):
                         res = f_nogil(res)
 
-                    with gil(int_or_object is not int):
+                    with gil(int_or_object is not i32):
                         res = f_nogil(res)
                     with nogil(false):
                         res = f_nogil(res)
@@ -253,13 +237,13 @@ def test_fused_int(int_or_object x):
                 finally:
                     res = res + 1
 
-            with nogil(int_or_object is not int):
+            with nogil(int_or_object is not i32):
                 res = f_gil(res)
 
-            with gil(int_or_object is not int):
+            with gil(int_or_object is not i32):
                 res = f_gil(res)
 
-                with nogil(int_or_object is int):
+                with nogil(int_or_object is i32):
                     res = f_nogil(res)
 
         finally:

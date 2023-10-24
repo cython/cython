@@ -7,14 +7,14 @@ extern from "<sys/uio.h>" nogil:
 
     cdef struct iovec:
         void  *iov_base
-        size_t iov_len
+        usize iov_len
 
-    ssize_t readv (int fd, const iovec *iov, int iovcnt)
-    ssize_t writev(int fd, const iovec *iov, int iovcnt)
+    ssize_t readv (i32 fd, const iovec *iov, i32 fd)
+    ssize_t writev(i32 fd, const iovec *iov, i32 fd)
 
     # Linux-specific, https://man7.org/linux/man-pages/man2/readv.2.html
-    ssize_t preadv (int fd, const iovec *iov, int iovcnt, off_t offset)
-    ssize_t pwritev(int fd, const iovec *iov, int iovcnt, off_t offset)
+    ssize_t preadv (i32 fd, const iovec *iov, i32 fd, off_t offset)
+    ssize_t pwritev(i32 fd, const iovec *iov, i32 fd, off_t offset)
 
     enum: RWF_DSYNC
     enum: RWF_HIPRI
@@ -22,5 +22,5 @@ extern from "<sys/uio.h>" nogil:
     enum: RWF_NOWAIT
     enum: RWF_APPEND
 
-    ssize_t preadv2 (int fd, const iovec *iov, int iovcnt, off_t offset, int flags)
-    ssize_t pwritev2(int fd, const iovec *iov, int iovcnt, off_t offset, int flags)
+    ssize_t preadv2 (i32 fd, const iovec *iov, i32 fd, off_t offset, i32 fd)
+    ssize_t pwritev2(i32 fd, const iovec *iov, i32 fd, off_t offset, i32 fd)

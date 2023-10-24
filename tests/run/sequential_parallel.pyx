@@ -259,8 +259,8 @@ def test_nan_init():
     let actually_short_t miss2 = 10
     let myint_t typedef1 = 10
 
-    let float f = 10.0
-    let double g = 10.0
+    let f32 f = 10.0
+    let f64 g = 10.0
     let long double h = 10.0
 
     let void *p = <void *> 10
@@ -733,14 +733,14 @@ def test_clean_temps():
         print e.args[0]
 
 
-def test_pointer_temps(double x):
+def test_pointer_temps(f64 x):
     """
     >>> test_pointer_temps(1.0)
     4.0
     """
     let isize i
-    let double* f
-    let double[:] arr = array(format="d", shape=(10,), itemsize=sizeof(double))
+    let f64* f
+    let f64[:] arr = array(format="d", shape=(10,), itemsize=sizeof(f64))
     arr[0] = 4.0
     arr[1] = 3.0
 
@@ -792,9 +792,9 @@ def test_inner_private():
     >>> test_inner_private()
     ok
     """
-    let double* not_parallel[2]
-    let double* inner_vals[2]
-    let double* outer_vals[2]
+    let f64* not_parallel[2]
+    let f64* inner_vals[2]
+    let f64* outer_vals[2]
     let isize n, m
 
     for n in range(2):

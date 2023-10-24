@@ -17,5 +17,5 @@ def long_double_to_float_int(long double x):
     >>> long_double_to_float_int(4)
     4.0
     """
-    let float r = int(x)
+    let f32 r = int(x)
     return r

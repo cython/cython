@@ -1,518 +1,517 @@
-
 extern from "<cmath>" namespace "std" nogil:
     # all C99 functions
-    float acos(float x) except +
-    double acos(double x) except +
-    long double acos(long double x) except +
-    float acosf(float x) except +
-    long double acosl(long double x) except +
+    fn f32 acos(f32 x) except +
+    fn f64 acos(f64 x) except +
+    fn long double acos(long double x) except +
+    fn f32 acosf(f32 x) except +
+    fn long double acosl(long double x) except +
 
-    float asin(float x) except +
-    double asin(double x) except +
-    long double asin(long double x) except +
-    float asinf(float x) except +
-    long double asinl(long double x) except +
+    fn f32 asin(f32 x) except +
+    fn f64 asin(f64 x) except +
+    fn long double asin(long double x) except +
+    fn f32 asinf(f32 x) except +
+    fn long double asinl(long double x) except +
 
-    float atan(float x) except +
-    double atan(double x) except +
-    long double atan(long double x) except +
-    float atanf(float x) except +
-    long double atanl(long double x) except +
+    fn f32 atan(f32 x) except +
+    fn f64 atan(f64 x) except +
+    fn long double atan(long double x) except +
+    fn f32 atanf(f32 x) except +
+    fn long double atanl(long double x) except +
 
-    float atan2(float y, float x) except +
-    double atan2(double y, double x) except +
-    long double atan2(long double y, long double x) except +
-    float atan2f(float y, float x) except +
-    long double atan2l(long double y, long double x) except +
+    fn f32 atan2(f32 y, f32 x) except +
+    fn f64 atan2(f64 y, f64 x) except +
+    fn long double atan2(long double y, long double x) except +
+    fn f32 atan2f(f32 y, f32 x) except +
+    fn long double atan2l(long double y, long double x) except +
 
-    float cos(float x) except +
-    double cos(double x) except +
-    long double cos(long double x) except +
-    float cosf(float x) except +
-    long double cosl(long double x) except +
+    fn f32 cos(f32 x) except +
+    fn f64 cos(f64 x) except +
+    fn long double cos(long double x) except +
+    fn f32 cosf(f32 x) except +
+    fn long double cosl(long double x) except +
 
-    float sin(float x) except +
-    double sin(double x) except +
-    long double sin(long double x) except +
-    float sinf(float x) except +
-    long double sinl(long double x) except +
+    fn f32 sin(f32 x) except +
+    fn f64 sin(f64 x) except +
+    fn long double sin(long double x) except +
+    fn f32 sinf(f32 x) except +
+    fn long double sinl(long double x) except +
 
-    float tan(float x) except +
-    double tan(double x) except +
-    long double tan(long double x) except +
-    float tanf(float x) except +
-    long double tanl(long double x) except +
+    fn f32 tan(f32 x) except +
+    fn f64 tan(f64 x) except +
+    fn long double tan(long double x) except +
+    fn f32 tanf(f32 x) except +
+    fn long double tanl(long double x) except +
 
-    float acosh(float x) except +
-    double acosh(double x) except +
-    long double acosh(long double x) except +
-    float acoshf(float x) except +
-    long double acoshl(long double x) except +
+    fn f32 acosh(f32 x) except +
+    fn f64 acosh(f64 x) except +
+    fn long double acosh(long double x) except +
+    fn f32 acoshf(f32 x) except +
+    fn long double acoshl(long double x) except +
 
-    float asinh(float x) except +
-    double asinh(double x) except +
-    long double asinh(long double x) except +
-    float asinhf(float x) except +
-    long double asinhl(long double x) except +
+    fn f32 asinh(f32 x) except +
+    fn f64 asinh(f64 x) except +
+    fn long double asinh(long double x) except +
+    fn f32 asinhf(f32 x) except +
+    fn long double asinhl(long double x) except +
 
-    float atanh(float x) except +
-    double atanh(double x) except +
-    long double atanh(long double x) except +
-    float atanhf(float x) except +
-    long double atanhl(long double x) except +
+    fn f32 atanh(f32 x) except +
+    fn f64 atanh(f64 x) except +
+    fn long double atanh(long double x) except +
+    fn f32 atanhf(f32 x) except +
+    fn long double atanhl(long double x) except +
 
-    float cosh(float x) except +
-    double cosh(double x) except +
-    long double cosh(long double x) except +
-    float coshf(float x) except +
-    long double coshl(long double x) except +
+    fn f32 cosh(f32 x) except +
+    fn f64 cosh(f64 x) except +
+    fn long double cosh(long double x) except +
+    fn f32 coshf(f32 x) except +
+    fn long double coshl(long double x) except +
 
-    float sinh(float x) except +
-    double sinh(double x) except +
-    long double sinh(long double x) except +
-    float sinhf(float x) except +
-    long double sinhl(long double x) except +
+    fn f32 sinh(f32 x) except +
+    fn f64 sinh(f64 x) except +
+    fn long double sinh(long double x) except +
+    fn f32 sinhf(f32 x) except +
+    fn long double sinhl(long double x) except +
 
-    float tanh(float x) except +
-    double tanh(double x) except +
-    long double tanh(long double x) except +
-    float tanhf(float x) except +
-    long double tanhl(long double x) except +
+    fn f32 tanh(f32 x) except +
+    fn f64 tanh(f64 x) except +
+    fn long double tanh(long double x) except +
+    fn f32 tanhf(f32 x) except +
+    fn long double tanhl(long double x) except +
 
-    float exp(float x) except +
-    double exp(double x) except +
-    long double exp(long double x) except +
-    float expf(float x) except +
-    long double expl(long double x) except +
+    fn f32 exp(f32 x) except +
+    fn f64 exp(f64 x) except +
+    fn long double exp(long double x) except +
+    fn f32 expf(f32 x) except +
+    fn long double expl(long double x) except +
 
-    float exp2(float x) except +
-    double exp2(double x) except +
-    long double exp2(long double x) except +
-    float exp2f(float x) except +
-    long double exp2l(long double x) except +
+    fn f32 exp2(f32 x) except +
+    fn f64 exp2(f64 x) except +
+    fn long double exp2(long double x) except +
+    fn f32 exp2f(f32 x) except +
+    fn long double exp2l(long double x) except +
 
-    float expm1(float x) except +
-    double expm1(double x) except +
-    long double expm1(long double x) except +
-    float expm1f(float x) except +
-    long double expm1l(long double x) except +
+    fn f32 expm1(f32 x) except +
+    fn f64 expm1(f64 x) except +
+    fn long double expm1(long double x) except +
+    fn f32 expm1f(f32 x) except +
+    fn long double expm1l(long double x) except +
 
-    float frexp(float value, int* exp) except +
-    double frexp(double value, int* exp) except +
-    long double frexp(long double value, int* exp) except +
-    float frexpf(float value, int* exp) except +
-    long double frexpl(long double value, int* exp) except +
+    fn f32 frexp(f32 value, i32* exp) except +
+    fn f64 frexp(f64 value, i32* exp) except +
+    fn long double frexp(long double value, i32* exp) except +
+    fn f32 frexpf(f32 value, i32* exp) except +
+    fn long double frexpl(long double value, i32* exp) except +
 
-    int ilogb(float x) except +
-    int ilogb(double x) except +
-    int ilogb(long double x) except +
-    int ilogbf(float x) except +
-    int ilogbl(long double x) except +
+    fn int ilogb(f32 x) except +
+    fn int ilogb(f64 x) except +
+    fn int ilogb(long double x) except +
+    fn int ilogbf(f32 x) except +
+    fn int ilogbl(long double x) except +
 
-    float ldexp(float x, int exp) except +
-    double ldexp(double x, int exp) except +
-    long double ldexp(long double x, int exp) except +
-    float ldexpf(float x, int exp) except +
-    long double ldexpl(long double x, int exp) except +
+    fn f32 ldexp(f32 x, i32 exp) except +
+    fn f64 ldexp(f64 x, i32 exp) except +
+    fn long double ldexp(long double x, i32 exp) except +
+    fn f32 ldexpf(f32 x, i32 exp) except +
+    fn long double ldexpl(long double x, i32 exp) except +
 
-    float log(float x) except +
-    double log(double x) except +
-    long double log(long double x) except +
-    float logf(float x) except +
-    long double logl(long double x) except +
+    fn f32 log(f32 x) except +
+    fn f64 log(f64 x) except +
+    fn long double log(long double x) except +
+    fn f32 logf(f32 x) except +
+    fn long double logl(long double x) except +
 
-    float log10(float x) except +
-    double log10(double x) except +
-    long double log10(long double x) except +
-    float log10f(float x) except +
-    long double log10l(long double x) except +
+    fn f32 log10(f32 x) except +
+    fn f64 log10(f64 x) except +
+    fn long double log10(long double x) except +
+    fn f32 log10f(f32 x) except +
+    fn long double log10l(long double x) except +
 
-    float log1p(float x) except +
-    double log1p(double x) except +
-    long double log1p(long double x) except +
-    float log1pf(float x) except +
-    long double log1pl(long double x) except +
+    fn f32 log1p(f32 x) except +
+    fn f64 log1p(f64 x) except +
+    fn long double log1p(long double x) except +
+    fn f32 log1pf(f32 x) except +
+    fn long double log1pl(long double x) except +
 
-    float log2(float x) except +
-    double log2(double x) except +
-    long double log2(long double x) except +
-    float log2f(float x) except +
-    long double log2l(long double x) except +
+    fn f32 log2(f32 x) except +
+    fn f64 log2(f64 x) except +
+    fn long double log2(long double x) except +
+    fn f32 log2f(f32 x) except +
+    fn long double log2l(long double x) except +
 
-    float logb(float x) except +
-    double logb(double x) except +
-    long double logb(long double x) except +
-    float logbf(float x) except +
-    long double logbl(long double x) except +
+    fn f32 logb(f32 x) except +
+    fn f64 logb(f64 x) except +
+    fn long double logb(long double x) except +
+    fn f32 logbf(f32 x) except +
+    fn long double logbl(long double x) except +
 
-    float modf(float value, float* iptr) except +
-    double modf(double value, double* iptr) except +
-    long double modf(long double value, long double* iptr) except +
-    float modff(float value, float* iptr) except +
-    long double modfl(long double value, long double* iptr) except +
+    fn f32 modf(f32 value, f32* iptr) except +
+    fn f64 modf(f64 value, double* iptr) except +
+    fn long double modf(long double value, long double* iptr) except +
+    fn f32 modff(f32 value, f32* iptr) except +
+    fn long double modfl(long double value, long double* iptr) except +
 
-    float scalbn(float x, int n) except +
-    double scalbn(double x, int n) except +
-    long double scalbn(long double x, int n) except +
-    float scalbnf(float x, int n) except +
-    long double scalbnl(long double x, int n) except +
+    fn f32 scalbn(f32 x, i32 n) except +
+    fn f64 scalbn(f64 x, i32 n) except +
+    fn long double scalbn(long double x, i32 n) except +
+    fn f32 scalbnf(f32 x, i32 n) except +
+    fn long double scalbnl(long double x, i32 n) except +
 
-    float scalbln(float x, long int n) except +
-    double scalbln(double x, long int n) except +
-    long double scalbln(long double x, long int n) except +
-    float scalblnf(float x, long int n) except +
-    long double scalblnl(long double x, long int n) except +
+    fn f32 scalbln(f32 x, i64 n) except +
+    fn f64 scalbln(f64 x, i64 n) except +
+    fn long double scalbln(long double x, i64 n) except +
+    fn f32 scalblnf(f32 x, i64 n) except +
+    fn long double scalblnl(long double x, i64 n) except +
 
-    float cbrt(float x) except +
-    double cbrt(double x) except +
-    long double cbrt(long double x) except +
-    float cbrtf(float x) except +
-    long double cbrtl(long double x) except +
+    fn f32 cbrt(f32 x) except +
+    fn f64 cbrt(f64 x) except +
+    fn long double cbrt(long double x) except +
+    fn f32 cbrtf(f32 x) except +
+    fn long double cbrtl(long double x) except +
 
     # absolute values
-    int abs(int j) except +
-    long int abs(long int j) except +
-    long long int abs(long long int j) except +
-    float abs(float j) except +
-    double abs(double j) except +
-    long double abs(long double j) except +
+    fn i32 abs(i32 j) except +
+    fn i64 abs(i64 j) except +
+    fn i128 abs(i128 j) except +
+    fn f32 abs(f32 j) except +
+    fn f64 abs(f64 j) except +
+    fn long double abs(long double j) except +
 
-    float fabs(float x) except +
-    double fabs(double x) except +
-    long double fabs(long double x) except +
-    float fabsf(float x) except +
-    long double fabsl(long double x) except +
+    fn f32 fabs(f32 x) except +
+    fn f64 fabs(f64 x) except +
+    fn long double fabs(long double x) except +
+    fn f32 fabsf(f32 x) except +
+    fn long double fabsl(long double x) except +
 
-    float hypot(float x, float y) except +
-    double hypot(double x, double y) except +
-    long double hypot(long double x, long double y) except +
-    float hypotf(float x, float y) except +
-    long double hypotl(long double x, long double y) except +
+    fn f32 hypot(f32 x, f32 y) except +
+    fn f64 hypot(f64 x, f64 y) except +
+    fn long double hypot(long double x, long double y) except +
+    fn f32 hypotf(f32 x, f32 y) except +
+    fn long double hypotl(long double x, long double y) except +
 
     # C++17 three-dimensional hypotenuse
-    float hypot(float x, float y, float z) except +
-    double hypot(double x, double y, double z) except +
-    long double hypot(long double x, long double y, long double z) except +
+    fn f32 hypot(f32 x, f32 y, f32 z) except +
+    fn f64 hypot(f64 x, f64 y, f64 z) except +
+    fn long double hypot(long double x, long double y, long double z) except +
 
-    float pow(float x, float y) except +
-    double pow(double x, double y) except +
-    long double pow(long double x, long double y) except +
-    float powf(float x, float y) except +
-    long double powl(long double x, long double y) except +
+    fn f32 pow(f32 x, f32 y) except +
+    fn f64 pow(f64 x, f64 y) except +
+    fn long double pow(long double x, long double y) except +
+    fn f32 powf(f32 x, f32 y) except +
+    fn long double powl(long double x, long double y) except +
 
-    float sqrt(float x) except +
-    double sqrt(double x) except +
-    long double sqrt(long double x) except +
-    float sqrtf(float x) except +
-    long double sqrtl(long double x) except +
+    fn f32 sqrt(f32 x) except +
+    fn f64 sqrt(f64 x) except +
+    fn long double sqrt(long double x) except +
+    fn f32 sqrtf(f32 x) except +
+    fn long double sqrtl(long double x) except +
 
-    float erf(float x) except +
-    double erf(double x) except +
-    long double erf(long double x) except +
-    float erff(float x) except +
-    long double erfl(long double x) except +
+    fn f32 erf(f32 x) except +
+    fn f64 erf(f64 x) except +
+    fn long double erf(long double x) except +
+    fn f32 erff(f32 x) except +
+    fn long double erfl(long double x) except +
 
-    float erfc(float x) except +
-    double erfc(double x) except +
-    long double erfc(long double x) except +
-    float erfcf(float x) except +
-    long double erfcl(long double x) except +
+    fn f32 erfc(f32 x) except +
+    fn f64 erfc(f64 x) except +
+    fn long double erfc(long double x) except +
+    fn f32 erfcf(f32 x) except +
+    fn long double erfcl(long double x) except +
 
-    float lgamma(float x) except +
-    double lgamma(double x) except +
-    long double lgamma(long double x) except +
-    float lgammaf(float x) except +
-    long double lgammal(long double x) except +
+    fn f32 lgamma(f32 x) except +
+    fn f64 lgamma(f64 x) except +
+    fn long double lgamma(long double x) except +
+    fn f32 lgammaf(f32 x) except +
+    fn long double lgammal(long double x) except +
 
-    float tgamma(float x) except +
-    double tgamma(double x) except +
-    long double tgamma(long double x) except +
-    float tgammaf(float x) except +
-    long double tgammal(long double x) except +
+    fn f32 tgamma(f32 x) except +
+    fn f64 tgamma(f64 x) except +
+    fn long double tgamma(long double x) except +
+    fn f32 tgammaf(f32 x) except +
+    fn long double tgammal(long double x) except +
 
-    float ceil(float x) except +
-    double ceil(double x) except +
-    long double ceil(long double x) except +
-    float ceilf(float x) except +
-    long double ceill(long double x) except +
+    fn f32 ceil(f32 x) except +
+    fn f64 ceil(f64 x) except +
+    fn long double ceil(long double x) except +
+    fn f32 ceilf(f32 x) except +
+    fn long double ceill(long double x) except +
 
-    float floor(float x) except +
-    double floor(double x) except +
-    long double floor(long double x) except +
-    float floorf(float x) except +
-    long double floorl(long double x) except +
+    fn f32 floor(f32 x) except +
+    fn f64 floor(f64 x) except +
+    fn long double floor(long double x) except +
+    fn f32 floorf(f32 x) except +
+    fn long double floorl(long double x) except +
 
-    float nearbyint(float x) except +
-    double nearbyint(double x) except +
-    long double nearbyint(long double x) except +
-    float nearbyintf(float x) except +
-    long double nearbyintl(long double x) except +
+    fn f32 nearbyint(f32 x) except +
+    fn f64 nearbyint(f64 x) except +
+    fn long double nearbyint(long double x) except +
+    fn f32 nearbyintf(f32 x) except +
+    fn long double nearbyintl(long double x) except +
 
-    float rint(float x) except +
-    double rint(double x) except +
-    long double rint(long double x) except +
-    float rintf(float x) except +
-    long double rintl(long double x) except +
+    fn f32 rint(f32 x) except +
+    fn f64 rint(f64 x) except +
+    fn long double rint(long double x) except +
+    fn f32 rintf(f32 x) except +
+    fn long double rintl(long double x) except +
 
-    long int lrint(float x) except +
-    long int lrint(double x) except +
-    long int lrint(long double x) except +
-    long int lrintf(float x) except +
-    long int lrintl(long double x) except +
+    fn i64 lrint(f32 x) except +
+    fn i64 lrint(f64 x) except +
+    fn i64 lrint(long double x) except +
+    fn i64 lrintf(f32 x) except +
+    fn i64 lrintl(long double x) except +
 
-    long long int llrint(float x) except +
-    long long int llrint(double x) except +
-    long long int llrint(long double x) except +
-    long long int llrintf(float x) except +
-    long long int llrintl(long double x) except +
+    fn i128 llrint(f32 x) except +
+    fn i128 llrint(f64 x) except +
+    fn i128 llrint(long double x) except +
+    fn i128 llrintf(f32 x) except +
+    fn i128 llrintl(long double x) except +
 
-    float round(float x) except +
-    double round(double x) except +
-    long double round(long double x) except +
-    float roundf(float x) except +
-    long double roundl(long double x) except +
+    fn f32 round(f32 x) except +
+    fn f64 round(f64 x) except +
+    fn long double round(long double x) except +
+    fn f32 roundf(f32 x) except +
+    fn long double roundl(long double x) except +
 
-    long int lround(float x) except +
-    long int lround(double x) except +
-    long int lround(long double x) except +
-    long int lroundf(float x) except +
-    long int lroundl(long double x) except +
+    fn i64 lround(f32 x) except +
+    fn i64 lround(f64 x) except +
+    fn i64 lround(long double x) except +
+    fn i64 lroundf(f32 x) except +
+    fn i64 lroundl(long double x) except +
 
-    long long int llround(float x) except +
-    long long int llround(double x) except +
-    long long int llround(long double x) except +
-    long long int llroundf(float x) except +
-    long long int llroundl(long double x) except +
+    fn i128 llround(f32 x) except +
+    fn i128 llround(f64 x) except +
+    fn i128 llround(long double x) except +
+    fn i128 llroundf(f32 x) except +
+    fn i128 llroundl(long double x) except +
 
-    float trunc(float x) except +
-    double trunc(double x) except +
-    long double trunc(long double x) except +
-    float truncf(float x) except +
-    long double truncl(long double x) except +
+    fn f32 trunc(f32 x) except +
+    fn f64 trunc(f64 x) except +
+    fn long double trunc(long double x) except +
+    fn f32 truncf(f32 x) except +
+    fn long double truncl(long double x) except +
 
-    float fmod(float x, float y) except +
-    double fmod(double x, double y) except +
-    long double fmod(long double x, long double y) except +
-    float fmodf(float x, float y) except +
-    long double fmodl(long double x, long double y) except +
+    fn f32 fmod(f32 x, f32 y) except +
+    fn f64 fmod(f64 x, f64 y) except +
+    fn long double fmod(long double x, long double y) except +
+    fn f32 fmodf(f32 x, f32 y) except +
+    fn long double fmodl(long double x, long double y) except +
 
-    float remainder(float x, float y) except +
-    double remainder(double x, double y) except +
-    long double remainder(long double x, long double y) except +
-    float remainderf(float x, float y) except +
-    long double remainderl(long double x, long double y) except +
+    fn f32 remainder(f32 x, f32 y) except +
+    fn f64 remainder(f64 x, f64 y) except +
+    fn long double remainder(long double x, long double y) except +
+    fn f32 remainderf(f32 x, f32 y) except +
+    fn long double remainderl(long double x, long double y) except +
 
-    float remquo(float x, float y, int* quo) except +
-    double remquo(double x, double y, int* quo) except +
-    long double remquo(long double x, long double y, int* quo) except +
-    float remquof(float x, float y, int* quo) except +
-    long double remquol(long double x, long double y, int* quo) except +
+    fn f32 remquo(f32 x, f32 y, i32* quo) except +
+    fn f64 remquo(f64 x, f64 y, i32* quo) except +
+    fn long double remquo(long double x, long double y, i32* quo) except +
+    fn f32 remquof(f32 x, f32 y, i32* quo) except +
+    fn long double remquol(long double x, long double y, i32* quo) except +
 
-    float copysign(float x, float y) except +
-    double copysign(double x, double y) except +
-    long double copysign(long double x, long double y) except +
-    float copysignf(float x, float y) except +
-    long double copysignl(long double x, long double y) except +
+    fn f32 copysign(f32 x, f32 y) except +
+    fn f64 copysign(f64 x, f64 y) except +
+    fn long double copysign(long double x, long double y) except +
+    fn f32 copysignf(f32 x, f32 y) except +
+    fn long double copysignl(long double x, long double y) except +
 
-    double nan(const char* tagp) except +
-    float nanf(const char* tagp) except +
-    long double nanl(const char* tagp) except +
+    fn f64 nan(const char* tagp) except +
+    fn f32 nanf(const char* tagp) except +
+    fn long double nanl(const char* tagp) except +
 
-    float nextafter(float x, float y) except +
-    double nextafter(double x, double y) except +
-    long double nextafter(long double x, long double y) except +
-    float nextafterf(float x, float y) except +
-    long double nextafterl(long double x, long double y) except +
+    fn f32 nextafter(f32 x, f32 y) except +
+    fn f64 nextafter(f64 x, f64 y) except +
+    fn long double nextafter(long double x, long double y) except +
+    fn f32 nextafterf(f32 x, f32 y) except +
+    fn long double nextafterl(long double x, long double y) except +
 
-    float nexttoward(float x, long double y) except +
-    double nexttoward(double x, long double y) except +
-    long double nexttoward(long double x, long double y) except +
-    float nexttowardf(float x, long double y) except +
-    long double nexttowardl(long double x, long double y) except +
+    fn f32 nexttoward(f32 x, long double y) except +
+    fn f64 nexttoward(f64 x, long double y) except +
+    fn long double nexttoward(long double x, long double y) except +
+    fn f32 nexttowardf(f32 x, long double y) except +
+    fn long double nexttowardl(long double x, long double y) except +
 
-    float fdim(float x, float y) except +
-    double fdim(double x, double y) except +
-    long double fdim(long double x, long double y) except +
-    float fdimf(float x, float y) except +
-    long double fdiml(long double x, long double y) except +
+    fn f32 fdim(f32 x, f32 y) except +
+    fn f64 fdim(f64 x, f64 y) except +
+    fn long double fdim(long double x, long double y) except +
+    fn f32 fdimf(f32 x, f32 y) except +
+    fn long double fdiml(long double x, long double y) except +
 
-    float fmax(float x, float y) except +
-    double fmax(double x, double y) except +
-    long double fmax(long double x, long double y) except +
-    float fmaxf(float x, float y) except +
-    long double fmaxl(long double x, long double y) except +
+    fn f32 fmax(f32 x, f32 y) except +
+    fn f64 fmax(f64 x, f64 y) except +
+    fn long double fmax(long double x, long double y) except +
+    fn f32 fmaxf(f32 x, f32 y) except +
+    fn long double fmaxl(long double x, long double y) except +
 
-    float fmin(float x, float y) except +
-    double fmin(double x, double y) except +
-    long double fmin(long double x, long double y) except +
-    float fminf(float x, float y) except +
-    long double fminl(long double x, long double y) except +
+    fn f32 fmin(f32 x, f32 y) except +
+    fn f64 fmin(f64 x, f64 y) except +
+    fn long double fmin(long double x, long double y) except +
+    fn f32 fminf(f32 x, f32 y) except +
+    fn long double fminl(long double x, long double y) except +
 
-    float fma(float x, float y, float z) except +
-    double fma(double x, double y, double z) except +
-    long double fma(long double x, long double y, long double z) except +
-    float fmaf(float x, float y, float z) except +
-    long double fmal(long double x, long double y, long double z) except +
+    fn f32 fma(f32 x, f32 y, f32 z) except +
+    fn f64 fma(f64 x, f64 y, f64 z) except +
+    fn long double fma(long double x, long double y, long double z) except +
+    fn f32 fmaf(f32 x, f32 y, f32 z) except +
+    fn long double fmal(long double x, long double y, long double z) except +
 
     # C++20 linear interpolation
-    float lerp(float a, float b, float t)
-    double lerp(double a, double b, double t)
-    long double lerp(long double a, long double b, long double t)
+    fn f32 lerp(f32 a, f32 b, f32 t)
+    fn f64 lerp(f64 a, f64 b, f64 t)
+    fn long double lerp(long double a, long double b, long double t)
 
     # classification / comparison functions
-    int fpclassify(float x) except +
-    int fpclassify(double x) except +
-    int fpclassify(long double x) except +
+    fn i32 fpclassify(f32 x) except +
+    fn i32 fpclassify(f64 x) except +
+    fn i32 fpclassify(long double x) except +
 
-    bint isfinite(float x) except +
-    bint isfinite(double x) except +
-    bint isfinite(long double x) except +
+    fn bint isfinite(f32 x) except +
+    fn bint isfinite(f64 x) except +
+    fn bint isfinite(long double x) except +
 
-    bint isinf(float x) except +
-    bint isinf(double x) except +
-    bint isinf(long double x) except +
+    fn bint isinf(f32 x) except +
+    fn bint isinf(f64 x) except +
+    fn bint isinf(long double x) except +
 
-    bint isnan(float x) except +
-    bint isnan(double x) except +
-    bint isnan(long double x) except +
+    fn bint isnan(f32 x) except +
+    fn bint isnan(f64 x) except +
+    fn bint isnan(long double x) except +
 
-    bint isnormal(float x) except +
-    bint isnormal(double x) except +
-    bint isnormal(long double x) except +
+    fn bint isnormal(f32 x) except +
+    fn bint isnormal(f64 x) except +
+    fn bint isnormal(long double x) except +
 
-    bint signbit(float x) except +
-    bint signbit(double x) except +
-    bint signbit(long double x) except +
+    fn bint signbit(f32 x) except +
+    fn bint signbit(f64 x) except +
+    fn bint signbit(long double x) except +
 
-    bint isgreater(float x, float y) except +
-    bint isgreater(double x, double y) except +
-    bint isgreater(long double x, long double y) except +
+    fn bint isgreater(f32 x, f32 y) except +
+    fn bint isgreater(f64 x, f64 y) except +
+    fn bint isgreater(long double x, long double y) except +
 
-    bint isgreaterequal(float x, float y) except +
-    bint isgreaterequal(double x, double y) except +
-    bint isgreaterequal(long double x, long double y) except +
+    fn bint isgreaterequal(f32 x, f32 y) except +
+    fn bint isgreaterequal(f64 x, f64 y) except +
+    fn bint isgreaterequal(long double x, long double y) except +
 
-    bint isless(float x, float y) except +
-    bint isless(double x, double y) except +
-    bint isless(long double x, long double y) except +
+    fn bint isless(f32 x, f32 y) except +
+    fn bint isless(f64 x, f64 y) except +
+    fn bint isless(long double x, long double y) except +
 
-    bint islessequal(float x, float y) except +
-    bint islessequal(double x, double y) except +
-    bint islessequal(long double x, long double y) except +
+    fn bint islessequal(f32 x, f32 y) except +
+    fn bint islessequal(f64 x, f64 y) except +
+    fn bint islessequal(long double x, long double y) except +
 
-    bint islessgreater(float x, float y) except +
-    bint islessgreater(double x, double y) except +
-    bint islessgreater(long double x, long double y) except +
+    fn bint islessgreater(f32 x, f32 y) except +
+    fn bint islessgreater(f64 x, f64 y) except +
+    fn bint islessgreater(long double x, long double y) except +
 
-    bint isunordered(float x, float y) except +
-    bint isunordered(double x, double y) except +
-    bint isunordered(long double x, long double y) except +
+    fn bint isunordered(f32 x, f32 y) except +
+    fn bint isunordered(f64 x, f64 y) except +
+    fn bint isunordered(long double x, long double y) except +
 
     # C++17 mathematical special functions
 
     # associated Laguerre polynomials
-    double       assoc_laguerre(unsigned int n, unsigned int m, double x) except +
-    float        assoc_laguerref(unsigned int n, unsigned int m, float x) except +
-    long double  assoc_laguerrel(unsigned int n, unsigned int m, long double x) except +
+    fn f64          assoc_laguerre(u32 n, u32 m, f64 x) except +
+    fn f32          assoc_laguerref(u32 n, u32 m, f32 x) except +
+    fn long double  assoc_laguerrel(u32 n, u32 m, long double x) except +
 
     # associated Legendre functions
-    double       assoc_legendre(unsigned int l, unsigned int m, double x) except +
-    float        assoc_legendref(unsigned int l, unsigned int m, float x) except +
-    long double  assoc_legendrel(unsigned int l, unsigned int m, long double x) except +
+    fn f64          assoc_legendre(u32 l, u32 m, f64 x) except +
+    fn f32          assoc_legendref(u32 l, u32 m, f32 x) except +
+    fn long double  assoc_legendrel(u32 l, u32 m, long double x) except +
 
     # beta function
-    double       beta(double x, double y) except +
-    float        betaf(float x, float y) except +
-    long double  betal(long double x, long double y) except +
+    fn f64          beta(f64 x, f64 y) except +
+    fn f32          betaf(f32 x, f32 y) except +
+    fn long double  betal(long double x, long double y) except +
 
     # complete elliptic integral of the first kind
-    double       comp_ellint_1(double k) except +
-    float        comp_ellint_1f(float k) except +
-    long double  comp_ellint_1l(long double k) except +
+    fn f64          comp_ellint_1(f64 k) except +
+    fn f32          comp_ellint_1f(f32 k) except +
+    fn long double  comp_ellint_1l(long double k) except +
 
     # complete elliptic integral of the second kind
-    double       comp_ellint_2(double k) except +
-    float        comp_ellint_2f(float k) except +
-    long double  comp_ellint_2l(long double k) except +
+    fn f64          comp_ellint_2(f64 k) except +
+    fn f32          comp_ellint_2f(f32 k) except +
+    fn long double  comp_ellint_2l(long double k) except +
 
     # complete elliptic integral of the third kind
-    double       comp_ellint_3(double k, double nu) except +
-    float        comp_ellint_3f(float k, float nu) except +
-    long double  comp_ellint_3l(long double k, long double nu) except +
+    fn f64          comp_ellint_3(f64 k, f64 nu) except +
+    fn f32          comp_ellint_3f(f32 k, f32 nu) except +
+    fn long double  comp_ellint_3l(long double k, long double nu) except +
 
     # regular modified cylindrical Bessel functions
-    double       cyl_bessel_i(double nu, double x) except +
-    float        cyl_bessel_if(float nu, float x) except +
-    long double  cyl_bessel_il(long double nu, long double x) except +
+    fn f64          cyl_bessel_i(f64 nu, f64 x) except +
+    fn f32          cyl_bessel_if(f32 nu, f32 x) except +
+    fn long double  cyl_bessel_il(long double nu, long double x) except +
 
     # cylindrical Bessel functions of the first kind
-    double       cyl_bessel_j(double nu, double x) except +
-    float        cyl_bessel_jf(float nu, float x) except +
-    long double  cyl_bessel_jl(long double nu, long double x) except +
+    fn f64          cyl_bessel_j(f64 nu, f64 x) except +
+    fn f32          cyl_bessel_jf(f32 nu, f32 x) except +
+    fn long double  cyl_bessel_jl(long double nu, long double x) except +
 
     # irregular modified cylindrical Bessel functions
-    double       cyl_bessel_k(double nu, double x) except +
-    float        cyl_bessel_kf(float nu, float x) except +
-    long double  cyl_bessel_kl(long double nu, long double x) except +
+    fn f64          cyl_bessel_k(f64 nu, f64 x) except +
+    fn f32          cyl_bessel_kf(f32 nu, f32 x) except +
+    fn long double  cyl_bessel_kl(long double nu, long double x) except +
 
     # cylindrical Neumann functions
     # cylindrical Bessel functions of the second kind
-    double       cyl_neumann(double nu, double x) except +
-    float        cyl_neumannf(float nu, float x) except +
-    long double  cyl_neumannl(long double nu, long double x) except +
+    fn f64          cyl_neumann(f64 nu, f64 x) except +
+    fn f32          cyl_neumannf(f32 nu, f32 x) except +
+    fn long double  cyl_neumannl(long double nu, long double x) except +
 
     # incomplete elliptic integral of the first kind
-    double       ellint_1(double k, double phi) except +
-    float        ellint_1f(float k, float phi) except +
-    long double  ellint_1l(long double k, long double phi) except +
+    fn f64          ellint_1(f64 k, f64 phi) except +
+    fn f32          ellint_1f(f32 k, f32 phi) except +
+    fn long double  ellint_1l(long double k, long double phi) except +
 
     # incomplete elliptic integral of the second kind
-    double       ellint_2(double k, double phi) except +
-    float        ellint_2f(float k, float phi) except +
-    long double  ellint_2l(long double k, long double phi) except +
+    fn f64          ellint_2(f64 k, f64 phi) except +
+    fn f32          ellint_2f(f32 k, f32 phi) except +
+    fn long double  ellint_2l(long double k, long double phi) except +
 
     # incomplete elliptic integral of the third kind
-    double       ellint_3(double k, double nu, double phi) except +
-    float        ellint_3f(float k, float nu, float phi) except +
-    long double  ellint_3l(long double k, long double nu, long double phi) except +
+    fn f64          ellint_3(f64 k, f64 nu, f64 phi) except +
+    fn f32          ellint_3f(f32 k, f32 nu, f32 phi) except +
+    fn long double  ellint_3l(long double k, long double nu, long double phi) except +
 
     # exponential integral
-    double       expint(double x) except +
-    float        expintf(float x) except +
-    long double  expintl(long double x) except +
+    fn f64          expint(f64 x) except +
+    fn f32          expintf(f32 x) except +
+    fn long double  expintl(long double x) except +
 
     # Hermite polynomials
-    double       hermite(unsigned int n, double x) except +
-    float        hermitef(unsigned int n, float x) except +
-    long double  hermitel(unsigned int n, long double x) except +
+    fn f64          hermite(u32 n, f64 x) except +
+    fn f32          hermitef(u32 n, f32 x) except +
+    fn long double  hermitel(u32 n, long double x) except +
 
     # Laguerre polynomials
-    double       laguerre(unsigned int n, double x) except +
-    float        laguerref(unsigned int n, float x) except +
-    long double  laguerrel(unsigned int n, long double x) except +
+    fn f64          laguerre(u32 n, f64 x) except +
+    fn f32          laguerref(u32 n, f32 x) except +
+    fn long double  laguerrel(u32 n, long double x) except +
 
     # Legendre polynomials
-    double       legendre(unsigned int l, double x) except +
-    float        legendref(unsigned int l, float x) except +
-    long double  legendrel(unsigned int l, long double x) except +
+    fn f64          legendre(u32 l, f64 x) except +
+    fn f32          legendref(u32 l, f32 x) except +
+    fn long double  legendrel(u32 l, long double x) except +
 
     # Riemann zeta function
-    double       riemann_zeta(double x) except +
-    float        riemann_zetaf(float x) except +
-    long double  riemann_zetal(long double x) except +
+    fn f64          riemann_zeta(f64 x) except +
+    fn f32          riemann_zetaf(f32 x) except +
+    fn long double  riemann_zetal(long double x) except +
 
     # spherical Bessel functions of the first kind
-    double       sph_bessel(unsigned int n, double x) except +
-    float        sph_besself(unsigned int n, float x) except +
-    long double  sph_bessell(unsigned int n, long double x) except +
+    fn f64          sph_bessel(u32 n, f64 x) except +
+    fn f32          sph_besself(u32 n, f32 x) except +
+    fn long double  sph_bessell(u32 n, long double x) except +
 
     # spherical associated Legendre functions
-    double       sph_legendre(unsigned int l, unsigned int m, double theta) except +
-    float        sph_legendref(unsigned int l, unsigned int m, float theta) except +
-    long double  sph_legendrel(unsigned int l, unsigned int m, long double theta) except +
+    fn f64          sph_legendre(u32 l, u32 m, f64 theta) except +
+    fn f32          sph_legendref(u32 l, u32 m, f32 theta) except +
+    fn long double  sph_legendrel(u32 l, u32 m, long double theta) except +
 
     # spherical Neumann functions
     # spherical Bessel functions of the second kind
-    double       sph_neumann(unsigned int n, double x) except +
-    float        sph_neumannf(unsigned int n, float x) except +
-    long double  sph_neumannl(unsigned int n, long double x) except +
+    fn f64          sph_neumann(u32 n, f64 x) except +
+    fn f32          sph_neumannf(u32 n, f32 x) except +
+    fn long double  sph_neumannl(u32 n, long double x) except +

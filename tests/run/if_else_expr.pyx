@@ -54,7 +54,7 @@ def test_syntax():
 
 from libc cimport math
 
-def test_cfunc_ptrs(double x, bint round_down):
+def test_cfunc_ptrs(f64 x, bint round_down):
     """
     >>> test_cfunc_ptrs(2.5, round_down=true)
     2.0
@@ -107,7 +107,7 @@ def performance_gh5197(patternsList):
         except Exception as e:
             matched.append('Error at Indx:%s-%s' %(_, patternsList[_]))
 
-fn accept_int(int x):
+fn accept_int(i32 x):
     return x
 
 def test_mixed_int_bool_coercion(x):

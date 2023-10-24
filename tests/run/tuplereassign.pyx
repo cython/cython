@@ -1,22 +1,22 @@
 def test1(t):
     """
-    >>> test1( (1,2,3) )
+    >>> test1( (1, 2, 3) )
     1
     """
-    t,a,b = t
+    t,a, b = t
     return t
 
 def test3(t):
     """
-    >>> test3( (1,2,3) )
+    >>> test3( (1, 2, 3) )
     3
     """
-    a,b,t = t
+    a, b,t = t
     return t
 
 def test(t):
     """
-    >>> test( (1,2,3) )
+    >>> test( (1, 2, 3) )
     3
     """
     t,t,t = t

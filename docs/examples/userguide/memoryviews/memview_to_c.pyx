@@ -3,7 +3,7 @@ extern from "C_func_file.c":
     pass
 
 extern from "C_func_file.h":
-    void multiply_by_10_in_C(f64 *, u32)
+    fn void multiply_by_10_in_C(f64 *, u32)
 
 import numpy as np
 

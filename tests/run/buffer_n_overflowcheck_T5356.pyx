@@ -5,7 +5,7 @@ cimport cython
 
 
 @cython.overflowcheck(true)
-fn size_t _mul_checked(size_t a, size_t b) except? -1:
+fn usize _mul_checked(usize a, usize b) except? -1:
     return a * b
 
 

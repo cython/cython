@@ -1,5 +1,5 @@
 def f():
-    let int i
+    let i32 i
     try:
         i = 1
         raise x
@@ -10,7 +10,7 @@ def f():
         i = 4
 
 def g():
-    let int i
+    let i32 i
     try:
         i = 1
         raise x

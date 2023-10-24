@@ -2,8 +2,7 @@
 
 from libc.stdlib cimport abs as c_int_abs, qsort as libc_qsort
 
-
-def libc_int_abs(int x):
+def libc_int_abs(i32 x):
     """
     >>> libc_int_abs(5)
     5
@@ -12,11 +11,10 @@ def libc_int_abs(int x):
     """
     return c_int_abs(x)
 
+fn i32 gt(const void* v1, const void* v2) noexcept nogil:
+    return ((<i32*>v1)[0] - (<i32*>v2)[0])
 
-fn int gt(const void* v1, const void* v2) noexcept nogil:
-    return ((<int*>v1)[0] - (<int*>v2)[0])
-
-fn int lt(const void* v1, const void* v2) noexcept nogil:
+fn i32 lt(const void* v1, const void* v2) noexcept nogil:
     return - gt(v1, v2)
 
 def qsort(values, direction='lt'):
@@ -27,6 +25,6 @@ def qsort(values, direction='lt'):
     >>> qsort(data, 'lt')
     [9, 5, 3, 2, 1]
     """
-    let int[5] carray = values[:5]
-    libc_qsort(carray, 5, sizeof(int), lt if direction == 'lt' else gt)
+    let i32[5] carray = values[:5]
+    libc_qsort(carray, 5, sizeof(i32), lt if direction == 'lt' else gt)
     return carray

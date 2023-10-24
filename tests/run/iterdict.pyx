@@ -125,7 +125,7 @@ def iteritems_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    let int k,v
+    let i32 k,v
     l = []
     for k,v in d.iteritems():
         l.append((k,v))
@@ -161,7 +161,7 @@ def optimistic_iteritems_int(d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    let int k,v
+    let i32 k,v
     l = []
     for k,v in d.iteritems():
         l.append((k,v))
@@ -261,7 +261,7 @@ def iterkeys_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    let int k
+    let i32 k
     l = []
     for k in d.iterkeys():
         l.append(k)
@@ -297,7 +297,7 @@ def iterdict_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    let int k
+    let i32 k
     l = []
     for k in d:
         l.append(k)
@@ -392,7 +392,7 @@ def itervalues_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    let int v
+    let i32 v
     l = []
     for v in d.itervalues():
         l.append(v)
@@ -448,7 +448,7 @@ def iterdict_change_size(dict d):
     >>> print( iterdict_change_size({}) )
     DONE
     """
-    let int count = 0
+    let i32 count = 0
     i = -1
     for i in d:
         d[i+1] = 5
@@ -485,7 +485,7 @@ def optimistic_iterdict_change_size(d):
     Traceback (most recent call last):
     RuntimeError: dictionary changed size during iteration
     """
-    let int count = 0
+    let i32 count = 0
     i = -1
     for i in d.iterkeys():
         d[i+1] = 5
@@ -564,7 +564,7 @@ cdef class NotADict:
     ...
     TypeError: descriptor 'values' for 'mappingproxy' objects doesn't apply to a 'iterdict.NotADict' object
     """
-    let long v
+    let i64 v
     def __cinit__(self):
         self.v = 1
     itervalues = type(object.__dict__).values

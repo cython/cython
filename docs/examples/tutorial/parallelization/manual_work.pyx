@@ -10,7 +10,7 @@ fn void long_running_task2() nogil:
     pass
 
 def do_two_tasks():
-    cdef i32 thread_num
+    let i32 thread_num
     with nogil, parallel(num_threads=2):
         thread_num = omp_get_thread_num()
         if thread_num == 0:

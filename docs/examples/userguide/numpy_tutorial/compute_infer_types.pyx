@@ -16,10 +16,10 @@ def compute(i32[:, ::1] array_1, i32[:, ::1] array_2, i32 a, i32 b, i32 c):
     assert tuple(array_1.shape) == tuple(array_2.shape)
 
     result = np.zeros((x_max, y_max), dtype=DTYPE)
-    cdef i32[:, ::1] result_view = result
+    let i32[:, ::1] result_view = result
 
-    cdef i32 tmp
-    cdef isize x, y
+    let i32 tmp
+    let isize x, y
 
     for x in range(x_max):
         for y in range(y_max):

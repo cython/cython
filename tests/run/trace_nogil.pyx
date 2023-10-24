@@ -1,12 +1,12 @@
 # cython: linetrace=true
 
-fn void foo(int err) except * nogil:
+fn void foo(i32 err) except * nogil:
     with gil:
         raise ValueError(err)
 
 
 # Test from gh-4637
-def handler(int err):
+def handler(i32 err):
     """
     >>> handler(0)
     All good

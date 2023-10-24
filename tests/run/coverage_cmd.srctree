@@ -90,7 +90,7 @@ cdef class A:
 
 cdef int x = 5                                   #  4
 
-fn int cfunc1(int x):                            #  6
+fn i32 cfunc1(int x):                            #  6
     return x * 3                                 #  7
 
 include "pkg/coverage_test_pyx.pxi"              #  9

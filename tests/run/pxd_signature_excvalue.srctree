@@ -8,19 +8,19 @@ from Cython.Build import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+    ext_modules = cythonize("*.pyx"),
 )
 
 ######## foo.pxd ########
 
-fn int bar(int i) except *
+fn i32 bar(i32 i) except *
 
-fn int (*var_opt)(int) except? -1
-fn int (*var_orig)(int) except *
+fn i32 (*var_opt)(i32) except? -1
+fn i32 (*var_orig)(i32) except *
 
 ######## foo.pyx ########
 
-fn int bar(int i) except *:
+fn i32 bar(i32 i) except *:
     if i == 10:
         raise ValueError()
     return i + 1

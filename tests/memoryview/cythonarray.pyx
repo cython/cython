@@ -13,9 +13,9 @@ def length(shape):
     """
     >>> len(length((2,)))
     2
-    >>> len(length((2,3)))
+    >>> len(length((2, 3)))
     2
-    >>> len(length((5,3,2)))
+    >>> len(length((5, 3, 2)))
     5
     """
     let array cvarray = array(shape=shape, itemsize=sizeof(i32), format="i", mode='c')

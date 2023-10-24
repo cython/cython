@@ -4,7 +4,7 @@ cimport cython
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
-def double_to_short_int(double x):
+def double_to_short_int(f64 x):
     """
     >>> double_to_short_int(4.1)
     4
@@ -14,12 +14,12 @@ def double_to_short_int(double x):
     Traceback (most recent call last):
     TypeError: ...
     """
-    let short r = int(x)
+    let i16 r = int(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
-def double_to_pyssizet_int(double x):
+def double_to_pyssizet_int(f64 x):
     """
     >>> double_to_pyssizet_int(4.1)
     4
@@ -34,7 +34,7 @@ def double_to_pyssizet_int(double x):
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
-def int_to_pyssizet_int(int x):
+def int_to_pyssizet_int(i32 x):
     """
     >>> int_to_pyssizet_int(4.1)
     4
@@ -49,7 +49,7 @@ def int_to_pyssizet_int(int x):
 
 ## @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 ## @cython.test_fail_if_path_exists("//SimpleCallNode")
-## def double_to_pyssizet_float(double x):
+## def double_to_pyssizet_float(f64 x):
 ##     """
 ##     >>> double_to_pyssizet_float(4.1)
 ##     4
@@ -61,7 +61,7 @@ def int_to_pyssizet_int(int x):
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
-def int_to_short_int(int x):
+def int_to_short_int(i32 x):
     """
     >>> int_to_short_int(4)
     4
@@ -82,7 +82,7 @@ def short_to_float_float(i16 x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    let float r = float(x)
+    let f32 r = float(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -95,7 +95,7 @@ def short_to_double_float(i16 x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    let double r = float(x)
+    let f64 r = float(x)
     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
@@ -108,7 +108,7 @@ def short_to_double_int(i16 x):
     Traceback (most recent call last):
     TypeError: ...integer...
     """
-    let double r = int(x)
+    let f64 r = int(x)
     return r
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")

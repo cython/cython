@@ -19,7 +19,7 @@ def cast_cast_cast(arg):
     """
     let object x
     let void *p = <void *>arg
-    let int i
+    let i32 i
     x = <object>p
     p = <void *>x
     x = (<object>p).foo

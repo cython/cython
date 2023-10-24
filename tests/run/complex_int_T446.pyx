@@ -18,7 +18,7 @@ def test_arith(int complex a, int complex b):
     >>> test_arith(29+11j, 5+7j)
     ((-29-11j), (34+18j), (24+4j), (68+258j))
     """
-    return -a, a+b, a-b, a*b
+    return -a, a + b, a - b, a * b
 
 @cython.cdivision(false)
 def test_div_by_zero(long complex z):
@@ -32,7 +32,7 @@ def test_div_by_zero(long complex z):
     """
     return 100/z
 
-def test_coercion(int a, long b, int complex c):
+def test_coercion(i32 a, i64 b, int complex c):
     """
     >>> test_coercion(1, -2, 3-3j)
     (1+0j)

@@ -1,4 +1,4 @@
-# cython: infer_types=True
+# cython: infer_types=true
 
 import numpy as np
 cimport cython
@@ -27,10 +27,10 @@ def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type
         dtype = np.longlong
 
     result = np.zeros((x_max, y_max), dtype=dtype)
-    cdef my_type[:, ::1] result_view = result
+    let my_type[:, ::1] result_view = result
 
-    cdef my_type tmp
-    cdef isize x, y
+    let my_type tmp
+    let isize x, y
 
     for x in range(x_max):
         for y in range(y_max):

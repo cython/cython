@@ -57,7 +57,7 @@ def typed_imports():
 
     import sys
     import types
-    let long maxunicode
+    let i64 maxunicode
     let type t
 
     from sys import maxunicode

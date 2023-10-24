@@ -265,7 +265,7 @@ def test_add_uint(x, y):
 SLONG_MAX = <SLong>((<ULong>-1)>>1)
 SLONG_MIN = (-SLONG_MAX-1)
 
-def test_slong(long x):
+def test_slong(i64 x):
    u"""
    >>> test_slong(SLONG_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):

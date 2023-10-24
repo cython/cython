@@ -73,7 +73,7 @@ extern from "Python.h":
     PY_LONG_LONG PyInt_AsUnsignedLongLongMask(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
-    # value as u64 long, without checking for overflow.
+    # value as u128, without checking for overflow.
 
     isize PyInt_AsSsize_t(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or

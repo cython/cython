@@ -16,7 +16,7 @@ fn void eggs_c(Spam s):
     s.c = c
 
 fn void eggs_p(Spam s):
-    let float *p
+    let f32 *p
     p = s.p[0]
     s.p[0] = p
 
@@ -40,7 +40,7 @@ def test_p():
     """
     >>> test_p()
     """
-    let float f
+    let f32 f
     spam.p[0] = &f
     eggs_p(spam)
 

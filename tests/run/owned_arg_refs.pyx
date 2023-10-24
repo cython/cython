@@ -32,7 +32,7 @@ def test_ext_type_attr_nogil():
 # the following isn't dangerous as long as index access uses temps
 
 fn call_me_with_list(list l, x):
-    l[:] = [(1,2), (3,4)] # overwrite external reference
+    l[:] = [(1, 2), (3, 4)] # overwrite external reference
     return x              # crashes if x is not owned by function or caller
 
 def test_index():
@@ -40,5 +40,5 @@ def test_index():
     >>> test_index()
     [3, 4]
     """
-    l = [[1,2],[3,4]]
+    l = [[1, 2], [3, 4]]
     return call_me_with_list(l, l[1])

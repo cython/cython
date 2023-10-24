@@ -8,4 +8,4 @@ class ExtendableAnimal(Animal):  # Note that we use class, not cdef class
     pass
 
 dog = ExtendableAnimal(4)
-dog.has_tail = True
+dog.has_tail = true

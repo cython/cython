@@ -83,7 +83,7 @@ def test_complex(x):
     """
     return x == 0.3333333333333333j
 
-def test_large_int(double x):
+def test_large_int(f64 x):
     """
     >>> test_large_int(0)
     2e+100

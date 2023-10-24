@@ -1,6 +1,6 @@
 # mode: error
 
-fn int exceptmaybeminus2(i32 bad) except ?-2:
+fn i32 exceptmaybeminus2(i32 bad) except ?-2:
     if bad:
         raise RuntimeError
     else:
@@ -30,7 +30,7 @@ def fail_exceptstar(bad):
     fptr_b = exceptstar
     fptr_c = exceptstar
 
-fn int cb(i32 param) nogil:
+fn i32 cb(i32 param) nogil:
     return param
 
 fn void cb_void(i32 param) except * nogil:

@@ -67,7 +67,7 @@ def make_lambda_lambda(x):
     return lambda y : \
            lambda z:x+y+z
 
-def make_typed_lambda_lambda(int x):
+def make_typed_lambda_lambda(i32 x):
     """
     >>> make_typed_lambda_lambda(1)(2)(4)
     7

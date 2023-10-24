@@ -26,7 +26,7 @@ cdef class FunctionState:
     pub object scope
 
     pub object error_label
-    pub size_t label_counter
+    pub usize label_counter
     pub set labels_used
     pub object return_label
     pub object continue_label
@@ -55,7 +55,7 @@ cdef class FunctionState:
 
     pub bint needs_refnanny
 
-    @cython.locals(n=size_t)
+    @cython.locals(n=usize)
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)
     cpdef set_loop_labels(self, labels)

@@ -377,7 +377,7 @@ def explicitly_release_buffer():
 @testcase
 def get_int_2d(object[i32, ndim=2] buf, i32 i, i32 j):
     """
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
@@ -413,7 +413,7 @@ def get_int_2d(object[i32, ndim=2] buf, i32 i, i32 j):
 def get_int_2d_uintindex(object[i32, ndim=2] buf, u32 i, u32 j):
     """
     Unsigned indexing:
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> get_int_2d_uintindex(C, 0, 0)
     acquired C
     released C
@@ -433,7 +433,7 @@ def set_int_2d(object[i32, ndim=2] buf, i32 i, i32 j, i32 value):
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
 
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
     released C
@@ -486,7 +486,7 @@ def set_int_2d_cascaded(object[i32, ndim=2] buf, i32 i, i32 j, i32 value):
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
 
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
     >>> set_int_2d_cascaded(C, 1, 1, 10)
     acquired C
     released C
@@ -647,7 +647,7 @@ def c_contig_2d(object[i32, ndim=2, mode='c'] buf):
     """
     Multi-dim has separate implementation
 
-    >>> A = IntMockBuffer(None, range(12), shape=(3,4))
+    >>> A = IntMockBuffer(None, range(12), shape=(3, 4))
     >>> c_contig_2d(A)
     7
     >>> [str(x) for x in A.received_flags]
@@ -671,7 +671,7 @@ def f_contig_2d(object[i32, ndim=2, mode='fortran'] buf):
     """
     Must set up strides manually to ensure Fortran ordering.
 
-    >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
+    >>> A = IntMockBuffer(None, range(12), shape=(4, 3), strides=(1, 4))
     >>> f_contig_2d(A)
     7
     >>> [str(x) for x in A.received_flags]
@@ -794,12 +794,12 @@ def printbuf_int_2d(o, shape):
     """
     Strided:
 
-    >>> printbuf_int_2d(IntMockBuffer("A", range(6), (2,3)), (2,3))
+    >>> printbuf_int_2d(IntMockBuffer("A", range(6), (2, 3)), (2, 3))
     acquired A
     0 1 2 END
     3 4 5 END
     released A
-    >>> printbuf_int_2d(IntMockBuffer("A", range(100), (3,3), strides=(20,5)), (3,3))
+    >>> printbuf_int_2d(IntMockBuffer("A", range(100), (3, 3), strides=(20,5)), (3, 3))
     acquired A
     0 5 10 END
     20 25 30 END
@@ -807,7 +807,7 @@ def printbuf_int_2d(o, shape):
     released A
 
     Indirect:
-    >>> printbuf_int_2d(IntMockBuffer("A", [[1,2],[3,4]]), (2,2))
+    >>> printbuf_int_2d(IntMockBuffer("A", [[1, 2], [3, 4]]), (2, 2))
     acquired A
     1 2 END
     3 4 END

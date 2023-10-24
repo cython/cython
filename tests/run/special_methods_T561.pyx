@@ -90,7 +90,7 @@ __doc__ = u"""
     >>> Li()
     Long __long__
 """
-if sys.version_info >= (2,5):
+if sys.version_info >= (2, 5):
     __doc__ += u"""\
     >>> vs0 = VerySpecial(0)
     VS __init__ 0
@@ -101,9 +101,9 @@ if sys.version_info >= (2,5):
 
 extern from *:
     # type specs require a bug fix in Py3.8+ for some of these tests.
-    const int CYTHON_USE_TYPE_SPECS
+    const i32 CYTHON_USE_TYPE_SPECS
 
-if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
+if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3, 8):
     __doc__ += u"""
     >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
@@ -990,7 +990,7 @@ cdef class ArgumentTypeConversions:
     RuntimeError: From __getbuffer__ with flags ....0
     """
     # force conversion of object to int
-    def __getitem__(self, int x):
+    def __getitem__(self, i32 x):
         return x
 
     # force conversion of comparison (int) to object

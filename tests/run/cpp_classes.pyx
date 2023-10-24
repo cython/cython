@@ -8,23 +8,23 @@ extern from "shapes.h" namespace "shapes":
         float area()
 
     cdef cppclass Ellipse(Shape):
-        Ellipse(int a, int b) except + nogil
+        Ellipse(i32 a, i32 b) except + nogil
 
     cdef cppclass Circle(Ellipse):
         int radius
-        Circle(int r) except +
+        Circle(i32 r) except +
 
     cdef cppclass Rectangle(Shape):
         int width
         int height
         Rectangle() except +
-        Rectangle(int h, int w) except +
-        int method(int x)
-        int method(bint b)
+        Rectangle(i32 h, i32 w) except +
+        i32 method(i32 x)
+        i32 method(bint b)
 
     cdef cppclass Square(Rectangle):
         int side
-        Square(int s) except +
+        Square(i32 s) except +
 
     cdef cppclass Empty(Shape):
         pass
@@ -93,8 +93,8 @@ def test_overload_bint_int():
     let Rectangle *rect2 = new Rectangle(10, 20)
 
     try:
-        print rect1.method(<int> 2)
-        print rect2.method(<bint> True)
+        print rect1.method(<i32>2)
+        print rect2.method(<bint>true)
     finally:
         del rect1
         del rect2
@@ -111,10 +111,10 @@ def test_square_area(w):
     finally:
         del sqr
 
-fn double get_area(Rectangle s):
+fn f64 get_area(Rectangle s):
     return s.area()
 
-def test_value_call(int w):
+def test_value_call(i32 w):
     """
     >>> test_value_call(5)
     (25.0, 25.0)
@@ -133,7 +133,7 @@ cdef struct StructWithEmpty:
 def get_destructor_count():
     return destructor_count
 
-def test_stack_allocation(int w, int h):
+def test_stack_allocation(i32 w, i32 h):
     """
     >>> d = test_stack_allocation(10, 12)
     125
@@ -143,7 +143,7 @@ def test_stack_allocation(int w, int h):
     let Rectangle rect
     rect.width = w
     rect.height = h
-    print rect.method(<int>5)
+    print rect.method(<i32>5)
     return destructor_count
 
 def test_stack_allocation_in_struct():
@@ -208,7 +208,7 @@ def test_class_in_struct_member():
            destructor_count - start_destructor_count
 
 cdef class TemplateClassMember:
-    let vector[int] x
+    let vector[i32] x
     let vector[vector[Empty]] vec
 
 def test_template_class_member():
@@ -226,12 +226,12 @@ def test_template_class_member():
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
 
-ctypedef vector[int]* vector_int_ptr
+ctypedef vector[i32]* vector_int_ptr
 fn vector[vector_int_ptr] create_to_delete() except *:
     let vector[vector_int_ptr] v
-    v.push_back(new vector[int]())
+    v.push_back(new vector[i32]())
     return v
-fn int f(int x):
+fn i32 f(i32 x):
     return x
 
 def test_nested_del():
@@ -239,7 +239,7 @@ def test_nested_del():
     >>> test_nested_del()
     """
     let vector[vector_int_ptr] v
-    v.push_back(new vector[int]())
+    v.push_back(new vector[i32]())
     del v[0]
     del create_to_delete()[f(f(0))]
 
@@ -248,7 +248,7 @@ def test_nested_del_repeat():
     >>> test_nested_del_repeat()
     """
     let vector[vector_int_ptr] v
-    v.push_back(new vector[int]())
+    v.push_back(new vector[i32]())
     del v[0]
     del create_to_delete()[f(f(0))]
     del create_to_delete()[f(f(0))]

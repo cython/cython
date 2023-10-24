@@ -5,15 +5,15 @@ extern from "cpp_function_lib.cpp":
     pass
 
 extern from "cpp_function_lib.h":
-    double add_one(double, int)
-    double add_two(double a, int b)
+    fn f64 add_one(f64, i32)
+    fn f64 add_two(f64 a, i32 b)
 
     cdef cppclass AddAnotherFunctor:
-        AddAnotherFunctor(double to_add)
-        double call "operator()"(double a, int b)
+        AddAnotherFunctor(f64 to_add)
+        f64 call "operator()"(f64 a, i32 b)
 
     cdef cppclass FunctionKeeper:
-        FunctionKeeper(function[double(double, int) noexcept] user_function)
-        void set_function(function[double(double, int) noexcept] user_function)
-        function[double(double, int) noexcept] get_function()
-        double call_function(double a, int b) except +
+        FunctionKeeper(function[f64(f64, i32) noexcept] user_function)
+        void set_function(function[f64(f64, i32) noexcept] user_function)
+        function[f64(f64, i32) noexcept] get_function()
+        f64 call_function(f64 a, i32 b) except +

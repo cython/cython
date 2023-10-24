@@ -63,7 +63,7 @@ def pow_double_double_coerced_directly(f64 a, f64 b):
     let f64 c = a**b
     return cfunc_taking_double(a**b) + c
 
-def pow_double_int(f64 a, int b):
+def pow_double_int(f64 a, i32 b):
     """
     # a few variations of 'double**int'. In all cases
     # Cython should realise that the result can't be complex
@@ -144,7 +144,7 @@ def soft_complex_type_inference_2(f64 a, f64 b, expected):
     delta = abs(c/expected - 1)
     assert delta < 1e-15, delta
 
-def pow_int_int(int a, int b):
+def pow_int_int(i32 a, i32 b):
     """
     >>> pow_int_int(2, 2)
     double 4.0
@@ -155,7 +155,7 @@ def pow_int_int(int a, int b):
     print(cython.typeof(c), c)
 
 @cython.cpow(true)
-def pow_int_int_cpow(int a, int b):
+def pow_int_int_cpow(i32 a, i32 b):
     """
     >>> pow_int_int_cpow(2, 2)
     int 4
@@ -165,10 +165,10 @@ def pow_int_int_cpow(int a, int b):
     c = a**b
     print(cython.typeof(c), c)
 
-fn cfunc_taking_int(int x):
+fn cfunc_taking_int(i32 x):
     return x
 
-def pow_int_int_coerced_directly(int a, int b):
+def pow_int_int_coerced_directly(i32 a, i32 b):
     """
     Generates two warnings about using cpow.
     The actual behaviour isn't too easy to distinguish
@@ -176,7 +176,7 @@ def pow_int_int_coerced_directly(int a, int b):
     >>> pow_int_int_coerced_directly(2, 2)
     8
     """
-    let int c = a**b
+    let i32 c = a**b
     return cfunc_taking_int(a**b) + c
 
 def pow_int_int_non_negative(i32 a, u32 b):

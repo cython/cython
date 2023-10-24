@@ -2,9 +2,8 @@
 from cpython cimport Py_buffer
 from libcpp.vector cimport vector
 
-
 cdef class Matrix:
-    cdef Py_ssize_t ncols
+    cdef isize ncols
     cdef Py_ssize_t[2] shape
     cdef Py_ssize_t[2] strides
     cdef vector[f32] v
@@ -17,7 +16,7 @@ cdef class Matrix:
         self.v.resize(self.v.size() + self.ncols)
 
     def __getbuffer__(self, Py_buffer *buffer, i32 flags):
-        cdef Py_ssize_t itemsize = sizeof(self.v[0])
+        let isize itemsize = sizeof(self.v[0])
 
         self.shape[0] = self.v.size() // self.ncols
         self.shape[1] = self.ncols
@@ -25,7 +24,7 @@ cdef class Matrix:
         # Stride 1 is the distance, in bytes, between two items in a row;
         # this is the distance between two adjacent items in the vector.
         # Stride 0 is the distance between the first elements of adjacent rows.
-        self.strides[1] = <Py_ssize_t>(  <i8 *>&(self.v[1])
+        self.strides[1] = <isize>(  <i8 *>&(self.v[1])
                                   - <i8 *>&(self.v[0]))
 
         self.strides[0] = self.ncols * self.strides[1]

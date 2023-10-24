@@ -1,10 +1,10 @@
-def primes(int kmax):
+def primes(i32 kmax):
     """
     >>> primes(20)
     [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71]
     """
-    let int n, k, i
-    let int[1000] p
+    let i32 n, k, i
+    let i32[1000] p
     result = []
     if kmax > 1000:
         kmax = 1000

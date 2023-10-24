@@ -1,2 +1,2 @@
 extern from "string.h":
-    char* strstr(const char *haystack, const char *needle)
+    fn char* strstr(const char *haystack, const char *needle)

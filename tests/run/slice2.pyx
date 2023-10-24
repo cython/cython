@@ -3,7 +3,7 @@
 
 def test_full(seq):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> test_full(l)
     [1, 2, 3, 4]
     >>> l == test_full(l)
@@ -18,7 +18,7 @@ def test_full(seq):
 
 def test_start(seq, start):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> test_start(l, 2)
     [3, 4]
     >>> test_start(l, 3)
@@ -45,7 +45,7 @@ def test_start(seq, start):
 
 def test_stop(seq, stop):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> test_stop(l, 3)
     [1, 2, 3]
     >>> test_stop(l, -1)
@@ -68,7 +68,7 @@ def test_stop(seq, stop):
 
 def test_step(seq, step):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> test_step(l, -1)
     [4, 3, 2, 1]
     >>> test_step(l, 1)
@@ -93,7 +93,7 @@ def test_step(seq, step):
 
 def test_start_and_stop(seq, start, stop):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> test_start_and_stop(l, 2, 3)
     [3]
     >>> test_start_and_stop(l, -3, -1)
@@ -108,7 +108,7 @@ def test_start_and_stop(seq, start, stop):
 
 def test_start_stop_and_step(seq, start, stop, step):
     """
-    >>> l = [1,2,3,4,5]
+    >>> l = [1, 2, 3, 4, 5]
     >>> test_start_stop_and_step(l, 0, 5, 1)
     [1, 2, 3, 4, 5]
     >>> test_start_stop_and_step(l, 5, -1, -1)
@@ -140,5 +140,5 @@ def slice_of_temporary_smoketest():
     """
     x = A()
     x.a = [1, 2]
-    x.a[:] = [3,2]
+    x.a[:] = [3, 2]
     return x.a

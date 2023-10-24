@@ -114,7 +114,7 @@ def reverse_iteration_test(L):
 
 def nogil_test(L):
     """
-    >>> nogil_test([1,2,3])
+    >>> nogil_test([1, 2, 3])
     3
     """
     let i32 a

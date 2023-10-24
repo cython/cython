@@ -1,20 +1,20 @@
 # mode: run
 # tag: nogil, withgil, exceptions
 
-fn void foo_nogil(int i) except * nogil:
+fn void foo_nogil(i32 i) except * nogil:
     if i != 0: raise ValueError("huhu !")
 
 
-fn void foo(int i) except * with gil:
+fn void foo(i32 i) except * with gil:
     if i != 0: raise ValueError
 
 
-fn int bar(int i) except? -1 with gil:
+fn i32 bar(i32 i) except? -1 with gil:
     if i != 0: raise ValueError
     return 0
 
 
-fn int spam(int i) except? -1 with gil:
+fn i32 spam(i32 i) except? -1 with gil:
     if i != 0: raise TypeError
     return -1
 

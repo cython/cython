@@ -2,7 +2,7 @@ def f():
     """
     >>> f()
     """
-    let int bool, int1, int2
+    let i32 bool, int1, int2
     let object obj1, obj2
     int1 = 0
     int2 = 0
@@ -23,7 +23,7 @@ def g():
     """
     >>> g()
     """
-    let int bool
+    let i32 bool
     obj1 = 1
     obj2 = []
     bool = obj1 in obj2

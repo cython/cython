@@ -1,9 +1,9 @@
 cdef struct Point:
-    double x
-    double y
-    int color
+    f64 x
+    f64 y
+    i32 color
 
-def test_constructor(x, y, int color):
+def test_constructor(x, y, i32 color):
     """
     >>> sorted(test_constructor(1,2,255).items())
     [('color', 255), ('x', 1.0), ('y', 2.0)]
@@ -13,8 +13,7 @@ def test_constructor(x, y, int color):
     let Point p = Point(x, y, color)
     return p
 
-
-def return_constructor(x, y, int color):
+def return_constructor(x, y, i32 color):
     """
     >>> sorted(return_constructor(1,2,255).items())
     [('color', 255), ('x', 1.0), ('y', 2.0)]
@@ -22,7 +21,6 @@ def return_constructor(x, y, int color):
     ... except TypeError: pass
     """
     return Point(x, y, color)
-
 
 def test_constructor_kwds(x, y, color):
     """
@@ -35,8 +33,7 @@ def test_constructor_kwds(x, y, color):
     let Point p = Point(x=x, y=y, color=color)
     return p
 
-
-def return_constructor_kwds(double x, y, color):
+def return_constructor_kwds(f64 x, y, color):
     """
     >>> sorted(return_constructor_kwds(1.25, 2.5, 128).items())
     [('color', 128), ('x', 1.25), ('y', 2.5)]
@@ -45,7 +42,6 @@ def return_constructor_kwds(double x, y, color):
     TypeError:... int...
     """
     return Point(x=x, y=y, color=color)
-
 
 def test_dict_construction(x, y, color):
     """
@@ -81,10 +77,10 @@ def test_tuple_construction(x, y, color):
 '''
 
 cdef union int_or_float:
-    int n
-    double x
+    i32 n
+    f64 x
 
-def test_union_constructor(n,x):
+def test_union_constructor(n, x):
     """
     >>> test_union_constructor(1, None)
     1
@@ -104,14 +100,14 @@ cdef struct with_pointers:
     int_or_float data
     void* ptr
 
-def test_pointers(int n, double x):
+def test_pointers(i32 n, f64 x):
     """
     >>> test_pointers(100, 2.71828)
     100
     2.71828
     True
     """
-    let with_pointers a = [True, {'n': n}, NULL]
+    let with_pointers a = [true, {'n': n}, NULL]
     let with_pointers b = with_pointers(False, {'x': x}, NULL)
     print a.data.n
     print b.data.x
@@ -119,8 +115,8 @@ def test_pointers(int n, double x):
 
 cdef struct MyStruct:
     char c
-    int i
-    float f
+    i32 i
+    f32 f
     char *s
 
 bhello = b"hello"  # must hold a C reference in PyPy
@@ -168,7 +164,7 @@ def test_nested_obj_to_struct(NestedStruct nested):
                                             nested.d)
 
 cdef struct OverriddenCname:
-    int x "not_x"
+    i32 x "not_x"
 
 def test_obj_to_struct_cnames(OverriddenCname s):
     """

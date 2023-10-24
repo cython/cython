@@ -4,7 +4,7 @@ import sys
 
 def typename(t):
     name = type(t).__name__
-    if sys.version_info < (2,5):
+    if sys.version_info < (2, 5):
         if name == 'classobj' and issubclass(t, MyException):
             name = 'type'
         elif name == 'instance' and isinstance(t, MyException):
@@ -219,7 +219,7 @@ class NestedWith(unittest.TestCase):
         self.assertNotEqual(a.exc_info[0], None)
 
     def testEnterReturnsTuple(self):
-        with Dummy(value=(1,2)) as (a1, a2), \
+        with Dummy(value=(1, 2)) as (a1, a2), \
              Dummy(value=(10, 20)) as (b1, b2):
             self.assertEqual(1, a1)
             self.assertEqual(2, a2)

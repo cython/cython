@@ -6,7 +6,7 @@ extern from "<deque>" namespace "std" nogil:
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
         # but cython doesn't support deferred access on template arguments
-        ctypedef size_t size_type
+        ctypedef usize size_type
         ctypedef ptrdiff_t difference_type
 
         cppclass const_iterator
@@ -16,8 +16,8 @@ extern from "<deque>" namespace "std" nogil:
             value_type& operator*()
             iterator operator++()
             iterator operator--()
-            iterator operator++(int)
-            iterator operator--(int)
+            iterator operator++(i32)
+            iterator operator--(i32)
             iterator operator+(size_type)
             iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -42,8 +42,8 @@ extern from "<deque>" namespace "std" nogil:
             const value_type& operator*()
             const_iterator operator++()
             const_iterator operator--()
-            const_iterator operator++(int)
-            const_iterator operator--(int)
+            const_iterator operator++(i32)
+            const_iterator operator--(i32)
             const_iterator operator+(size_type)
             const_iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -68,8 +68,8 @@ extern from "<deque>" namespace "std" nogil:
             value_type& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
-            reverse_iterator operator++(int)
-            reverse_iterator operator--(int)
+            reverse_iterator operator++(i32)
+            reverse_iterator operator--(i32)
             reverse_iterator operator+(size_type)
             reverse_iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -93,8 +93,8 @@ extern from "<deque>" namespace "std" nogil:
             const value_type& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
-            const_reverse_iterator operator++(int)
-            const_reverse_iterator operator--(int)
+            const_reverse_iterator operator++(i32)
+            const_reverse_iterator operator--(i32)
             const_reverse_iterator operator+(size_type)
             const_reverse_iterator operator-(size_type)
             difference_type operator-(iterator)
@@ -114,10 +114,10 @@ extern from "<deque>" namespace "std" nogil:
 
         deque() except +
         deque(deque&) except +
-        deque(size_t) except +
-        deque(size_t, T&) except +
+        deque(usize) except +
+        deque(usize, T&) except +
         #deque[InputIt](InputIt, InputIt)
-        T& operator[](size_t)
+        T& operator[](usize)
         #deque& operator=(deque&)
         bint operator==(deque&, deque&)
         bint operator!=(deque&, deque&)
@@ -125,9 +125,9 @@ extern from "<deque>" namespace "std" nogil:
         bint operator>(deque&, deque&)
         bint operator<=(deque&, deque&)
         bint operator>=(deque&, deque&)
-        void assign(size_t, T&) except +
+        void assign(usize, T&) except +
         void assign[InputIt](InputIt, InputIt) except +
-        T& at(size_t) except +
+        T& at(usize) except +
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
@@ -141,9 +141,9 @@ extern from "<deque>" namespace "std" nogil:
         iterator erase(iterator, iterator) except +
         T& front()
         iterator insert(iterator, T&) except +
-        void insert(iterator, size_t, T&) except +
+        void insert(iterator, usize, T&) except +
         void insert[InputIt](iterator, InputIt, InputIt) except +
-        size_t max_size()
+        usize max_size()
         void pop_back()
         void pop_front()
         void push_back(T&) except +
@@ -154,9 +154,9 @@ extern from "<deque>" namespace "std" nogil:
         reverse_iterator rend()
         #const_reverse_iterator rend()
         const_reverse_iterator crend()
-        void resize(size_t) except +
-        void resize(size_t, T&) except +
-        size_t size()
+        void resize(usize) except +
+        void resize(usize, T&) except +
+        usize size()
         void swap(deque&)
 
         # C++11 methods

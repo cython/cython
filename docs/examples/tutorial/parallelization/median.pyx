@@ -11,11 +11,11 @@ import numpy as np
 @cython.boundscheck(false)
 @cython.wraparound(false)
 def median_along_axis0(const f64[:, :] x):
-    cdef f64[::1] out = np.empty(x.shape[1])
-    cdef isize i, j
+    let f64[::1] out = np.empty(x.shape[1])
+    let isize i, j
 
-    cdef vector[f64] *scratch
-    cdef vector[f64].iterator median_it
+    let vector[f64] *scratch
+    let vector[f64].iterator median_it
     with nogil, parallel():
         # allocate scratch space per loop
         scratch = new vector[f64](x.shape[0])

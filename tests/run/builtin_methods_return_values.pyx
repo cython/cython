@@ -34,7 +34,7 @@ def _delattr(obj):
 
 def list_sort(list l):
     """
-    >>> list_sort([1,2,3]) is None
+    >>> list_sort([1, 2, 3]) is None
     True
     """
     l.sort()
@@ -42,7 +42,7 @@ def list_sort(list l):
 
 def list_reverse(list l):
     """
-    >>> list_reverse([1,2,3]) is None
+    >>> list_reverse([1, 2, 3]) is None
     True
     """
     l.reverse()
@@ -50,7 +50,7 @@ def list_reverse(list l):
 
 def list_insert(list l):
     """
-    >>> list_insert([1,2,3]) is None
+    >>> list_insert([1, 2, 3]) is None
     True
     """
     l.insert(1, 2)
@@ -58,7 +58,7 @@ def list_insert(list l):
 
 def list_append(list l):
     """
-    >>> list_append([1,2,3]) is None
+    >>> list_append([1, 2, 3]) is None
     True
     """
     l.append(1)
@@ -66,7 +66,7 @@ def list_append(list l):
 
 def set_clear(set s):
     """
-    >>> set_clear(_set([1,2,3])) is None
+    >>> set_clear(_set([1, 2, 3])) is None
     True
     >>> set_clear(None)
     Traceback (most recent call last):
@@ -77,7 +77,7 @@ def set_clear(set s):
 
 def set_discard(set s):
     """
-    >>> set_discard(_set([1,2,3])) is None
+    >>> set_discard(_set([1, 2, 3])) is None
     True
     """
     s.discard(1)
@@ -85,7 +85,7 @@ def set_discard(set s):
 
 def set_add(set s):
     """
-    >>> set_add(_set([1,2,3])) is None
+    >>> set_add(_set([1, 2, 3])) is None
     True
     """
     s.add(1)

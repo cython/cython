@@ -1,4 +1,4 @@
 extern from "<sys/ioctl.h>" nogil:
     enum: FIONBIO
 
-    int ioctl(int fd, int request, ...)
+    fn i32 ioctl(i32 fd, i32 fd, ...)

@@ -14,7 +14,7 @@ setup(
 
 ######## foo.pxd ########
 
-fn int bar() except *
+fn i32 bar() except *
 
 extern from "bar_impl.c":
     struct mystruct:
@@ -45,7 +45,7 @@ assert bar() == -1
 
 from foo cimport mystruct
 
-fn int cb(int param) noexcept nogil:
+fn i32 cb(i32 param) noexcept nogil:
     return param
 
 cdef mystruct ms = mystruct(&cb)

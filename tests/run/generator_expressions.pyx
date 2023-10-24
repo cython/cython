@@ -41,7 +41,7 @@ def genexpr_with_lambda():
     assert x == 'abc' # don't leak
     return result
 
-def genexpr_of_lambdas(int N):
+def genexpr_of_lambdas(i32 N):
     """
     >>> [ (f(), g()) for f,g in genexpr_of_lambdas(5) ]
     [(0, 0), (1, 2), (2, 4), (3, 6), (4, 8)]

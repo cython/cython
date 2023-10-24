@@ -64,7 +64,7 @@ def do_timedelta_macros(timedelta_ext_type delta):
     )
 
 
-def do_date(int year, int month, int day):
+def do_date(i32 year, i32 month, i32 day):
     """
     >>> do_date(2012, 12, 31)
     (True, True, True, True)
@@ -72,8 +72,8 @@ def do_date(int year, int month, int day):
     v = date_new(year, month, day)
     return type(v) is py_datetime.date, v.year == year, v.month == month, v.day == day
 
-def do_datetime(int year, int month, int day,
-        int hour, int minute, int second, int microsecond):
+def do_datetime(i32 year, i32 month, i32 day,
+                i32 hour, i32 minute, i32 second, i32 microsecond):
     """
     >>> do_datetime(2012, 12, 31, 12, 23, 0, 0)
     (True, True, True, True, True, True, True, True, True)
@@ -83,7 +83,7 @@ def do_datetime(int year, int month, int day,
            v.hour == hour, v.minute == minute, v.second == second, \
            v.microsecond == microsecond, v.tzinfo is None
 
-def do_time(int hour, int minute, int second, int microsecond):
+def do_time(i32 hour, i32 minute, i32 second, i32 microsecond):
     """
     >>> do_time(12, 23, 0, 0)
     (True, True, True, True, True, True)
@@ -93,7 +93,7 @@ def do_time(int hour, int minute, int second, int microsecond):
            v.hour == hour, v.minute == minute, v.second == second, \
            v.microsecond == microsecond, v.tzinfo is None
 
-def do_time_tzinfo(int hour, int minute, int second, int microsecond, object tz):
+def do_time_tzinfo(i32 hour, i32 minute, i32 second, i32 microsecond, object tz):
     """
     >>> tz = FixedOffset(60*3, 'Moscow')
     >>> do_time_tzinfo(12, 23, 0, 0, tz)
@@ -105,8 +105,8 @@ def do_time_tzinfo(int hour, int minute, int second, int microsecond, object tz)
            v.microsecond == microsecond, v.tzinfo is tz
 
 
-def do_datetime_tzinfo(int year, int month, int day,
-        int hour, int minute, int second, int microsecond, object tz):
+def do_datetime_tzinfo(i32 year, i32 month, i32 day,
+                       i32 hour, i32 minute, i32 second, i32 microsecond, object tz):
     """
     >>> tz = FixedOffset(60*3, 'Moscow')
     >>> do_datetime_tzinfo(2012, 12, 31, 12, 23, 0, 0, tz)
@@ -117,7 +117,7 @@ def do_datetime_tzinfo(int year, int month, int day,
            v.hour == hour, v.minute == minute, v.second == second, \
            v.microsecond == microsecond, v.tzinfo is tz
 
-def do_time_tzinfo2(int hour, int minute, int second, int microsecond, object tz):
+def do_time_tzinfo2(i32 hour, i32 minute, i32 second, i32 microsecond, object tz):
     """
     >>> tz = FixedOffset(60*3, 'Moscow')
     >>> do_time_tzinfo2(12, 23, 0, 0, tz)
@@ -153,8 +153,8 @@ def do_time_tzinfo2(int hour, int minute, int second, int microsecond, object tz
     return r1, r2, r3, r4, r5, r6, r7, r8
 
 
-def do_datetime_tzinfo2(int year, int month, int day,
-                              int hour, int minute, int second, int microsecond, object tz):
+def do_datetime_tzinfo2(i32 year, i32 month, i32 day,
+                        i32 hour, i32 minute, i32 second, i32 microsecond, object tz):
     """
     >>> tz = FixedOffset(60*3, 'Moscow')
     >>> do_datetime_tzinfo2(2012, 12, 31, 12, 23, 0, 0, tz)

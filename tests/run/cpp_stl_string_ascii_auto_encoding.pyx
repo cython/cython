@@ -22,7 +22,7 @@ def test_conversion(py_obj):
     TypeError: expected ..., int found
     """
     let string s = py_obj
-    assert <size_t>len(py_obj) == s.length(), '%d != %d' % (len(py_obj), s.length())
+    assert <usize>len(py_obj) == s.length(), '%d != %d' % (len(py_obj), s.length())
     return s
 
 
@@ -95,7 +95,7 @@ def test_bytes_cast(a):
     252
     """
     let string s = a
-    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    assert s.length() == <usize>len(a), "%d != %d" % (s.length(), len(a))
     return <bytes>s
 
 
@@ -119,7 +119,7 @@ def test_bytearray_cast(a):
     252
     """
     let string s = a
-    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    assert s.length() == <usize>len(a), "%d != %d" % (s.length(), len(a))
     return <bytearray>s
 
 
@@ -132,7 +132,7 @@ def test_unicode_cast(a):
     abc
     """
     let string s = a
-    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    assert s.length() == <usize>len(a), "%d != %d" % (s.length(), len(a))
     return <unicode>s
 
 
@@ -145,7 +145,7 @@ def test_str_cast(a):
     abc
     """
     let string s = a
-    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    assert s.length() == <usize>len(a), "%d != %d" % (s.length(), len(a))
     return <str>s
 
 

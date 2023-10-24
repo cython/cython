@@ -1,15 +1,15 @@
 __doc__ = u"""
-  >>> f(1,2)
+  >>> f(1, 2)
   4
   >>> f.HERE
   1
 
-  >>> g(1,2)
+  >>> g(1, 2)
   5
   >>> g.HERE
   5
 
-  >>> h(1,2)
+  >>> h(1, 2)
   6
   >>> h.HERE
   1
@@ -37,11 +37,11 @@ def decorate(func):
         func = wrap(func)
     return func
 
-def decorate2(a,b):
+def decorate2(a, b):
     return decorate
 
 @decorate
-def f(a,b):
+def f(a, b):
     return a+b+1
 
 @decorate
@@ -49,11 +49,11 @@ def f(a,b):
 @decorate
 @decorate
 @decorate
-def g(a,b):
+def g(a, b):
     return a+b+2
 
-@decorate2(1,2)
-def h(a,b):
+@decorate2(1, 2)
+def h(a, b):
     return a+b+3
 
 class A:
@@ -84,7 +84,7 @@ def test_index_from_decorator_list0(a, b):
     """
     return a+b+1
 
-@list_of_decorators[1](1,2)
+@list_of_decorators[1](1, 2)
 def test_index_from_decorator_list1(a, b):
     """
     PEP 614 means this now works
@@ -107,7 +107,7 @@ def outer(arg1, arg2):
     ensure decorators are analysed in the correct scope
     https://github.com/cython/cython/issues/4367
     mainly intended as a compile-time test (but it does run...)
-    >>> outer(append_to_list_decorator, [1,2,3])
+    >>> outer(append_to_list_decorator, [1, 2, 3])
     [1, 2, 3, 4]
     """
     @arg1([x for x in arg2])

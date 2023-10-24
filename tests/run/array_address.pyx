@@ -1,6 +1,6 @@
-ctypedef int five_ints[5]
+ctypedef i32 five_ints[5]
 
-def test_array_address(int ix, int x):
+def test_array_address(i32 ix, i32 x):
     """
     >>> test_array_address(0, 100)
     100

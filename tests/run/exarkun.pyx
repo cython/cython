@@ -1,8 +1,8 @@
 __doc__ = u"""
-    >>> p = Point(1,2,3)
+    >>> p = Point(1, 2, 3)
     >>> p.gettuple()
     (1.0, 2.0, 3.0)
-    >>> q = p + Point(2,3,4)
+    >>> q = p + Point(2, 3, 4)
     >>> q.gettuple()
     (3.0, 5.0, 7.0)
     >>> p.gettuple()

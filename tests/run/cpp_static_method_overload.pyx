@@ -25,13 +25,13 @@ extern from *:
     """
     cppclass Foo:
         @staticmethod
-        const char* bar(int x)
+        const char* bar(i32 x)
 
         @staticmethod
-        const char* bar(int x, int y)
+        const char* bar(i32 x, i32 y)
 
-        const char* baz(int x)
-        const char* baz(int x, int y)
+        const char* baz(i32 x)
+        const char* baz(i32 x, i32 y)
 
 def test_normal_method_overload():
     """

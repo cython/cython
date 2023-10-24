@@ -54,9 +54,9 @@ extern from "<sys/time.h>" nogil:
 
     int nanosleep(const timespec *, timespec *)
 
-    int getitimer(int, itimerval *)
+    int getitimer(i32, itimerval *)
     int gettimeofday(timeval *tp, timezone *tzp)
-    int setitimer(int, const itimerval *, itimerval *)
+    int setitimer(i32, const itimerval *, itimerval *)
 
     int clock_getcpuclockid(pid_t, clockid_t *)
     int clock_getres(clockid_t, timespec *)

@@ -33,12 +33,12 @@ def used(x, y):
 
 def unused_and_unassigned():
     let object foo
-    let int i
+    let i32 i
 
 def unused_generic(*args, **kwargs):
     pass
 
-def unused_in_closure(a,b,c):
+def unused_in_closure(a, b, c):
     x = 1
     def inner():
         nonlocal c
@@ -59,8 +59,8 @@ _ERRORS = """
 36:12: Unused entry 'i'
 38:20: Unused argument 'args'
 38:28: Unused argument 'kwargs'
-41:26: Unused argument 'c'
-41:26: Unused entry 'c'
+41:28: Unused argument 'c'
+41:28: Unused entry 'c'
 42:4: Unused entry 'x'
 46:8: Unused entry 'y'
 """

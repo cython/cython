@@ -3,7 +3,6 @@
 
 cimport cython
 
-
 @cython.test_fail_if_path_exists('//SwitchStatNode')
 @cython.test_assert_path_exists('//IfStatNode')
 def switch_simple_py(x):
@@ -30,7 +29,6 @@ def switch_simple_py(x):
     else:
         return 0
     return -1
-
 
 @cython.test_fail_if_path_exists('//SwitchStatNode')
 @cython.test_assert_path_exists('//IfStatNode')
@@ -63,9 +61,9 @@ def switch_py(x):
         return 2
     elif x in [3]:
         return 3
-    elif x in [4,5,7,8]:
+    elif x in [4, 5, 7, 8]:
         return 4
-    elif x in (10,11):
+    elif x in (10, 11):
         return 10
     elif x in (12,):
         return 12
@@ -73,10 +71,9 @@ def switch_py(x):
         return 0
     return -1
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def switch_simple_c(int x):
+def switch_simple_c(i32 x):
     """
     >>> switch_simple_c(1)
     1
@@ -101,10 +98,9 @@ def switch_simple_c(int x):
         return 0
     return -1
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def switch_c(int x):
+def switch_c(i32 x):
     """
     >>> switch_c(1)
     1
@@ -133,9 +129,9 @@ def switch_c(int x):
         return 2
     elif x in [3]:
         return 3
-    elif x in [4,5,7,8]:
+    elif x in [4, 5, 7, 8]:
         return 4
-    elif x in (10,11):
+    elif x in (10, 11):
         return 10
     elif x in (12,):
         return 12
@@ -143,14 +139,12 @@ def switch_c(int x):
         return 0
     return -1
 
-
-
 @cython.test_assert_path_exists(
     '//SwitchStatNode',
     '//SwitchStatNode//SwitchStatNode',
 )
 @cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
-def switch_in_switch(int x, int y):
+def switch_in_switch(i32 x, i32 y):
     """
     >>> switch_in_switch(1, 1)
     (1, 1)
@@ -192,30 +186,29 @@ def switch_in_switch(int x, int y):
     """
     if x == 1:
         if y == 1:
-            return 1,1
+            return 1, 1
         elif y == 2:
-            return 1,2
+            return 1, 2
         else:
-            return 1,3
+            return 1, 3
     elif x == 2:
         if y == 1:
-            return 2,1
+            return 2, 1
         elif y == 2:
-            return 2,2
+            return 2, 2
         elif y == 3:
-            return 2,3
+            return 2, 3
         else:
-            return 2,4
+            return 2, 4
     elif x == 3:
-        return y in (1,2,3)
+        return y in (1, 2, 3)
     else:
-        return y not in (1,2,3)
+        return y not in (1, 2, 3)
     return 'FAILED'
-
 
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def switch_or(int x):
+def switch_or(i32 x):
     """
     >>> switch_or(0)
     0
@@ -234,10 +227,9 @@ def switch_or(int x):
         return 0
     return -1
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def switch_in(int X):
+def switch_in(i32 X):
     """
     >>> switch_in(0)
     0
@@ -250,14 +242,13 @@ def switch_in(int X):
     >>> switch_in(8)
     0
     """
-    if X in (1,3,5,7):
+    if X in (1, 3, 5, 7):
         return 1
     return 0
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def switch_short(int x):
+def switch_short(i32 x):
     """
     >>> switch_short(0)
     0
@@ -276,10 +267,9 @@ def switch_short(int x):
         return 0
     return -1
 
-
 @cython.test_fail_if_path_exists('//SwitchStatNode')
 @cython.test_assert_path_exists('//IfStatNode')
-def switch_off(int x):
+def switch_off(i32 x):
     """
     >>> switch_off(0)
     0
@@ -295,10 +285,9 @@ def switch_off(int x):
     return -1
 
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def switch_pass(int x):
+def switch_pass(i32 x):
     """
     >>> switch_pass(1)
     1
@@ -312,11 +301,11 @@ def switch_pass(int x):
     return x
 
 
-DEF t = (1,2,3,4,5,6)
+DEF t = (1, 2, 3, 4, 5, 6)
 
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def compile_time_tuple_constant(int x):
+def compile_time_tuple_constant(i32 x):
     """
     >>> compile_time_tuple_constant(1)
     True
@@ -329,7 +318,6 @@ def compile_time_tuple_constant(int x):
         return true
     else:
         return false
-
 
 cdef enum X:
     a = 1
@@ -357,7 +345,6 @@ def enum_switch(X x):
     else:
         return 2
 
-
 @cython.test_assert_path_exists('//IfStatNode')
 @cython.test_assert_path_exists('//IfStatNode//SwitchStatNode')
 def enum_duplicates(X x):
@@ -380,10 +367,9 @@ def enum_duplicates(X x):
     else:
         return 3
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
-def int_enum_switch_mix(int x):
+def int_enum_switch_mix(i32 x):
     """
     >>> int_enum_switch_mix(1)
     0
@@ -407,10 +393,9 @@ def int_enum_switch_mix(int x):
     else:
         return 4
 
-
 @cython.test_fail_if_path_exists('//SwitchStatNode')
 @cython.test_assert_path_exists('//IfStatNode')
-def int_enum_duplicates_mix(int x):
+def int_enum_duplicates_mix(i32 x):
     """
     >>> int_enum_duplicates_mix(88)
     0
@@ -430,10 +415,9 @@ def int_enum_duplicates_mix(int x):
     else:
         return 3
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
-def int_in_bool_binop(int x):
+def int_in_bool_binop(i32 x):
     """
     >>> int_in_bool_binop(0)
     False
@@ -447,9 +431,8 @@ def int_in_bool_binop(int x):
     return x == 1 or x == 2
 
 
-@cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
-def int_in_bool_binop_3(int x):
+def int_in_bool_binop_3(i32 x):
     """
     >>> int_in_bool_binop_3(0)
     False

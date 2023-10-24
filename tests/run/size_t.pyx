@@ -17,7 +17,7 @@ Traceback (most recent call last):
     ...
 OverflowError: ...
 
->>> a = A(1,2)
+>>> a = A(1, 2)
 >>> a.a == 1
 True
 >>> a.b == 2
@@ -35,7 +35,7 @@ OverflowError: ...
 
 # XXX This should generate a warning !!!
 extern from *:
-    ctypedef u64 size_t
+    ctypedef u64 usize
 
 def test(usize i):
     return i

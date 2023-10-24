@@ -5,4 +5,4 @@ fn void foo():
     i = j = c
     a = b = k
     (a, b), c = (d, e), f = (x, y), z
-#	a, b = p, q = x, y
+#    a, b = p, q = x, y

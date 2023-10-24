@@ -76,7 +76,7 @@ extern from *:
     object PyErr_Format(exc, const char *format, ...)
 
 @cname("{{cname}}")
-fn int {{cname}}(object o, {{base_type}} *v, isize length) except -1:
+fn i32 {{cname}}(object o, {{base_type}} *v, isize length) except -1:
     cdef isize i = length
     try:
         i = len(o)

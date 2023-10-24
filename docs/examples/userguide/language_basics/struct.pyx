@@ -3,5 +3,5 @@ cdef struct Grail:
     f32 volume
 
 def main():
-    cdef Grail grail = Grail(5, 3.0)
+    let Grail grail = Grail(5, 3.0)
     print(grail.age, grail.volume)

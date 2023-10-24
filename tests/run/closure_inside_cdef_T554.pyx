@@ -37,6 +37,6 @@ def closure_in_int():
     add_gen_int(l)
     return l[0]
 
-fn int add_gen_int(l):
+fn i32 add_gen_int(l):
     x = "abc"
     l.append((c for c in x))

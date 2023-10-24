@@ -11,13 +11,13 @@ cimport cython
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
-def swap(a,b):
+def swap(a, b):
     """
-    >>> swap(1,2)
+    >>> swap(1, 2)
     (2, 1)
     """
-    a,b = b,a
-    return a,b
+    a, b = b, a
+    return a, b
 
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
@@ -28,13 +28,13 @@ def swap(a,b):
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
-def swap5(a,b,c,d,e):
+def swap5(a, b, c, d, e):
     """
-    >>> swap5(1,2,3,4,5)
+    >>> swap5(1, 2, 3, 4, 5)
     (5, 4, 3, 2, 1)
     """
-    a,b,c,d,e = e,d,c,b,a
-    return a,b,c,d,e
+    a, b, c, d, e = e, d, c, b, a
+    return a, b, c, d, e
 
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
@@ -46,15 +46,15 @@ def swap5(a,b,c,d,e):
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=true]",
     )
 fn bint c_swap_cmp5(a, b, c, d, e):
-    a,b,c,d,e = e,d,c,b,a
+    a, b, c, d, e = e, d, c, b, a
     return a > b > c > d > e
 
-def swap_cmp5(a,b,c,d,e):
+def swap_cmp5(a, b, c, d, e):
     """
-    >>> swap_cmp5(1,2,3,4,5)
+    >>> swap_cmp5(1, 2, 3, 4, 5)
     True
     """
-    return c_swap_cmp5(a,b,c,d,e)
+    return c_swap_cmp5(a, b, c, d, e)
 
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
@@ -65,13 +65,13 @@ def swap_cmp5(a,b,c,d,e):
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=False]",
     )
-def swap_py(a,b):
+def swap_py(a, b):
     """
-    >>> swap_py(1,2)
+    >>> swap_py(1, 2)
     (1, 2)
     """
     a,a = b,a
-    return a,b
+    return a, b
 
 cdef class A:
     cdef readonly object x
@@ -93,10 +93,10 @@ cdef class A:
     )
 def swap_attr_values(A a, A b):
     """
-    >>> a, b = A(1,2), A(3,4)
+    >>> a, b = A(1, 2), A(3, 4)
     >>> a.x, a.y, b.x, b.y
     (1, 2, 3, 4)
-    >>> swap_attr_values(a,b)
+    >>> swap_attr_values(a, b)
     >>> a.x, a.y, b.x, b.y
     (3, 2, 1, 4)
     """
@@ -124,12 +124,12 @@ cdef class B:
     )
 def swap_recursive_attr_values(B a, B b):
     """
-    >>> a, b = B(1,2,3,4), B(5,6,7,8)
+    >>> a, b = B(1, 2, 3, 4), B(5, 6, 7, 8)
     >>> a.a1.x, a.a1.y, a.a2.x, a.a2.y
     (1, 2, 3, 4)
     >>> b.a1.x, b.a1.y, b.a2.x, b.a2.y
     (5, 6, 7, 8)
-    >>> swap_recursive_attr_values(a,b)
+    >>> swap_recursive_attr_values(a, b)
     >>> a.a1.x, a.a1.y, a.a2.x, a.a2.y
     (2, 1, 4, 4)
     >>> b.a1.x, b.a1.y, b.a2.x, b.a2.y
@@ -142,7 +142,7 @@ def swap_recursive_attr_values(B a, B b):
     >>> class B:
     ...     def __init__(self, x1, y1, x2, y2):
     ...         self.a1, self.a2 = A(x1, y1), A(x2, y2)
-    >>> a, b = B(1,2,3,4), B(5,6,7,8)
+    >>> a, b = B(1, 2, 3, 4), B(5, 6, 7, 8)
     >>> a.a1, a.a2 = a.a2, a.a1
     >>> b.a1, b.a2 = b.a2, b.a1
     >>> a.a1, a.a1.x, a.a2.y, a.a2, a.a1.y, a.a2.x = a.a2, a.a2.y, a.a1.x, a.a1, a.a2.x, a.a1.y
@@ -166,9 +166,9 @@ def swap_recursive_attr_values(B a, B b):
 @cython.test_fail_if_path_exists(
 #    "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=true]",
     )
-def swap_list_items(list a, int i, int j):
+def swap_list_items(list a, i32 i, i32 j):
     """
-    >>> l = [1,2,3,4]
+    >>> l = [1, 2, 3, 4]
     >>> swap_list_items(l, 1, 2)
     >>> l
     [1, 3, 2, 4]
@@ -192,7 +192,7 @@ def swap_list_items(list a, int i, int j):
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=False]",
     )
-def swap_list_items_py1(list a, int i, int j):
+def swap_list_items_py1(list a, i32 i, i32 j):
     a[i], a[j] = a[j+1], a[i]
 
 @cython.test_assert_path_exists(
@@ -204,5 +204,5 @@ def swap_list_items_py1(list a, int i, int j):
 @cython.test_fail_if_path_exists(
     "//ParallelAssignmentNode/SingleAssignmentNode//IndexNode[@use_managed_ref=False]",
     )
-def swap_list_items_py2(list a, int i, int j):
+def swap_list_items_py2(list a, i32 i, i32 j):
     a[i], a[j] = a[i], a[i]

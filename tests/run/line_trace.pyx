@@ -30,7 +30,8 @@ map_trace_types = {
     PyTrace_C_RETURN:    'cret',
 }.get
 
-fn int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* _arg) except -1:
+
+fn i32 trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, i32 what, PyObject* _arg) except -1:
     """
     This is (more or less) what CPython does in sysmodule.c, function trace_trampoline().
     """
@@ -135,7 +136,7 @@ def cy_add(a, b):
     return x      # 2
 
 def cy_add_with_nogil(a, b):
-    let int z, x=a, y=b         # 1
+    let i32 z, x=a, y=b         # 1
     with nogil:                  # 2
         z = 0                    # 3
         z += cy_add_nogil(x, y)  # 4
@@ -145,7 +146,7 @@ def global_name(global_name):
     # See GH #1836: accessing "frame.f_locals" deletes locals from globals dict.
     return global_name + 321
 
-fn int cy_add_nogil(int a, int b) except -1 nogil:
+fn i32 cy_add_nogil(i32 a, i32 b) except -1 nogil:
     x = a + b   # 1
     return x    # 2
 
@@ -159,11 +160,11 @@ def cy_try_except(func):
 # https://github.com/python/cpython/issues/94381
 plain_python_functions = {}
 exec("""
-def py_add(a,b):
+def py_add(a, b):
     x = a+b
     return x
 
-def py_add_with_nogil(a,b):
+def py_add_with_nogil(a, b):
     x=a; y=b                     # 1
     for _ in range(1):           # 2
         z = 0                    # 3
@@ -362,7 +363,7 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     >>> result[5:]  # py
     [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0)]
     """
-    let int x = 1
+    let i32 x = 1
     trace = ['NO ERROR']
     exception = None
     trace_func = _create__failing_line_trace_func(trace)

@@ -9,4 +9,4 @@ def main():
     finally:
         del rec_ptr  # delete heap allocated object
 
-    cdef Rectangle rec_stack  # Instantiate a Rectangle object on the stack
+    let Rectangle rec_stack  # Instantiate a Rectangle object on the stack

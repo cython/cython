@@ -10,7 +10,7 @@ def mixed_test():
     >>> mixed_test()
     (-1, -1)
     """
-    let int int1, int2, int3
+    let i32 int1, int2, int3
     obj1 = 1
     obj2 = 2
     obj3 = 3
@@ -27,7 +27,7 @@ def pointer_test():
     >>> pointer_test()
     0
     """
-    let int int1, int2, int3
+    let i32 int1, int2, int3
     let char *ptr1, *ptr2, *ptr3
     int2 = 2
     int3 = 3

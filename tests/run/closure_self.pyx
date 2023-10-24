@@ -1,7 +1,7 @@
 # mode: run
 # tag: closures
 cdef class Test:
-    cdef int x
+    cdef i32 x
 
 cdef class SelfInClosure(object):
     cdef Test _t

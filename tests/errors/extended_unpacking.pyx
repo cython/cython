@@ -21,15 +21,15 @@ def syntax1():
 
 
 def syntax2():
-    list_of_sequences = [[1,2], [3,4]]
+    list_of_sequences = [[1, 2], [3, 4]]
 
-    for *a,*b in list_of_sequences:
+    for *a, *b in list_of_sequences:
         pass
 
 
 def types(l):
-    let int a,b
-    a, *b = (1,2,3,4)
+    let i32 a, b
+    a, *b = (1, 2, 3, 4)
     a, *b = l
 
 
@@ -41,9 +41,9 @@ _ERRORS = u"""
 14: 4: starred expression is not allowed here
 
 # syntax2()
-26:11: more than 1 starred expression in assignment
+26:12: more than 1 starred expression in assignment
 
 # types()
-32:15: Cannot coerce list to type 'int'
+32:16: Cannot coerce list to type 'int'
 33:8: starred target must have Python object (list) type
 """

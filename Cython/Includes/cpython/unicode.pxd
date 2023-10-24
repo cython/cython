@@ -38,7 +38,7 @@ extern from *:
     Py_UCS4 PyUnicode_READ(i32 kind, void *data, isize index)
     Py_UCS4 PyUnicode_READ_CHAR(object o, isize index)
 
-    unsigned int PyUnicode_KIND(object o)
+    u32 PyUnicode_KIND(object o)
     void *PyUnicode_DATA(object o)
 
     # Return the size of the object's internal buffer in bytes. o has
@@ -134,7 +134,7 @@ extern from *:
     unicode PyUnicode_FromString(const char *u)
 
     unicode PyUnicode_New(isize size, Py_UCS4 maxchar)
-    unicode PyUnicode_FromKindAndData(int kind, const void *buffer, isize size)
+    unicode PyUnicode_FromKindAndData(i32 kind, const void *buffer, isize size)
     unicode PyUnicode_FromFormat(const char *format, ...)
     isize PyUnicode_GetLength(object unicode) except -1
     isize PyUnicode_CopyCharacters(object to, isize to_start, object from_, isize from_start, isize how_many) except -1
@@ -179,7 +179,7 @@ extern from *:
     # following functions. Support is optimized if Python's own
     # Py_UNICODE type is identical to the system's wchar_t.
 
-    #ctypedef int wchar_t
+    #ctypedef i32 wchar_t
 
     # Create a Unicode object from the wchar_t buffer w of the given
     # size. Return NULL on failure.
@@ -247,7 +247,7 @@ extern from *:
     # the first match; a value of -1 indicates that no match was found, and
     # -2 indicates that an error occurred and an exception has been set.
     # New in version 3.3.
-    isize PyUnicode_FindChar(object str, Py_UCS4 ch, isize start, isize end, int direction) except -2
+    isize PyUnicode_FindChar(object str, Py_UCS4 ch, isize start, isize end, i32 direction) except -2
 
     # Return the number of non-overlapping occurrences of substr in
     # str[start:end]. Return -1 if an error occurred.

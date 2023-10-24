@@ -1,2 +1,2 @@
 cdef class C:
-	cdef void f(self)
+    fn void f(self)

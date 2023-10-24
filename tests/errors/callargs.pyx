@@ -3,7 +3,7 @@
 def f(*args, **kwargs):
     pass
 
-args   = (1,2,3)
+args   = (1, 2, 3)
 kwargs = {u"test" : "toast"}
 
 def test():

@@ -40,7 +40,7 @@ def test_fast_access(a):
     
     let array.array ca = a
     
-    let float value
+    let f32 value
     with nogil:
         value = ca.data.as_floats[1]
     assert value == 2.0, value
@@ -60,7 +60,7 @@ def test_fast_buffer_access(a):
     
     let array.array[float] ca = a
     
-    let float value
+    let f32 value
     with nogil:
         value = ca[1]
     assert value == 2.0, value
@@ -138,7 +138,7 @@ def test_view():
     >>> test_view()
     """
     let object a = array.array('i', [1, 2, 3])
-    let int[:] ca = a
+    let i32[:] ca = a
     assert ca[0] == 1
     assert ca[2] == 3
 
@@ -147,7 +147,7 @@ def test_view_typed():
     >>> test_view_typed()
     """
     let array.array a = array.array('i', [1, 2, 3])
-    let int[:] ca = a
+    let i32[:] ca = a
     assert ca[0] == 1
     assert ca[2] == 3
 
@@ -184,7 +184,7 @@ def test_extend_buffer():
     array('l', [15, 37, 389, 5077])
     """
     let array.array ca = array.array('l', [15, 37])
-    let long[2] s
+    let i64[2] s
     s[0] = 389
     s[1] = 5077
     array.extend_buffer(ca, <char*> &s, 2)

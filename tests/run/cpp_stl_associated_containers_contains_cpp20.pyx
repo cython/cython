@@ -15,7 +15,7 @@ def test_map_contains(vals, int key_to_find):
     >>> test_map_contains([(1,100),(2,200),(3,300)], 4)
     False
     """
-    let map[int,int] m = map[int, int]()
+    let map[i32, i32] m = map[i32, i32]()
     for v in vals:
         m.insert(v)
     return m.contains(key_to_find)
@@ -27,7 +27,7 @@ def test_unordered_map_contains(vals, int key_to_find):
     >>> test_unordered_map_contains([(1,100),(2,200),(3,300)], 4)
     False
     """
-    let unordered_map[int,int] um = unordered_map[int, int]()
+    let unordered_map[i32, i32] um = unordered_map[i32, i32]()
     for v in vals:
         um.insert(v)
     return um.contains(key_to_find)
@@ -39,7 +39,7 @@ def test_multimap_contains(vals, int key_to_find):
     >>> test_multimap_contains([(1,100),(2,200),(3,300)], 4)
     False
     """
-    let multimap[int,int] mm = multimap[int, int]()
+    let multimap[i32, i32] mm = multimap[i32, i32]()
     for v in vals:
         mm.insert(v)
     return mm.contains(key_to_find)
@@ -51,7 +51,7 @@ def test_unordered_multimap_contains(vals, int key_to_find):
     >>> test_unordered_multimap_contains([(1,100),(2,200),(3,300)], 4)
     False
     """
-    let unordered_multimap[int,int] umm = unordered_multimap[int, int]()
+    let unordered_multimap[i32, i32] umm = unordered_multimap[i32, i32]()
     for v in vals:
         umm.insert(v)
     return umm.contains(key_to_find)

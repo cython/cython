@@ -1,5 +1,5 @@
 cdef class Parrot:
-	cdef void describe(self)
+    fn void describe(self)
 
 cdef class Norwegian(Parrot):
-	pass
+    pass

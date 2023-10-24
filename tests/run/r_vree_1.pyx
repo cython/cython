@@ -9,12 +9,12 @@ if sys.version_info[0] < 3:
 
     >>> sys.maxint + 1 > sys.maxint
     True
-    >>> type(sys.maxint * 2 + 1) is long
+    >>> type(sys.max(i32 *) 2 + 1) is long
     True
 
     >>> test(sys.maxint + 1) == sys.maxint + 1
     True
-    >>> test(sys.maxint * 2 + 1) == sys.maxint * 2 + 1
+    >>> test(sys.max(i32 *) 2 + 1) == sys.max(i32 *) 2 + 1
     True
 
     >>> test(256 ** unsigned_long_size() - 1) > 0

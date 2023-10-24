@@ -5,7 +5,7 @@ cimport cython
 from cython import fused_type
 
 # This is all invalid
-# ctypedef foo(int) dtype1
+# ctypedef foo(i32) dtype1
 # ctypedef foo.bar(float) dtype2
 # ctypedef fused_type(foo) dtype3
 dtype4 = cython.fused_type(i32, i64, kw=None)

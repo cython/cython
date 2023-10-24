@@ -9,7 +9,7 @@ from libcpp.iterator cimport back_inserter
 from libcpp cimport bool
 
 
-def is_sorted_ints(vector[int] values):
+def is_sorted_ints(vector[i32] values):
     """
     Test is_sorted.
 
@@ -21,7 +21,7 @@ def is_sorted_ints(vector[int] values):
     return is_sorted(seq, values.begin(), values.end())
 
 
-def sort_ints_reverse(vector[int] values):
+def sort_ints_reverse(vector[i32] values):
     """Test sort using a standard library comparison function object.
 
     >>> sort_ints_reverse([5, 7, 4, 2, 8, 6, 1, 9, 0, 3])
@@ -31,7 +31,7 @@ def sort_ints_reverse(vector[int] values):
     return values
 
 
-def count_ones(vector[int] values):
+def count_ones(vector[i32] values):
     """
     Test count.
 
@@ -41,13 +41,13 @@ def count_ones(vector[int] values):
     return count(seq, values.begin(), values.end(), 1)
 
 
-def copy_int(vector[int] values):
+def copy_int(vector[i32] values):
     """
     Test copy.
 
     >>> copy_int(range(5))
     [0, 1, 2, 3, 4]
     """
-    let vector[int] out
+    let vector[i32] out
     copy(seq, values.begin(), values.end(), back_inserter(out))
     return out

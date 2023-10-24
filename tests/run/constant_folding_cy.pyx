@@ -15,7 +15,7 @@ surrogates_ustring = u'abc\U00010000def'
     )
 def bytes_slicing2():
     """
-    >>> a,b,c,d = bytes_slicing2()
+    >>> a, b, c, d = bytes_slicing2()
     >>> a == bstring[:]
     True
     >>> b == bstring[2:]
@@ -38,7 +38,7 @@ def bytes_slicing2():
     )
 def unicode_slicing2():
     """
-    >>> a,b,c,d = unicode_slicing2()
+    >>> a, b, c, d = unicode_slicing2()
     >>> a == ustring[:]
     True
     >>> b == ustring[2:]

@@ -12,7 +12,7 @@ __doc__ = u"""
 """
 
 def test_record_subarray():
-    let np.ndarray x = py_numpy.zeros((2,2),
+    let np.ndarray x = py_numpy.zeros((2, 2),
                                        dtype=[('a', py_numpy.int32),
                                               ('b', py_numpy.float64, (3, 3))])
     let np.dtype descr   = x.dtype

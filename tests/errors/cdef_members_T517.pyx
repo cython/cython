@@ -9,7 +9,7 @@ cdef class Spam:
     pub           VoidP vp1
 
 ctypedef struct Foo:
-    int i
+    i32 i
 
 cdef class Bar:
     cdef          Foo foo0

@@ -3,7 +3,7 @@ import sys
 IS_PY3 = sys.version_info[0] >= 3
 
 __doc__ = """
->>> it = iter([1,2,3])
+>>> it = iter([1, 2, 3])
 >>> if not IS_PY3:
 ...     next = type(it).next
 >>> next(it)
@@ -43,7 +43,7 @@ def test_next_not_iterable(it):
 
 def test_single_next(it):
     """
-    >>> it = iter([1,2,3])
+    >>> it = iter([1, 2, 3])
     >>> test_single_next(it)
     1
     >>> test_single_next(it)
@@ -61,7 +61,7 @@ def test_single_next(it):
 
 def test_default_next(it, default):
     """
-    >>> it = iter([1,2,3])
+    >>> it = iter([1, 2, 3])
     >>> test_default_next(it, 99)
     1
     >>> test_default_next(it, 99)
@@ -77,7 +77,7 @@ def test_default_next(it, default):
 
 def test_next_override(it):
     """
-    >>> it = iter([1,2,3])
+    >>> it = iter([1, 2, 3])
     >>> test_next_override(it)
     1
     >>> test_next_override(it)

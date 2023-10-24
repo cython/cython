@@ -19,9 +19,9 @@ large_double_arr_2d = large_int_arr_2d.astype(np.double)
 # it's fairly hard to test that nogil results in the GIL actually
 # being released unfortunately
 @cython.ufunc
-fn double triple_it(long x) nogil:
+fn f64 triple_it(i64 x) nogil:
     """triple_it doc"""
-    return x*3.
+    return x * 3.
 
 def test_triple_it():
     """
@@ -41,8 +41,8 @@ def test_triple_it():
     """
 
 @cython.ufunc
-fn double to_the_power(double x, double y):
-    return x**y
+fn f64 to_the_power(f64 x, f64 y):
+    return x ** y
 
 def test_to_the_power():
     """
@@ -55,7 +55,7 @@ def test_to_the_power():
     """
 
 @cython.ufunc
-fn object py_return_value(double x):
+fn object py_return_value(f64 x):
     if x >= 0:
         return x
     # default returns None
@@ -71,7 +71,7 @@ def test_py_return_value():
     """
 
 @cython.ufunc
-fn double py_arg(object x):
+fn f64 py_arg(object x):
     return float(x)
 
 def test_py_arg():
@@ -82,11 +82,11 @@ def test_py_arg():
     """
 
 @cython.ufunc
-fn (double, long) multiple_return_values(long x):
+fn (f64, i64) multiple_return_values(i64 x):
     return x*1.5, x*2
 
 @cython.ufunc
-fn (double, long) multiple_return_values2(long x):
+fn (f64, i64) multiple_return_values2(i64 x):
     inefficient_tuple_intermediate = (x*1.5, x*2)
     return inefficient_tuple_intermediate
 
@@ -100,7 +100,7 @@ def test_multiple_return_values():
 
 @cython.ufunc
 fn cython.numeric plus_one(cython.numeric x):
-    return x+1
+    return x + 1
 
 def test_plus_one():
     """
@@ -122,23 +122,23 @@ def test_plus_one():
 # harm
 
 @cython.ufunc
-fn double return_stops_execution(double x):
+fn f64 return_stops_execution(f64 x):
     return x
     print "This should not happen"
 
 @cython.ufunc
-fn double return_in_if(double x):
-    if x<0:
+fn f64 return_in_if(f64 x):
+    if x < 0:
         return -x
     return x
 
 @cython.ufunc
-fn double nested_loops(double x):
-    let double counter=0
-    while x>counter:
-        counter+=10.
+fn f64 nested_loops(f64 x):
+    let f64 counter = 0
+    while x > counter:
+        counter += 10.
         for i in range(100):
-            if i>x:
+            if i > x:
                 return i
     return x-counter
 
@@ -157,9 +157,9 @@ def test_flow_control():
     """
 
 @cython.ufunc
-fn double nested_function(double x):
+fn f64 nested_function(f64 x):
     def f(x):
-        return x*2
+        return x * 2
     return f(x)
 
 def test_nested_function():
@@ -171,8 +171,8 @@ def test_nested_function():
     """
 
 @cython.ufunc
-fn double can_throw(double x):
-    if x<0:
+fn f64 can_throw(f64 x):
+    if x < 0:
         raise RuntimeError
     return x
 

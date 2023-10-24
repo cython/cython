@@ -6,23 +6,23 @@ from libcpp.vector cimport vector
 from libcpp cimport bool
 
 # Subtracts two integers.
-fn int subtract_integers(int lhs, int rhs):
+fn i32 subtract_integers(i32 lhs, i32 rhs):
     return lhs - rhs
 
 # Adds two integers.
-fn int add_integers(int lhs, int rhs):
+fn i32 add_integers(i32 lhs, i32 rhs):
     return lhs + rhs
 
 # Multiplies two integers.
-fn int multiply_integers(int lhs, int rhs):
+fn i32 multiply_integers(i32 lhs, i32 rhs):
     return lhs * rhs
 
 # Determines equality for two integers.
 # If lhs == rhs, returns true. Returns false otherwise.
-fn bool is_equal(int lhs, int rhs):
+fn bool is_equal(i32 lhs, i32 rhs):
     return lhs == rhs
 
-def test_inner_product(vector[int] v1, vector[int] v2, int init):
+def test_inner_product(vector[i32] v1, vector[i32] v2, i32 init):
     """
     Test inner_product with integer values.
     >>> test_inner_product([1, 2, 3], [1, 2, 3], 1)
@@ -31,7 +31,7 @@ def test_inner_product(vector[int] v1, vector[int] v2, int init):
     return inner_product(v1.begin(), v1.end(), v2.begin(), init)
 
 
-def test_inner_product_with_zero(vector[int] v1, vector[int] v2, int init):
+def test_inner_product_with_zero(vector[i32] v1, vector[i32] v2, i32 init):
     """
     Test inner_product with a zero value in the container.
     >>> test_inner_product_with_zero([1, 2, 0], [1, 1, 1], 0)
@@ -39,7 +39,7 @@ def test_inner_product_with_zero(vector[int] v1, vector[int] v2, int init):
     """
     return inner_product(v1.begin(), v1.end(), v2.begin(), init)
 
-def test_inner_product_with_bin_op(vector[int] v1, vector[int] v2, int init):
+def test_inner_product_with_bin_op(vector[i32] v1, vector[i32] v2, i32 init):
     """
     Test inner_product with two binary operations. In this case,
     Looks at number of pairwise matches between v1 and v2.
@@ -52,7 +52,7 @@ def test_inner_product_with_bin_op(vector[int] v1, vector[int] v2, int init):
     """
     return inner_product(v1.begin(), v1.end(), v2.begin(), init, add_integers, is_equal)
 
-def test_iota(vector[int] v, int value):
+def test_iota(vector[i32] v, i32 value):
     """
     Test iota with beginning value of 0.
     >>> test_iota(range(6), 0)
@@ -61,7 +61,7 @@ def test_iota(vector[int] v, int value):
     iota(v.begin(), v.end(), value)
     return v
 
-def test_iota_negative_init(vector[int] v, int value):
+def test_iota_negative_init(vector[i32] v, i32 value):
     """
     Test iota with a negative beginning value.
     >>> test_iota_negative_init(range(7), -4)
@@ -70,7 +70,7 @@ def test_iota_negative_init(vector[int] v, int value):
     iota(v.begin(), v.end(), value)
     return v
 
-def test_accumulate(vector[int] v, int init):
+def test_accumulate(vector[i32] v, i32 init):
     """
     Test accumulate.
      0 + 1 = 1
@@ -81,7 +81,7 @@ def test_accumulate(vector[int] v, int init):
     """
     return accumulate(v.begin(), v.end(), init)
 
-def test_accumulate_with_subtraction(vector[int] v, int init):
+def test_accumulate_with_subtraction(vector[i32] v, i32 init):
     """
     Test accumulate with subtraction. Note that accumulate is a fold-left operation.
      0 - 1 = -1
@@ -92,7 +92,7 @@ def test_accumulate_with_subtraction(vector[int] v, int init):
     """
     return accumulate(v.begin(), v.end(), init, subtract_integers)
 
-def test_adjacent_difference(vector[int] v):
+def test_adjacent_difference(vector[i32] v):
     """
     Test adjacent_difference with integer values.
     2 - 0,   -> 2
@@ -107,7 +107,7 @@ def test_adjacent_difference(vector[int] v):
     adjacent_difference(v.begin(), v.end(), v.begin())
     return v
 
-def test_adjacent_difference_with_bin_op(vector[int] v):
+def test_adjacent_difference_with_bin_op(vector[i32] v):
     """
     Test adjacent_difference with a binary operation.
     0 + 1 -> 1
@@ -121,7 +121,7 @@ def test_adjacent_difference_with_bin_op(vector[int] v):
     adjacent_difference(v.begin(), v.end(), v.begin(), add_integers)
     return v
 
-def test_partial_sum(vector[int] v):
+def test_partial_sum(vector[i32] v):
     """
     Test partial_sum with integer values.
     2 + 0   -> 2
@@ -136,7 +136,7 @@ def test_partial_sum(vector[int] v):
     partial_sum(v.begin(), v.end(), v.begin())
     return v
 
-def test_partial_sum_with_bin_op(vector[int] v):
+def test_partial_sum_with_bin_op(vector[i32] v):
     """
     Test partial_sum with a binary operation.
     Using multiply_integers, partial_sum will calculate the first 5 powers of 2.

@@ -1,4 +1,4 @@
-fn int tomato() except -1:
+fn i32 tomato() except -1:
     print "Entering tomato"
     raise Exception("Eject! Eject! Eject!")
     print "Leaving tomato"

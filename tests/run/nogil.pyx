@@ -9,7 +9,7 @@ except ImportError:
     from io import StringIO
 
 
-def test(int x):
+def test(i32 x):
     """
     >>> test(5)
     47
@@ -21,15 +21,15 @@ def test(int x):
         x = g(x)
     return x
 
-fn void f(int x) nogil:
-        cdef int y
-        y = x + 42
-        g(y)
+fn void f(i32 x) nogil:
+    let i32 y
+    y = x + 42
+    g(y)
 
-fn int g(int x) nogil:
-        cdef int y
-        y = x + 42
-        return y
+fn i32 g(i32 x) nogil:
+    let i32 y
+    y = x + 42
+    return y
 
 fn void release_gil_in_nogil() nogil:
     # This should generate valid code with/without the GIL
@@ -71,10 +71,10 @@ def test_get_gil_in_nogil():
     get_gil_in_nogil()
     get_gil_in_nogil2()
 
-fn int with_gil_func() except -1 with gil:
+fn i32 with_gil_func() except -1 with gil:
     raise Exception("error!")
 
-fn int nogil_func() except -1 nogil:
+fn i32 nogil_func() except -1 nogil:
     with_gil_func()
 
 def test_nogil_exception_propagation():
@@ -88,7 +88,7 @@ def test_nogil_exception_propagation():
         nogil_func()
 
 
-fn int write_unraisable() noexcept nogil:
+fn i32 write_unraisable() noexcept nogil:
     with gil:
         raise ValueError()
 
@@ -109,30 +109,30 @@ def test_unraisable():
     return stderr.getvalue().strip()
 
 
-fn int initialize_array() nogil:
-    let int[4] a = [1, 2, 3, 4]
+fn i32 initialize_array() nogil:
+    let i32[4] a = [1, 2, 3, 4]
     return a[0] + a[1] + a[2] + a[3]
 
-fn int copy_array() nogil:
-    let int[4] a
+fn i32 copy_array() nogil:
+    let i32[4] a
     a[:] = [0, 1, 2, 3]
     return a[0] + a[1] + a[2] + a[3]
 
-fn double copy_array2() nogil:
-    let double[4] x = [1.0, 3.0, 5.0, 7.0]
-    let double[4] y
+fn f64 copy_array2() nogil:
+    let f64[4] x = [1.0, 3.0, 5.0, 7.0]
+    let f64[4] y
     y[:] = x[:]
     return y[0] + y[1] + y[2] + y[3]
 
-fn double copy_array3() nogil:
-    let double[4] x = [2.0, 4.0, 6.0, 8.0]
-    let double[4] y
+fn f64 copy_array3() nogil:
+    let f64[4] x = [2.0, 4.0, 6.0, 8.0]
+    let f64[4] y
     y = x
     return y[0] + y[1] + y[2] + y[3]
 
-fn void copy_array_exception(int n) nogil:
-    let double[5] a = [1,2,3,4,5]
-    let double[6] b
+fn void copy_array_exception(i32 n) nogil:
+    let f64[5] a = [1, 2, 3, 4, 5]
+    let f64[6] b
     b[:n] = a
 
 def test_initalize_array():
@@ -179,7 +179,7 @@ def test_copy_array_exception_nogil(n):
         ...
     ValueError: Assignment to slice of wrong length, expected 5, got 20
     """
-    let int cn = n
+    let i32 cn = n
     with nogil:
         copy_array_exception(cn)
 

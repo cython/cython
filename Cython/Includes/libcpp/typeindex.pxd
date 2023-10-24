@@ -6,7 +6,7 @@ extern from "<typeindex>" namespace "std" nogil:
     cdef cppclass type_index:
         type_index(const type_info &)
         const char* name()
-        size_t hash_code()
+        usize hash_code()
         bool operator==(const type_index &)
         bool operator!=(const type_index &)
         bool operator<(const type_index &)

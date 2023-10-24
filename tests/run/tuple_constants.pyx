@@ -1,8 +1,8 @@
 
 cimport cython
 
-module_level_tuple = (1,2,3)
-second_module_level_tuple = (1,2,3)  # should be deduplicated to be the same as the first
+module_level_tuple = (1, 2, 3)
+second_module_level_tuple = (1, 2, 3)  # should be deduplicated to be the same as the first
 string_module_level_tuple = ("1", "2")
 string_module_level_tuple2 = ("1", "2")
 
@@ -18,7 +18,7 @@ def test_deduplicated_tuples():
     >>> test_deduplicated_tuples()
     """
     assert (module_level_tuple is second_module_level_tuple)
-    assert (module_level_tuple is (1,2,3))  # also deduplicated with a function tuple
+    assert (module_level_tuple is (1, 2, 3))  # also deduplicated with a function tuple
     assert (string_module_level_tuple is string_module_level_tuple2)
     assert (string_module_level_tuple is ("1", "2"))
 
@@ -103,7 +103,7 @@ def return_constant_tuple2():
     >>> return_constant_tuple2()
     (1, 2)
     """
-    return (1,2)
+    return (1, 2)
 
 
 def return_multiplied_constant_tuple(n):
@@ -146,7 +146,7 @@ def return_constant_tuple_strings():
 @cython.test_fail_if_path_exists("//TupleNode[@is_literal = false]")
 def return_constant_tuples_string_types():
     """
-    >>> a,b,c = return_constant_tuples_string_types()
+    >>> a, b, c = return_constant_tuples_string_types()
     >>> a is b
     False
     >>> a is c

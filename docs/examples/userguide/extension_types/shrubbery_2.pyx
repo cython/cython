@@ -1,6 +1,4 @@
- 
 from my_module cimport Shrubbery
-
 
 fn Shrubbery another_shrubbery(Shrubbery sh1):
     let Shrubbery sh2

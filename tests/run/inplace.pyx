@@ -1,6 +1,6 @@
 cimport cython
 
-def f(a,b):
+def f(a, b):
     """
     >>> str(f(5, 7))
     '29509034655744'
@@ -10,7 +10,7 @@ def f(a,b):
     a **= b
     return a
 
-def g(int a, int b):
+def g(i32 a, i32 b):
     """
     >>> g(13, 4)
     32
@@ -20,7 +20,7 @@ def g(int a, int b):
     a <<= b
     return a
 
-def h(double a, double b):
+def h(f64 a, f64 b):
     """
     >>> h(56, 7)
     105.0
@@ -38,7 +38,7 @@ def arrays():
     19
     """
     let char* buf = <char*>stdlib.malloc(10)
-    let int i = 2
+    let i32 i = 2
     let object j = 2
     buf[2] = 0
     buf[i] += 2
@@ -49,7 +49,7 @@ def arrays():
 
 cdef class A:
     let attr
-    let int attr2
+    let i32 attr2
     let char* buf
     def __init__(self):
         self.attr = 3
@@ -74,7 +74,7 @@ def attributes():
     print a.attr, a.attr2, b.attr
 
 def get_2(): return 2
-fn int identity(int value): return value
+fn i32 identity(i32 value): return value
 
 def smoketest():
     """
@@ -85,16 +85,15 @@ def smoketest():
     let A a = A()
     a.buf = buf
     a.buf[identity(1)] = 0
-    (a.buf + identity(4) - <int>(2*get_2() - 1))[get_2() - 2*identity(1)] += 10
+    (a.buf + identity(4) - <i32>(2*get_2() - 1))[get_2() - 2*identity(1)] += 10
     print a.buf[1]
     stdlib.free(buf)
-
 
 def side_effect(x):
     print u"side effect", x
     return x
 
-fn int c_side_effect(int x):
+fn i32 c_side_effect(i32 x):
     print u"c side effect", x
     return x
 
@@ -110,8 +109,8 @@ def test_side_effects():
     let object a = list(range(5))
     a[side_effect(1)] += 10
     a[c_side_effect(2)] += 100
-    let int i
-    let int[5] b
+    let i32 i
+    let i32[5] b
     for i from 0 <= i < 5:
         b[i] = i
     b[side_effect(3)] += 10
@@ -119,7 +118,7 @@ def test_side_effects():
     return a, [b[i] for i from 0 <= i < 5]
 
 @cython.cdivision(true)
-def test_inplace_cdivision(int a, int b):
+def test_inplace_cdivision(i32 a, i32 b):
     """
     >>> test_inplace_cdivision(13, 10)
     3
@@ -134,7 +133,7 @@ def test_inplace_cdivision(int a, int b):
     return a
 
 @cython.cdivision(false)
-def test_inplace_pydivision(int a, int b):
+def test_inplace_pydivision(i32 a, i32 b):
     """
     >>> test_inplace_pydivision(13, 10)
     3

@@ -27,13 +27,13 @@ fn void eggs():
 eggs()
 
 # enum interdependency
-cdef enum class Color(int):
+cdef enum class Color(i32):
     RED = 1
     GREEN = 2
 
-cdef enum class Color2(int):
-    RED = (<int> Color.RED)
-    GREEN = (<int> Color.GREEN)
+cdef enum class Color2(i32):
+    RED = (<i32>Color.RED)
+    GREEN = (<i32>Color.GREEN)
 
 # enum class as cdef class function parameter
 cdef class A:

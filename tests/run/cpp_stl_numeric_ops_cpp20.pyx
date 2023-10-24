@@ -3,21 +3,21 @@
 
 from libcpp.numeric cimport midpoint
 
-def test_midpoint_integer(int a, int b):
+def test_midpoint_integer(i32 a, i32 b):
     """
     Test midpoint for integer types
     >>> test_midpoint_integer(2, 6)
     4
     """
-    let int res = midpoint[int](a, b)
+    let i32 res = midpoint[int](a, b)
     return res
 
 
-def test_midpoint_float(float a, float b):
+def test_midpoint_float(f32 a, f32 b):
     """
     Test midpoint for float
     >>> test_midpoint_float(2, 6)
     4.0
     """
-    let float res = midpoint[float](a, b)
+    let f32 res = midpoint[float](a, b)
     return res

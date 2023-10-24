@@ -6,7 +6,7 @@ from libcpp.algorithm cimport make_heap, sort_heap
 from libcpp.vector cimport vector
 
 # XXX should use std::greater, but I don't know how to wrap that.
-fn inline bool greater(const int &x, const int &y):
+fn inline bool greater(const i32 &x, const i32 &y):
     return x > y
 
 def heapsort(l, bool reverse=false):
@@ -16,7 +16,7 @@ def heapsort(l, bool reverse=false):
     >>> heapsort([3, 5, 1, 0, 2, 4], reverse=true)
     [5, 4, 3, 2, 1, 0]
     """
-    let vector[int] v = l
+    let vector[i32] v = l
 
     if reverse:
         make_heap(v.begin(), v.end(), &greater)

@@ -28,7 +28,7 @@ def illegal_gil_usage():
 def foo(a):
     return a < 10
 
-def non_constant_condition(int x) -> i32:
+def non_constant_condition(i32 x) -> i32:
     let i32 res = x
     with nogil(x < 10):
         res = f_nogil(res)

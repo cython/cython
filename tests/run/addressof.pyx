@@ -1,10 +1,10 @@
-def f(int a):
+def f(i32 a):
     """
     >>> f(5)
     5
     """
-    let int i,j
-    let int *p
+    let i32 i, j
+    let i32 *p
     i = a
     p = &i
     j = p[0]

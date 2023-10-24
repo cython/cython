@@ -3,7 +3,7 @@
 # This only works reliably in Python2. In Python3 ints are variable-sized.
 # You get away with it for small ints but it's a bad idea
 
-cdef class MyInt(int):
+cdef class MyInt(i32):
     """
     >>> MyInt(2) == 2
     True
@@ -12,7 +12,7 @@ cdef class MyInt(int):
     """
     cdef readonly object attr
 
-cdef class MyInt2(int):
+cdef class MyInt2(i32):
     """
     >>> MyInt2(2) == 2
     True

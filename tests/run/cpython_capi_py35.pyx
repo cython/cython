@@ -7,7 +7,7 @@
 
 from cpython cimport mem
 
-fn short _assert_calloc(short* s, int n) except -1 with gil:
+fn short _assert_calloc(short* s, i32 n) except -1 with gil:
     """Assert array ``s`` of length ``n`` is zero and return 3."""
     assert not s[0] and not s[n - 1]
     s[0] += 1
@@ -21,7 +21,7 @@ def test_pycalloc():
     >>> test_pycalloc()
     3
     """
-    let short* s = <short*> mem.PyMem_Calloc(10, sizeof(short))
+    let i16* s = <short*> mem.PyMem_Calloc(10, sizeof(i16))
     if not s:
         raise MemoryError()
     try:
@@ -34,12 +34,12 @@ def test_pymalloc_raw():
     >>> test_pymalloc_raw()
     3
     """
-    let short i
-    let short* s
+    let i16 i
+    let i16* s
     let char* m
     let char* m2 = NULL
     with nogil:
-        s = <short*> mem.PyMem_RawCalloc(10, sizeof(short))
+        s = <short*> mem.PyMem_RawCalloc(10, sizeof(i16))
         if not s:
             raise MemoryError()
         try:

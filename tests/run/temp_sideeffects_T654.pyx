@@ -6,7 +6,7 @@
 
 arg_order = []
 
-fn int f():
+fn i32 f():
     arg_order.append(1)
     return 1
 
@@ -14,7 +14,7 @@ def g():
     arg_order.append(2)
     return 2
 
-fn call2(int x, object o):
+fn call2(i32 x, object o):
     return x, o
 
 def test_c_call():
@@ -36,7 +36,7 @@ fn redefine_global():
     x,X = X,2
     return x
 
-fn call3(object x1, int o, object x2):
+fn call3(object x1, i32 o, object x2):
     return (x1, o, x2)
 
 def test_global_redefine():

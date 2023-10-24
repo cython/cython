@@ -13,8 +13,8 @@ x = 3
 cdef int y
 
 cdef class Foo:
-    cdef int x
-    cdef int y
+    cdef i32 x
+    cdef i32 y
     def __init__(self, x):
         self.x = x
     def __str__(self):

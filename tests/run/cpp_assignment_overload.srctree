@@ -39,7 +39,7 @@ extern from "assign.cpp" nogil:
         wrapped_int()
         wrapped_int(long long val)
         wrapped_int& operator=(const wrapped_int &other)
-        wrapped_int& operator=(const long long &other)
+        wrapped_int& operator=(const i128 &other)
 
 
 ######## assignment_overload.pyx ########

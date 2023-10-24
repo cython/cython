@@ -1,6 +1,6 @@
 # ticket: t203
 
-fn int get_bound(int m):
+fn i32 get_bound(i32 m):
     print u"get_bound(%s)"%m
     return m
 
@@ -30,7 +30,7 @@ def for_from_range(a, b):
     range(-5, -10, 2)
     100
     """
-    let int i = 100
+    let i32 i = 100
     print u"range(%s)" % a
     for i in range(a):
         print u"at", i
@@ -42,7 +42,7 @@ def for_from_range(a, b):
         print u"at", i
     return i
 
-def for_from_bound_reassignment(int bound, int fake_bound):
+def for_from_bound_reassignment(i32 bound, int fake_bound):
     """
     >>> for_from_bound_reassignment(5, 1)
     at 0
@@ -52,13 +52,13 @@ def for_from_bound_reassignment(int bound, int fake_bound):
     at 4
     5
     """
-    let int i = 100
+    let i32 i = 100
     for i from 0 <= i < bound:
         print u"at", i
         bound = fake_bound
     return i
 
-def for_from_step_reassignment(int bound, int step, int fake_step):
+def for_from_step_reassignment(i32 bound, i32 step, int fake_step):
     """
     >>> for_from_step_reassignment(15, 5, 2)
     at 0
@@ -66,13 +66,13 @@ def for_from_step_reassignment(int bound, int step, int fake_step):
     at 10
     15
     """
-    let int i = 100
+    let i32 i = 100
     for i from 0 <= i < bound by step:
         print u"at", i
         step = fake_step
     return i
 
-def for_from_target_reassignment(int bound, int factor):
+def for_from_target_reassignment(i32 bound, i32 factor):
     """
     >>> for_from_target_reassignment(10, 2)
     at 0
@@ -81,13 +81,13 @@ def for_from_target_reassignment(int bound, int factor):
     at 7
     15
     """
-    let int i = 100
+    let i32 i = 100
     for i from 0 <= i < bound:
         print u"at", i
         i *= factor
     return i
 
-def for_from_py_target_reassignment(int bound, int factor):
+def for_from_py_target_reassignment(i32 bound, i32 factor):
     """
     >>> for_from_py_target_reassignment(10, 2)
     at 0
@@ -102,7 +102,7 @@ def for_from_py_target_reassignment(int bound, int factor):
         i *= factor
     return i
 
-def for_from_py_global_target_reassignment(int bound, int factor):
+def for_from_py_global_target_reassignment(i32 bound, i32 factor):
     """
     >>> for_from_py_global_target_reassignment(10, 2)
     at 0
@@ -117,7 +117,7 @@ def for_from_py_global_target_reassignment(int bound, int factor):
         g_var *= factor
     return g_var
 
-def for_in_target_reassignment(int bound, int factor):
+def for_in_target_reassignment(i32 bound, i32 factor):
     """
     >>> for_in_target_reassignment(10, 2)
     at 0
@@ -132,13 +132,13 @@ def for_in_target_reassignment(int bound, int factor):
     at 9
     18
     """
-    let int i = 100
+    let i32 i = 100
     for i in range(bound):
         print u"at", i
         i *= factor
     return i
 
-def test_func(int n):
+def test_func(i32 n):
     """
     >>> test_func(5)
     get_bound(5)
@@ -149,7 +149,7 @@ def test_func(int n):
     at 4
     5
     """
-    let int i = 100
+    let i32 i = 100
     for i from 0 <= i < get_bound(n):
         print u"at", i
     return i

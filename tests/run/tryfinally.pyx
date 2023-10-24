@@ -266,7 +266,7 @@ def try_return_cy():
     finally:
         return 2
 
-fn int try_return_c():
+fn i32 try_return_c():
     try:
         return 1
     finally:
@@ -279,7 +279,7 @@ def call_try_return_c():
     """
     return try_return_c()
 
-fn int try_return_with_exception():
+fn i32 try_return_with_exception():
     try:
         raise TypeError
     finally:

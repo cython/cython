@@ -1,4 +1,4 @@
-cpdef int myfunction(i32 x, i32 y=*)
+cpdef i32 myfunction(i32 x, i32 y=*)
 fn f64 _helper(f64 a)
 
 cdef class A:

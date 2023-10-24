@@ -19,7 +19,7 @@ except: pass
 try: return None
 finally: pass
 
-for i in (1,2):
+for i in (1, 2):
     return None
 
 while true:

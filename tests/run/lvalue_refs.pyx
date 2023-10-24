@@ -29,7 +29,7 @@ def test_lvalue_ref_assignment():
     assert bar[0] == &baz[0][0]
     assert bar[0][0] == bongle
 
-fn void assign_to_basic_reference(int& ref):
+fn void assign_to_basic_reference(i32& ref):
     ref = 123
 
 def test_assign_to_basic_ref():
@@ -37,7 +37,7 @@ def test_assign_to_basic_ref():
     >>> test_assign_to_basic_ref()
     123
     """
-    let int x=0
+    let i32 x=0
     assign_to_basic_reference(x)
     print x
 
@@ -49,6 +49,6 @@ def test_ref_used_for_indexing():
     >>> test_ref_used_for_indexing()
     'looked up correctly'
     """
-    let vector[int] idx = [1,2,3]
+    let vector[i32] idx = [1, 2, 3]
     d = {1: "looked up correctly", 2:"oops"}
     return d[idx[0]]

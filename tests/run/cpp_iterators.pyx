@@ -139,7 +139,7 @@ def test_custom_genexp():
 
 def test_iteration_over_heap_vector(L):
     """
-    >>> test_iteration_over_heap_vector([1,2])
+    >>> test_iteration_over_heap_vector([1, 2])
     [1, 2]
     """
     let i32 i
@@ -153,7 +153,7 @@ def test_iteration_over_heap_vector(L):
 
 def test_iteration_in_generator(vector[i32] vint):
     """
-    >>> list( test_iteration_in_generator([1,2]) )
+    >>> list( test_iteration_in_generator([1, 2]) )
     [1, 2]
     """
     for i in vint:

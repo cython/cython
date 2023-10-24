@@ -6,7 +6,7 @@ cimport cython
     '//AssertStatNode',
     '//AssertStatNode//RaiseStatNode',
 )
-def f(a, b, int i):
+def f(a, b, i32 i):
     """
     >>> f(1, 2, 1)
     >>> f(0, 2, 1)
@@ -20,10 +20,9 @@ def f(a, b, int i):
     AssertionError
     """
     assert a
-    assert a+b
+    assert a + b
     assert i
 
-
 @cython.test_assert_path_exists(
     '//AssertStatNode',
     '//AssertStatNode//RaiseStatNode',
@@ -41,7 +40,6 @@ def g(a, b):
     """
     assert a, b
 
-
 @cython.test_assert_path_exists(
     '//AssertStatNode',
     '//AssertStatNode//RaiseStatNode',
@@ -58,7 +56,6 @@ def g(a, b):
     AssertionError: (1, 2)
     """
     assert a, b
-
 
 @cython.test_assert_path_exists(
     '//AssertStatNode',
@@ -73,7 +70,6 @@ def assert_with_tuple_arg(a):
     AssertionError: (1, 2)
     """
     assert a, (1, 2)
-
 
 @cython.test_assert_path_exists(
     '//AssertStatNode',

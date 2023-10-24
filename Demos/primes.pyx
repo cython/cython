@@ -3,8 +3,8 @@
 print("starting")
 
 def primes(i32 kmax):
-    # cdef i32 n, k, i
-    cdef i32 p[1000]
+    # let i32 n, k, i
+    let i32 p[1000]
     result = []
     if kmax > 1000:
         kmax = 1000

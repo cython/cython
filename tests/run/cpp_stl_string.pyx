@@ -10,7 +10,7 @@ b_asdg = b'asdg'
 b_s = b's'
 
 
-fn int compare_to_asdf_ref(string& s) except -999:
+fn i32 compare_to_asdf_ref(string& s) except -999:
     return s.compare(b"asdf")
 
 def test_coerced_literal_ref():
@@ -21,7 +21,7 @@ def test_coerced_literal_ref():
     return compare_to_asdf_ref("asdf")
 
 
-fn int compare_to_asdf_const_ref(const string& s) except -999:
+fn i32 compare_to_asdf_const_ref(const string& s) except -999:
     return s.compare(b"asdf")
 
 def test_coerced_literal_const_ref():
@@ -32,7 +32,7 @@ def test_coerced_literal_const_ref():
     return compare_to_asdf_const_ref("asdf")
 
 
-fn int compare_to_asdf_const(const string s) except -999:
+fn i32 compare_to_asdf_const(const string s) except -999:
     return s.compare(b"asdf")
 
 def test_coerced_literal_const():
@@ -111,7 +111,7 @@ def test_pop_back(char *a):
     s.pop_back()
     return s
 
-def test_insert(char *a, char *b, int i):
+def test_insert(char *a, char *b, i32 i):
     """
     >>> test_insert('AAAA'.encode('ASCII'), 'BBBB'.encode('ASCII'), 2) == 'AABBBBAA'.encode('ASCII')
     True
@@ -128,7 +128,7 @@ def test_copy(char *a):
     """
     let string t = string(a)
     let char[6] buffer
-    let size_t length = t.copy(buffer, 4, 1)
+    let usize length = t.copy(buffer, 4, 1)
     buffer[length] = c'\0'
     return buffer
 
@@ -139,7 +139,7 @@ def test_find(char *a, char *b):
     """
     let string s = string(a)
     let string t = string(b)
-    let size_t i = s.find(t)
+    let usize i = s.find(t)
     return i
 
 def test_npos(char *a, char *b):
@@ -162,7 +162,7 @@ def test_clear():
     s.clear()
     return s.c_str()
 
-def test_erase(char *a, size_t pos=0, size_t count=npos):
+def test_erase(char *a, usize pos=0, usize count=npos):
     """
     >>> test_erase(b'abc') == b'' or test_erase(b'abc')
     True
@@ -270,7 +270,7 @@ def test_decode_sliced(char* a):
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_decode_sliced_negative(char* a):
     """
-    >>> a,b,c,d = test_decode_sliced_negative(b_asdf)
+    >>> a, b, c, d = test_decode_sliced_negative(b_asdf)
     >>> print(a)
     sd
     >>> print(b)
@@ -287,7 +287,7 @@ def test_decode_sliced_negative(char* a):
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_decode_sliced_end(char* a):
     """
-    >>> a,b = test_decode_sliced_end(b_asdf)
+    >>> a, b = test_decode_sliced_end(b_asdf)
     >>> print(a)
     asd
     >>> print(b)
@@ -300,7 +300,7 @@ def test_decode_sliced_end(char* a):
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_decode_sliced_end_negative(char* a):
     """
-    >>> a,b,c = test_decode_sliced_end_negative(b_asdf)
+    >>> a, b, c = test_decode_sliced_end_negative(b_asdf)
     >>> print(a)
     asd
     >>> print(b)
@@ -325,7 +325,7 @@ def test_decode_sliced_start(char* a):
 @cython.test_fail_if_path_exists("//AttributeNode")
 def test_decode_sliced_start_negative(char* a):
     """
-    >>> a,b = test_decode_sliced_start_negative(b_asdf)
+    >>> a, b = test_decode_sliced_start_negative(b_asdf)
     >>> print(a)
     df
     >>> print(b)
@@ -384,9 +384,9 @@ def test_to_string(x):
     >>> print(test_to_string(-5))
     si=-5 sl=-5 ss=5 sss=-5
     """
-    si = to_string(<int>x).decode('ascii')
-    sl = to_string(<long>x).decode('ascii')
-    ss = to_string(<size_t>abs(x)).decode('ascii')
+    si = to_string(<i32>x).decode('ascii')
+    sl = to_string(<i64>x).decode('ascii')
+    ss = to_string(<usize>abs(x)).decode('ascii')
     sss = to_string(<ssize_t>x).decode('ascii')
     return f"si={si} sl={sl} ss={ss} sss={sss}"
 
@@ -413,9 +413,9 @@ def test_to_string(x):
     >>> print(test_to_string(-5))
     si=-5 sl=-5 ss=5 sss=-5
     """
-    si = to_string(<int>x).decode('ascii')
-    sl = to_string(<long>x).decode('ascii')
-    ss = to_string(<size_t>abs(x)).decode('ascii')
+    si = to_string(<i32>x).decode('ascii')
+    sl = to_string(<i64>x).decode('ascii')
+    ss = to_string(<usize>abs(x)).decode('ascii')
     sss = to_string(<ssize_t>x).decode('ascii')
     return f"si={si} sl={sl} ss={ss} sss={sss}"
 

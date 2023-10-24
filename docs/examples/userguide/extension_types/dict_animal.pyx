@@ -5,6 +5,5 @@ cdef class Animal:
     def __init__(self, i32 number_of_legs):
         self.number_of_legs = number_of_legs
 
-
 dog = Animal(4)
-dog.has_tail = True
+dog.has_tail = true

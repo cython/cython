@@ -8,7 +8,7 @@ extern from "<queue>" namespace "std" nogil:
         T& front()
         void pop()
         void push(T&)
-        size_t size()
+        usize size()
         # C++11 methods
         void swap(queue&)
 
@@ -19,7 +19,7 @@ extern from "<queue>" namespace "std" nogil:
         bint empty()
         void pop()
         void push(T&)
-        size_t size()
+        usize size()
         T& top()
         # C++11 methods
         void swap(priority_queue&)

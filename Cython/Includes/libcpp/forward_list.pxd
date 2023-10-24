@@ -6,7 +6,7 @@ extern from "<forward_list>" namespace "std" nogil:
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
         # but cython doesn't support deferred access on template arguments
-        ctypedef size_t size_type
+        ctypedef usize size_type
         ctypedef ptrdiff_t difference_type
 
         cppclass iterator:
@@ -14,14 +14,14 @@ extern from "<forward_list>" namespace "std" nogil:
             iterator(iterator &)
             T& operator*()
             iterator operator++()
-            iterator operator++(int)
+            iterator operator++(i32)
             bint operator==(iterator)
             bint operator!=(iterator)
         cppclass const_iterator(iterator):
             pass
         forward_list() except +
         forward_list(forward_list&) except +
-        forward_list(size_t, T&) except +
+        forward_list(usize, T&) except +
         #forward_list& operator=(forward_list&)
         bint operator==(forward_list&, forward_list&)
         bint operator!=(forward_list&, forward_list&)
@@ -29,7 +29,7 @@ extern from "<forward_list>" namespace "std" nogil:
         bint operator>(forward_list&, forward_list&)
         bint operator<=(forward_list&, forward_list&)
         bint operator>=(forward_list&, forward_list&)
-        void assign(size_t, T&)
+        void assign(usize, T&)
         T& front()
         iterator before_begin()
         const_iterator const_before_begin "before_begin"()
@@ -38,16 +38,16 @@ extern from "<forward_list>" namespace "std" nogil:
         iterator end()
         const_iterator const_end "end"()
         bint empty()
-        size_t max_size()
+        usize max_size()
         void clear()
         iterator insert_after(iterator, T&)
-        void insert_after(iterator, size_t, T&)
+        void insert_after(iterator, usize, T&)
         iterator erase_after(iterator)
         iterator erase_after(iterator, iterator)
         void push_front(T&)
         void pop_front()
-        void resize(size_t)
-        void resize(size_t, T&)
+        void resize(usize)
+        void resize(usize, T&)
         void swap(forward_list&)
         void merge(forward_list&)
         void merge[Compare](forward_list&, Compare)

@@ -10,8 +10,8 @@ def test_fp_classif():
     >>> test_fp_classif()
     """
 
-    let double d_zero
-    let float f_zero
+    let f64 d_zero
+    let f32 f_zero
 
     d_zero = -1 * 0.
     f_zero = -1 * 0.

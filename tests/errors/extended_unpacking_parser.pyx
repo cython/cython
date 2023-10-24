@@ -3,7 +3,7 @@
 # wrong size RHS (as handled by the parser)
 
 def length1():
-    a, b = [1,2,3]
+    a, b = [1, 2, 3]
 
 def length2():
     a, b = [1]
@@ -19,7 +19,7 @@ def length5():
     a, *b, c = [1]
 
 def length_recursive():
-    *(a, b), c  = (1,2)
+    *(a, b), c  = (1, 2)
 
 
 _ERRORS = u"""

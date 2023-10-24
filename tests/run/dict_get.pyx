@@ -16,9 +16,9 @@ def get(dict d, key):
     >>> get(d, 2) is None
     True
 
-    >>> d.get((1,2)) is None
+    >>> d.get((1, 2)) is None
     True
-    >>> get(d, (1,2)) is None
+    >>> get(d, (1, 2)) is None
     True
 
     >>> class Unhashable:
@@ -60,9 +60,9 @@ def get_default(dict d, key, default):
     >>> get_default(d, 2, 2)
     2
 
-    >>> d.get((1,2), 2)
+    >>> d.get((1, 2), 2)
     2
-    >>> get_default(d, (1,2), 2)
+    >>> get_default(d, (1, 2), 2)
     2
 
     >>> class Unhashable:

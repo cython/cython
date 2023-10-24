@@ -240,8 +240,8 @@ def test_PublicCppClassWithObjectMember():
   assert c.o is None
 
 cdef cppclass UncopyableConstructorArgument:
-    unique_ptr[vector[int]] member
-    __init__(unique_ptr[vector[int]] arg):
+    unique_ptr[vector[i32]] member
+    __init__(unique_ptr[vector[i32]] arg):
         this.member.reset(arg.release())
 
 def test_uncopyable_constructor_argument():
@@ -249,7 +249,7 @@ def test_uncopyable_constructor_argument():
     >>> test_uncopyable_constructor_argument()
     """
     let UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
-        unique_ptr[vector[int]](new vector[int]()))
+        unique_ptr[vector[i32]](new vector[i32]()))
     del c
 
 cdef cppclass CppClassWithDocstring:

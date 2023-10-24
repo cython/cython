@@ -9,12 +9,12 @@ from libcpp cimport bool as cbool
 
 def simple_iteration_test(L):
     """
-    >>> iteration_test([1,2,4,8])
+    >>> iteration_test([1, 2, 4, 8])
     8
     4
     2
     1
-    >>> iteration_test([8,4,2,1])
+    >>> iteration_test([8, 4, 2, 1])
     1
     2
     4
@@ -28,12 +28,12 @@ def simple_iteration_test(L):
 
 def iteration_test(L):
     """
-    >>> iteration_test([1,2,4,8])
+    >>> iteration_test([1, 2, 4, 8])
     8
     4
     2
     1
-    >>> iteration_test([8,4,2,1])
+    >>> iteration_test([8, 4, 2, 1])
     1
     2
     4

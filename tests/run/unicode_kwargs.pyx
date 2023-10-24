@@ -23,19 +23,19 @@ def accept_kwargs(a, b, c=1, **kwargs):
     TypeError: accept_kwargs() got multiple values for keyword argument 'a'
 
     >>> if not IS_PYPY: a, b, c, kwargs = accept_kwargs(1, 2, 3, **{ustring_ascii: 5})
-    >>> IS_PYPY and (1,2,3,1) or (a,b,c,len(kwargs))
+    >>> IS_PYPY and (1, 2, 3, 1) or (a, b, c,len(kwargs))
     (1, 2, 3, 1)
     >>> IS_PYPY and 5 or kwargs[ustring_ascii]
     5
 
     >>> if not IS_PYPY: a, b, c, kwargs = accept_kwargs(1, 2, 3, **{ustring_nonascii: 5})
-    >>> IS_PYPY and (1,2,3,1) or (a,b,c,len(kwargs))
+    >>> IS_PYPY and (1, 2, 3, 1) or (a, b, c,len(kwargs))
     (1, 2, 3, 1)
     >>> IS_PYPY and 5 or kwargs[ustring_nonascii]
     5
 
     >>> if not IS_PYPY: a, b, c, kwargs = accept_kwargs(1, 2, 3, **{ustring_nonascii: 5, ustring_ascii: 6})
-    >>> IS_PYPY and (1,2,3,2) or (a,b,c,len(kwargs))
+    >>> IS_PYPY and (1, 2, 3, 2) or (a, b, c,len(kwargs))
     (1, 2, 3, 2)
     >>> IS_PYPY and 5 or kwargs[ustring_nonascii]
     5

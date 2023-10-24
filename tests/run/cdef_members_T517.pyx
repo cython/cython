@@ -76,7 +76,7 @@ TYPE_FIXES_REQUIRED:
 """
 
 import sys
-if sys.version_info < (2,5):
+if sys.version_info < (2, 5):
     __doc__ = (__doc__.split('TYPE_FIXES_REQUIRED')[0] +
                __doc__.split('TYPE_FIXES_REQUIRED')[1].replace('\nAttributeError: ...', '\nTypeError: ...'))
 
@@ -88,7 +88,7 @@ cdef class A:
     pub f32 f
     pub f64 d
     pub long double g
-    pub f32 complex Zf
+    pub float complex Zf
     pub double complex Zd
     pub long double complex Zg
 
@@ -99,7 +99,7 @@ cdef class A:
     cdef readonly f32 ro_f
     cdef readonly f64 ro_d
     cdef readonly long double ro_g
-    cdef readonly f32 complex ro_Zf
+    cdef readonly float complex ro_Zf
     cdef readonly double complex ro_Zd
     cdef readonly long double complex ro_Zg
 

@@ -1,6 +1,3 @@
- 
-
-
 cdef class Penguin:
     cdef object food
 

@@ -66,7 +66,7 @@ def test_zero_sized_multidim_ccontig(array):
     >>> contig = np.ascontiguousarray(np.zeros((4, 4, 4))[::2, 2:2, ::2])
     >>> _ = test_zero_sized_multidim_ccontig(contig)
 
-    >>> a = np.zeros((4,4,4))[::2, 2:2, ::2]
+    >>> a = np.zeros((4, 4, 4))[::2, 2:2, ::2]
     >>> if NUMPY_HAS_RELAXED_STRIDES: _ = test_zero_sized_multidim_ccontig(a)
     """
     let f64[:, :, ::1] a = array

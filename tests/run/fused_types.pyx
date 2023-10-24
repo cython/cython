@@ -99,8 +99,8 @@ def test_fused_with_pointer():
     humptydumptyfallsplatchbreakfast
     """
     let i32[5] int_array
-    let long[5] long_array
-    let float[5] float_array
+    let i64[5] long_array
+    let f32[5] float_array
     let string_t[5] string_array
 
     let char *s
@@ -615,8 +615,8 @@ def test_null_default():
     result = null_default(xd)
     print(result)
 
-    let float xf = 2.
-    let float xf_minus_1
+    let f32 xf = 2.
+    let f32 xf_minus_1
     result = null_default(xf, &xf_minus_1)
     print(result, xf_minus_1)
     result = null_default(xf)

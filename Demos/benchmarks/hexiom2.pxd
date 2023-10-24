@@ -12,7 +12,7 @@ cdef class Done:
     pub i32 count
     pub list cells
 
-    cdef Done clone(self)
+    fn Done clone(self)
     fn inline i32 set_done(self, i32 i, v) except -123
     fn inline bint already_done(self, i32 i) except -123
     fn inline bint remove(self, i32 i, v) except -123

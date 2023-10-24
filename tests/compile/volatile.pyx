@@ -7,9 +7,9 @@ cdef volatile const char* greeting2 = "goodbye"
 
 
 extern from "stdlib.h":
-    volatile void* malloc(size_t)
+    volatile void* malloc(usize)
 
-fn volatile i64* test(volatile size_t s):
+fn volatile i64* test(volatile usize s):
     let volatile i64* arr = <i64*><volatile i64*>malloc(s)
     return arr
 

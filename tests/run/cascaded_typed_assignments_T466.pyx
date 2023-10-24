@@ -9,8 +9,8 @@ def simple_parallel_typed():
     >>> simple_parallel_typed()
     (1, 2, [1, 2], [1, 2])
     """
-    let int a,c
-    a, c = d = e = [1,2]
+    let i32 a, c
+    a, c = d = e = [1, 2]
     return a, c, d, e
 
 def simple_parallel_int_mix():
@@ -18,10 +18,10 @@ def simple_parallel_int_mix():
     >>> simple_parallel_int_mix()
     (1, 2, 1, 2, 1, 2, [1, 2], [1, 2])
     """
-    let int ai,bi
-    let long al,bl
+    let i32 ai, bi
+    let i64 al, bl
     let object ao, bo
-    ai, bi = al, bl = ao, bo = c = d = [1,2]
+    ai, bi = al, bl = ao, bo = c = d = [1, 2]
     return ao, bo, ai, bi, al, bl, c, d
 
 def simple_parallel_int_mix_recursive():
@@ -29,8 +29,8 @@ def simple_parallel_int_mix_recursive():
     >>> simple_parallel_int_mix_recursive()
     (1, 2, 3, 1, [2, 3], 1, 2, 3, 1, 2, 3, [1, [2, 3]], [1, [2, 3]])
     """
-    let int ai, bi, ci
-    let long al, bl, cl
+    let i32 ai, bi, ci
+    let i64 al, bl, cl
     let object ao, bo, co
     let object xo, yo
     ai, [bi, ci] = al, [bl, cl] = xo, yo = ao, [bo, co] = c = d = [1, [2, 3]]
@@ -49,7 +49,7 @@ def non_simple_rhs():
     1
     """
     let char *a, *b
-    let int orig_called = called
+    let i32 orig_called = called
     a = b = <char*>get_string()
     assert a is b
     return called - orig_called
@@ -91,8 +91,8 @@ def assign_carray():
     assign_carray()
     (1, 2, 3)
     """
-    let int *b, *c
-    let int[3] a
+    let i32 *b, *c
+    let i32[3] a
     a[0] = 1
     a[1] = 2
     a[2] = 3
@@ -111,7 +111,7 @@ def pyobject_from_cvalue(table, key):
     >>> pyobject_from_cvalue(table, 'X')
     0
     """
-    let int num
+    let i32 num
     num = table.get(key, -1)
     if num < 0:
         num = table[key] = len(table)

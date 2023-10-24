@@ -3,12 +3,12 @@ fn sorteditems(d):
 
 def spam(x, y, z):
     """
-    >>> spam(1,2,3)
+    >>> spam(1, 2, 3)
     (1, 2, 3)
-    >>> spam(1,2)
+    >>> spam(1, 2)
     Traceback (most recent call last):
     TypeError: spam() takes exactly 3 positional arguments (2 given)
-    >>> spam(1,2,3,4)
+    >>> spam(1, 2, 3, 4)
     Traceback (most recent call last):
     TypeError: spam() takes exactly 3 positional arguments (4 given)
     >>> spam(1,2,3, a=1)
@@ -19,13 +19,13 @@ def spam(x, y, z):
 
 def grail(x, y, z, *a):
     """
-    >>> grail(1,2,3)
+    >>> grail(1, 2, 3)
     (1, 2, 3, ())
-    >>> grail(1,2,3,4)
+    >>> grail(1, 2, 3, 4)
     (1, 2, 3, (4,))
     >>> grail(1,2,3,4,5,6,7,8,9)
     (1, 2, 3, (4, 5, 6, 7, 8, 9))
-    >>> grail(1,2)
+    >>> grail(1, 2)
     Traceback (most recent call last):
     TypeError: grail() takes at least 3 positional arguments (2 given)
     >>> grail(1,2,3, a=1)
@@ -36,9 +36,9 @@ def grail(x, y, z, *a):
 
 def swallow(x, y, z, **k):
     """
-    >>> swallow(1,2,3)
+    >>> swallow(1, 2, 3)
     (1, 2, 3, ())
-    >>> swallow(1,2,3,4)
+    >>> swallow(1, 2, 3, 4)
     Traceback (most recent call last):
     TypeError: swallow() takes exactly 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
@@ -51,9 +51,9 @@ def swallow(x, y, z, **k):
 
 def creosote(x, y, z, *a, **k):
     """
-    >>> creosote(1,2,3)
+    >>> creosote(1, 2, 3)
     (1, 2, 3, (), ())
-    >>> creosote(1,2,3,4)
+    >>> creosote(1, 2, 3, 4)
     (1, 2, 3, (4,), ())
     >>> creosote(1,2,3, a=1)
     (1, 2, 3, (), (('a', 1),))
@@ -69,7 +69,7 @@ def onlyt(*a):
     """
     >>> onlyt(1)
     (1,)
-    >>> onlyt(1,2)
+    >>> onlyt(1, 2)
     (1, 2)
     >>> onlyt(a=1)
     Traceback (most recent call last):

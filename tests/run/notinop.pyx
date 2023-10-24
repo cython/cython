@@ -1,36 +1,36 @@
 
 cimport cython
 
-def f(a,b):
+def f(a, b):
     """
-    >>> f(1,[1,2,3])
+    >>> f(1,[1, 2, 3])
     False
-    >>> f(5,[1,2,3])
+    >>> f(5,[1, 2, 3])
     True
-    >>> f(2,(1,2,3))
+    >>> f(2,(1, 2, 3))
     False
     """
     result = a not in b
     return result
 
-def g(a,b):
+def g(a, b):
     """
-    >>> g(1,[1,2,3])
+    >>> g(1,[1, 2, 3])
     0
-    >>> g(5,[1,2,3])
+    >>> g(5,[1, 2, 3])
     1
-    >>> g(2,(1,2,3))
+    >>> g(2,(1, 2, 3))
     0
     """
-    let int result
+    let i32 result
     result = a not in b
     return result
 
 def h(b):
     """
-    >>> h([1,2,3,4])
+    >>> h([1, 2, 3, 4])
     False
-    >>> h([1,3,4])
+    >>> h([1, 3, 4])
     True
     """
     result = 2 not in b
@@ -38,12 +38,12 @@ def h(b):
 
 def j(b):
     """
-    >>> j([1,2,3,4])
+    >>> j([1, 2, 3, 4])
     0
-    >>> j([1,3,4])
+    >>> j([1, 3, 4])
     1
     """
-    let int result
+    let i32 result
     result = 2 not in b
     return result
 
@@ -55,43 +55,43 @@ def k(a):
     >>> k(5)
     1
     """
-    let int result = a not in [1,2,3,4]
+    let i32 result = a not in [1, 2, 3, 4]
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def m_list(int a):
+def m_list(i32 a):
     """
     >>> m_list(2)
     0
     >>> m_list(5)
     1
     """
-    let int result = a not in [1,2,3,4]
+    let i32 result = a not in [1, 2, 3, 4]
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def m_tuple(int a):
+def m_tuple(i32 a):
     """
     >>> m_tuple(2)
     0
     >>> m_tuple(5)
     1
     """
-    let int result = a not in (1,2,3,4)
+    let i32 result = a not in (1, 2, 3, 4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
-def m_set(int a):
+def m_set(i32 a):
     """
     >>> m_set(2)
     0
     >>> m_set(5)
     1
     """
-    let int result = a not in {1,2,3,4}
+    let i32 result = a not in {1,2,3,4}
     return result
 
 cdef bytes bytes_string = b'abcdefg'
@@ -105,7 +105,7 @@ def m_bytes(char a):
     >>> m_bytes(ord('X'))
     1
     """
-    let int result = a not in bytes_string
+    let i32 result = a not in bytes_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -117,7 +117,7 @@ def m_bytes_literal(char a):
     >>> m_bytes_literal(ord('X'))
     1
     """
-    let int result = a not in b'abcdefg'
+    let i32 result = a not in b'abcdefg'
     return result
 
 cdef unicode unicode_string = u'abcdefg\u1234\uF8D2'
@@ -143,7 +143,7 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
     """
-    let int result = a not in unicode_string
+    let i32 result = a not in unicode_string
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -157,12 +157,12 @@ def m_unicode_literal(Py_UNICODE a):
     >>> m_unicode_literal(ord(py_klingon_character))
     0
     """
-    let int result = a not in u'abcdefg\u1234\uF8D2'
+    let i32 result = a not in u'abcdefg\u1234\uF8D2'
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def m_tuple_in_or_notin(int a):
+def m_tuple_in_or_notin(i32 a):
     """
     >>> m_tuple_in_or_notin(2)
     0
@@ -171,12 +171,12 @@ def m_tuple_in_or_notin(int a):
     >>> m_tuple_in_or_notin(5)
     1
     """
-    let int result = a not in (1,2,3,4) or a in (3,4)
+    let i32 result = a not in (1, 2, 3, 4) or a in (3, 4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def m_tuple_notin_or_notin(int a):
+def m_tuple_notin_or_notin(i32 a):
     """
     >>> m_tuple_notin_or_notin(2)
     1
@@ -185,12 +185,12 @@ def m_tuple_notin_or_notin(int a):
     >>> m_tuple_notin_or_notin(4)
     0
     """
-    let int result = a not in (1,2,3,4) or a not in (4,5)
+    let i32 result = a not in (1, 2, 3, 4) or a not in (4, 5)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
-def m_tuple_notin_and_notin(int a):
+def m_tuple_notin_and_notin(i32 a):
     """
     >>> m_tuple_notin_and_notin(2)
     0
@@ -199,12 +199,12 @@ def m_tuple_notin_and_notin(int a):
     >>> m_tuple_notin_and_notin(5)
     1
     """
-    let int result = a not in (1,2,3,4) and a not in (6,7)
+    let i32 result = a not in (1, 2, 3, 4) and a not in (6, 7)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def m_tuple_notin_and_notin_overlap(int a):
+def m_tuple_notin_and_notin_overlap(i32 a):
     """
     >>> m_tuple_notin_and_notin_overlap(2)
     0
@@ -213,12 +213,12 @@ def m_tuple_notin_and_notin_overlap(int a):
     >>> m_tuple_notin_and_notin_overlap(5)
     1
     """
-    let int result = a not in (1,2,3,4) and a not in (3,4)
+    let i32 result = a not in (1, 2, 3, 4) and a not in (3, 4)
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
-def conditional_int(int a):
+def conditional_int(i32 a):
     """
     >>> conditional_int(1)
     2
@@ -227,11 +227,11 @@ def conditional_int(int a):
     >>> conditional_int(5)
     1
     """
-    return 1 if a not in (1,2,3,4) else 2
+    return 1 if a not in (1, 2, 3, 4) else 2
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
-def conditional_object(int a):
+def conditional_object(i32 a):
     """
     >>> conditional_object(1)
     '2'
@@ -240,7 +240,7 @@ def conditional_object(int a):
     >>> conditional_object(5)
     1
     """
-    return 1 if a not in (1,2,3,4) else '2'
+    return 1 if a not in (1, 2, 3, 4) else '2'
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
@@ -270,7 +270,7 @@ def conditional_unicode(Py_UNICODE a):
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
-def conditional_none(int a):
+def conditional_none(i32 a):
     """
     >>> conditional_none(1)
     1
@@ -286,7 +286,7 @@ def n(a):
     >>> n('xxx')
     1
     """
-    let int result = a.lower() not in [u'a *',u'b *',u'c *',u'd *']
+    let i32 result = a.lower() not in [u'a *',u'b *',u'c *',u'd *']
     return result
 
 def p(a):
@@ -297,7 +297,7 @@ def p(a):
     1
     """
     let dict d = {u'a': 1, u'b': 2}
-    let int result = a not in d
+    let i32 result = a not in d
     return result
 
 def q(a):
@@ -307,5 +307,5 @@ def q(a):
     TypeError: 'NoneType' object is not iterable
     """
     let dict d = None
-    let int result = a not in d # should fail with a TypeError
+    let i32 result = a not in d # should fail with a TypeError
     return result

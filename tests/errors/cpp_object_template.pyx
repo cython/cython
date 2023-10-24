@@ -15,7 +15,7 @@ def main():
 def memview():
     import array
     let vector[i32[:]] vmv
-    vmv.push_back(array.array("i", [1,2,3]))
+    vmv.push_back(array.array("i", [1, 2, 3]))
 
 _ERRORS = u"""
 10:14: Python object type 'Python object' cannot be used as a template argument

@@ -120,7 +120,7 @@ def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
 
 ### builtin types (using list)
 
-fn litem(list L, int item):
+fn litem(list L, i32 item):
     return L is None and 321 or L[item]
 
 

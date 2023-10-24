@@ -10,10 +10,10 @@ from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
-fn bool is_odd(int i):
+fn bool is_odd(i32 i):
     return i % 2
 
-def all_odd(vector[int] values):
+def all_odd(vector[i32] values):
     """
     Test all_of with is_odd predicate.
 
@@ -24,7 +24,7 @@ def all_odd(vector[int] values):
     """
     return all_of(values.begin(), values.end(), is_odd)
 
-def any_odd(vector[int] values):
+def any_odd(vector[i32] values):
     """
     Test any_of with is_odd predicate.
 
@@ -35,7 +35,7 @@ def any_odd(vector[int] values):
     """
     return any_of(values.begin(), values.end(), is_odd)
 
-def none_odd(vector[int] values):
+def none_odd(vector[i32] values):
     """
     Test none_of with is_odd predicate.
 
@@ -46,7 +46,7 @@ def none_odd(vector[int] values):
     """
     return none_of(values.begin(), values.end(), is_odd)
 
-def count_ones(vector[int] values):
+def count_ones(vector[i32] values):
     """
     Test count.
 
@@ -55,11 +55,11 @@ def count_ones(vector[int] values):
     """
     return count(values.begin(), values.end(), 1)
 
-fn void add_one(int &i):
+fn void add_one(i32 &i):
     # https://github.com/cython/cython/issues/1863
     (&i)[0] += 1
 
-def increment_ints(vector[int] values):
+def increment_ints(vector[i32] values):
     """
     Test for_each.
 
@@ -69,7 +69,7 @@ def increment_ints(vector[int] values):
     for_each(values.begin(), values.end(), &add_one)
     return values
 
-def count_odd(vector[int] values):
+def count_odd(vector[i32] values):
     """
     Test count_if with is_odd predicate.
 
@@ -96,7 +96,7 @@ def mirror_ends(string data):
     """
     return string(data.begin(), mismatch(data.begin(), data.end(), data.rbegin()).first)
 
-def mismatch_ints(vector[int] values1, vector[int] values2):
+def mismatch_ints(vector[i32] values1, vector[i32] values2):
     """
     Test mismatch(first1, last1, first2).
 
@@ -110,7 +110,7 @@ def mismatch_ints(vector[int] values1, vector[int] values2):
         return
     return deref(result.first), deref(result.second)
 
-def is_int_in(vector[int] values, int target):
+def is_int_in(vector[i32] values, i32 target):
     """
     Test find.
 
@@ -121,7 +121,7 @@ def is_int_in(vector[int] values, int target):
     """
     return find(values.begin(), values.end(), target) != values.end()
 
-def find_odd(vector[int] values):
+def find_odd(vector[i32] values):
     """
     Test find_if using is_odd predicate.
 
@@ -135,7 +135,7 @@ def find_odd(vector[int] values):
     else:
         return None
 
-def find_even(vector[int] values):
+def find_even(vector[i32] values):
     """
     Test find_if_not using is_odd predicate.
 
@@ -149,7 +149,7 @@ def find_even(vector[int] values):
     else:
         return None
 
-def find_last_int_sequence(vector[int] values, vector[int] target):
+def find_last_int_sequence(vector[i32] values, vector[i32] target):
     """
     Test find_end.
 
@@ -163,10 +163,10 @@ def find_last_int_sequence(vector[int] values, vector[int] target):
     else:
         return None
 
-fn bool is_equal(int lhs, int rhs):
+fn bool is_equal(i32 lhs, i32 rhs):
     return lhs == rhs
 
-def find_last_int_sequence2(vector[int] values, vector[int] target):
+def find_last_int_sequence2(vector[i32] values, vector[i32] target):
     """
     Test find_end (using is_equal predicate).
 
@@ -188,15 +188,15 @@ def find_first_int_in_set(values, target):
     2
     >>> find_first_int_in_set([1, 2, 3], [4, 5])
     """
-    let vector[int] v = values
-    let vector[int] t = target
+    let vector[i32] v = values
+    let vector[i32] t = target
     result = find_first_of(v.begin(), v.end(), t.begin(), t.end())
     if result != v.end():
         return distance(v.begin(), result)
     else:
         return None
 
-def find_first_int_in_set2(vector[int] values, vector[int] target):
+def find_first_int_in_set2(vector[i32] values, vector[i32] target):
     """
     Test find_first_of with is_equal predicate.
 
@@ -210,7 +210,7 @@ def find_first_int_in_set2(vector[int] values, vector[int] target):
     else:
         return None
 
-def find_adjacent_int(vector[int] values):
+def find_adjacent_int(vector[i32] values):
     """
     Test adjacent_find.
 
@@ -224,7 +224,7 @@ def find_adjacent_int(vector[int] values):
     else:
         return None
 
-def find_adjacent_int2(vector[int] values):
+def find_adjacent_int2(vector[i32] values):
     """
     Test find_adjacent with is_equal predicate.
 
@@ -260,7 +260,7 @@ def in_quote2(string quote, string word):
     """
     return search(quote.begin(), quote.end(), word.begin(), word.end(), &is_equal) != quote.end()
 
-def consecutive_values(string c, int count, char v):
+def consecutive_values(string c, i32 count, char v):
     """
     Test search_n using cppreference example (without std::begin and std::end).
 
@@ -271,7 +271,7 @@ def consecutive_values(string c, int count, char v):
     """
     return search_n(c.begin(), c.end(), count, v) != c.end()
 
-def consecutive_values2(string c, int count, char v):
+def consecutive_values2(string c, i32 count, char v):
     """
     Test search_n using cppreference example (with is_equal predicate).
 

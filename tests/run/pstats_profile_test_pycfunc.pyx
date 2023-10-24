@@ -131,7 +131,7 @@ def callees(pstats, target_caller):
                 yield callee
 
 def test_profile(long N):
-    let long i, n = 0
+    let i64 i, n = 0
     let A a = A()
     for i from 0 <= i < N:
         n += f_def(i)
@@ -156,49 +156,49 @@ def test_profile(long N):
             pass
     return n
 
-def f_def(long a):
+def f_def(i64 a):
     return a
 
-fn long f_cdef(long a):
+fn i64 f_cdef(i64 a):
     return a
 
-cpdef long f_cpdef(long a):
+cpdef long f_cpdef(i64 a):
     return a
 
-fn inline long f_inline(long a):
+fn inline i64 f_inline(i64 a):
     return a
 
 @cython.profile(true)
-fn inline long f_inline_prof(long a):
+fn inline i64 f_inline_prof(i64 a):
     return a
 
 @cython.profile(false)
-fn int f_noprof(long a):
+fn i32 f_noprof(i64 a):
     return a
 
-fn long f_raise(long) except -2:
+fn i64 f_raise(long) except -2:
     raise RuntimeError
 
 @cython.profile(false)
-fn int withgil_noprof(long a) with gil:
+fn i32 withgil_noprof(i64 a) with gil:
     return (a)
 @cython.profile(true)
-fn int withgil_prof(long a) with gil:
+fn i32 withgil_prof(i64 a) with gil:
     return (a)
 
 @cython.profile(false)
-fn int nogil_noprof(long a) nogil:
+fn i32 nogil_noprof(i64 a) nogil:
     return a
 @cython.profile(true)
-fn int nogil_prof(long a) nogil:
+fn i32 nogil_prof(i64 a) nogil:
     return a
 
 cdef class A(object):
-    def m_def(self, long a):
+    def m_def(self, i64 a):
         return a
-    cpdef m_cpdef(self, long a):
+    cpdef m_cpdef(self, i64 a):
         return a
-    fn m_cdef(self, long a):
+    fn m_cdef(self, i64 a):
         return a
 
 def test_generators():

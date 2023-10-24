@@ -18,7 +18,7 @@ def f():
     >>> f()
     12.5
     """
-    let float f = FLOAT
+    let f32 f = FLOAT
     let object o = FLOAT
     assert f == o
     return f
@@ -28,7 +28,7 @@ def emfloat():
     >>> emfloat()
     0.5
     """
-    let float f = EMFLOAT
+    let f32 f = EMFLOAT
     assert f == 5e-1
     let object o = EMFLOAT
     assert o == 5e-1
@@ -40,7 +40,7 @@ def epfloat():
     >>> epfloat()
     50.0
     """
-    let float f = EPFLOAT
+    let f32 f = EPFLOAT
     assert f == 5e+1
     let object o = EPFLOAT
     assert o == 5e+1
@@ -52,7 +52,7 @@ def nan1():
     >>> nan1()
     nan
     """
-    let double f = FLOAT_NAN
+    let f64 f = FLOAT_NAN
     let object o = FLOAT_NAN
     assert str(f) == str(o)
     return f
@@ -62,7 +62,7 @@ def nan2():
     >>> nan2()
     nan
     """
-    let double f = float('nan')
+    let f64 f = float('nan')
     let object o = float('nan')
     assert str(f) == str(o)
     return f
@@ -74,7 +74,7 @@ def nan3():
     >>> float_nan
     nan
     """
-    let float f = FLOAT_NAN
+    let f32 f = FLOAT_NAN
     let object o = FLOAT_NAN
     assert str(f) == str(o)
     return f
@@ -86,7 +86,7 @@ def infp1():
     >>> infp1() == float('inf')
     True
     """
-    let double f = FLOAT_INFP
+    let f64 f = FLOAT_INFP
     let object o = FLOAT_INFP
     assert f == o
     return f
@@ -98,7 +98,7 @@ def infp2():
     >>> infp2() == float('inf')
     True
     """
-    let double f = float('+inf')
+    let f64 f = float('+inf')
     let object o = float('+inf')
     assert f == o
     return f
@@ -114,7 +114,7 @@ def infp3():
     >>> float_infp == float('inf')
     True
     """
-    let float f = FLOAT_INFP
+    let f32 f = FLOAT_INFP
     let object o = FLOAT_INFP
     assert f == o
     return f
@@ -126,7 +126,7 @@ def infn1():
     >>> infn1() == float('-inf')
     True
     """
-    let double f = FLOAT_INFN
+    let f64 f = FLOAT_INFN
     let object o = FLOAT_INFN
     assert f == o
     return f
@@ -138,7 +138,7 @@ def infn2():
     >>> infn2() == float('-inf')
     True
     """
-    let double f = float('-inf')
+    let f64 f = float('-inf')
     let object o = float('-inf')
     assert f == o
     return f
@@ -154,7 +154,7 @@ def infn3():
     >>> float_infn == float('-inf')
     True
     """
-    let float f = FLOAT_INFN
+    let f32 f = FLOAT_INFN
     let object o = FLOAT_INFN
     assert f == o
     return f

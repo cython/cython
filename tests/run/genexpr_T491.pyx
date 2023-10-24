@@ -14,7 +14,7 @@ def test_genexpr_typed():
     >>> list(gen)
     [0, 1, 2, 3, 4]
     """
-    let int i
+    let i32 i
     return (i for i in range(5))
 
 def test_genexpr_funccall():

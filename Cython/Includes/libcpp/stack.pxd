@@ -7,5 +7,5 @@ extern from "<stack>" namespace "std" nogil:
         bint empty()
         void pop()
         void push(T&) except +
-        size_t size()
+        usize size()
         T& top()

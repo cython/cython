@@ -12,19 +12,19 @@ __doc__ = u"""
 """
 
 def get_locals(x, *args, **kwds):
-    let int z = 5
+    let i32 z = 5
     y = "hi"
     return locals()
 
 def get_locals_items(x, *args, **kwds):
-    let int z = 5
+    let i32 z = 5
     y = "hi"
     return locals().items()
 
 def get_locals_items_listcomp(x, *args, **kwds):
     # FIXME: 'item' should *not* appear in locals() yet, as locals()
     # is evaluated before assigning to item !
-    let int z = 5
+    let i32 z = 5
     y = "hi"
     return [ item for item in locals().items() ]
 

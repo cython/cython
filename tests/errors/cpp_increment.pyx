@@ -8,8 +8,8 @@ extern from *:
         Foo operator--()
 
     cdef cppclass Bar:
-        Bar operator++(int)
-        Bar operator--(int)
+        Bar operator++(i32)
+        Bar operator--(i32)
 
 fn void foo():
     let Foo f

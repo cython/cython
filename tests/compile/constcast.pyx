@@ -2,7 +2,7 @@
 from libc.stdlib cimport malloc, free
 
 fn void f():
-    cdef const int **allocated = <const int **>malloc(sizeof(int *))
+    cdef const i32 **allocated = <const i32 **>malloc(sizeof(i32 *))
     free(allocated)
 
 f()

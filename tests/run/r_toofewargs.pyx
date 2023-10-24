@@ -6,5 +6,5 @@ __doc__ = u"""
 
 cdef class Spam:
 
-    def __init__(self, a, b, int c):
+    def __init__(self, a, b, i32 c):
         pass

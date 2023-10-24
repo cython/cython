@@ -140,7 +140,7 @@ cdef class MyDict2Final(MyDict):
 @cython.final
 cdef class MyDictOverride(dict):
     def items(self):
-        return [(1,2), (3,4)]
+        return [(1, 2), (3, 4)]
 
     @cython.test_assert_path_exists("//ComprehensionNode//AttributeNode",
                                     "//ComprehensionNode//AttributeNode[@attribute='items']")
@@ -166,7 +166,7 @@ cdef class MyDictOverride(dict):
 @cython.final
 cdef class MyDictOverride2(MyDict):
     def items(self):
-        return [(1,2), (3,4)]
+        return [(1, 2), (3, 4)]
 
     @cython.test_assert_path_exists("//ComprehensionNode//AttributeNode",
                                     "//ComprehensionNode//AttributeNode[@attribute='items']")

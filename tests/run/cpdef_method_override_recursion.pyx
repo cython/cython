@@ -9,9 +9,8 @@ cdef class Ext:
     >>> x.rec(10)
     0
     """
-    cpdef rec(self, int i):
+    cpdef rec(self, i32 i):
         return 0 if i < 0 else self.rec(i-1)
-
 
 class Py(Ext):
     """
@@ -21,7 +20,6 @@ class Py(Ext):
     """
     pass
 
-
 class Slots(Ext):
     """
     >>> s = Slots()
@@ -29,7 +27,6 @@ class Slots(Ext):
     0
     """
     __slots__ = ()
-
 
 class PyOverride(Ext):
     """
@@ -46,7 +43,6 @@ class PyOverride(Ext):
     def rec(self, i):
         print(i)
         return Ext.rec(self, i) if i > 10 else 5
-
 
 class SlotsOverride(Ext):
     """

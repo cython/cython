@@ -14,7 +14,7 @@ extern from "<random>" namespace "std" nogil:
         result_type operator()() except +
         result_type min() except +
         result_type max() except +
-        void discard(size_t z) except +
+        void discard(usize z) except +
         void seed(result_type seed) except +
 
     cdef cppclass mt19937_64:
@@ -25,7 +25,7 @@ extern from "<random>" namespace "std" nogil:
         result_type operator()() except +
         result_type min() except +
         result_type max() except +
-        void discard(size_t z) except +
+        void discard(usize z) except +
         void seed(result_type seed) except +
 
     cdef cppclass uniform_int_distribution[T]:

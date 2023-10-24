@@ -17,7 +17,7 @@ extern from "<sys/types.h>":
     ctypedef long dev_t
     ctypedef long gid_t
     ctypedef long id_t
-    ctypedef unsigned long ino_t
+    ctypedef u64 ino_t
     ctypedef long mode_t
     ctypedef long nlink_t
     ctypedef long off_t

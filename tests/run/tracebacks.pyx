@@ -6,7 +6,7 @@ def foo1():
 fn foo2():
   foo3()
 
-fn int foo3() except -1:
+fn i32 foo3() except -1:
   raise RuntimeError('my_message')
 
 def test_traceback(cline_in_traceback=None):

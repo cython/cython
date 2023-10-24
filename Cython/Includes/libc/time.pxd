@@ -40,8 +40,8 @@ extern from "<time.h>" nogil:
     tm      *localtime(const time_t *)
     tm      *localtime_r(const time_t *, tm *)
     time_t  mktime(tm *)
-    size_t  strftime(char *, size_t, const char *, const tm *)
-    size_t  wcsftime(wchar_t *str, size_t cnt, const wchar_t *fmt, tm *time)
+    usize  strftime(char *, usize, const char *, const tm *)
+    usize  wcsftime(wchar_t *str, usize cnt, const wchar_t *fmt, tm *time)
 
     # POSIX not stdC
     char    *strptime(const char *, const char *, tm *)

@@ -8,7 +8,7 @@ __doc__ = u"""
 cdef isize maxsize
 
 import sys
-if sys.version_info < (2,5):
+if sys.version_info < (2, 5):
     __doc__ = __doc__.replace(u"'int' object ...", u'unsubscriptable object')
     maxsize = min(sys.maxint, 2**31-1)
 else:
@@ -20,16 +20,16 @@ import cython
 
 def index_tuple(tuple t, i32 i):
     """
-    >>> index_tuple((1,1,2,3,5), 0)
+    >>> index_tuple((1, 1, 2, 3, 5), 0)
     1
-    >>> index_tuple((1,1,2,3,5), 3)
+    >>> index_tuple((1, 1, 2, 3, 5), 3)
     3
-    >>> index_tuple((1,1,2,3,5), -1)
+    >>> index_tuple((1, 1, 2, 3, 5), -1)
     5
-    >>> index_tuple((1,1,2,3,5), 100)
+    >>> index_tuple((1, 1, 2, 3, 5), 100)
     Traceback (most recent call last):
     IndexError: tuple index out of range
-    >>> index_tuple((1,1,2,3,5), -7)
+    >>> index_tuple((1, 1, 2, 3, 5), -7)
     Traceback (most recent call last):
     IndexError: tuple index out of range
     >>> index_tuple(None, 0)
@@ -64,9 +64,9 @@ def index_object(object o, i32 i):
     3
     >>> index_object([2,3,5,7,11,13,17,19], -1)
     19
-    >>> index_object((1,1,2,3,5), 2)
+    >>> index_object((1, 1, 2, 3, 5), 2)
     2
-    >>> index_object((1,1,2,3,5), -2)
+    >>> index_object((1, 1, 2, 3, 5), -2)
     3
     >>> index_object("abcdef...z", 0)
     'a'

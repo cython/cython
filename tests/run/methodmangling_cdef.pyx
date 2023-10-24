@@ -92,4 +92,4 @@ cdef class InPxd:
     def __init__(self):
         self.__y = 2
 
-    fn int __private_cdef(self): return 8
+    fn i32 __private_cdef(self): return 8

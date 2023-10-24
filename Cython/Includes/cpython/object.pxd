@@ -48,7 +48,7 @@ extern from "Python.h":
         isize tp_basicsize
         isize tp_itemsize
         isize tp_dictoffset
-        unsigned long tp_flags
+        u64 tp_flags
 
         newfunc tp_new
         destructor tp_dealloc
@@ -82,8 +82,8 @@ extern from "Python.h":
 
     cdef PyTypeObject *Py_TYPE(object)
 
-    void* PyObject_Malloc(size_t)
-    void* PyObject_Realloc(void *, size_t)
+    void* PyObject_Malloc(usize)
+    void* PyObject_Realloc(void *, usize)
     void PyObject_Free(void *)
 
     #####################################################################

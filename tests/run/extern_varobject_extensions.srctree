@@ -54,7 +54,7 @@ check_code(eval("lambda: None").__code__)
 from classes cimport tpl
 
 cdef class SuperTuple(tpl):
-    fn int a  # importing this gives an error message
+    fn i32 a  # importing this gives an error message
 
 ##### failed_inherit2.pyx #############
 
@@ -62,7 +62,7 @@ from classes cimport tpl
 
 cdef class SuperTuple(tpl):
     # adding a method creates a vtab so should also fail
-    fn int func(self):
+    fn i32 func(self):
         return 1
     
 ##### successful_inherit.pyx #########
@@ -70,7 +70,7 @@ cdef class SuperTuple(tpl):
 from classes cimport lst, tpl
 
 cdef class SuperList(lst):
-    fn int a  # This works OK
+    fn i32 a  # This works OK
     
 cdef class SuperTuple(tpl):
     # This is actually OK because it doesn't add anything

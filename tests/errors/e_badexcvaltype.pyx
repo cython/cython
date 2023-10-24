@@ -1,7 +1,7 @@
 # mode: error
 
 fn char *spam() except -1:
-	pass
+    pass
 
 _ERRORS = u"""
 3:24: Cannot assign type 'long' to 'char *'

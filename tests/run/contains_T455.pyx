@@ -85,11 +85,11 @@ def cascaded(a, b, c):
     Traceback (most recent call last):
     ...
     TypeError: ...iterable...
-    >>> cascaded(-1, (1,2), (1,3))
+    >>> cascaded(-1, (1, 2), (1, 3))
     True
-    >>> cascaded(1, (1,2), (1,3))
+    >>> cascaded(1, (1, 2), (1, 3))
     False
-    >>> cascaded(-1, (1,2), (1,0))
+    >>> cascaded(-1, (1, 2), (1, 0))
     False
     """
     return a not in b < c

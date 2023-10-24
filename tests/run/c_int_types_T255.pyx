@@ -136,10 +136,10 @@ def test_add_char(x, y):
 
 # -------------------------------------------------------------------
 
-SHORT_MAX = <short>((<u16>-1)>>1)
+SHORT_MAX = <i16>((<u16>-1)>>1)
 SHORT_MIN = (-SHORT_MAX-1)
 
-def test_short(short x):
+def test_short(i16 x):
    u"""
    >>> test_short(SHORT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -398,10 +398,10 @@ def test_add_uint(x, y):
 
 # -------------------------------------------------------------------
 
-LONG_MAX = <long>((<u64>-1)>>1)
+LONG_MAX = <i64>((<u64>-1)>>1)
 LONG_MIN = (-LONG_MAX-1)
 
-def test_long(long x):
+def test_long(i64 x):
    u"""
    >>> test_long(LONG_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):

@@ -29,7 +29,7 @@ def simple():
     assert typeof(s) == "str object", typeof(s)
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
-    L = [1,2,3]
+    L = [1, 2, 3]
     assert typeof(L) == "list object", typeof(L)
     t = (4,5,6,())
     assert typeof(t) == "tuple object", typeof(t)
@@ -75,7 +75,7 @@ def slicing():
     assert typeof(s1) == "str object", typeof(s1)
     s2 = s[1:2:2]
     assert typeof(s2) == "str object", typeof(s2)
-    L = [1,2,3]
+    L = [1, 2, 3]
     assert typeof(L) == "list object", typeof(L)
     L1 = L[1:2]
     assert typeof(L1) == "list object", typeof(L1)
@@ -104,7 +104,7 @@ def indexing():
     assert typeof(s) == "str object", typeof(s)
     s1 = s[1]
     assert typeof(s1) == "str object", typeof(s1)
-    L = [1,2,3]
+    L = [1, 2, 3]
     assert typeof(L) == "list object", typeof(L)
     L1 = L[1]
     assert typeof(L1) == "Python object", typeof(L1)
@@ -142,7 +142,7 @@ def multiple_assignments():
     assert typeof(b) == "double", typeof(b)
     c = a
     c = b
-    c = [1,2,3]
+    c = [1, 2, 3]
     assert typeof(c) == "Python object", typeof(c)
     d = b'abc'
     d = bytes()
@@ -240,7 +240,7 @@ def c_functions():
     >>> c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
+    assert typeof(f) == 'int (*)(i32) except? -1', typeof(f)
     assert 2 == f(1)
 
 def builtin_functions():
@@ -526,7 +526,7 @@ def safe_only():
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
     # float can be inferred
-    let float fl = 5.0
+    let f32 fl = 5.0
     from_fl = fl
     assert typeof(from_fl) == "float", typeof(from_fl)
 
@@ -536,7 +536,7 @@ def safe_c_functions():
     >>> safe_c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
+    assert typeof(f) == 'int (*)(i32) except? -1', typeof(f)
     assert 2 == f(1)
 
 @infer_types(None)
@@ -556,7 +556,7 @@ def ptr_types():
     ptr = b
     assert typeof(ptr) == "int *", typeof(ptr)
 
-def const_types(const double x, double y, double& z):
+def const_types(const f64 x, f64 y, f64& z):
     """
     >>> const_types(1, 1, 1)
     """
@@ -727,7 +727,7 @@ def test_int_typedef_inference():
     """
     >>> test_int_typedef_inference()
     """
-    let long x = 1
+    let i64 x = 1
     let my_long y = 2
     let i128 z = 3
     assert typeof(x + y) == typeof(y + x) == 'my_long', typeof(x + y)
@@ -735,14 +735,14 @@ def test_int_typedef_inference():
 
 from libc.stdint cimport int32_t, int64_t
 def int64_long_sum():
-    let long x = 1
+    let i64 x = 1
     let int32_t x32 = 2
     let int64_t x64 = 3
     let u64 ux = 4
     assert typeof(x + x32) == typeof(x32 + x) == 'long', typeof(x + x32)
     assert typeof(x + x64) == typeof(x64 + x) == 'int64_t', typeof(x + x64)
     # The correct answer here is either unsigned long or int64_t, depending on
-    # whether sizeof(long) == 64 or not.  Incorrect signedness is probably
+    # whether sizeof(i32) == 64 or not.  Incorrect signedness is probably
     # preferable to incorrect width.
     assert typeof(ux + x64) == typeof(x64 + ux) == 'int64_t', typeof(ux + x64)
 

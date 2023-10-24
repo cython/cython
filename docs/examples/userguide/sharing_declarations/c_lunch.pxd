@@ -1,2 +1,2 @@
 extern from "lunch.h":
-    void eject_tomato(f32)
+    fn void eject_tomato(f32)

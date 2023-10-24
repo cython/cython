@@ -200,7 +200,7 @@ def bytearray_decode_unbound_method(bytearray s, start=None, stop=None):
 
 @cython.test_fail_if_path_exists('//SimpleCallNode')
 @cython.test_assert_path_exists('//PythonCapiCallNode')
-def bytearray_append(bytearray b, signed char c, int i, object o):
+def bytearray_append(bytearray b, signed char c, i32 i, object o):
     """
     >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z'))

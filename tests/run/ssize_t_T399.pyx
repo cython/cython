@@ -35,7 +35,7 @@ Traceback (most recent call last):
     ...
 OverflowError: ...
 
->>> a = A(1,2)
+>>> a = A(1, 2)
 >>> a.a == 1
 True
 >>> a.b == 2

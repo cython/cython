@@ -5,7 +5,7 @@ else: i = 99; j = k
 
 def result():
     """
-    >>> result() == (99, 17*42, 17*42)
+    >>> result() == (99, 17 * 42, 17 * 42)
     True
     """
-    return (i,j,k)
+    return (i, j, k)

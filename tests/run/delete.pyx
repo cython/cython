@@ -10,7 +10,7 @@ class A(object):
     (False, True)
     """
     def f(self):
-        self.refs = [3,2,1]
+        self.refs = [3, 2, 1]
         del self.refs[0]
         return self.refs
 
@@ -74,7 +74,7 @@ def del_list(list L, o):
     del L[o]
     return L
 
-def del_int(L, int i):
+def del_int(L, i32 i):
     """
     >>> del_int(list(range(5)), 3)
     [0, 1, 2, 4]
@@ -84,7 +84,7 @@ def del_int(L, int i):
     del L[i]
     return L
 
-def del_list_int(L, int i):
+def del_list_int(L, i32 i):
     """
     >>> del_list_int(list(range(5)), 3)
     [0, 1, 2, 4]
@@ -95,7 +95,7 @@ def del_list_int(L, int i):
 def del_temp_slice(a):
     """
     >>> class A(object):
-    ...     attr = [1,2,3]
+    ...     attr = [1, 2, 3]
     >>> a = A()
     >>> a.attr
     [1, 2, 3]

@@ -17,9 +17,9 @@ def test_in(s):
         return 1
     elif s.upper() in (u'ABC', u'BCD'):
         return 2
-    elif len(s) in (1,2):
+    elif len(s) in (1, 2):
         return 3
-    elif len(s) in (3,4):
+    elif len(s) in (3, 4):
         return 4
     else:
         return 5
@@ -41,7 +41,7 @@ def test_not_in(s):
         return 2
     elif len(s) not in [3]:
         return 3
-    elif len(s) not in [1,2]:
+    elif len(s) not in [1, 2]:
         return 4
     else:
         return 5

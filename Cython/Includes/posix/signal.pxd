@@ -26,15 +26,15 @@ extern from "<signal.h>" nogil:
         sigval si_value
 
     cdef struct sigaction_t "sigaction":
-        void     sa_handler(int)
-        void     sa_sigaction(int, siginfo_t *, void *)
+        void     sa_handler(i32)
+        void     sa_sigaction(i32, siginfo_t *, void *)
         sigset_t sa_mask
         int      sa_flags
 
     ctypedef struct stack_t:
         void  *ss_sp
         int ss_flags
-        size_t ss_size
+        usize ss_size
 
     enum: SA_NOCLDSTOP
     enum: SIG_BLOCK
@@ -57,17 +57,17 @@ extern from "<signal.h>" nogil:
     enum: SIGEV_THREAD_ID
 
 
-    int          kill          (pid_t, int)
-    int          killpg        (pid_t, int)
-    int          sigaction     (int, const sigaction_t *, sigaction_t *)
+    int          kill          (pid_t, i32)
+    int          killpg        (pid_t, i32)
+    int          sigaction     (i32, const sigaction_t *, sigaction_t *)
     int          sigpending    (sigset_t *)
-    int          sigprocmask   (int, const sigset_t *, sigset_t *)
+    int          sigprocmask   (i32, const sigset_t *, sigset_t *)
     int          sigsuspend    (const sigset_t *)
 
-    int          sigaddset     (sigset_t *, int)
-    int          sigdelset     (sigset_t *, int)
+    int          sigaddset     (sigset_t *, i32)
+    int          sigdelset     (sigset_t *, i32)
     int          sigemptyset   (sigset_t *)
     int          sigfillset    (sigset_t *)
-    int          sigismember   (const sigset_t *, int)
+    int          sigismember   (const sigset_t *, i32)
 
     int sigaltstack(const stack_t *, stack_t *)
