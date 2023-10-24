@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef enum Spam:
+enum Spam:
     A
     B, C,
     D, E, F

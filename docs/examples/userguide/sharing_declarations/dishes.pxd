@@ -1,4 +1,4 @@
-cdef enum OtherStuff:
+enum OtherStuff:
     Sausage, Eggs, Lettuce
 
 cdef struct SpamDish:

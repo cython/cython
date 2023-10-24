@@ -26,11 +26,10 @@ extern from *:
 
     ctypedef union flat_eggs: pass
 
-    cdef enum ham:
+    enum Ham:
         pass
 
-    cdef enum flat_ham: pass
-
+    enum FlatHam: pass
 
 cdef extern spam s
 cdef extern flat_spam fs
@@ -39,5 +38,5 @@ cdef extern flat_spam_type fst
 cdef extern eggs e
 cdef extern flat_eggs fe
 
-cdef extern ham h
-cdef extern flat_ham fh
+cdef extern Ham h
+cdef extern FlatHam fh

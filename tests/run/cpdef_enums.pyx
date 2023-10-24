@@ -81,10 +81,10 @@ cpdef enum cpdefPyxDocLineEnum:
     """Home is where..."""
     FOURTEEN = 14
 
-cdef enum SecretPyxEnum:
+enum SecretPyxEnum:
     SEVEN = 7
 
-cdef enum cdefPyxDocEnum:
+enum cdefPyxDocEnum:
     """the heart is.
     """
     FIVE_AND_SEVEN = 5077

@@ -284,7 +284,6 @@ def switch_off(i32 x):
         return 0
     return -1
 
-
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
 def switch_pass(i32 x):
@@ -299,7 +298,6 @@ def switch_pass(i32 x):
     else:
         pass
     return x
-
 
 DEF t = (1, 2, 3, 4, 5, 6)
 
@@ -319,13 +317,13 @@ def compile_time_tuple_constant(i32 x):
     else:
         return false
 
-cdef enum X:
-    a = 1
-    b
-    c
-    d
-    e = 10
-    f = 100
+enum X:
+    A = 1
+    B
+    C
+    D
+    E = 10
+    F = 100
 
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
@@ -338,9 +336,9 @@ def enum_switch(X x):
     >>> enum_switch(100)
     2
     """
-    if x in [a, b, c, d]:
+    if x in [A, B, C, D]:
         return 0
-    elif x == e:
+    elif x == E:
         return 1
     else:
         return 2
@@ -358,11 +356,11 @@ def enum_duplicates(X x):
     >>> enum_duplicates(100)
     3
     """
-    if x in [a, b, c, d]:   # switch is ok here!
+    if x in [A, B, C, D]:   # switch is ok here!
         return 0
-    elif x == e:
+    elif x == E:
         return 1
-    elif x == b:  # duplicate => no switch here!
+    elif x == B:  # duplicate => no switch here!
         return 2
     else:
         return 3
@@ -382,9 +380,9 @@ def int_enum_switch_mix(i32 x):
     >>> int_enum_switch_mix(100)
     4
     """
-    if x in [a, b, c, d]:
+    if x in [A, B, C, D]:
         return 0
-    elif x == e:
+    elif x == E:
         return 1
     elif x == 'X':  # ASCII(88)
         return 2
@@ -429,7 +427,6 @@ def int_in_bool_binop(i32 x):
     False
     """
     return x == 1 or x == 2
-
 
 @cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
 def int_in_bool_binop_3(i32 x):

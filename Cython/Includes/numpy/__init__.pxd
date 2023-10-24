@@ -15,14 +15,12 @@ from cpython.ref cimport Py_INCREF
 from cpython.object cimport PyObject, PyTypeObject, PyObject_TypeCheck
 cimport libc.stdio as stdio
 
-
 extern from *:
     # Leave a marker that the NumPy declarations came from Cython and not from NumPy itself.
     # See https://github.com/cython/cython/issues/3573
     """
     /* Using NumPy API declarations from "Cython/Includes/numpy/" */
     """
-
 
 extern from "Python.h":
     ctypedef isize Py_intptr_t
@@ -31,7 +29,7 @@ extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
     ctypedef usize npy_uintp
 
-    cdef enum NPY_TYPES:
+    enum NPY_TYPES:
         NPY_BOOL
         NPY_BYTE
         NPY_UBYTE

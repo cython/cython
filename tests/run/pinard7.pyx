@@ -5,18 +5,18 @@ __doc__ = u"""
     AssertionError: 1
 """
 
-cdef enum Mode:
-    a = 1
-    b = 2
+enum Mode:
+    A = 1
+    B = 2
 
 cdef class Curseur:
     cdef Mode mode
 
     def method(self):
-        assert False, self.mode
+        assert false, self.mode
 
 def build():
     let Curseur c
     c = Curseur()
-    c.mode = a
+    c.mode = A
     return c

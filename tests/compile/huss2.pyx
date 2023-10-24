@@ -1,18 +1,18 @@
 # mode: compile
 
-cdef enum Color:
-    red
-    white
-    blue
+enum Colour:
+    Red
+    White
+    Blue
 
 fn void f():
-    let Color e
+    let Colour e
     let i32 i
 
-    i = red
-    i = red + 1
-    i = red | 1
-    e = white
+    i = Red
+    i = Red + 1
+    i = Red | 1
+    e = White
     i = e
     i = e + 1
 

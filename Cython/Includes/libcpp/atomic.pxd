@@ -1,7 +1,5 @@
-
 extern from "<atomic>" namespace "std" nogil:
-
-    cdef enum memory_order:
+    enum memory_order:
         memory_order_relaxed
         memory_order_consume
         memory_order_acquire

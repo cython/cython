@@ -31,9 +31,9 @@ assert dc.cpdefInClass() == 1.0
 
 assert cfuncOutside().value == 2
 
-#from c cimport ClassC
-#cdef ClassC c = ClassC()
-#print c.value
+# from c cimport ClassC
+# cdef ClassC c = ClassC()
+# print c.value
 
 ######## b.pyx ########
 
@@ -41,7 +41,7 @@ from cpython.object cimport Py_EQ, Py_NE
 
 cimport cython
 
-cdef enum Benum:
+enum Benum:
     Benum_value
 
 cdef struct Bstruct:

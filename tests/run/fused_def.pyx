@@ -20,12 +20,12 @@ cdef class ExtClassA(Base):
 cdef class ExtClassB(Base):
     pass
 
-cdef enum MyEnum:
-    entry0
-    entry1
-    entry2
-    entry3
-    entry4
+enum MyEnum:
+    Entry0
+    Entry1
+    Entry2
+    Entry3
+    Entry4
 
 ctypedef fused fused_t:
     str
@@ -158,8 +158,7 @@ def test_opt_func():
     str object double long
     ham 5.60 4 5.60 9
     """
-    opt_func("ham", f, entry4)
-
+    opt_func("ham", f, Entry4)
 
 def test_opt_func_introspection():
     """

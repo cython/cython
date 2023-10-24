@@ -1,10 +1,10 @@
 # mode: compile
 
-cdef enum Grail:
-    k = 42
+enum Grail:
+    K = 42
 
-cdef enum Spam:
-    a = -1
-    b = 2 + 3
-    c = 42 > 17
-    d = k
+enum Spam:
+    A = -1
+    B = 2 + 3
+    C = 42 > 17
+    D = K

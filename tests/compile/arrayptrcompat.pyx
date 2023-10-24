@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef enum E:
+enum E:
     Z
 
 fn void f():

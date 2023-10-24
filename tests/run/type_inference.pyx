@@ -717,8 +717,7 @@ def bar(foo):
     qux = foo
     quux = foo[qux.baz]
 
-
-cdef enum MyEnum:
+enum MyEnum:
     enum_x = 1
     enum_y = 2
 
