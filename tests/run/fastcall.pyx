@@ -4,10 +4,10 @@
 cimport cython
 
 import sys
-import struct
+import r#struct
 from collections import deque
 
-pack = struct.pack
+pack = r#struct.pack
 
 def deque_methods(v):
     """
@@ -34,19 +34,19 @@ def deque_methods(v):
 def struct_methods(v):
     """
     >>> i, lf, i2, f = struct_methods(2)
-    >>> struct.unpack('i', i)
+    >>> r#struct.unpack('i', i)
     (2,)
-    >>> struct.unpack('i', i2)
+    >>> r#struct.unpack('i', i2)
     (2,)
-    >>> struct.unpack('lf', lf)
+    >>> r#struct.unpack('lf', lf)
     (2, 4.0)
-    >>> struct.unpack('f', f)
+    >>> r#struct.unpack('f', f)
     (2.0,)
     """
     local_pack = pack
     return [
-        struct.pack('i', v),
-        struct.pack('lf', v, v*2),
+        r#struct.pack('i', v),
+        r#struct.pack('lf', v, v * 2),
         pack('i', v),
         local_pack('f', v),
     ]

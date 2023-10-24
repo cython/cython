@@ -480,13 +480,13 @@ cdef class memoryview:
     fn convert_item_to_object(self, char *itemp):
         """Only used if instantiated manually by the user, or if Cython doesn't
         know how to convert the type"""
-        import struct
+        import r#struct
         let bytes bytesitem
         # Do a manual and complete check here instead of this easy hack
         bytesitem = itemp[:self.view.itemsize]
         try:
-            result = struct.unpack(self.view.format, bytesitem)
-        except struct.error:
+            result = r#struct.unpack(self.view.format, bytesitem)
+        except r#struct.error:
             raise ValueError, "Unable to convert item to object"
         else:
             if len(self.view.format) == 1:
@@ -496,15 +496,15 @@ cdef class memoryview:
     fn assign_item_from_object(self, char *itemp, object value):
         """Only used if instantiated manually by the user, or if Cython doesn't
         know how to convert the type"""
-        import struct
+        import r#struct
         let char c
         let bytes bytesvalue
         let isize i
 
         if isinstance(value, tuple):
-            bytesvalue = struct.pack(self.view.format, *value)
+            bytesvalue = r#struct.pack(self.view.format, *value)
         else:
-            bytesvalue = struct.pack(self.view.format, value)
+            bytesvalue = r#struct.pack(self.view.format, value)
 
         for i, c in enumerate(bytesvalue):
             itemp[i] = c

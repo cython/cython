@@ -648,10 +648,10 @@ class TestCase(unittest.TestCase):
         for cls in [C0, C1]:
             with self.subTest(cls=cls):
                 self.assertEqual(cls(), cls())
-                for (idx, func) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                for (idx, r#fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
                     with self.subTest(idx=idx):
                         with self.assertRaises(TypeError):
-                            func(cls(), cls())
+                            r#fn(cls(), cls())
         C = C_TestCase_test_0_field_compare
         self.assertLessEqual(C(), C())
         self.assertGreaterEqual(C(), C())
@@ -663,10 +663,10 @@ class TestCase(unittest.TestCase):
             with self.subTest(cls=cls):
                 self.assertEqual(cls(1), cls(1))
                 self.assertNotEqual(cls(0), cls(1))
-                for (idx, func) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                for (idx, r#fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
                     with self.subTest(idx=idx):
                         with self.assertRaises(TypeError):
-                            func(cls(0), cls(0))
+                            r#fn(cls(0), cls(0))
         C = C_TestCase_test_1_field_compare
         self.assertLess(C(0), C(1))
         self.assertLessEqual(C(0), C(1))

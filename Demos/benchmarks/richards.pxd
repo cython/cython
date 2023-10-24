@@ -75,19 +75,19 @@ cdef class Task(TaskState):
 
 cdef class DeviceTask(Task):
     @cython.locals(d=DeviceTaskRec)
-    cpdef f(self, Packet pkt, DeviceTaskRec r)
+    cpdef r#fn(self, Packet pkt, DeviceTaskRec r)
 
 cdef class HandlerTask(Task):
     @cython.locals(h=HandlerTaskRec)
-    cpdef f(self, Packet pkt, HandlerTaskRec r)
+    cpdef r#fn(self, Packet pkt, HandlerTaskRec r)
 
 cdef class IdleTask(Task):
     @cython.locals(i=IdleTaskRec)
-    cpdef f(self, Packet pkt, IdleTaskRec r)
+    cpdef r#fn(self, Packet pkt, IdleTaskRec r)
 
 cdef class WorkTask(Task):
     @cython.locals(w=WorkerTaskRec)
-    cpdef f(self, Packet pkt, WorkerTaskRec r)
+    cpdef r#fn(self, Packet pkt, WorkerTaskRec r)
 
 @cython.locals(t=Task)
 cpdef schedule()

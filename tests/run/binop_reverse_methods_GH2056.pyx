@@ -56,17 +56,17 @@ class Base(object):
         else:
             return NotImplemented
 
-    def __pow__(self, other, mod):
+    def __pow__(self, other, r#mod):
         assert cython.typeof(self) == "Base"
         if self.implemented:
-            return "Base.__pow__(%s, %s, %s)" % (self, other, mod)
+            return "Base.__pow__(%s, %s, %s)" % (self, other, r#mod)
         else:
             return NotImplemented
 
-    def __rpow__(self, other, mod):
+    def __rpow__(self, other, r#mod):
         assert cython.typeof(self) == "Base"
         if self.implemented:
-            return "Base.__rpow__(%s, %s, %s)" % (self, other, mod)
+            return "Base.__rpow__(%s, %s, %s)" % (self, other, r#mod)
         else:
             return NotImplemented
 

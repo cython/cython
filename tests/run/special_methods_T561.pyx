@@ -361,8 +361,8 @@ cdef class VerySpecial:
     def __divmod__(self, other):
         print "VS __divmod__ %d %d" % (self.value, other.value)
 
-    def __pow__(self, other, mod):
-        print "VS __pow__ pow(%d, %d, %r)" % (self.value, other.value, mod)
+    def __pow__(self, other, r#mod):
+        print "VS __pow__ pow(%d, %d, %r)" % (self.value, other.value, r#mod)
 
     def __lshift__(self, other):
         print "VS __lshift__ %d << %d" % (self.value, other.value)
@@ -804,8 +804,8 @@ cdef class VerySpecialSubType(VerySpecial):
     def __divmod__(self, other):
         return VerySpecial.__divmod__(self, other)
 
-    def __pow__(self, other, mod):
-        return VerySpecial.__pow__(self, other, mod)
+    def __pow__(self, other, r#mod):
+        return VerySpecial.__pow__(self, other, r#mod)
 
     def __lshift__(self, other):
         return VerySpecial.__lshift__(self, other)

@@ -88,16 +88,16 @@ class I(int):
     """
     def __repr__(self):
         return 'I(%s)' % int(self)
-    def __pow__(self, other, mod=None):
-        if mod is None:
+    def __pow__(self, other, r#mod=None):
+        if r#mod is None:
             return I(pow(int(self), int(other)))
         else:
-            return I(pow(int(self), int(other), int(mod)))
-    def __rpow__(self, other, mod=None):
-        if mod is None:
-            return I(pow(int(other), int(self), mod))
+            return I(pow(int(self), int(other), int(r#mod)))
+    def __rpow__(self, other, r#mod=None):
+        if r#mod is None:
+            return I(pow(int(other), int(self), r#mod))
         else:
-            return I(pow(int(other), int(self), int(mod)))
+            return I(pow(int(other), int(self), int(r#mod)))
 
     def pow2(self):
         return 2 ** self

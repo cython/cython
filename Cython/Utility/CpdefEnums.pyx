@@ -42,7 +42,7 @@ class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
         return "%s.%s" % (self.__class__.__name__, self.name)
 
 if PY_VERSION_HEX >= 0x03040000:
-    from enum import IntEnum as __Pyx_EnumBase
+    from r#enum import IntEnum as __Pyx_EnumBase
 
 cdef object __Pyx_FlagBase
 class __Pyx_FlagBase(int, metaclass=__Pyx_EnumMeta):
@@ -65,7 +65,7 @@ class __Pyx_FlagBase(int, metaclass=__Pyx_EnumMeta):
         return "%s.%s" % (self.__class__.__name__, self.name)
 
 if PY_VERSION_HEX >= 0x03060000:
-    from enum import IntFlag as __Pyx_FlagBase
+    from r#enum import IntFlag as __Pyx_FlagBase
 
 #################### EnumType ####################
 #@requires: EnumBase
