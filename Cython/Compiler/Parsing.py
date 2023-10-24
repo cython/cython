@@ -2362,6 +2362,9 @@ def p_statement(s, ctx, first_statement = 0):
                 "Consider using runtime conditions or C macros instead. "
                 "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
+    elif s.sy == "#[":
+        s.level = ctx.level
+        decorators = p_attributes(s)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
             s.error('decorator not allowed here')
@@ -3586,6 +3589,18 @@ def p_ctypedef_statement(s, ctx):
             declarator = declarator,
             visibility = visibility, api = api,
             in_pxd = ctx.level == 'module_pxd')
+
+def p_attributes(s):
+    attributes = []
+    while s.sy == "#[":
+        pos = s.position()
+        s.next()
+        decorator = p_namedexpr_test(s)
+        decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
+        s.expect("]")
+        s.next()
+        s.expect_newline("Expected a newline after decorator")
+    return decorators
 
 def p_decorators(s):
     decorators = []
