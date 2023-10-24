@@ -852,9 +852,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         return _PyLong_FromByteArray(bytes, sizeof({{TYPE}}),
                                      little, !is_unsigned);
 #else
+        // call int.from_bytes()
         PyObject *from_bytes, *result = NULL;
         PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
-        from_bytes = PyObject_GetAttrString((PyObject*)&PyInt_Type, "from_bytes");
+        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
         if (!from_bytes) return NULL;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof({{TYPE}}));
         if (!py_bytes) goto limited_bad;
@@ -1201,6 +1202,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                                            is_little, !is_unsigned);
 #else
 // Inefficient copy of bit chunks through the C-API.  Probably still better than a "cannot do this" exception.
+// This is substantially faster in CPython (>30%) than calling "int.to_bytes()"
                 PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
                 int bits, remaining_bits, is_negative = 0;
                 long idigit;
