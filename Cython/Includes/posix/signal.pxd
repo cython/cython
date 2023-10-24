@@ -8,7 +8,7 @@ extern from "<signal.h>" nogil:
         int  sival_int
         void *sival_ptr
 
-    cdef struct sigevent:
+    struct sigevent:
         int    sigev_notify
         int    sigev_signo
         sigval sigev_value
@@ -25,7 +25,7 @@ extern from "<signal.h>" nogil:
         long   si_band
         sigval si_value
 
-    cdef struct sigaction_t "sigaction":
+    struct sigaction_t "sigaction":
         void     sa_handler(i32)
         void     sa_sigaction(i32, siginfo_t *, void *)
         sigset_t sa_mask

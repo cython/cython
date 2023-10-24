@@ -27,11 +27,11 @@ extern from "<sys/resource.h>" nogil:
 
     ctypedef u64 rlim_t
 
-    cdef struct rlimit:
+    struct rlimit:
         rlim_t rlim_cur
         rlim_t rlim_max
 
-    cdef struct rusage:
+    struct rusage:
         timeval ru_utime
         timeval ru_stime
         # Linux-specific

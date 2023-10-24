@@ -13,7 +13,7 @@ extern from *:
     ctypedef MyStruct* MyStructP
     fn void baz(MyStructP[])
 
-cdef struct OtherStruct:
+struct OtherStruct:
     i32 a
 
 a = sizeof(i32[23][34])

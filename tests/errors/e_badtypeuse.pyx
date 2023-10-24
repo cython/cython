@@ -1,6 +1,6 @@
 # mode: error
 
-cdef struct Grail
+struct Grail
 
 cdef extern object xobj # Python object cannot be extern
 cdef object aobj[42]    # array element cannot be Python object
@@ -14,7 +14,7 @@ cdef i32 a_spam[17][]  # incomplete element type
 cdef Grail a_g[42]     # incomplete element type
 cdef void a_nada[88]   # incomplete element type
 
-cdef struct Eggs:
+struct Eggs:
     i32 spam[]
 
 fn f(Grail g,   # incomplete argument type

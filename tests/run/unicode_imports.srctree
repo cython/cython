@@ -53,7 +53,7 @@ pub api void cdef_func():
 
 ############ pxd_moð.pxd ##########
 
-cdef struct S:
+struct S:
     int x
     
 pub api void cdef_func() # just to test generation of headers

@@ -16,10 +16,10 @@ else:
     current_endian = '>'
     other_endian = '<'
 
-cdef struct align_of_float_helper:
+struct align_of_float_helper:
     char ch
     f32 d
-cdef struct align_of_int_helper:
+struct align_of_int_helper:
     char ch
     i32 i
 float_align = sizeof(align_of_float_helper) - sizeof(f32)
@@ -97,7 +97,7 @@ def _obj(fmt):
     """
     let object[object] buf = MockBuffer(fmt, sizeof(void*))
 
-cdef struct ComplexFloat:
+struct ComplexFloat:
     f32 real
     f32 imag
 
@@ -110,13 +110,13 @@ ctypedef struct Char3Int:
 ctypedef struct LongString:
     char[90198] c
 
-cdef struct CharIntCFloat:
+struct CharIntCFloat:
     char a
     i32 b
     ComplexFloat c
     f32 d
 
-cdef struct UnpackedStruct1:
+struct UnpackedStruct1:
     char a
     i32 b
     ComplexFloat c
@@ -132,7 +132,7 @@ ctypedef struct UnpackedStruct3:
     char b
     i32 c, d, e
 
-cdef struct UnpackedStruct4:
+struct UnpackedStruct4:
     char a
     i32 b
     ComplexFloat c
@@ -198,7 +198,7 @@ def unpacked_struct(fmt):
     let object[UnpackedStruct3, ndim=1] buf3 = obj
     let object[UnpackedStruct4, ndim=1] buf4 = obj
 
-cdef struct ComplexTest:
+struct ComplexTest:
     ComplexFloat a, b, c
 
 def complex_test(fmt):
@@ -247,7 +247,7 @@ def int_and_long_are_same():
         intarr = MockBuffer("l", sizeof(i32))
         longarr = MockBuffer("i", sizeof(i32))
 
-cdef struct MixedComplex:
+struct MixedComplex:
     f64 real
     f32 imag
 
@@ -267,7 +267,7 @@ cdef packed struct PackedSubStruct:
     char x
     i32 y
 
-cdef struct UnpackedSubStruct:
+struct UnpackedSubStruct:
     char x
     i32 y
 
@@ -276,7 +276,7 @@ cdef packed struct PackedStruct:
     i32 b
     PackedSubStruct sub
 
-cdef struct PartiallyPackedStruct:
+struct PartiallyPackedStruct:
     char a
     i32 b
     PackedSubStruct sub

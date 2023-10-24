@@ -253,18 +253,18 @@ cdef class ErrorBuffer:
 #
 # Structs
 #
-cdef struct MyStruct:
+struct MyStruct:
     signed char a
     signed char b
     i128 c
     i32 d
     i32 e
 
-cdef struct SmallStruct:
+struct SmallStruct:
     i32 a
     i32 b
 
-cdef struct NestedStruct:
+struct NestedStruct:
     SmallStruct x
     SmallStruct y
     i32 z
@@ -273,7 +273,7 @@ cdef packed struct PackedStruct:
     signed char a
     i32 b
 
-cdef struct NestedPackedStruct:
+struct NestedPackedStruct:
     signed char a
     i32 b
     PackedStruct sub
@@ -319,7 +319,7 @@ cdef class NestedPackedStructMockBuffer(MockBuffer):
     fn get_itemsize(self): return sizeof(NestedPackedStruct)
     fn get_default_format(self): return b"ci^ci@i"
 
-cdef struct LongComplex:
+struct LongComplex:
     long double real
     long double imag
 

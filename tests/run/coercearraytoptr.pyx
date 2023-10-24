@@ -8,7 +8,7 @@ fn void spam(char *target):
         target += 1
     target[0] = c'\0'
 
-cdef struct Grail:
+struct Grail:
     char silly[42]
 
 def eggs():

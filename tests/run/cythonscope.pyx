@@ -9,8 +9,8 @@ from cpython cimport PyObject
 
 extern from *:
     # TestClass stuff
-    cdef struct __pyx_TestClass_obj:
-        int value
+    struct __pyx_TestClass_obj:
+        i32 value
 
     # Type pointer
     cdef PyObject *TestClassType "__pyx_TestClass_type"
@@ -29,7 +29,6 @@ extern from *:
 
     fn __pyx_test_dep(object)
     fn __pyx_test_call_other_cy_util(object)
-
 
 def test_cdef_cython_utility():
     """
@@ -160,6 +159,6 @@ def viewobjs():
     print cython.view.generic
     print cython.view.strided
     print cython.view.indirect
-    #print cython.view.generic_contiguous
+    # print cython.view.generic_contiguous
     print cython.view.contiguous
     print cython.view.indirect_contiguous

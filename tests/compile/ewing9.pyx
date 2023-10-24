@@ -1,4 +1,4 @@
 # mode: compile
 
-cdef struct xmlDoc:
+struct XmlDoc:
     i32 i

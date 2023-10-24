@@ -3,10 +3,10 @@
 
 extern from "cpp_namespaces_helper.h" namespace "A":
     ctypedef i32 A_t
-    cdef struct S:
+    struct S:
         f64 x
         A_t k
-    A_t A_func(A_t first, A_t)
+    fn A_t A_func(A_t first, A_t)
     fn void f(A_t)
 
 extern from "cpp_namespaces_helper.h" namespace "outer":

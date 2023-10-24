@@ -2,11 +2,11 @@
 
 cdef object x
 
-cdef struct spam:
+struct Spam:
     object parrot
 
 def f():
-    let spam s
+    let Spam s
     s.parrot = x
 
 _ERRORS = u"""

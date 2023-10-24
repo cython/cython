@@ -25,7 +25,7 @@ ctypedef     struct StructA0:
 ctypedef api struct StructA1:
     i32 SA1
 
-cdef     struct StructB0:
+struct StructB0:
     i32 SB0
 cdef api struct StructB1:
     i32 SB1

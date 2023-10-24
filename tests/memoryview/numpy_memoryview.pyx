@@ -526,7 +526,7 @@ def test_structarray_errors(StructArray[:] a):
     ValueError: Expected 1 dimension(s), got 2
     """
 
-cdef struct StringStruct:
+struct StringStruct:
     signed char c[4][4]
 
 ctypedef signed char String[4][4]

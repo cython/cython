@@ -1,4 +1,4 @@
-cdef struct Sandwich:
+struct Sandwich:
     i32 i
     i8 *s
 

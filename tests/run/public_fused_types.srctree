@@ -19,7 +19,7 @@ extern from "header.h":
     ctypedef i32 extern_int
     ctypedef i64 extern_long
 
-cdef struct mystruct_t:
+struct mystruct_t:
     extern_int a
 
 ctypedef union myunion_t:

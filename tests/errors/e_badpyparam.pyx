@@ -1,6 +1,6 @@
 # mode: error
 
-cdef struct Foo
+struct Foo
 
 def f(Foo *p):
     pass

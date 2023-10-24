@@ -1,6 +1,6 @@
 # mode: error
 
-cdef struct unbekannt
+struct unbekannt
 cdef int n
 n = sizeof(unbekannt)
 _ERRORS = u"""

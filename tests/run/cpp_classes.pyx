@@ -126,9 +126,8 @@ def test_value_call(i32 w):
     finally:
         del sqr
 
-cdef struct StructWithEmpty:
+struct StructWithEmpty:
     Empty empty
-
 
 def get_destructor_count():
     return destructor_count

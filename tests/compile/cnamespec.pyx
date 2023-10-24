@@ -6,7 +6,7 @@ extern from *:
     """
     i32 a "c_a", b "c_b"
 
-cdef struct foo "c_foo":
+struct Foo "c_foo":
     i32 i "c_i"
 
 ctypedef enum blarg "c_blarg":
@@ -15,11 +15,11 @@ ctypedef enum blarg "c_blarg":
 
 fn f64 spam "c_spam" (i32 i, f32 f):
     let f64 d "c_d"
-    let foo *p
+    let Foo *p
     global b
     if i:
         d = spam(a, f)
-    let foo q
+    let Foo q
     q.i = 7
     p = &q
     b = p.i

@@ -1,6 +1,6 @@
 # mode: error
 
-cdef struct Spam
+struct Spam
 
 cdef extern i32 spam(void)            # function argument cannot be void
 cdef extern i32 grail(i32 i, void v)  # function argument cannot be void

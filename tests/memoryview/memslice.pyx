@@ -1881,7 +1881,7 @@ def test_clean_temps_parallel(i32[:, :] buf):
 
 
 # Test arrays in structs
-cdef struct ArrayStruct:
+struct ArrayStruct:
     i32 ints[10]
     char chars[3]
 
@@ -1938,7 +1938,7 @@ fn test_structs_with_arr(FusedStruct array[10]):
 
     print myslice1[0].chars[:3].decode('ascii')
 
-cdef struct TestAttrs:
+struct TestAttrs:
     i32 int_attrib
     char char_attrib
 
@@ -1954,41 +1954,41 @@ def test_struct_attributes_format():
 
 
 # Test padding at the end of structs in the buffer support
-cdef struct PaddedAtEnd:
+struct PaddedAtEnd:
     i32 a[3]
     char b[3]
 
-cdef struct AlignedNested:
+struct AlignedNested:
     PaddedAtEnd a
     char chars[1]
 
-cdef struct PaddedAtEndNormal:
+struct PaddedAtEndNormal:
     i32 a
     char b
     char c
     char d
 
-cdef struct AlignedNestedNormal:
+struct AlignedNestedNormal:
     PaddedAtEndNormal a
     char chars
 
 # Test nested structs in a struct, make sure we compute padding each time
 # accordingly. If the first struct member is a struct, align on the first
 # member of that struct (recursively)
-cdef struct A:
+struct A:
     f64 d
     char c
 
-cdef struct B:
+struct B:
     char c1
     A a
     char c2
 
-cdef struct C:
+struct C:
     A a
     char c1
 
-cdef struct D:
+struct D:
     B b
     C cstruct
     i32 a[2]

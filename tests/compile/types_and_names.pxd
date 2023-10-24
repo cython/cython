@@ -1,4 +1,4 @@
-cdef struct point:
+struct point:
     f64 x
     f64 y
     f64 z

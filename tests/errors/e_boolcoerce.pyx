@@ -7,7 +7,7 @@ ctypedef struct struct_type_not_boolean:
 if struct_type_not_boolean:
     print("INVALID CODE")
 
-cdef struct struct_not_boolean:
+struct struct_not_boolean:
     i32 i
     f32 f
 

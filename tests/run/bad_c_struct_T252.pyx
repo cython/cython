@@ -26,10 +26,9 @@ def pf(default=100):
     """
     return default
 
-
-cdef struct foo:
-    int void
-    int default
+struct foo:
+    i32 void
+    i32 default
 
 def test_struct():
     """
@@ -41,10 +40,9 @@ def test_struct():
     foo_struct.default = 2
     return foo_struct.void, foo_struct.default
 
-
 cdef class Foo:
-    cdef int void
-    cdef int default
+    cdef i32 void
+    cdef i32 default
 
 def test_class():
     """

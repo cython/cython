@@ -149,8 +149,7 @@ ctypedef struct MyStructType:
     i32 x
     f64 y
 
-
-cdef struct MyStruct:
+struct MyStruct:
     i32 x
     f64 y
 
@@ -327,7 +326,7 @@ def to_struct_array_array(x):
     let MyStructType[2][3] v = x
     return v[0], v[1]
 
-cdef struct StructWithArray:
+struct StructWithArray:
     i32 a
     MyStruct[2] b
 

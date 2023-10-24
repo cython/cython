@@ -1,1 +1,1 @@
-cdef struct xmlDoc
+struct XmlDoc

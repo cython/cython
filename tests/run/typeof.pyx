@@ -6,9 +6,9 @@ cdef class A:
 cdef class B(A):
     pass
 
-cdef struct X:
+struct X:
     f64 a
-    double complex b
+    f64 complex b
 
 def simple():
     """

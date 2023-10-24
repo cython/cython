@@ -160,20 +160,19 @@ def test_complex_inplace(double complex x, double complex y):
     x *= y
     return x
 
-
 # The following is more subtle than one might expect.
 
-cdef struct Inner:
-    int x
+struct Inner:
+    i32 x
 
-cdef struct Aa:
-    int value
+struct Aa:
+    i32 value
     Inner inner
 
-cdef struct NestedA:
+struct NestedA:
     Aa a
 
-cdef struct ArrayOfA:
+struct ArrayOfA:
     Aa[10] a
 
 def nested_struct_assignment():
@@ -205,8 +204,8 @@ def nested_array_assignment():
     assert array.a[1].inner.x == 15
 
 cdef class VerboseDict(object):
-    let name
-    let dict dict
+    cdef name
+    cdef dict dict
     def __init__(self, name, **kwds):
         self.name = name
         self.dict = kwds

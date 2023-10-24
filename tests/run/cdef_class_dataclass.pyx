@@ -103,7 +103,7 @@ cdef class InheritsFromNotADataclass(NotADataclass):
 
     c: cython.i32 = 1
 
-cdef struct S:
+struct S:
     i32 a
 
 ctypedef S* S_ptr

@@ -1,13 +1,12 @@
 # mode: run
 # tag: assign, exttype
 
-cdef struct X:
-    int ix
+struct X:
+    i32 ix
     X* x
 
-
 cdef class A:
-    cdef int i
+    cdef i32 i
     cdef list l
     cdef object o
     cdef X x
@@ -31,7 +30,7 @@ cdef class A:
         >>> A().assign_A_struct()
         (5, 2, 2, 5)
         """
-        cdef X x
+        let X x
         a = A()
         a.x.ix = 2
         a.x.x = &x
@@ -51,7 +50,7 @@ cdef class A:
 
 
 cdef class B(A):
-    cdef int ib
+    cdef i32 ib
     cdef object ob
     cdef A a
 
@@ -97,7 +96,7 @@ cdef class B(A):
         >>> B().cascaded_assign_B()
         (2, 2)
         """
-        cdef B b = B()
+        let B b = B()
         b.ib = 1
         b.a = A()
         b.a.o = B()   # only one reference!

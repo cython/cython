@@ -96,6 +96,6 @@ extern from "<sys/mman.h>" nogil:
     int posix_mem_offset(const void *addr, usize Len, off_t *off,
                          usize *contig_len, i32 *fildes)
 
-    cdef struct posix_typed_mem_info:
+    struct posix_typed_mem_info:
         usize posix_tmi_length
     int posix_typed_mem_get_info(i32 fildes, posix_typed_mem_info *info)

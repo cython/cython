@@ -11,7 +11,7 @@ ctypedef struct StructA:
     StructA *a
     StructB *b
 
-cdef struct StructB:
+struct StructB:
     StructA *a
     StructB *b
 
@@ -22,7 +22,6 @@ cdef class ClassA:
 ctypedef pub class ClassB [ object ClassB, type TypeB ]:
     cdef ClassA a
     cdef ClassB b
-
 
 cdef StructA struct_a
 cdef StructB struct_b

@@ -4,8 +4,7 @@ from posix.types cimport off_t
 
 
 extern from "<sys/uio.h>" nogil:
-
-    cdef struct iovec:
+    struct iovec:
         void  *iov_base
         usize iov_len
 

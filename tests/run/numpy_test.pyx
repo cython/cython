@@ -314,7 +314,7 @@ def test_dtype(dtype, inc1):
         inc1(a)
         if a[1] != 11: print u"failed!"
 
-cdef struct DoubleInt:
+struct DoubleInt:
     i32 x, y
 
 def test_recordarray():
@@ -336,15 +336,15 @@ def test_recordarray():
     if arr[1].x != 5: print u"failed"
     if arr[1].y != 10: print u"failed"
 
-cdef struct NestedStruct:
+struct NestedStruct:
     DoubleInt a
     DoubleInt b
 
-cdef struct BadDoubleInt:
+struct BadDoubleInt:
     f32 x
     i32 y
 
-cdef struct BadNestedStruct:
+struct BadNestedStruct:
     DoubleInt a
     BadDoubleInt b
 
@@ -403,11 +403,11 @@ cdef packed struct PackedStruct:
     i8 a
     i32 b
 
-cdef struct UnpackedStruct:
+struct UnpackedStruct:
     i8 a
     i32 b
 
-cdef struct PartiallyPackedStruct:
+struct PartiallyPackedStruct:
     i8 a
     i32 b
     PackedStruct sub
@@ -488,7 +488,7 @@ def test_complextypes():
     print "%.0f,%.0f" % (x128.real, x128.imag)
     print "%d,%d" % (sizeof(x64), sizeof(x128))
 
-cdef struct Point:
+struct Point:
     np.float64_t x, y
 
 def test_point_record():
@@ -627,7 +627,7 @@ def test_fused_ndarray_other_dtypes(np.ndarray[fused_dtype, ndim=1] a):
     print cython.typeof(a), cython.typeof(b), a[5], b[6]
 
 # Test fusing the array types together and runtime dispatch
-cdef struct Foo:
+struct Foo:
     i32 a
     f32 b
 

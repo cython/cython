@@ -4,7 +4,7 @@ cdef class A:
     cdef i32 value = 3
 
 extern from *:
-    cdef struct B:
+    struct B:
         i32 value = 3
 
 _ERRORS = u"""

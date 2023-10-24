@@ -27,9 +27,9 @@ ctypedef     api struct StructA2:
 ctypedef pub api struct StructA3:
     i32 SA3
 
-cdef    struct StructB0:
+struct StructB0:
     i32 SB0
-pub     struct StructB1:
+pub struct StructB1:
     i32 SB1
 cdef api struct StructB2:
     i32 SB2

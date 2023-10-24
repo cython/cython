@@ -10,7 +10,7 @@ extern from "<time.h>" nogil:
     clock_t clock()             # CPU time
     time_t  time(time_t *)      # wall clock time since Unix epoch
 
-    cdef struct tm:
+    struct tm:
         int  tm_sec
         int  tm_min
         int  tm_hour
@@ -21,8 +21,8 @@ extern from "<time.h>" nogil:
         int  tm_yday
         int  tm_isdst
         # GNU specific extensions
-        #char *tm_zone
-        #long tm_gmtoff
+        # char *tm_zone
+        # long tm_gmtoff
 
     int     daylight            # global state
     long    timezone

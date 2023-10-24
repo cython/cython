@@ -4,10 +4,10 @@ despite potentially being already created before.
 """
 
 extern from "struct_conversion_extern_header.h":
-    cdef struct my_date_t:
-        int year
-        int month
-        int day
+    struct my_date_t:
+        i32 year
+        i32 month
+        i32 day
 
 def test_extern_struct():
     """

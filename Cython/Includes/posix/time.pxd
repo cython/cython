@@ -32,23 +32,23 @@ extern from "<sys/time.h>" nogil:
     enum: ITIMER_VIRTUAL
     enum: ITIMER_PROF
 
-    cdef struct timezone:
+    struct timezone:
         int tz_minuteswest
         int dsttime
 
-    cdef struct timeval:
+    struct timeval:
         time_t      tv_sec
         suseconds_t tv_usec
 
-    cdef struct timespec:
+    struct timespec:
         time_t tv_sec
         long   tv_nsec
 
-    cdef struct itimerval:
+    struct itimerval:
         timeval it_interval
         timeval it_value
 
-    cdef struct itimerspec:
+    struct itimerspec:
         timespec it_interval
         timespec it_value
 

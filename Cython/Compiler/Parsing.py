@@ -2384,7 +2384,7 @@ def p_statement(s, ctx, first_statement = 0):
         cdef_flag = 1
         overridable = 1
         s.next()
-    elif s.sy in ("pub", "fn", "let", "enum", "extern"):
+    elif s.sy in ("pub", "fn", "let", "enum", "struct", "extern"):
         cdef_flag = 1
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
@@ -3260,7 +3260,7 @@ def p_cdef_statement(s, ctx):
         return p_c_class_definition(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring == 'cppclass':
         return p_cpp_class_definition(s, pos, ctx)
-    elif s.sy in struct_enum_union or s.sy == 'IDENT' and s.systring in struct_enum_union:
+    elif s.sy in struct_enum_union or s.sy == 'IDENT' and s.systring in ("union", "packed"):
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
         if ctx.overridable:
@@ -3311,7 +3311,7 @@ def p_c_enum_definition(s, pos, ctx):
     s.next()
 
     scoped = False
-    if s.context.cpp and (s.sy == 'class' or (s.sy == 'IDENT' and s.systring == 'struct')):
+    if s.context.cpp and s.sy in ("class", "struct"):
         scoped = True
         s.next()
 
@@ -3398,7 +3398,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     if s.systring == 'packed':
         packed = True
         s.next()
-        if s.sy != 'IDENT' or s.systring != 'struct':
+        if s.sy != "struct":
             s.expected('struct')
     # s.sy == ident 'struct' or 'union'
     kind = s.systring
@@ -3573,7 +3573,7 @@ def p_ctypedef_statement(s, ctx):
         ctx.api = 1
     if s.sy == 'class':
         return p_c_class_definition(s, pos, ctx)
-    elif s.sy in struct_enum_union or s.sy == 'IDENT' and s.systring in struct_enum_union:
+    elif s.sy in struct_enum_union or s.sy == 'IDENT' and s.systring in ("union", "packed"):
         return p_struct_enum(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring == 'fused':
         return p_fused_definition(s, pos, ctx)
@@ -4038,7 +4038,7 @@ def p_cpp_class_attribute(s, ctx):
         return p_cpp_class_definition(s, s.position(), ctx)
     elif s.systring == 'ctypedef':
         return p_ctypedef_statement(s, ctx)
-    elif s.sy in struct_enum_union or s.sy == 'IDENT' and s.systring in struct_enum_union:
+    elif s.sy in struct_enum_union or s.sy == 'IDENT' and s.systring in ("union", "packed"):
         if s.systring != 'enum':
             return p_cpp_class_definition(s, s.position(), ctx)
         else:

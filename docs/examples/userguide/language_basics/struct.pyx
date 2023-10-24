@@ -1,4 +1,4 @@
-cdef struct Grail:
+struct Grail:
     i32 age
     f32 volume
 

@@ -224,10 +224,9 @@ class NoPyMembersPySubclass(NoPyMembers):
         return (super(NoPyMembersPySubclass, self).__repr__()
                 [:-1] + ', s=%r)' % self.s)
 
-
-cdef struct MyStruct:
-    int i
-    double x
+struct MyStruct:
+    i32 i
+    f64 x
 
 cdef class StructMemberDefault(object):
     """
@@ -258,7 +257,6 @@ cdef class StructMemberForcedPickle(StructMemberDefault):
     >>> pickle.loads(pickle.dumps(s))
     StructMemberForcedPickle(i=1, x=1.5)
     """
-
 
 cdef _unset = object()
 
@@ -297,7 +295,6 @@ cdef class Wrapper(object):
           return "Wrapper(...)"
       else:
           return "Wrapper(%r)" % self.ref
-
 
 # Non-regression test for pickling bound and unbound methods of non-extension
 # classes

@@ -253,7 +253,7 @@ def iter_doublearray_for_loop_c():
     let f64 d
     print [ d for d in cdoubles ]
 
-cdef struct MyStruct:
+struct MyStruct:
     i32 i
 
 @cython.test_assert_path_exists("//ForFromStatNode",

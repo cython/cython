@@ -413,7 +413,7 @@ def loop_over_int_array():
         pass
     return typeof(i)
 
-cdef struct MyStruct:
+struct MyStruct:
     i32 a
 
 def loop_over_struct_ptr():

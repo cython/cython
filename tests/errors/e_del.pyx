@@ -1,6 +1,6 @@
 # mode: error
 
-cdef struct S:
+struct S:
     i32 m
 
 def f(a):

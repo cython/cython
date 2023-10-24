@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef struct S:
+struct S:
     i8 c
     u8 uc
     signed char sc

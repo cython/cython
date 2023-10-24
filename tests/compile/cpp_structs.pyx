@@ -4,10 +4,10 @@
 from cython.view import array
 
 extern from "point.h" namespace "geometry":
-    cdef struct Point:
+    struct Point:
         f64 x
         f64 y
-        i32 color
+        i32 colour
 
 cdef Point p = Point(0.0, 0.0, 0)
 the_point = p

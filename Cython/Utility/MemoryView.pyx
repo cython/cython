@@ -40,7 +40,7 @@ extern from *:
     fn void* PyObject_Malloc(usize n)
     fn void PyObject_Free(void *p)
 
-    cdef struct __pyx_memoryview "__pyx_memoryview_obj":
+    struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
         PyObject *obj
         __Pyx_TypeInfo *typeinfo

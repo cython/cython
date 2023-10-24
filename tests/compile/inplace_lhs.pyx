@@ -1,6 +1,6 @@
 # mode: compile
 
-cdef struct S:
+struct S:
     i32 q
 
 def test():

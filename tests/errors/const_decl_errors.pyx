@@ -7,7 +7,7 @@ cdef const object o
 # as it's not needed for agreeing with external libraries.
 cdef const i32 x = 10
 
-cdef struct S:
+struct S:
     i32 member
 
 fn func(const i32 a, const i32* b, const (i32*) c, const S s, i32 *const d, i32 **const e, i32 *const *f,

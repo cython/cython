@@ -41,9 +41,9 @@ cdef intp[:, :] myarray
 cdef i32[:] a10 = <i32[:10]> object()
 cdef i32[:] a11 = <i32[:5.4]> <i32 *> 1
 
-cdef struct Valid:
+struct Valid:
     i32 array[1][2][3][4][5][6][7][8]
-cdef struct Invalid:
+struct Invalid:
     i32 array[1][2][3][4][5][6][7][8][9]
 
 cdef Valid[:] validslice

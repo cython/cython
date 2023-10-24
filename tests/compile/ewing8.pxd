@@ -1,10 +1,10 @@
-cdef struct Foo
+struct Foo
 cdef class Blarg
 
 ctypedef Foo FooType
 ctypedef Blarg BlargType
 
-cdef struct Foo:
+struct Foo:
     FooType *f
 
 cdef class Blarg:

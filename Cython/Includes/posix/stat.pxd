@@ -7,7 +7,7 @@ from posix.time cimport timespec
 
 
 extern from "<sys/stat.h>" nogil:
-    cdef struct struct_stat "stat":
+    struct struct_stat "stat":
         dev_t   st_dev
         ino_t   st_ino
         mode_t  st_mode

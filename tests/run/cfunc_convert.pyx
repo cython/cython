@@ -135,7 +135,7 @@ cdef union my_union:
     f32 a
     f64 b
 
-cdef struct my_struct:
+struct my_struct:
     f32 which
     my_union y
 

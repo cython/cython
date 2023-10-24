@@ -1,4 +1,4 @@
-cdef struct Bar:
+struct Bar:
     i32 sum(i32 a, i32 b)
 
 fn i32 add(i32 a, i32 b):

@@ -1,4 +1,4 @@
-cdef struct Spam:
+struct Spam:
     char *grail
 
 def f():

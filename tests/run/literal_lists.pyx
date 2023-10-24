@@ -37,7 +37,7 @@ def test_chars(foo):
     let char** ss = [b"a", b"bc", foo]
     return ss[0], ss[1], ss[2]
 
-cdef struct MyStruct:
+struct MyStruct:
     i32 x
     i32 y
     f64** data
