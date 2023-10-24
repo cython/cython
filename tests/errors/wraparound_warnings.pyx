@@ -24,7 +24,7 @@ def normal_wraparound(i32 i, bytes B not None, list L not None):
     b = [1, 2, 3][-2:i]
     b = L[-2:-1]
 
-@cython.wraparound(false)
+#[cython.wraparound(false)]
 def no_wraparound(i32 i, bytes B not None, list L not None):
     a = s[:]
     a = s[1:2]

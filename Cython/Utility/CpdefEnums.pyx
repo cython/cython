@@ -12,7 +12,7 @@ if PY_VERSION_HEX >= 0x03060000:
 else:
     from collections import OrderedDict as __Pyx_OrderedDict
 
-@cython.internal
+#[cython.internal]
 cdef class __Pyx_EnumMeta(type):
     def __init__(cls, name, parents, dct):
         type.__init__(cls, name, parents, dct)
@@ -22,7 +22,7 @@ cdef class __Pyx_EnumMeta(type):
     def __getitem__(cls, name):
         return cls.__members__[name]
 
-# @cython.internal
+# #[cython.internal]
 cdef object __Pyx_EnumBase
 class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
     def __new__(cls, value, name=None):

@@ -103,7 +103,7 @@ def index_literal_pyunicode_coerce(i32 i):
 
 @cython.test_assert_path_exists("//SingleAssignmentNode")
 @cython.test_fail_if_path_exists("//SingleAssignmentNode//CoerceFromPyTypeNode")
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def index_literal_pyunicode_coerce_no_check(i32 i):
     """
     >>> index_literal_pyunicode_coerce_no_check(0) == '1'
@@ -121,7 +121,7 @@ def index_literal_pyunicode_coerce_no_check(i32 i):
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def index_no_boundscheck(unicode ustring, isize i):
     """
     >>> index_no_boundscheck(ustring, 0) == 'a'
@@ -140,7 +140,7 @@ def index_no_boundscheck(unicode ustring, isize i):
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def unsigned_index_no_boundscheck(unicode ustring, u32 i):
     """
     >>> unsigned_index_no_boundscheck(ustring, 0) == 'a'

@@ -11,13 +11,13 @@ def withnogil_access_fail():
     with nogil:
         buf[2] = 2
 
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def withnogil_access_ok():
     let object[i32] buf = None
     with nogil:
         buf[2] = 2 # No error should be triggered here
 
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def withnogil_access_fail_2():
     let object[object] buf = None
     with nogil:

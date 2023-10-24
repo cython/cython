@@ -596,7 +596,7 @@ def list_comprehension(i32[:] buf, len):
     print "|".join([str(buf[i]) for i in range(len)])
 
 @testcase
-@cython.wraparound(false)
+#[cython.wraparound(false)]
 def wraparound_directive(i32[:] buf, i32 pos_idx, i32 neg_idx):
     """
     Again, the most interesting thing here is to inspect the C source.
@@ -850,8 +850,8 @@ def safe_get(i32[:] buf, i32 idx):
     return buf[idx]
 
 @testcase
-@cython.boundscheck(false) # outer decorators should take precedence
-@cython.boundscheck(true)
+#[cython.boundscheck(false)] # outer decorators should take precedence
+#[cython.boundscheck(true)]
 def unsafe_get(i32[:] buf, i32 idx):
     """
     Access outside of the area the buffer publishes.
@@ -1343,7 +1343,7 @@ def complex_struct_inplace(LongComplex[:] buf):
 #
 
 @testcase
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def buffer_nogil():
     """
     >>> buffer_nogil()
@@ -1761,7 +1761,7 @@ def test_nogil_oob2():
     with nogil:
         a[100, 9:]
 
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 fn i32 cdef_nogil(i32[:, :] a) except 0 nogil:
     let i32 i, j
     let i32[:, :] b = a[::-1, 3:10:2]
@@ -1809,8 +1809,8 @@ def test_convert_slicenode_to_indexnode():
     print a[0]
 
 @testcase
-@cython.boundscheck(false)
-@cython.wraparound(false)
+#[cython.boundscheck(false)]
+#[cython.wraparound(false)]
 def test_memslice_prange(arg):
     """
     >>> test_memslice_prange(IntMockBuffer("A", range(400), shape=(20, 4, 5)))  # FIXME: , writable=false))

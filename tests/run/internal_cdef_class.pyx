@@ -2,7 +2,7 @@
 cimport cython
 
 
-@cython.internal
+#[cython.internal]
 cdef class InternalType:
     """
     NOTE: this doesn't fail because it is never tested !

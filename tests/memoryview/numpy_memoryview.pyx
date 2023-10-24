@@ -681,8 +681,8 @@ def test_refcount_GH507():
     let np.int_t[:, :] b = a_view[1:2, :].T
 
 
-@cython.boundscheck(false)
-@cython.wraparound(false)
+#[cython.boundscheck(false)]
+#[cython.wraparound(false)]
 def test_boundscheck_and_wraparound(f64[:, :] x):
     """
     >>> import numpy as np

@@ -102,7 +102,7 @@ def test_partly_overlapping():
     for i in range(5):
         assert slice2[i] == i + 4
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_nonecheck1():
     u'''
     >>> test_nonecheck1()
@@ -113,7 +113,7 @@ def test_nonecheck1():
     let i32[:, :, :] uninitialized
     print uninitialized.is_c_contig()
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_nonecheck2():
     u'''
     >>> test_nonecheck2()
@@ -124,7 +124,7 @@ def test_nonecheck2():
     let i32[:, :, :] uninitialized
     print uninitialized.is_f_contig()
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_nonecheck3():
     u'''
     >>> test_nonecheck3()
@@ -135,7 +135,7 @@ def test_nonecheck3():
     let i32[:, :, :] uninitialized
     uninitialized.copy()
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_nonecheck4():
     u'''
     >>> test_nonecheck4()
@@ -146,7 +146,7 @@ def test_nonecheck4():
     let i32[:, :, :] uninitialized
     uninitialized.copy_fortran()
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_nonecheck5():
     u'''
     >>> test_nonecheck5()

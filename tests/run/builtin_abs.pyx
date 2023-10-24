@@ -41,7 +41,7 @@ def sub_abs(i32 a):
     """
     return -abs(a), 100 - abs(a)
 
-@cython.overflowcheck(true)
+#[cython.overflowcheck(true)]
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'abs']")
 def int_abs(i32 a):
@@ -59,7 +59,7 @@ def int_abs(i32 a):
     """
     return abs(a)
 
-@cython.overflowcheck(true)
+#[cython.overflowcheck(true)]
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'abs']")
 fn i32 c_int_abs(i32 a) except * nogil:
@@ -103,7 +103,7 @@ def test_c_uint_abs(u32 a):
     """
     return c_uint_abs(a)
 
-@cython.overflowcheck(true)
+#[cython.overflowcheck(true)]
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'labs']")
 def long_abs(i64 a):
@@ -121,7 +121,7 @@ def long_abs(i64 a):
     """
     return abs(a)
 
-@cython.overflowcheck(true)
+#[cython.overflowcheck(true)]
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'labs']")
 fn i64 c_long_abs(i64 a) except * nogil:
@@ -169,7 +169,7 @@ def test_c_ulong_abs(u64 a):
     """
     return c_ulong_abs(a)
 
-@cython.overflowcheck(true)
+#[cython.overflowcheck(true)]
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
 def long_long_abs(i128 a):
@@ -185,7 +185,7 @@ def long_long_abs(i128 a):
     """
     return abs(a)
 
-@cython.overflowcheck(true)
+#[cython.overflowcheck(true)]
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
 fn i128 c_long_long_abs(i128 a) except * nogil:

@@ -216,7 +216,7 @@ def test_cdef_attribute():
 
     print ExtClass().mview
 
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def test_nogil_unbound_localerror():
     """
     >>> test_nogil_unbound_localerror()
@@ -1136,7 +1136,7 @@ def min_max_tree_restructuring():
 @cython.test_assert_path_exists(
     '//MemoryViewIndexNode',
 )
-#@cython.boundscheck(false)  # reduce C code clutter
+##[cython.boundscheck(false)]  # reduce C code clutter
 def optimised_index_of_slice(i32[:, :, :] arr, i32 x, i32 y, i32 z):
     """
     >>> arr = IntMockBuffer("A", list(range(10*10*10)), shape=(10,10,10))

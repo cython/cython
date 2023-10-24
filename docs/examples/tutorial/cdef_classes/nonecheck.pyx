@@ -7,7 +7,7 @@ cdef class MyClass:
     pass
 
 # Turn off nonecheck locally for the function
-@cython.nonecheck(false)
+#[cython.nonecheck(false)]
 def func():
     let MyClass obj = None
     try:

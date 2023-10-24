@@ -138,7 +138,7 @@ def index_nonliteral_char_coerce(i32 i):
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//IndexNode",
                                  "//CoerceFromPyTypeNode")
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def index_literal_char_coerce_no_check(i32 i):
     """
     >>> index_literal_char_coerce_no_check(0) == ord('1')
@@ -156,7 +156,7 @@ def index_literal_char_coerce_no_check(i32 i):
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//IndexNode",
                                  "//CoerceFromPyTypeNode")
-@cython.boundscheck(false)
+#[cython.boundscheck(false)]
 def index_nonliteral_char_coerce_no_check(i32 i):
     """
     >>> index_nonliteral_char_coerce_no_check(0) == ord('1')

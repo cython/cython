@@ -2,8 +2,8 @@ from cython.parallel cimport parallel, prange
 cimport cython
 from libc.math cimport sqrt
 
-@cython.boundscheck(false)
-@cython.wraparound(false)
+#[cython.boundscheck(false)]
+#[cython.wraparound(false)]
 def normalize(f64[:] x):
     let isize i
     let f64 total = 0

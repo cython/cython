@@ -11,7 +11,7 @@ cdef class MyClass:
         self.a = a
         self.b = b
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def getattr_(MyClass var):
     """
     >>> obj = MyClass(2, 3)
@@ -26,7 +26,7 @@ def getattr_(MyClass var):
     """
     print var.a
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def setattr_(MyClass var):
     """
     >>> obj = MyClass(2, 3)
@@ -37,7 +37,7 @@ def setattr_(MyClass var):
     """
     var.a = 10
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def getattr_nogil(MyClass var):
     """
     >>> getattr_nogil(None)
@@ -47,7 +47,7 @@ def getattr_nogil(MyClass var):
     with nogil:
         var.a
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def setattr_nogil(MyClass var):
     """
     >>> setattr_nogil(None)
@@ -60,7 +60,7 @@ def setattr_nogil(MyClass var):
 def some():
     return MyClass(4, 5)
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def checking(MyClass var):
     """
     >>> obj = MyClass(2, 3)
@@ -78,7 +78,7 @@ def checking(MyClass var):
     else:
         print u"var is None"
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def check_and_assign(MyClass var):
     """
     >>> obj = MyClass(2, 3)
@@ -91,7 +91,7 @@ def check_and_assign(MyClass var):
         var = None
         print var.a
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def check_buffer_get(object[i32] buf):
     """
     >>> check_buffer_get(None)
@@ -100,7 +100,7 @@ def check_buffer_get(object[i32] buf):
     """
     return buf[0]
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def check_buffer_set(object[i32] buf):
     """
     >>> check_buffer_set(None)
@@ -109,7 +109,7 @@ def check_buffer_set(object[i32] buf):
     """
     buf[0] = 1
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_get(f64[:] buf):
     """
     >>> test_memslice_get(None)
@@ -118,7 +118,7 @@ def test_memslice_get(f64[:] buf):
     """
     return buf[0]
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_set(f64[:] buf):
     """
     >>> test_memslice_set(None)
@@ -127,7 +127,7 @@ def test_memslice_set(f64[:] buf):
     """
     buf[0] = 1.0
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_copy(f64[:] buf):
     """
     >>> test_memslice_copy(None)
@@ -136,7 +136,7 @@ def test_memslice_copy(f64[:] buf):
     """
     let f64[:] copy = buf.copy()
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_transpose(f64[:] buf):
     """
     >>> test_memslice_transpose(None)
@@ -145,7 +145,7 @@ def test_memslice_transpose(f64[:] buf):
     """
     let f64[:] T = buf.T
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_shape(f64[:] buf):
     """
     >>> test_memslice_shape(None)
@@ -154,7 +154,7 @@ def test_memslice_shape(f64[:] buf):
     """
     let isize extent = buf.shape[0]
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_slice(f64[:] buf):
     """
     >>> test_memslice_slice(None)
@@ -163,7 +163,7 @@ def test_memslice_slice(f64[:] buf):
     """
     let f64[:] sliced = buf[1:]
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_slice2(f64[:] buf):
     """
     Should this raise an error? It may not slice at all.
@@ -173,7 +173,7 @@ def test_memslice_slice2(f64[:] buf):
     """
     let f64[:] sliced = buf[:]
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_slice_assign(f64[:] buf):
     """
     >>> test_memslice_slice_assign(None)
@@ -182,7 +182,7 @@ def test_memslice_slice_assign(f64[:] buf):
     """
     buf[...] = 2
 
-@cython.nonecheck(true)
+#[cython.nonecheck(true)]
 def test_memslice_slice_assign2(f64[:] buf):
     """
     >>> test_memslice_slice_assign2(None)
