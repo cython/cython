@@ -18,7 +18,7 @@ fn log(level, action, obj, lineno):
 
 LOG_NONE, LOG_ALL = range(2)
 
-@cython.final
+#[cython.final]
 cdef class Context(object):
     cdef readonly object name, filename
     cdef readonly dict refs

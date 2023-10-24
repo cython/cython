@@ -5,7 +5,7 @@ from .Transitions cimport TransitionMap
 
 cdef i32 maxint
 
-@cython.final
+#[cython.final]
 cdef class Machine:
     cdef readonly list states
     cdef readonly dict initial_states
@@ -14,7 +14,7 @@ cdef class Machine:
     cpdef new_state(self)
     cpdef new_initial_state(self, name)
 
-@cython.final
+#[cython.final]
 cdef class Node:
     cdef readonly TransitionMap transitions
     cdef readonly Action action
@@ -22,7 +22,7 @@ cdef class Node:
     cdef readonly isize number
     cdef readonly i32 action_priority
 
-@cython.final
+#[cython.final]
 cdef class FastMachine:
     cdef readonly dict initial_states
     cdef readonly dict new_state_template

@@ -20,18 +20,18 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef usize genexpr_counter
     fn _visit_assignment_node(self, node, list expr_list)
 
-#def eliminate_rhs_duplicates(list expr_list_list, list ref_node_sequence)
-#def sort_common_subsequences(list items)
-@cython.locals(starred_targets=isize, lhs_size=isize, rhs_size=isize)
+# def eliminate_rhs_duplicates(list expr_list_list, list ref_node_sequence)
+# def sort_common_subsequences(list items)
+#[cython.locals(starred_targets=isize, lhs_size=isize, rhs_size=isize)]
 fn flatten_parallel_assignments(list input, list output)
 fn map_starred_assignment(list lhs_targets, list starred_assignments, list lhs_args, list rhs_args)
 
-#class PxdPostParse(CythonTransform, SkipDeclarations):
-#class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
-#class WithTransform(VisitorTransform, SkipDeclarations):
-#class DecoratorTransform(CythonTransform, SkipDeclarations):
+# class PxdPostParse(CythonTransform, SkipDeclarations):
+# class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
+# class WithTransform(VisitorTransform, SkipDeclarations):
+# class DecoratorTransform(CythonTransform, SkipDeclarations):
 
-#class AnalyseDeclarationsTransform(EnvTransform):
+# class AnalyseDeclarationsTransform(EnvTransform):
 
 cdef class AnalyseExpressionsTransform(CythonTransform):
     pass
@@ -44,7 +44,7 @@ cdef class AlignFunctionDefinitions(CythonTransform):
     cdef set imported_names
     cdef object scope
 
-@cython.final
+#[cython.final]
 cdef class YieldNodeCollector(TreeVisitor):
     pub list yields
     pub list returns
@@ -54,11 +54,11 @@ cdef class YieldNodeCollector(TreeVisitor):
     pub bint has_yield
     pub bint has_await
 
-@cython.final
+#[cython.final]
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
 
-@cython.final
+#[cython.final]
 cdef class CreateClosureClasses(CythonTransform):
     cdef list path
     cdef bint in_lambda

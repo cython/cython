@@ -7,7 +7,7 @@ cdef i32 ASCENDING, DESCENDING
 cdef class Dir:
     pub i32 x, y
 
-@cython.final
+#[cython.final]
 cdef class Done:
     pub i32 count
     pub list cells
@@ -27,13 +27,13 @@ cdef class Done:
     fn i32 next_cell_max_neighbors(self, Pos pos) except -123
     fn i32 next_cell_min_neighbors(self, Pos pos) except -123
 
-@cython.final
+#[cython.final]
 cdef class Node:
     pub tuple pos
     pub i32 id
     pub list links
 
-@cython.final
+#[cython.final]
 cdef class Hex:
     pub list nodes_by_id
     pub dict nodes_by_pos
@@ -45,7 +45,7 @@ cdef class Hex:
     fn Node get_by_pos(self, tuple pos)
     fn Node get_by_id(self, i32 id)
 
-@cython.final
+#[cython.final]
 cdef class Pos:
     pub Hex hex
     pub Done done

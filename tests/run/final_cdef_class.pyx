@@ -1,7 +1,7 @@
 
 cimport cython
 
-@cython.final
+#[cython.final]
 cdef class FinalClass:
     """
     >>> f = FinalClass()
@@ -21,7 +21,7 @@ cdef class NonFinalClass:
     >>> s = SubType()
     """
 
-@cython.final
+#[cython.final]
 cdef class FinalSubClass(NonFinalClass):
     """
     >>> f = FinalSubClass()

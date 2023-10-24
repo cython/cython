@@ -3,11 +3,11 @@
 cimport cython
 
 cdef class BaseClass:
-    @cython.final
+    #[cython.final]
     fn cdef_method(self):
         pass
 
-    @cython.final
+    #[cython.final]
     cpdef cpdef_method(self):
         pass
 

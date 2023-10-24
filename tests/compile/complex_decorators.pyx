@@ -5,6 +5,6 @@ cimport cython
 # Complex numbers defined in "cython.locals" weren't having their utility code imported directly
 # leading to compile-errors that the type wasn't defined. The test is intentionally minimal since
 # anything more thorough ends up creating the utility code
-@cython.locals(x=complex)
+#[cython.locals(x=complex)]
 fn f(x):
     pass

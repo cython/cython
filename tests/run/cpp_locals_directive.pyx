@@ -109,7 +109,7 @@ def maybe_assign_directive1(assign, value):
         x = C(value)
     print(x.getX())
 
-@cython.locals(x=C)
+#[cython.locals(x=C)]
 def maybe_assign_directive2(assign, value):
     """
     >>> maybe_assign_directive2(True, 5)

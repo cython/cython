@@ -17,7 +17,7 @@ cdef class BaseClass:
         return self.method()
 
 
-@cython.final
+#[cython.final]
 cdef class Child(BaseClass):
     """
     >>> obj = Child()

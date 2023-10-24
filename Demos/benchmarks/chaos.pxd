@@ -3,7 +3,7 @@ cimport cython
 extern from "math.h":
     cpdef f64 sqrt(f64 x)
 
-@cython.final
+#[cython.final]
 cdef class GVector:
     pub f64 x, y, z
 
@@ -12,7 +12,7 @@ cdef class GVector:
 
 cpdef list GetKnots(list points, i64 degree)
 
-@cython.final
+#[cython.final]
 cdef class Spline:
     cdef list knots
     cdef list points
@@ -21,7 +21,7 @@ cdef class Spline:
     cpdef (i64, i64) GetDomain(self)
     cpdef i64 GetIndex(self, u)
 
-@cython.final
+#[cython.final]
 cdef class Chaosgame:
     cdef list splines
     cdef f64 thickness

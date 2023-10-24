@@ -6,7 +6,7 @@ from . cimport Machines
 from .Transitions cimport TransitionMap
 
 
-@cython.final
+#[cython.final]
 cdef class StateMap:
     cdef Machines.FastMachine new_machine
     cdef dict old_to_new_dict
@@ -14,17 +14,17 @@ cdef class StateMap:
 
     fn old_to_new(self, dict old_state_set)
 
-    @cython.locals(state=Machines.Node)
+    #[cython.locals(state=Machines.Node)]
     fn highest_priority_action(self, dict state_set)
 
     fn make_key(self, dict state_set)
 
 
-@cython.locals(new_machine=Machines.FastMachine, transitions=TransitionMap)
+#[cython.locals(new_machine=Machines.FastMachine, transitions=TransitionMap)]
 cpdef nfa_to_dfa(Machines.Machine old_machine, debug=*)
 
 fn set_epsilon_closure(dict state_set)
 fn dict epsilon_closure(Machines.Node state)
 
-@cython.locals(state_set_2=dict, state2=Machines.Node)
+#[cython.locals(state_set_2=dict, state2=Machines.Node)]
 fn add_to_epsilon_closure(dict state_set, Machines.Node state)

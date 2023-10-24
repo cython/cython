@@ -27,10 +27,10 @@ cdef class Scanner:
 
     pub level
 
-    @cython.locals(input_state=i64)
+    #[cython.locals(input_state=i64)]
     fn inline next_char(self)
 
-    @cython.locals(action=Action)
+    #[cython.locals(action=Action)]
     cpdef tuple read(self)
 
     fn inline unread(self, token, value, position)
@@ -41,7 +41,7 @@ cdef class Scanner:
 
     ##cdef tuple position(self)  # used frequently by Parsing.py
 
-    @cython.final
+    #[cython.final]
     @cython.locals(cur_pos=isize, cur_line=isize, cur_line_start=isize,
                    input_state=i64, next_pos=isize, state=dict,
                    buf_start_pos=isize, buf_len=isize, buf_index=isize,

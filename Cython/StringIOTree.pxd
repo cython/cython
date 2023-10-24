@@ -2,7 +2,7 @@ cimport cython
 
 cdef object StringIO
 
-@cython.final
+#[cython.final]
 cdef class StringIOTree:
     pub list prepended_children
     pub object stream
@@ -11,13 +11,13 @@ cdef class StringIOTree:
 
     cpdef bint empty(self)
 
-    @cython.locals(x=StringIOTree)
+    #[cython.locals(x=StringIOTree)]
     cpdef getvalue(self)
 
-    @cython.locals(x=StringIOTree)
+    #[cython.locals(x=StringIOTree)]
     fn _collect_in(self, list target_list)
 
-    @cython.locals(child=StringIOTree)
+    #[cython.locals(child=StringIOTree)]
     cpdef copyto(self, target)
 
     cpdef commit(self)
@@ -25,5 +25,5 @@ cdef class StringIOTree:
     #def insert(self, iotree)
     #def insertion_point(self)
 
-    @cython.locals(c=StringIOTree)
+    #[cython.locals(c=StringIOTree)]
     cpdef allmarkers(self)

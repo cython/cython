@@ -2,7 +2,7 @@
 
 cimport cython
 
-@cython.final
+#[cython.final]
 cdef class FinalClass:
     pass
 

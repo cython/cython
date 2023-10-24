@@ -73,7 +73,7 @@ if not (pypy_version and pypy_version < (7, 3, 10)):
     True
     """
 
-@cython.final
+#[cython.final]
 cdef class MyDictFinal(dict):
     @cython.test_assert_path_exists("//ComprehensionNode//CMethodSelfCloneNode")
     def test_items(self):
@@ -116,7 +116,7 @@ cdef class MyDict2(MyDict):
         l.sort()
         return l
 
-@cython.final
+#[cython.final]
 cdef class MyDict2Final(MyDict):
     @cython.test_assert_path_exists("//ComprehensionNode//CMethodSelfCloneNode")
     def test_items(self):
@@ -137,7 +137,7 @@ cdef class MyDict2Final(MyDict):
         l.sort()
         return l
 
-@cython.final
+#[cython.final]
 cdef class MyDictOverride(dict):
     def items(self):
         return [(1, 2), (3, 4)]
@@ -163,7 +163,7 @@ cdef class MyDictOverride(dict):
         l.sort()
         return l
 
-@cython.final
+#[cython.final]
 cdef class MyDictOverride2(MyDict):
     def items(self):
         return [(1, 2), (3, 4)]

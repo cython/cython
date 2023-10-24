@@ -3,7 +3,7 @@
 
 cimport cython
 
-@cython.final
+#[cython.final]
 cdef class FinalType(object):
     """
     >>> obj = FinalType()
@@ -50,7 +50,7 @@ cdef class BaseTypeWithFinalMethods(object):
     """
 
     @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=true]")
-    @cython.final
+    #[cython.final]
     fn cdef_method(self):
         pass
 

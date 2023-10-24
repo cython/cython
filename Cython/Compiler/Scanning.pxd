@@ -11,7 +11,7 @@ fn initial_compile_time_env()
 
 ## methods commented with '##' out are used by Parsing.py when compiled.
 
-@cython.final
+#[cython.final]
 cdef class CompileTimeScope:
     pub dict entries
     pub CompileTimeScope outer
@@ -19,7 +19,7 @@ cdef class CompileTimeScope:
     ##cdef lookup_here(self, name)
     ##cpdef lookup(self, name)
 
-@cython.final
+#[cython.final]
 cdef class PyrexScanner(Scanner):
     pub context
     pub list included_files
@@ -46,8 +46,10 @@ cdef class PyrexScanner(Scanner):
     #cpdef begin_string_action(self, text)
     #cpdef end_string_action(self, text)
     #cpdef unclosed_string_action(self, text)
-    @cython.locals(current_level=isize, new_level=isize)
+
+    #[cython.locals(current_level=isize, new_level=isize)]
     cpdef indentation_action(self, text)
+
     #cpdef eof_action(self, text)
     ##cdef next(self)
     ##cdef peek(self)

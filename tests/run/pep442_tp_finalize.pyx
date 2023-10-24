@@ -53,7 +53,7 @@ def test_del_and_dealloc():
     gc.collect()
     print("finish")
 
-@cython.final
+#[cython.final]
 cdef class FinalClass:
     def __init__(self):
         print("init")
@@ -74,7 +74,7 @@ def test_final_class():
     gc.collect()
     print("finish")
 
-@cython.final
+#[cython.final]
 cdef class FinalInherits(nontrivial_del):
     def __init__(self):
         super().__init__()
@@ -106,7 +106,7 @@ class RegularClass:
     def __del__(self):
         print("del")
 
-@cython.final
+#[cython.final]
 cdef class FinalMultipleInheritance(DummyBase, RegularClass):
     def __init__(self):
         super().__init__()

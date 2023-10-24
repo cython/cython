@@ -192,7 +192,7 @@ def test_type_inference():
     xo = (x, o)
     assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
 
-@cython.locals(a=(i32, i32), b=(cython.i64, cython.f64))
+#[cython.locals(a=(i32, i32), b=(cython.i64, cython.f64))]
 def test_pure_python_declaration(x, y):
     """
     >>> test_pure_python_declaration(1, 2)

@@ -672,7 +672,7 @@ def with_statement():
     print(typeof(x))
     return x
 
-@cython.final
+#[cython.final]
 cdef class TypedContextManager(object):
     cpdef double __enter__(self):
         return 2.0

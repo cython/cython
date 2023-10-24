@@ -62,21 +62,28 @@ fn expect_ellipsis(PyrexScanner s)
 fn make_slice_nodes(pos, subscripts)
 cpdef make_slice_node(pos, start, stop = *, step = *)
 fn p_atom(PyrexScanner s)
-@cython.locals(value=unicode)
+
+#[cython.locals(value=unicode)]
 fn p_int_literal(PyrexScanner s)
+
 fn p_name(PyrexScanner s, name)
 fn wrap_compile_time_constant(pos, value)
 fn p_cat_string_literal(PyrexScanner s)
 fn p_opt_string_literal(PyrexScanner s, required_type=*)
 fn bint check_for_non_ascii_characters(unicode string)
-@cython.locals(systr=unicode, is_python3_source=bint, is_raw=bint)
+
+#[cython.locals(systr=unicode, is_python3_source=bint, is_raw=bint)]
 fn p_string_literal(PyrexScanner s, kind_override=*)
+
 fn _append_escape_sequence(kind, builder, unicode escape_sequence, PyrexScanner s)
 fn tuple _f_string_error_pos(pos, string, isize i)
-@cython.locals(i=isize, size=isize, c=Py_UCS4, next_start=isize)
+
+#[cython.locals(i=isize, size=isize, c=Py_UCS4, next_start=isize)]
 fn list p_f_string(PyrexScanner s, unicode_value, pos, bint is_raw)
-@cython.locals(i=isize, size=isize, c=Py_UCS4, quote_char=Py_UCS4, NO_CHAR=Py_UCS4)
+
+#[cython.locals(i=isize, size=isize, c=Py_UCS4, quote_char=Py_UCS4, NO_CHAR=Py_UCS4)]
 fn tuple p_f_string_expr(PyrexScanner s, unicode_value, pos, isize starting_index, bint is_raw)
+
 fn p_list_maker(PyrexScanner s)
 fn p_comp_iter(PyrexScanner s, body)
 fn p_comp_for(PyrexScanner s, body)

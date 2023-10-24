@@ -1,6 +1,6 @@
 cimport cython
 
-@cython.final
+#[cython.final]
 cdef class Packet:
     pub object link
     pub object ident
@@ -13,16 +13,16 @@ cdef class Packet:
 cdef class TaskRec:
     pass
 
-@cython.final
+#[cython.final]
 cdef class DeviceTaskRec(TaskRec):
     pub object pending
 
-@cython.final
+#[cython.final]
 cdef class IdleTaskRec(TaskRec):
     pub i64 control
     pub isize count
 
-@cython.final
+#[cython.final]
 cdef class HandlerTaskRec(TaskRec):
     pub object work_in   # = None
     pub object device_in # = None
@@ -30,7 +30,7 @@ cdef class HandlerTaskRec(TaskRec):
     cpdef work_in_add(self, Packet p)
     cpdef device_in_add(self, Packet p)
 
-@cython.final
+#[cython.final]
 cdef class WorkerTaskRec(TaskRec):
     pub object destination # = I_HANDLERA
     pub isize count
@@ -74,22 +74,22 @@ cdef class Task(TaskState):
     cpdef findtcb(self, id)
 
 cdef class DeviceTask(Task):
-    @cython.locals(d=DeviceTaskRec)
+    #[cython.locals(d=DeviceTaskRec)]
     cpdef r#fn(self, Packet pkt, DeviceTaskRec r)
 
 cdef class HandlerTask(Task):
-    @cython.locals(h=HandlerTaskRec)
+    #[cython.locals(h=HandlerTaskRec)]
     cpdef r#fn(self, Packet pkt, HandlerTaskRec r)
 
 cdef class IdleTask(Task):
-    @cython.locals(i=IdleTaskRec)
+    #[cython.locals(i=IdleTaskRec)]
     cpdef r#fn(self, Packet pkt, IdleTaskRec r)
 
 cdef class WorkTask(Task):
-    @cython.locals(w=WorkerTaskRec)
+    #[cython.locals(w=WorkerTaskRec)]
     cpdef r#fn(self, Packet pkt, WorkerTaskRec r)
 
-@cython.locals(t=Task)
+#[cython.locals(t=Task)]
 cpdef schedule()
 
 cdef class Richards:

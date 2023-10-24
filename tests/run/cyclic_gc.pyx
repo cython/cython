@@ -23,7 +23,7 @@ cdef class ExtTypeNoGC:
 @cython.test_assert_path_exists('//CClassDefNode',
                                 '//CClassDefNode[@scope]',
                                 '//CClassDefNode[@scope.has_cyclic_pyobject_attrs = False]')
-@cython.final
+#[cython.final]
 cdef class ExtTypeFinalNoGC:
     """
     >>> obj = ExtTypeFinalNoGC()
