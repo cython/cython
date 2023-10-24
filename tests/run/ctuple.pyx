@@ -179,7 +179,7 @@ def cast_to_ctuple(*o):
     x, y = <(i32, f64)>o
     return x, y
 
-@cython.infer_types(true)
+#[cython.infer_types(true)]
 def test_type_inference():
     """
     >>> test_type_inference()

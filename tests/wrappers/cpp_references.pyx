@@ -58,7 +58,7 @@ def test_ref_assign(i32 x):
     let f64 d = ref_func(x)
     return d
 
-@cython.infer_types(true)
+#[cython.infer_types(true)]
 def test_ref_inference(i32 x):
     """
     >>> test_ref_inference(23)
