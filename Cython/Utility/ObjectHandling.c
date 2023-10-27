@@ -200,7 +200,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
         next = iternext(iterator);
         if (likely(next))
             return next;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
 #endif
