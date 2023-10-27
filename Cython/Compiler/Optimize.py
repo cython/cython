@@ -3463,6 +3463,21 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___div__(self, node, function, args, is_unbound_method):
         return self._optimise_num_div('Divide', node, function, args, is_unbound_method)
 
+    _handle_simple_method_int___add__ = _handle_simple_method_object___add__
+    _handle_simple_method_int___sub__ = _handle_simple_method_object___sub__
+    _handle_simple_method_int___mul__ = _handle_simple_method_object___mul__
+    _handle_simple_method_int___eq__ = _handle_simple_method_object___eq__
+    _handle_simple_method_int___ne__ = _handle_simple_method_object___ne__
+    _handle_simple_method_int___and__ = _handle_simple_method_object___and__
+    _handle_simple_method_int___or__ = _handle_simple_method_object___or__
+    _handle_simple_method_int___xor__ = _handle_simple_method_object___xor__
+    _handle_simple_method_int___rshift__ = _handle_simple_method_object___rshift__
+    _handle_simple_method_int___lshift__ = _handle_simple_method_object___lshift__
+    _handle_simple_method_int___mod__ = _handle_simple_method_object___mod__
+    _handle_simple_method_int___floordiv__ = _handle_simple_method_object___floordiv__
+    _handle_simple_method_int___truediv__ = _handle_simple_method_object___truediv__
+    _handle_simple_method_int___div__ = _handle_simple_method_object___div__
+
     def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
         if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
             return node
@@ -4207,12 +4222,12 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
     # Prefer constants on RHS as they allows better size control for some operators.
     num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
     if isinstance(arg1, num_nodes):
-        if arg0.type is not PyrexTypes.py_object_type:
+        if arg0.type is not PyrexTypes.py_object_type and arg0.type is not Builtin.builtin_types['int']:
             return None
         numval = arg1
         arg_order = 'ObjC'
     elif isinstance(arg0, num_nodes):
-        if arg1.type is not PyrexTypes.py_object_type:
+        if arg1.type is not PyrexTypes.py_object_type and arg1.type is not Builtin.builtin_types['int']:
             return None
         numval = arg0
         arg_order = 'CObj'
