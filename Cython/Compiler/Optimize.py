@@ -3476,7 +3476,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _handle_simple_method_int___mod__ = _handle_simple_method_object___mod__
     _handle_simple_method_int___floordiv__ = _handle_simple_method_object___floordiv__
     _handle_simple_method_int___truediv__ = _handle_simple_method_object___truediv__
-    _handle_simple_method_int___div__ = _handle_simple_method_object___div__
 
     def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
         if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
