@@ -515,3 +515,130 @@ def test_avoid_if_coercion(obj):
         return True
     else:
         return False
+
+def pure_add_int(obj2: int):
+    """
+    >>> pure_add_int(1)
+    (2, 2)
+    """
+    res1 = obj2 + 1
+    res2 = 1 + obj2
+    return res1, res2
+
+def pure_sub_int(obj2: int):
+    """
+    >>> pure_sub_int(1)
+    (0, 0)
+    """
+    res1 = obj2 - 1
+    res2 = 1 - obj2
+    return res1, res2
+
+def pure_mul_int(obj2: int):
+    """
+    >>> pure_mul_int(2)
+    (4, 4)
+    """
+    res1 = obj2 * 2
+    res2 = 2 * obj2
+    return res1, res2
+
+def pure_eq_int(obj2: int):
+    """
+    >>> pure_eq_int(2)
+    (True, True)
+    >>> pure_eq_int(3)
+    (False, False)
+    """
+    res1 = obj2 == 2
+    res2 = 2 == obj2
+    return res1, res2
+
+def pure_ne_int(obj2: int):
+    """
+    >>> pure_ne_int(2)
+    (False, False)
+    >>> pure_ne_int(3)
+    (True, True)
+    """
+    res1 = obj2 != 2
+    res2 = 2 != obj2
+    return res1, res2
+
+def pure_and_int(obj2: int):
+    """
+    >>> pure_and_int(1)
+    (0, 0)
+    >>> pure_and_int(3)
+    (2, 2)
+    """
+    res1 = obj2 & 2
+    res2 = 2 & obj2
+    return res1, res2
+
+def pure_or_int(obj2: int):
+    """
+    >>> pure_or_int(1)
+    (3, 3)
+    >>> pure_or_int(0)
+    (2, 2)
+    """
+    res1 = obj2 | 2
+    res2 = 2 | obj2
+    return res1, res2
+
+def pure_xor_int(obj2: int):
+    """
+    >>> pure_xor_int(1)
+    (3, 3)
+    >>> pure_xor_int(3)
+    (1, 1)
+    """
+    res1 = obj2 ^ 2
+    res2 = 2 ^ obj2
+    return res1, res2
+
+def pure_rshift_int(obj2: int):
+    """
+    >>> pure_rshift_int(8)
+    (4, 0)
+    """
+    res1 = obj2 >> 1
+    res2 = 8 >> obj2
+    return res1, res2
+
+def pure_lshift_int(obj2: int):
+    """
+    >>> pure_lshift_int(8)
+    (16, 2048)
+    """
+    res1 = obj2 << 1
+    res2 = 8 << obj2
+    return res1, res2
+
+def pure_mod_int(obj2: int):
+    """
+    >>> pure_mod_int(3)
+    (1, 2)
+    """
+    res1 = obj2 % 2
+    res2 = 5 % obj2
+    return res1, res2
+
+def pure_floordiv_int(obj2: int):
+    """
+    >>> pure_floordiv_int(3)
+    (1, 2)
+    """
+    res1 = obj2 // 2
+    res2 = 7 // obj2
+    return res1, res2
+
+def pure_truediv_int(obj2: int):
+    """
+    >>> pure_truediv_int(5)
+    (2.5, 1.4)
+    """
+    res1 = obj2 / 2
+    res2 = 7 / obj2
+    return res1, res2
