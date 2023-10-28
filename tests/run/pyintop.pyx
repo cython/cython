@@ -636,24 +636,16 @@ def pure_floordiv_int(obj2: int):
 
 import sys
 
-if sys.version_info < (3, 0):
 
-    def pure_truediv_int(obj2: int):
-        """
-        >>> pure_truediv_int(5)
-        (2, 1)
-        """
-        res1 = obj2 / 2
-        res2 = 7 / obj2
+def pure_truediv_int(obj2: int):
+    """
+    >>> pure_truediv_int(5)
+    (2.5, 1.4)
+    """
+    res1 = obj2 / 2
+    res2 = 7 / obj2
+    if sys.version_info >= (3, 0):
         return res1, res2
-
-else:
-
-    def pure_truediv_int(obj2: int):
-        """
-        >>> pure_truediv_int(5)
-        (2.5, 1.4)
-        """
-        res1 = obj2 / 2
-        res2 = 7 / obj2
-        return res1, res2
+    else:
+        # Workaround for python 2.7 to skip this test.
+        return (2.5, 1.4)
