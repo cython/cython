@@ -437,7 +437,6 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name);
 #endif
 
 /////////////// SetPackagePathFromImportLib ///////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
 // PY_VERSION_HEX >= 0x03030000
