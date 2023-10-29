@@ -269,7 +269,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
