@@ -3065,14 +3065,13 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
             //   not so different than duplicating the string.
             && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
 
+        int ret;
+        // GIVEREF/GOTREF since we expect *p_left to change (although it won't change on failures).
         __Pyx_GIVEREF(*p_left);
-        if (unlikely(PyUnicode_Resize(p_left, new_len) != 0)) {
-            // on failure PyUnicode_Resize does not deallocate the the input
-            // so left will remain unchanged - simply undo the giveref
-            __Pyx_GOTREF(*p_left);
+        ret = PyUnicode_Resize(p_left, new_len);
+        __Pyx_GOTREF(*p_left);
+        if (unlikely(ret != 0))
             return NULL;
-        }
-        __Pyx_INCREF(*p_left);
 
         // copy 'right' into the newly allocated area of 'left'
         #if PY_VERSION_HEX >= 0x030d0000
@@ -3080,6 +3079,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
         #else
         _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
         #endif
+        __Pyx_INCREF(*p_left);
+        __Pyx_GIVEREF(*p_left);
         return *p_left;
     } else {
         return __Pyx_PyUnicode_Concat(left, right);
