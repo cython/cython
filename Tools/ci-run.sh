@@ -104,7 +104,9 @@ elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
   pip install -r test-requirements-pypy27.txt || exit 1
 elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
-  python -m pip install --pre -r test-requirements-312.txt || exit 1
+  if [[ $PYTHON_VERSION == "3.12"* ]]; then
+    python -m pip install --pre -r test-requirements-312.txt || exit 1
+  fi
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
