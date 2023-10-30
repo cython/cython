@@ -2,8 +2,14 @@
 Cython Changelog
 ================
 
-3.0.5 (2023-10-??)
+3.0.5 (2023-10-31)
 ==================
+
+Features added
+--------------
+
+* Preliminary support for CPython 3.13a1 was added to allow early testing.
+  (Github issue :issue:`5767`)
 
 Bugs fixed
 ----------
@@ -13,6 +19,9 @@ Bugs fixed
 
 * A typo in the ``always_allow_keywords`` directive for Python code was fixed.
   Patch by lk-1984.  (Github issue :issue:`5772`)
+
+* Some C compiler warnings were resolved.
+  Patch by Pierre Jolivet.  (Github issue :issue:`5780`)
 
 
 3.0.4 (2023-10-17)
