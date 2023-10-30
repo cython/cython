@@ -53,11 +53,14 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13-dev"
         env: [{}]
 
         include:
-          # Temporary - Allow failure on Python 3.12 jobs (https://github.com/cython/cython/issues/5470)
+          # Temporary - Allow failure on Python 3.12+ jobs (https://github.com/cython/cython/issues/5470)
           - python-version: "3.12"
+            allowed_failure: true
+          - python-version: "3.13-dev"
             allowed_failure: true
 
           # Ubuntu sub-jobs:
@@ -123,6 +126,12 @@ jobs:
             extra_hash: "-limited_api"
           - os: ubuntu-20.04
             python-version: "3.12"
+            allowed_failure: true
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            extra_hash: "-limited_api"
+          - os: ubuntu-20.04
+            python-version: "3.13-dev"
             allowed_failure: true
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }

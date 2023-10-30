@@ -935,12 +935,12 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         Py_DECREF(replace);
         return result;
     }
+    PyErr_Clear();
 
     #if __PYX_LIMITED_VERSION_HEX < 0x030780000
     // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
     // In this we take a lazy interpreted route (without regard to performance
     // since it's fairly old and this is mostly just to get something working)
-    PyErr_Clear();
     {
         PyObject *compiled = NULL, *result = NULL;
         if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
@@ -960,6 +960,8 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         if (result) Py_INCREF(result);
         return result;
     }
+    #else
+    return NULL;
     #endif
 }
 

@@ -14,15 +14,25 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     // store them
 
     PyObject *shared_abi_module = 0, *module = 0;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+    PyObject *result;
+#endif
 
     shared_abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!shared_abi_module) return NULL;
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+     if (PyObject_GetOptionalAttrString(shared_abi_module, name, &result) != 0) {
+        Py_DECREF(shared_abi_module);
+        return result;
+     }
+#else
     if (PyObject_HasAttrString(shared_abi_module, name)) {
         PyObject* result = PyObject_GetAttrString(shared_abi_module, name);
         Py_DECREF(shared_abi_module);
         return result;
     }
+#endif
 
     // the best and simplest case is simply to defer to the standard library (if available)
     module = PyImport_ImportModule(name);

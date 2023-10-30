@@ -34,7 +34,14 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     Py_ssize_t len = Py_SIZE(list);
     if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+        // However, extending the size *before* setting the value would not be correct,
+        // so we cannot call PyList_SET_ITEM().
+        L->ob_item[len] = x;
+        #else
         PyList_SET_ITEM(list, len, x);
+        #endif
         __Pyx_SET_SIZE(list, len + 1);
         return 0;
     }
@@ -52,7 +59,14 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
     Py_ssize_t len = Py_SIZE(list);
     if (likely(L->allocated > len)) {
         Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+        // However, extending the size *before* setting the value would not be correct,
+        // so we cannot call PyList_SET_ITEM().
+        L->ob_item[len] = x;
+        #else
         PyList_SET_ITEM(list, len, x);
+        #endif
         __Pyx_SET_SIZE(list, len + 1);
         return 0;
     }
@@ -65,7 +79,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 //////////////////// ListExtend.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     PyObject* none = _PyList_Extend((PyListObject*)L, v);
     if (unlikely(!none))
         return -1;
@@ -280,7 +294,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
 /////////////// py_dict_pop ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3 & PY_VERSION_HEX < 0x030d0000
     if ((1)) {
         return _PyDict_Pop(d, key, default_value);
     } else
@@ -440,7 +454,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
 
 static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set,
                                                   Py_ssize_t* p_orig_length, int* p_source_is_set) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable));
     *p_source_is_set = is_set;
     if (likely(is_set)) {
@@ -460,7 +474,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         PyObject* iter_obj, Py_ssize_t orig_length,
         Py_ssize_t* ppos, PyObject **value,
         int source_is_set) {
-    if (!CYTHON_COMPILING_IN_CPYTHON || unlikely(!source_is_set)) {
+    if (!CYTHON_COMPILING_IN_CPYTHON || PY_VERSION_HEX >= 0x030d0000 || unlikely(!source_is_set)) {
         *value = PyIter_Next(iter_obj);
         if (unlikely(!*value)) {
             return __Pyx_IterFinish();
@@ -469,7 +483,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         CYTHON_UNUSED_VAR(ppos);
         return 1;
     }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     if (unlikely(PySet_GET_SIZE(iter_obj) != orig_length)) {
         PyErr_SetString(
             PyExc_RuntimeError,

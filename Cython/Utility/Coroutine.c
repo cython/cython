@@ -130,7 +130,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
-#if PY_VERSION_HEX >= 0x030600B3 || defined(_PyErr_FormatFromCause)
+#if PY_VERSION_HEX >= 0x030600B3 && PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
     _PyErr_FormatFromCause(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
@@ -159,7 +159,7 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     PyErr_Restore(exc, val2, tb);
 #else
     // since Py2 does not have exception chaining, it's better to avoid shadowing exceptions there
-    source++;
+    CYTHON_UNUSED_VAR(source);
 #endif
 }
 
@@ -493,6 +493,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
 //@requires: Exceptions.c::SaveResetException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: ObjectHandling.c::PyObjectCallNoArg
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 //@requires: ObjectHandling.c::PyObjectFastCall
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
@@ -862,9 +863,23 @@ PyObject *__Pyx_PyGen_Send(PyGenObject *gen, PyObject *arg) {
             PyErr_SetNone(PyExc_StopIteration);
         }
         else {
+#if PY_VERSION_HEX < 0x030d00A1
             _PyGen_SetStopIterationValue(result);
+#else
+            if (!PyTuple_Check(result) && !PyExceptionInstance_Check(result)) {
+                // delay instantiation if possible
+                PyErr_SetObject(PyExc_StopIteration, result);
+            } else {
+                PyObject *exc = __Pyx_PyObject_CallOneArg(PyExc_StopIteration, result);
+                if (likely(exc != NULL)) {
+                    PyErr_SetObject(PyExc_StopIteration, exc);
+                    Py_DECREF(exc);
+                }
+            }
+#endif
         }
-        Py_CLEAR(result);
+        Py_DECREF(result);
+        result = NULL;
     }
     return result;
 #endif

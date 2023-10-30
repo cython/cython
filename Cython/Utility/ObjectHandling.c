@@ -200,7 +200,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
         next = iternext(iterator);
         if (likely(next))
             return next;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
 #endif
@@ -293,7 +293,9 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
     // Handles less common slow-path checks for GetItem
     if (likely(PyType_Check(obj))) {
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
-        if (meth) {
+        if (!meth) {
+            PyErr_Clear();
+        } else {
             PyObject *result = __Pyx_PyObject_CallOneArg(meth, key);
             Py_DECREF(meth);
             return result;
@@ -1506,7 +1508,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
 
 /////////////// SetNameInClass.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
 // Identifier names are always interned and have a pre-calculated hash value.
 #define __Pyx_SetNameInClass(ns, name, value) \
     (likely(PyDict_CheckExact(ns)) ? _PyDict_SetItem_KnownHash(ns, name, value, ((PyASCIIObject *) name)->hash) : PyObject_SetItem(ns, name, value))
@@ -1580,7 +1582,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     PyObject *result;
 // FIXME: clean up the macro guard order here: limited API first, then borrowed refs, then cpython
 #if !CYTHON_AVOID_BORROWED_REFS
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
     // Identifier names are always interned and have a pre-calculated hash value.
     result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
     __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
@@ -1773,15 +1775,21 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
     if (likely(__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
         __Pyx_PyErr_Clear();
 }
+#endif
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name) {
     PyObject *result;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+    (void) PyObject_GetOptionalAttr(obj, attr_name, &result);
+    return result;
+#else
 #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS && PY_VERSION_HEX >= 0x030700B1
     // _PyObject_GenericGetAttrWithDict() in CPython 3.7+ can avoid raising the AttributeError.
     // See https://bugs.python.org/issue32544
@@ -1795,6 +1803,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
         __Pyx_PyObject_GetAttrStr_ClearAttributeError();
     }
     return result;
+#endif
 }
 
 
@@ -2376,14 +2385,24 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
 
+#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C00A2)
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
     // Separate function to avoid excessive inlining.
     PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
     Py_DECREF(method);
     return result;
 }
+#endif
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
+#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C00A2
+    PyObject *args[2] = {obj, arg};
+    // avoid unused functions
+    (void) __Pyx_PyObject_GetMethod;
+    (void) __Pyx_PyObject_CallOneArg;
+    (void) __Pyx_PyObject_Call2Args;
+    return PyObject_VectorcallMethod(method_name, args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#else
     PyObject *method = NULL, *result;
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
@@ -2393,6 +2412,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
     }
     if (unlikely(!method)) return NULL;
     return __Pyx__PyObject_CallMethod1(method, arg);
+#endif
 }
 
 
@@ -3072,21 +3092,22 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
             //   not so different than duplicating the string.
             && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
 
+        int ret;
+        // GIVEREF/GOTREF since we expect *p_left to change (although it won't change on failures).
         __Pyx_GIVEREF(*p_left);
-        if (unlikely(PyUnicode_Resize(p_left, new_len) != 0)) {
-            // on failure PyUnicode_Resize does not deallocate the the input
-            // so left will remain unchanged - simply undo the giveref
-            __Pyx_GOTREF(*p_left);
+        ret = PyUnicode_Resize(p_left, new_len);
+        __Pyx_GOTREF(*p_left);
+        if (unlikely(ret != 0))
             return NULL;
-        }
-        __Pyx_INCREF(*p_left);
 
         // copy 'right' into the newly allocated area of 'left'
-        #if PY_VERSION_HEX >= 0x030D0000
+        #if PY_VERSION_HEX >= 0x030d0000
         if (unlikely(PyUnicode_CopyCharacters(*p_left, left_len, right, 0, right_len) < 0)) return NULL;
         #else
         _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
         #endif
+        __Pyx_INCREF(*p_left);
+        __Pyx_GIVEREF(*p_left);
         return *p_left;
     } else {
         return __Pyx_PyUnicode_Concat(left, right);
