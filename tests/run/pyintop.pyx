@@ -1,4 +1,4 @@
-# cython: language_level=3
+# cython: language_level=3str
 # mode: run
 
 cimport cython

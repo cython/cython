@@ -4221,12 +4221,12 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
     # Prefer constants on RHS as they allows better size control for some operators.
     num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
     if isinstance(arg1, num_nodes):
-        if arg0.type is not PyrexTypes.py_object_type and arg0.type is not Builtin.builtin_types['int']:
+        if arg0.type is not PyrexTypes.py_object_type and arg0.type is not Builtin.int_type:
             return None
         numval = arg1
         arg_order = 'ObjC'
     elif isinstance(arg0, num_nodes):
-        if arg1.type is not PyrexTypes.py_object_type and arg1.type is not Builtin.builtin_types['int']:
+        if arg1.type is not PyrexTypes.py_object_type and arg1.type is not Builtin.int_type:
             return None
         numval = arg0
         arg_order = 'CObj'
