@@ -285,3 +285,32 @@ more like Python. The consequences are that
 
 The old behaviour can be restored by setting the ``cpow``
 :ref:`compiler directive <compiler-directives>` to ``True``.
+
+
+.. _deprecated_DEF_IF:
+
+Deprecation of ``DEF`` / ``IF``
+===============================
+
+The :ref:`conditional compilation feature <conditional_compilation>` has been
+deprecated and should no longer be used in new code.
+It is expected to get removed in some future release.
+
+Usages of ``DEF`` should be replaced by:
+
+- global cdef constants
+- global enums (C or Python)
+- C macros, e.g. defined in :ref:`verbatim C code <verbatim_c>`
+- the usual Python mechanisms for sharing values across modules and usages
+
+Usages of ``IF`` should be replaced by:
+
+- runtime conditions and conditional Python imports (i.e. the usual Python patterns)
+- leaving out unused C struct field names from a Cython extern struct definition
+  (which does not have to be complete)
+- redefining an extern struct type under different Cython names,
+  with different (e.g. version/platform dependent) attributes,
+  but with the :ref:`same cname string <resolve-conflicts>`.
+- separating out optional (non-trivial) functionality into optional Cython modules
+  and importing/using them at need (with regular runtime Python imports)
+- code generation, as a last resort
