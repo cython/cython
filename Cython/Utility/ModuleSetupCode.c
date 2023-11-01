@@ -681,8 +681,8 @@ class __Pyx_FakeReference {
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
         PyObject *version_info; // borrowed
-        #endif
         PyObject *py_minor_version = NULL;
+        #endif
         long minor_version = 0;
         PyObject *type, *value, *traceback;
 
@@ -696,6 +696,7 @@ class __Pyx_FakeReference {
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
         if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
         minor_version = PyLong_AsLong(py_minor_version);
+        Py_DECREF(py_minor_version);
         if (minor_version == -1 && PyErr_Occurred()) goto end;
         #endif
 
@@ -733,7 +734,6 @@ class __Pyx_FakeReference {
         Py_XDECREF(code_type);
         Py_XDECREF(exception_table);
         Py_XDECREF(types_module);
-        Py_XDECREF(py_minor_version);
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
@@ -1139,7 +1139,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
 #define __Pyx_PyHeapTypeObject_GC_Del(obj)  { \
-    PyTypeObject *type = Py_TYPE(obj); \
+    PyTypeObject *type = Py_TYPE((PyObject*)obj); \
     assert(__Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)); \
     PyObject_GC_Del(obj); \
     Py_DECREF(type); \
