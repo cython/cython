@@ -1220,7 +1220,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatSimpleAndDecref(PyObject* s,
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatAndDecref(PyObject* s, PyObject* f) {
-    PyObject *result = PyObject_Format(s, f);
+    PyObject *result;
+    if (unlikely(!s)) return NULL;
+    result = PyObject_Format(s, f);
     Py_DECREF(s);
     return result;
 }
