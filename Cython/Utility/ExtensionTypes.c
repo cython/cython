@@ -180,10 +180,10 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                 }
 #if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)
               dictoffset_return:
-    #endif
-    #if CYTHON_AVOID_BORROWED_REFS
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
                 Py_DECREF(b0);
-    #endif
+#endif
                 return -1;
             }
         }
