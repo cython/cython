@@ -178,7 +178,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                         type_name, b_name);
                     __Pyx_DECREF_TypeName(b_name);
                 }
-    #if !CYTHON_USE_TYPE_SLOTS
+#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)
               dictoffset_return:
     #endif
     #if CYTHON_AVOID_BORROWED_REFS
