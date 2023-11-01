@@ -1,4 +1,5 @@
 # mode: run
+# tag: perf_hints
 
 # Test declarations, behaviour and coercions of the memoryview type itself.
 
@@ -978,6 +979,46 @@ def test_acquire_memoryview_slice():
     print b[2, 4]
     print c[2, 4]
 
+cdef class TestPassMemoryviewToSetter:
+    """
+    Setter has a fixed function signature and the
+    argument needs conversion so it ends up passing through
+    some slightly different reference counting code
+
+    >>> dmb = DoubleMockBuffer("dmb", range(2), shape=(2,))
+    >>> TestPassMemoryviewToSetter().prop = dmb
+    acquired dmb
+    In prop setter
+    released dmb
+    >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
+    acquired dmb
+    In prop_with_reassignment setter
+    released dmb
+    >>> dmb = DoubleMockBuffer("dmb", range(1,3), shape=(2,))
+    >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
+    acquired dmb
+    In prop_with_reassignment setter
+    released dmb
+    """
+    @property
+    def prop(self):
+        return None
+
+    @prop.setter
+    def prop(self, double[:] x):
+        print("In prop setter")
+
+    @property
+    def prop_with_reassignment(self):
+        return None
+
+    @prop_with_reassignment.setter
+    def prop_with_reassignment(self, double[:] x):
+        # reassignment again requires slightly different code
+        if x[0]:
+            x = x[1:]
+        print("In prop_with_reassignment setter")
+
 class SingleObject(object):
     def __init__(self, value):
         self.value = value
@@ -1258,3 +1299,21 @@ def test_assignment_typedef():
     y = x
     for v in y:
         print(v)
+
+def test_untyped_index(i):
+    """
+    >>> test_untyped_index(2)
+    3
+    >>> test_untyped_index(0)
+    5
+    >>> test_untyped_index(-1)
+    0
+    """
+    cdef int[6] arr
+    arr = [5, 4, 3, 2, 1, 0]
+    cdef int[:] mview_arr = arr
+    return mview_arr[i]  # should generate a performance hint
+
+_PERFORMANCE_HINTS = """
+1315:21: Index should be typed for more efficient access
+"""

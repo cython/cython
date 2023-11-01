@@ -4,8 +4,9 @@
 #if !defined(CYTHON_CCOMPLEX)
   #if defined(__cplusplus)
     #define CYTHON_CCOMPLEX 1
-  #elif defined(_Complex_I) || ((defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_COMPLEX__))
-    // <complex.h> should exist since C99, but only C11 defines a test to detect it
+  #elif (defined(_Complex_I) && !defined(_MSC_VER)) || ((defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_COMPLEX__))
+    // <complex.h> should exist since C99, but only C11 defines a test to detect it.
+    // MSVC defines "_Complex_I" but not "_Complex". See https://github.com/cython/cython/issues/5512
     #define CYTHON_CCOMPLEX 1
   #else
     #define CYTHON_CCOMPLEX 0

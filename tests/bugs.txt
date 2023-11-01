@@ -54,3 +54,7 @@ pyregr.test_urllibnet
 
 # Inlined generators
 inlined_generator_expressions
+
+# crash in C++ on i686 (possibly others?)
+# See https://github.com/cython/cython/issues/5768
+gil_in_var_initialization_tests
