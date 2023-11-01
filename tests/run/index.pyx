@@ -362,7 +362,8 @@ def test_call_with_negative_numbers():
     """
     The key point is that Cython shouldn't default to PySequence_*Item
     since that invisibly adjusts negative numbers to be len(o)-idx.
-    >>>
+    >>> test_call_with_negative_numbers()
+    'Good'
     """
     cdef int idx = -5
     indexme = DoesntLikePositiveIndices()
