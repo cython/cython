@@ -40,6 +40,10 @@ limited.E()
 
 assert limited.decode(b'a', bytearray(b'b')) == "ab"
 
+assert limited.cast_float(1) == 1.0
+assert limited.cast_float("2.0") == 2.0
+assert limited.cast_float(bytearray(b"3")) == 3.0
+
 
 ##################### limited.pyx #############################
 
@@ -73,7 +77,10 @@ def raises():
 
 def decode(bytes b, bytearray ba):
     return b.decode("utf-8") + ba.decode("utf-8")
-    
+
+def cast_float(object o):
+    return float(o)
+
 class C:
     pass
 
