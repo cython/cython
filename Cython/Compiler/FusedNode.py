@@ -367,19 +367,20 @@ class FusedCFuncDefNode(StatListNode):
             ]
 
             for dtype_category, codewriter in dtypes:
-                if dtype_category:
-                    cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
-                                                    specialized_type.ndim,)
-                    if dtype.is_int:
-                        cond += ' and {{signed_match}}'
+                if not dtype_category:
+                    continue
+                cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
+                                                specialized_type.ndim,)
+                if dtype.is_int:
+                    cond += ' and {{signed_match}}'
 
-                    if final_type.is_pythran_expr:
-                        cond += ' and arg_is_pythran_compatible'
+                if final_type.is_pythran_expr:
+                    cond += ' and arg_is_pythran_compatible'
 
-                    with codewriter.indenter("if %s:" % cond):
-                        #codewriter.putln("print 'buffer match found based on numpy dtype'")
-                        codewriter.putln(self.match)
-                        codewriter.putln("break")
+                with codewriter.indenter("if %s:" % cond):
+                    #codewriter.putln("print 'buffer match found based on numpy dtype'")
+                    codewriter.putln(self.match)
+                    codewriter.putln("break")
 
     def _buffer_parse_format_string_check(self, pyx_code, decl_code,
                                           specialized_type, env):
