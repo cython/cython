@@ -648,14 +648,14 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             u"""
                 if not _fused_sigindex:
-                    for sig in <dict>signatures:
-                        sigindex_node = _fused_sigindex
+                    for sig in <dict> signatures:
+                        sigindex_node = <dict> _fused_sigindex
                         *sig_series, last_type = sig.strip('()').split('|')
                         for sig_type in sig_series:
                             if sig_type not in sigindex_node:
                                 sigindex_node[sig_type] = sigindex_node = {}
                             else:
-                                sigindex_node = sigindex_node[sig_type]
+                                sigindex_node = <dict> sigindex_node[sig_type]
                         sigindex_node[last_type] = sig
             """
         )
@@ -701,8 +701,7 @@ class FusedCFuncDefNode(StatListNode):
                     #        default arguments inherit the types we specify here!
 
                     cdef list search_list
-
-                    cdef dict sn, sigindex_node
+                    cdef dict sigindex_node
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -788,14 +787,15 @@ class FusedCFuncDefNode(StatListNode):
                     #        (where `dest_sig[i] is None`).
                     if dst_type is None:
                         for sn in sigindex_matches:
-                            found_matches.extend(sn.values())
+                            found_matches.extend((<dict> sn).values())
                         for sn in sigindex_candidates:
-                            found_candidates.extend(sn.values())
+                            found_candidates.extend((<dict> sn).values())
                     else:
                         for search_list in (sigindex_matches, sigindex_candidates):
                             for sn in search_list:
-                                if dst_type in sn:
-                                    found_matches.append(sn[dst_type])
+                                type_match = (<dict> sn).get(dst_type)
+                                if type_match is not None:
+                                    found_matches.append(type_match)
                     sigindex_matches = found_matches
                     sigindex_candidates = found_candidates
                     if not (found_matches or found_candidates):
