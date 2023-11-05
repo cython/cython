@@ -99,7 +99,7 @@ static int __Pyx_unpack_tuple2_generic(
 static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
         PyObject* tuple, PyObject** pvalue1, PyObject** pvalue2, int decref_tuple) {
     PyObject *value1 = NULL, *value2 = NULL;
-#if !CYTHON_ASSUME_SAFE_MACROS
+#if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
     value1 = __Pyx_PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
     value2 = __Pyx_PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
 #else
@@ -113,7 +113,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     *pvalue1 = value1;
     *pvalue2 = value2;
     return 0;
-#if !CYTHON_ASSUME_SAFE_MACROS
+#if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
 bad:
     Py_XDECREF(value1);
     Py_XDECREF(value2);

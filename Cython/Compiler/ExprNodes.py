@@ -3676,9 +3676,9 @@ class JoinedStrNode(ExprNode):
             code.putln('#if CYTHON_ASSUME_SAFE_MACROS')
             code.putln('PyTuple_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
             code.putln('#else')
-            code.error_goto_if_neg(
-                'PyTuple_SetItem(%s, %s, %s)' % (list_var, i, node.py_result()),
-                self.pos)
+            code.put_error_if_neg(
+                self.pos,
+                'PyTuple_SetItem(%s, %s, %s)' % (list_var, i, node.py_result()))
             code.putln('#endif')
             node.generate_post_assignment_code(code)
             node.free_temps(code)
