@@ -651,10 +651,44 @@ class __Pyx_FakeReference {
 };
 
 
-/////////////// PythonCompatibility ///////////////
+/////////////// PythonCompatibility.proto ///////////////
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Cython uses these constants but they are not available in the limited API.
+    // Therefore define them as static variables and look them up at module init
+    #ifndef CO_OPTIMIZED
+    static int CO_OPTIMIZED;
+    #endif
+    #ifndef CO_NEWLOCALS
+    static int CO_NEWLOCALS;
+    #endif
+    #ifndef CO_VARARGS
+    static int CO_VARARGS;
+    #endif
+    #ifndef CO_VARKEYWORDS
+    static int CO_VARKEYWORDS;
+    #endif
+    #ifndef CO_ASYNC_GENERATOR
+    static int CO_ASYNC_GENERATOR;
+    #endif
+    #ifndef CO_GENERATOR
+    static int CO_GENERATOR;
+    #endif
+    #ifndef CO_COROUTINE
+    static int CO_COROUTINE;
+    #endif
+#else
+    #ifndef CO_COROUTINE
+      #define CO_COROUTINE 0x80
+    #endif
+    #ifndef CO_ASYNC_GENERATOR
+      #define CO_ASYNC_GENERATOR 0x200
+    #endif
+#endif
+static int __Pyx_init_co_variables(void); /* proto */
 
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
@@ -664,126 +698,18 @@ class __Pyx_FakeReference {
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030B0000
+  #if CYTHON_COMPILING_IN_LIMITED_API
     // Note that the limited API doesn't know about PyCodeObject, so the type of this
     // is PyObject (unlike for the main API)
-    static CYTHON_INLINE PyObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
-                                                    PyObject *code, PyObject *c, PyObject* n, PyObject *v,
-                                                    PyObject *fv, PyObject *cell, PyObject* fn,
-                                                    PyObject *name, int fline, PyObject *lnos) {
-        // Backout option for generating a code object.
-        // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
-        //  1. Python call of the code type with a long list of positional args.
-        //  2. Generate a code object by compiling some trivial code, and customize.
-        // We use the second because it's less sensitive to changes in the code type
-        // constructor with version.
-        PyObject *exception_table = NULL;
-        PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
-        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
-        PyObject *version_info; // borrowed
-        PyObject *py_minor_version = NULL;
-        #endif
-        long minor_version = 0;
-        PyObject *type, *value, *traceback;
-
-        // we must be able to call this while an exception is happening - thus clear then restore the state
-        PyErr_Fetch(&type, &value, &traceback);
-
-        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
-        minor_version = 11; // we don't yet need to distinguish between versions > 11
-        // Note that from 3.13, when we do we can use Py_Version
-        #else
-        if (!(version_info = PySys_GetObject("version_info"))) goto end;
-        if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
-        minor_version = PyLong_AsLong(py_minor_version);
-        Py_DECREF(py_minor_version);
-        if (minor_version == -1 && PyErr_Occurred()) goto end;
-        #endif
-
-        if (!(types_module = PyImport_ImportModule("types"))) goto end;
-        if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
-
-        if (minor_version <= 7) {
-            // 3.7:
-            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-            //        constants, names, varnames, filename, name, firstlineno,
-            //        lnotab[, freevars[, cellvars]])
-            (void)p;
-            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
-                          c, n, v, fn, name, fline, lnos, fv, cell);
-        } else if (minor_version <= 10) {
-            // 3.8, 3.9, 3.10
-            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
-            //    flags, codestring, constants, names, varnames, filename, name,
-            //    firstlineno, lnotab[, freevars[, cellvars]])
-            // 3.10 switches lnotab for linetable, but is otherwise the same
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
-                          c, n, v, fn, name, fline, lnos, fv, cell);
-        } else {
-            // 3.11, 3.12
-            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
-            //    flags, codestring, constants, names, varnames, filename, name,
-            //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
-            // We use name and qualname for simplicity
-            if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
-                          c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
-        }
-
-    end:
-        Py_XDECREF(code_type);
-        Py_XDECREF(exception_table);
-        Py_XDECREF(types_module);
-        if (type) {
-            PyErr_Restore(type, value, traceback);
-        }
-        return result;
-    }
-
-    // Cython uses these constants but they are not available in the limited API.
-    // (it'd be nice if there was a more robust way of looking these up)
-    #ifndef CO_OPTIMIZED
-    #define CO_OPTIMIZED 0x0001
-    #endif
-    #ifndef CO_NEWLOCALS
-    #define CO_NEWLOCALS 0x0002
-    #endif
-    #ifndef CO_VARARGS
-    #define CO_VARARGS 0x0004
-    #endif
-    #ifndef CO_VARKEYWORDS
-    #define CO_VARKEYWORDS 0x0008
-    #endif
-    #ifndef CO_ASYNC_GENERATOR
-    #define CO_ASYNC_GENERATOR 0x0200
-    #endif
-    #ifndef CO_GENERATOR
-    #define CO_GENERATOR 0x0020
-    #endif
-    #ifndef CO_COROUTINE
-    #define CO_COROUTINE 0x0080
-    #endif
-#elif PY_VERSION_HEX >= 0x030B0000
-  static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
-                                                    PyObject *code, PyObject *c, PyObject* n, PyObject *v,
-                                                    PyObject *fv, PyObject *cell, PyObject* fn,
-                                                    PyObject *name, int fline, PyObject *lnos) {
-    // As earlier versions, but
-    //  1. pass an empty bytes string as exception_table
-    //  2. pass name as qualname (TODO this might implementing properly in future)
-    PyCodeObject *result;
-    PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  // we don't have access to __pyx_empty_bytes here
-    if (!empty_bytes) return NULL;
-    result =
-      #if PY_VERSION_HEX >= 0x030C0000
-        PyUnstable_Code_NewWithPosOnlyArgs
-      #else
-        PyCode_NewWithPosOnlyArgs
-      #endif
-        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, empty_bytes);
-    Py_DECREF(empty_bytes);
-    return result;
-  }
+    static PyObject*
+  #else
+    static PyCodeObject*
+  #endif
+        __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
+                         PyObject *code, PyObject *c, PyObject* n, PyObject *v,
+                         PyObject *fv, PyObject *cell, PyObject* fn,
+                         PyObject *name, int fline, PyObject *lnos); /* proto */
 #elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
   #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
@@ -825,13 +751,6 @@ class __Pyx_FakeReference {
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #else
   #define __Pyx_PyObject_GC_IsFinalized(o) _PyGC_FINALIZED(o)
-#endif
-
-#ifndef CO_COROUTINE
-  #define CO_COROUTINE 0x80
-#endif
-#ifndef CO_ASYNC_GENERATOR
-  #define CO_ASYNC_GENERATOR 0x200
 #endif
 
 #ifndef Py_TPFLAGS_CHECKTYPES
@@ -1379,6 +1298,147 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
         unaryfunc am_aiter;
         unaryfunc am_anext;
     } __Pyx_PyAsyncMethodsStruct;
+#endif
+
+/////////////// PythonCompatibility.init ///////////////
+
+if (likely(__Pyx_init_co_variables() == 0)); else
+
+/////////////// PythonCompatibility ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// returns 1 for success and 0 for failure to enable it to be chained in an &&
+static int __Pyx_init_co_variable(PyObject *inspect, const char* name, int *write_to) {
+    PyObject *py_value;
+    py_value = PyObject_GetAttrString(inspect, name);
+    if (!py_value) return 0;
+    // There's a small chance of overflow here, but it'd only happen if inspect
+    // was set up wrongly
+    *write_to = PyLong_AsLong(py_value);
+    Py_DECREF(py_value);
+    return *write_to != -1 || !PyErr_Occurred();
+}
+
+// Returns 0 on success and -1 on failure for normal error handling
+static int __Pyx_init_co_variables(void) {
+    PyObject *inspect;
+    int result;
+    inspect = PyImport_ImportModule("inspect");
+
+    #define __PYX_CALL_INIT_CO_VARIABLE(co_variable) __Pyx_init_co_variable(inspect, #co_variable, &co_variable)
+
+    result = __PYX_CALL_INIT_CO_VARIABLE(CO_OPTIMIZED) &&
+        __PYX_CALL_INIT_CO_VARIABLE(CO_NEWLOCALS) &&
+        __PYX_CALL_INIT_CO_VARIABLE(CO_VARARGS) &&
+        __PYX_CALL_INIT_CO_VARIABLE(CO_VARKEYWORDS) &&
+        __PYX_CALL_INIT_CO_VARIABLE(CO_ASYNC_GENERATOR) &&
+        __PYX_CALL_INIT_CO_VARIABLE(CO_GENERATOR) &&
+        __PYX_CALL_INIT_CO_VARIABLE(CO_COROUTINE);
+
+    #undef __PYX_CALL_INIT_CO_VARIABLE
+    Py_DECREF(inspect);
+    return result ? 0 : -1;
+}
+#else
+static int __Pyx_init_co_variables(void) {
+    return 0;  // It's a limited API-only feature
+}
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+    static PyObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
+                                                    PyObject *code, PyObject *c, PyObject* n, PyObject *v,
+                                                    PyObject *fv, PyObject *cell, PyObject* fn,
+                                                    PyObject *name, int fline, PyObject *lnos) {
+        // Backup option for generating a code object.
+        // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
+        //  1. Python call of the code type with a long list of positional args.
+        //  2. Generate a code object by compiling some trivial code, and customize.
+        // We use the second because it's less sensitive to changes in the code type
+        // constructor with version.
+        PyObject *exception_table = NULL;
+        PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
+        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+        PyObject *version_info; // borrowed
+        PyObject *py_minor_version = NULL;
+        #endif
+        long minor_version = 0;
+        PyObject *type, *value, *traceback;
+
+        // we must be able to call this while an exception is happening - thus clear then restore the state
+        PyErr_Fetch(&type, &value, &traceback);
+
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        minor_version = 11; // we don't yet need to distinguish between versions > 11
+        // Note that from 3.13, when we do we can use Py_Version
+        #else
+        if (!(version_info = PySys_GetObject("version_info"))) goto end;
+        if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
+        minor_version = PyLong_AsLong(py_minor_version);
+        Py_DECREF(py_minor_version);
+        if (minor_version == -1 && PyErr_Occurred()) goto end;
+        #endif
+
+        if (!(types_module = PyImport_ImportModule("types"))) goto end;
+        if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
+
+        if (minor_version <= 7) {
+            // 3.7:
+            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
+            //        constants, names, varnames, filename, name, firstlineno,
+            //        lnotab[, freevars[, cellvars]])
+            (void)p;
+            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
+                          c, n, v, fn, name, fline, lnos, fv, cell);
+        } else if (minor_version <= 10) {
+            // 3.8, 3.9, 3.10
+            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
+            //    flags, codestring, constants, names, varnames, filename, name,
+            //    firstlineno, lnotab[, freevars[, cellvars]])
+            // 3.10 switches lnotab for linetable, but is otherwise the same
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
+                          c, n, v, fn, name, fline, lnos, fv, cell);
+        } else {
+            // 3.11, 3.12
+            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
+            //    flags, codestring, constants, names, varnames, filename, name,
+            //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
+            // We use name and qualname for simplicity
+            if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
+                          c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
+        }
+
+    end:
+        Py_XDECREF(code_type);
+        Py_XDECREF(exception_table);
+        Py_XDECREF(types_module);
+        if (type) {
+            PyErr_Restore(type, value, traceback);
+        }
+        return result;
+    }
+#elif PY_VERSION_HEX >= 0x030B0000
+    static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
+                                                        PyObject *code, PyObject *c, PyObject* n, PyObject *v,
+                                                        PyObject *fv, PyObject *cell, PyObject* fn,
+                                                        PyObject *name, int fline, PyObject *lnos) {
+        // As earlier versions, but
+        //  1. pass an empty bytes string as exception_table
+        //  2. pass name as qualname (TODO this might implementing properly in future)
+        PyCodeObject *result;
+        PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  // we don't have access to __pyx_empty_bytes here
+        if (!empty_bytes) return NULL;
+        result =
+        #if PY_VERSION_HEX >= 0x030C0000
+            PyUnstable_Code_NewWithPosOnlyArgs
+        #else
+            PyCode_NewWithPosOnlyArgs
+        #endif
+            (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, empty_bytes);
+        Py_DECREF(empty_bytes);
+        return result;
+    }
 #endif
 
 
