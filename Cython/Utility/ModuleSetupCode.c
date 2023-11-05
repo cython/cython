@@ -1325,17 +1325,30 @@ static int __Pyx_init_co_variables(void) {
     int result;
     inspect = PyImport_ImportModule("inspect");
 
-    #define __PYX_CALL_INIT_CO_VARIABLE(co_variable) __Pyx_init_co_variable(inspect, #co_variable, &co_variable)
+    result =
+#if !defined(CO_OPTIMIZED)
+        __Pyx_init_co_variable(inspect, "CO_OPTIMIZED", &CO_OPTIMIZED) &&
+#endif
+#if !defined(CO_NEWLOCALS)
+        __Pyx_init_co_variable(inspect, "CO_NEWLOCALS", &CO_NEWLOCALS) &&
+#endif
+#if !defined(CO_VARARGS)
+        __Pyx_init_co_variable(inspect, "CO_VARARGS", &CO_VARARGS) &&
+#endif
+#if !defined(CO_VARKEYWORDS)
+        __Pyx_init_co_variable(inspect, "CO_VARKEYWORDS", &CO_VARKEYWORDS) &&
+#endif
+#if !defined(CO_ASYNC_GENERATOR)
+        __Pyx_init_co_variable(inspect, "CO_ASYNC_GENERATOR", &CO_ASYNC_GENERATOR) &&
+#endif
+#if !defined(CO_GENERATOR)
+        __Pyx_init_co_variable(inspect, "CO_GENERATOR", &CO_GENERATOR) &&
+#endif
+#if !defined(CO_COROUTINE)
+        __Pyx_init_co_variable(inspect, "CO_COROUTINE", &CO_COROUTINE) &&
+#endif
+        1;
 
-    result = __PYX_CALL_INIT_CO_VARIABLE(CO_OPTIMIZED) &&
-        __PYX_CALL_INIT_CO_VARIABLE(CO_NEWLOCALS) &&
-        __PYX_CALL_INIT_CO_VARIABLE(CO_VARARGS) &&
-        __PYX_CALL_INIT_CO_VARIABLE(CO_VARKEYWORDS) &&
-        __PYX_CALL_INIT_CO_VARIABLE(CO_ASYNC_GENERATOR) &&
-        __PYX_CALL_INIT_CO_VARIABLE(CO_GENERATOR) &&
-        __PYX_CALL_INIT_CO_VARIABLE(CO_COROUTINE);
-
-    #undef __PYX_CALL_INIT_CO_VARIABLE
     Py_DECREF(inspect);
     return result ? 0 : -1;
 }
