@@ -68,6 +68,10 @@ if [[ $STACKLESS == "true" ]]; then
   conda install --quiet --yes stackless || exit 1
 fi
 
+if [[ $PYTHON_VERSION == "2.7"* ]] && [[ $OSTYPE == "darwin"* ]]; then
+  # make sure we find Python 2.7 before Python 3.x
+  export PATH=/Library/Frameworks/Python.framework/Versions/2.7/bin:$PATH
+fi
 PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
 
 # Log versions in use
