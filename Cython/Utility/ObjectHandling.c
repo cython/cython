@@ -113,7 +113,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     *pvalue1 = value1;
     *pvalue2 = value2;
     return 0;
-#if CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_ASSUME_SAFE_MACROS
 bad:
     Py_XDECREF(value1);
     Py_XDECREF(value2);
