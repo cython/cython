@@ -1286,7 +1286,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyList_GET_ITEM(cyfunctions, i);
 #else
-            PySequence_ITEM(cyfunctions, i);
+            __Pyx_PySequence_ITEM(cyfunctions, i);
         if (unlikely(!m))
             return -1;
 #endif
@@ -1479,7 +1479,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 #else
-            PyObject *item = PySequence_ITEM(idx, i);  if (unlikely(!item)) goto __pyx_err;
+            PyObject *item = __Pyx_PySequence_ITEM(idx, i);  if (unlikely(!item)) goto __pyx_err;
 #endif
             string = _obj_to_string(item);
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
@@ -1571,7 +1571,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             PyObject *item = PyTuple_GET_ITEM(args, i);
             Py_INCREF(item);
 #else
-            PyObject *item = PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
+            PyObject *item = __Pyx_PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
 #endif
             PyTuple_SET_ITEM(new_args, i + 1, item);
         }

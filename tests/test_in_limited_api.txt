@@ -6,3 +6,29 @@ compile.builtinfuncs
 compile.builtinlist
 compile.arrayargs
 compile.arraytoptrarg
+compile.ass2longlong
+compile.assert2
+compile.behnel4
+compile.belchenko
+compile.cargdef
+compile.carrdecl
+compile.cassign
+compile.cast
+compile.cdef
+compile.c_directives
+compile.cenum
+compile.cimport
+compile.classmethargdefault
+compile.cnamespec
+compile.cnumop
+compile.coercetovoidptr
+compile.complex
+compile.const
+# compile.cppenum - cpdef enums don't work because __Pyx_EnumMeta inherits from type
+# which is opaque in the limited API. That's probably best fixed when we drop support
+# for versions < 3.6 and so can drop __Pyx_EnumMeta
+# cpp_temp_assignment uses generators/coroutines/similar
+compile.cpp_[^t]
+compile.cpp_template
+# ewing5 should be fixed by https://github.com/cython/cython/pull/5699
+compile.ewing[^5]
