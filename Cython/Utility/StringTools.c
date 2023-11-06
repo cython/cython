@@ -33,16 +33,16 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         PyObject *str;
-        if (t.is_unicode | t.is_str) {
-            if (t.intern) {
-                str = PyUnicode_InternFromString(t.s);
-            } else if (t.encoding) {
-                str = PyUnicode_Decode(t.s, t.n - 1, t.encoding, NULL);
+        if (t->is_unicode | t->is_str) {
+            if (t->intern) {
+                str = PyUnicode_InternFromString(t->s);
+            } else if (t->encoding) {
+                str = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
             } else {
-                str = PyUnicode_FromStringAndSize(t.s, t.n - 1);
+                str = PyUnicode_FromStringAndSize(t->s, t->n - 1);
             }
         } else {
-            str = PyBytes_FromStringAndSize(t.s, t.n - 1);
+            str = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
         if (!str)
             return -1;
