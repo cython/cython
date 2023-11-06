@@ -2216,7 +2216,7 @@ static int __Pyx_patch_abc(void) {
         if (unlikely(!module)) {
             PyErr_WriteUnraisable(NULL);
             if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning,
-                        "Cython module failed to register with collections.abc module"), 1) < 0)) {
+                        "Cython module failed to register with collections.abc module", 1) < 0)) {
                 return -1;
             }
         } else {
