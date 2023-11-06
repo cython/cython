@@ -5,16 +5,6 @@ cimport cython
 cdef extern from *:
     int PY_VERSION_HEX
 
-@cython.internal
-cdef class __Pyx_EnumMeta(type):
-    def __init__(cls, name, parents, dct):
-        type.__init__(cls, name, parents, dct)
-        cls.__members__ = {}
-    def __iter__(cls):
-        return iter(cls.__members__.values())
-    def __getitem__(cls, name):
-        return cls.__members__[name]
-
 # @cython.internal
 cdef object __Pyx_EnumBase
 from enum import IntEnum as __Pyx_EnumBase
