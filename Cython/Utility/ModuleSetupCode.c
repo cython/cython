@@ -73,10 +73,7 @@
   #define CYTHON_USE_TYPE_SPECS 0
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #if PY_VERSION_HEX < 0x03050000
-    #undef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 0
-  #elif !defined(CYTHON_USE_ASYNC_SLOTS)
+  #ifndef CYTHON_USE_ASYNC_SLOTS
     #define CYTHON_USE_ASYNC_SLOTS 1
   #endif
   #undef CYTHON_USE_PYLIST_INTERNALS
@@ -132,10 +129,7 @@
   #endif
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #if PY_VERSION_HEX < 0x03050000
-    #undef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 0
-  #elif !defined(CYTHON_USE_ASYNC_SLOTS)
+  #ifndef CYTHON_USE_ASYNC_SLOTS
     #define CYTHON_USE_ASYNC_SLOTS 1
   #endif
   #undef CYTHON_USE_PYLIST_INTERNALS
@@ -172,7 +166,7 @@
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
   #undef CYTHON_USE_TP_FINALIZE
-  #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1 && PYPY_VERSION_NUM >= 0x07030C00)
+  #define CYTHON_USE_TP_FINALIZE (PYPY_VERSION_NUM >= 0x07030C00)
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -324,7 +318,7 @@
   #ifndef CYTHON_USE_UNICODE_INTERNALS
     #define CYTHON_USE_UNICODE_INTERNALS 1
   #endif
-  #if PY_VERSION_HEX < 0x030300F0 || PY_VERSION_HEX >= 0x030B00A2
+  #if PY_VERSION_HEX >= 0x030B00A2
     // Python 3.11a2 hid _PyLong_FormatAdvancedWriter and _PyFloat_FormatAdvancedWriter
     // therefore disable unicode writer until a better alternative appears
     #undef CYTHON_USE_UNICODE_WRITER
@@ -347,14 +341,13 @@
     #define CYTHON_FAST_THREAD_STATE 1
   #endif
   #ifndef CYTHON_FAST_GIL
-    // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
     // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
-    #define CYTHON_FAST_GIL (PY_VERSION_HEX >= 0x03060000 && PY_VERSION_HEX < 0x030C00A6)
+    #define CYTHON_FAST_GIL (PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_METH_FASTCALL
     // CPython 3.6 introduced METH_FASTCALL but with slightly different
     // semantics. It became stable starting from CPython 3.7.
-    #define CYTHON_METH_FASTCALL (PY_VERSION_HEX >= 0x030700A1)
+    #define CYTHON_METH_FASTCALL 1
   #endif
   #ifndef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 1
@@ -362,10 +355,7 @@
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
-  #if PY_VERSION_HEX < 0x03050000
-    #undef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #elif !defined(CYTHON_PEP489_MULTI_PHASE_INIT)
+  #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
     #define CYTHON_PEP489_MULTI_PHASE_INIT 1
   #endif
   // CYTHON_USE_MODULE_STATE - Use a module state/globals struct tied to the module object.
@@ -373,23 +363,14 @@
     // EXPERIMENTAL !!
     #define CYTHON_USE_MODULE_STATE 0
   #endif
-  #if PY_VERSION_HEX < 0x030400a1
-    #undef CYTHON_USE_TP_FINALIZE
-    #define CYTHON_USE_TP_FINALIZE 0
-  #elif !defined(CYTHON_USE_TP_FINALIZE)
+  #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
   #endif
-  #if PY_VERSION_HEX < 0x030600B1
-    #undef CYTHON_USE_DICT_VERSIONS
-    #define CYTHON_USE_DICT_VERSIONS 0
-  #elif !defined(CYTHON_USE_DICT_VERSIONS)
+  #ifndef CYTHON_USE_DICT_VERSIONS
     // Python 3.12a5 deprecated "ma_version_tag"
     #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
   #endif
-  #if PY_VERSION_HEX < 0x030700A3
-    #undef CYTHON_USE_EXC_INFO_STACK
-    #define CYTHON_USE_EXC_INFO_STACK 0
-  #elif !defined(CYTHON_USE_EXC_INFO_STACK)
+  #ifndef CYTHON_USE_EXC_INFO_STACK
     #define CYTHON_USE_EXC_INFO_STACK 1
   #endif
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
@@ -398,7 +379,7 @@
 #endif
 
 #if !defined(CYTHON_FAST_PYCCALL)
-#define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
+#define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
 #endif
 
 #if !defined(CYTHON_VECTORCALL)
@@ -845,7 +826,7 @@ class __Pyx_FakeReference {
   // value if defined: Stackless Python < 3.6: 0x80 else 0x100
   #define METH_STACKLESS 0
 #endif
-#if PY_VERSION_HEX <= 0x030700A3 || !defined(METH_FASTCALL)
+#if !defined(METH_FASTCALL)
   // new in CPython 3.6, but changed in 3.7 - see
   // positional-only parameters:
   //   https://bugs.python.org/issue29464
@@ -951,15 +932,9 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #elif !CYTHON_FAST_THREAD_STATE
   #define __Pyx_PyThreadState_Current PyThreadState_GET()
 #elif PY_VERSION_HEX >= 0x030d00A1
-  //#elif PY_VERSION_HEX >= 0x03050200
-  // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
   #define __Pyx_PyThreadState_Current PyThreadState_GetUnchecked()
-#elif PY_VERSION_HEX >= 0x03060000
-  //#elif PY_VERSION_HEX >= 0x03050200
-  // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
-  #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #else
-  #define __Pyx_PyThreadState_Current PyThreadState_GET()
+  #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -982,7 +957,7 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 #endif
 
 // TSS (Thread Specific Storage) API
-#if PY_VERSION_HEX < 0x030700A2 && !defined(PyThread_tss_create) && !defined(Py_tss_NEEDS_INIT)
+#if !defined(PyThread_tss_create) && !defined(Py_tss_NEEDS_INIT)
 #include "pythread.h"
 #define Py_tss_NEEDS_INIT 0
 typedef int Py_tss_t;
@@ -1025,7 +1000,7 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
 #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B4 && PY_VERSION_HEX < 0x030d0000 && CYTHON_USE_UNICODE_INTERNALS
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 && CYTHON_USE_UNICODE_INTERNALS
 // _PyDict_GetItem_KnownHash() existed from CPython 3.5 to 3.12, but it was
 // dropping exceptions in 3.5. Since 3.6, exceptions are kept.
 #define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
@@ -1270,21 +1245,15 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // backport of PyAsyncMethods from Py3.5 to older Py3.x versions
 // (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
 #if CYTHON_USE_ASYNC_SLOTS
-  #if PY_VERSION_HEX >= 0x030500B1
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
     #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
-  #else
-    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
-  #endif
 #else
-  #define __Pyx_PyType_AsAsync(obj) NULL
-#endif
-#ifndef __Pyx_PyAsyncMethodsStruct
     typedef struct {
         unaryfunc am_await;
         unaryfunc am_aiter;
         unaryfunc am_anext;
     } __Pyx_PyAsyncMethodsStruct;
+    #define __Pyx_PyType_AsAsync(obj) NULL
 #endif
 
 
@@ -1481,17 +1450,12 @@ static CYTHON_INLINE float __PYX_NAN() {
 typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
+
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
 #ifndef __PYX_FORCE_INIT_THREADS
   #define __PYX_FORCE_INIT_THREADS 0
-#endif
-
-/////////////// InitThreads.init ///////////////
-
-#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0
-PyEval_InitThreads();
 #endif
 
 
@@ -1500,21 +1464,12 @@ PyEval_InitThreads();
 
 //#if CYTHON_PEP489_MULTI_PHASE_INIT
 static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
-    #if PY_VERSION_HEX >= 0x030700A1
     static PY_INT64_T main_interpreter_id = -1;
     PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
     if (main_interpreter_id == -1) {
         main_interpreter_id = current_id;
         return (unlikely(current_id == -1)) ? -1 : 0;
     } else if (unlikely(main_interpreter_id != current_id))
-
-    #else
-    static PyInterpreterState *main_interpreter = NULL;
-    PyInterpreterState *current_interpreter = PyThreadState_Get()->interp;
-    if (!main_interpreter) {
-        main_interpreter = current_interpreter;
-    } else if (unlikely(main_interpreter != current_interpreter))
-    #endif
 
     {
         PyErr_SetString(
