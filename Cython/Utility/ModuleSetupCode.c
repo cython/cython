@@ -1309,13 +1309,14 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 /////////////// PyModInitFuncType.proto ///////////////
 
 #ifndef CYTHON_NO_PYINIT_EXPORT
-#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
-
-// define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
-#ifdef __cplusplus
-#define __Pyx_PyMODINIT_FUNC extern "C" PyObject *
+  #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #else
-#define __Pyx_PyMODINIT_FUNC PyObject *
+  // define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+  #ifdef __cplusplus
+  #define __Pyx_PyMODINIT_FUNC extern "C" PyObject *
+  #else
+  #define __Pyx_PyMODINIT_FUNC PyObject *
+  #endif
 #endif
 
 
