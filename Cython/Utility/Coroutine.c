@@ -1741,7 +1741,9 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_version_tag*/
 #if CYTHON_USE_TP_FINALIZE
     __Pyx_Coroutine_del,                /*tp_finalize*/
+#else
     0,                                  /*tp_finalize*/
+#endif
 #if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                  /*tp_vectorcall*/
 #endif
