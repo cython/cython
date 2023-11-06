@@ -518,6 +518,8 @@ def test_avoid_if_coercion(obj):
         return False
 
 @cython.test_fail_if_path_exists('//AddNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_add_int(obj2: int):
     """
@@ -529,6 +531,8 @@ def pure_add_int(obj2: int):
     return res1, res2
 
 @cython.test_fail_if_path_exists('//SubNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_sub_int(obj2: int):
     """
@@ -540,6 +544,8 @@ def pure_sub_int(obj2: int):
     return res1, res2
 
 @cython.test_fail_if_path_exists('//MulNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_mul_int(obj2: int):
     """
@@ -577,6 +583,8 @@ def pure_ne_int(obj2: int):
     return res1, res2
 
 @cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_and_int(obj2: int):
     """
@@ -590,6 +598,8 @@ def pure_and_int(obj2: int):
     return res1, res2
 
 @cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_or_int(obj2: int):
     """
@@ -603,6 +613,8 @@ def pure_or_int(obj2: int):
     return res1, res2
 
 @cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_xor_int(obj2: int):
     """
@@ -616,6 +628,8 @@ def pure_xor_int(obj2: int):
     return res1, res2
 
 @cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_rshift_int(obj2: int):
     """
@@ -626,6 +640,8 @@ def pure_rshift_int(obj2: int):
     return res
 
 @cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_lshift_int(obj2: int):
     """
@@ -636,6 +652,8 @@ def pure_lshift_int(obj2: int):
     return res
 
 @cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_mod_int(obj2: int):
     """
@@ -646,6 +664,8 @@ def pure_mod_int(obj2: int):
     return res
 
 @cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_floordiv_int(obj2: int):
     """
@@ -659,6 +679,8 @@ import sys
 
 
 @cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
 @cython.test_assert_path_exists('//PythonCapiFunctionNode')
 def pure_truediv_int(obj2: int):
     """
