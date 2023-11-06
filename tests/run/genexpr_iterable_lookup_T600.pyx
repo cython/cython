@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 600
+# ticket: t600
 # tag: genexpr
 # cython: language_level=3
 
@@ -35,6 +35,11 @@ def genexpr_iterable_in_closure():
     result = list( x*2 for x in x if x != 'b' )
     assert x == 'abc' # don't leak in Py3 code
     assert f() == 'abc' # don't leak in Py3 code
+
+    # Py2 cleanup (pretty irrelevant to the actual test!)
+    import sys
+    if sys.version_info[0] == 2:
+        result = map(bytes, result)
     return result
 
 
@@ -51,6 +56,7 @@ def genexpr_over_complex_arg(func, L):
 def listcomp():
     """
     >>> listcomp()
+    [0, 1, 5, 8]
     """
     data = [('red', 5), ('blue', 1), ('yellow', 8), ('black', 0)]
     data.sort(key=lambda r: r[1])
@@ -84,3 +90,15 @@ def genexpr_in_dictcomp_dictiter():
     """
     d = {1:2, 3:4, 5:6}
     return {k:d for k,d in d.iteritems() if d != 4}
+
+
+def genexpr_over_array_slice():
+    """
+    >>> list(genexpr_over_array_slice())
+    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    """
+    cdef double x[10]
+    for i in range(10):
+        x[i] = i
+    cdef int n = 5
+    return (n for n in x[:n+1])

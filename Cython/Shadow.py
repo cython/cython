@@ -1,7 +1,8 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "0.29.32"
+# Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
+__version__ = "3.1.0a0"
 
 try:
     from __builtin__ import basestring
@@ -71,7 +72,7 @@ def index_type(base_type, item):
     else:
         # int[8] etc.
         assert int(item) == item  # array size must be a plain integer
-        array(base_type, item)
+        return array(base_type, item)
 
 # END shameless copy
 
@@ -107,21 +108,22 @@ class _Optimization(object):
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    embedsignature = cdivision = cdivision_warnings = \
-    always_allows_keywords = profile = linetrace = infer_types = \
+annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
+    nonecheck = embedsignature = cdivision = cdivision_warnings = \
+    always_allow_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = \
         lambda _: _EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
-optimization = _Optimization()
+optimize = _Optimization()
 
-overflowcheck.fold = optimization.use_switch = \
-    optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
+embedsignature.format = overflowcheck.fold = optimize.use_switch = \
+    optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
+
+final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
 
 binding = lambda _: _empty_decorator
 
@@ -146,27 +148,33 @@ def compile(f):
 # Special functions
 
 def cdiv(a, b):
-    q = a / b
-    if q < 0:
-        q += 1
-    return q
+    if a < 0:
+        a = -a
+        b = -b
+    if b < 0:
+        return (a + b + 1) // b
+    return a // b
 
 def cmod(a, b):
     r = a % b
-    if (a*b) < 0:
+    if (a * b) < 0 and r:
         r -= b
     return r
 
 
 # Emulated language constructs
 
-def cast(type, *args, **kwargs):
+def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if hasattr(type, '__call__'):
-        return type(*args)
-    else:
-        return args[0]
+
+    if isinstance(t, typedef):
+        return t(*args)
+    elif isinstance(t, type):  # Doesn't work with old-style classes of Python 2.x
+        if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
+            return t(*args)
+
+    return args[0]
 
 def sizeof(arg):
     return 1
@@ -178,14 +186,19 @@ def typeof(arg):
 def address(arg):
     return pointer(type(arg))([arg])
 
-def declare(type=None, value=_Unspecified, **kwds):
-    if type not in (None, object) and hasattr(type, '__call__'):
-        if value is not _Unspecified:
-            return type(value)
-        else:
-            return type()
+def _is_value_type(t):
+    if isinstance(t, typedef):
+        return _is_value_type(t._basetype)
+
+    return isinstance(t, type) and issubclass(t, (StructType, UnionType, ArrayType))
+
+def declare(t=None, value=_Unspecified, **kwds):
+    if value is not _Unspecified:
+        return cast(t, value)
+    elif _is_value_type(t):
+        return t()
     else:
-        return value
+        return None
 
 class _nogil(object):
     """Support for 'with nogil' statement and @nogil decorator.
@@ -204,6 +217,7 @@ class _nogil(object):
 
 nogil = _nogil()
 gil = _nogil()
+with_gil = _nogil()  # Actually not a context manager, but compilation will give the right error.
 del _nogil
 
 
@@ -258,24 +272,45 @@ class PointerType(CythonType):
 
 class ArrayType(PointerType):
 
-    def __init__(self):
-        self._items = [None] * self._n
+    def __init__(self, value=None):
+        if value is None:
+            self._items = [None] * self._n
+        else:
+            super(ArrayType, self).__init__(value)
 
 
 class StructType(CythonType):
 
-    def __init__(self, cast_from=_Unspecified, **data):
-        if cast_from is not _Unspecified:
-            # do cast
-            if len(data) > 0:
-                raise ValueError('Cannot accept keyword arguments when casting.')
-            if type(cast_from) is not type(self):
-                raise ValueError('Cannot cast from %s'%cast_from)
-            for key, value in cast_from.__dict__.items():
-                setattr(self, key, value)
+    def __init__(self, *posargs, **data):
+        if not (posargs or data):
+            return
+        if posargs and data:
+            raise ValueError('Cannot accept both positional and keyword arguments.')
+
+        # Allow 'cast_from' as single positional or keyword argument.
+        if data and len(data) == 1 and 'cast_from' in data:
+            cast_from = data.pop('cast_from')
+        elif len(posargs) == 1 and type(posargs[0]) is type(self):
+            cast_from, posargs = posargs[0], ()
+        elif posargs:
+            for key, arg in zip(self._members, posargs):
+                setattr(self, key, arg)
+            return
         else:
             for key, value in data.items():
+                if key not in self._members:
+                    raise ValueError("Invalid struct attribute for %s: %s" % (
+                        self.__class__.__name__, key))
                 setattr(self, key, value)
+            return
+
+        # do cast
+        if data:
+            raise ValueError('Cannot accept keyword arguments when casting.')
+        if type(cast_from) is not type(self):
+            raise ValueError('Cannot cast from %s' % cast_from)
+        for key, value in cast_from.__dict__.items():
+            setattr(self, key, value)
 
     def __setattr__(self, key, value):
         if key in self._members:
@@ -296,7 +331,7 @@ class UnionType(CythonType):
             elif type(cast_from) is type(self):
                 datadict = cast_from.__dict__
             else:
-                raise ValueError('Cannot cast from %s'%cast_from)
+                raise ValueError('Cannot cast from %s' % cast_from)
         else:
             datadict = data
         if len(datadict) > 1:
@@ -393,10 +428,34 @@ py_complex = typedef(complex, "double complex")
 
 # Predefined types
 
-int_types = ['char', 'short', 'Py_UNICODE', 'int', 'Py_UCS4', 'long', 'longlong', 'Py_ssize_t', 'size_t']
-float_types = ['longdouble', 'double', 'float']
-complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
-other_types = ['bint', 'void', 'Py_tss_t']
+int_types = [
+    'char',
+    'short',
+    'Py_UNICODE',
+    'int',
+    'Py_UCS4',
+    'long',
+    'longlong',
+    'Py_hash_t',
+    'Py_ssize_t',
+    'size_t',
+]
+float_types = [
+    'longdouble',
+    'double',
+    'float',
+]
+complex_types = [
+    'longdoublecomplex',
+    'doublecomplex',
+    'floatcomplex',
+    'complex',
+]
+other_types = [
+    'bint',
+    'void',
+    'Py_tss_t',
+]
 
 to_repr = {
     'longlong': 'long long',
@@ -469,6 +528,59 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
-import sys
+class CythonDotImportedFromElsewhere(object):
+    """
+    cython.dataclasses just shadows the standard library modules of the same name
+    """
+    def __init__(self, module):
+        self.__path__ = []
+        self.__file__ = None
+        self.__name__ = module
+        self.__package__ = module
+
+    def __getattr__(self, attr):
+        # we typically only expect this to be called once
+        from importlib import import_module
+        import sys
+        try:
+            mod = import_module(self.__name__)
+        except ImportError:
+            # but if they don't exist (Python is not sufficiently up-to-date) then
+            # you can't use them
+            raise AttributeError("%s: the standard library module %s is not available" %
+                                 (attr, self.__name__))
+        sys.modules['cython.%s' % self.__name__] = mod
+        return getattr(mod, attr)
+
+class CythonCImports(object):
+    """
+    Simplistic module mock to make cimports sort-of work in Python code.
+    """
+    def __init__(self, module):
+        self.__path__ = []
+        self.__file__ = None
+        self.__name__ = module
+        self.__package__ = module
+
+    def __getattr__(self, item):
+        if item.startswith('__') and item.endswith('__'):
+            raise AttributeError(item)
+        try:
+            return __import__(item)
+        except ImportError:
+            import sys
+            ex = AttributeError(item)
+            if sys.version_info >= (3, 0):
+                ex.__cause__ = None
+            raise ex
+
+
+import math, sys
 sys.modules['cython.parallel'] = CythonDotParallel()
-del sys
+sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
+sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
+sys.modules['cython.cimports.libc.math'] = math
+# In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
+# shadow the standard library ones (if they are available)
+dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
+del math, sys

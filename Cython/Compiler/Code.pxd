@@ -1,5 +1,4 @@
-
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
 from ..StringIOTree cimport StringIOTree
@@ -55,6 +54,9 @@ cdef class FunctionState:
     cdef public object closure_temps
     cdef public bint should_declare_error_indicator
     cdef public bint uses_error_indicator
+    cdef public bint error_without_exception
+
+    cdef public bint needs_refnanny
 
     @cython.locals(n=size_t)
     cpdef new_label(self, name=*)
@@ -110,6 +112,9 @@ cdef class CCodeWriter(object):
     cdef bint bol
 
     cpdef write(self, s)
+    @cython.final
+    cdef _write_lines(self, s)
+    cpdef _write_to_buffer(self, s)
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
@@ -117,6 +122,8 @@ cdef class CCodeWriter(object):
     cdef increase_indent(self)
     @cython.final
     cdef decrease_indent(self)
+    @cython.final
+    cdef indent(self)
 
 
 cdef class PyrexCodeWriter:

@@ -15,10 +15,12 @@ cimport cpython.ceval
 cimport cpython.cobject
 cimport cpython.codecs
 cimport cpython.complex
+cimport cpython.contextvars
 cimport cpython.conversion
 cimport cpython.datetime
 cimport cpython.dict
 cimport cpython.exc
+cimport cpython.fileobject
 cimport cpython.float
 cimport cpython.function
 cimport cpython.genobject
@@ -31,6 +33,7 @@ cimport cpython.list
 cimport cpython.long
 cimport cpython.longintrepr
 cimport cpython.mapping
+cimport cpython.marshal
 cimport cpython.mem
 cimport cpython.memoryview
 cimport cpython.method

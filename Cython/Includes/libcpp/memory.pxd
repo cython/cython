@@ -59,6 +59,7 @@ cdef extern from "<memory>" namespace "std" nogil:
         shared_ptr(shared_ptr[T]&, T*)
         shared_ptr(unique_ptr[T]&)
         #shared_ptr(weak_ptr[T]&) # Not Supported
+        shared_ptr[T]& operator=[Y](const shared_ptr[Y]& ptr)
 
         # Modifiers
         void reset()
@@ -105,8 +106,7 @@ cdef extern from "<memory>" namespace "std" nogil:
     # Smart pointer non-member operations
     shared_ptr[T] make_shared[T](...) except +
 
-    # Temporaries used for exception handling break generated code
-    unique_ptr[T] make_unique[T](...) # except +
+    unique_ptr[T] make_unique[T](...) except +
 
     # No checking on the compatibility of T and U.
     cdef shared_ptr[T] static_pointer_cast[T, U](const shared_ptr[U]&)

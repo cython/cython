@@ -24,3 +24,9 @@ queue
 queue2
 queue3
 lunch
+
+# "C linkage function cannot return C++ class" (uses public C++ cdef function)
+cpp_template_subclasses
+
+# MSVC lacks "complex.h"
+complex_numbers_cmath_T2891

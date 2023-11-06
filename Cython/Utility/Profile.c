@@ -6,7 +6,7 @@
 // but maybe some other profilers don't.
 
 #ifndef CYTHON_PROFILE
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
   #define CYTHON_PROFILE 0
 #else
   #define CYTHON_PROFILE 1
@@ -61,15 +61,21 @@
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
+
 #if PY_VERSION_HEX >= 0x030b00a2
+  #if PY_VERSION_HEX >= 0x030C00b1
+  #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
+     ((!(check_tracing) || !(tstate)->tracing) && \
+         (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
+  #else
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
      (unlikely((tstate)->cframe->use_tracing) && \
          (!(check_tracing) || !(tstate)->tracing) && \
          (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
+  #endif
 
-  #define __Pyx_EnterTracing(tstate) PyThreadState_EnterTracing(tstate)
-
-  #define __Pyx_LeaveTracing(tstate) PyThreadState_LeaveTracing(tstate)
+  #define __Pyx_EnterTracing(tstate)  PyThreadState_EnterTracing(tstate)
+  #define __Pyx_LeaveTracing(tstate)  PyThreadState_LeaveTracing(tstate)
 
 #elif PY_VERSION_HEX >= 0x030a00b1
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
@@ -239,12 +245,12 @@
           if (CYTHON_TRACE_NOGIL) {                                                        \
               int ret = 0;                                                                 \
               PyThreadState *tstate;                                                       \
-              PyGILState_STATE state = PyGILState_Ensure();                                \
+              PyGILState_STATE state = __Pyx_PyGILState_Ensure();                          \
               tstate = __Pyx_PyThreadState_Current;                                        \
               if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
                   ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               }                                                                            \
-              PyGILState_Release(state);                                                   \
+              __Pyx_PyGILState_Release(state);                                             \
               if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
       } else {                                                                             \

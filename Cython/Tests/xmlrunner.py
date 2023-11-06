@@ -109,8 +109,7 @@ class _XMLTestResult(TextTestResult):
         self.elapsed_times = elapsed_times
         self.output_patched = False
 
-    def _prepare_callback(self, test_info, target_list, verbose_str,
-        short_str):
+    def _prepare_callback(self, test_info, target_list, verbose_str, short_str):
         """Append a _TestInfo to the given target list and sets a callback
         method to be called by stopTest method.
         """
@@ -125,7 +124,7 @@ class _XMLTestResult(TextTestResult):
                 self.start_time = self.stop_time = 0
 
             if self.showAll:
-                self.stream.writeln('(%.3fs) %s' % \
+                self.stream.writeln('(%.3fs) %s' %
                     (test_info.get_elapsed_time(), verbose_str))
             elif self.dots:
                 self.stream.write(short_str)
@@ -300,8 +299,7 @@ class _XMLTestResult(TextTestResult):
         "Generates the XML reports to a given XMLTestRunner object."
         all_results = self._get_info_by_testcase()
 
-        if type(test_runner.output) == str and not \
-            os.path.exists(test_runner.output):
+        if isinstance(test_runner.output, str) and not os.path.exists(test_runner.output):
             os.makedirs(test_runner.output)
 
         for suite, tests in all_results.items():
@@ -321,7 +319,7 @@ class _XMLTestResult(TextTestResult):
             xml_content = doc.toprettyxml(indent='\t')
 
             if type(test_runner.output) is str:
-                report_file = open('%s%sTEST-%s.xml' % \
+                report_file = open('%s%sTEST-%s.xml' %
                     (test_runner.output, os.sep, suite), 'w')
                 try:
                     report_file.write(xml_content)
@@ -348,7 +346,7 @@ class XMLTestRunner(TextTestRunner):
         """Create the TestResult object which will be used to store
         information about the executed tests.
         """
-        return _XMLTestResult(self.stream, self.descriptions, \
+        return _XMLTestResult(self.stream, self.descriptions,
             self.verbosity, self.elapsed_times)
 
     def run(self, test):

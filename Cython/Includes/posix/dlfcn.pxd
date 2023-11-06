@@ -1,5 +1,5 @@
 # POSIX dynamic linking/loading interface.
-# http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/dlfcn.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/dlfcn.h.html
 
 cdef extern from "<dlfcn.h>" nogil:
     void *dlopen(const char *, int)

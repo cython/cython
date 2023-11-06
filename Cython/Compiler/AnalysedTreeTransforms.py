@@ -10,9 +10,9 @@ from . import Symtab
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
 
-    blacklist = ['__cinit__', '__dealloc__', '__richcmp__',
-                 '__nonzero__', '__bool__',
-                 '__len__', '__contains__']
+    excludelist = ['__cinit__', '__dealloc__', '__richcmp__',
+                   '__nonzero__', '__bool__',
+                   '__len__', '__contains__']
 
     def visit_ModuleNode(self, node):
         if node.is_pxd:
@@ -81,7 +81,7 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                     name = node.entry.name
             else:
                 name = node.name
-            if self.scope_type == 'cclass' and name in self.blacklist:
+            if self.scope_type == 'cclass' and name in self.excludelist:
                 return node
             if self.scope_type == 'pyclass':
                 class_name = self.scope_node.name

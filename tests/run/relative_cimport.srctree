@@ -2,8 +2,37 @@
 # tag: cimport
 
 PYTHON setup.py build_ext --inplace
+PYTHON -c "from py_pkg.py_a import test; test()"
+PYTHON -c "from pkg.a import test; assert test() == (5, 7)"
 PYTHON -c "from pkg.b import test; assert test() == (1, 2)"
+PYTHON -c "from pkg.b_py2 import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.sub.c import test; assert test() == (1, 2)"
+PYTHON -c "from pkg.sub.d import test; assert test() == 3"
+
+# File structure:
+# ├── setup.py
+# ├── py_pkg/
+# |   ├── __init__.py
+# |   ├── py_a.pyx
+# |   ├── py_b.pxd
+# |   └── py_sub/
+# |       ├── __init__.py
+# |       ├── py_c.pxd
+# |       └── py_d.pxd
+# └── pkg/
+#     ├── __init__.py
+#     ├── a.pyx
+#     ├── a.pxd
+#     ├── b.pyx
+#     ├── b_py2.pyx
+#     └── sub/
+#         ├── __init__.py
+#         ├── __init__.pxd
+#         ├── c.pyx
+#         ├── c.pxd
+#         ├── d.pyx
+#         ├── tdef.pxd
+#         └── reimport.pxd
 
 ######## setup.py ########
 
@@ -16,6 +45,37 @@ setup(
 )
 
 
+######## py_pkg/__init__.py ########
+
+######## py_pkg/py_a.pyx ########
+
+from .py_sub cimport py_c
+
+def test():
+    cdef py_c.py_b.py_b_int b = 1
+    assert b == 1
+    cdef py_c.py_c_int c = 2
+    assert c == 2
+    cdef py_c.py_d.py_d_int d = 3
+    assert d == 3
+
+######## py_pkg/py_b.pxd ########
+
+ctypedef int py_b_int
+
+######## py_pkg/py_sub/__init__.py ########
+
+######## py_pkg/py_sub/py_c.pxd ########
+
+from .. cimport py_b
+from . cimport py_d
+
+ctypedef int py_c_int
+
+######## py_pkg/py_sub/py_d.pxd ########
+
+ctypedef int py_d_int
+
 ######## pkg/__init__.py ########
 
 ######## pkg/sub/__init__.py ########
@@ -23,12 +83,23 @@ setup(
 ######## pkg/a.pyx ########
 
 from .sub.reimport cimport myint
+from .sub cimport c
 
 cdef myint i = 5
 assert i == 5
+assert c.sum_func(1, 2) == 3
+
+from .sub cimport myint as pkg_myint
+
+cdef pkg_myint pi = 7
+assert pi == 7
 
 cdef class test_pxd:
     pass
+
+
+def test():
+    return (i, pi)
 
 
 ######## pkg/a.pxd ########
@@ -42,7 +113,23 @@ cdef class test_pxd:
 
 from . cimport a
 from .a cimport test_pxd
-cimport a as implicitly_relative_a
+
+assert a.test_pxd is test_pxd
+
+def test():
+    cdef test_pxd obj = test_pxd()
+    obj.x = 1
+    obj.y = 2
+    return (obj.x, obj.y)
+
+
+######## pkg/b_py2.pyx ########
+
+# cython: language_level=2
+
+from . cimport a
+from .a cimport test_pxd
+cimport a as implicitly_relative_a  # <-- Py2 "feature"
 
 assert a.test_pxd is test_pxd
 assert implicitly_relative_a.test_pxd is test_pxd
@@ -65,6 +152,19 @@ def test():
     obj.y = 2
     return (obj.x, obj.y)
 
+cdef int sum_func(int n, int m):
+    return n + m
+
+######## pkg/sub/c.pxd ########
+
+cdef int sum_func(int n, int m)
+
+######## pkg/sub/d.pyx ########
+
+from . cimport c
+
+def test():
+    return c.sum_func(1, 2)
 
 ######## pkg/sub/tdef.pxd ########
 
@@ -74,3 +174,9 @@ ctypedef int myint
 ######## pkg/sub/reimport.pxd ########
 
 from .tdef cimport myint
+
+
+######## pkg/sub/__init__.pxd ########
+
+from .tdef cimport myint
+from . cimport c

@@ -84,6 +84,9 @@ cdef extern from "Python.h":
     # PyGILState_Release on the same thread.
     void PyGILState_Release(PyGILState_STATE)
 
+    # Return 1 if the current thread holds the GIL and 0 otherwise.
+    int PyGILState_Check()
+
     # Routines for advanced debuggers, requested by David Beazley.
     # Don't use unless you know what you are doing!
     PyInterpreterState * PyInterpreterState_Head()

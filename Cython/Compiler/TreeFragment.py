@@ -29,18 +29,18 @@ class StringParseContext(Main.Context):
             include_directories = []
         if compiler_directives is None:
             compiler_directives = {}
-        # TODO: see if "language_level=3" also works for our internal code here.
-        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level=2)
+        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level='3str')
         self.module_name = name
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, absolute_fallback=True):
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=1, absolute_fallback=True, relative_import=False):
         if module_name not in (self.module_name, 'cython'):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module=None, context=self)
 
 
 def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
-                       context=None, allow_struct_enum_decorator=False):
+                       context=None, allow_struct_enum_decorator=False,
+                       in_utility_code=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -48,6 +48,9 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
 
     code - a unicode string containing Cython (module-level) code
     name - a descriptive name for the code source (to use in error messages etc.)
+    in_utility_code - used to suppress some messages from utility code. False by default
+                      because some generated code snippets like properties and dataclasses
+                      probably want to see those messages.
 
     RETURNS
 
@@ -67,6 +70,8 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
     if initial_pos is None:
         initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
+    if in_utility_code:
+        code_source.in_utility_code = True
 
     scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
 
@@ -179,7 +184,7 @@ class TemplateTransform(VisitorTransform):
             if pos is None: pos = node.pos
             return ApplyPositionAndCopy(pos)(sub)
         else:
-            return self.visit_Node(node) # make copy as usual
+            return self.visit_Node(node)  # make copy as usual
 
     def visit_NameNode(self, node):
         temphandle = self.tempmap.get(node.name)
@@ -235,7 +240,7 @@ class TreeFragment(object):
                 fmt_pxds[key] = fmt(value)
             mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level, initial_pos=initial_pos)
             if level is None:
-                t = t.body # Make sure a StatListNode is at the top
+                t = t.body  # Make sure a StatListNode is at the top
             if not isinstance(t, StatListNode):
                 t = StatListNode(pos=mod.pos, stats=[t])
             for transform in pipeline:

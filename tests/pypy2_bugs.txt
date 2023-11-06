@@ -1,0 +1,38 @@
+# Specific bugs that only apply to pypy2
+
+build.cythonize_script
+build.cythonize_script_package
+run.initial_file_path
+run.reduce_pickle
+run.final_in_pxd
+run.cdef_multiple_inheritance
+run.cdef_multiple_inheritance_nodict
+run.extstarargs
+run.cpython_capi
+run.isnot
+run.partial_circular_import
+
+# pypy 2 seems to be preferring .py files to .so files
+# https://foss.heptapod.net/pypy/pypy/issues/3185
+run.language_level
+run.pure_pxd
+compile.pxd_mangling_names
+
+# Silly error with doctest matching slightly different string outputs rather than
+# an actual bug but one I can't easily resolve
+run.with_gil
+
+# moved from "pypy_bugs" - work on Pypy3, segfault on pypy2
+broken_exception
+yield_from_pep380
+
+# looks like a "when does the GC run?" issue - slightly surprised it's OK on pypy3
+memoryview.numpy_memoryview
+
+# type features that are disabled in PyPy2:
+# (the overridden __Pyx_PyObject_GetItem requires CYTHON_USE_TYPE_SLOTS)
+run.test_genericclass
+run.test_subclassinit
+
+# TypeError: 'memoryview' does not have the buffer interface
+run.buffer_n_overflowcheck_T5356

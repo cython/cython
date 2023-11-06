@@ -1,5 +1,5 @@
 # cython: infer_types=True
-# cython: language_level=3
+# cython: language_level=3str
 # cython: auto_pickle=False
 
 #
@@ -80,7 +80,7 @@ class TreeVisitor(object):
 
     def dump_node(self, node):
         ignored = list(node.child_attrs or []) + [
-            u'child_attrs', u'pos', u'gil_message', u'cpp_message', u'subexprs']
+            'child_attrs', 'pos', 'gil_message', 'cpp_message', 'subexprs']
         values = []
         pos = getattr(node, 'pos', None)
         if pos:
@@ -116,7 +116,7 @@ class TreeVisitor(object):
         nodes = []
         while hasattr(stacktrace, 'tb_frame'):
             frame = stacktrace.tb_frame
-            node = frame.f_locals.get(u'self')
+            node = frame.f_locals.get('self')
             if isinstance(node, Nodes.Node):
                 code = frame.f_code
                 method_name = code.co_name
@@ -153,12 +153,12 @@ class TreeVisitor(object):
     def find_handler(self, obj):
         # to resolve, try entire hierarchy
         cls = type(obj)
-        pattern = "visit_%s"
         mro = inspect.getmro(cls)
         for mro_cls in mro:
-            handler_method = getattr(self, pattern % mro_cls.__name__, None)
+            handler_method = getattr(self, "visit_" + mro_cls.__name__, None)
             if handler_method is not None:
                 return handler_method
+
         print(type(self), cls)
         if self.access_path:
             print(self.access_path)
@@ -167,10 +167,12 @@ class TreeVisitor(object):
         raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
 
     def visit(self, obj):
+        # generic def entry point for calls from Python subclasses
         return self._visit(obj)
 
     @cython.final
     def _visit(self, obj):
+        # fast cdef entry point for calls from Cython subclasses
         try:
             try:
                 handler_method = self.dispatch_table[type(obj)]
@@ -189,17 +191,20 @@ class TreeVisitor(object):
 
     @cython.final
     def _visitchild(self, child, parent, attrname, idx):
+        # fast cdef entry point for calls from Cython subclasses
         self.access_path.append((parent, attrname, idx))
         result = self._visit(child)
         self.access_path.pop()
         return result
 
-    def visitchildren(self, parent, attrs=None):
-        return self._visitchildren(parent, attrs)
+    def visitchildren(self, parent, attrs=None, exclude=None):
+        # generic def entry point for calls from Python subclasses
+        return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
     @cython.locals(idx=cython.Py_ssize_t)
-    def _visitchildren(self, parent, attrs):
+    def _visitchildren(self, parent, attrs, exclude):
+        # fast cdef entry point for calls from Cython subclasses
         """
         Visits the children of the given parent. If parent is None, returns
         immediately (returning None).
@@ -213,6 +218,7 @@ class TreeVisitor(object):
         result = {}
         for attr in parent.child_attrs:
             if attrs is not None and attr not in attrs: continue
+            if exclude is not None and attr in exclude: continue
             child = getattr(parent, attr)
             if child is not None:
                 if type(child) is list:
@@ -246,18 +252,12 @@ class VisitorTransform(TreeVisitor):
     """
     def visitchildren(self, parent, attrs=None, exclude=None):
         # generic def entry point for calls from Python subclasses
-        if exclude is not None:
-            attrs = self._select_attrs(parent.child_attrs if attrs is None else attrs, exclude)
-        return self._process_children(parent, attrs)
+        return self._process_children(parent, attrs, exclude)
 
     @cython.final
-    def _select_attrs(self, attrs, exclude):
-        return [name for name in attrs if name not in exclude]
-
-    @cython.final
-    def _process_children(self, parent, attrs=None):
+    def _process_children(self, parent, attrs=None, exclude=None):
         # fast cdef entry point for calls from Cython subclasses
-        result = self._visitchildren(parent, attrs)
+        result = self._visitchildren(parent, attrs, exclude)
         for attr, newnode in result.items():
             if type(newnode) is list:
                 newnode = self._flatten_list(newnode)
@@ -275,6 +275,16 @@ class VisitorTransform(TreeVisitor):
                 else:
                     newlist.append(x)
         return newlist
+
+    def visitchild(self, parent, attr, idx=0):
+        # Helper to visit specific children from Python subclasses
+        child = getattr(parent, attr)
+        if child is not None:
+            node = self._visitchild(child, parent, attr, idx)
+            if node is not child:
+                setattr(parent, attr, node)
+            child = node
+        return child
 
     def recurse_to_children(self, node):
         self._process_children(node)
@@ -296,8 +306,8 @@ class CythonTransform(VisitorTransform):
         self.context = context
 
     def __call__(self, node):
-        from . import ModuleNode
-        if isinstance(node, ModuleNode.ModuleNode):
+        from .ModuleNode import ModuleNode
+        if isinstance(node, ModuleNode):
             self.current_directives = node.directives
         return super(CythonTransform, self).__call__(node)
 
@@ -370,10 +380,14 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
+        self.visit_func_outer_attrs(node)
         self.enter_scope(node, node.local_scope)
-        self._process_children(node)
+        self.visitchildren(node, attrs=None, exclude=node.outer_attrs)
         self.exit_scope()
         return node
+
+    def visit_func_outer_attrs(self, node):
+        self.visitchildren(node, attrs=node.outer_attrs)
 
     def visit_GeneratorBodyDefNode(self, node):
         self._process_children(node)
@@ -569,7 +583,18 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
-        call_type = has_kwargs and 'general' or 'simple'
+        try:
+            match_name.encode('ascii')
+        except UnicodeEncodeError:
+            # specifically when running the Cython compiler under Python 2
+            #  getattr can't take a unicode string.
+            #  Classes with unicode names won't have specific handlers and thus it
+            #  should be OK to return None.
+            # Doing the test here ensures that the same code gets run on
+            # Python 2 and 3
+            return None
+
+        call_type = 'general' if has_kwargs else 'simple'
         handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
             handler = getattr(self, '_handle_any_%s' % match_name, None)
@@ -662,8 +687,8 @@ class MethodDispatcherTransform(EnvTransform):
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:
-            if (attr_name in TypeSlots.method_name_to_slot
-                    or attr_name == '__new__'):
+            if (attr_name in TypeSlots.special_method_names
+                    or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
                     "slot%s" % attr_name, kwargs)
             if method_handler is None:
@@ -733,7 +758,7 @@ class NodeFinder(TreeVisitor):
         elif node is self.node:
             self.found = True
         else:
-            self._visitchildren(node, None)
+            self._visitchildren(node, None, None)
 
 def tree_contains(tree, node):
     finder = NodeFinder(node)
@@ -821,6 +846,12 @@ class PrintTree(TreeVisitor):
                 result += "(type=%s, name=\"%s\")" % (repr(node.type), node.name)
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
+            elif isinstance(node, Nodes.CFuncDefNode):
+                result += "(name=\"%s\")" % node.declared_name()
+            elif isinstance(node, ExprNodes.AttributeNode):
+                result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
+            elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
+                result += "(type=%s, value=%r)" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type
                 result += "(type=%s)" % repr(t)

@@ -12,20 +12,20 @@ cdef int clip(int a, int min_value, int max_value):
 
 
 def compute(array_1, array_2, int a, int b, int c):
-    
+
     # The "cdef" keyword is also used within functions to type variables. It
     # can only be used at the top indentation level (there are non-trivial
     # problems with allowing them in other places, though we'd love to see
     # good and thought out proposals for it).
     cdef Py_ssize_t x_max = array_1.shape[0]
     cdef Py_ssize_t y_max = array_1.shape[1]
-    
+
     assert array_1.shape == array_2.shape
     assert array_1.dtype == DTYPE
     assert array_2.dtype == DTYPE
 
     result = np.zeros((x_max, y_max), dtype=DTYPE)
-    
+
     # It is very important to type ALL your variables. You do not get any
     # warnings if not, only much slower code (they are implicitly typed as
     # Python objects).

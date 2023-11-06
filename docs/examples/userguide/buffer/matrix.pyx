@@ -1,8 +1,7 @@
 # distutils: language = c++
 
-# matrix.pyx
-
 from libcpp.vector cimport vector
+
 
 cdef class Matrix:
     cdef unsigned ncols

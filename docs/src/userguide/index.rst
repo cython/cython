@@ -16,6 +16,7 @@ Contents:
    wrapping_CPlusPlus
    fusedtypes
    pypy
+   migrating_to_cy30
    limitations
    pyrex_differences
    memoryviews
@@ -23,7 +24,11 @@ Contents:
    parallelism
    debugging
    numpy_tutorial
+   numpy_ufuncs
    numpy_pythran
+   nogil
+   troubleshooting
+   faq
 
 Indices and tables
 ------------------
@@ -31,6 +36,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-.. toctree::
-

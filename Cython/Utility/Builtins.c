@@ -20,47 +20,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    Py_ssize_t i;
-    PyObject *names;
-    PyObject *globals = $moddict_cname;
-    Py_INCREF(globals);
-    names = PyObject_Dir($module_cname);
-    if (!names)
-        goto bad;
-    for (i = PyList_GET_SIZE(names)-1; i >= 0; i--) {
-#if CYTHON_COMPILING_IN_PYPY
-        PyObject* name = PySequence_ITEM(names, i);
-        if (!name)
-            goto bad;
-#else
-        PyObject* name = PyList_GET_ITEM(names, i);
-#endif
-        if (!PyDict_Contains(globals, name)) {
-            PyObject* value = __Pyx_GetAttr($module_cname, name);
-            if (!value) {
-#if CYTHON_COMPILING_IN_PYPY
-                Py_DECREF(name);
-#endif
-                goto bad;
-            }
-            if (PyDict_SetItem(globals, name, value) < 0) {
-#if CYTHON_COMPILING_IN_PYPY
-                Py_DECREF(name);
-#endif
-                Py_DECREF(value);
-                goto bad;
-            }
-        }
-#if CYTHON_COMPILING_IN_PYPY
-        Py_DECREF(name);
-#endif
-    }
-    Py_DECREF(names);
-    return globals;
-bad:
-    Py_XDECREF(names);
-    Py_XDECREF(globals);
-    return NULL;
+    return __Pyx_NewRef($moddict_cname);
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -68,17 +28,11 @@ bad:
 static PyObject* __Pyx_PyExecGlobals(PyObject*);
 
 //////////////////// PyExecGlobals ////////////////////
-//@requires: Globals
+//@substitute: naming
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    PyObject* result;
-    PyObject* globals = __Pyx_Globals();
-    if (unlikely(!globals))
-        return NULL;
-    result = __Pyx_PyExec2(code, globals);
-    Py_DECREF(globals);
-    return result;
+    return __Pyx_PyExec2(code, $moddict_cname);
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -100,9 +54,13 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
-    } else if (!PyDict_Check(globals)) {
-        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
-                     Py_TYPE(globals)->tp_name);
+    } else if (unlikely(!PyDict_Check(globals))) {
+        __Pyx_TypeName globals_type_name =
+            __Pyx_PyType_GetName(Py_TYPE(globals));
+        PyErr_Format(PyExc_TypeError,
+                     "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
+                     globals_type_name);
+        __Pyx_DECREF_TypeName(globals_type_name);
         goto bad;
     }
     if (!locals || locals == Py_None) {
@@ -110,12 +68,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     }
 
     if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
-        if (PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0)
+        if (unlikely(PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0))
             goto bad;
     }
 
     if (PyCode_Check(o)) {
-        if (__Pyx_PyCode_HasFreeVars((PyCodeObject *)o)) {
+        if (unlikely(__Pyx_PyCode_HasFreeVars((PyCodeObject *)o))) {
             PyErr_SetString(PyExc_TypeError,
                 "code object passed to exec() may not contain free variables");
             goto bad;
@@ -134,16 +92,18 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
             s = PyUnicode_AsUTF8String(o);
-            if (!s) goto bad;
+            if (unlikely(!s)) goto bad;
             o = s;
         #if PY_MAJOR_VERSION >= 3
-        } else if (!PyBytes_Check(o)) {
+        } else if (unlikely(!PyBytes_Check(o))) {
         #else
-        } else if (!PyString_Check(o)) {
+        } else if (unlikely(!PyString_Check(o))) {
         #endif
+            __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object, got %.200s",
-                Py_TYPE(o)->tp_name);
+                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
+                o_type_name);
+            __Pyx_DECREF_TypeName(o_type_name);
             goto bad;
         }
         #if PY_MAJOR_VERSION >= 3
@@ -170,11 +130,12 @@ bad:
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 
 //////////////////// GetAttr3 ////////////////////
-//@requires: ObjectHandling.c::GetAttr
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -184,19 +145,41 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     Py_INCREF(d);
     return d;
 }
+#endif
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
-    PyObject *r = __Pyx_GetAttr(o, n);
+    PyObject *r;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+    int res = PyObject_GetOptionalAttr(o, n, &r);
+    // On failure (res == -1), r is set to NULL.
+    return (res != 0) ? r : __Pyx_NewRef(d);
+#else
+  #if CYTHON_USE_TYPE_SLOTS
+    if (likely(PyString_Check(n))) {
+        r = __Pyx_PyObject_GetAttrStrNoError(o, n);
+        if (unlikely(!r) && likely(!PyErr_Occurred())) {
+            r = __Pyx_NewRef(d);
+        }
+        return r;
+    }
+  #endif
+    r = PyObject_GetAttr(o, n);
     return (likely(r)) ? r : __Pyx_GetAttr3Default(d);
+#endif
 }
 
 //////////////////// HasAttr.proto ////////////////////
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#define __Pyx_HasAttr(o, n)  PyObject_HasAttrWithError(o, n)
+#else
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
+#endif
 
 //////////////////// HasAttr ////////////////////
 //@requires: ObjectHandling.c::GetAttr
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
     if (unlikely(!__Pyx_PyBaseString_Check(n))) {
@@ -205,7 +188,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         return -1;
     }
     r = __Pyx_GetAttr(o, n);
-    if (unlikely(!r)) {
+    if (!r) {
         PyErr_Clear();
         return 0;
     } else {
@@ -213,17 +196,19 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         return 1;
     }
 }
+#endif
 
 //////////////////// Intern.proto ////////////////////
 
 static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 
 //////////////////// Intern ////////////////////
+//@requires: ObjectHandling.c::RaiseUnexpectedTypeError
 
 static PyObject* __Pyx_Intern(PyObject* s) {
-    if (!(likely(PyString_CheckExact(s)))) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(s)->tp_name);
-        return 0;
+    if (unlikely(!PyString_CheckExact(s))) {
+        __Pyx_RaiseUnexpectedTypeError("str", s);
+        return NULL;
     }
     Py_INCREF(s);
     #if PY_MAJOR_VERSION >= 3
@@ -263,7 +248,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #define __Pyx_PyNumber_Absolute(x) \
     ((likely(PyLong_CheckExact(x))) ? \
-         (likely(Py_SIZE(x) >= 0) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
+         (likely(__Pyx_PyLong_IsNonNeg(x)) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
          PyNumber_Absolute(x))
 
 #else
@@ -274,16 +259,27 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #if CYTHON_USE_PYLONG_INTERNALS
 static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
+#if PY_VERSION_HEX >= 0x030C00A7
+    if (likely(__Pyx_PyLong_IsCompact(n))) {
+        return PyLong_FromSize_t(__Pyx_PyLong_CompactValueUnsigned(n));
+    }
+#else
     if (likely(Py_SIZE(n) == -1)) {
         // digits are unsigned
-        return PyLong_FromLong(((PyLongObject*)n)->ob_digit[0]);
+        return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
-#if CYTHON_COMPILING_IN_CPYTHON
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
+            #if PY_VERSION_HEX >= 0x030C00A7
+            // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
+            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~_PyLong_SIGN_MASK;
+            #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
+            #endif
         }
         return copy;
     }
@@ -297,6 +293,42 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 //////////////////// pow2.proto ////////////////////
 
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
+
+
+//////////////////// int_pyucs4.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
+
+//////////////////// int_pyucs4 ////////////////////
+
+static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
+    int digit = Py_UNICODE_TODIGIT(uchar);
+    if (unlikely(digit < 0)) {
+        PyErr_Format(PyExc_ValueError,
+            "invalid literal for int() with base 10: '%c'",
+            (int) uchar);
+        return -1;
+    }
+    return digit;
+}
+
+
+//////////////////// float_pyucs4.proto ////////////////////
+
+static CYTHON_INLINE double __Pyx_double_from_UCS4(Py_UCS4 uchar);
+
+//////////////////// float_pyucs4 ////////////////////
+
+static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
+    double digit = Py_UNICODE_TONUMERIC(uchar);
+    if (unlikely(digit < 0.0)) {
+        PyErr_Format(PyExc_ValueError,
+            "could not convert string to float: '%c'",
+            (int) uchar);
+        return -1.0;
+    }
+    return digit;
+}
 
 
 //////////////////// object_ord.proto ////////////////////
@@ -332,8 +364,11 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
+        __Pyx_TypeName c_type_name = __Pyx_PyType_GetName(Py_TYPE(c));
         PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but %.200s found", Py_TYPE(c)->tp_name);
+            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
+            c_type_name);
+        __Pyx_DECREF_TypeName(c_type_name);
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
@@ -422,9 +457,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewkeys ////////////////////
@@ -438,9 +470,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewvalues ////////////////////
@@ -454,9 +483,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
 
 //////////////////// py_dict_viewitems.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewitems ////////////////////
@@ -540,3 +566,50 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     Py_DECREF(retval);
     return 0;
 }
+
+///////////////// memoryview_get_from_buffer.proto ////////////////////
+
+// buffer is in limited api from Py3.11
+#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#define __Pyx_PyMemoryView_Get_{{name}}(o) PyMemoryView_GET_BUFFER(o)->{{name}}
+#else
+{{py:
+out_types = dict(
+    ndim='int', readonly='int',
+    len='Py_ssize_t', itemsize='Py_ssize_t')
+}} // can't get format like this unfortunately. It's unicode via getattr
+{{py: out_type = out_types[name]}}
+static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj); /* proto */
+#endif
+
+////////////// memoryview_get_from_buffer /////////////////////////
+
+#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#else
+{{py:
+out_types = dict(
+    ndim='int', readonly='int',
+    len='Py_ssize_t', itemsize='Py_ssize_t')
+}}
+{{py: out_type = out_types[name]}}
+static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
+    {{out_type}} result;
+    PyObject *attr = PyObject_GetAttr(obj, PYIDENT("{{name}}"));
+    if (!attr) {
+        goto bad;
+    }
+{{if out_type == 'int'}}
+    // I'm not worrying about overflow here because
+    // ultimately it comes from a C struct that's an int
+    result = PyLong_AsLong(attr);
+{{elif out_type == 'Py_ssize_t'}}
+    result = PyLong_AsSsize_t(attr);
+{{endif}}
+    Py_DECREF(attr);
+    return result;
+
+    bad:
+    Py_XDECREF(attr);
+    return -1;
+}
+#endif

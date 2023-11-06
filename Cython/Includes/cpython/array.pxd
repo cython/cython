@@ -46,8 +46,19 @@
               : 2012-05-02 andreasvc
               : (see revision control)
 """
-from libc.string cimport strcat, strncat, \
-    memset, memchr, memcmp, memcpy, memmove
+
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_PYPY
+    #ifdef _MSC_VER
+    #pragma message ("This module uses CPython specific internals of 'array.array', which are not available in PyPy.")
+    #else
+    #warning This module uses CPython specific internals of 'array.array', which are not available in PyPy.
+    #endif
+    #endif
+    """
+
+from libc.string cimport memset, memcpy
 
 from cpython.object cimport Py_SIZE
 from cpython.ref cimport PyTypeObject, Py_TYPE

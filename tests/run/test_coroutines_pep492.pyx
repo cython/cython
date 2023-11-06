@@ -14,7 +14,7 @@ import copy
 #import types
 import pickle
 import os.path
-#import inspect
+import inspect
 import unittest
 import warnings
 import contextlib
@@ -70,6 +70,12 @@ except ImportError:
         return (<PyObject*>obj).ob_refcnt
 
 
+def no_pypy(f):
+    import platform
+    if platform.python_implementation() == 'PyPy':
+        return unittest.skip("excluded in PyPy")
+
+
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Shadow import inline
@@ -109,7 +115,7 @@ class AsyncYield(object):
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
+    assert coro.__class__.__name__.rsplit('.', 1)[-1] in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
 
     buffer = []
     result = None
@@ -123,7 +129,7 @@ def run_async(coro):
 
 
 def run_async__await__(coro):
-    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
+    assert coro.__class__.__name__.rsplit('.', 1)[-1] in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
     aw = coro.__await__()
     buffer = []
     result = None
@@ -147,17 +153,6 @@ def silence_coro_gc():
         warnings.simplefilter("ignore")
         yield
         gc.collect()
-
-
-def min_py27(method):
-    return None if sys.version_info < (2, 7) else method
-
-
-def ignore_py26(manager):
-    @contextlib.contextmanager
-    def dummy():
-        yield
-    return dummy() if sys.version_info < (2, 7) else manager
 
 
 @contextlib.contextmanager
@@ -213,9 +208,10 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                 pass
             """,
 
-            """async def foo(a:await something()):
-                pass
-            """,
+            #"""async def foo(a:await something()):
+            #    pass
+            #""", # No longer an error with pep-563 (although still nonsense)
+            # Some other similar tests have also been commented out
 
             """async def foo():
                 def bar():
@@ -413,9 +409,9 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                    pass
             """,
 
-            """async def foo(a:await b):
-                   pass
-            """,
+            #"""async def foo(a:await b):
+            #       pass
+            #""",
 
             """def baz():
                    async def foo(a=await b):
@@ -628,9 +624,9 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                    pass
             """,
 
-            """async def foo(a:await b):
-                   pass
-            """,
+            #"""async def foo(a:await b):
+            #       pass
+            #""",
 
             """def baz():
                    async def foo(a=await b):
@@ -758,7 +754,8 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             async def g(): pass
             await z
         await = 1
-        #self.assertTrue(inspect.iscoroutinefunction(f))
+        if sys.version_info >= (3,10,6):
+            self.assertTrue(inspect.iscoroutinefunction(f))
 
 
 class TokenizerRegrTest(unittest.TestCase):
@@ -781,7 +778,8 @@ class TokenizerRegrTest(unittest.TestCase):
         exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
         self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
-        #self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
+        if sys.version_info >= (3,10,6):
+            self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
 class CoroutineTest(unittest.TestCase):
@@ -905,7 +903,7 @@ class CoroutineTest(unittest.TestCase):
             raise StopIteration
 
         with silence_coro_gc():
-            self.assertRegex(repr(foo()), '^<coroutine object.* at 0x.*>$')
+            self.assertRegex(repr(foo()), '^<[^\s]*coroutine object.* at 0x.*>$')
 
     def test_func_4(self):
         async def foo():
@@ -1091,7 +1089,7 @@ class CoroutineTest(unittest.TestCase):
             c.close()
 
     def test_func_15(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         async def spammer():
             return 'spam'
@@ -1108,7 +1106,7 @@ class CoroutineTest(unittest.TestCase):
             reader(spammer_coro).send(None)
 
     def test_func_16(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         @types_coroutine
         def nop():
@@ -1139,7 +1137,7 @@ class CoroutineTest(unittest.TestCase):
             reader.throw(Exception('wat'))
 
     def test_func_17(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         async def coroutine():
             return 'spam'
@@ -1162,7 +1160,7 @@ class CoroutineTest(unittest.TestCase):
         coro.close()
 
     def test_func_18(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         async def coroutine():
             return 'spam'
@@ -1831,7 +1829,7 @@ class CoroutineTest(unittest.TestCase):
 
         buffer = []
         async def test1():
-            with ignore_py26(self.assertWarnsRegex(DeprecationWarning, "legacy")):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i1, i2 in AsyncIter():
                     buffer.append(i1 + i2)
 
@@ -1845,7 +1843,7 @@ class CoroutineTest(unittest.TestCase):
         buffer = []
         async def test2():
             nonlocal buffer
-            with ignore_py26(self.assertWarnsRegex(DeprecationWarning, "legacy")):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AsyncIter():
                     buffer.append(i[0])
                     if i[0] == 20:
@@ -1864,7 +1862,7 @@ class CoroutineTest(unittest.TestCase):
         buffer = []
         async def test3():
             nonlocal buffer
-            with ignore_py26(self.assertWarnsRegex(DeprecationWarning, "legacy")):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AsyncIter():
                     if i[0] > 20:
                         continue
@@ -2081,7 +2079,6 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(CNT, 0)
 
     # old-style pre-Py3.5.2 protocol - no longer supported
-    @min_py27
     def __test_for_9(self):
         # Test that DeprecationWarning can safely be converted into
         # an exception (__aiter__ should not have a chance to raise
@@ -2099,7 +2096,6 @@ class CoroutineTest(unittest.TestCase):
                 run_async(foo())
 
     # old-style pre-Py3.5.2 protocol - no longer supported
-    @min_py27
     def __test_for_10(self):
         # Test that DeprecationWarning can safely be converted into
         # an exception.
@@ -2418,6 +2414,7 @@ class CoroutineTest(unittest.TestCase):
         finally:
             aw.close()
 
+    @no_pypy
     def test_fatal_coro_warning(self):
         # Issue 27811
         async def func(): pass

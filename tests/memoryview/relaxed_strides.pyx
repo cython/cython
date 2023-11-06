@@ -10,12 +10,12 @@ Thanks to Nathaniel Smith and Sebastian Berg.
 See also:
 
     Mailing list threads:
-      http://thread.gmane.org/gmane.comp.python.cython.devel/14762
-      http://thread.gmane.org/gmane.comp.python.cython.devel/14634
+      https://thread.gmane.org/gmane.comp.python.cython.devel/14762
+      https://thread.gmane.org/gmane.comp.python.cython.devel/14634
 
     Detailed discussion of the difference between numpy/cython's current
     definition of "contiguity", and the correct definition:
-      http://thread.gmane.org/gmane.comp.python.cython.devel/14634/focus=14640
+      https://thread.gmane.org/gmane.comp.python.cython.devel/14634/focus=14640
 
     The PR implementing NPY_RELAXED_STRIDES_CHECKING:
       https://github.com/numpy/numpy/pull/3162
@@ -35,13 +35,6 @@ except ValueError:
 NUMPY_HAS_RELAXED_STRIDES = (
     numpy_version < (1, 8) or
     np.ones((10, 1), order="C").flags.f_contiguous)
-
-
-def not_py26(f):
-    import sys
-    if sys.version_info < (2, 7):
-        return lambda a: None
-    return f
 
 
 def test_one_sized(array):
@@ -81,7 +74,6 @@ def test_zero_sized_multidim_ccontig(array):
     cdef double[:, :, ::1] a = array
     return a
 
-@not_py26
 def test_zero_sized_multidim_fcontig(array):
     """
     >>> contig = np.ascontiguousarray(np.zeros((4,4,4))[::2, 2:2, ::2])

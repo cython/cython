@@ -1,4 +1,4 @@
-# ticket: 601
+# ticket: t601
 
 cdef unsigned long size2():
     return 3

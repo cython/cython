@@ -1,18 +1,20 @@
+# cython: language_level=3str
 # cython: auto_pickle=False
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Actions for use in token specifications
-#
-#=======================================================================
+"""
+Python Lexical Analyser
+
+Actions for use in token specifications
+"""
 
 class Action(object):
     def perform(self, token_stream, text):
         pass  # abstract
 
-    def same_as(self, other):
-        return self is other
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
 
 
 class Return(Action):
@@ -27,11 +29,8 @@ class Return(Action):
     def perform(self, token_stream, text):
         return self.value
 
-    def same_as(self, other):
-        return isinstance(other, Return) and self.value == other.value
-
     def __repr__(self):
-        return "Return(%s)" % repr(self.value)
+        return "Return(%r)" % self.value
 
 
 class Call(Action):
@@ -48,8 +47,27 @@ class Call(Action):
     def __repr__(self):
         return "Call(%s)" % self.function.__name__
 
-    def same_as(self, other):
-        return isinstance(other, Call) and self.function is other.function
+
+class Method(Action):
+    """
+    Plex action that calls a specific method on the token stream,
+    passing the matched text and any provided constant keyword arguments.
+    """
+
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.kwargs = kwargs or None
+
+    def perform(self, token_stream, text):
+        method = getattr(token_stream, self.name)
+        # self.kwargs is almost always unused => avoid call overhead
+        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
+
+    def __repr__(self):
+        kwargs = (
+            ', '.join(sorted(['%s=%r' % item for item in self.kwargs.items()]))
+            if self.kwargs is not None else '')
+        return "Method(%s%s%s)" % (self.name, ', ' if kwargs else '', kwargs)
 
 
 class Begin(Action):
@@ -68,9 +86,6 @@ class Begin(Action):
     def __repr__(self):
         return "Begin(%s)" % self.state_name
 
-    def same_as(self, other):
-        return isinstance(other, Begin) and self.state_name == other.state_name
-
 
 class Ignore(Action):
     """
@@ -87,7 +102,6 @@ class Ignore(Action):
 
 
 IGNORE = Ignore()
-#IGNORE.__doc__ = Ignore.__doc__
 
 
 class Text(Action):
@@ -105,6 +119,3 @@ class Text(Action):
 
 
 TEXT = Text()
-#TEXT.__doc__ = Text.__doc__
-
-

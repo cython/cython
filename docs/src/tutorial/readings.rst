@@ -1,7 +1,7 @@
 Further reading
 ===============
 
-The main documentation is located at http://docs.cython.org/. Some
+The main documentation is located at https://docs.cython.org/. Some
 recent features might not have documentation written yet, in such
 cases some notes can usually be found in the form of a Cython
 Enhancement Proposal (CEP) on https://github.com/cython/cython/wiki/enhancements.
@@ -16,7 +16,7 @@ features for managing it.
 Finally, don't hesitate to ask questions (or post reports on
 successes!) on the Cython users mailing list [UserList]_.  The Cython
 developer mailing list, [DevList]_, is also open to everybody, but
-focusses on core development issues.  Feel free to use it to report a
+focuses on core development issues.  Feel free to use it to report a
 clear bug, to ask for guidance if you have time to spare to develop
 Cython, or if you have suggestions for future development.
 

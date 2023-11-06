@@ -1,0 +1,50 @@
+
+PYTHON setup.py build_ext --inplace --cython-include-dirs=./headers1 --include-dirs=./headers2
+PYTHON -c 'import mymodule; assert mymodule.test_string == "TEST"; assert mymodule.header_value1 == 1; assert mymodule.header_value2 == 2; assert mymodule.header_value3 == 3; assert mymodule.header_value4 == 4'
+
+############# setup.py #############
+
+from Cython.Distutils.extension import Extension
+from Cython.Build import build_ext
+from distutils.core import setup
+
+setup(
+    name='Hello world app',
+    ext_modules = [
+        Extension(
+            name = 'mymodule',
+            sources=['mymodule.pyx'],
+            cython_include_dirs=['headers3'],
+            include_dirs=['./headers4']
+        )
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## mymodule.pyx ########
+
+include "myheader1.pxi"
+include "myheader2.pxi"
+include "myheader3.pxi"
+include "myheader4.pxi"
+header_value1 = test_value1
+header_value2 = test_value2
+header_value3 = test_value3
+header_value4 = test_value4
+test_string = "TEST"
+
+######## headers1/myheader1.pxi ########
+
+cdef int test_value1 = 1
+
+######## headers2/myheader2.pxi ########
+
+cdef int test_value2 = 2
+
+######## headers3/myheader3.pxi ########
+
+cdef int test_value3 = 3
+
+######## headers4/myheader4.pxi ########
+
+cdef int test_value4 = 4

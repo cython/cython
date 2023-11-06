@@ -29,8 +29,51 @@ typedef struct {
 #define __PYX_CYTHON_ATOMICS_ENABLED() CYTHON_ATOMICS
 
 #define __pyx_atomic_int_type int
+#define __pyx_nonatomic_int_type int
 
-#if CYTHON_ATOMICS && (__GNUC__ >= 5 || (__GNUC__ == 4 && \
+// For standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
+// defined when we decide to use them.
+#if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
+                        (__STDC_VERSION__ >= 201112L) && \
+                        !defined(__STDC_NO_ATOMICS__))
+    #include <stdatomic.h>
+#elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
+                    (__cplusplus >= 201103L) || \
+                    (defined(_MSC_VER) && _MSC_VER >= 1700)))
+    #include <atomic>
+#endif
+
+#if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
+                        (__STDC_VERSION__ >= 201112L) && \
+                        !defined(__STDC_NO_ATOMICS__) && \
+                       ATOMIC_INT_LOCK_FREE == 2)
+    // C11 atomics are available and  ATOMIC_INT_LOCK_FREE is definitely on
+    #undef __pyx_atomic_int_type
+    #define __pyx_atomic_int_type atomic_int
+    #define __pyx_atomic_incr_aligned(value) atomic_fetch_add_explicit(value, 1, memory_order_relaxed)
+    #define __pyx_atomic_decr_aligned(value) atomic_fetch_sub_explicit(value, 1, memory_order_acq_rel)
+    #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
+        #pragma message ("Using standard C atomics")
+    #elif defined(__PYX_DEBUG_ATOMICS)
+        #warning "Using standard C atomics"
+    #endif
+#elif CYTHON_ATOMICS && (defined(__cplusplus) && ( \
+                    (__cplusplus >= 201103L) || \
+                    /*_MSC_VER 1700 is Visual Studio 2012 */ \
+                    (defined(_MSC_VER) && _MSC_VER >= 1700)) && \
+                    ATOMIC_INT_LOCK_FREE == 2)
+    // C++11 atomics are available and ATOMIC_INT_LOCK_FREE is definitely on
+    #undef __pyx_atomic_int_type
+    #define __pyx_atomic_int_type std::atomic_int
+    #define __pyx_atomic_incr_aligned(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_relaxed)
+    #define __pyx_atomic_decr_aligned(value) std::atomic_fetch_sub_explicit(value, 1, std::memory_order_acq_rel)
+
+    #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
+        #pragma message ("Using standard C++ atomics")
+    #elif defined(__PYX_DEBUG_ATOMICS)
+        #warning "Using standard C++ atomics"
+    #endif
+#elif CYTHON_ATOMICS && (__GNUC__ >= 5 || (__GNUC__ == 4 && \
                     (__GNUC_MINOR__ > 1 ||  \
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
@@ -40,11 +83,13 @@ typedef struct {
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
     #endif
-#elif CYTHON_ATOMICS && defined(_MSC_VER) && CYTHON_COMPILING_IN_NOGIL
+#elif CYTHON_ATOMICS && defined(_MSC_VER)
     /* msvc */
     #include <intrin.h>
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type long
+    #undef __pyx_nonatomic_int_type
+    #define __pyx_nonatomic_int_type long
     #pragma intrinsic (_InterlockedExchangeAdd)
     #define __pyx_atomic_incr_aligned(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_decr_aligned(value) _InterlockedExchangeAdd(value, -1)
@@ -60,8 +105,6 @@ typedef struct {
         #warning "Not using atomics"
     #endif
 #endif
-
-typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 
 #if CYTHON_ATOMICS
     #define __pyx_add_acquisition_count(memview) \
@@ -102,16 +145,15 @@ static int __Pyx_init_memviewslice(
                 int memview_is_new_reference);
 
 static CYTHON_INLINE int __pyx_add_acquisition_count_locked(
-    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+    __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
 static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
-    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+    __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
 
-#define __pyx_get_slice_count_pointer(memview) (memview->acquisition_count_aligned_p)
-#define __pyx_get_slice_count(memview) (*__pyx_get_slice_count_pointer(memview))
+#define __pyx_get_slice_count_pointer(memview) (&memview->acquisition_count)
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
-#define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
+#define __PYX_XCLEAR_MEMVIEW(slice, have_gil) __Pyx_XCLEAR_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
-static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
+static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
 
 
 /////////////// MemviewSliceIndex.proto ///////////////
@@ -226,8 +268,9 @@ fail:
 }
 
 static int
-__pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec)
+__pyx_check_suboffsets(Py_buffer *buf, int dim, int ndim, int spec)
 {
+    CYTHON_UNUSED_VAR(ndim);
     // Todo: without PyBUF_INDIRECT we may not have suboffset information, i.e., the
     //       ptr may not be set to NULL but may be uninitialized?
     if (spec & __Pyx_MEMVIEW_DIRECT) {
@@ -458,7 +501,7 @@ static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
 }
 
 static CYTHON_INLINE int
-__pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+__pyx_add_acquisition_count_locked(__pyx_atomic_int_type *acquisition_count,
                                    PyThread_type_lock lock)
 {
     int result;
@@ -469,7 +512,7 @@ __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 }
 
 static CYTHON_INLINE int
-__pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+__pyx_sub_acquisition_count_locked(__pyx_atomic_int_type *acquisition_count,
                                    PyThread_type_lock lock)
 {
     int result;
@@ -483,47 +526,49 @@ __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 static CYTHON_INLINE void
 __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
-    int first_time;
+    __pyx_nonatomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
-    if (unlikely(!memview || (PyObject *) memview == Py_None))
-        return; /* allow uninitialized memoryview assignment */
+    if (unlikely(!memview || (PyObject *) memview == Py_None)) {
+        // Allow uninitialized memoryview assignment and do not ref-count None.
+        return;
+    }
 
-    if (unlikely(__pyx_get_slice_count(memview) < 0))
-        __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
-
-    first_time = __pyx_add_acquisition_count(memview) == 0;
-
-    if (unlikely(first_time)) {
-        if (have_gil) {
-            Py_INCREF((PyObject *) memview);
+    old_acquisition_count = __pyx_add_acquisition_count(memview);
+    if (unlikely(old_acquisition_count <= 0)) {
+        if (likely(old_acquisition_count == 0)) {
+            // First acquisition => keep the memoryview object alive.
+            if (have_gil) {
+                Py_INCREF((PyObject *) memview);
+            } else {
+                PyGILState_STATE _gilstate = PyGILState_Ensure();
+                Py_INCREF((PyObject *) memview);
+                PyGILState_Release(_gilstate);
+            }
         } else {
-            PyGILState_STATE _gilstate = PyGILState_Ensure();
-            Py_INCREF((PyObject *) memview);
-            PyGILState_Release(_gilstate);
+            __pyx_fatalerror("Acquisition count is %d (line %d)",
+                             old_acquisition_count+1, lineno);
         }
     }
 }
 
-static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
+static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
-    int last_time;
+    __pyx_nonatomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
-        // we do not ref-count None
+        // Do not ref-count None.
         memslice->memview = NULL;
         return;
     }
 
-    if (unlikely(__pyx_get_slice_count(memview) <= 0))
-        __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
-
-    last_time = __pyx_sub_acquisition_count(memview) == 1;
+    old_acquisition_count = __pyx_sub_acquisition_count(memview);
     memslice->data = NULL;
-
-    if (unlikely(last_time)) {
+    if (likely(old_acquisition_count > 1)) {
+        // Still other slices out there => we do not own the reference.
+        memslice->memview = NULL;
+    } else if (likely(old_acquisition_count == 1)) {
+        // Last slice => discard owned Python reference to memoryview object.
         if (have_gil) {
             Py_CLEAR(memslice->memview);
         } else {
@@ -532,7 +577,8 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
             PyGILState_Release(_gilstate);
         }
     } else {
-        memslice->memview = NULL;
+        __pyx_fatalerror("Acquisition count is %d (line %d)",
+                         old_acquisition_count-1, lineno);
     }
 }
 
@@ -770,7 +816,7 @@ static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
 {{if from_py_function}}
 static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
-    if ({{error_condition}})
+    if (unlikely({{error_condition}}))
         return 0;
     *({{dtype}} *) itemp = value;
     return 1;
@@ -921,7 +967,7 @@ __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t 
 ////////// FillStrided1DScalar //////////
 
 /* Fill a slice with a scalar value. The dimension is direct and strided or contiguous */
-/* This can be used as a callback for the memoryview object to efficienty assign a scalar */
+/* This can be used as a callback for the memoryview object to efficiently assign a scalar */
 /* Currently unused */
 static void
 __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,

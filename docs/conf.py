@@ -37,7 +37,9 @@ extensions = [
     'sphinx.ext.imgmath',
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.autodoc'
+    'sphinx.ext.autodoc',
+    'sphinx_issues',  # if this is missing, pip install sphinx-issues
+    'sphinx_tabs.tabs',  # if this is missing, pip install sphinx-tabs
     ]
 
 try: import rst2pdf
@@ -125,6 +127,16 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
+# The output image format. The default is 'png'. It should be either 'png' or 'svg'.
+imgmath_image_format = "svg"
+
+# For sphinx-issues
+
+issues_github_path = "cython/cython"
+
+# For sphinx-tabs
+
+sphinx_tabs_disable_tab_closing = True
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -166,6 +178,13 @@ html_favicon = "_static/favicon.ico"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_css_files = ['css/tabs.css']
+
+
+html_context = {
+    # "dev version" warning banner
+    'development': 'a' in release or 'b' in release,
+}
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -325,7 +344,7 @@ epub_copyright = copyright
 # The format is a list of tuples containing the path and title.
 #epub_pre_files = []
 
-# HTML files shat should be inserted after the pages created by sphinx.
+# HTML files that should be inserted after the pages created by sphinx.
 # The format is a list of tuples containing the path and title.
 #epub_post_files = []
 

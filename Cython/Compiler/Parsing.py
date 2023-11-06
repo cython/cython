@@ -14,7 +14,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
-               _CDEF_MODIFIERS=tuple)
+               _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
 
 from io import StringIO
 import re
@@ -22,7 +22,7 @@ import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -65,7 +65,7 @@ class Ctx(object):
 
 def p_ident(s, message="Expected an identifier"):
     if s.sy == 'IDENT':
-        name = s.systring
+        name = s.context.intern_ustring(s.systring)
         s.next()
         return name
     else:
@@ -74,7 +74,7 @@ def p_ident(s, message="Expected an identifier"):
 def p_ident_list(s):
     names = []
     while s.sy == 'IDENT':
-        names.append(s.systring)
+        names.append(s.context.intern_ustring(s.systring))
         s.next()
         if s.sy != ',':
             break
@@ -103,12 +103,12 @@ def p_binop_expr(s, ops, p_sub_expr):
             if Future.division in s.context.future_directives:
                 n1.truedivision = True
             else:
-                n1.truedivision = None # unknown
+                n1.truedivision = None  # unknown
     return n1
 
 #lambdef: 'lambda' [varargslist] ':' test
 
-def p_lambdef(s, allow_conditional=True):
+def p_lambdef(s):
     # s.sy == 'lambda'
     pos = s.position()
     s.next()
@@ -119,23 +119,27 @@ def p_lambdef(s, allow_conditional=True):
         args, star_arg, starstar_arg = p_varargslist(
             s, terminator=':', annotated=False)
     s.expect(':')
-    if allow_conditional:
-        expr = p_test(s)
-    else:
-        expr = p_test_nocond(s)
+    expr = p_test(s)
     return ExprNodes.LambdaNode(
         pos, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
         result_expr = expr)
 
-#lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
-
-def p_lambdef_nocond(s):
-    return p_lambdef(s, allow_conditional=False)
-
 #test: or_test ['if' or_test 'else' test] | lambdef
 
 def p_test(s):
+    # The check for a following ':=' is only for error reporting purposes.
+    # It simply changes a
+    #   expected ')', found ':='
+    # message into something a bit more descriptive.
+    # It is close to what the PEG parser does in CPython, where an expression has
+    # a lookahead assertion that it isn't followed by ':='
+    expr = p_test_allow_walrus_after(s)
+    if s.sy == ':=':
+        s.error("invalid syntax: assignment expression not allowed in this context")
+    return expr
+
+def p_test_allow_walrus_after(s):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
@@ -149,34 +153,52 @@ def p_test(s):
     else:
         return expr
 
-#test_nocond: or_test | lambdef_nocond
+def p_namedexpr_test(s):
+    # defined in the LL parser as
+    #  namedexpr_test: test [':=' test]
+    # The requirement that the LHS is a name is not enforced in the grammar.
+    # For comparison the PEG parser does:
+    #  1. look for "name :=", if found it's definitely a named expression
+    #     so look for expression
+    #  2. Otherwise, look for expression
+    lhs = p_test_allow_walrus_after(s)
+    if s.sy == ':=':
+        position = s.position()
+        if not lhs.is_name:
+            s.error("Left-hand side of assignment expression must be an identifier", fatal=False)
+        s.next()
+        rhs = p_test(s)
+        return ExprNodes.AssignmentExpressionNode(position, lhs=lhs, rhs=rhs)
+    return lhs
 
-def p_test_nocond(s):
-    if s.sy == 'lambda':
-        return p_lambdef_nocond(s)
-    else:
-        return p_or_test(s)
 
 #or_test: and_test ('or' and_test)*
 
-def p_or_test(s):
-    return p_rassoc_binop_expr(s, ('or',), p_and_test)
+COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
-def p_rassoc_binop_expr(s, ops, p_subexpr):
+def p_or_test(s):
+    return p_rassoc_binop_expr(s, u'or', p_and_test)
+
+def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
-    if s.sy in ops:
+    if s.sy == op:
         pos = s.position()
         op = s.sy
         s.next()
-        n2 = p_rassoc_binop_expr(s, ops, p_subexpr)
+        n2 = p_rassoc_binop_expr(s, op, p_subexpr)
         n1 = ExprNodes.binop_node(pos, op, n1, n2)
+    elif s.sy in COMMON_BINOP_MISTAKES and COMMON_BINOP_MISTAKES[s.sy] == op:
+        # Only report this for the current operator since we pass through here twice for 'and' and 'or'.
+        warning(s.position(),
+                "Found the C operator '%s', did you mean the Python operator '%s'?" % (s.sy, op),
+                level=1)
     return n1
 
 #and_test: not_test ('and' not_test)*
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, ('and',), p_not_test)
+    return p_rassoc_binop_expr(s, u'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 
@@ -208,6 +230,12 @@ def p_test_or_starred_expr(s):
         return p_starred_expr(s)
     else:
         return p_test(s)
+
+def p_namedexpr_test_or_starred_expr(s):
+    if s.sy == '*':
+        return p_starred_expr(s)
+    else:
+        return p_namedexpr_test(s)
 
 def p_starred_expr(s):
     pos = s.position()
@@ -250,10 +278,10 @@ def p_cmp_op(s):
         op = '!='
     return op
 
-comparison_ops = cython.declare(set, set([
+comparison_ops = cython.declare(frozenset, frozenset((
     '<', '>', '==', '>=', '<=', '<>', '!=',
     'in', 'is', 'not'
-]))
+)))
 
 #expr: xor_expr ('|' xor_expr)*
 
@@ -316,10 +344,12 @@ def p_typecast(s):
     s.next()
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
-    is_template = isinstance(base_type, Nodes.TemplatedTypeNode)
-    is_const = isinstance(base_type, Nodes.CConstTypeNode)
-    if (not is_memslice and not is_template and not is_const
-        and base_type.name is None):
+    is_other_unnamed_type = isinstance(base_type, (
+        Nodes.TemplatedTypeNode,
+        Nodes.CConstOrVolatileTypeNode,
+        Nodes.CTupleBaseTypeNode,
+    ))
+    if not (is_memslice or is_other_unnamed_type) and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
@@ -330,8 +360,7 @@ def p_typecast(s):
     s.expect(">")
     operand = p_factor(s)
     if is_memslice:
-        return ExprNodes.CythonArrayNode(pos, base_type_node=base_type,
-                                         operand=operand)
+        return ExprNodes.CythonArrayNode(pos, base_type_node=base_type, operand=operand)
 
     return ExprNodes.TypecastNode(pos,
         base_type = base_type,
@@ -444,7 +473,7 @@ def p_trailer(s, node1):
         return p_call(s, node1)
     elif s.sy == '[':
         return p_index(s, node1)
-    else: # s.sy == '.'
+    else:  # s.sy == '.'
         s.next()
         name = p_ident(s)
         return ExprNodes.AttributeNode(pos,
@@ -480,7 +509,7 @@ def p_call_parse_args(s, allow_genexp=True):
             keyword_args.append(p_test(s))
             starstar_seen = True
         else:
-            arg = p_test(s)
+            arg = p_namedexpr_test(s)
             if s.sy == '=':
                 s.next()
                 if not arg.is_name:
@@ -628,9 +657,7 @@ def p_slice_element(s, follow_set):
         return None
 
 def expect_ellipsis(s):
-    s.expect('.')
-    s.expect('.')
-    s.expect('.')
+    s.expect('...')
 
 def make_slice_nodes(pos, subscripts):
     # Convert a list of subscripts as returned
@@ -676,7 +703,7 @@ def p_atom(s):
         return p_dict_or_set_maker(s)
     elif sy == '`':
         return p_backquote_expr(s)
-    elif sy == '.':
+    elif sy == '...':
         expect_ellipsis(s)
         return ExprNodes.EllipsisNode(pos)
     elif sy == 'INT':
@@ -821,7 +848,7 @@ def p_cat_string_literal(s):
             continue
         elif next_kind != kind:
             # concatenating f strings and normal strings is allowed and leads to an f string
-            if set([kind, next_kind]) in (set(['f', 'u']), set(['f', ''])):
+            if {kind, next_kind} in ({'f', 'u'}, {'f', ''}):
                 kind = 'f'
             else:
                 error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" % (
@@ -1073,8 +1100,8 @@ def p_f_string(s, unicode_value, pos, is_raw):
                 if builder.chars:
                     values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
                     builder = StringEncoding.UnicodeLiteralBuilder()
-                next_start, expr_node = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
-                values.append(expr_node)
+                next_start, expr_nodes = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
+                values.extend(expr_nodes)
         elif c == '}':
             if part == '}}':
                 builder.append('}')
@@ -1090,12 +1117,16 @@ def p_f_string(s, unicode_value, pos, is_raw):
 
 
 def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
-    # Parses a {}-delimited expression inside an f-string. Returns a FormattedValueNode
-    # and the index in the string that follows the expression.
+    # Parses a {}-delimited expression inside an f-string. Returns a list of nodes
+    # [UnicodeNode?, FormattedValueNode] and the index in the string that follows
+    # the expression.
+    #
+    # ? = Optional
     i = starting_index
     size = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
     format_spec_str = None
+    expr_text = None
     NO_CHAR = 2**30
 
     nested_depth = 0
@@ -1135,12 +1166,15 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
         elif c == '#':
             error(_f_string_error_pos(pos, unicode_value, i),
                   "format string cannot include #")
-        elif nested_depth == 0 and c in '!:}':
-            # allow != as a special case
-            if c == '!' and i + 1 < size and unicode_value[i + 1] == '=':
-                i += 1
-                continue
-
+        elif nested_depth == 0 and c in '><=!:}':
+            # allow special cases with '!' and '='
+            if i + 1 < size and c in '!=><':
+                if unicode_value[i + 1] == '=':
+                    i += 2  # we checked 2, so we can skip 2: '!=', '==', '>=', '<='
+                    continue
+                elif c in '><':  # allow single '<' and '>'
+                    i += 1
+                    continue
             terminal_char = c
             break
         i += 1
@@ -1152,6 +1186,16 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if not expr_str.strip():
         error(_f_string_error_pos(pos, unicode_value, starting_index),
               "empty expression not allowed in f-string")
+
+    if terminal_char == '=':
+        i += 1
+        while i < size and unicode_value[i].isspace():
+            i += 1
+
+        if i < size:
+            terminal_char = unicode_value[i]
+            expr_text = unicode_value[starting_index:i]
+        # otherwise: error will be reported below
 
     if terminal_char == '!':
         i += 1
@@ -1190,6 +1234,9 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
         format_spec_str = unicode_value[start_format_spec:i]
 
+    if expr_text and conversion_char is None and format_spec_str is None:
+        conversion_char = 'r'
+
     if terminal_char != '}':
         error(_f_string_error_pos(pos, unicode_value, i),
               "missing '}' in format string expression" + (
@@ -1208,13 +1255,17 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if format_spec_str:
         format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos, is_raw))
 
-    return i + 1, ExprNodes.FormattedValueNode(
-        pos, value=expr, conversion_char=conversion_char, format_spec=format_spec)
+    nodes = []
+    if expr_text:
+        nodes.append(ExprNodes.UnicodeNode(pos, value=StringEncoding.EncodedString(expr_text)))
+    nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
+
+    return i + 1, nodes
 
 
 # since PEP 448:
 # list_display  ::=     "[" [listmaker] "]"
-# listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
+# listmaker     ::=     (named_test|star_expr) ( comp_for | (',' (named_test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
 # comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
@@ -1227,7 +1278,7 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args=[])
 
-    expr = p_test_or_starred_expr(s)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
@@ -1242,7 +1293,7 @@ def p_list_maker(s):
     # (merged) list literal
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
     else:
         exprs = [expr]
     s.expect(']')
@@ -1276,7 +1327,12 @@ def p_comp_if(s, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
-    test = p_test_nocond(s)
+    # Note that Python 3.9+ is actually more restrictive here and Cython now follows
+    # the Python 3.9+ behaviour: https://github.com/python/cpython/issues/86014
+    # On Python <3.9 `[i for i in range(10) if lambda: i if True else 1]` was disallowed
+    # but `[i for i in range(10) if lambda: i]` was allowed.
+    # On Python >=3.9 they're both disallowed.
+    test = p_or_test(s)
     return Nodes.IfStatNode(pos,
         if_clauses = [Nodes.IfClauseNode(pos, condition = test,
                                          body = p_comp_iter(s, body))],
@@ -1433,6 +1489,15 @@ def p_test_or_starred_expr_list(s, expr=None):
         s.next()
     return exprs
 
+def p_namedexpr_test_or_starred_expr_list(s, expr=None):
+    exprs = expr is not None and [expr] or []
+    while s.sy not in expr_terminators:
+        exprs.append(p_namedexpr_test_or_starred_expr(s))
+        if s.sy != ',':
+            break
+        s.next()
+    return exprs
+
 
 #testlist: test (',' test)* [',']
 
@@ -1462,10 +1527,10 @@ def p_testlist_star_expr(s):
 
 def p_testlist_comp(s):
     pos = s.position()
-    expr = p_test_or_starred_expr(s)
+    expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy == ',':
         s.next()
-        exprs = p_test_or_starred_expr_list(s, expr)
+        exprs = p_namedexpr_test_or_starred_expr_list(s, expr)
         return ExprNodes.TupleNode(pos, args = exprs)
     elif s.sy in ('for', 'async'):
         return p_genexp(s, expr)
@@ -1478,8 +1543,8 @@ def p_genexp(s, expr):
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
 
-expr_terminators = cython.declare(set, set([
-    ')', ']', '}', ':', '=', 'NEWLINE']))
+expr_terminators = cython.declare(frozenset, frozenset((
+    ')', ']', '}', ':', '=', 'NEWLINE')))
 
 
 #-------------------------------------------------------
@@ -1505,15 +1570,19 @@ def p_nonlocal_statement(s):
 
 def p_expression_or_assignment(s):
     expr = p_testlist_star_expr(s)
+    has_annotation = False
     if s.sy == ':' and (expr.is_name or expr.is_subscript or expr.is_attribute):
+        has_annotation = True
         s.next()
-        expr.annotation = p_test(s)
+        expr.annotation = p_annotation(s)
+
     if s.sy == '=' and expr.is_starred:
         # This is a common enough error to make when learning Cython to let
         # it fail as early as possible and give a very clear error message.
         s.error("a starred assignment target must be in a list or tuple"
                 " - maybe you meant to use an index assignment: var[0] = ...",
                 pos=expr.pos)
+
     expr_list = [expr]
     while s.sy == '=':
         s.next()
@@ -1545,7 +1614,7 @@ def p_expression_or_assignment(s):
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
-        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs)
+        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs, first=has_annotation)
     else:
         return Nodes.CascadedAssignmentNode(rhs.pos, lhs_list=expr_list[:-1], rhs=rhs)
 
@@ -1690,11 +1759,6 @@ def p_import_statement(s):
                 as_name=as_name,
                 is_absolute=is_absolute)
         else:
-            if as_name and "." in dotted_name:
-                name_list = ExprNodes.ListNode(pos, args=[
-                    ExprNodes.IdentifierStringNode(pos, value=s.context.intern_ustring("*"))])
-            else:
-                name_list = None
             stat = Nodes.SingleAssignmentNode(
                 pos,
                 lhs=ExprNodes.NameNode(pos, name=as_name or target_name),
@@ -1702,7 +1766,8 @@ def p_import_statement(s):
                     pos,
                     module_name=ExprNodes.IdentifierStringNode(pos, value=dotted_name),
                     level=0 if is_absolute else None,
-                    name_list=name_list))
+                    get_top_level_module='.' in dotted_name and as_name is None,
+                    name_list=None))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats=stats)
 
@@ -1711,11 +1776,11 @@ def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
-    if s.sy == '.':
+    if s.sy in ('.', '...'):
         # count relative import level
         level = 0
-        while s.sy == '.':
-            level += 1
+        while s.sy in ('.', '...'):
+            level += len(s.sy)
             s.next()
     else:
         level = None
@@ -1734,18 +1799,18 @@ def p_from_import_statement(s, first_statement = 0):
     is_cimport = kind == 'cimport'
     is_parenthesized = False
     if s.sy == '*':
-        imported_names = [(s.position(), s.context.intern_ustring("*"), None, None)]
+        imported_names = [(s.position(), s.context.intern_ustring("*"), None)]
         s.next()
     else:
         if s.sy == '(':
             is_parenthesized = True
             s.next()
-        imported_names = [p_imported_name(s, is_cimport)]
+        imported_names = [p_imported_name(s)]
     while s.sy == ',':
         s.next()
         if is_parenthesized and s.sy == ')':
             break
-        imported_names.append(p_imported_name(s, is_cimport))
+        imported_names.append(p_imported_name(s))
     if is_parenthesized:
         s.expect(')')
     if dotted_name == '__future__':
@@ -1754,7 +1819,7 @@ def p_from_import_statement(s, first_statement = 0):
         elif level:
             s.error("invalid syntax")
         else:
-            for (name_pos, name, as_name, kind) in imported_names:
+            for (name_pos, name, as_name) in imported_names:
                 if name == "braces":
                     s.error("not a chance", name_pos)
                     break
@@ -1765,7 +1830,7 @@ def p_from_import_statement(s, first_statement = 0):
                     break
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
-    elif kind == 'cimport':
+    elif is_cimport:
         return Nodes.FromCImportStatNode(
             pos, module_name=dotted_name,
             relative_level=level,
@@ -1773,7 +1838,7 @@ def p_from_import_statement(s, first_statement = 0):
     else:
         imported_name_strings = []
         items = []
-        for (name_pos, name, as_name, kind) in imported_names:
+        for (name_pos, name, as_name) in imported_names:
             imported_name_strings.append(
                 ExprNodes.IdentifierStringNode(name_pos, value=name))
             items.append(
@@ -1788,19 +1853,11 @@ def p_from_import_statement(s, first_statement = 0):
             items = items)
 
 
-imported_name_kinds = cython.declare(set, set(['class', 'struct', 'union']))
-
-def p_imported_name(s, is_cimport):
+def p_imported_name(s):
     pos = s.position()
-    kind = None
-    if is_cimport and s.systring in imported_name_kinds:
-        kind = s.systring
-        warning(pos, 'the "from module cimport %s name" syntax is deprecated and '
-                'will be removed in Cython 3.0' % kind, 2)
-        s.next()
     name = p_ident(s)
     as_name = p_as_name(s)
-    return (pos, name, as_name, kind)
+    return (pos, name, as_name)
 
 
 def p_dotted_name(s, as_allowed):
@@ -1834,10 +1891,11 @@ def p_assert_statement(s):
         value = p_test(s)
     else:
         value = None
-    return Nodes.AssertStatNode(pos, cond = cond, value = value)
+    return Nodes.AssertStatNode(pos, condition=cond, value=value)
 
 
-statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
+statement_terminators = cython.declare(frozenset, frozenset((
+    ';', 'NEWLINE', 'EOF')))
 
 def p_if_statement(s):
     # s.sy == 'if'
@@ -1853,7 +1911,7 @@ def p_if_statement(s):
 
 def p_if_clause(s):
     pos = s.position()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     return Nodes.IfClauseNode(pos,
         condition = test, body = body)
@@ -1869,7 +1927,7 @@ def p_while_statement(s):
     # s.sy == 'while'
     pos = s.position()
     s.next()
-    test = p_test(s)
+    test = p_namedexpr_test(s)
     body = p_suite(s)
     else_clause = p_else_clause(s)
     return Nodes.WhileStatNode(pos,
@@ -1947,7 +2005,8 @@ def p_for_from_step(s):
     else:
         return None
 
-inequality_relations = cython.declare(set, set(['<', '<=', '>', '>=']))
+inequality_relations = cython.declare(frozenset, frozenset((
+    '<', '<=', '>', '>=')))
 
 def p_target(s, terminator):
     pos = s.position()
@@ -2037,7 +2096,7 @@ def p_except_clause(s):
 
 def p_include_statement(s, ctx):
     pos = s.position()
-    s.next() # 'include'
+    s.next()  # 'include'
     unicode_include_file_name = p_string_literal(s, 'u')[2]
     s.expect_newline("Syntax error in include statement")
     if s.compile_time_eval:
@@ -2066,30 +2125,77 @@ def p_with_statement(s):
 
 
 def p_with_items(s, is_async=False):
+    """
+    Copied from CPython:
+    | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+        _PyAST_With(a, b, NULL, EXTRA) }
+    | 'with' a[asdl_withitem_seq*]=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+        _PyAST_With(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    Therefore the first thing to try is the bracket-enclosed
+    version and if that fails try the regular version
+    """
+    brackets_succeeded = False
+    items = ()  # unused, but static analysis fails to track that below
+    if s.sy == '(':
+        with tentatively_scan(s) as errors:
+            s.next()
+            items = p_with_items_list(s, is_async)
+            s.expect(")")
+            if s.sy != ":":
+                # Fail - the message doesn't matter because we'll try the
+                # non-bracket version so it'll never be shown
+                s.error("")
+        brackets_succeeded = not errors
+    if not brackets_succeeded:
+        # try the non-bracket version
+        items = p_with_items_list(s, is_async)
+    body = p_suite(s)
+    for cls, pos, kwds in reversed(items):
+        # construct the actual nodes now that we know what the body is
+        body = cls(pos, body=body, **kwds)
+    return body
+
+
+def p_with_items_list(s, is_async):
+    items = []
+    while True:
+        items.append(p_with_item(s, is_async))
+        if s.sy != ",":
+            break
+        s.next()
+        if s.sy == ")":
+            # trailing commas allowed
+            break
+    return items
+
+
+def p_with_item(s, is_async):
+    # In contrast to most parsing functions, this returns a tuple of
+    #  class, pos, kwd_dict
+    # This is because GILStatNode does a reasonable amount of initialization in its
+    # constructor, and requires "body" to be set, which we don't currently have
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         if is_async:
             s.error("with gil/nogil cannot be async")
         state = s.systring
         s.next()
-        if s.sy == ',':
+
+        # support conditional gil/nogil
+        condition = None
+        if s.sy == '(':
             s.next()
-            body = p_with_items(s)
-        else:
-            body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body)
+            condition = p_test(s)
+            s.expect(')')
+
+        return Nodes.GILStatNode, pos, {"state": state, "condition": condition}
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
             target = p_starred_expr(s)
-        if s.sy == ',':
-            s.next()
-            body = p_with_items(s, is_async=is_async)
-        else:
-            body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+        return Nodes.WithStatNode, pos, {"manager": manager, "target": target, "is_async": is_async}
 
 
 def p_with_template(s):
@@ -2195,7 +2301,7 @@ def p_compile_time_expr(s):
 def p_DEF_statement(s):
     pos = s.position()
     denv = s.compile_time_env
-    s.next() # 'DEF'
+    s.next()  # 'DEF'
     name = p_ident(s)
     s.expect('=')
     expr = p_compile_time_expr(s)
@@ -2213,7 +2319,7 @@ def p_IF_statement(s, ctx):
     denv = s.compile_time_env
     result = None
     while 1:
-        s.next() # 'IF' or 'ELIF'
+        s.next()  # 'IF' or 'ELIF'
         expr = p_compile_time_expr(s)
         s.compile_time_eval = current_eval and bool(expr.compile_time_value(denv))
         body = p_suite(s, ctx)
@@ -2243,8 +2349,18 @@ def p_statement(s, ctx, first_statement = 0):
         #    error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
+        # We used to dep-warn about this but removed the warning again since
+        # we don't have a good answer yet for all use cases.
+        # warning(s.position(),
+        #         "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
+        #         "Consider using global variables, constants, and in-place literals instead. "
+        #         "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
+        warning(s.position(),
+                "The 'IF' statement is deprecated and will be removed in a future Cython version. "
+                "Consider using runtime conditions or C macros instead. "
+                "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
@@ -2325,13 +2441,14 @@ def p_statement(s, ctx, first_statement = 0):
             else:
                 if s.sy == 'IDENT' and s.systring == 'async':
                     ident_name = s.systring
+                    ident_pos = s.position()
                     # PEP 492 enables the async/await keywords when it spots "async def ..."
                     s.next()
                     if s.sy == 'def':
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back('IDENT', ident_name)  # re-insert original token
+                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2399,7 +2516,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         parsed_type = False
         if s.sy == 'IDENT' and s.peek()[0] == '=':
             ident = s.systring
-            s.next() # s.sy is '='
+            s.next()  # s.sy is '='
             s.next()
             if looking_at_expr(s):
                 arg = p_test(s)
@@ -2436,13 +2553,11 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
-    # If self_flag is true, this is the base type for the
-    # self argument of a C method of an extension type.
+def p_c_base_type(s, nonempty=False, templates=None):
     if s.sy == '(':
         return p_c_complex_base_type(s, templates = templates)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+        return p_c_simple_base_type(s, nonempty=nonempty, templates=templates)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -2453,8 +2568,8 @@ def p_calling_convention(s):
         return ""
 
 
-calling_convention_words = cython.declare(
-    set, set(["__stdcall", "__cdecl", "__fastcall"]))
+calling_convention_words = cython.declare(frozenset, frozenset((
+    "__stdcall", "__cdecl", "__fastcall")))
 
 
 def p_c_complex_base_type(s, templates = None):
@@ -2486,24 +2601,38 @@ def p_c_complex_base_type(s, templates = None):
     return type_node
 
 
-def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
-    #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
+def p_c_simple_base_type(s, nonempty, templates=None):
     is_basic = 0
     signed = 1
     longness = 0
     complex = 0
     module_path = []
     pos = s.position()
-    if not s.sy == 'IDENT':
-        error(pos, "Expected an identifier, found '%s'" % s.sy)
-    if s.systring == 'const':
+
+    # Handle const/volatile
+    is_const = is_volatile = 0
+    while s.sy == 'IDENT':
+        if s.systring == 'const':
+            if is_const: error(pos, "Duplicate 'const'")
+            is_const = 1
+        elif s.systring == 'volatile':
+            if is_volatile: error(pos, "Duplicate 'volatile'")
+            is_volatile = 1
+        else:
+            break
         s.next()
-        base_type = p_c_base_type(s, self_flag=self_flag, nonempty=nonempty, templates=templates)
+    if is_const or is_volatile:
+        base_type = p_c_base_type(s, nonempty=nonempty, templates=templates)
         if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
             # reverse order to avoid having to write "(const int)[:]"
-            base_type.base_type_node = Nodes.CConstTypeNode(pos, base_type=base_type.base_type_node)
+            base_type.base_type_node = Nodes.CConstOrVolatileTypeNode(pos,
+                base_type=base_type.base_type_node, is_const=is_const, is_volatile=is_volatile)
             return base_type
-        return Nodes.CConstTypeNode(pos, base_type=base_type)
+        return Nodes.CConstOrVolatileTypeNode(pos,
+            base_type=base_type, is_const=is_const, is_volatile=is_volatile)
+
+    if s.sy != 'IDENT':
+        error(pos, "Expected an identifier, found '%s'" % s.sy)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
@@ -2531,27 +2660,29 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             name = p_ident(s)
     else:
         name = s.systring
+        name_pos = s.position()
         s.next()
         if nonempty and s.sy != 'IDENT':
             # Make sure this is not a declaration of a variable or function.
             if s.sy == '(':
+                old_pos = s.position()
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back('(', '(')
+                    s.put_back(u'(', u'(', old_pos)
                 else:
-                    s.put_back('(', '(')
-                    s.put_back('IDENT', name)
+                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back(u'IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back('IDENT', name)
+                s.put_back(u'IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
         complex = complex, longness = longness,
-        is_self_arg = self_flag, templates = templates)
+        templates = templates)
 
     #    declarations here.
     if s.sy == '[':
@@ -2618,13 +2749,13 @@ def is_memoryviewslice_access(s):
     # a memoryview slice declaration is distinguishable from a buffer access
     # declaration by the first entry in the bracketed list.  The buffer will
     # not have an unnested colon in the first entry; the memoryview slice will.
-    saved = [(s.sy, s.systring)]
+    saved = [(s.sy, s.systring, s.position())]
     s.next()
     retval = False
     if s.systring == ':':
         retval = True
     elif s.sy == 'INT':
-        saved.append((s.sy, s.systring))
+        saved.append((s.sy, s.systring, s.position()))
         s.next()
         if s.sy == ':':
             retval = True
@@ -2651,7 +2782,7 @@ def p_memoryviewslice_access(s, base_type_node):
     return result
 
 def looking_at_name(s):
-    return s.sy == 'IDENT' and not s.systring in calling_convention_words
+    return s.sy == 'IDENT' and s.systring not in calling_convention_words
 
 def looking_at_expr(s):
     if s.systring in base_type_start_words:
@@ -2659,15 +2790,16 @@ def looking_at_expr(s):
     elif s.sy == 'IDENT':
         is_type = False
         name = s.systring
+        name_pos = s.position()
         dotted_path = []
         s.next()
 
         while s.sy == '.':
             s.next()
-            dotted_path.append(s.systring)
+            dotted_path.append((s.systring, s.position()))
             s.expect('IDENT')
 
-        saved = s.sy, s.systring
+        saved = s.sy, s.systring, s.position()
         if s.sy == 'IDENT':
             is_type = True
         elif s.sy == '*' or s.sy == '**':
@@ -2685,10 +2817,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back('IDENT', p)
-            s.put_back('.', '.')
+            s.put_back(u'IDENT', *p)
+            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
 
-        s.put_back('IDENT', name)
+        s.put_back(u'IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2700,26 +2832,17 @@ def looking_at_base_type(s):
 def looking_at_dotted_name(s):
     if s.sy == 'IDENT':
         name = s.systring
+        name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back('IDENT', name)
+        s.put_back(u'IDENT', name, name_pos)
         return result
     else:
         return 0
 
-def looking_at_call(s):
-    "See if we're looking at a.b.c("
-    # Don't mess up the original position, so save and restore it.
-    # Unfortunately there's no good way to handle this, as a subsequent call
-    # to next() will not advance the position until it reads a new token.
-    position = s.start_line, s.start_col
-    result = looking_at_expr(s) == u'('
-    if not result:
-        s.start_line, s.start_col = position
-    return result
 
-basic_c_type_names = cython.declare(
-    set, set(["void", "char", "int", "float", "double", "bint"]))
+basic_c_type_names = cython.declare(frozenset, frozenset((
+    "void", "char", "int", "float", "double", "bint")))
 
 special_basic_c_types = cython.declare(dict, {
     # name : (signed, longness)
@@ -2733,17 +2856,17 @@ special_basic_c_types = cython.declare(dict, {
     "Py_tss_t"   : (1, 0),
 })
 
-sign_and_longness_words = cython.declare(
-    set, set(["short", "long", "signed", "unsigned"]))
+sign_and_longness_words = cython.declare(frozenset, frozenset((
+    "short", "long", "signed", "unsigned")))
 
 base_type_start_words = cython.declare(
-    set,
+    frozenset,
     basic_c_type_names
     | sign_and_longness_words
-    | set(special_basic_c_types))
+    | frozenset(special_basic_c_types))
 
-struct_enum_union = cython.declare(
-    set, set(["struct", "union", "enum", "packed"]))
+struct_enum_union = cython.declare(frozenset, frozenset((
+    "struct", "union", "enum", "packed")))
 
 def p_sign_and_longness(s):
     signed = 1
@@ -2798,7 +2921,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
         pos = s.position()
         if s.sy == '[':
             result = p_c_array_declarator(s, result)
-        else: # sy == '('
+        else:  # sy == '('
             s.next()
             result = p_c_func_declarator(s, pos, ctx, result, cmethod_flag)
         cmethod_flag = 0
@@ -2806,7 +2929,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
 
 def p_c_array_declarator(s, base):
     pos = s.position()
-    s.next() # '['
+    s.next()  # '['
     if s.sy != ']':
         dim = p_testlist(s)
     else:
@@ -2815,14 +2938,22 @@ def p_c_array_declarator(s, base):
     return Nodes.CArrayDeclaratorNode(pos, base = base, dimension = dim)
 
 def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
-    #  Opening paren has already been skipped
+    # Opening paren has already been skipped
     args = p_c_arg_list(s, ctx, cmethod_flag = cmethod_flag,
                         nonempty_declarators = 0)
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s)
-    # TODO - warning to enforce preferred exception specification order
+    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx.visibility == 'extern')
+    if nogil and exc_clause:
+        warning(
+            s.position(),
+            "The keyword 'nogil' should appear at the end of the "
+            "function signature line. Placing it before 'except' "
+            "or 'noexcept' will be disallowed in a future version "
+            "of Cython.",
+            level=2
+        )
     nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
@@ -2830,49 +2961,43 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = cython.declare(set, set([
+supported_overloaded_operators = cython.declare(frozenset, frozenset((
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
     '[]', '()', '!', '=',
     'bool',
-]))
+)))
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
     pos = s.position()
     calling_convention = p_calling_convention(s)
-    if s.sy == '*':
+    if s.sy in ('*', '**'):
+        # scanner returns '**' as a single token
+        is_ptrptr = s.sy == '**'
         s.next()
-        if s.systring == 'const':
-            const_pos = s.position()
+
+        const_pos = s.position()
+        is_const = s.systring == 'const' and s.sy == 'IDENT'
+        if is_const:
             s.next()
-            const_base = p_c_declarator(s, ctx, empty = empty,
-                                       is_type = is_type,
-                                       cmethod_flag = cmethod_flag,
-                                       assignable = assignable,
-                                       nonempty = nonempty)
-            base = Nodes.CConstDeclaratorNode(const_pos, base = const_base)
-        else:
-            base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                                  cmethod_flag = cmethod_flag,
-                                  assignable = assignable, nonempty = nonempty)
-        result = Nodes.CPtrDeclaratorNode(pos,
-            base = base)
-    elif s.sy == '**': # scanner returns this as a single token
+
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        if is_const:
+            base = Nodes.CConstDeclaratorNode(const_pos, base=base)
+        if is_ptrptr:
+            base = Nodes.CPtrDeclaratorNode(pos, base=base)
+        result = Nodes.CPtrDeclaratorNode(pos, base=base)
+    elif s.sy == '&' or (s.sy == '&&' and s.context.cpp):
+        node_class = Nodes.CppRvalueReferenceDeclaratorNode if s.sy == '&&' else Nodes.CReferenceDeclaratorNode
         s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CPtrDeclaratorNode(pos,
-            base = Nodes.CPtrDeclaratorNode(pos,
-                base = base))
-    elif s.sy == '&':
-        s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CReferenceDeclaratorNode(pos, base = base)
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        result = node_class(pos, base=base)
     else:
         rhs = None
         if s.sy == 'IDENT':
@@ -2913,7 +3038,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                             fatal=False)
                 name += op
             elif op == 'IDENT':
-                op = s.systring;
+                op = s.systring
                 if op not in supported_overloaded_operators:
                     s.error("Overloading operator '%s' not yet supported." % op,
                             fatal=False)
@@ -2939,36 +3064,77 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s):
+def p_exception_value_clause(s, is_extern):
+    """
+    Parse exception value clause.
+
+    Maps clauses to exc_check / exc_value / exc_clause as follows:
+     ______________________________________________________________________
+    |                             |             |             |            |
+    | Clause                      | exc_check   | exc_value   | exc_clause |
+    | ___________________________ | ___________ | ___________ | __________ |
+    |                             |             |             |            |
+    | <nothing> (default func.)   | True        | None        | False      |
+    | <nothing> (cdef extern)     | False       | None        | False      |
+    | noexcept                    | False       | None        | True       |
+    | except <val>                | False       | <val>       | True       |
+    | except? <val>               | True        | <val>       | True       |
+    | except *                    | True        | None        | True       |
+    | except +                    | '+'         | None        | True       |
+    | except +*                   | '+'         | '*'         | True       |
+    | except +<PyErr>             | '+'         | <PyErr>     | True       |
+    | ___________________________ | ___________ | ___________ | __________ |
+
+    Note that the only reason we need `exc_clause` is to raise a
+    warning when `'except'` or `'noexcept'` is placed after the
+    `'nogil'` keyword.
+    """
+    exc_clause = False
     exc_val = None
-    exc_check = 0
+    exc_check = False if is_extern else True
 
     if s.sy == 'IDENT' and s.systring == 'noexcept':
+        exc_clause = True
         s.next()
-        exc_check = False  # No-op in Cython 0.29.x
+        exc_check = False
     elif s.sy == 'except':
+        exc_clause = True
         s.next()
         if s.sy == '*':
-            exc_check = 1
+            exc_check = True
             s.next()
         elif s.sy == '+':
             exc_check = '+'
+            plus_char_pos = s.position()[2]
             s.next()
             if s.sy == 'IDENT':
                 name = s.systring
-                s.next()
-                exc_val = p_name(s, name)
+                if name == 'nogil':
+                    if s.position()[2] == plus_char_pos + 1:
+                        error(s.position(),
+                              "'except +nogil' defines an exception handling function. Use 'except + nogil' for the 'nogil' modifier.")
+                    # 'except + nogil' is parsed outside
+                else:
+                    exc_val = p_name(s, name)
+                    s.next()
             elif s.sy == '*':
                 exc_val = ExprNodes.CharNode(s.position(), value=u'*')
                 s.next()
         else:
             if s.sy == '?':
-                exc_check = 1
+                exc_check = True
                 s.next()
+            else:
+                exc_check = False
+            # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    return exc_val, exc_check
+    if not is_extern and not exc_clause and s.context.legacy_implicit_noexcept:
+        exc_check = False
+        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.", level=2)
+    return exc_val, exc_check, exc_clause
 
-c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')', ':']))
+c_arg_list_terminators = cython.declare(frozenset, frozenset((
+    '*', '**', '...', ')', ':', '/')))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -2987,7 +3153,7 @@ def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
     return args
 
 def p_optional_ellipsis(s):
-    if s.sy == '.':
+    if s.sy == '...':
         expect_ellipsis(s)
         return 1
     else:
@@ -3007,7 +3173,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
             complex = 0, longness = 0,
             is_self_arg = cmethod_flag, templates = None)
     else:
-        base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
+        base_type = p_c_base_type(s, nonempty=nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
     if s.sy in ('not', 'or') and not s.in_python_file:
         kind = s.sy
@@ -3022,7 +3188,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         not_none = kind == 'not'
     if annotated and s.sy == ':':
         s.next()
-        annotation = p_test(s)
+        annotation = p_annotation(s)
     if s.sy == '=':
         s.next()
         if 'pxd' in ctx.level:
@@ -3124,6 +3290,12 @@ def p_cdef_extern_block(s, pos, ctx):
 def p_c_enum_definition(s, pos, ctx):
     # s.sy == ident 'enum'
     s.next()
+
+    scoped = False
+    if s.context.cpp and (s.sy == 'class' or (s.sy == 'IDENT' and s.systring == 'struct')):
+        scoped = True
+        s.next()
+
     if s.sy == 'IDENT':
         name = s.systring
         s.next()
@@ -3131,24 +3303,51 @@ def p_c_enum_definition(s, pos, ctx):
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
     else:
-        name = None
-        cname = None
-    items = None
+        name = cname = None
+        if scoped:
+            s.error("Unnamed scoped enum not allowed")
+
+    if scoped and s.sy == '(':
+        s.next()
+        underlying_type = p_c_base_type(s)
+        s.expect(')')
+    else:
+        underlying_type = Nodes.CSimpleBaseTypeNode(
+            pos,
+            name="int",
+            module_path = [],
+            is_basic_c_type = True,
+            signed = 1,
+            complex = 0,
+            longness = 0
+        )
+
     s.expect(':')
     items = []
+
+    doc = None
     if s.sy != 'NEWLINE':
         p_c_enum_line(s, ctx, items)
     else:
-        s.next() # 'NEWLINE'
+        s.next()  # 'NEWLINE'
         s.expect_indent()
+        doc = p_doc_string(s)
+
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
+
         s.expect_dedent()
+
+    if not items and ctx.visibility != "extern":
+        error(pos, "Empty enum definition not allowed outside a 'cdef extern from' block")
+
     return Nodes.CEnumDefNode(
-        pos, name = name, cname = cname, items = items,
-        typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
-        create_wrapper = ctx.overridable,
-        api = ctx.api, in_pxd = ctx.level == 'module_pxd')
+        pos, name=name, cname=cname,
+        scoped=scoped, items=items,
+        underlying_type=underlying_type,
+        typedef_flag=ctx.typedef_flag, visibility=ctx.visibility,
+        create_wrapper=ctx.overridable,
+        api=ctx.api, in_pxd=ctx.level == 'module_pxd', doc=doc)
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':
@@ -3192,20 +3391,28 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     attributes = None
     if s.sy == ':':
         s.next()
-        s.expect('NEWLINE')
-        s.expect_indent()
         attributes = []
-        body_ctx = Ctx()
-        while s.sy != 'DEDENT':
-            if s.sy != 'pass':
-                attributes.append(
-                    p_c_func_or_var_declaration(s, s.position(), body_ctx))
-            else:
-                s.next()
-                s.expect_newline("Expected a newline")
-        s.expect_dedent()
+        if s.sy == 'pass':
+            s.next()
+            s.expect_newline("Expected a newline", ignore_semicolon=True)
+        else:
+            s.expect('NEWLINE')
+            s.expect_indent()
+            body_ctx = Ctx(visibility=ctx.visibility)
+            while s.sy != 'DEDENT':
+                if s.sy != 'pass':
+                    attributes.append(
+                        p_c_func_or_var_declaration(s, s.position(), body_ctx))
+                else:
+                    s.next()
+                    s.expect_newline("Expected a newline")
+            s.expect_dedent()
+
+        if not attributes and ctx.visibility != "extern":
+            error(pos, "Empty struct or union definition not allowed outside a 'cdef extern from' block")
     else:
         s.expect_newline("Syntax error in struct or union definition")
+
     return Nodes.CStructOrUnionDefNode(pos,
         name = name, cname = cname, kind = kind, attributes = attributes,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
@@ -3232,7 +3439,7 @@ def p_fused_definition(s, pos, ctx):
     while s.sy != 'DEDENT':
         if s.sy != 'pass':
             #types.append(p_c_declarator(s))
-            types.append(p_c_base_type(s)) #, nonempty=1))
+            types.append(p_c_base_type(s))  #, nonempty=1))
         else:
             s.next()
 
@@ -3363,14 +3570,7 @@ def p_decorators(s):
     while s.sy == '@':
         pos = s.position()
         s.next()
-        decstring = p_dotted_name(s, as_allowed=0)[2]
-        names = decstring.split('.')
-        decorator = ExprNodes.NameNode(pos, name=s.context.intern_ustring(names[0]))
-        for name in names[1:]:
-            decorator = ExprNodes.AttributeNode(
-                pos, attribute=s.context.intern_ustring(name), obj=decorator)
-        if s.sy == '(':
-            decorator = p_call(s, decorator)
+        decorator = p_namedexpr_test(s)
         decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
         s.expect_newline("Expected a newline after decorator")
     return decorators
@@ -3388,7 +3588,7 @@ def _reject_cdef_modifier_in_py(s, name):
 
 def p_def_statement(s, decorators=None, is_async_def=False):
     # s.sy == 'def'
-    pos = s.position()
+    pos = decorators[0].pos if decorators else s.position()
     # PEP 492 switches the async/await keywords on in "async def" functions
     if is_async_def:
         s.enter_async()
@@ -3405,7 +3605,7 @@ def p_def_statement(s, decorators=None, is_async_def=False):
     return_type_annotation = None
     if s.sy == '->':
         s.next()
-        return_type_annotation = p_test(s)
+        return_type_annotation = p_annotation(s)
         _reject_cdef_modifier_in_py(s, s.systring)
 
     doc, body = p_suite_with_docstring(s, Ctx(level='function'))
@@ -3423,6 +3623,20 @@ def p_varargslist(s, terminator=')', annotated=1):
                         annotated = annotated)
     star_arg = None
     starstar_arg = None
+    if s.sy == '/':
+        if len(args) == 0:
+            s.error("Got zero positional-only arguments despite presence of "
+                    "positional-only specifier '/'")
+        s.next()
+        # Mark all args to the left as pos only
+        for arg in args:
+            arg.pos_only = 1
+        if s.sy == ',':
+            s.next()
+            args.extend(p_c_arg_list(s, in_pyfunc = 1,
+                nonempty_declarators = 1, annotated = annotated))
+        elif s.sy != terminator:
+            s.error("Syntax error in Python function argument list")
     if s.sy == '*':
         s.next()
         if s.sy == 'IDENT':
@@ -3446,7 +3660,7 @@ def p_py_arg_decl(s, annotated = 1):
     annotation = None
     if annotated and s.sy == ':':
         s.next()
-        annotation = p_test(s)
+        annotation = p_annotation(s)
     return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
 
 
@@ -3673,6 +3887,9 @@ def p_compiler_directive_comments(s):
             for name in new_directives:
                 if name not in result:
                     pass
+                elif Options.directive_types.get(name) is list:
+                    result[name] += new_directives[name]
+                    new_directives[name] = result[name]
                 elif new_directives[name] == result[name]:
                     warning(pos, "Duplicate directive found: %s" % (name,))
                 else:
@@ -3682,6 +3899,9 @@ def p_compiler_directive_comments(s):
             if 'language_level' in new_directives:
                 # Make sure we apply the language level already to the first token that follows the comments.
                 s.context.set_language_level(new_directives['language_level'])
+            if 'legacy_implicit_noexcept' in new_directives:
+                s.context.legacy_implicit_noexcept = new_directives['legacy_implicit_noexcept']
+
 
             result.update(new_directives)
 
@@ -3696,22 +3916,18 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     s.parse_comments = False
 
     if s.context.language_level is None:
-        s.context.set_language_level(2)
+        s.context.set_language_level('3str')
         if pos[0].filename:
             import warnings
             warnings.warn(
-                "Cython directive 'language_level' not set, using 2 for now (Py2). "
-                "This will change in a later release! File: %s" % pos[0].filename,
+                "Cython directive 'language_level' not set, using '3str' for now (Py3). "
+                "This has changed from earlier releases! File: %s" % pos[0].filename,
                 FutureWarning,
                 stacklevel=1 if cython.compiled else 2,
             )
 
+    level = 'module_pxd' if pxd else 'module'
     doc = p_doc_string(s)
-    if pxd:
-        level = 'module_pxd'
-    else:
-        level = 'module'
-
     body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
@@ -3733,7 +3949,6 @@ def p_template_definition(s):
 def p_cpp_class_definition(s, pos,  ctx):
     # s.sy == 'cppclass'
     s.next()
-    module_path = []
     class_name = p_ident(s)
     cname = p_opt_cname(s)
     if cname is None and ctx.namespace is not None:
@@ -3767,6 +3982,10 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.next()
         s.expect('NEWLINE')
         s.expect_indent()
+        # Allow a cppclass to have docstrings. It will be discarded as comment.
+        # The goal of this is consistency: we can make docstrings inside cppclass methods,
+        # so why not on the cppclass itself ?
+        p_doc_string(s)
         attributes = []
         body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class', nogil=nogil or ctx.nogil)
         body_ctx.templates = template_names
@@ -3850,3 +4069,14 @@ def print_parse_tree(f, node, level, key = None):
             f.write("%s]\n" % ind)
             return
     f.write("%s%s\n" % (ind, node))
+
+def p_annotation(s):
+    """An annotation just has the "test" syntax, but also stores the string it came from
+
+    Note that the string is *allowed* to be changed/processed (although isn't here)
+    so may not exactly match the string generated by Python, and if it doesn't
+    then it is not a bug.
+    """
+    pos = s.position()
+    expr = p_test(s)
+    return ExprNodes.AnnotationNode(pos, expr=expr)

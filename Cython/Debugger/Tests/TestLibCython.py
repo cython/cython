@@ -56,13 +56,13 @@ def test_gdb():
                 stdout, _ = p.communicate()
                 try:
                     internal_python_version = list(map(int, stdout.decode('ascii', 'ignore').split()))
-                    if internal_python_version < [2, 6]:
+                    if internal_python_version < [2, 7]:
                         have_gdb = False
                 except ValueError:
                     have_gdb = False
 
     if not have_gdb:
-        warnings.warn('Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
+        warnings.warn('Skipping gdb tests, need gdb >= 7.2 with Python >= 2.7')
 
     return have_gdb
 
@@ -99,6 +99,7 @@ class DebuggerTestCase(unittest.TestCase):
             opts = dict(
                 test_directory=self.tempdir,
                 module='codefile',
+                module_path=self.destfile,
             )
 
             optimization_disabler = build_ext.Optimization()
@@ -131,10 +132,11 @@ class DebuggerTestCase(unittest.TestCase):
                 )
 
                 cython_compile_testcase.run_distutils(
+                    test_directory=opts['test_directory'],
+                    module=opts['module'],
+                    workdir=opts['test_directory'],
                     incdir=None,
-                    workdir=self.tempdir,
                     extra_extension_args={'extra_objects':['cfuncs.o']},
-                    **opts
                 )
             finally:
                 optimization_disabler.restore_state()

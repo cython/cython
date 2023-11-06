@@ -1,21 +1,11 @@
-import sys
 
-__doc__ = u""
-
-if sys.version_info[:2] == (2, 6):
-    __doc__ += u"""
->>> memoryview = _memoryview
-"""
-
-__doc__ += u"""
+__doc__ = u"""
 >>> b1 = UserBuffer1()
 >>> m1 = memoryview(b1)
 >>> m1.tolist()
 [0, 1, 2, 3, 4]
 >>> del m1, b1
-"""
 
-__doc__ += u"""
 >>> b2 = UserBuffer2()
 >>> m2 = memoryview(b2)
 UserBuffer2: getbuffer

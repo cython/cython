@@ -1,30 +1,30 @@
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
 
 from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
-     cdef public set children
-     cdef public set parents
-     cdef public set positions
-     cdef public list stats
-     cdef public dict gen
-     cdef public set bounded
+    cdef public set children
+    cdef public set parents
+    cdef public set positions
+    cdef public list stats
+    cdef public dict gen
+    cdef public set bounded
 
-     # Big integer bitsets
-     cdef public object i_input
-     cdef public object i_output
-     cdef public object i_gen
-     cdef public object i_kill
-     cdef public object i_state
+    # Big integer bitsets
+    cdef public object i_input
+    cdef public object i_output
+    cdef public object i_gen
+    cdef public object i_kill
+    cdef public object i_state
 
-     cpdef bint empty(self)
-     cpdef detach(self)
-     cpdef add_child(self, block)
+    cpdef bint empty(self)
+    cpdef detach(self)
+    cpdef add_child(self, block)
 
 cdef class ExitBlock(ControlBlock):
-     cpdef bint empty(self)
+    cpdef bint empty(self)
 
 cdef class NameAssignment:
     cdef public bint is_arg
@@ -36,6 +36,7 @@ cdef class NameAssignment:
     cdef public set refs
     cdef public object bit
     cdef public object inferred_type
+    cdef public object rhs_scope
 
 cdef class AssignmentList:
     cdef public object bit
@@ -47,50 +48,49 @@ cdef class AssignmentCollector(TreeVisitor):
 
 @cython.final
 cdef class ControlFlow:
-     cdef public set blocks
-     cdef public set entries
-     cdef public list loops
-     cdef public list exceptions
+    cdef public set blocks
+    cdef public set entries
+    cdef public list loops
+    cdef public list exceptions
 
-     cdef public ControlBlock entry_point
-     cdef public ExitBlock exit_point
-     cdef public ControlBlock block
+    cdef public ControlBlock entry_point
+    cdef public ExitBlock exit_point
+    cdef public ControlBlock block
 
-     cdef public dict assmts
+    cdef public dict assmts
 
-     cpdef newblock(self, ControlBlock parent=*)
-     cpdef nextblock(self, ControlBlock parent=*)
-     cpdef bint is_tracked(self, entry)
-     cpdef bint is_statically_assigned(self, entry)
-     cpdef mark_position(self, node)
-     cpdef mark_assignment(self, lhs, rhs, entry)
-     cpdef mark_argument(self, lhs, rhs, entry)
-     cpdef mark_deletion(self, node, entry)
-     cpdef mark_reference(self, node, entry)
+    cdef public Py_ssize_t in_try_block
 
-     @cython.locals(block=ControlBlock, parent=ControlBlock, unreachable=set)
-     cpdef normalize(self)
+    cpdef newblock(self, ControlBlock parent=*)
+    cpdef nextblock(self, ControlBlock parent=*)
+    cpdef bint is_tracked(self, entry)
+    cpdef bint is_statically_assigned(self, entry)
+    cpdef mark_position(self, node)
+    cpdef mark_assignment(self, lhs, rhs, entry, rhs_scope=*)
+    cpdef mark_argument(self, lhs, rhs, entry)
+    cpdef mark_deletion(self, node, entry)
+    cpdef mark_reference(self, node, entry)
 
-     @cython.locals(bit=object, assmts=AssignmentList,
-                    block=ControlBlock)
-     cpdef initialize(self)
+    @cython.locals(block=ControlBlock, parent=ControlBlock, unreachable=set)
+    cpdef normalize(self)
 
-     @cython.locals(assmts=AssignmentList, assmt=NameAssignment)
-     cpdef set map_one(self, istate, entry)
+    @cython.locals(bit=object, assmts=AssignmentList, block=ControlBlock)
+    cpdef initialize(self)
 
-     @cython.locals(block=ControlBlock, parent=ControlBlock)
-     cdef reaching_definitions(self)
+    @cython.locals(assmts=AssignmentList, assmt=NameAssignment)
+    cpdef set map_one(self, istate, entry)
+
+    @cython.locals(block=ControlBlock, parent=ControlBlock)
+    cdef reaching_definitions(self)
 
 cdef class Uninitialized:
-     pass
+    pass
 
 cdef class Unknown:
     pass
 
-
 cdef class MessageCollection:
     cdef set messages
-
 
 @cython.locals(dirty=bint, block=ControlBlock, parent=ControlBlock,
                assmt=NameAssignment)
@@ -101,11 +101,11 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef object gv_ctx
     cdef object constant_folder
     cdef set reductions
-    cdef list env_stack
-    cdef list stack
+    cdef list stack  # a stack of (env, flow) tuples
     cdef object env
     cdef ControlFlow flow
+    cdef object object_expr
     cdef bint in_inplace_assignment
 
-    cpdef mark_assignment(self, lhs, rhs=*)
+    cpdef mark_assignment(self, lhs, rhs=*, rhs_scope=*)
     cpdef mark_position(self, node)

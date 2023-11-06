@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+# cython: language_level=3str
 
 cimport cython
 
@@ -10,15 +10,15 @@ cdef class TreeVisitor:
     cdef _visit(self, obj)
     cdef find_handler(self, obj)
     cdef _visitchild(self, child, parent, attrname, idx)
-    cdef dict _visitchildren(self, parent, attrs)
-    cpdef visitchildren(self, parent, attrs=*)
+    cdef dict _visitchildren(self, parent, attrs, exclude)
+    cpdef visitchildren(self, parent, attrs=*, exclude=*)
     cdef _raise_compiler_error(self, child, e)
 
 cdef class VisitorTransform(TreeVisitor):
-    cdef dict _process_children(self, parent, attrs=*)
+    cdef dict _process_children(self, parent, attrs=*, exclude=*)
     cpdef visitchildren(self, parent, attrs=*, exclude=*)
     cdef list _flatten_list(self, list orig_list)
-    cdef list _select_attrs(self, attrs, exclude)
+    cpdef visitchild(self, parent, str attr, idx=*)
 
 cdef class CythonTransform(VisitorTransform):
     cdef public context
@@ -47,8 +47,8 @@ cdef class MethodDispatcherTransform(EnvTransform):
                                      node, function, arg_list, kwargs)
 
 cdef class RecursiveNodeReplacer(VisitorTransform):
-     cdef public orig_node
-     cdef public new_node
+    cdef public orig_node
+    cdef public new_node
 
 cdef class NodeFinder(TreeVisitor):
     cdef node

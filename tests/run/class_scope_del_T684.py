@@ -1,6 +1,6 @@
 # mode:run
 # tag: class, scope, del
-# ticket: 684
+# ticket: t684
 
 class DelInClass(object):
     """

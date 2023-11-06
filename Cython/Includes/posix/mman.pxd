@@ -1,4 +1,6 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/mman.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_mman.h.html
+# https://man7.org/linux/man-pages/man2/mmap.2.html
+# https://www.freebsd.org/cgi/man.cgi?query=mmap&sektion=2
 
 from posix.types cimport off_t, mode_t
 

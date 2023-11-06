@@ -29,8 +29,8 @@ except ImportError as e:
     traceback.print_exc()
 
 def test():
-    print "FILE: ", initial_file
-    print "PATH: ", initial_path
+    print("FILE: ", initial_file)
+    print("PATH: ", initial_path)
     assert initial_path[0].endswith('my_test_package'), initial_path
     assert initial_file.endswith('__init__.py'), initial_file
     assert import_error is None, import_error
@@ -51,8 +51,8 @@ except ImportError as e:
     traceback.print_exc()
 
 def test():
-    print "FILE: ", initial_file
-    print "PATH: ", initial_path
+    print("FILE: ", initial_file)
+    print("PATH: ", initial_path)
     assert initial_path[0].endswith('another'), initial_path
     assert initial_file.endswith('__init__.py'), initial_file
     assert import_error is None, import_error

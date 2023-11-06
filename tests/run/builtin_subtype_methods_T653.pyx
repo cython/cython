@@ -1,6 +1,6 @@
 #cython: language_level=2
 # mode: run
-# ticket: 653
+# ticket: t653
 
 cimport cython
 

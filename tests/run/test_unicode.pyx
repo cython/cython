@@ -846,7 +846,6 @@ class UnicodeTest(CommonTest,
             self.assertEqual('ﬁnnish'.capitalize(), 'FInnish')
         else:
             self.assertEqual('ﬁnnish'.capitalize(), 'Finnish')
-
         self.assertEqual('A\u0345\u03a3'.capitalize(), 'A\u0345\u03c2')
 
     def test_title(self):

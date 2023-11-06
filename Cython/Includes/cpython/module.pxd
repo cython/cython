@@ -145,6 +145,12 @@ cdef extern from "Python.h":
     bint PyModule_CheckExact(object p)
     # Return true if p is a module object, but not a subtype of PyModule_Type.
 
+    object PyModule_NewObject(object name)
+    # Return a new module object with the __name__ attribute set to name.
+    # The module’s __name__, __doc__, __package__, and __loader__
+    # attributes are filled in (all but __name__ are set to None); the caller
+    # is responsible for providing a __file__ attribute.
+
     object PyModule_New(const char *name)
     # Return value: New reference.
     # Return a new module object with the __name__ attribute set to
@@ -160,21 +166,35 @@ cdef extern from "Python.h":
     # use other PyModule_*() and PyObject_*() functions rather than
     # directly manipulate a module's __dict__.
 
+    object PyModule_GetNameObject(object module)
+    # Return module’s __name__ value. If the module does not provide one, or if
+    # it is not a string, SystemError is raised and NULL is returned.
+
     char* PyModule_GetName(object module) except NULL
-    # Return module's __name__ value. If the module does not provide
-    # one, or if it is not a string, SystemError is raised and NULL is
-    # returned.
+    # Similar to PyModule_GetNameObject() but return the name encoded
+    # to 'utf-8'.
+
+    void* PyModule_GetState(object module)
+    # Return the “state” of the module, that is, a pointer to the block of
+    # memory allocated at module creation time, or NULL.
+    # See PyModuleDef.m_size.
+
+    object PyModule_GetFilenameObject(object module)
+    # Return the name of the file from which module was loaded using module’s
+    # __file__ attribute. If this is not defined, or if it is not a unicode
+    # string, raise SystemError and return NULL; otherwise return a reference
+    # to a Unicode object.
 
     char* PyModule_GetFilename(object module) except NULL
-    # Return the name of the file from which module was loaded using
-    # module's __file__ attribute. If this is not defined, or if it is
-    # not a string, raise SystemError and return NULL.
+    # Similar to PyModule_GetFilenameObject() but return the filename encoded
+    # to ‘utf-8’.
 
     int PyModule_AddObject(object module,  const char *name, object value) except -1
     # Add an object to module as name. This is a convenience function
-    # which can be used from the module's initialization
-    # function. This steals a reference to value. Return -1 on error,
-    # 0 on success.
+    # which can be used from the module's initialization function.
+    # Return -1 on error, 0 on success.
+    #
+    # WARNING: This _steals_ a reference to value.
 
     int PyModule_AddIntConstant(object module,  const char *name, long value) except -1
     # Add an integer constant to module as name. This convenience

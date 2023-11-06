@@ -377,6 +377,34 @@ def test_iteration(string s):
     """
     return [c for c in s]
 
+def test_to_string(x):
+    """
+    >>> print(test_to_string(5))
+    si=5 sl=5 ss=5 sss=5
+    >>> print(test_to_string(-5))
+    si=-5 sl=-5 ss=5 sss=-5
+    """
+    si = to_string(<int>x).decode('ascii')
+    sl = to_string(<long>x).decode('ascii')
+    ss = to_string(<size_t>abs(x)).decode('ascii')
+    sss = to_string(<ssize_t>x).decode('ascii')
+    return f"si={si} sl={sl} ss={ss} sss={sss}"
+
+def test_stoi(char *a):
+    """
+    >>> test_stoi(b'5')
+    5
+    """
+    cdef string s = string(a)
+    return stoi(s)
+
+def test_stof(char *a):
+    """
+    >>> test_stof(b'5.5')
+    5.5
+    """
+    cdef string s = string(a)
+    return stof(s)
 
 def test_to_string(x):
     """
@@ -408,6 +436,16 @@ def test_stof(char *a):
     """
     cdef string s = string(a)
     return stof(s)
+
+
+def test_swap():
+    """
+    >>> test_swap()
+    """
+    cdef string s1 = b_asdf, s_asdf = b_asdf
+    cdef string s2 = b_asdg, s_asdg = b_asdg
+    s1.swap(s2)
+    assert s1 == s_asdg and s2 == s_asdf
 
 
 _WARNINGS = """

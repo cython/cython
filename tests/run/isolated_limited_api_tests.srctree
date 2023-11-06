@@ -1,0 +1,91 @@
+# mode: run
+# tag: limited-api
+
+# This is a bare minimum test to test compilation of the limited
+# API with the Py_LIMITED_API macro defined, with an example that's
+# known and working. It should be dropped once the limited API is
+# better tested
+
+PYTHON setup.py build_ext --inplace
+PYTHON run.py
+
+
+##################### setup.py ################################
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize("limited.pyx"),
+)
+
+##################### run.py ##################################
+
+import limited
+
+limited.fib(11)
+
+assert limited.lsum(list(range(10))) == 90
+assert limited.lsum(tuple(range(10))) == 90
+assert limited.lsum(iter(range(10))) == 45
+
+try:
+    limited.raises()
+except RuntimeError:
+    pass
+
+limited.C()
+limited.D()
+limited.E()
+
+assert limited.decode(b'a', bytearray(b'b')) == "ab"
+
+assert limited.cast_float(1) == 1.0
+assert limited.cast_float("2.0") == 2.0
+assert limited.cast_float(bytearray(b"3")) == 3.0
+
+
+##################### limited.pyx #############################
+
+# distutils: extra_compile_args = -DCYTHON_LIMITED_API=1 -DPy_LIMITED_API=0x030700f0
+
+import cython
+
+@cython.binding(False)
+def fib(int n):
+    cdef int a, b
+    a, b = 0, 1
+    while b < n:
+        a, b = b, a + b
+    return b
+
+def lsum(values):
+    cdef long result = 0
+    for value in values:
+        result += value
+    if type(values) is list:
+        for value in reversed(<list>values):
+            result += value
+    elif type(values) is tuple:
+        for value in reversed(<tuple>values):
+            result += value
+    return result
+
+@cython.binding(False)
+def raises():
+    raise RuntimeError()
+
+def decode(bytes b, bytearray ba):
+    return b.decode("utf-8") + ba.decode("utf-8")
+
+def cast_float(object o):
+    return float(o)
+
+class C:
+    pass
+
+cdef class D:
+    pass
+
+cdef class E(D):
+    pass

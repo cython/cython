@@ -85,7 +85,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 aux_var = scope.declare_var(name=None, cname=cname,
                                             type=type, pos=node.pos)
                 if entry.is_arg:
-                    aux_var.used = True # otherwise, NameNode will mark whether it is used
+                    aux_var.used = True  # otherwise, NameNode will mark whether it is used
 
                 return aux_var
 
@@ -111,9 +111,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 # Analysis
 #
-buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast") # ordered!
+buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast")  # ordered!
 buffer_defaults = {"ndim": 1, "mode": "full", "negative_indices": True, "cast": False}
-buffer_positional_options_count = 1 # anything beyond this needs keyword argument
+buffer_positional_options_count = 1  # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
 ERR_BUF_TOO_MANY = 'Too many buffer options'
@@ -146,12 +146,12 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     options = {}
     for name, (value, pos) in dictargs.items():
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value
 
     for name, (value, pos) in zip(buffer_options, posargs):
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         if name in options:
             raise CompileError(pos, ERR_BUF_DUP % name)
@@ -159,7 +159,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     # Check that they are all there and copy defaults
     for name in buffer_options:
-        if not name in options:
+        if name not in options:
             try:
                 options[name] = defaults[name]
             except KeyError:
@@ -298,9 +298,10 @@ def put_unpack_buffer_aux_into_scope(buf_entry, code):
     ln = []
     for i in range(buf_entry.type.ndim):
         for fldname in fldnames:
-            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % \
-                    (pybuffernd_struct, i, fldname,
-                     pybuffernd_struct, fldname, i))
+            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % (
+                pybuffernd_struct, i, fldname,
+                pybuffernd_struct, fldname, i,
+            ))
     code.putln(' '.join(ln))
 
 def put_init_vars(entry, code):
@@ -373,7 +374,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     code.putln("{")  # Set up necessary stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
 
-    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
+    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type)  # fill in object below
 
     if is_initialized:
         # Release any existing buffer
@@ -419,7 +420,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         put_unpack_buffer_aux_into_scope(buf_entry, code)
         code.putln('}')
 
-    code.putln("}") # Release stack
+    code.putln("}")  # Release stack
 
 
 def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
@@ -669,17 +670,25 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             structinfo_name = "NULL"
         elif dtype.is_struct:
             struct_scope = dtype.scope
-            if dtype.is_const:
-                struct_scope = struct_scope.const_base_type_scope
+            if dtype.is_cv_qualified:
+                struct_scope = struct_scope.base_type_scope
             # Must pre-call all used types in order not to recurse during utility code writing.
             fields = struct_scope.var_entries
             assert len(fields) > 0
             types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+
+            if dtype.is_cv_qualified:
+                # roughly speaking, remove "const" from struct_type
+                struct_type = dtype.cv_base_type.empty_declaration_code()
+            else:
+                struct_type = dtype.empty_declaration_code()
+
             for f, typeinfo in zip(fields, types):
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
-                           (typeinfo, f.name, dtype.empty_declaration_code(), f.cname), safe=True)
+                               (typeinfo, f.name, struct_type, f.cname), safe=True)
+
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:
@@ -690,10 +699,10 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         flags = "0"
         is_unsigned = "0"
         if dtype is PyrexTypes.c_char_type:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "'H'"
         elif dtype.is_int:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "%s ? 'U' : 'I'" % is_unsigned
         elif complex_possible or dtype.is_complex:
             typegroup = "'C'"

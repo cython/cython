@@ -271,13 +271,13 @@ def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
     >>> isinstance(test_annotations.__annotations__, dict)
     True
     >>> sorted(test_annotations.__annotations__.items())
-    [('a', 'test'), ('b', 'other'), ('c', 123), ('return', 'ret')]
+    [('a', "'test'"), ('b', "'other'"), ('c', '123'), ('return', "'ret'")]
 
     >>> def func_b(): return 42
     >>> def func_c(): return 99
     >>> inner = test_annotations(1, func_b, func_c)
     >>> sorted(inner.__annotations__.items())
-    [('return', 99), ('x', 'banana'), ('y', 42)]
+    [('return', 'c()'), ('x', "'banana'"), ('y', 'b()')]
 
     >>> inner.__annotations__ = {234: 567}
     >>> inner.__annotations__
@@ -293,14 +293,14 @@ def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
 
     >>> inner = test_annotations(1, func_b, func_c)
     >>> sorted(inner.__annotations__.items())
-    [('return', 99), ('x', 'banana'), ('y', 42)]
+    [('return', 'c()'), ('x', "'banana'"), ('y', 'b()')]
     >>> inner.__annotations__['abc'] = 66
     >>> sorted(inner.__annotations__.items())
-    [('abc', 66), ('return', 99), ('x', 'banana'), ('y', 42)]
+    [('abc', 66), ('return', 'c()'), ('x', "'banana'"), ('y', 'b()')]
 
     >>> inner = test_annotations(1, func_b, func_c)
     >>> sorted(inner.__annotations__.items())
-    [('return', 99), ('x', 'banana'), ('y', 42)]
+    [('return', 'c()'), ('x', "'banana'"), ('y', 'b()')]
     """
     def inner(x: "banana", y: b()) -> c():
         return x,y
@@ -382,6 +382,18 @@ class TestUnboundMethod:
     def meth(self): pass
 
 
+class TestStaticmethod(object):
+    """
+    >>> x = TestStaticmethod()
+    >>> x.staticmeth(42)
+    42
+    >>> x.staticmeth.__get__(42)()
+    42
+    """
+    @staticmethod
+    def staticmeth(arg): return arg
+
+
 cdef class TestOptimisedBuiltinMethod:
     """
     >>> obj = TestOptimisedBuiltinMethod()
@@ -397,3 +409,22 @@ cdef class TestOptimisedBuiltinMethod:
 
     def call(self, arg, obj=None):
         (obj or self).append(arg+1)  # optimistically optimised => uses fast fallback method call
+
+
+def do_nothing(f):
+    """Dummy decorator for `test_firstlineno_decorated_function`"""
+    return f
+
+
+@do_nothing
+@do_nothing
+def test_firstlineno_decorated_function():
+    """
+    check that `test_firstlineno_decorated_function` starts 5 lines below `do_nothing`
+
+    >>> test_firstlineno_decorated_function()
+    5
+    """
+    l1 = do_nothing.__code__.co_firstlineno
+    l2 = test_firstlineno_decorated_function.__code__.co_firstlineno
+    return l2 - l1

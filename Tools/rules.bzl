@@ -11,8 +11,8 @@ load("@cython//Tools:rules.bzl", "pyx_library")
 
 pyx_library(name = 'mylib',
             srcs = ['a.pyx', 'a.pxd', 'b.py', 'pkg/__init__.py', 'pkg/c.pyx'],
-            py_deps = ['//py_library/dep'],
-            data = ['//other/data'],
+            # python library deps passed to py_library
+            deps = ['//py_library/dep']
 )
 
 The __init__.py file must be in your srcs list so that Cython can resolve

@@ -1,4 +1,4 @@
-# ticket: 561
+# ticket: t561
 # tag: py3
 # This file tests the behavior of special methods under Python 3
 # after #561.  (Only methods whose behavior differs between Python 2 and 3
@@ -7,47 +7,44 @@
 __doc__ = u"""
     >>> vs0 = VerySpecial(0)
     VS __init__ 0
+
     >>> # Python 3 does not use __cmp__, so any provided __cmp__ method is
     >>> # discarded under Python 3.
-    >>> vs0_cmp = vs0.__cmp__
+    >>> vs0_cmp = vs0.__cmp__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__cmp__'
+    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__cmp__'...
+
     >>> # Python 3 does not use __div__ or __idiv__, so these methods are
     >>> # discarded under Python 3.
-    >>> vs0_div = vs0.__div__
+    >>> vs0_div = vs0.__div__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__div__'
-    >>> vs0_rdiv = vs0.__rdiv__
+    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__div__'...
+    >>> vs0_rdiv = vs0.__rdiv__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__rdiv__'
-    >>> vs0_idiv = vs0.__idiv__
+    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__rdiv__'...
+    >>> vs0_idiv = vs0.__idiv__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__idiv__'
+    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__idiv__'...
+
     >>> # Python 3 does not use __oct__ or __hex__, so these methods are
     >>> # discarded under Python 3.
-    >>> vs0_oct = vs0.__oct__
+    >>> vs0_oct = vs0.__oct__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__oct__'
-    >>> vs0_hex = vs0.__hex__
+    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__oct__'...
+    >>> vs0_hex = vs0.__hex__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__hex__'
+    AttributeError: 'special_methods_T561_py3.VerySpecial' object has no attribute '__hex__'...
+
     >>> # Python 3 does not use __long__; if you define __long__ but not
     >>> # __int__, the __long__ definition will be used for __int__.
-    >>> Ll = Long().__long__
+    >>> Ll = Long().__long__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561_py3.Long' object has no attribute '__long__'
+    AttributeError: 'special_methods_T561_py3.Long' object has no attribute '__long__'...
     >>> Li = Long().__int__
     >>> Li()
     Long __long__
-    >>> # As of Python 3, defining __nonzero__ gives you a __bool__ method
-    >>> # instead.
+
+    >>> # As of Python 3, defining __nonzero__ gives you a __bool__ method instead.
     >>> vs0_bool = vs0.__bool__
     >>> vs0_bool()
     VS __nonzero__ 0

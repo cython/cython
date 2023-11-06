@@ -10,6 +10,15 @@ MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
 
 
+@cython.annotation_typing(False)
+def test_annotation_typing(x: cython.int) -> cython.int:
+    """
+    >>> test_annotation_typing("Petits pains")
+    'Petits pains'
+    """
+    return x
+
+
 @cython.ccall  # cpdef => C return type
 def test_return_type(n: cython.int) -> cython.double:
     """
@@ -85,3 +94,19 @@ def call_cdef_inline(x):
     """
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
+
+@cython.cfunc
+def test_cdef_return_object(x: object) -> object:
+    """
+    Test support of python object in annotations
+    >>> test_cdef_return_object(3)
+    3
+    >>> test_cdef_return_object(None)
+    Traceback (most recent call last):
+        ...
+    RuntimeError
+    """
+    if x:
+        return x
+    else:
+        raise RuntimeError()

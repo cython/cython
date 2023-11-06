@@ -32,6 +32,6 @@ from tt cimport Foo
 
 cdef array a = array('i', [1,2,3])
 cdef Foo x
-print a.data.as_ints[0]
+print(a.data.as_ints[0])
 x = Foo(a)
-print x.obj.data.as_ints[0]
+print(x.obj.data.as_ints[0])

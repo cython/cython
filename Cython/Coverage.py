@@ -2,6 +2,48 @@
 A Cython plugin for coverage.py
 
 Requires the coverage package at least in version 4.0 (which added the plugin API).
+
+This plugin requires the generated C sources to be available, next to the extension module.
+It parses the C file and reads the original source files from it, which are stored in C comments.
+It then reports a source file to coverage.py when it hits one of its lines during line tracing.
+
+Basically, Cython can (on request) emit explicit trace calls into the C code that it generates,
+and as a general human debugging helper, it always copies the current source code line
+(and its surrounding context) into the C files before it generates code for that line, e.g.
+
+::
+
+      /* "line_trace.pyx":147
+       * def cy_add_with_nogil(a,b):
+       *     cdef int z, x=a, y=b         # 1
+       *     with nogil:                  # 2             # <<<<<<<<<<<<<<
+       *         z = 0                    # 3
+       *         z += cy_add_nogil(x, y)  # 4
+       */
+       __Pyx_TraceLine(147,1,__PYX_ERR(0, 147, __pyx_L4_error))
+      [C code generated for file line_trace.pyx, line 147, follows here]
+
+The crux is that multiple source files can contribute code to a single C (or C++) file
+(and thus, to a single extension module) besides the main module source file (.py/.pyx),
+usually shared declaration files (.pxd) but also literally included files (.pxi).
+
+Therefore, the coverage plugin doesn't actually try to look at the file that happened
+to contribute the current source line for the trace call, but simply looks up the single
+.c file from which the extension was compiled (which usually lies right next to it after
+the build, having the same name), and parses the code copy comments from that .c file
+to recover the original source files and their code as a line-to-file mapping.
+
+That mapping is then used to report the ``__Pyx_TraceLine()`` calls to the coverage tool.
+The plugin also reports the line of source code that it found in the C file to the coverage
+tool to support annotated source representations.  For this, again, it does not look at the
+actual source files but only reports the source code that it found in the C code comments.
+
+Apart from simplicity (read one file instead of finding and parsing many), part of the
+reasoning here is that any line in the original sources for which there is no comment line
+(and trace call) in the generated C code cannot count as executed, really, so the C code
+comments are a very good source for coverage reporting.  They already filter out purely
+declarative code lines that do not contribute executable code, and such (missing) lines
+can then be marked as excluded from coverage analysis.
 """
 
 from __future__ import absolute_import
@@ -14,7 +56,7 @@ from collections import defaultdict
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.files import canonical_filename
 
-from .Utils import find_root_package_dir, is_package_dir, open_source_file
+from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_file, open_source_file
 
 
 from . import __version__
@@ -41,6 +83,23 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
         if os.path.exists(rel_file_path):
             abs_path = os.path.abspath(rel_file_path)
+
+        abs_no_ext = os.path.splitext(abs_path)[0]
+        file_no_ext, extension = os.path.splitext(file_path)
+        # We check if the paths match by matching the directories in reverse order.
+        # pkg/module.pyx /long/absolute_path/bla/bla/site-packages/pkg/module.c should match.
+        # this will match the pairs: module-module and pkg-pkg. After which there is nothing left to zip.
+        abs_no_ext = os.path.normpath(abs_no_ext)
+        file_no_ext = os.path.normpath(file_no_ext)
+        matching_paths = zip(reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep)))
+        for one, other in matching_paths:
+            if one != other:
+                break
+        else:  # No mismatches detected
+            matching_abs_path = os.path.splitext(main_file)[0] + extension
+            if os.path.exists(matching_abs_path):
+                return canonical_filename(matching_abs_path)
+
     # search sys.path for external locations if a valid file hasn't been found
     if not os.path.exists(abs_path):
         for sys_path in sys.path:
@@ -57,9 +116,18 @@ class Plugin(CoveragePlugin):
     _c_files_map = None
     # map from parsed C files to their content
     _parsed_c_files = None
+    # map from traced files to lines that are excluded from coverage
+    _excluded_lines_map = None
+    # list of regex patterns for lines to exclude
+    _excluded_line_patterns = ()
 
     def sys_info(self):
         return [('Cython version', __version__)]
+
+    def configure(self, config):
+        # Entry point for coverage "configurer".
+        # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
+        self._excluded_line_patterns = config.get_option("report:exclude_lines")
 
     def file_tracer(self, filename):
         """
@@ -108,7 +176,13 @@ class Plugin(CoveragePlugin):
             rel_file_path, code = self._read_source_lines(c_file, filename)
             if code is None:
                 return None  # no source found
-        return CythonModuleReporter(c_file, filename, rel_file_path, code)
+        return CythonModuleReporter(
+            c_file,
+            filename,
+            rel_file_path,
+            code,
+            self._excluded_lines_map.get(rel_file_path, frozenset())
+        )
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
@@ -150,12 +224,11 @@ class Plugin(CoveragePlugin):
             py_source_file = os.path.splitext(c_file)[0] + '.py'
             if not os.path.exists(py_source_file):
                 py_source_file = None
-
-            try:
-                with open(c_file, 'rb') as f:
-                    if b'/* Generated by Cython ' not in f.read(30):
-                        return None, None  # not a Cython file
-            except (IOError, OSError):
+            if not is_cython_generated_file(c_file, if_not_found=False):
+                if py_source_file and os.path.exists(c_file):
+                    # if we did not generate the C file,
+                    # then we probably also shouldn't care about the .py file.
+                    py_source_file = None
                 c_file = None
 
         return c_file, py_source_file
@@ -218,10 +291,16 @@ class Plugin(CoveragePlugin):
             r'(?:struct|union|enum|class)'
             r'(\s+[^:]+|)\s*:'
         ).match
+        if self._excluded_line_patterns:
+            line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
+        else:
+            line_is_excluded = lambda line: False
 
         code_lines = defaultdict(dict)
         executable_lines = defaultdict(set)
         current_filename = None
+        if self._excluded_lines_map is None:
+            self._excluded_lines_map = defaultdict(set)
 
         with open(c_file) as lines:
             lines = iter(lines)
@@ -241,6 +320,9 @@ class Plugin(CoveragePlugin):
                     if match:
                         code_line = match.group(1).rstrip()
                         if not_executable(code_line):
+                            break
+                        if line_is_excluded(code_line):
+                            self._excluded_lines_map[filename].add(lineno)
                             break
                         code_lines[filename][lineno] = code_line
                         break
@@ -298,17 +380,24 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-    def __init__(self, c_file, source_file, rel_file_path, code):
+    def __init__(self, c_file, source_file, rel_file_path, code, excluded_lines):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code
+        self._excluded_lines = excluded_lines
 
     def lines(self):
         """
         Return set of line numbers that are possibly executable.
         """
         return set(self._code)
+
+    def excluded_lines(self):
+        """
+        Return set of line numbers that are excluded from coverage.
+        """
+        return self._excluded_lines
 
     def _iter_source_tokens(self):
         current_line = 1
@@ -345,4 +434,6 @@ class CythonModuleReporter(FileReporter):
 
 
 def coverage_init(reg, options):
-    reg.add_file_tracer(Plugin())
+    plugin = Plugin()
+    reg.add_configurer(plugin)
+    reg.add_file_tracer(plugin)

@@ -46,7 +46,6 @@ Parts of this code were taken from Cython.inline.
 
 from __future__ import absolute_import, print_function
 
-import imp
 import io
 import os
 import re
@@ -59,16 +58,7 @@ import textwrap
 IO_ENCODING = sys.getfilesystemencoding()
 IS_PY2 = sys.version_info[0] < 3
 
-try:
-    reload
-except NameError:   # Python 3
-    from imp import reload
-
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
-
+import hashlib
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
@@ -84,8 +74,9 @@ from IPython.utils.text import dedent
 
 from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
-from .Inline import cython_inline
+from .Inline import cython_inline, load_dynamic
 from .Dependencies import cythonize
+from ..Utils import captured_fd, print_captured
 
 
 PGO_CONFIG = {
@@ -192,8 +183,13 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
-        '-a', '--annotate', action='store_true', default=False,
+        '-a', '--annotate', action='store_const', const='default', dest='annotate',
         help="Produce a colorized HTML version of the source."
+    )
+    @magic_arguments.argument(
+        '--annotate-fullc', action='store_const', const='fullc', dest='annotate',
+        help="Produce a colorized HTML version of the source "
+             "which includes entire generated C/C++-code."
     )
     @magic_arguments.argument(
         '-+', '--cplus', action='store_true', default=False,
@@ -317,7 +313,7 @@ class CythonMagics(Magics):
         if args.name:
             module_name = str(args.name)  # no-op in Py3
         else:
-            module_name = "_cython_magic_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
+            module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
         html_file = os.path.join(lib_dir, module_name + '.html')
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 
@@ -341,14 +337,26 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
+        def print_compiler_output(stdout, stderr, where):
+            # On windows, errors are printed to stdout, we redirect both to sys.stderr.
+            print_captured(stdout, where, u"Content of stdout:\n")
+            print_captured(stderr, where, u"Content of stderr:\n")
+
+        get_stderr = get_stdout = None
         try:
-            self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
-                                  quiet=args.quiet)
-        except distutils.errors.CompileError:
-            # Build failed and printed error message
+            with captured_fd(1) as get_stdout:
+                with captured_fd(2) as get_stderr:
+                    self._build_extension(
+                        extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
+        except (distutils.errors.CompileError, distutils.errors.LinkError):
+            # Build failed, print error message from compiler/linker
+            print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
             return None
 
-        module = imp.load_dynamic(module_name, module_path)
+        # Build seems ok, but we might still want to show any warnings that occurred
+        print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
+
+        module = load_dynamic(module_name, module_path)
         self._import_all(module)
 
         if args.annotate:
@@ -411,7 +419,7 @@ class CythonMagics(Magics):
 
         # import and execute module code to generate profile
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
-        imp.load_dynamic(pgo_module_name, so_module_path)
+        load_dynamic(pgo_module_name, so_module_path)
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
@@ -439,12 +447,11 @@ class CythonMagics(Magics):
                 quiet=quiet,
                 annotate=args.annotate,
                 force=True,
+                language_level=min(3, sys.version_info[0]),
             )
             if args.language_level is not None:
                 assert args.language_level in (2, 3)
                 opts['language_level'] = args.language_level
-            elif sys.version_info[0] >= 3:
-                opts['language_level'] = 3
             return cythonize([extension], **opts)
         except CompileError:
             return None

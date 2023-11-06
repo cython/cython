@@ -1,0 +1,6 @@
+# This list is definitely not complete!
+
+cythonize_script_package  # runs forever, probably multiprocessing issues
+callingconvention  # gets stuck and runs forever
+different_package_names  # gets stuck and runs forever
+duplicate_utilitycode_from_pyx

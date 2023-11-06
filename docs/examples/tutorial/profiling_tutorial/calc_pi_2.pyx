@@ -1,7 +1,5 @@
 # cython: profile=True
 
-# calc_pi.pyx
-
 def recip_square(int i):
     return 1. / i ** 2
 

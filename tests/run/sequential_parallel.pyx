@@ -315,7 +315,7 @@ def test_nan_init():
         c1 = 16
 
 
-cdef void nogil_print(char *s) with gil:
+cdef void nogil_print(char *s) noexcept with gil:
     print s.decode('ascii')
 
 def test_else_clause():
@@ -406,7 +406,7 @@ def test_nested_break_continue():
 
     print i
 
-cdef int parallel_return() nogil:
+cdef int parallel_return() noexcept nogil:
     cdef int i
 
     for i in prange(10):
@@ -640,7 +640,7 @@ def test_parallel_with_gil_continue_unnested():
     print sum
 
 
-cdef int inner_parallel_section() nogil:
+cdef int inner_parallel_section() noexcept nogil:
     cdef int j, sum = 0
     for j in prange(10):
         sum += j
@@ -656,10 +656,10 @@ def outer_parallel_section():
         sum += inner_parallel_section()
     return sum
 
-cdef int nogil_cdef_except_clause() nogil except 0:
+cdef int nogil_cdef_except_clause() except -1 nogil:
     return 1
 
-cdef void nogil_cdef_except_star() nogil except *:
+cdef void nogil_cdef_except_star() except * nogil:
     pass
 
 def test_nogil_cdef_except_clause():
@@ -683,7 +683,7 @@ def test_num_threads_compile():
         for i in prange(10):
             pass
 
-cdef int chunksize() nogil:
+cdef int chunksize() noexcept nogil:
     return 3
 
 def test_chunksize():
@@ -784,7 +784,7 @@ cdef extern from *:
     """
     void address_of_temp(...) nogil
     void address_of_temp2(...) nogil
-    double get_value() nogil except -1.0  # will generate a temp for exception checking
+    double get_value() except -1.0 nogil  # will generate a temp for exception checking
 
 def test_inner_private():
     """
@@ -816,3 +816,36 @@ def test_inner_private():
     assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
 
     print('ok')
+
+cdef void prange_exception_checked_function(int* ptr, int id) except * nogil:
+    # requires the GIL after each call
+    ptr[0] = id;
+
+cdef void prange_call_exception_checked_function_impl(int* arr, int N) nogil:
+    # Inside a nogil function, prange can't be sure the GIL has been released.
+    # Therefore Cython must release the GIL itself.
+    # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL
+    # (since if any other thread has finished, it will be holding the GIL).
+    #
+    # An equivalent test with prange is in "sequential_parallel.pyx"
+    cdef int i
+    for i in prange(N, num_threads=4, schedule='static', chunksize=1):
+        prange_exception_checked_function(arr+i, i)
+
+def test_prange_call_exception_checked_function():
+    """
+    >>> test_prange_call_exception_checked_function()
+    """
+
+    cdef int N = 10000
+    cdef int* buf = <int*>malloc(sizeof(int)*N)
+    if buf == NULL:
+        raise MemoryError
+    try:
+        # Don't release the GIL
+        prange_call_exception_checked_function_impl(buf, N)
+
+        for i in range(N):
+            assert buf[i] == i
+    finally:
+        free(buf)

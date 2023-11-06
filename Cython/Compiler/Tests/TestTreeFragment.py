@@ -2,7 +2,6 @@ from Cython.TestUtils import CythonTest
 from Cython.Compiler.TreeFragment import *
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.UtilNodes import *
-import Cython.Compiler.Naming as Naming
 
 class TestTreeFragments(CythonTest):
 

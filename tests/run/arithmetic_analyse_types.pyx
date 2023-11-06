@@ -1,4 +1,4 @@
-# ticket: 676
+# ticket: t676
 # tag: cpp
 
 from cython cimport typeof

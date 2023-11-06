@@ -3,18 +3,48 @@ from __future__ import absolute_import, print_function
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
-from . import PyrexTypes, ExprNodes
+from . import PyrexTypes
 from ..CodeWriter import ExpressionWriter
+from .Errors import warning
 
 
 class AnnotationWriter(ExpressionWriter):
+    """
+    A Cython code writer for Python expressions in argument/variable annotations.
+    """
+    def __init__(self, description=None):
+        """description is optional. If specified it is used in
+        warning messages for the nodes that don't convert to string properly.
+        If not specified then no messages are generated.
+        """
+        ExpressionWriter.__init__(self)
+        self.description = description
+        self.incomplete = False
 
     def visit_Node(self, node):
         self.put(u"<???>")
+        self.incomplete = True
+        if self.description:
+            warning(node.pos,
+                    "Failed to convert code to string representation in {0}".format(
+                        self.description), level=1)
 
     def visit_LambdaNode(self, node):
         # XXX Should we do better?
         self.put("<lambda>")
+        self.incomplete = True
+        if self.description:
+            warning(node.pos,
+                    "Failed to convert lambda to string representation in {0}".format(
+                        self.description), level=1)
+
+    def visit_UnicodeNode(self, node):
+        # Discard Unicode prefix in annotations. Any tool looking at them
+        # would probably expect Py3 string semantics.
+        self.emit_string(node, "")
+
+    def visit_AnnotationNode(self, node):
+        self.put(node.string.unicode_value)
 
 
 class EmbedSignature(CythonTransform):
@@ -25,37 +55,62 @@ class EmbedSignature(CythonTransform):
         self.class_node = None
 
     def _fmt_expr(self, node):
+        writer = ExpressionWriter()
+        result = writer.write(node)
+        # print(type(node).__name__, '-->', result)
+        return result
+
+    def _fmt_annotation(self, node):
         writer = AnnotationWriter()
         result = writer.write(node)
         # print(type(node).__name__, '-->', result)
         return result
 
-    def _fmt_arg(self, arg):
-        if arg.type is PyrexTypes.py_object_type or arg.is_self_arg:
-            doc = arg.name
-        else:
-            doc = arg.type.declaration_code(arg.name, for_display=1)
+    def _setup_format(self):
+        signature_format = self.current_directives['embedsignature.format']
+        self.is_format_c = signature_format == 'c'
+        self.is_format_python = signature_format == 'python'
+        self.is_format_clinic = signature_format == 'clinic'
 
+    def _fmt_arg(self, arg):
+        arg_doc = arg.name
+        annotation = None
+        defaultval = None
+        if arg.is_self_arg:
+            if self.is_format_clinic:
+                arg_doc = '$self'
+        elif arg.is_type_arg:
+            if self.is_format_clinic:
+                arg_doc = '$type'
+        elif self.is_format_c:
+            if arg.type is not PyrexTypes.py_object_type:
+                arg_doc = arg.type.declaration_code(arg.name, for_display=1)
+        elif self.is_format_python:
+            if not arg.annotation:
+                annotation = self._fmt_type(arg.type)
         if arg.annotation:
-            annotation = self._fmt_expr(arg.annotation)
-            doc = doc + (': %s' % annotation)
-            if arg.default:
-                default = self._fmt_expr(arg.default)
-                doc = doc + (' = %s' % default)
-        elif arg.default:
-            default = self._fmt_expr(arg.default)
-            doc = doc + ('=%s' % default)
-        return doc
+            if not self.is_format_clinic:
+                annotation = self._fmt_annotation(arg.annotation)
+        if arg.default:
+            defaultval = self._fmt_expr(arg.default)
+        if annotation:
+            arg_doc = arg_doc + (': %s' % annotation)
+            if defaultval:
+                arg_doc = arg_doc + (' = %s' % defaultval)
+        elif defaultval:
+            arg_doc = arg_doc + ('=%s' % defaultval)
+        return arg_doc
 
     def _fmt_star_arg(self, arg):
         arg_doc = arg.name
         if arg.annotation:
-            annotation = self._fmt_expr(arg.annotation)
-            arg_doc = arg_doc + (': %s' % annotation)
+            if not self.is_format_clinic:
+                annotation = self._fmt_annotation(arg.annotation)
+                arg_doc = arg_doc + (': %s' % annotation)
         return arg_doc
 
     def _fmt_arglist(self, args,
-                     npargs=0, pargs=None,
+                     npoargs=0, npargs=0, pargs=None,
                      nkargs=0, kargs=None,
                      hide_self=False):
         arglist = []
@@ -65,47 +120,72 @@ class EmbedSignature(CythonTransform):
                 arglist.append(arg_doc)
         if pargs:
             arg_doc = self._fmt_star_arg(pargs)
-            arglist.insert(npargs, '*%s' % arg_doc)
+            arglist.insert(npargs + npoargs, '*%s' % arg_doc)
         elif nkargs:
-            arglist.insert(npargs, '*')
+            arglist.insert(npargs + npoargs, '*')
+        if npoargs:
+            arglist.insert(npoargs, '/')
         if kargs:
             arg_doc = self._fmt_star_arg(kargs)
             arglist.append('**%s' % arg_doc)
         return arglist
 
-    def _fmt_ret_type(self, ret):
-        if ret is PyrexTypes.py_object_type:
+    def _fmt_type(self, type):
+        if type is PyrexTypes.py_object_type:
             return None
-        else:
-            return ret.declaration_code("", for_display=1)
+        elif self.is_format_c:
+            code = type.declaration_code("", for_display=1)
+            return code
+        elif self.is_format_python:
+            annotation = None
+            if type.is_string:
+                annotation = self.current_directives['c_string_type']
+            elif type.is_numeric:
+                annotation = type.py_type_name()
+            if annotation is None:
+                code = type.declaration_code('', for_display=1)
+                annotation = code.replace(' ', '_').replace('*', 'p')
+            return annotation
+        return None
 
     def _fmt_signature(self, cls_name, func_name, args,
-                       npargs=0, pargs=None,
+                       npoargs=0, npargs=0, pargs=None,
                        nkargs=0, kargs=None,
-                       return_expr=None,
-                       return_type=None, hide_self=False):
-        arglist = self._fmt_arglist(args,
-                                    npargs, pargs,
-                                    nkargs, kargs,
-                                    hide_self=hide_self)
+                       return_expr=None, return_type=None,
+                       hide_self=False):
+        arglist = self._fmt_arglist(
+            args, npoargs, npargs, pargs, nkargs, kargs,
+            hide_self=hide_self,
+        )
         arglist_doc = ', '.join(arglist)
         func_doc = '%s(%s)' % (func_name, arglist_doc)
-        if cls_name:
+        if self.is_format_c and cls_name:
             func_doc = '%s.%s' % (cls_name, func_doc)
-        ret_doc = None
-        if return_expr:
-            ret_doc = self._fmt_expr(return_expr)
-        elif return_type:
-            ret_doc = self._fmt_ret_type(return_type)
-        if ret_doc:
-            func_doc = '%s -> %s' % (func_doc, ret_doc)
+        if not self.is_format_clinic:
+            ret_doc = None
+            if return_expr:
+                ret_doc = self._fmt_annotation(return_expr)
+            elif return_type:
+                ret_doc = self._fmt_type(return_type)
+            if ret_doc:
+                func_doc = '%s -> %s' % (func_doc, ret_doc)
         return func_doc
 
     def _embed_signature(self, signature, node_doc):
+        if self.is_format_clinic and self.current_directives['binding']:
+            return node_doc
         if node_doc:
-            return "%s\n%s" % (signature, node_doc)
+            if self.is_format_clinic:
+                docfmt = "%s\n--\n\n%s"
+            else:
+                docfmt = "%s\n%s"
+            return docfmt % (signature, node_doc)
         else:
-            return signature
+            if self.is_format_clinic:
+                docfmt = "%s\n--\n\n"
+            else:
+                docfmt = "%s"
+            return docfmt % signature
 
     def __call__(self, node):
         if not Options.docstrings:
@@ -135,6 +215,7 @@ class EmbedSignature(CythonTransform):
     def visit_DefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
+        self._setup_format()
 
         is_constructor = False
         hide_self = False
@@ -142,25 +223,28 @@ class EmbedSignature(CythonTransform):
             is_constructor = self.class_node and node.name == '__init__'
             if not is_constructor:
                 return node
-            class_name, func_name = None, self.class_name
-            hide_self = True
+            class_name = None
+            func_name = node.name
+            if self.is_format_c:
+                func_name = self.class_name
+                hide_self = True
         else:
             class_name, func_name = self.class_name, node.name
 
+        npoargs = getattr(node, 'num_posonly_args', 0)
         nkargs = getattr(node, 'num_kwonly_args', 0)
-        npargs = len(node.args) - nkargs
+        npargs = len(node.args) - nkargs - npoargs
         signature = self._fmt_signature(
             class_name, func_name, node.args,
-            npargs, node.star_arg,
+            npoargs, npargs, node.star_arg,
             nkargs, node.starstar_arg,
             return_expr=node.return_type_annotation,
             return_type=None, hide_self=hide_self)
         if signature:
-            if is_constructor:
+            if is_constructor and self.is_format_c:
                 doc_holder = self.class_node.entry.type.scope
             else:
                 doc_holder = node.entry
-
             if doc_holder.doc is not None:
                 old_doc = doc_holder.doc
             elif not is_constructor and getattr(node, 'py_func', None) is not None:
@@ -174,10 +258,11 @@ class EmbedSignature(CythonTransform):
         return node
 
     def visit_CFuncDefNode(self, node):
+        if not node.overridable:  # not cpdef FOO(...):
+            return node
         if not self.current_directives['embedsignature']:
             return node
-        if not node.overridable: # not cpdef FOO(...):
-            return node
+        self._setup_format()
 
         signature = self._fmt_signature(
             self.class_name, node.declarator.base.name,
@@ -192,23 +277,42 @@ class EmbedSignature(CythonTransform):
                 old_doc = None
             new_doc = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
-            if hasattr(node, 'py_func') and node.py_func is not None:
-                node.py_func.entry.doc = EncodedString(new_doc)
+            py_func = getattr(node, 'py_func', None)
+            if py_func is not None:
+                py_func.entry.doc = EncodedString(new_doc)
         return node
 
     def visit_PropertyNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
+        self._setup_format()
 
         entry = node.entry
+        body = node.body
+        prop_name = entry.name
+        type_name = None
         if entry.visibility == 'public':
-            # property synthesised from a cdef public attribute
-            type_name = entry.type.declaration_code("", for_display=1)
-            if not entry.type.is_pyobject:
-                type_name = "'%s'" % type_name
-            elif entry.type.is_extension_type:
-                type_name = entry.type.module_name + '.' + type_name
-            signature = '%s: %s' % (entry.name, type_name)
+            if self.is_format_c:
+                # property synthesised from a cdef public attribute
+                type_name = entry.type.declaration_code("", for_display=1)
+                if not entry.type.is_pyobject:
+                    type_name = "'%s'" % type_name
+                elif entry.type.is_extension_type:
+                    type_name = entry.type.module_name + '.' + type_name
+            elif self.is_format_python:
+                type_name = self._fmt_type(entry.type)
+        if type_name is None:
+            for stat in body.stats:
+                if stat.name != '__get__':
+                    continue
+                if self.is_format_c:
+                    prop_name = '%s.%s' % (self.class_name, prop_name)
+                ret_annotation = stat.return_type_annotation
+                if ret_annotation:
+                    type_name = self._fmt_annotation(ret_annotation)
+        if type_name is not None :
+            signature = '%s: %s' % (prop_name, type_name)
             new_doc = self._embed_signature(signature, entry.doc)
-            entry.doc = EncodedString(new_doc)
+            if not self.is_format_clinic:
+                entry.doc = EncodedString(new_doc)
         return node

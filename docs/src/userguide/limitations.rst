@@ -8,9 +8,12 @@ Limitations
 
 This page used to list bugs in Cython that made the semantics of
 compiled code differ from that in Python.  Most of the missing
-features have been fixed in Cython 0.15. Note that a
-future version 1.0 of Cython is planned to provide full Python
-language compatibility.
+features have been fixed in Cython 0.15.  A future version of
+Cython is planned to provide full Python language compatibility.
+For now, the issue tracker can provide an overview of deviations
+that we are aware of and would like to see fixed.
+
+https://github.com/cython/cython/labels/Python%20Semantics
 
 Below is a list of differences that we will probably not be addressing.
 Most of these things that fall more into the implementation details rather

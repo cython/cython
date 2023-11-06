@@ -32,8 +32,8 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True, absolute_fallback=True):
-        if relative_to:
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=True, absolute_fallback=True, relative_import=False):
+        if from_module:
             raise AssertionError("Relative imports not supported in utility code.")
         if module_name != self.module_name:
             if module_name not in self.modules:
@@ -124,14 +124,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
-            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True,
+            in_utility_code=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:
             p = []
             for t in pipeline:
                 p.append(t)
-                if isinstance(p, ParseTreeTransforms.AnalyseDeclarationsTransform):
+                if isinstance(t, ParseTreeTransforms.AnalyseDeclarationsTransform):
                     break
 
             pipeline = p
@@ -173,8 +174,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if self.context_types:
             # inject types into module scope
             def scope_transform(module_node):
+                dummy_entry = object()
                 for name, type in self.context_types.items():
+                    # Restore the old type entry after declaring the type.
+                    # We need to access types in the scope, but this shouldn't alter the entry
+                    # that is visible from everywhere else
+                    old_type_entry = getattr(type, "entry", dummy_entry)
                     entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    if old_type_entry is not dummy_entry:
+                        type.entry = old_type_entry
                     entry.in_cinclude = True
                 return module_node
 
@@ -196,10 +204,10 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         Load a utility code as a string. Returns (proto, implementation)
         """
         util = cls.load(util_code_name, from_file, **kwargs)
-        return util.proto, util.impl # keep line numbers => no lstrip()
+        return util.proto, util.impl  # keep line numbers => no lstrip()
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
-                         whitelist=None):
+                         allowlist=None):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries. If module_name is given, declare the
@@ -218,7 +226,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True, whitelist=whitelist)
+        dest_scope.merge_in(original_scope, merge_unused=True, allowlist=allowlist)
         tree.scope = dest_scope
 
         for dep in self.requires:
@@ -226,6 +234,27 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 dep.declare_in_scope(dest_scope, cython_scope=cython_scope)
 
         return original_scope
+
+    @staticmethod
+    def filter_inherited_directives(current_directives):
+        """
+        Cython utility code should usually only pick up a few directives from the
+        environment (those that intentionally control its function) and ignore most
+        other compiler directives. This function provides a sensible default list
+        of directives to copy.
+        """
+        from .Options import _directive_defaults
+        utility_code_directives = dict(_directive_defaults)
+        inherited_directive_names = (
+            'binding', 'always_allow_keywords', 'allow_none_for_extension_args',
+            'auto_pickle', 'ccomplex',
+            'c_string_type', 'c_string_encoding',
+            'optimize.inline_defnode_calls', 'optimize.unpack_method_calls',
+            'optimize.unpack_method_calls_in_pyinit', 'optimize.use_switch')
+        for name in inherited_directive_names:
+            if name in current_directives:
+                utility_code_directives[name] = current_directives[name]
+        return utility_code_directives
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

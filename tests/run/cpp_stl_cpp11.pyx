@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no-cpp-locals
 
 import sys
 from libcpp.unordered_map cimport unordered_map
@@ -12,6 +12,20 @@ from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.set cimport set
 from libcpp.deque cimport deque
+from libcpp.functional cimport reference_wrapper
+
+
+def test_reference_wrapper():
+    """
+    >>> test_reference_wrapper()
+    'pass'
+    """
+    cdef:
+        int x = 1
+        vector[reference_wrapper[int]] ref_wrap_vector
+    ref_wrap_vector.push_back(reference_wrapper[int](x))
+    assert ref_wrap_vector[0].get() == 1
+    return "pass"
 
 
 def test_vector_functionality():
@@ -113,7 +127,7 @@ def test_unordered_set_functionality():
         unordered_set[int].iterator iterator = int_set.begin()
     int_set.insert(1)
     assert int_set.size() == 1
-    int_set.erase(int_set.begin(), int_set.end())
+    int_set.erase(unordered_set[int].const_iterator(int_set.begin()), unordered_set[int].const_iterator(int_set.end()))
     assert int_set.size() == 0
     int_set.insert(1)
     assert int_set.erase(1) == 1 # returns number of elements erased
@@ -137,6 +151,7 @@ def test_unordered_set_functionality():
     int_set.bucket_count()
     int_set.max_bucket_count()
     int_set.bucket(3)
+    assert int_set.load_factor() > 0
     return "pass"
 
 
@@ -175,7 +190,7 @@ def test_unordered_map_functionality():
     int_map.clear()
     int_map.insert(int_map2.begin(), int_map2.end())
     assert int_map.size() == 2
-    assert int_map.erase(int_map.begin(), int_map.end()) == int_map.end()
+    assert int_map.erase(unordered_map[int,int].const_iterator(int_map.begin()), unordered_map[int,int].const_iterator(int_map.end())) == int_map.end()
 
     int_map.max_load_factor(0.5)
     assert int_map.max_load_factor() == 0.5
@@ -187,6 +202,7 @@ def test_unordered_map_functionality():
     int_map.bucket_count()
     int_map.max_bucket_count()
     int_map.bucket(3)
+    assert int_map.load_factor() > 0
 
     intptr_map[0] = NULL
     intptr = intptr_map.const_at(0)

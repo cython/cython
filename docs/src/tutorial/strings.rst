@@ -1,5 +1,7 @@
 .. highlight:: cython
 
+.. _string_tutorial:
+
 Unicode and passing strings
 ===========================
 
@@ -124,6 +126,9 @@ Python variable::
     from c_func cimport c_call_returning_a_c_string
 
     cdef char* c_string = c_call_returning_a_c_string()
+    if c_string is NULL:
+        ...  # handle error
+
     cdef bytes py_string = c_string
 
 A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
@@ -441,7 +446,7 @@ characters and is compatible with plain ASCII encoded text that it
 encodes efficiently.  This makes it a very good choice for source code
 files which usually consist mostly of ASCII characters.
 
-.. _`UTF-8`: http://en.wikipedia.org/wiki/UTF-8
+.. _`UTF-8`: https://en.wikipedia.org/wiki/UTF-8
 
 As an example, putting the following line into a UTF-8 encoded source
 file will print ``5``, as UTF-8 encodes the letter ``'ö'`` in the two
@@ -554,7 +559,7 @@ above character.
 For more information on this topic, it is worth reading the `Wikipedia
 article about the UTF-16 encoding`_.
 
-.. _`Wikipedia article about the UTF-16 encoding`: http://en.wikipedia.org/wiki/UTF-16/UCS-2
+.. _`Wikipedia article about the UTF-16 encoding`: https://en.wikipedia.org/wiki/UTF-16/UCS-2
 
 The same properties apply to Cython code that gets compiled for a
 narrow CPython runtime environment.  In most cases, e.g. when

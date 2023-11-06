@@ -33,25 +33,31 @@ class TestCyCache(CythonTest):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
 
-        open(a_pyx, 'w').write(content1)
+        with open(a_pyx, 'w') as f:
+            f.write(content1)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         self.assertEqual(1, len(self.cache_files('a.c*')))
-        a_contents1 = open(a_c).read()
+        with open(a_c) as f:
+            a_contents1 = f.read()
         os.unlink(a_c)
 
-        open(a_pyx, 'w').write(content2)
+        with open(a_pyx, 'w') as f:
+            f.write(content2)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
-        a_contents2 = open(a_c).read()
+        with open(a_c) as f:
+            a_contents2 = f.read()
         os.unlink(a_c)
 
         self.assertNotEqual(a_contents1, a_contents2, 'C file not changed!')
         self.assertEqual(2, len(self.cache_files('a.c*')))
 
-        open(a_pyx, 'w').write(content1)
+        with open(a_pyx, 'w') as f:
+            f.write(content1)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         self.assertEqual(2, len(self.cache_files('a.c*')))
-        a_contents = open(a_c).read()
+        with open(a_c) as f:
+            a_contents = f.read()
         self.assertEqual(
             a_contents, a_contents1,
             msg='\n'.join(list(difflib.unified_diff(
@@ -60,13 +66,15 @@ class TestCyCache(CythonTest):
     def test_cycache_uses_cache(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
-        open(a_pyx, 'w').write('pass')
+        with open(a_pyx, 'w') as f:
+            f.write('pass')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
         gzip.GzipFile(a_cache, 'wb').write('fake stuff'.encode('ascii'))
         os.unlink(a_c)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
-        a_contents = open(a_c).read()
+        with open(a_c) as f:
+            a_contents = f.read()
         self.assertEqual(a_contents, 'fake stuff',
                          'Unexpected contents: %s...' % a_contents[:100])
 
@@ -75,7 +83,8 @@ class TestCyCache(CythonTest):
         a_c = a_pyx[:-4] + '.c'
         a_h = a_pyx[:-4] + '.h'
         a_api_h = a_pyx[:-4] + '_api.h'
-        open(a_pyx, 'w').write('cdef public api int foo(int x): return x\n')
+        with open(a_pyx, 'w') as f:
+            f.write('cdef public api int foo(int x): return x\n')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         expected = [a_c, a_h, a_api_h]
         for output in expected:
@@ -89,7 +98,8 @@ class TestCyCache(CythonTest):
         hash_pyx = os.path.join(self.src_dir, 'options.pyx')
         hash_c = hash_pyx[:-len('.pyx')] + '.c'
 
-        open(hash_pyx, 'w').write('pass')
+        with open(hash_pyx, 'w') as f:
+            f.write('pass')
         self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False)
         self.assertEqual(1, len(self.cache_files('options.c*')))
 

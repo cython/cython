@@ -14,10 +14,21 @@ doctest = u"""# Python 3 gets all of these right ...
 
     >>> C.__doc__
     '\\n    This is a class docstring.\\n    '
+    >>> C.docstring_copy_C
+    '\\n    This is a class docstring.\\n    '
+    >>> CS.docstring_copy_C
+    '\\n    This is a class docstring.\\n    '
+
     >>> CS.__doc__
+    '\\n    This is a subclass docstring.\\n    '
+    >>> CS.docstring_copy_CS
+    '\\n    This is a subclass docstring.\\n    '
+    >>> CSS.docstring_copy_CS
     '\\n    This is a subclass docstring.\\n    '
     >>> print(CSS.__doc__)
     None
+    >>> CSS.docstring_copy_CSS
+    'A module docstring'
 
     >>> T.__doc__
     '\\n    This is an extension type docstring.\\n    '
@@ -34,22 +45,38 @@ Compare with standard Python:
     >>> Pyf.__doc__
     '\\n    This is a function docstring.\\n    '
 
-    >>> class PyC:
+    >>> class PyC(object):
     ...     '''
     ...     This is a class docstring.
     ...     '''
-    >>> class PyCS(C):
+    ...     docstring_copy_C = __doc__
+    >>> class PyCS(PyC):
     ...     '''
     ...     This is a subclass docstring.
     ...     '''
-    >>> class PyCSS(CS):
-    ...     pass
+    ...     docstring_copy_CS = __doc__
+    >>> class PyCSS(PyCS):
+    ...     docstring_copy_CSS = __doc__
 
     >>> PyC.__doc__
     '\\n    This is a class docstring.\\n    '
+    >>> PyC.docstring_copy_C
+    '\\n    This is a class docstring.\\n    '
+    >>> PyCS.docstring_copy_C
+    '\\n    This is a class docstring.\\n    '
+    >>> PyCSS.docstring_copy_C
+    '\\n    This is a class docstring.\\n    '
+
     >>> PyCS.__doc__
     '\\n    This is a subclass docstring.\\n    '
+    >>> PyCS.docstring_copy_CS
+    '\\n    This is a subclass docstring.\\n    '
+    >>> PyCSS.docstring_copy_CS
+    '\\n    This is a subclass docstring.\\n    '
+
     >>> PyCSS.__doc__
+    >>> PyCSS.docstring_copy_CSS
+    'A module docstring'
 """
 
 __test__ = {"test_docstrings" : doctest}
@@ -59,18 +86,24 @@ def f():
     This is a function docstring.
     """
 
-class C:
+
+class C(object):
     """
     This is a class docstring.
     """
+    docstring_copy_C = __doc__
+
 
 class CS(C):
     """
     This is a subclass docstring.
     """
+    docstring_copy_CS = __doc__
+
 
 class CSS(CS):
-    pass
+    docstring_copy_CSS = __doc__
+
 
 cdef class T:
     """

@@ -68,6 +68,10 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Identical to PyBytes_FromFormat() except that it takes exactly two arguments.
 
+    bytes PyBytes_FromObject(object o)
+    # Return value: New reference.
+    # Return the bytes representation of object o that implements the buffer protocol.
+
     Py_ssize_t PyBytes_Size(object string) except -1
     # Return the length of the string in string object string.
 
@@ -194,5 +198,3 @@ cdef extern from "Python.h":
     # string encode() method. The codec to be used is looked up using
     # the Python codec registry. Return NULL if an exception was
     # raised by the codec.
-
-

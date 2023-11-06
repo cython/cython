@@ -1,0 +1,105 @@
+# -*- coding: utf-8 -*-
+# tag: py3, pep489
+
+PYTHON setup.py build_ext --inplace
+PYTHON -m mydoctest
+
+########### mydoctest.py #######
+
+import sys
+if sys.version_info < (3, 5):
+    # The module is only Cythonized and not build for these versions
+    # so don't run the tests
+    exit()
+    
+import doctest
+import from_py
+val = doctest.testmod(from_py)[0]
+import from_cy
+val += doctest.testmod(from_cy)[0]
+
+exit(val)
+
+########### setup.py ########
+
+# -*- coding: utf-8 -*-
+
+from __future__ import unicode_literals
+
+import sys
+from Cython.Build import cythonize
+
+files = ["mymoð.pyx", "from_cy.pyx"]
+
+
+# For Python 2 and Python <= 3.4 just run pyx->c; 
+# don't compile the C file
+modules = cythonize(files)
+
+if sys.version_info >= (3, 5):
+    from distutils.core import setup
+
+    setup(
+        ext_modules = modules
+    )
+
+############ mymoð.pyx #########
+
+def f():
+    return True
+
+cdef public api void cdef_func():
+    pass
+
+############ pxd_moð.pxd ##########
+
+cdef struct S:
+    int x
+    
+cdef public api void cdef_func() # just to test generation of headers
+    
+############ from_py.py #########
+
+# -*- coding: utf-8 -*-
+
+import mymoð
+from mymoð import f
+
+__doc__ = """
+>>> mymoð.f()
+True
+>>> f()
+True
+"""
+
+######### from_cy.pyx ##########
+
+# -*- coding: utf-8 -*-
+
+import mymoð
+
+from mymoð import f
+
+cimport pxd_moð
+from pxd_moð cimport S
+
+
+def test_imported():
+    """
+    >>> test_imported()
+    True
+    """
+    return mymoð.f() and f() # True and True
+
+
+def test_cimported():
+    """
+    >>> test_cimported()
+    3
+    """
+    cdef pxd_moð.S v1
+    v1.x = 1
+    cdef S v2
+    v2.x = 2
+    return v1.x + v2.x
+    

@@ -1,5 +1,5 @@
 # mode: error
-# ticket: 264
+# ticket: t264
 # tag: property, decorator
 
 

@@ -1,15 +1,11 @@
-#
-# Plex - Transition Maps
-#
-# This version represents state sets directly as dicts for speed.
-#
+# cython: auto_pickle=False
+"""
+Plex - Transition Maps
 
-from __future__ import absolute_import
+This version represents state sets directly as dicts for speed.
+"""
 
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
+maxint = 2**31-1  # sentinel value
 
 
 class TransitionMap(object):
@@ -40,24 +36,19 @@ class TransitionMap(object):
     kept separately in a dictionary.
     """
 
-    map = None      # The list of codes and states
-    special = None  # Mapping for special events
-
     def __init__(self, map=None, special=None):
         if not map:
             map = [-maxint, {}, maxint]
         if not special:
             special = {}
-        self.map = map
-        self.special = special
-        #self.check() ###
+        self.map = map          # The list of codes and states
+        self.special = special  # Mapping for special events
 
-    def add(self, event, new_state,
-            TupleType=tuple):
+    def add(self, event, new_state):
         """
         Add transition to |new_state| on |event|.
         """
-        if type(event) is TupleType:
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -68,12 +59,11 @@ class TransitionMap(object):
         else:
             self.get_special(event)[new_state] = 1
 
-    def add_set(self, event, new_set,
-                TupleType=tuple):
+    def add_set(self, event, new_set):
         """
         Add transitions to the states in |new_set| on |event|.
         """
-        if type(event) is TupleType:
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -84,15 +74,13 @@ class TransitionMap(object):
         else:
             self.get_special(event).update(new_set)
 
-    def get_epsilon(self,
-                    none=None):
+    def get_epsilon(self):
         """
         Return the mapping for epsilon, or None.
         """
-        return self.special.get('', none)
+        return self.special.get('')
 
-    def iteritems(self,
-                  len=len):
+    def iteritems(self):
         """
         Return the mapping as an iterable of ((code1, code2), state_set) and
         (special_event, state_set) pairs.
@@ -119,8 +107,7 @@ class TransitionMap(object):
 
     # ------------------- Private methods --------------------
 
-    def split(self, code,
-              len=len, maxint=maxint):
+    def split(self, code):
         """
         Search the list for the position of the split point for |code|,
         inserting a new split point if necessary. Returns index |i| such
@@ -132,6 +119,7 @@ class TransitionMap(object):
         # Special case: code == map[-1]
         if code == maxint:
             return hi
+
         # General case
         lo = 0
         # loop invariant: map[lo] <= code < map[hi] and hi - lo >= 2
@@ -147,7 +135,6 @@ class TransitionMap(object):
             return lo
         else:
             map[hi:hi] = [code, map[hi - 1].copy()]
-            #self.check() ###
             return hi
 
     def get_special(self, event):
@@ -242,10 +229,6 @@ class TransitionMap(object):
 #
 #   State set manipulation functions
 #
-
-#def merge_state_sets(set1, set2):
-#        for state in set2.keys():
-#            set1[state] = 1
 
 def state_set_str(set):
     return "[%s]" % ','.join(["S%d" % state.number for state in set])

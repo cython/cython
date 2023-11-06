@@ -1,0 +1,21 @@
+PYTHON setup.py build_ext --inplace
+
+################ setup.py #####################
+
+from distutils.core import setup
+from Cython.Build import cythonize
+from Cython.Compiler import Options
+
+Options.cache_builtins = False
+
+setup(
+    ext_modules = cythonize("mview.pyx")
+)
+
+############### mview.pyx ################
+
+# https://github.com/cython/cython/issues/3406
+# Failure was at Cython compilation stage
+
+def f(double [::1] x):
+    pass

@@ -1,7 +1,7 @@
 Cython - an overview
 ====================
 
-[Cython] is a programming language that makes writing C extensions
+[Cython]_ is a programming language that makes writing C extensions
 for the Python language as easy as Python itself.  It aims to become
 a superset of the [Python]_ language which gives it high-level,
 object-oriented, functional, and dynamic programming.  Its main feature
@@ -44,13 +44,13 @@ thus merges the two worlds into a very broadly applicable programming
 language.
 
 .. [Cython] G. Ewing, R. W. Bradshaw, S. Behnel, D. S. Seljebotn et al.,
-   The Cython compiler, http://cython.org.
+   The Cython compiler, https://cython.org/.
 .. [IronPython] Jim Hugunin et al., https://archive.codeplex.com/?p=IronPython.
 .. [Jython] J. Huginin, B. Warsaw, F. Bock, et al.,
-   Jython: Python for the Java platform, http://www.jython.org.
+   Jython: Python for the Java platform, https://www.jython.org.
 .. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python,
-   http://pypy.org.
+   https://pypy.org/.
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
-   http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+   https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [Python] G. van Rossum et al., The Python programming language,
    https://www.python.org/.

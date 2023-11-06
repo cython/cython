@@ -29,8 +29,11 @@
 >>> run_test(50, test_finally)
 """
 
+cimport cython
 from cpython.ref cimport PyObject
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(obj):
     return (<PyObject*>obj).ob_refcnt
 

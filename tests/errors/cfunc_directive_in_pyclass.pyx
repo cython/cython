@@ -7,5 +7,5 @@ class Pyclass(object):
         pass
 
 _ERRORS = """
- 6:4: cfunc directive is not allowed here
+ 5:4: cfunc directive is not allowed here
 """

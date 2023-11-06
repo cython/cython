@@ -25,31 +25,6 @@ def test_pymalloc():
         mem.PyMem_Free(m)
 
 
-def test_pymalloc_raw():
-    """
-    >>> test_pymalloc_raw()
-    3
-    """
-    cdef char* m
-    cdef char* m2 = NULL
-    with nogil:
-        m = <char*> mem.PyMem_RawMalloc(20)
-        if not m:
-            raise MemoryError()
-        try:
-            m[0] = 1
-            m[1] = 2
-            m[2] = 3
-            m2 = <char*> mem.PyMem_RawRealloc(m, 10)
-            if m2:
-                m = m2
-            retval = m[2]
-        finally:
-            mem.PyMem_RawFree(m)
-    assert m2
-    return retval
-
-
 def test_gilstate():
     """
     >>> test_gilstate()

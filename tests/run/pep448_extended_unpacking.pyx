@@ -500,6 +500,10 @@ def unpack_dict_simple(it):
     return {**it}
 
 
+@cython.test_assert_path_exists('//MergedDictNode')
+@cython.test_fail_if_path_exists(
+    '//MergedDictNode//MergedDictNode',
+)
 def unpack_dict_from_iterable(it):
     """
     >>> d = unpack_dict_from_iterable(dict(a=1, b=2, c=3))
@@ -572,3 +576,28 @@ def unpack_dict_keep_originals(a, b, c):
     True
     """
     return {**a, **b, 2: 4, **c}
+
+
+@cython.test_assert_path_exists(
+    '//MergedDictNode',
+    '//MergedDictNode//MergedDictNode',
+    '//MergedDictNode//MergedDictNode//DictNode',
+)
+def unpack_in_call(f):
+    """
+    >>> def f(a=1, test=2, **kwargs):
+    ...     return a, test, sorted(kwargs.items())
+    >>> wrapped = unpack_in_call(f)
+    >>> wrapped(1)
+    (1, 1, [('more', 2)])
+    >>> wrapped(test='overwritten')
+    (1, 1, [('more', 2)])
+    >>> wrapped(b=3)
+    (1, 1, [('b', 3), ('more', 2)])
+    >>> wrapped(more=4)
+    Traceback (most recent call last):
+    TypeError: function() got multiple values for keyword argument 'more'
+    """
+    def wrapper(*args, **kwargs):
+        return f(*args, more=2, **{**kwargs, 'test': 1})
+    return wrapper

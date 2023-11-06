@@ -1,14 +1,9 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Lexical Analyser Specification
-#
-#=======================================================================
+"""
+Python Lexical Analyser
 
+Lexical Analyser Specification
+"""
 from __future__ import absolute_import
-
-import types
 
 from . import Actions
 from . import DFA
@@ -67,7 +62,7 @@ class Lexicon(object):
     Actions
     -------
 
-    The |action| in a token specication may be one of three things:
+    The |action| in a token specification may be one of three things:
 
        1) A function, which is called as follows:
 
@@ -114,17 +109,14 @@ class Lexicon(object):
     machine = None  # Machine
     tables = None   # StateTableMachine
 
-    def __init__(self, specifications, debug=None, debug_flags=7, timings=None):
+    def __init__(self, specifications, debug=None, debug_flags=7):
         if not isinstance(specifications, list):
             raise Errors.InvalidScanner("Scanner definition is not a list")
-        if timings:
-            from .Timing import time
 
-            total_time = 0.0
-            time1 = time()
         nfa = Machines.Machine()
         default_initial_state = nfa.new_initial_state('')
         token_number = 1
+
         for spec in specifications:
             if isinstance(spec, State):
                 user_initial_state = nfa.new_initial_state(spec.name)
@@ -140,33 +132,22 @@ class Lexicon(object):
                 raise Errors.InvalidToken(
                     token_number,
                     "Expected a token definition (tuple) or State instance")
-        if timings:
-            time2 = time()
-            total_time = total_time + (time2 - time1)
-            time3 = time()
+
         if debug and (debug_flags & 1):
             debug.write("\n============= NFA ===========\n")
             nfa.dump(debug)
+
         dfa = DFA.nfa_to_dfa(nfa, debug=(debug_flags & 3) == 3 and debug)
-        if timings:
-            time4 = time()
-            total_time = total_time + (time4 - time3)
+
         if debug and (debug_flags & 2):
             debug.write("\n============= DFA ===========\n")
             dfa.dump(debug)
-        if timings:
-            timings.write("Constructing NFA : %5.2f\n" % (time2 - time1))
-            timings.write("Converting to DFA: %5.2f\n" % (time4 - time3))
-            timings.write("TOTAL            : %5.2f\n" % total_time)
+
         self.machine = dfa
 
     def add_token_to_machine(self, machine, initial_state, token_spec, token_number):
         try:
             (re, action_spec) = self.parse_token_definition(token_spec)
-            # Disabled this -- matching empty strings can be useful
-            #if re.nullable:
-            #  raise Errors.InvalidToken(
-            #    token_number, "Pattern can match 0 input symbols")
             if isinstance(action_spec, Actions.Action):
                 action = action_spec
             else:
@@ -188,6 +169,7 @@ class Lexicon(object):
             raise Errors.InvalidToken("Token definition is not a tuple")
         if len(token_spec) != 2:
             raise Errors.InvalidToken("Wrong number of items in token definition")
+
         pattern, action = token_spec
         if not isinstance(pattern, Regexps.RE):
             raise Errors.InvalidToken("Pattern is not an RE instance")
@@ -195,6 +177,3 @@ class Lexicon(object):
 
     def get_initial_state(self, name):
         return self.machine.get_initial_state(name)
-
-
-

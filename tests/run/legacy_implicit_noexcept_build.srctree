@@ -1,0 +1,33 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import bar"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx", compiler_directives={'legacy_implicit_noexcept': True}),
+)
+
+
+######## bar.pyx ########
+
+cdef int func_noexcept() noexcept:
+    raise RuntimeError()
+
+cdef int func_implicit():
+    raise RuntimeError()
+
+cdef int func_return_value() except -1:
+    raise RuntimeError()
+
+func_noexcept()
+func_implicit()
+
+try:
+    func_return_value()
+except RuntimeError:
+    pass
+else:
+    assert False, 'Exception not raised'

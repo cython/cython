@@ -1,5 +1,7 @@
 # mode: run
 
+# Test the behaviour of memoryview slicing and indexing, contiguity, etc.
+
 # Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
@@ -1064,6 +1066,8 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -1077,9 +1081,12 @@ def printbuf_object(object[:] buf, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])  # , writable=False)
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
@@ -1626,7 +1633,7 @@ def test_index_slicing_away_direct_indirect():
     All dimensions preceding dimension 1 must be indexed and not sliced
     """
     cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
-    a_obj = a
+    cdef object a_obj = a
 
     print a[1][2][3]
     print a[1, 2, 3]
@@ -1724,7 +1731,7 @@ def test_oob():
     print a[:, 20]
 
 
-cdef int nogil_oob(int[:, :] a) nogil except 0:
+cdef int nogil_oob(int[:, :] a) except 0 nogil:
     a[100, 9:]
     return 1
 
@@ -1768,7 +1775,7 @@ def test_nogil_oob2():
         a[100, 9:]
 
 @cython.boundscheck(False)
-cdef int cdef_nogil(int[:, :] a) nogil except 0:
+cdef int cdef_nogil(int[:, :] a) except 0 nogil:
     cdef int i, j
     cdef int[:, :] b = a[::-1, 3:10:2]
     for i in range(b.shape[0]):
@@ -1956,11 +1963,7 @@ def test_struct_attributes_format():
     """
     cdef TestAttrs[10] array
     cdef TestAttrs[:] struct_memview = array
-
-    if sys.version_info[:2] >= (2, 7):
-        print builtins.memoryview(struct_memview).format
-    else:
-        print "T{i:int_attrib:c:char_attrib:}"
+    print builtins.memoryview(struct_memview).format
 
 
 # Test padding at the end of structs in the buffer support
@@ -2248,7 +2251,7 @@ def test_object_dtype_copying():
     7
     8
     9
-    2 5
+    5
     1 5
     """
     cdef int i
@@ -2269,10 +2272,12 @@ def test_object_dtype_copying():
         print m2[i]
 
     obj = m2[5]
-    print get_refcount(obj), obj
+    refcount1 = get_refcount(obj)
+    print obj
 
     del m2
-    print get_refcount(obj), obj
+    refcount2 = get_refcount(obj)
+    print refcount1 - refcount2, obj
 
     assert unique_refcount == get_refcount(unique), (unique_refcount, get_refcount(unique))
 
@@ -2359,7 +2364,9 @@ def test_contig_scalar_to_slice_assignment():
     """
     >>> test_contig_scalar_to_slice_assignment()
     14 14 14 14
+    30 14 30 14
     20 20 20 20
+    30 30 20 20
     """
     cdef int[5][10] a
     cdef int[:, ::1] m = a
@@ -2367,8 +2374,14 @@ def test_contig_scalar_to_slice_assignment():
     m[...] = 14
     print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
 
+    m[:, :1] = 30
+    print m[0, 0], m[0, 1], m[1, 0], m[1, 1]
+
     m[:, :] = 20
     print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+    m[:1, :] = 30
+    print m[0, 0], m[0, 1], m[1, 0], m[1, 1]
 
 @testcase
 def test_dtype_object_scalar_assignment():
@@ -2558,6 +2571,53 @@ def test_const_buffer(const int[:] a):
 
 
 @testcase
+def test_loop(int[:] a, throw_exception):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> test_loop(A, False)
+    acquired A
+    15
+    released A
+    >>> try:
+    ...     test_loop(A, True)
+    ... except ValueError:
+    ...     pass
+    acquired A
+    released A
+    """
+    cdef int sum = 0
+    for ai in a:
+        sum += ai
+    if throw_exception:
+        raise ValueError()
+    print(sum)
+
+
+@testcase
+def test_loop_reassign(int[:] a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> test_loop_reassign(A)
+    acquired A
+    0
+    1
+    2
+    3
+    4
+    5
+    15
+    released A
+    """
+    cdef int sum = 0
+    for ai in a:
+        sum += ai
+        print(ai)
+        a = None  # this should not mess up the loop though!
+    print(sum)
+    # release happens in the wrapper function
+
+
+@testcase
 def test_arg_in_closure(int [:] a):
     """
     >>> A = IntMockBuffer("A", range(6), shape=(6,))
@@ -2594,3 +2654,50 @@ def test_arg_in_closure_cdef(a):
     """
     return arg_in_closure_cdef(a)
 
+
+@testcase
+def test_local_in_closure(a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> inner = test_local_in_closure(A)
+    acquired A
+    >>> inner()
+    (0, 1)
+
+    The assignment below is just to avoid printing what was collected
+    >>> del inner; ignore_me = gc.collect()
+    released A
+    """
+    cdef int[:] a_view = a
+    def inner():
+        return (a_view[0], a_view[1])
+    return inner
+
+@testcase
+def test_local_in_generator_expression(a, initialize, execute_now):
+    """
+    >>> A1 = IntMockBuffer("A1", range(6), shape=(6,))
+    >>> A2 = IntMockBuffer("A2", range(6), shape=(6,))
+    >>> test_local_in_generator_expression(A1, initialize=False, execute_now=False)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    UnboundLocalError...
+
+    >>> test_local_in_generator_expression(A1, initialize=True, execute_now=True)
+    acquired A1
+    released A1
+    True
+
+    >>> genexp = test_local_in_generator_expression(A2, initialize=True, execute_now=False)
+    acquired A2
+    >>> sum(genexp)
+    released A2
+    2
+    """
+    cdef int[:] a_view
+    if initialize:
+        a_view = a
+    if execute_now:
+        return any(ai > 3 for ai in a_view)
+    else:
+        return (ai > 3 for ai in a_view)

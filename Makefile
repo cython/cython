@@ -3,23 +3,30 @@ PYTHON?=python
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
+PARALLEL?=$(shell ${PYTHON} -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")' || true)
 
 MANYLINUX_CFLAGS=-O3 -g0 -mtune=generic -pipe -fPIC
 MANYLINUX_LDFLAGS=
 MANYLINUX_IMAGES= \
-	manylinux1_x86_64 \
-	manylinux1_i686 \
+	manylinux2014_x86_64 \
+	manylinux2014_i686 \
 	musllinux_1_1_x86_64 \
+	musllinux_1_1_aarch64 \
 	manylinux_2_24_x86_64 \
 	manylinux_2_24_i686 \
 	manylinux_2_24_aarch64 \
+	manylinux_2_28_x86_64 \
+	manylinux_2_28_aarch64 \
 #	manylinux_2_24_ppc64le \
 #	manylinux_2_24_s390x
 
 all:    local
 
 local:
-	${PYTHON} setup.py build_ext --inplace
+	${PYTHON} setup.py build_ext --inplace $(PARALLEL)
+
+plocal:
+	${PYTHON} setup.py build_ext --inplace --cython-profile $(PARALLEL)
 
 sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 
@@ -53,6 +60,7 @@ clean:
 	@rm -f *.pyd */*.pyd */*/*.pyd
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
+	@rm -f Cython/*.c
 	@rm -f Cython/Compiler/*.c
 	@rm -f Cython/Plex/*.c
 	@rm -f Cython/Tempita/*.c
@@ -64,6 +72,9 @@ testclean:
 
 test:	testclean
 	${PYTHON} runtests.py -vv ${TESTOPTS}
+
+checks:
+	${PYTHON} runtests.py -vv --no-unit --no-doctest --no-file --no-pyregr --no-examples
 
 s5:
 	$(MAKE) -C Doc/s5 slides
@@ -83,7 +94,16 @@ wheel_%: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 		-e LDFLAGS="$(MANYLINUX_LDFLAGS) -fPIC" \
 		-e WHEELHOUSE=wheelhouse$(subst wheel_musllinux,,$(subst wheel_manylinux,,$@)) \
 		quay.io/pypa/$(subst wheel_,,$@) \
-		bash -c 'for PYBIN in /opt/python/cp*/bin; do \
+		bash -c '\
+			rm -fr /opt/python/*pypy* ; \
+			for cpdir in /opt/python/*27* ; do \
+				if [ -d "$$cpdir" ]; \
+				then rm -fr /opt/python/*3[78912]; \
+				else rm -fr /opt/python/*{27*,3[456]*}; \
+				fi; break; \
+			done ; \
+			ls /opt/python/ ; \
+			for PYBIN in /opt/python/cp*/bin; do \
 		    $$PYBIN/python -V; \
 		    { $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
 		    done; wait; \

@@ -1,10 +1,8 @@
-# ticket: 236
-
-__doc__ = ''
+# ticket: t236
 
 import sys
-if sys.version_info >= (2,6):
-    __doc__ += '''
+
+__doc__ = '''
 >>> float_is_integer(1.0)
 True
 >>> float_is_integer(1.1)
@@ -19,7 +17,6 @@ True
 '''
 
 def float_is_integer(float f):
-    # requires Python 2.6+
     return f.is_integer()
 
 def int_bit_length(int i):

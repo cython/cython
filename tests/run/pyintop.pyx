@@ -25,6 +25,8 @@ def or_obj(obj2, obj3):
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def or_int(obj2):
     """
+    >>> or_int(0)
+    16
     >>> or_int(1)
     17
     >>> or_int(16)
@@ -47,6 +49,8 @@ def xor_obj(obj2, obj3):
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def xor_int(obj2):
     """
+    >>> xor_int(0)
+    16
     >>> xor_int(2)
     18
     >>> xor_int(16)
@@ -69,9 +73,13 @@ def and_obj(obj2, obj3):
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def and_int(obj2):
     """
+    >>> and_int(0)
+    0
     >>> and_int(1)
     0
     >>> and_int(18)
+    16
+    >>> and_int(-1)
     16
     """
     obj1 = obj2 & 0x10
@@ -98,9 +106,30 @@ def rshift_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
+def rshift_int_obj(obj3):
+    """
+    >>> rshift_int_obj(3)
+    0
+    >>> rshift_int_obj(2)
+    0
+    >>> rshift_int_obj(1)
+    1
+    >>> rshift_int_obj(0)
+    2
+    >>> rshift_int_obj(-1)
+    Traceback (most recent call last):
+    ValueError: negative shift count
+    """
+    obj1 = 2 >> obj3
+    return obj1
+
+
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def rshift_int(obj2):
     """
+    >>> rshift_int(0)
+    0
     >>> rshift_int(2)
     0
 
@@ -226,6 +255,8 @@ def mixed_obj(obj2, obj3):
 )
 def mixed_int(obj2):
     """
+    >>> mixed_int(0)
+    16
     >>> mixed_int(2)
     18
     >>> mixed_int(16)
@@ -473,6 +504,14 @@ def truthy(obj2):
     True
     """
     if obj2:
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists("//CoerceToBooleanNode")
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def test_avoid_if_coercion(obj):
+    if obj == 1:  # this should not go through a Python intermediate
         return True
     else:
         return False

@@ -4,6 +4,10 @@
 
 from __future__ import absolute_import
 
+import os
+
+from .. import Utils
+
 
 class ShouldBeFromDirective(object):
 
@@ -25,15 +29,14 @@ class ShouldBeFromDirective(object):
         raise RuntimeError(repr(self))
 
     def __repr__(self):
-        return (
-        "Illegal access of '%s' from Options module rather than directive '%s'"
-        % (self.options_name, self.directive_name))
+        return "Illegal access of '%s' from Options module rather than directive '%s'" % (
+            self.options_name, self.directive_name)
 
 
 """
 The members of this module are documented using autodata in
 Cython/docs/src/reference/compilation.rst.
-See http://www.sphinx-doc.org/en/master/ext/autodoc.html#directive-autoattribute
+See https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#directive-autoattribute
 for how autodata works.
 Descriptions of those members should start with a #:
 Donc forget to keep the docs in sync by removing and adding
@@ -47,11 +50,6 @@ docstrings = True
 
 #: Embed the source code position in the docstrings of functions and classes.
 embed_pos_in_docstring = False
-
-#: Copy the original source code line by line into C code comments
-#: in the generated code file to help with understanding the output.
-#: This is also required for coverage analysis.
-emit_code_comments = True
 
 # undocumented
 pre_import = None
@@ -168,26 +166,41 @@ def get_directive_defaults():
                 _directive_defaults[old_option.directive_name] = value
     return _directive_defaults
 
+def copy_inherited_directives(outer_directives, **new_directives):
+    # A few directives are not copied downwards and this function removes them.
+    # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
+    #  otherwise they can produce very misleading test failures
+    new_directives_out = dict(outer_directives)
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
+        new_directives_out.pop(name, None)
+    new_directives_out.update(new_directives)
+    return new_directives_out
+
 # Declare compiler directives
 _directive_defaults = {
+    'binding': True,  # was False before 3.0
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
-    'embedsignature' : False,
+    'embedsignature': False,
+    'embedsignature.format': 'c',
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
-    'c_api_binop_methods': True,
-    'cpow': True,
+    'cpow': None,  # was True before 3.0
+    # None (not set by user) is treated as slightly different from False
+    'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,
     'overflowcheck.fold': True,
-    'always_allow_keywords': False,
+    'always_allow_keywords': True,
     'allow_none_for_extension_args': True,
     'wraparound' : True,
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'nogil' : False,
+    'gil' : False,
+    'with_gil' : False,
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
@@ -209,6 +222,8 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
+    'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
+    'legacy_implicit_noexcept': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -221,6 +236,7 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'show_performance_hints': True,
 
 # optimizations
     'optimize.inline_defnode_calls': True,
@@ -238,10 +254,10 @@ _directive_defaults = {
 # test support
     'test_assert_path_exists' : [],
     'test_fail_if_path_exists' : [],
+    'test_assert_c_code_has' : [],
+    'test_fail_if_c_code_has' : [],
 
 # experimental, subject to change
-    'binding': None,
-
     'formal_grammar': False,
 }
 
@@ -295,6 +311,12 @@ def normalise_encoding_name(option_name, encoding):
             return name
     return encoding
 
+# use as a sential value to defer analysis of the arguments
+# instead of analysing them in InterpretCompilerDirectives. The dataclass directives are quite
+# complicated and it's easier to deal with them at the point the dataclass is created
+class DEFER_ANALYSIS_OF_ARGUMENTS:
+    pass
+DEFER_ANALYSIS_OF_ARGUMENTS = DEFER_ANALYSIS_OF_ARGUMENTS()
 
 # Override types possibilities above, if needed
 directive_types = {
@@ -302,12 +324,17 @@ directive_types = {
     'auto_pickle': bool,
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
-    'nogil' : bool,
+    'collection_type': one_of('sequence'),
+    'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'ufunc': None,
+    'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
     'cclass' : None,
@@ -319,7 +346,11 @@ directive_types = {
     'freelist': int,
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
-    'cpow': bool
+    'trashcan': bool,
+    'total_ordering': None,
+    'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'embedsignature.format': one_of('c', 'clinic', 'python'),
 }
 
 for key, val in _directive_defaults.items():
@@ -330,7 +361,10 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
+    'gil' : ('with statement'),
+    'with_gil' : ('function',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -348,9 +382,10 @@ directive_scopes = {  # defaults to available everywhere
     'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    'test_assert_c_code_has' : ('module',),
+    'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
     'emit_code_comments': ('module',),
-    'annotation_typing': ('module',),  # FIXME: analysis currently lacks more specific function scope
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
@@ -362,6 +397,26 @@ directive_scopes = {  # defaults to available everywhere
     'np_pythran': ('module',),
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
+    'trashcan' : ('cclass',),
+    'total_ordering': ('class', 'cclass'),
+    'dataclasses.dataclass' : ('class', 'cclass'),
+    'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'ufunc': ('function',),
+    'legacy_implicit_noexcept': ('module', ),
+}
+
+
+# A list of directives that (when used as a decorator) are only applied to
+# the object they decorate and not to its children.
+immediate_decorator_directives = {
+    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
+    # function signature directives
+    'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
+    # class directives
+    'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
+    'auto_pickle', 'internal', 'collection_type', 'total_ordering',
+    # testing directives
+    'test_fail_if_path_exists', 'test_assert_path_exists',
 }
 
 
@@ -476,6 +531,11 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
                         result[directive] = parsed_value
             if not found and not ignore_unknown:
                 raise ValueError('Unknown option: "%s"' % name)
+        elif directive_types.get(name) is list:
+            if name in result:
+                result[name].append(value)
+            else:
+                result[name] = [value]
         else:
             parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
             result[name] = parsed_value
@@ -550,3 +610,190 @@ def parse_compile_time_env(s, current_settings=None):
         name, value = [s.strip() for s in item.split('=', 1)]
         result[name] = parse_variable_value(value)
     return result
+
+
+# ------------------------------------------------------------------------
+# CompilationOptions are constructed from user input and are the `option`
+#  object passed throughout the compilation pipeline.
+
+class CompilationOptions(object):
+    r"""
+    See default_options at the end of this module for a list of all possible
+    options and CmdLine.usage and CmdLine.parse_command_line() for their
+    meaning.
+    """
+    def __init__(self, defaults=None, **kw):
+        self.include_path = []
+        if defaults:
+            if isinstance(defaults, CompilationOptions):
+                defaults = defaults.__dict__
+        else:
+            defaults = default_options
+
+        options = dict(defaults)
+        options.update(kw)
+
+        # let's assume 'default_options' contains a value for most known compiler options
+        # and validate against them
+        unknown_options = set(options) - set(default_options)
+        # ignore valid options that are not in the defaults
+        unknown_options.difference_update(['include_path'])
+        if unknown_options:
+            message = "got unknown compilation option%s, please remove: %s" % (
+                's' if len(unknown_options) > 1 else '',
+                ', '.join(unknown_options))
+            raise ValueError(message)
+
+        directive_defaults = get_directive_defaults()
+        directives = dict(options['compiler_directives'])  # copy mutable field
+        # check for invalid directives
+        unknown_directives = set(directives) - set(directive_defaults)
+        if unknown_directives:
+            message = "got unknown compiler directive%s: %s" % (
+                's' if len(unknown_directives) > 1 else '',
+                ', '.join(unknown_directives))
+            raise ValueError(message)
+        options['compiler_directives'] = directives
+        if directives.get('np_pythran', False) and not options['cplus']:
+            import warnings
+            warnings.warn("C++ mode forced when in Pythran mode!")
+            options['cplus'] = True
+        if 'language_level' not in kw and directives.get('language_level'):
+            options['language_level'] = directives['language_level']
+        elif not options.get('language_level'):
+            options['language_level'] = directive_defaults.get('language_level')
+        if 'formal_grammar' in directives and 'formal_grammar' not in kw:
+            options['formal_grammar'] = directives['formal_grammar']
+        if options['cache'] is True:
+            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
+
+        self.__dict__.update(options)
+
+    def configure_language_defaults(self, source_extension):
+        if source_extension == 'py':
+            if self.compiler_directives.get('binding') is None:
+                self.compiler_directives['binding'] = True
+
+    def get_fingerprint(self):
+        r"""
+        Return a string that contains all the options that are relevant for cache invalidation.
+        """
+        # Collect only the data that can affect the generated file(s).
+        data = {}
+
+        for key, value in self.__dict__.items():
+            if key in ['show_version', 'errors_to_stderr', 'verbose', 'quiet']:
+                # verbosity flags have no influence on the compilation result
+                continue
+            elif key in ['output_file', 'output_dir']:
+                # ignore the exact name of the output file
+                continue
+            elif key in ['depfile']:
+                # external build system dependency tracking file does not influence outputs
+                continue
+            elif key in ['timestamps']:
+                # the cache cares about the content of files, not about the timestamps of sources
+                continue
+            elif key in ['cache']:
+                # hopefully caching has no influence on the compilation result
+                continue
+            elif key in ['compiler_directives']:
+                # directives passed on to the C compiler do not influence the generated C code
+                continue
+            elif key in ['include_path']:
+                # this path changes which headers are tracked as dependencies,
+                # it has no influence on the generated C code
+                continue
+            elif key in ['working_path']:
+                # this path changes where modules and pxd files are found;
+                # their content is part of the fingerprint anyway, their
+                # absolute path does not matter
+                continue
+            elif key in ['create_extension']:
+                # create_extension() has already mangled the options, e.g.,
+                # embedded_metadata, when the fingerprint is computed so we
+                # ignore it here.
+                continue
+            elif key in ['build_dir']:
+                # the (temporary) directory where we collect dependencies
+                # has no influence on the C output
+                continue
+            elif key in ['use_listing_file', 'generate_pxi', 'annotate', 'annotate_coverage_xml']:
+                # all output files are contained in the cache so the types of
+                # files generated must be part of the fingerprint
+                data[key] = value
+            elif key in ['formal_grammar', 'evaluate_tree_assertions']:
+                # these bits can change whether compilation to C passes/fails
+                data[key] = value
+            elif key in ['embedded_metadata', 'emit_linenums',
+                         'c_line_in_traceback', 'gdb_debug',
+                         'relative_path_in_code_position_comments']:
+                # the generated code contains additional bits when these are set
+                data[key] = value
+            elif key in ['cplus', 'language_level', 'compile_time_env', 'np_pythran']:
+                # assorted bits that, e.g., influence the parser
+                data[key] = value
+            elif key == ['capi_reexport_cincludes']:
+                if self.capi_reexport_cincludes:
+                    # our caching implementation does not yet include fingerprints of all the header files
+                    raise NotImplementedError('capi_reexport_cincludes is not compatible with Cython caching')
+            elif key == ['common_utility_include_dir']:
+                if self.common_utility_include_dir:
+                    raise NotImplementedError('common_utility_include_dir is not compatible with Cython caching yet')
+            else:
+                # any unexpected option should go into the fingerprint; it's better
+                # to recompile than to return incorrect results from the cache.
+                data[key] = value
+
+        def to_fingerprint(item):
+            r"""
+            Recursively turn item into a string, turning dicts into lists with
+            deterministic ordering.
+            """
+            if isinstance(item, dict):
+                item = sorted([(repr(key), to_fingerprint(value)) for key, value in item.items()])
+            return repr(item)
+
+        return to_fingerprint(data)
+
+
+# ------------------------------------------------------------------------
+#
+#  Set the default options depending on the platform
+#
+# ------------------------------------------------------------------------
+
+default_options = dict(
+    show_version=0,
+    use_listing_file=0,
+    errors_to_stderr=1,
+    cplus=0,
+    output_file=None,
+    depfile=None,
+    annotate=None,
+    annotate_coverage_xml=None,
+    generate_pxi=0,
+    capi_reexport_cincludes=0,
+    working_path="",
+    timestamps=None,
+    verbose=0,
+    quiet=0,
+    compiler_directives={},
+    embedded_metadata={},
+    evaluate_tree_assertions=False,
+    emit_linenums=False,
+    relative_path_in_code_position_comments=True,
+    c_line_in_traceback=True,
+    language_level=None,  # warn but default to 2
+    formal_grammar=False,
+    gdb_debug=False,
+    compile_time_env=None,
+    module_name=None,
+    common_utility_include_dir=None,
+    output_dir=None,
+    build_dir=None,
+    cache=None,
+    create_extension=None,
+    np_pythran=False,
+    legacy_implicit_noexcept=None,
+)

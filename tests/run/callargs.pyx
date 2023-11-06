@@ -1,3 +1,27 @@
+# mode: run
+# tag: call
+
+
+def func0():
+    """
+    >>> func0()
+    """
+
+
+def onearg(arg):
+    """
+    >>> onearg(None)
+    None
+    """
+    print(arg)
+
+
+def onearg_unused(arg):
+    """
+    >>> onearg_unused(None)
+    """
+
+
 def c(a=10, b=20, **kwds):
     """
     >>> c()
@@ -38,8 +62,65 @@ def d(a, b=1, *args, **kwds):
     """
     print a, b, len(args), len(kwds)
 
+
 def e(*args, **kwargs):
+    """
+    >>> e()
+    0 0
+    >>> e(1)
+    1 0
+    >>> e(1,2)
+    2 0
+    >>> e(1,2)
+    2 0
+    >>> e(a=4)
+    0 1
+    >>> e(a=4, b=5)
+    0 2
+    >>> e(1,2, x=5)
+    2 1
+    """
     print len(args), len(kwargs)
+
+
+def args_kwargs_unused(*args, **kwargs):
+    """
+    >>> args_kwargs_unused()
+    >>> args_kwargs_unused(1, 2, 3)
+    >>> args_kwargs_unused(x=5)
+    >>> args_kwargs_unused(1, 2, 3, x=5)
+    """
+
+
+def args_kwargs_unused_args(*args, **kwargs):
+    """
+    >>> args_kwargs_unused_args()
+    0
+    >>> args_kwargs_unused_args(1, 2, 3)
+    0
+    >>> args_kwargs_unused_args(x=5)
+    1
+    >>> args_kwargs_unused_args(1, 2, 3, x=5)
+    1
+    >>> args_kwargs_unused_args(1, 2, 3, x=5, y=4)
+    2
+    """
+    return len(kwargs)
+
+
+def args_kwargs_unused_kwargs(*args, **kwargs):
+    """
+    >>> args_kwargs_unused_kwargs()
+    0
+    >>> args_kwargs_unused_kwargs(1, 2, 3)
+    3
+    >>> args_kwargs_unused_kwargs(x=5)
+    0
+    >>> args_kwargs_unused_kwargs(1, 2, 3, x=5)
+    3
+    """
+    return len(args)
+
 
 def f(*args):
     """
@@ -168,15 +249,15 @@ def test_int_kwargs(f):
     """
     >>> test_int_kwargs(e)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     >>> test_int_kwargs(f)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     >>> test_int_kwargs(g)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     >>> test_int_kwargs(h)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     """
     f(a=1,b=2,c=3, **{10:20,30:40})

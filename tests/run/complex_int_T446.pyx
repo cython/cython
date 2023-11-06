@@ -1,9 +1,14 @@
-# ticket: 446
+# ticket: t446
 
 import cython
 
-cdef extern from "complex_int_T446_fix.h":
-    pass
+cdef extern from *:
+    """
+    #if defined _MSC_VER && defined __cplusplus
+    #define CYTHON_CCOMPLEX 0
+    #endif
+    """
+
 
 def test_arith(int complex a, int complex b):
     """

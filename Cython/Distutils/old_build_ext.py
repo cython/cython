@@ -8,7 +8,6 @@ Note that this module is deprecated.  Use cythonize() instead.
 
 __revision__ = "$Id:$"
 
-import inspect
 import sys
 import os
 from distutils.errors import DistutilsPlatformError
@@ -16,7 +15,6 @@ from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
-import warnings
 
 
 try:
@@ -25,22 +23,30 @@ except ImportError:
     basestring = str
 
 
+# FIXME: the below does not work as intended since importing 'Cython.Distutils' already
+#        imports this module through 'Cython/Distutils/build_ext.py', so the condition is
+#        always false and never prints the warning.
+"""
+import inspect
+import warnings
+
 def _check_stack(path):
-  try:
-    for frame in inspect.getouterframes(inspect.currentframe(), 0):
-      if path in frame[1].replace(os.sep, '/'):
-        return True
-  except Exception:
-    pass
-  return False
+    try:
+        for frame in inspect.getouterframes(inspect.currentframe(), 0):
+            if path in frame[1].replace(os.sep, '/'):
+                return True
+    except Exception:
+        pass
+    return False
+
 
 if (not _check_stack('setuptools/extensions.py')
-    and not _check_stack('pyximport/pyxbuild.py')
-    and not _check_stack('Cython/Distutils/build_ext.py')):
+        and not _check_stack('pyximport/pyxbuild.py')
+        and not _check_stack('Cython/Distutils/build_ext.py')):
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprecated.")
-
+"""
 
 extension_name_re = _build_ext.extension_name_re
 
@@ -163,7 +169,7 @@ class old_build_ext(_build_ext.build_ext):
             # _build_ext.build_ext.__setattr__(self, name, value)
             self.__dict__[name] = value
 
-    def finalize_options (self):
+    def finalize_options(self):
         _build_ext.build_ext.finalize_options(self)
         if self.cython_include_dirs is None:
             self.cython_include_dirs = []
@@ -185,14 +191,11 @@ class old_build_ext(_build_ext.build_ext):
 
         _build_ext.build_ext.run(self)
 
-    def build_extensions(self):
-        # First, sanity-check the 'extensions' list
-        self.check_extensions_list(self.extensions)
-
+    def check_extensions_list(self, extensions):
+        # Note: might get called multiple times.
+        _build_ext.build_ext.check_extensions_list(self, extensions)
         for ext in self.extensions:
             ext.sources = self.cython_sources(ext.sources, ext)
-        # Call original build_extensions
-        _build_ext.build_ext.build_extensions(self)
 
     def cython_sources(self, sources, extension):
         """
@@ -201,17 +204,6 @@ class old_build_ext(_build_ext.build_ext):
         found, and return a modified 'sources' list with Cython source
         files replaced by the generated C (or C++) files.
         """
-        try:
-            from Cython.Compiler.Main \
-                import CompilationOptions, \
-                       default_options as cython_default_options, \
-                       compile as cython_compile
-            from Cython.Compiler.Errors import PyrexError
-        except ImportError:
-            e = sys.exc_info()[1]
-            print("failed to import Cython: %s" % e)
-            raise DistutilsPlatformError("Cython does not appear to be installed")
-
         new_sources = []
         cython_sources = []
         cython_targets = {}
@@ -252,10 +244,10 @@ class old_build_ext(_build_ext.build_ext):
         #    2.    Add in any (unique) paths from the extension
         #        cython_include_dirs (if Cython.Distutils.extension is used).
         #    3.    Add in any (unique) paths from the extension include_dirs
-        includes = self.cython_include_dirs
+        includes = list(self.cython_include_dirs)
         try:
             for i in extension.cython_include_dirs:
-                if not i in includes:
+                if i not in includes:
                     includes.append(i)
         except AttributeError:
             pass
@@ -264,19 +256,18 @@ class old_build_ext(_build_ext.build_ext):
         # result
         extension.include_dirs = list(extension.include_dirs)
         for i in extension.include_dirs:
-            if not i in includes:
+            if i not in includes:
                 includes.append(i)
 
         # Set up Cython compiler directives:
         #    1. Start with the command line option.
         #    2. Add in any (unique) entries from the extension
         #         cython_directives (if Cython.Distutils.extension is used).
-        directives = self.cython_directives
+        directives = dict(self.cython_directives)
         if hasattr(extension, "cython_directives"):
             directives.update(extension.cython_directives)
 
-        # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
-        # needed.
+        # Set the target file extension for C/C++ mode.
         if cplus:
             target_ext = '.cpp'
         else:
@@ -314,13 +305,24 @@ class old_build_ext(_build_ext.build_ext):
         if not cython_sources:
             return new_sources
 
+        try:
+            from Cython.Compiler.Main \
+                import CompilationOptions, \
+                       default_options as cython_default_options, \
+                       compile as cython_compile
+            from Cython.Compiler.Errors import PyrexError
+        except ImportError:
+            e = sys.exc_info()[1]
+            print("failed to import Cython: %s" % e)
+            raise DistutilsPlatformError("Cython does not appear to be installed")
+
         module_name = extension.name
 
         for source in cython_sources:
             target = cython_targets[source]
             depends = [source] + list(extension.depends or ())
-            if(source[-4:].lower()==".pyx" and os.path.isfile(source[:-3]+"pxd")):
-                depends += [source[:-3]+"pxd"]
+            if source[-4:].lower() == ".pyx" and os.path.isfile(source[:-3] + "pxd"):
+                depends += [source[:-3] + "pxd"]
             rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
                 rebuild = newer(newest_dependency, target)

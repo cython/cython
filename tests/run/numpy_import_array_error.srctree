@@ -1,0 +1,40 @@
+PYTHON setup.py build_ext -i
+PYTHON main.py
+
+############# setup.py ############
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize('cimport_numpy.pyx'))
+
+############# numpy.pxd ############
+
+# A fake Numpy module. This defines a version of _import_array
+# that always fails. The Cython-generated call to _import_array
+# happens quite early (before the stringtab is initialized)
+# and thus the error itself handling could cause a segmentation fault
+# https://github.com/cython/cython/issues/4377
+
+cdef extern from *:
+    """
+    #define NPY_FEATURE_VERSION
+    static int _import_array(void) {
+        PyErr_SetString(PyExc_ValueError, "Oh no!");
+        return -1;
+    }
+    """
+    int _import_array() except -1
+    
+############# cimport_numpy.pyx ###########
+
+cimport numpy
+
+############# main.py ####################
+
+try:
+    import cimport_numpy
+except ImportError as e:
+    print(e)
+else:
+    assert(False)

@@ -16,25 +16,28 @@ This can lead to really interesting speedup in some cases, going from 2 up to
 
 Please note that this feature is experimental.
 
-Usage example with distutils
-----------------------------
+Usage example with setuptools
+-----------------------------
 
 You first need to install Pythran. See its `documentation
-<http://pythran.readthedocs.io/en/latest/>`_ for more information.
+<https://pythran.readthedocs.io/>`_ for more information.
 
 Then, simply add a ``cython: np_pythran=True`` directive at the top of the
 Python files that needs to be compiled using Pythran numpy support.
 
-Here is an example of a simple ``setup.py`` file using distutils:
+Here is an example of a simple ``setup.py`` file using setuptools:
 
 .. code::
 
-  from distutils.core import setup
+  from setuptools import setup
   from Cython.Build import cythonize
-  
+  import numpy
+  import pythran
+
   setup(
       name = "My hello app",
-      ext_modules = cythonize('hello_pythran.pyx')
+      ext_modules = cythonize('hello_pythran.pyx'),
+      include_dirs = [numpy.get_include(), pythran.get_include()]
   )
 
 Then, with the following header in ``hello_pythran.pyx``:

@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: 554
+# ticket: t554
 
 def call_f(x):
     """

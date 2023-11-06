@@ -156,8 +156,17 @@ def multiplied_lists_nonconst_left(x):
     """
     return x * [1,2,3]
 
+
+@cython.test_fail_if_path_exists("//MulNode")
+def multiplied_nonconst_list_const_int(x):
+    """
+    >>> multiplied_nonconst_list_const_int(2)
+    [1, 2, 3, 1, 2, 3]
+    """
+    return [1,x,3] * 2
+
+
 @cython.test_fail_if_path_exists("//MulNode//ListNode")
-@cython.test_assert_path_exists("//MulNode")
 def multiplied_lists_nonconst_expression(x):
     """
     >>> multiplied_lists_nonconst_expression(5) == [1,2,3] * (5 * 2)

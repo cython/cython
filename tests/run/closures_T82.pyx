@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: 82
+# ticket: t82
 # preparse: id
 # preparse: def_to_cdef
 

@@ -1,3 +1,5 @@
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_select.h.html
+
 from .types cimport sigset_t
 from .time cimport timeval, timespec
 
@@ -12,7 +14,7 @@ cdef extern from "<sys/select.h>" nogil:
     void FD_ZERO(fd_set*)
 
     int select(int nfds, fd_set *readfds, fd_set *writefds,
-        fd_set *exceptfds, const timeval *timeout)
+        fd_set *exceptfds, timeval *timeout)
 
     int pselect(int nfds, fd_set *readfds, fd_set *writefds,
         fd_set *exceptfds, const timespec *timeout,

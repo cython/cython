@@ -1,7 +1,7 @@
 # tag: numpy
 
 """
-PYTHON -m Cython.Build.Cythonize -M dep_np.pyx
+CYTHONIZE -M dep_np.pyx
 PYTHON check_np.py
 """
 
@@ -15,6 +15,7 @@ np.import_array()
 ######## check_np.py ########
 
 import os.path
+import re
 
 import numpy as np
 import Cython
@@ -30,12 +31,13 @@ contents = [fname.replace(cy_prefix, "cy_prefix") for fname in contents]
 np_prefix, _ = os.path.split(np.__file__)
 contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
 
+# filter out the version number from `np_prefix/__init__.cython-30.pxd`.
+contents = [re.sub('[.]cython-[0-9]+', '', entry) for entry in contents]
+
 contents = [path.split(os.sep) for path in contents]
 contents.sort()
 
 expected = [path.split('/') for path in [
-    'cy_prefix/Includes/cpython/buffer.pxd',
-    'cy_prefix/Includes/cpython/mem.pxd',
     'cy_prefix/Includes/cpython/object.pxd',
     'cy_prefix/Includes/cpython/ref.pxd',
     'cy_prefix/Includes/cpython/type.pxd',

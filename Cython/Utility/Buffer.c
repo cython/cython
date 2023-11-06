@@ -54,8 +54,6 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 /////////////// BufferFormatStructs.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
-#define IS_UNSIGNED(type) (((type) -1) > 0)
-
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
@@ -111,6 +109,7 @@ typedef struct {
 
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+    __Pyx_TypeName obj_type_name;
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
@@ -119,7 +118,11 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
       {{endif}}
     {{endfor}}
 
-    PyErr_Format(PyExc_TypeError, "'%.200s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+                 "'" __Pyx_FMT_TYPENAME "' does not have the buffer interface",
+                 obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return -1;
 }
 
@@ -224,8 +227,8 @@ fail:;
 //  the format string; the access mode/flags is checked by the
 //  exporter. See:
 //
-//  http://docs.python.org/3/library/struct.html
-//  http://legacy.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
+//  https://docs.python.org/3/library/struct.html
+//  https://www.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
 //
 //  The alignment code is copied from _struct.c in Python.
 
@@ -318,7 +321,7 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
     case 'P': return "a pointer";
     case 's': case 'p': return "a string";
     case 0: return "end";
-    default: return "unparseable format string";
+    default: return "unparsable format string";
   }
 }
 
@@ -372,7 +375,8 @@ typedef struct { char c; void *x; } __Pyx_st_void_p;
 typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 #endif
 
-static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
@@ -406,7 +410,8 @@ typedef struct { void *x; char c; } __Pyx_pad_void_p;
 typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
 #endif
 
-static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
@@ -597,8 +602,9 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   return 0;
 }
 
-/* Parse an array in the format string (e.g. (1,2,3)) */
-static PyObject *
+// Parse an array in the format string (e.g. (1,2,3))
+// Return 0 on success, -1 on error
+static int
 __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 {
     const char *ts = *tsp;
@@ -608,11 +614,11 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
     if (ctx->new_count != 1) {
         PyErr_SetString(PyExc_ValueError,
                         "Cannot handle repeated arrays in format string");
-        return NULL;
+        return -1;
     }
 
     /* Process the previous element */
-    if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+    if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return -1;
 
     // store ndim now, as field advanced by __Pyx_BufFmt_ProcessTypeChunk call
     ndim = ctx->head->field->type->ndim;
@@ -626,35 +632,41 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
         }
 
         number = __Pyx_BufFmt_ExpectNumber(&ts);
-        if (number == -1) return NULL;
+        if (number == -1) return -1;
 
-        if (i < ndim && (size_t) number != ctx->head->field->type->arraysize[i])
-            return PyErr_Format(PyExc_ValueError,
+        if (i < ndim && (size_t) number != ctx->head->field->type->arraysize[i]) {
+            PyErr_Format(PyExc_ValueError,
                         "Expected a dimension of size %zu, got %d",
                         ctx->head->field->type->arraysize[i], number);
+            return -1;
+        }
 
-        if (*ts != ',' && *ts != ')')
-            return PyErr_Format(PyExc_ValueError,
+        if (*ts != ',' && *ts != ')') {
+            PyErr_Format(PyExc_ValueError,
                                 "Expected a comma in format string, got '%c'", *ts);
+            return -1;
+        }
 
         if (*ts == ',') ts++;
         i++;
     }
 
-    if (i != ndim)
-        return PyErr_Format(PyExc_ValueError, "Expected %d dimension(s), got %d",
+    if (i != ndim) {
+        PyErr_Format(PyExc_ValueError, "Expected %d dimension(s), got %d",
                             ctx->head->field->type->ndim, i);
+        return -1;
+    }
 
     if (!*ts) {
         PyErr_SetString(PyExc_ValueError,
                         "Unexpected end of format string, expected ')'");
-        return NULL;
+        return -1;
     }
 
     ctx->is_valid_array = 1;
     ctx->new_count = 1;
     *tsp = ++ts;
-    return Py_None;
+    return 0;
 }
 
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
@@ -786,7 +798,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         ++ts;
         break;
       case '(':
-        if (!__pyx_buffmt_parse_array(ctx, &ts)) return NULL;
+        if (__pyx_buffmt_parse_array(ctx, &ts) < 0) return NULL;
         break;
       default:
         {

@@ -20,18 +20,20 @@ import cython
 
 def index_tuple(tuple t, int i):
     """
+    (minor PyPy error formatting bug here, hence ELLIPSIS)
+
     >>> index_tuple((1,1,2,3,5), 0)
     1
     >>> index_tuple((1,1,2,3,5), 3)
     3
     >>> index_tuple((1,1,2,3,5), -1)
     5
-    >>> index_tuple((1,1,2,3,5), 100)
+    >>> index_tuple((1,1,2,3,5), 100)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: tuple index out of range
-    >>> index_tuple((1,1,2,3,5), -7)
+    IndexError: ... index out of range
+    >>> index_tuple((1,1,2,3,5), -7)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: tuple index out of range
+    IndexError: ... index out of range
     >>> index_tuple(None, 0)
     Traceback (most recent call last):
     TypeError: 'NoneType' object is not subscriptable
@@ -46,12 +48,12 @@ def index_list(list L, int i):
     13
     >>> index_list([2,3,5,7,11,13,17,19], -1)
     19
-    >>> index_list([2,3,5,7,11,13,17,19], 100)
+    >>> index_list([2,3,5,7,11,13,17,19], 100)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: list index out of range
-    >>> index_list([2,3,5,7,11,13,17,19], -10)
+    IndexError: ... index out of range
+    >>> index_list([2,3,5,7,11,13,17,19], -10)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: list index out of range
+    IndexError: ... index out of range
     >>> index_list(None, 0)
     Traceback (most recent call last):
     TypeError: 'NoneType' object is not subscriptable
@@ -60,6 +62,8 @@ def index_list(list L, int i):
 
 def index_object(object o, int i):
     """
+    (minor PyPy error formatting bug here, hence ELLIPSIS)
+
     >>> index_object([2,3,5,7,11,13,17,19], 1)
     3
     >>> index_object([2,3,5,7,11,13,17,19], -1)
@@ -335,3 +339,34 @@ def set_large_index(obj, Py_ssize_t index):
     obj.expected = index
     obj[index] = index
     assert obj.expected is None
+
+
+class DoesntLikePositiveIndices(object):
+    def __getitem__(self, idx):
+        if idx >= 0:
+            raise RuntimeError("Positive index")
+        return "Good"
+
+    def __setitem__(self, idx, value):
+        if idx >= 0:
+            raise RuntimeError("Positive index")
+
+    def __delitem__(self, idx):
+        if idx >= 0:
+            raise RuntimeError("Positive index")
+
+    def __len__(self):
+        return 500
+
+def test_call_with_negative_numbers():
+    """
+    The key point is that Cython shouldn't default to PySequence_*Item
+    since that invisibly adjusts negative numbers to be len(o)-idx.
+    >>> test_call_with_negative_numbers()
+    'Good'
+    """
+    cdef int idx = -5
+    indexme = DoesntLikePositiveIndices()
+    del indexme[idx]
+    indexme[idx] = "something"
+    return indexme[idx]

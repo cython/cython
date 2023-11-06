@@ -26,7 +26,8 @@ try:
 except ImportError:
     pass
 else:
-    assert False, "absolute import succeeded"
+    import sys
+    assert False, "absolute import succeeded: %s" % sorted(sys.modules)
 
 import relimport.a
 import relimport.bmod

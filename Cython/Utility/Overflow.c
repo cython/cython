@@ -20,7 +20,7 @@ TODO: Conditionally support 128-bit with intmax_t?
 /////////////// Common.proto ///////////////
 
 static int __Pyx_check_twos_complement(void) {
-    if ((-1 != ~0)) {
+    if ((-1) != (~0)) {
         PyErr_SetString(PyExc_RuntimeError, "Two's complement required for overflow checks.");
         return 1;
     } else if ((sizeof(short) == sizeof(int))) {
@@ -31,7 +31,6 @@ static int __Pyx_check_twos_complement(void) {
     }
 }
 
-#define __PYX_IS_UNSIGNED(type) ((((type) -1) > 0))
 #define __PYX_SIGN_BIT(type)    ((((unsigned type) 1) << (sizeof(type) * 8 - 1)))
 #define __PYX_HALF_MAX(type)    ((((type) 1) << (sizeof(type) * 8 - 2)))
 #define __PYX_MIN(type)         ((__PYX_IS_UNSIGNED(type) ? (type) 0 : 0 - __PYX_HALF_MAX(type) - __PYX_HALF_MAX(type)))
@@ -46,15 +45,32 @@ static int __Pyx_check_twos_complement(void) {
 #define __Pyx_div_no_overflow(a, b, overflow) ((a) / (b))
 #define __Pyx_div_const_no_overflow(a, b, overflow) ((a) / (b))
 
-/////////////// Common.init ///////////////
-//@substitute: naming
+#if defined(__has_builtin)
+#  if __has_builtin(__builtin_add_overflow) && !defined(__ibmxl__)
+#    define __PYX_HAVE_BUILTIN_OVERFLOW
+#  endif
+#elif defined(__GNUC__) && (__GNUC__ >= 5) && (!defined(__INTEL_COMPILER) || (__INTEL_COMPILER >= 1800))
+#  define __PYX_HAVE_BUILTIN_OVERFLOW
+#endif
 
-// FIXME: Propagate the error here instead of just printing it.
-if (unlikely(__Pyx_check_twos_complement())) {
-    PyErr_WriteUnraisable($module_cname);
-}
+#if defined(__GNUC__)
+#  define __Pyx_is_constant(x) (__builtin_constant_p(x))
+#elif defined(__has_builtin)
+#  if __has_builtin(__builtin_constant_p)
+#    define __Pyx_is_constant(x) (__builtin_constant_p(x))
+#  endif
+#else
+#  define __Pyx_is_constant(x) (0)
+#endif
+
+/////////////// Common.init ///////////////
+
+if (likely(__Pyx_check_twos_complement() == 0)); else
+// error propagation code is appended automatically
 
 /////////////// BaseCaseUnsigned.proto ///////////////
+
+{{if UINT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 static CYTHON_INLINE {{UINT}} __Pyx_add_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
 static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
@@ -64,10 +80,40 @@ static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {
 // Use these when b is known at compile time.
 #define __Pyx_add_const_{{NAME}}_checking_overflow __Pyx_add_{{NAME}}_checking_overflow
 #define __Pyx_sub_const_{{NAME}}_checking_overflow __Pyx_sub_{{NAME}}_checking_overflow
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
+#define __Pyx_mul_const_{{NAME}}_checking_overflow __Pyx_mul_{{NAME}}_checking_overflow
+#else
 static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} constant, int *overflow);
+#endif
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
+{{if UINT == "long long"}}#endif{{endif}}
+
 /////////////// BaseCaseUnsigned ///////////////
+
+{{if UINT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
+
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
+
+static CYTHON_INLINE {{UINT}} __Pyx_add_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
+    {{UINT}} result;
+    *overflow |= __builtin_add_overflow(a, b, &result);
+    return result;
+}
+
+static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
+    {{UINT}} result;
+    *overflow |= __builtin_sub_overflow(a, b, &result);
+    return result;
+}
+
+static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
+    {{UINT}} result;
+    *overflow |= __builtin_mul_overflow(a, b, &result);
+    return result;
+}
+
+#else
 
 static CYTHON_INLINE {{UINT}} __Pyx_add_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
     {{UINT}} r = a + b;
@@ -82,7 +128,12 @@ static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
-    if ((sizeof({{UINT}}) < sizeof(unsigned long))) {
+    // if we have a constant, use the constant version
+    if (__Pyx_is_constant(b)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
+    } else if (__Pyx_is_constant(a)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
+    } else if ((sizeof({{UINT}}) < sizeof(unsigned long))) {
         unsigned long big_r = ((unsigned long) a) * ((unsigned long) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
@@ -95,21 +146,27 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
         return r;
 #endif
     } else {
-        {{UINT}} prod = a * b;
-        double dprod = ((double) a) * ((double) b);
-        // Overflow results in an error of at least 2^sizeof(UINT),
-        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-53).
-        *overflow |= fabs(dprod - prod) > (__PYX_MAX({{UINT}}) / 2);
-        return prod;
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
     }
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
-    if (b > 1) {
-        *overflow |= a > __PYX_MAX({{UINT}}) / b;
+    // note that deliberately the overflow check is written such that it divides by b; this
+    // function is used when b is a constant thus the compiler should be able to eliminate the
+    // (very slow on most CPUs!) division operation
+    {{UINT}} prod;
+    if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
+        // if a is a compile-time constant and b isn't, swap them
+        {{UINT}} temp = b;
+        b = a;
+        a = temp;
     }
-    return a * b;
+    prod = a * b;
+    if (b != 0)
+        *overflow |= a > (__PYX_MAX({{UINT}}) / b);
+    return prod;
 }
+#endif // __PYX_HAVE_BUILTIN_OVERFLOW
 
 
 static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
@@ -120,8 +177,12 @@ static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {
     return a / b;
 }
 
+{{if UINT == "long long"}}#endif{{endif}}
+
 
 /////////////// BaseCaseSigned.proto ///////////////
+
+{{if INT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
@@ -130,12 +191,42 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 
 // Use when b is known at compile time.
-static CYTHON_INLINE {{INT}} __Pyx_add_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
-static CYTHON_INLINE {{INT}} __Pyx_sub_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
+#define __Pyx_add_const_{{NAME}}_checking_overflow __Pyx_add_{{NAME}}_checking_overflow
+#define __Pyx_sub_const_{{NAME}}_checking_overflow __Pyx_sub_{{NAME}}_checking_overflow
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
+#define __Pyx_mul_const_{{NAME}}_checking_overflow __Pyx_mul_{{NAME}}_checking_overflow
+#else
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} constant, int *overflow);
+#endif
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
+{{if INT == "long long"}}#endif{{endif}}
+
 /////////////// BaseCaseSigned ///////////////
+
+{{if INT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
+
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
+
+static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+    {{INT}} result;
+    *overflow |= __builtin_add_overflow(a, b, &result);
+    return result;
+}
+
+static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+    {{INT}} result;
+    *overflow |= __builtin_sub_overflow(a, b, &result);
+    return result;
+}
+
+static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+    {{INT}} result;
+    *overflow |= __builtin_mul_overflow(a, b, &result);
+    return result;
+}
+
+#else
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     if ((sizeof({{INT}}) < sizeof(long))) {
@@ -151,40 +242,33 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
         return r;
 #endif
     } else {
-        // Signed overflow undefined, but unsigned overflow is well defined.
-        {{INT}} r = ({{INT}}) ((unsigned {{INT}}) a + (unsigned {{INT}}) b);
+        // Signed overflow undefined, but unsigned overflow is well defined. Casting is
+        // implementation-defined, but we assume two's complement (see __Pyx_check_twos_complement
+        // above), and arithmetic in two's-complement is the same as unsigned arithmetic.
+        unsigned {{INT}} r = (unsigned {{INT}}) a + (unsigned {{INT}}) b;
         // Overflow happened if the operands have the same sign, but the result
         // has opposite sign.
-        // sign(a) == sign(b) != sign(r)
-        {{INT}} sign_a = __PYX_SIGN_BIT({{INT}}) & a;
-        {{INT}} sign_b = __PYX_SIGN_BIT({{INT}}) & b;
-        {{INT}} sign_r = __PYX_SIGN_BIT({{INT}}) & r;
-        *overflow |= (sign_a == sign_b) & (sign_a != sign_r);
-        return r;
+        *overflow |= (((unsigned {{INT}})a ^ r) & ((unsigned {{INT}})b ^ r)) >> (8 * sizeof({{INT}}) - 1);
+        return ({{INT}}) r;
     }
-}
-
-static CYTHON_INLINE {{INT}} __Pyx_add_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    if (b > 0) {
-        *overflow |= a > __PYX_MAX({{INT}}) - b;
-    } else if (b < 0) {
-        *overflow |= a < __PYX_MIN({{INT}}) - b;
-    }
-    return a + b;
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    *overflow |= b == __PYX_MIN({{INT}});
-    return __Pyx_add_{{NAME}}_checking_overflow(a, -b, overflow);
-}
-
-static CYTHON_INLINE {{INT}} __Pyx_sub_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    *overflow |= b == __PYX_MIN({{INT}});
-    return __Pyx_add_const_{{NAME}}_checking_overflow(a, -b, overflow);
+    // Compilers don't handle widening as well in the subtraction case, so don't bother
+    unsigned {{INT}} r = (unsigned {{INT}}) a - (unsigned {{INT}}) b;
+    // Overflow happened if the operands differing signs, and the result
+    // has opposite sign to a.
+    *overflow |= (((unsigned {{INT}})a ^ (unsigned {{INT}})b) & ((unsigned {{INT}})a ^ r)) >> (8 * sizeof({{INT}}) - 1);
+    return ({{INT}}) r;
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    if ((sizeof({{INT}}) < sizeof(long))) {
+    // if we have a constant, use the constant version
+    if (__Pyx_is_constant(b)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
+    } else if (__Pyx_is_constant(a)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
+    } else if ((sizeof({{INT}}) < sizeof(long))) {
         long big_r = ((long) a) * ((long) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
@@ -197,16 +281,20 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         return ({{INT}}) r;
 #endif
     } else {
-        {{INT}} prod = a * b;
-        double dprod = ((double) a) * ((double) b);
-        // Overflow results in an error of at least 2^sizeof(INT),
-        // whereas rounding represents an error on the order of 2^(sizeof(INT)-53).
-        *overflow |= fabs(dprod - prod) > (__PYX_MAX({{INT}}) / 2);
-        return prod;
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
     }
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+    // note that deliberately all these comparisons are written such that they divide by b; this
+    // function is used when b is a constant thus the compiler should be able to eliminate the
+    // (very slow on most CPUs!) division operations
+    if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
+        // if a is a compile-time constant and b isn't, swap them
+        {{INT}} temp = b;
+        b = a;
+        a = temp;
+    }
     if (b > 1) {
         *overflow |= a > __PYX_MAX({{INT}}) / b;
         *overflow |= a < __PYX_MIN({{INT}}) / b;
@@ -216,26 +304,26 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
         *overflow |= a > __PYX_MIN({{INT}}) / b;
         *overflow |= a < __PYX_MAX({{INT}}) / b;
     }
-    return a * b;
+    return ({{INT}}) (((unsigned {{INT}})a) * ((unsigned {{INT}}) b));
 }
+#endif  // defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
 static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     if (b == 0) {
         *overflow |= 1;
         return 0;
     }
-    *overflow |= (a == __PYX_MIN({{INT}})) & (b == -1);
-    return a / b;
+    *overflow |= a == __PYX_MIN({{INT}}) && b == -1;
+    return ({{INT}}) ((unsigned {{INT}}) a / (unsigned {{INT}}) b);
 }
+
+{{if INT == "long long"}}#endif{{endif}}
 
 
 /////////////// SizeCheck.init ///////////////
-//@substitute: naming
 
-// FIXME: Propagate the error here instead of just printing it.
-if (unlikely(__Pyx_check_sane_{{NAME}}())) {
-    PyErr_WriteUnraisable($module_cname);
-}
+if (likely(__Pyx_check_sane_{{NAME}}() == 0)); else
+// error propagation code is appended automatically
 
 /////////////// SizeCheck.proto ///////////////
 
@@ -293,19 +381,24 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
 /////////////// LeftShift.proto ///////////////
 
 static CYTHON_INLINE {{TYPE}} __Pyx_lshift_{{NAME}}_checking_overflow({{TYPE}} a, {{TYPE}} b, int *overflow) {
-    *overflow |=
+    int overflow_check =
 #if {{SIGNED}}
-        (b < 0) |
+        (a < 0) || (b < 0) ||
 #endif
-        (b > ({{TYPE}}) (8 * sizeof({{TYPE}}))) | (a > (__PYX_MAX({{TYPE}}) >> b));
-    return a << b;
+        // the following must be a _logical_ OR as the RHS is undefined if the LHS is true
+        (b >= ({{TYPE}}) (8 * sizeof({{TYPE}}))) || (a > (__PYX_MAX({{TYPE}}) >> b));
+    if (overflow_check) {
+        *overflow |= 1;
+        return 0;
+    } else {
+        return a << b;
+    }
 }
 #define __Pyx_lshift_const_{{NAME}}_checking_overflow __Pyx_lshift_{{NAME}}_checking_overflow
 
 
 /////////////// UnaryNegOverflows.proto ///////////////
 
-//FIXME: shouldn't the macro name be prefixed by "__Pyx_" ?  Too late now, I guess...
 // from intobject.c
-#define UNARY_NEG_WOULD_OVERFLOW(x)    \
+#define __Pyx_UNARY_NEG_WOULD_OVERFLOW(x)    \
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))

@@ -1,10 +1,16 @@
 #cython: embedsignature=True, annotation_typing=False
 
+# signatures here are a little fragile - when they are
+# generated during the build process gives slightly
+# different (but equivalent) forms - therefore tests
+# may need changing occasionally to reflect behaviour
+# and this isn't necessarily a bug
+
 import sys
 
 if sys.version_info >= (3, 4):
     def funcdoc(f):
-        if not f.__text_signature__:
+        if not getattr(f, "__text_signature__", None):
             return f.__doc__
         doc = '%s%s' % (f.__name__, f.__text_signature__)
         if f.__doc__:
@@ -78,10 +84,13 @@ __doc__ = ur"""
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a=u'spam')
+    Ext.m(self, a=u'spam', b='foo', c=b'bar')
 
     >>> print (Ext.n.__doc__)
     Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+
+    >>> print (Ext.o.__doc__)
+    Ext.o(self, a, b=1, /, c=5, *args, **kwargs)
 
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
@@ -259,10 +268,13 @@ cdef class Ext:
         """Existing string"""
         pass
 
-    def m(self, a=u'spam'):
+    def m(self, a=u'spam', b='foo', c=b'bar'):
         pass
 
     def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+        pass
+
+    def o(self, a, b=1, /, c=5, *args, **kwargs):
         pass
 
     cpdef int get_int(self):
@@ -397,6 +409,7 @@ lambda_bar = lambda x: 20
 
 
 cdef class Foo:
+    def __init__(self, *args, **kwargs): pass
     def m00(self, a: None) ->  None: pass
     def m01(self, a: ...) ->  Ellipsis: pass
     def m02(self, a: True, b: False) ->  bool: pass
@@ -429,8 +442,13 @@ cdef class Foo:
     def m29(self, a: list(range(3))[0:1:1]): pass
     def m30(self, a: list(range(3))[7, 3:2:1, ...]): pass
     def m31(self, double[::1] a): pass
+    def m32(self, a: tuple[()]) -> tuple[tuple[()]]: pass
 
 __doc__ += ur"""
+>>> print(Foo.__doc__)
+Foo(*args, **kwargs)
+>>> assert Foo.__init__.__doc__ == type.__init__.__doc__
+
 >>> print(Foo.m00.__doc__)
 Foo.m00(self, a: None) -> None
 
@@ -441,16 +459,16 @@ Foo.m01(self, a: ...) -> Ellipsis
 Foo.m02(self, a: True, b: False) -> bool
 
 >>> print(Foo.m03.__doc__)
-Foo.m03(self, a: 42, b: 42, c: -42) -> int
+Foo.m03(self, a: 42, b: +42, c: -42) -> int
 
 >>> print(Foo.m04.__doc__)
-Foo.m04(self, a: 3.14, b: 3.14, c: -3.14) -> float
+Foo.m04(self, a: 3.14, b: +3.14, c: -3.14) -> float
 
 >>> print(Foo.m05.__doc__)
 Foo.m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex
 
 >>> print(Foo.m06.__doc__)
-Foo.m06(self, a: 'abc', b: b'abc', c: u'abc') -> (str, bytes, unicode)
+Foo.m06(self, a: 'abc', b: b'abc', c: 'abc') -> (str, bytes, unicode)
 
 >>> print(Foo.m07.__doc__)
 Foo.m07(self, a: [1, 2, 3], b: []) -> list
@@ -459,7 +477,7 @@ Foo.m07(self, a: [1, 2, 3], b: []) -> list
 Foo.m08(self, a: (1, 2, 3), b: ()) -> tuple
 
 >>> print(Foo.m09.__doc__)
-Foo.m09(self, a: {1, 2, 3}, b: set()) -> set
+Foo.m09(self, a: {1, 2, 3}, b: {i for i in ()}) -> set
 
 >>> print(Foo.m10.__doc__)
 Foo.m10(self, a: {1: 1, 2: 2, 3: 3}, b: {}) -> dict
@@ -526,4 +544,8 @@ Foo.m30(self, a: list(range(3))[7, 3:2:1, ...])
 
 >>> print(Foo.m31.__doc__)
 Foo.m31(self, double[::1] a)
+
+>>> print(Foo.m32.__doc__)
+Foo.m32(self, a: tuple[()]) -> tuple[tuple[()]]
+
 """

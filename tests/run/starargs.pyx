@@ -1,7 +1,6 @@
 cdef sorteditems(d):
-    l = list(d.items())
-    l.sort()
-    return tuple(l)
+    return tuple(sorted(d.items()))
+
 
 def spam(x, y, z):
     """
@@ -79,6 +78,8 @@ def onlyt(*a):
     >>> onlyt(1, a=2)
     Traceback (most recent call last):
     TypeError: onlyt() got an unexpected keyword argument 'a'
+    >>> test_no_copy_args(onlyt)
+    True
     """
     return a
 
@@ -114,3 +115,20 @@ def tk(*a, **k):
     (1, ('a', 1), ('b', 2))
     """
     return a + sorteditems(k)
+
+def t_kwonly(*a, k):
+    """
+    >>> test_no_copy_args(t_kwonly, k=None)
+    True
+    """
+    return a
+
+
+def test_no_copy_args(func, **kw):
+    """
+    func is a function such that func(*args, **kw) returns args.
+    We test that no copy is made of the args tuple.
+    This tests both the caller side and the callee side.
+    """
+    args = (1, 2, 3)
+    return func(*args, **kw) is args

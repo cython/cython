@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 674
+# ticket: t674
 
 def test_inner(a):
     """
