@@ -903,7 +903,7 @@ class __Pyx_FakeReference {
 // These PyCFunction related macros get redefined in CythonFunction.c.
 // We need our own copies because the inline functions in CPython have a type-check assert
 // that breaks with a CyFunction in debug mode.
-#if PY_MAJOR_VERSION >= 0x030900B1
+#if PY_VERSION_HEX >= 0x030900B1
 #define __Pyx_PyCFunction_CheckExact(func)  PyCFunction_CheckExact(func)
 #else
 #define __Pyx_PyCFunction_CheckExact(func)  PyCFunction_Check(func)
