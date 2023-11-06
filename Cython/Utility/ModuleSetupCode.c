@@ -1132,7 +1132,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     #define PyUnicode_DecodeUnicodeEscape(s, size, errors)  PyUnicode_Decode(s, size, "unicode_escape", errors)
   #endif
   #if !defined(PyUnicode_Contains)
-    #undef PyUnicode_Contains
     #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
   #endif
   #if !defined(PyByteArray_Check)
