@@ -17,45 +17,9 @@ cdef class __Pyx_EnumMeta(type):
 
 # @cython.internal
 cdef object __Pyx_EnumBase
-class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
-    def __new__(cls, value, name=None):
-        for v in cls:
-            if v == value:
-                return v
-        if name is None:
-            raise ValueError("Unknown enum value: '%s'" % value)
-        res = int.__new__(cls, value)
-        res.name = name
-        setattr(cls, name, res)
-        cls.__members__[name] = res
-        return res
-    def __repr__(self):
-        return "<%s.%s: %d>" % (self.__class__.__name__, self.name, self)
-    def __str__(self):
-        return "%s.%s" % (self.__class__.__name__, self.name)
-
 from enum import IntEnum as __Pyx_EnumBase
 
 cdef object __Pyx_FlagBase
-class __Pyx_FlagBase(int, metaclass=__Pyx_EnumMeta):
-    def __new__(cls, value, name=None):
-        for v in cls:
-            if v == value:
-                return v
-        res = int.__new__(cls, value)
-        if name is None:
-            # some bitwise combination, no validation here
-            res.name = ""
-        else:
-            res.name = name
-            setattr(cls, name, res)
-            cls.__members__[name] = res
-        return res
-    def __repr__(self):
-        return "<%s.%s: %d>" % (self.__class__.__name__, self.name, self)
-    def __str__(self):
-        return "%s.%s" % (self.__class__.__name__, self.name)
-
 from enum import IntFlag as __Pyx_FlagBase
 
 #################### EnumType ####################
