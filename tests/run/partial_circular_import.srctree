@@ -1,4 +1,4 @@
-PYTHON -c 'if __import__("sys").version_info >= (3,7): import pkg.A'
+PYTHON -c 'import pkg.A'
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import pkg.A"
 
