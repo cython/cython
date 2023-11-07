@@ -792,7 +792,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
         from .. import __version__
-        code.putln('#if CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
+        code.putln('#if defined(CYTHON_LIMITED_API) && CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
         # The limited API makes some significant changes to data structures, so we don't
         # want to shared implementation compiled with and without the limited API.
         code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME "limited"')
@@ -3618,15 +3618,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
 
         code.putln(
-            '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef(__Pyx_BUILTIN_MODULE_NAME); %s' % (
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
-        code.put_incref(Naming.builtins_cname, py_object_type, nanny=False)
         code.putln(
-            '%s = PyImport_AddModule((char *) "cython_runtime"); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef((const char *) "cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
-        code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
         code.putln(
             'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s' % (
                 env.module_cname,
@@ -3634,11 +3632,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
-                '%s = PyImport_AddModule("%s"); %s' % (
+                '%s = __Pyx_PyImport_AddModuleRef("%s"); %s' % (
                     Naming.preimport_cname,
                     Options.pre_import,
                     code.error_goto_if_null(Naming.preimport_cname, self.pos)))
-            code.put_incref(Naming.preimport_cname, py_object_type, nanny=False)
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *

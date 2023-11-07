@@ -854,25 +854,22 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
 #define __Pyx_PyString_Join PyUnicode_Join
 #define __Pyx_PyBaseString_Join PyUnicode_Join
 #endif
-
-#if CYTHON_COMPILING_IN_CPYTHON
-    #if PY_MAJOR_VERSION < 3
-    #define __Pyx_PyBytes_Join _PyString_Join
-    #else
-    #define __Pyx_PyBytes_Join _PyBytes_Join
-    #endif
-#else
 static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values); /*proto*/
-#endif
-
 
 //////////////////// StringJoin ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 
-#if !CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values) {
-    return PyObject_CallMethodObjArgs(sep, PYIDENT("join"), values, NULL);
-}
+    // avoid unused function
+    (void) __Pyx_PyObject_CallMethod1;
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION < 3
+    return _PyString_Join(sep, values);
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+    return _PyBytes_Join(sep, values);
+#else
+    return __Pyx_PyObject_CallMethod1(sep, PYIDENT("join"), values);
 #endif
+}
 
 
 /////////////// JoinPyUnicode.proto ///////////////
@@ -927,7 +924,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
         if (!CYTHON_PEP393_ENABLED || ukind == result_ukind) {
             memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));
         } else {
-            #if PY_VERSION_HEX >= 0x030D0000
+            #if PY_VERSION_HEX >= 0x030d0000
             if (unlikely(PyUnicode_CopyCharacters(result_uval, char_pos, uval, 0, ulength) < 0)) goto bad;
             #elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030300F0 || defined(_PyUnicode_FastCopyCharacters)
             _PyUnicode_FastCopyCharacters(result_uval, char_pos, uval, 0, ulength);
@@ -1223,7 +1220,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatSimpleAndDecref(PyObject* s,
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatAndDecref(PyObject* s, PyObject* f) {
-    PyObject *result = PyObject_Format(s, f);
+    PyObject *result;
+    if (unlikely(!s)) return NULL;
+    result = PyObject_Format(s, f);
     Py_DECREF(s);
     return result;
 }

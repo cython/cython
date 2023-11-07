@@ -745,6 +745,8 @@ class FunctionState(object):
 
         self.error_without_exception = False
 
+        self.needs_refnanny = False
+
     # safety checks
 
     def validate_exit(self):

@@ -679,8 +679,10 @@ class __Pyx_FakeReference {
         // constructor with version.
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
+        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
         PyObject *version_info; // borrowed
         PyObject *py_minor_version = NULL;
+        #endif
         long minor_version = 0;
         PyObject *type, *value, *traceback;
 
@@ -694,6 +696,7 @@ class __Pyx_FakeReference {
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
         if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
         minor_version = PyLong_AsLong(py_minor_version);
+        Py_DECREF(py_minor_version);
         if (minor_version == -1 && PyErr_Occurred()) goto end;
         #endif
 
@@ -731,7 +734,6 @@ class __Pyx_FakeReference {
         Py_XDECREF(code_type);
         Py_XDECREF(exception_table);
         Py_XDECREF(types_module);
-        Py_XDECREF(py_minor_version);
         if (type) {
             PyErr_Restore(type, value, traceback);
         }
@@ -898,6 +900,39 @@ class __Pyx_FakeReference {
   #define __Pyx_PyVectorcall_NARGS(n)  ((Py_ssize_t)(n))
 #endif
 
+// These PyCFunction related macros get redefined in CythonFunction.c.
+// We need our own copies because the inline functions in CPython have a type-check assert
+// that breaks with a CyFunction in debug mode.
+#if PY_VERSION_HEX >= 0x030900B1
+#define __Pyx_PyCFunction_CheckExact(func)  PyCFunction_CheckExact(func)
+#else
+#define __Pyx_PyCFunction_CheckExact(func)  PyCFunction_Check(func)
+#endif
+#define __Pyx_CyOrPyCFunction_Check(func)  PyCFunction_Check(func)
+
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_CyOrPyCFunction_GET_FUNCTION(func)  (((PyCFunctionObject*)(func))->m_ml->ml_meth)
+#elif !CYTHON_COMPILING_IN_LIMITED_API
+// It's probably easier for non-CPythons to support PyCFunction_GET_FUNCTION() than the object struct layout.
+#define __Pyx_CyOrPyCFunction_GET_FUNCTION(func)  PyCFunction_GET_FUNCTION(func)
+// Unused in CYTHON_COMPILING_IN_LIMITED_API.
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_CyOrPyCFunction_GET_FLAGS(func)  (((PyCFunctionObject*)(func))->m_ml->ml_flags)
+static CYTHON_INLINE PyObject* __Pyx_CyOrPyCFunction_GET_SELF(PyObject *func) {
+    return (__Pyx_CyOrPyCFunction_GET_FLAGS(func) & METH_STATIC) ? NULL : ((PyCFunctionObject*)func)->m_self;
+}
+// Only used if CYTHON_COMPILING_IN_CPYTHON.
+#endif
+static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    return PyCFunction_Check(func) && PyCFunction_GetFunction(func) == (PyCFunction) cfunc;
+#else
+    return PyCFunction_Check(func) && PyCFunction_GET_FUNCTION(func) == (PyCFunction) cfunc;
+#endif
+}
+#define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCFunction(func, cfunc)
+
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
 #if __PYX_LIMITED_VERSION_HEX < 0x030900B1
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
@@ -928,6 +963,10 @@ class __Pyx_FakeReference {
   #define __Pyx_PyThreadState_Current PyThreadState_Get()
 #elif !CYTHON_FAST_THREAD_STATE
   #define __Pyx_PyThreadState_Current PyThreadState_GET()
+#elif PY_VERSION_HEX >= 0x030d00A1
+  //#elif PY_VERSION_HEX >= 0x03050200
+  // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
+  #define __Pyx_PyThreadState_Current PyThreadState_GetUnchecked()
 #elif PY_VERSION_HEX >= 0x03060000
   //#elif PY_VERSION_HEX >= 0x03050200
   // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
@@ -1021,7 +1060,7 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
     #endif
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
@@ -1035,9 +1074,9 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B4 && CYTHON_USE_UNICODE_INTERNALS
-// _PyDict_GetItem_KnownHash() exists since CPython 3.5, but it was
-// dropping exceptions. Since 3.6, exceptions are kept.
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B4 && PY_VERSION_HEX < 0x030d0000 && CYTHON_USE_UNICODE_INTERNALS
+// _PyDict_GetItem_KnownHash() existed from CPython 3.5 to 3.12, but it was
+// dropping exceptions in 3.5. Since 3.6, exceptions are kept.
 #define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject *name) {
     PyObject *res = __Pyx_PyDict_GetItemStrWithError(dict, name);
@@ -1100,7 +1139,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
 #define __Pyx_PyHeapTypeObject_GC_Del(obj)  { \
-    PyTypeObject *type = Py_TYPE(obj); \
+    PyTypeObject *type = Py_TYPE((PyObject*)obj); \
     assert(__Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)); \
     PyObject_GC_Del(obj); \
     Py_DECREF(type); \
@@ -1268,6 +1307,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PySet_GET_SIZE(o) PySet_Size(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_Size(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
+#endif
+
+#if PY_VERSION_HEX >= 0x030d00A1
+  #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
+#else
+  static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
+      PyObject *module = PyImport_AddModule(name);
+      Py_XINCREF(module);
+      return module;
+  }
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -1802,12 +1851,12 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
 
 /////////////// CheckBinaryVersion.proto ///////////////
 
-static unsigned long __Pyx_get_runtime_version();
+static unsigned long __Pyx_get_runtime_version(void);
 static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer);
 
 /////////////// CheckBinaryVersion ///////////////
 
-static unsigned long __Pyx_get_runtime_version() {
+static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
 #if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
     return Py_Version & ~0xFFUL;
@@ -2230,9 +2279,12 @@ static void __Pyx_FastGilFuncInit0(void) {
     __Pyx_FastGIL_Remember = __Pyx_FastGIL_Remember0;
     __Pyx_FastGIL_Forget = __Pyx_FastGIL_Forget0;
     capsule = PyCapsule_New(&__Pyx_FastGilFuncs, __Pyx_FastGIL_PyCapsule, NULL);
-    abi_module = PyImport_AddModule(__Pyx_FastGIL_ABI_module);
-    if (capsule && abi_module) {
-      PyObject_SetAttrString(abi_module, __Pyx_FastGIL_PyCapsuleName, capsule);
+    if (capsule) {
+        abi_module = __Pyx_PyImport_AddModuleRef(__Pyx_FastGIL_ABI_module);
+        if (abi_module) {
+          PyObject_SetAttrString(abi_module, __Pyx_FastGIL_PyCapsuleName, capsule);
+          Py_DECREF(abi_module);
+        }
     }
     Py_XDECREF(capsule);
   }

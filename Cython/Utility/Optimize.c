@@ -34,7 +34,14 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     Py_ssize_t len = Py_SIZE(list);
     if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+        // However, extending the size *before* setting the value would not be correct,
+        // so we cannot call PyList_SET_ITEM().
+        L->ob_item[len] = x;
+        #else
         PyList_SET_ITEM(list, len, x);
+        #endif
         __Pyx_SET_SIZE(list, len + 1);
         return 0;
     }
@@ -52,7 +59,14 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
     Py_ssize_t len = Py_SIZE(list);
     if (likely(L->allocated > len)) {
         Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        // In Py3.13a1, PyList_SET_ITEM() checks that the end index is lower than the current size.
+        // However, extending the size *before* setting the value would not be correct,
+        // so we cannot call PyList_SET_ITEM().
+        L->ob_item[len] = x;
+        #else
         PyList_SET_ITEM(list, len, x);
+        #endif
         __Pyx_SET_SIZE(list, len + 1);
         return 0;
     }
@@ -65,7 +79,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 //////////////////// ListExtend.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     PyObject* none = _PyList_Extend((PyListObject*)L, v);
     if (unlikely(!none))
         return -1;
@@ -280,7 +294,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
 /////////////// py_dict_pop ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3 & PY_VERSION_HEX < 0x030d0000
     if ((1)) {
         return _PyDict_Pop(d, key, default_value);
     } else
@@ -440,7 +454,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
 
 static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set,
                                                   Py_ssize_t* p_orig_length, int* p_source_is_set) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable));
     *p_source_is_set = is_set;
     if (likely(is_set)) {
@@ -460,7 +474,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         PyObject* iter_obj, Py_ssize_t orig_length,
         Py_ssize_t* ppos, PyObject **value,
         int source_is_set) {
-    if (!CYTHON_COMPILING_IN_CPYTHON || unlikely(!source_is_set)) {
+    if (!CYTHON_COMPILING_IN_CPYTHON || PY_VERSION_HEX >= 0x030d0000 || unlikely(!source_is_set)) {
         *value = PyIter_Next(iter_obj);
         if (unlikely(!*value)) {
             return __Pyx_IterFinish();
@@ -469,7 +483,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         CYTHON_UNUSED_VAR(ppos);
         return 1;
     }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     if (unlikely(PySet_GET_SIZE(iter_obj) != orig_length)) {
         PyErr_SetString(
             PyExc_RuntimeError,
@@ -674,7 +688,7 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
 /////////////// pyunicode_as_double.proto ///////////////
 //@requires: pybytes_as_double
 
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY && CYTHON_ASSUME_SAFE_MACROS
 static const char* __Pyx__PyUnicode_AsDouble_Copy(const void* data, const int kind, char* buffer, Py_ssize_t start, Py_ssize_t end) {
     int last_was_punctuation;
     Py_ssize_t i;
@@ -798,7 +812,7 @@ fallback:
 
 static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
     // Currently not optimised for Py2.7.
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY && CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(__Pyx_PyUnicode_READY(obj) == -1))
         return (double)-1;
     if (likely(PyUnicode_IS_ASCII(obj))) {
@@ -820,10 +834,32 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj);/*proto*/
 static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length);/*proto*/
 
 static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
-    return __Pyx__PyBytes_AsDouble(obj, PyBytes_AS_STRING(obj), PyBytes_GET_SIZE(obj));
+    char* as_c_string;
+    Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS
+    as_c_string = PyBytes_AS_STRING(obj);
+    size = PyBytes_GET_SIZE(obj);
+#else
+    if (PyBytes_AsStringAndSize(obj, &as_c_string, &size) < 0) {
+        return (double)-1;
+    }
+#endif
+    return __Pyx__PyBytes_AsDouble(obj, as_c_string, size);
 }
 static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
-    return __Pyx__PyBytes_AsDouble(obj, PyByteArray_AS_STRING(obj), PyByteArray_GET_SIZE(obj));
+    char* as_c_string;
+    Py_ssize_t size;
+#if CYTHON_ASSUME_SAFE_MACROS
+    as_c_string = PyByteArray_AS_STRING(obj);
+    size = PyByteArray_GET_SIZE(obj);
+#else
+    as_c_string = PyByteArray_AsString(obj);
+    if (as_c_string == NULL) {
+        return (double)-1;
+    }
+    size = PyByteArray_Size(obj);
+#endif
+    return __Pyx__PyBytes_AsDouble(obj, as_c_string, size);
 }
 
 
@@ -837,7 +873,11 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
     float_value = PyFloat_FromString(obj, 0);
 #endif
     if (likely(float_value)) {
+#if CYTHON_ASSUME_SAFE_MACROS
         double value = PyFloat_AS_DOUBLE(float_value);
+#else
+        double value = PyFloat_AsDouble(float_value);
+#endif
         Py_DECREF(float_value);
         return value;
     }

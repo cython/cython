@@ -179,7 +179,6 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
 #if PY_VERSION_HEX >= 0x030C00A6
     PyObject *tmp_value;
     assert(type == NULL || (value != NULL && type == (PyObject*) Py_TYPE(value)));
-    CYTHON_UNUSED_VAR(type);
     if (value) {
         #if CYTHON_COMPILING_IN_CPYTHON
         if (unlikely(((PyBaseExceptionObject*) value)->traceback != tb))
@@ -190,6 +189,8 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
     tmp_value = tstate->current_exception;
     tstate->current_exception = value;
     Py_XDECREF(tmp_value);
+    Py_XDECREF(type);
+    Py_XDECREF(tb);
 #else
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     tmp_type = tstate->curexc_type;
@@ -934,12 +935,12 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         Py_DECREF(replace);
         return result;
     }
+    PyErr_Clear();
 
     #if __PYX_LIMITED_VERSION_HEX < 0x030780000
     // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
     // In this we take a lazy interpreted route (without regard to performance
     // since it's fairly old and this is mostly just to get something working)
-    PyErr_Clear();
     {
         PyObject *compiled = NULL, *result = NULL;
         if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
@@ -959,6 +960,8 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         if (result) Py_INCREF(result);
         return result;
     }
+    #else
+    return NULL;
     #endif
 }
 

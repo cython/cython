@@ -25,7 +25,7 @@ import operator
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
-    CannotSpecialize)
+    CannotSpecialize, performance_hint)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -1526,9 +1526,9 @@ class FloatNode(ConstNode):
 
     def compile_time_value(self, denv):
         float_value = float(self.value)
-        # It's difficult to warn about '1E5' notation because the user input is not easy to reproduce programmatically.
-        # Therefore, we only warn about simple fractional float value representations that are not copied literally.
-        if self.value.replace('.', '').isdigit() and repr(float_value) != self.value:
+        str_float_value = ("%.330f" % float_value).strip('0')
+        str_value = Utils.normalise_float_repr(self.value)
+        if str_value not in (str_float_value, repr(float_value).lstrip('0')):
             warning(self.pos, "Using this floating point value with DEF may lose precision, using %r" % float_value)
         return float_value
 
@@ -4908,7 +4908,6 @@ class MemoryViewIndexNode(BufferIndexNode):
 
     is_memview_index = True
     is_buffer_access = False
-    warned_untyped_idx = False
 
     def analyse_types(self, env, getting=True):
         # memoryviewslice indexing or slicing
@@ -4964,9 +4963,8 @@ class MemoryViewIndexNode(BufferIndexNode):
                         new_indices.append(value)
 
             elif index.type.is_int or index.type.is_pyobject:
-                if index.type.is_pyobject and not self.warned_untyped_idx:
-                    warning(index.pos, "Index should be typed for more efficient access", level=2)
-                    MemoryViewIndexNode.warned_untyped_idx = True
+                if index.type.is_pyobject:
+                    performance_hint(index.pos, "Index should be typed for more efficient access", env)
 
                 self.is_memview_index = True
                 index = index.coerce_to(index_type, env)
@@ -6342,12 +6340,6 @@ class SimpleCallNode(CallNode):
             if needs_cpp_exception_conversion(func_type):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
-        if (func_type.exception_value is not None or
-                func_type.exception_check and func_type.exception_check != '+'):
-            if env.nogil:
-                # need to generate refnanny for testing because of exception check
-                env.has_with_gil_block = True
-
         self.overflowcheck = env.directives['overflowcheck']
 
     def calculate_result_code(self):
@@ -6489,6 +6481,10 @@ class SimpleCallNode(CallNode):
                     exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
                 if exc_check:
                     if nogil:
+                        if not exc_checks:
+                            PyrexTypes.write_noexcept_performance_hint(
+                                self.pos, code.funcstate.scope,
+                                function_name=None, void_return=self.type.is_void)
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
@@ -12881,7 +12877,7 @@ class CondExprNode(ExprNode):
         elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
             error(self.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
 
-        if true_val_type.is_pyobject or false_val_type.is_pyobject:
+        if true_val_type.is_pyobject or false_val_type.is_pyobject or self.type.is_pyobject:
             if true_val_type != self.type:
                 self.true_val = self.true_val.coerce_to(self.type, env)
             if false_val_type != self.type:
@@ -12897,7 +12893,16 @@ class CondExprNode(ExprNode):
         if not self.false_val.type.is_int:
             self.false_val = self.false_val.coerce_to_integer(env)
         self.result_ctype = None
-        return self.analyse_result_type(env)
+        out = self.analyse_result_type(env)
+        if not out.type.is_int:
+            # fall back to ordinary coercion since we haven't ended as the correct type
+            if out is self:
+                out = super(CondExprNode, out).coerce_to_integer(env)
+            else:
+                # I believe `analyse_result_type` always returns a CondExprNode but
+                # handle the opposite case just in case
+                out = out.coerce_to_integer(env)
+        return out
 
     def coerce_to(self, dst_type, env):
         if self.true_val.type != dst_type:
@@ -12905,7 +12910,16 @@ class CondExprNode(ExprNode):
         if self.false_val.type != dst_type:
             self.false_val = self.false_val.coerce_to(dst_type, env)
         self.result_ctype = None
-        return self.analyse_result_type(env)
+        out = self.analyse_result_type(env)
+        if out.type != dst_type:
+            # fall back to ordinary coercion since we haven't ended as the correct type
+            if out is self:
+                out = super(CondExprNode, out).coerce_to(dst_type, env)
+            else:
+                # I believe `analyse_result_type` always returns a CondExprNode but
+                # handle the opposite case just in case
+                out = out.coerce_to(dst_type, env)
+        return out
 
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
