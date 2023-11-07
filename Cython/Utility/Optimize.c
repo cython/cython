@@ -1225,8 +1225,13 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
             return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif c_op == '%'}}
             // see CMath.c :: ModInt utility code
-            x = a % b;
-            x += ((x != 0) & ((x ^ b) < 0)) * b;
+            if (unlikely((b & (b - 1)) == 0)) {
+                x = b & (b-1) ? a % b : a & (b-1);
+            }
+            else {
+                x = a % b;
+                x += ((x != 0) & ((x ^ b) < 0)) * b;
+            }
             return PyInt_FromLong(x);
         {{elif op == 'TrueDivide'}}
             if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53))) {
