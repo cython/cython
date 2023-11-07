@@ -117,7 +117,7 @@ static Py_ssize_t __Pyx_zeros[] = { {{ ", ".join(["0"] * max_dims) }} };
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (unlikely(info->buf == NULL)) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  PyObject_ReleaseBuffer(info);
+  PyBuffer_Release(info);
 }
 
 static void __Pyx_ZeroBuffer(Py_buffer* buf) {

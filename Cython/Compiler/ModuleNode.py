@@ -1983,7 +1983,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
-            # Note: shouldn't this call PyObject_ReleaseBuffer ??
+            # Note: shouldn't this call PyBuffer_Release ??
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
