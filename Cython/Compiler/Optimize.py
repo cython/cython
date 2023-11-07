@@ -5059,7 +5059,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
     def _check_positional_args_for_method_call(self, positional_args):
         # Do the positional args imply we can substitute a PyMethodCallNode
         return isinstance(positional_args, ExprNodes.TupleNode) and not (
-            positional_args.mult_factor or (positional_args.is_literal and len(positional_args) > 1))
+            positional_args.mult_factor or (positional_args.is_literal and len(positional_args.args) > 1))
     
     def _check_function_may_be_method_call(self, function):
         may_be_a_method = True

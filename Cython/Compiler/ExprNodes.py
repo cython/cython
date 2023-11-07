@@ -6674,7 +6674,7 @@ class PyMethodCallNode(CallNode):
                         keyvalue.key.py_result(),
                         keyvalue.value.py_result(),
                         kwnames_temp,
-                        (len(args) + 1) if args else 2,
+                        len(args) + 1,
                         n
                 ))
 
