@@ -228,7 +228,6 @@ class ClassEqNeGe(ClassEqNe):
     False
 
     >>> 'x' <= a  # doctest: +ELLIPSIS
-    ... else: 'x' <= a
     Traceback (most recent call last):
     TypeError...
     >>> a >= 'x'  # doctest: +ELLIPSIS

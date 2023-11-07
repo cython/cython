@@ -36,7 +36,7 @@ cdef extern from "stdint.h":
 def from_typedef_int_array():
     """
     >>> from_typedef_int_array()
-    '[1, 2, 3]'
+    [1, 2, 3]
     """
     cdef uint32_t[3] v
     v[0] = 1
@@ -48,7 +48,7 @@ def from_typedef_int_array():
 cpdef tuple tuple_from_typedef_int_array():
     """
     >>> tuple_from_typedef_int_array()
-    '(1, 2, 3)'
+    (1, 2, 3)
     """
     cdef uint32_t[3] v
     v[0] = 1
