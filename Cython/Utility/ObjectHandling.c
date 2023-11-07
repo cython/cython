@@ -2324,7 +2324,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #endif
 
     if (kwargs == NULL) {
-        #if CYTHON_VECTORCALL
+        #if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
         #if PY_VERSION_HEX < 0x03090000
         vectorcallfunc f = _PyVectorcall_Function(func);
         #else
@@ -2352,6 +2352,40 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #endif
 }
 
+/////////////// PyObjectVectorCallKwBuilder.proto ////////////////
+//@requires: PyObjectFastCall
+// For versions that define PyObject_Vectorcall, use PyObject_Vectorcall and define functions to build a kwnames tuple and add arguments to args.
+// For versions that don't, use __Pyx_PyObject_FastCallDict and functions to build a keyword dictionary
+
+#if CYTHON_VECTORCALL
+#define __Pyx_Object_Vectorcall_CallFromBuilder PyObject_Vectorcall
+
+#define __Pyx_MakeVectorcallBuilderKwds(n) PyTuple_New(n)
+int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
+#else
+#define __Pyx_Object_Vectorcall_CallFromBuilder __Pyx_PyObject_FastCall
+
+#define __Pyx_MakeVectorcallBuilderKwds(n) PyDict_New()
+#define __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n) PyDict_SetItem(key, value)
+#endif
+
+
+
+/////////////// PyObjectVectorCallKwBuilder ////////////////
+
+#if (PY_VERSION_HEX >= 0x03080000 && !CYTHON_COMPILING_IN_LIMITED_API) || __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
+    (void)__Pyx_PyObject_FastCallDict;
+#if CYTHON_ASSUME_SAFE_MACROS
+    PyTuple_SET_ITEM(builder, n, key);
+#else
+    if (PyTuple_SetItem(builder, n, key)) return -1;
+#endif
+    Py_INCREF(key);
+    args[n] = value;
+    return 0;
+}
+#endif
 
 /////////////// PyObjectCallMethod0.proto ///////////////
 

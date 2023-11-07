@@ -5048,6 +5048,38 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             lhs = node.lhs
             lhs.lhs_of_first_assignment = True
         return node
+    
+    def _check_optimize_method_calls(self, node):
+        function = node.function
+        return (node.is_temp and function.type.is_pyobject and self.current_directives.get(
+                "optimize.unpack_method_calls_in_pyinit"
+                if not self.in_loop and self.current_env().is_module_scope
+                else "optimize.unpack_method_calls"))
+    
+    def _check_positional_args_for_method_call(self, positional_args):
+        # Do the positional args imply we can substitute a PyMethodCallNode
+        return isinstance(positional_args, ExprNodes.TupleNode) and not (
+            positional_args.mult_factor or (positional_args.is_literal and len(positional_args) > 1))
+    
+    def _check_function_may_be_method_call(self, function):
+        may_be_a_method = True
+        if function.type is Builtin.type_type:
+            may_be_a_method = False
+        elif function.is_attribute:
+            if function.entry and function.entry.type.is_cfunction:
+                # optimised builtin method
+                may_be_a_method = False
+        elif function.is_name:
+            entry = function.entry
+            if entry.is_builtin or entry.type.is_cfunction:
+                may_be_a_method = False
+            elif entry.cf_assignments:
+                # local functions/classes are definitely not methods
+                non_method_nodes = (ExprNodes.PyCFunctionNode, ExprNodes.ClassNode, ExprNodes.Py3ClassNode)
+                may_be_a_method = any(
+                    assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
+                    for assignment in entry.cf_assignments)
+        return may_be_a_method
 
     def visit_SimpleCallNode(self, node):
         """
@@ -5065,38 +5097,35 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif (node.is_temp and function.type.is_pyobject and self.current_directives.get(
-                "optimize.unpack_method_calls_in_pyinit"
-                if not self.in_loop and self.current_env().is_module_scope
-                else "optimize.unpack_method_calls")):
+        elif self._check_optimize_method_calls(node):
             # optimise simple Python methods calls
-            if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
-                    node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and len(node.arg_tuple.args) > 1)):
+            if self._check_positional_args_for_method_call(node):
                 # simple call, now exclude calls to objects that are definitely not methods
-                may_be_a_method = True
-                if function.type is Builtin.type_type:
-                    may_be_a_method = False
-                elif function.is_attribute:
-                    if function.entry and function.entry.type.is_cfunction:
-                        # optimised builtin method
-                        may_be_a_method = False
-                elif function.is_name:
-                    entry = function.entry
-                    if entry.is_builtin or entry.type.is_cfunction:
-                        may_be_a_method = False
-                    elif entry.cf_assignments:
-                        # local functions/classes are definitely not methods
-                        non_method_nodes = (ExprNodes.PyCFunctionNode, ExprNodes.ClassNode, ExprNodes.Py3ClassNode)
-                        may_be_a_method = any(
-                            assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
-                            for assignment in entry.cf_assignments)
-                if may_be_a_method:
+                if self._check_function_may_be_method_call(function):
                     if (node.self and function.is_attribute and
                             isinstance(function.obj, ExprNodes.CloneNode) and function.obj.arg is node.self):
                         # function self object was moved into a CloneNode => undo
                         function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))
+        return node
+    
+    def visit_GeneralCallNode(self, node):
+        """
+        Replace likely Python method calls by a specialised PyMethodCallNode.
+        """
+        self.visitchildren(node)
+        if not self._check_optimize_method_calls(node):
+            return node
+        if not self._check_positional_args_for_method_call(node.positional_args):
+            return node
+        function = node.function
+        if not self._check_function_may_be_method_call(function):
+            return node
+
+        node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
+            node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args, 
+            type=node.type))
         return node
 
     def visit_NumPyMethodCallNode(self, node):

@@ -6545,15 +6545,17 @@ class NumPyMethodCallNode(ExprNode):
             ", ".join(a.pythran_result() for a in args)))
 
 
-class PyMethodCallNode(SimpleCallNode):
+class PyMethodCallNode(CallNode):
     # Specialised call to a (potential) PyMethodObject with non-constant argument tuple.
     # Allows the self argument to be injected directly instead of repacking a tuple for it.
     #
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
+    # kwdict      ExprNode or Node  keyword dictionary (if present)
 
-    subexprs = ['function', 'arg_tuple']
+    subexprs = ['function', 'arg_tuple', 'kwdict']
     is_temp = True
+    kwdict = None
 
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
@@ -6562,8 +6564,15 @@ class PyMethodCallNode(SimpleCallNode):
         self.function.generate_evaluation_code(code)
         assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
+        use_kwnames = False
         for arg in args:
             arg.generate_evaluation_code(code)
+        if isinstance(self.kwdict, DictNode):
+            use_kwnames = True 
+            for keyvalue in self.kwdict.key_value_pairs:
+                keyvalue.generate_evaluation_code(code)
+        elif self.kwdict:
+            self.kwdict.generate_evaluation_code(code)
 
         # make sure function is in temp so that we can replace the reference below if it's a method
         reuse_function_temp = self.function.is_temp
@@ -6619,25 +6628,67 @@ class PyMethodCallNode(SimpleCallNode):
         code.putln("#endif")  # CYTHON_UNPACK_METHODS
         # TODO may need to deal with unused variables in the #else case
 
+        if use_kwnames:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectVectorCallKwBuilder", "ObjectHandling.c"))
+            function_caller = "__Pyx_Object_Vectorcall_CallFromBuilder"
+            kwnames_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            code.putln("%s = __Pyx_MakeVectorcallBuilderKwds(%s); %s" % (
+                kwnames_temp, len(self.kwdict.key_value_pairs),
+                code.error_goto_if_null(kwnames_temp, self.pos)
+            ))
+        elif self.kwdict:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
+            function_caller = "__Pyx_PyObject_FastCallDict"
+        else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
+            function_caller = "__Pyx_PyObject_FastCall"
         # actually call the function
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
+        
 
         code.putln("{")
+        extra_keyword_args = ""
+        if use_kwnames:
+            extra_keyword_args = ("+ ((CYTHON_VECTORCALL) ? %d : 0)" %
+                len(self.kwdict.key_value_pairs))
         # To avoid passing an out-of-bounds argument pointer in the no-args case,
         # we need at least two entries, so we pad with NULL and point to that.
         # See https://github.com/cython/cython/issues/5668
-        code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
+        code.putln("PyObject *__pyx_callargs[%d%s] = {%s, %s};" % (
             (len(args) + 1) if args else 2,
+            extra_keyword_args,
             self_arg,
             ', '.join(arg.py_result() for arg in args) if args else "NULL",
         ))
-        code.putln("%s = __Pyx_PyObject_FastCall(%s, __pyx_callargs+1-%s, %d+%s);" % (
+        if use_kwnames:
+            for n, keyvalue in enumerate(self.kwdict.key_value_pairs):
+                code.put_error_if_neg(
+                    self.pos,
+                    "__Pyx_VectorcallBuilder_AddArg(%s, %s, %s, __pyx_callargs+%d, %d)" % (
+                        keyvalue.key.py_result(),
+                        keyvalue.value.py_result(),
+                        kwnames_temp,
+                        (len(args) + 1) if args else 2,
+                        n
+                ))
+
+        keyword_variable = ""
+        if use_kwnames:
+            keyword_variable = kwnames_temp
+        elif self.kwdict:
+            keyword_variable = self.kwdict.result()
+        if keyword_variable:
+            keyword_variable = ", %s" % keyword_variable
+        code.putln("%s = %s(%s, __pyx_callargs+1-%s, %d+%s%s);" % (
             self.result(),
+            function_caller,
             function,
             arg_offset_cname,
             len(args),
-            arg_offset_cname))
+            arg_offset_cname,
+            keyword_variable))
 
         code.put_xdecref_clear(self_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
@@ -6645,6 +6696,15 @@ class PyMethodCallNode(SimpleCallNode):
         for arg in args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
+        if use_kwnames:
+            for keyvalue in self.kwdict.key_value_pairs:
+                keyvalue.generate_disposal_code(code)
+                keyvalue.free_temps(code)
+            code.put_decref_clear(kwnames_temp, py_object_type)
+            code.funcstate.release_temp(kwnames_temp)
+        elif self.kwdict:
+            self.kwdict.generate_disposal_code(code)
+            self.kwdict.free_temps(code)
         code.putln(code.error_goto_if_null(self.result(), self.pos))
         self.generate_gotref(code)
 
@@ -9170,9 +9230,9 @@ class DictNode(ExprNode):
     #  Dictionary constructor.
     #
     #  key_value_pairs     [DictItemNode]
-    #  exclude_null_values [boolean]          Do not add NULL values to dict
+    #  exclude_null_values boolean          Do not add NULL values to dict
     #
-    # obj_conversion_errors    [PyrexError]   used internally
+    # obj_conversion_errors    PyrexError   used internally
 
     subexprs = ['key_value_pairs']
     is_temp = 1
