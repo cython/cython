@@ -27,6 +27,8 @@ cdef extern from "<string.h>":
 
 cdef extern from *:
     bint __PYX_CYTHON_ATOMICS_ENABLED()
+    int PyObject_GetBuffer(object, Py_buffer *, int) except -1
+    void PyObject_ReleaseBuffer(Py_buffer *)
 
     ctypedef struct PyObject
     ctypedef Py_ssize_t Py_intptr_t
