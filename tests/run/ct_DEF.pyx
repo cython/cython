@@ -3,18 +3,7 @@
 
 cimport cython
 
-__doc__ = u"""
-    >>> s()
-    b'spam'
-"""
-
 _unicode = unicode
-
-import sys
-IS_PY3 = sys.version_info[0] >= 3
-
-if not IS_PY3:
-    __doc__ = __doc__.replace(u" b'", u" '")
 
 
 def print_large_number(n):
@@ -125,7 +114,8 @@ def f():
 
 def s():
     """
-    see module docstring above
+    >>> s()
+    b'spam'
     """
     cdef char* s = BYTES
     return s

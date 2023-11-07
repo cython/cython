@@ -73,10 +73,6 @@ def test_fused_cpdef():
 
 
 midimport_run = io.StringIO()
-if sys.version_info.major < 3:
-    # Monkey-patch midimport_run.write to accept non-unicode strings under Python 2.
-    midimport_run.write = lambda c: io.StringIO.write(midimport_run, unicode(c))
-
 realstdout = sys.stdout
 sys.stdout = midimport_run
 

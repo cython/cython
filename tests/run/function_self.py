@@ -4,7 +4,6 @@
 # cython: binding=True
 
 import cython
-import sys
 
 def regular(x):
     """
@@ -54,9 +53,7 @@ class C:
     def fused(self, x):
         return x
 
-__doc__ = ""
-if sys.version_info[0] > 2 or cython.compiled:
-    __doc__ += """
+__doc__ = """
     >>> hasattr(C.regular, "__self__")  # __self__==None on pure-python 2
     False
 
@@ -65,10 +62,10 @@ if sys.version_info[0] > 2 or cython.compiled:
     Traceback (most recent call last):
         ...
     AttributeError: 'function' object has no attribute '__self__'...
-    """
+"""
 
 if cython.compiled:
-    __doc__ = """
+    __doc__ += """
     >>> hasattr(fused['double'], '__self__')
     False
 
@@ -82,4 +79,4 @@ if cython.compiled:
     # The PR that changed __self__ also changed how __doc__ is set up slightly
     >>> fused['double'].__doc__ == fused.__doc__ and isinstance(fused.__doc__, str)
     True
-    """
+"""

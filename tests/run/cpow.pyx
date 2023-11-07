@@ -4,14 +4,7 @@
 from __future__ import print_function
 
 cimport cython
-import sys
 
-if sys.version_info[0] > 2:
-    # The <object> path doesn't work in Py2
-    __doc__ = """
-    >>> pow_double_double(-4, 0.5, 1e-15)
-    soft double complex complex
-    """
 
 def pow_double_double(double a, double b, delta):
     """
@@ -19,6 +12,8 @@ def pow_double_double(double a, double b, delta):
     soft double complex float
     >>> pow_double_double(4, 0.5, 1e-15)
     soft double complex float
+    >>> pow_double_double(-4, 0.5, 1e-15)
+    soft double complex complex
     """
     c = a**b
     # print out the Cython type, and the coerced type
