@@ -6552,6 +6552,7 @@ class PyMethodCallNode(CallNode):
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or Node  keyword dictionary (if present)
+    # unpack      bool
 
     subexprs = ['function', 'arg_tuple', 'kwdict']
     is_temp = True
@@ -6611,22 +6612,25 @@ class PyMethodCallNode(CallNode):
         else:
             likely_method = 'unlikely'
 
-        code.putln("#if CYTHON_UNPACK_METHODS")
-        code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
-        code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
-        # the following is always true in Py3 (kept only for safety),
-        # but is false for unbound methods in Py2
-        code.putln("if (likely(%s)) {" % self_arg)
-        code.putln("PyObject* function = PyMethod_GET_FUNCTION(%s);" % function)
-        code.put_incref(self_arg, py_object_type)
-        code.put_incref("function", py_object_type)
-        # free method object as early to possible to enable reuse from CPython's freelist
-        code.put_decref_set(function, py_object_type, "function")
-        code.putln("%s = 1;" % arg_offset_cname)
-        code.putln("}")
-        code.putln("}")
-        code.putln("#endif")  # CYTHON_UNPACK_METHODS
-        # TODO may need to deal with unused variables in the #else case
+        if self.unpack:
+            # unpack is ultimately governed by optimize.unpack_method_calls
+            # and is a separate decision to whether we want vectorcall-type behaviour
+            code.putln("#if CYTHON_UNPACK_METHODS")
+            code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
+            code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
+            # the following is always true in Py3 (kept only for safety),
+            # but is false for unbound methods in Py2
+            code.putln("if (likely(%s)) {" % self_arg)
+            code.putln("PyObject* function = PyMethod_GET_FUNCTION(%s);" % function)
+            code.put_incref(self_arg, py_object_type)
+            code.put_incref("function", py_object_type)
+            # free method object as early to possible to enable reuse from CPython's freelist
+            code.put_decref_set(function, py_object_type, "function")
+            code.putln("%s = 1;" % arg_offset_cname)
+            code.putln("}")
+            code.putln("}")
+            code.putln("#endif")  # CYTHON_UNPACK_METHODS
+            # TODO may need to deal with unused variables in the #else case
 
         if use_kwnames:
             code.globalstate.use_utility_code(

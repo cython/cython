@@ -5097,7 +5097,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif self._check_optimize_method_calls(node):
+        else:
             # optimise simple Python methods calls
             if self._check_positional_args_for_method_call(node):
                 # simple call, now exclude calls to objects that are definitely not methods
@@ -5107,7 +5107,8 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                         # function self object was moved into a CloneNode => undo
                         function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-                        node, function=function, arg_tuple=node.arg_tuple, type=node.type))
+                        node, function=function, arg_tuple=node.arg_tuple, type=node.type,
+                        unpack=self._check_optimize_method_calls(node)))
         return node
     
     def visit_GeneralCallNode(self, node):
@@ -5115,8 +5116,6 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         Replace likely Python method calls by a specialised PyMethodCallNode.
         """
         self.visitchildren(node)
-        if not self._check_optimize_method_calls(node):
-            return node
         if not self._check_positional_args_for_method_call(node.positional_args):
             return node
         function = node.function
@@ -5125,7 +5124,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
 
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
             node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args, 
-            type=node.type))
+            type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 
     def visit_NumPyMethodCallNode(self, node):
