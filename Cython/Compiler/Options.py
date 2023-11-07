@@ -361,6 +361,7 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'ccomplex' : ('module',),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
     'gil' : ('with statement'),
@@ -385,6 +386,7 @@ directive_scopes = {  # defaults to available everywhere
     'test_assert_c_code_has' : ('module',),
     'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
+    'formal_grammar': ('module',),
     'emit_code_comments': ('module',),
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
@@ -395,6 +397,7 @@ directive_scopes = {  # defaults to available everywhere
     # but that would complicate the implementation
     'old_style_globals': ('module',),
     'np_pythran': ('module',),
+    'preliminary_late_includes_cy28': ('module',),
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
@@ -403,6 +406,8 @@ directive_scopes = {  # defaults to available everywhere
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'control_flow.dot_output': ('module',),
+    'control_flow.dot_annotate_defs': ('module',),
 }
 
 
