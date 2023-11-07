@@ -2505,6 +2505,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 
 ///////////// PyMethodNew2Arg.proto /////////////
 
+// TODO: remove
 // Another wrapping of PyMethod_New that matches the Python3 signature
 #define __Pyx_PyMethod_New2Arg PyMethod_New
 

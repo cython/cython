@@ -198,7 +198,7 @@ static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 //@requires: ObjectHandling.c::RaiseUnexpectedTypeError
 
 static PyObject* __Pyx_Intern(PyObject* s) {
-    if (unlikely(!PyString_CheckExact(s))) {
+    if (unlikely(!PyUnicode_CheckExact(s))) {
         __Pyx_RaiseUnexpectedTypeError("str", s);
         return NULL;
     }

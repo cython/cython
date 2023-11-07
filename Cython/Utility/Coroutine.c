@@ -878,7 +878,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else
         #endif
-        #if CYTHON_COMPILING_IN_CPYTHON && defined(PyCoro_CheckExact)
+        #if CYTHON_COMPILING_IN_CPYTHON
         if (PyCoro_CheckExact(yf)) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else

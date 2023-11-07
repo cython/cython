@@ -306,7 +306,7 @@
   #ifndef CYTHON_USE_PYTYPE_LOOKUP
     #define CYTHON_USE_PYTYPE_LOOKUP 1
   #endif
-  #if !defined(CYTHON_USE_ASYNC_SLOTS)
+  #ifndef CYTHON_USE_ASYNC_SLOTS
     #define CYTHON_USE_ASYNC_SLOTS 1
   #endif
   #ifndef CYTHON_USE_PYLONG_INTERNALS
@@ -342,6 +342,7 @@
   #endif
   #ifndef CYTHON_FAST_GIL
     // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
+    // The gain is unclear, however, since the GIL handling itself became faster in recent CPython versions.
     #define CYTHON_FAST_GIL (PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_METH_FASTCALL
@@ -378,11 +379,11 @@
   #endif
 #endif
 
-#if !defined(CYTHON_FAST_PYCCALL)
+#ifndef CYTHON_FAST_PYCCALL
 #define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
 #endif
 
-#if !defined(CYTHON_VECTORCALL)
+#ifndef CYTHON_VECTORCALL
 #define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
 #endif
 
@@ -631,8 +632,10 @@ class __Pyx_FakeReference {
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
 
+// TODO: remove this block
 #define __Pyx_BUILTIN_MODULE_NAME "builtins"
 #define __Pyx_DefaultClassType PyType_Type
+
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Note that the limited API doesn't know about PyCodeObject, so the type of this
     // is PyObject (unlike for the main API)
@@ -826,7 +829,7 @@ class __Pyx_FakeReference {
   // value if defined: Stackless Python < 3.6: 0x80 else 0x100
   #define METH_STACKLESS 0
 #endif
-#if !defined(METH_FASTCALL)
+#ifndef METH_FASTCALL
   // new in CPython 3.6, but changed in 3.7 - see
   // positional-only parameters:
   //   https://bugs.python.org/issue29464
@@ -1203,6 +1206,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
 #endif
 
+// TODO: remove this block
 #define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
 #define __Pyx_PyInt_AsHash_t   __Pyx_PyIndex_AsSsize_t
 
@@ -1383,7 +1387,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 /////////////// MathInitCode ///////////////
 
 #if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
-  #if !defined(_USE_MATH_DEFINES)
+  #ifndef _USE_MATH_DEFINES
     #define _USE_MATH_DEFINES
   #endif
 #endif

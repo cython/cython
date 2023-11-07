@@ -56,7 +56,7 @@ struct arrayobject {
     struct arraydescr *ob_descr;
     PyObject *weakreflist; /* List of weak references */
     int ob_exports;  /* Number of exported buffers */
-#endif
+};
 
 #ifndef NO_NEWARRAY_INLINE
 //  fast creation of a new array
