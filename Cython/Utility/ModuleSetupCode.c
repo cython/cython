@@ -1043,7 +1043,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #define CYTHON_PEP393_ENABLED 1
   #define __Pyx_PyUnicode_READY(op)       (0)
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetLength(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
@@ -1055,9 +1054,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   //#define __Pyx_PyUnicode_WRITE(k, d, i, ch)  /* not available */
   #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GetLength(u))
 #else
-  /* new Py3.3 unicode type (PEP 393) */
-  #define CYTHON_PEP393_ENABLED 1
-
   #if PY_VERSION_HEX >= 0x030C0000
     // Py3.12 / PEP-623 removed wstr type unicode strings and all of the PyUnicode_READY() machinery.
     #define __Pyx_PyUnicode_READY(op)       (0)

@@ -560,15 +560,11 @@ static CYTHON_INLINE int __Pyx_init_unicode_iteration(
     *kind   = 0;
     *length = PyUnicode_GetLength(ustring);
     *data   = (void*)ustring;
-#elif CYTHON_PEP393_ENABLED
+#else
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return -1;
     *kind   = PyUnicode_KIND(ustring);
     *length = PyUnicode_GET_LENGTH(ustring);
     *data   = PyUnicode_DATA(ustring);
-#else
-    *kind   = 0;
-    *length = PyUnicode_GET_SIZE(ustring);
-    *data   = (void*)PyUnicode_AS_UNICODE(ustring);
 #endif
     return 0;
 }

@@ -113,7 +113,6 @@ static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t 
 #endif
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-#if CYTHON_PEP393_ENABLED
     const int kind = PyUnicode_KIND(unicode);
     #ifdef PyUnicode_WCHAR_KIND
     if (likely(kind != PyUnicode_WCHAR_KIND))
@@ -127,11 +126,6 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
         }
         return 0;
     }
-#elif PY_VERSION_HEX >= 0x03090000
-    #error Cannot use "UChar in Unicode" in Python 3.9 without PEP-393 unicode strings.
-#elif !defined(PyUnicode_AS_UNICODE)
-    #error Cannot use "UChar in Unicode" in Python < 3.9 without Py_UNICODE support.
-#endif
 
 #if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
 #if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
@@ -211,13 +205,8 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
 #if CYTHON_USE_UNICODE_INTERNALS
         {
             Py_hash_t hash1, hash2;
-        #if CYTHON_PEP393_ENABLED
             hash1 = ((PyASCIIObject*)s1)->hash;
             hash2 = ((PyASCIIObject*)s2)->hash;
-        #else
-            hash1 = ((PyUnicodeObject*)s1)->hash;
-            hash2 = ((PyUnicodeObject*)s2)->hash;
-        #endif
             if (hash1 != hash2 && hash1 != -1 && hash2 != -1) {
                 goto return_ne;
             }
@@ -585,12 +574,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         return __Pyx_NewRef($empty_unicode);
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
-#if CYTHON_PEP393_ENABLED
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
-#else
-    return PyUnicode_FromUnicode(PyUnicode_AS_UNICODE(text)+start, stop-start);
-#endif
 }
 
 
@@ -810,22 +795,12 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
     int result_ukind, kind_shift;
     Py_ssize_t i, char_pos;
     void *result_udata;
-    CYTHON_MAYBE_UNUSED_VAR(max_char);
-#if CYTHON_PEP393_ENABLED
-    // Py 3.3+  (post PEP-393)
+
     result_uval = PyUnicode_New(result_ulength, max_char);
     if (unlikely(!result_uval)) return NULL;
     result_ukind = (max_char <= 255) ? PyUnicode_1BYTE_KIND : (max_char <= 65535) ? PyUnicode_2BYTE_KIND : PyUnicode_4BYTE_KIND;
     kind_shift = (result_ukind == PyUnicode_4BYTE_KIND) ? 2 : result_ukind - 1;
     result_udata = PyUnicode_DATA(result_uval);
-#else
-    // Py 2.x/3.2  (pre PEP-393)
-    result_uval = PyUnicode_FromUnicode(NULL, result_ulength);
-    if (unlikely(!result_uval)) return NULL;
-    result_ukind = sizeof(Py_UNICODE);
-    kind_shift = (result_ukind == 4) ? 2 : result_ukind - 1;
-    result_udata = PyUnicode_AS_UNICODE(result_uval);
-#endif
     assert(kind_shift == 2 || kind_shift == 1 || kind_shift == 0);
 
     char_pos = 0;
@@ -843,7 +818,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
             goto overflow;
         ukind = __Pyx_PyUnicode_KIND(uval);
         udata = __Pyx_PyUnicode_DATA(uval);
-        if (!CYTHON_PEP393_ENABLED || ukind == result_ukind) {
+        if (ukind == result_ukind) {
             memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));
         } else {
             #if PY_VERSION_HEX >= 0x030d0000
@@ -891,19 +866,10 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
     Py_ssize_t uoffset = ulength - clength;
 #if CYTHON_USE_UNICODE_INTERNALS
     Py_ssize_t i;
-#if CYTHON_PEP393_ENABLED
-    // Py 3.3+  (post PEP-393)
     void *udata;
     uval = PyUnicode_New(ulength, 127);
     if (unlikely(!uval)) return NULL;
     udata = PyUnicode_DATA(uval);
-#else
-    // Py 2.x/3.2  (pre PEP-393)
-    Py_UNICODE *udata;
-    uval = PyUnicode_FromUnicode(NULL, ulength);
-    if (unlikely(!uval)) return NULL;
-    udata = PyUnicode_AS_UNICODE(uval);
-#endif
     if (uoffset > 0) {
         i = 0;
         if (prepend_sign) {

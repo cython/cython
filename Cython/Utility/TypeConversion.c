@@ -248,32 +248,6 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
 }
 
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
-#if !CYTHON_PEP393_ENABLED
-static const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
-    char* defenc_c;
-    // borrowed reference, cached internally in 'o' by CPython
-    PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
-    if (!defenc) return NULL;
-    defenc_c = PyBytes_AS_STRING(defenc);
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
-    {
-        char* end = defenc_c + PyBytes_GET_SIZE(defenc);
-        char* c;
-        for (c = defenc_c; c < end; c++) {
-            if ((unsigned char) (*c) >= 128) {
-                // raise the error
-                PyUnicode_AsASCIIString(o);
-                return NULL;
-            }
-        }
-    }
-#endif /*__PYX_DEFAULT_STRING_ENCODING_IS_ASCII*/
-    *length = PyBytes_GET_SIZE(defenc);
-    return defenc_c;
-}
-
-#else /* CYTHON_PEP393_ENABLED: */
-
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
@@ -290,7 +264,6 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
     return PyUnicode_AsUTF8AndSize(o, length);
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
 }
-#endif /* CYTHON_PEP393_ENABLED */
 #endif
 
 // Py3.7 returns a "const char*" for unicode strings
@@ -603,28 +576,10 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject*);
 
 static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
    Py_ssize_t length;
-   #if CYTHON_PEP393_ENABLED
    length = PyUnicode_GET_LENGTH(x);
    if (likely(length == 1)) {
        return PyUnicode_READ_CHAR(x, 0);
    }
-   #else
-   length = PyUnicode_GET_SIZE(x);
-   if (likely(length == 1)) {
-       return PyUnicode_AS_UNICODE(x)[0];
-   }
-   #if Py_UNICODE_SIZE == 2
-   else if (PyUnicode_GET_SIZE(x) == 2) {
-       Py_UCS4 high_val = PyUnicode_AS_UNICODE(x)[0];
-       if (high_val >= 0xD800 && high_val <= 0xDBFF) {
-           Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
-           if (low_val >= 0xDC00 && low_val <= 0xDFFF) {
-               return 0x10000 + (((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1)));
-           }
-       }
-   }
-   #endif
-   #endif
    PyErr_Format(PyExc_ValueError,
                 "only single character unicode strings can be converted to Py_UCS4, "
                 "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
@@ -671,15 +626,11 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
 
 static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     long ival;
-    #if CYTHON_PEP393_ENABLED
-    #if Py_UNICODE_SIZE > 2
-    const long maxval = 1114111;
-    #else
+  #if defined(Py_UNICODE_SIZE) && Py_UNICODE_SIZE == 2
     const long maxval = 65535;
-    #endif
-    #else
-    static long maxval = 0;
-    #endif
+  #else
+    const long maxval = 1114111;
+  #endif
     if (PyUnicode_Check(x)) {
         if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
             PyErr_Format(PyExc_ValueError,
@@ -687,16 +638,8 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
                          "got length %" CYTHON_FORMAT_SSIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
             return (Py_UNICODE)-1;
         }
-        #if CYTHON_PEP393_ENABLED
         ival = PyUnicode_READ_CHAR(x, 0);
-        #else
-        return PyUnicode_AS_UNICODE(x)[0];
-        #endif
     } else {
-        #if !CYTHON_PEP393_ENABLED
-        if (unlikely(!maxval))
-            maxval = (long)PyUnicode_GetMax();
-        #endif
         ival = __Pyx_PyInt_As_long(x);
     }
     if (unlikely(!__Pyx_is_valid_index(ival, maxval + 1))) {
