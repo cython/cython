@@ -95,13 +95,6 @@ typedef struct {
 } __Pyx_BufFmt_Context;
 
 
-/////////////// GetAndReleaseBuffer.proto ///////////////
-
-// TODO: remove
-#define __Pyx_GetBuffer PyObject_GetBuffer
-#define __Pyx_ReleaseBuffer PyBuffer_Release
-
-
 /////////////// BufferGetAndValidate.proto ///////////////
 
 #define __Pyx_GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack) \
@@ -124,7 +117,7 @@ static Py_ssize_t __Pyx_zeros[] = { {{ ", ".join(["0"] * max_dims) }} };
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (unlikely(info->buf == NULL)) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  __Pyx_ReleaseBuffer(info);
+  PyObject_ReleaseBuffer(info);
 }
 
 static void __Pyx_ZeroBuffer(Py_buffer* buf) {
@@ -140,7 +133,7 @@ static int __Pyx__GetBufferAndValidate(
         int nd, int cast, __Pyx_BufFmt_StackElem* stack)
 {
   buf->buf = NULL;
-  if (unlikely(__Pyx_GetBuffer(obj, buf, flags) == -1)) {
+  if (unlikely(PyObject_GetBuffer(obj, buf, flags) == -1)) {
     __Pyx_ZeroBuffer(buf);
     return -1;
   }
