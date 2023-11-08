@@ -560,11 +560,7 @@ def import_module_from_file(module_name, file_path, execute=True):
 
 def import_ext(module_name, file_path=None):
     if file_path:
-        if sys.version_info >= (3, 5):
-            return import_module_from_file(module_name, file_path)
-        else:
-            import imp
-            return imp.load_dynamic(module_name, file_path)
+        return import_module_from_file(module_name, file_path)
     else:
         try:
             from importlib import invalidate_caches
@@ -929,9 +925,7 @@ def skip_c(tags):
 
 def skip_limited(tags):
     if 'limited-api' in tags['tag']:
-        # Run limited-api tests only on CPython 3.x.
-        if sys.version_info[0] < 3:
-            return True
+        # Run limited-api tests only on CPython.
         if sys.implementation.name != 'cpython':
             return True
     return False
@@ -1025,8 +1019,7 @@ class CythonCompileTestCase(unittest.TestCase):
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
-        if sys.version_info >= (3, 4):
-            Options._directive_defaults['autotestdict'] = False
+        Options._directive_defaults['autotestdict'] = False
         Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
@@ -1342,8 +1335,7 @@ class CythonCompileTestCase(unittest.TestCase):
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
-                out = sys.stdout if sys.version_info[0] == 2 else sys.stdout.buffer
-                out.write(output)
+                sys.stdout.buffer.write(output)
             if error is not None:
                 raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
         finally:
@@ -1636,11 +1628,7 @@ class PureDoctestTestCase(unittest.TestCase):
             self.setUp()
 
             with self.stats.time(self.name, 'py', 'pyimport'):
-                if sys.version_info >= (3, 5):
-                    m = import_module_from_file(self.module_name, self.module_path)
-                else:
-                    import imp
-                    m = imp.load_source(loaded_module_name, self.module_path)
+                m = import_module_from_file(self.module_name, self.module_path)
 
             try:
                 with self.stats.time(self.name, 'py', 'pyrun'):
@@ -2451,11 +2439,11 @@ def main():
 
     options, cmd_args = parser.parse_args(args)
 
-    if options.with_cython and sys.version_info[0] >= 3:
+    if options.with_cython:
         sys.path.insert(0, options.cython_dir)
 
     # requires glob with the wildcard.
-    if sys.version_info < (3, 5) or cmd_args:
+    if cmd_args:
         options.code_style = False
 
     WITH_CYTHON = options.with_cython
@@ -2660,15 +2648,6 @@ def runtests(options, cmd_args, coverage=None):
         pass  # OK - not essential
     else:
         faulthandler.enable()
-
-    if sys.platform == "win32" and sys.version_info < (3, 6):
-        # enable Unicode console output, if possible
-        try:
-            import win_unicode_console
-        except ImportError:
-            pass
-        else:
-            win_unicode_console.enable()
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
