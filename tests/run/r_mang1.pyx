@@ -1,14 +1,12 @@
+# mode: run
+
 __doc__ = u"""
     >>> import re
     >>> t
-    (u'2',)
+    ('2',)
     >>> t == re.search('(\\d+)', '-2.80 98\\n').groups()
     True
 """
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"(u'", u"('")
 
 # this is a string constant test, not a test for 're'
 

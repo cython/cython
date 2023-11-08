@@ -121,6 +121,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
+        PyTypeObject *b;
 #if CYTHON_AVOID_BORROWED_REFS
         PyObject *b0 = PySequence_GetItem(bases, i);
         if (!b0) return -1;
@@ -129,19 +130,6 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #else
         PyObject *b0 = PyTuple_GetItem(bases, i);
         if (!b0) return -1;
-#endif
-        PyTypeObject *b;
-#if PY_MAJOR_VERSION < 3
-        /* Disallow old-style classes */
-        if (PyClass_Check(b0))
-        {
-            PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
-                         PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
-#if CYTHON_AVOID_BORROWED_REFS
-            Py_DECREF(b0);
-#endif
-            return -1;
-        }
 #endif
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
@@ -225,7 +213,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
 
-#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
+#if !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
@@ -239,7 +227,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Call gc.disable() as a backwards compatible fallback, but only if needed.
         PyObject *ret, *py_status;
         PyObject *gc = NULL;
-        #if PY_VERSION_HEX >= 0x030700a1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400)
+        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400
         // https://foss.heptapod.net/pypy/pypy/-/issues/3385
         gc = PyImport_GetModule(PYUNICODE("gc"));
         #endif
@@ -289,7 +277,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
     r = PyType_Ready(t);
 
-#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
+#if !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
     #if PY_VERSION_HEX >= 0x030A00b1
@@ -328,14 +316,14 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 // Unlike the Py_TRASHCAN_SAFE_BEGIN/Py_TRASHCAN_SAFE_END macros, they
 // allow dealing correctly with subclasses.
 
-// This requires CPython version >= 2.7.4
-// (or >= 3.2.4 but we don't support such old Python 3 versions anyway)
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
 // https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
 // is no longer necessary
 #define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN
 #define __Pyx_TRASHCAN_END Py_TRASHCAN_END
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
+
+#elif CYTHON_COMPILING_IN_CPYTHON
+
 #define __Pyx_TRASHCAN_BEGIN_CONDITION(op, cond) \
     do { \
         PyThreadState *_tstate = NULL; \
@@ -568,7 +556,7 @@ __PYX_GOOD:
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
-#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
     slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
 #else
     slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});

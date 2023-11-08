@@ -1,5 +1,4 @@
-import sys
-IS_PY3 = sys.version_info[0] >= 3
+# mode: run
 
 cimport cython
 
@@ -37,8 +36,7 @@ def long_int_mix():
     """
     >>> long_int_mix() == 1 + (2 * 3) // 2
     True
-    >>> if IS_PY3: type(long_int_mix()) is int  or type(long_int_mix())
-    ... else:      type(long_int_mix()) is long or type(long_int_mix())
+    >>> type(long_int_mix()) is int  or type(long_int_mix())
     True
     """
     return 1L + (2 * 3L) // 2

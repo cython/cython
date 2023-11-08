@@ -5,14 +5,8 @@ __doc__ = u"""
     TypeError: 'int' object ...
 """
 
-cdef Py_ssize_t maxsize
-
 import sys
-if sys.version_info < (2,5):
-    __doc__ = __doc__.replace(u"'int' object ...", u'unsubscriptable object')
-    maxsize = min(sys.maxint, 2**31-1)
-else:
-    maxsize = getattr(sys, 'maxsize', getattr(sys, 'maxint', None))
+cdef Py_ssize_t maxsize = sys.maxsize
 
 py_maxsize = maxsize
 
