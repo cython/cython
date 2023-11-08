@@ -276,8 +276,8 @@ def modint(int int2, int int3):
 
 def modptr():
     """
-    >>> print(modptr())
-    spameggs
+    >>> modptr()
+    b'spameggs'
     """
     cdef char *str2, *str3
     str2 = "spam%s"
@@ -288,7 +288,7 @@ def modptr():
 
 def mod_bigint(obj):
     """
-    >>> print(mod_bigint(3316000000000))
+    >>> mod_bigint(3316000000000)
     319
     """
     result = obj % 999

@@ -19,8 +19,8 @@ def foo():
     >>> try:
     ...     foo()
     ... except Exception as e:
-    ...     print("%s: %s" % (e.__class__.__name__, e))
-    ValueError:
+    ...     print("'%s: %s'" % (e.__class__.__name__, e))
+    'ValueError: '
     """
     try:
         raise ValueError

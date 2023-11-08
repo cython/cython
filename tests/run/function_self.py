@@ -49,10 +49,9 @@ class C:
     >>> hasattr(C.regular, "__self__")  # __self__==None on pure-python 2
     False
 
-    >>> C.fused.__self__  #doctest: +ELLIPSIS
+    >>> C.fused.__self__  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-        ...
-    AttributeError: ...'__self__'...
+    AttributeError: ...__self__...
     """
     def regular(self):
         pass
