@@ -35,7 +35,6 @@ except (ImportError, AttributeError):
     IS_PYPY = False
     IS_GRAAL = False
 
-IS_PY2 = sys.version_info[0] < 3
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 from io import open as io_open
@@ -455,9 +454,7 @@ EXT_EXTRAS = {
     'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
     'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
     'tag:trace' : update_linetrace_extension,
-    'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
-    'tag:py3only':  exclude_extension_in_pyver((2, 7)),
     'tag:cppexecpolicies': require_gcc("9.1"),
 }
 
@@ -467,51 +464,10 @@ VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
 
-    # The next line should start (3,); but this is a dictionary, so
-    # we can only have one (3,) key.  Since 2.7 is supposed to be the
-    # last 2.x release, things would have to change drastically for this
-    # to be unsafe...
-    (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
-                                           'run.test_raisefrom',
-                                           'run.different_package_names',
-                                           'run.unicode_imports',  # encoding problems on appveyor in Py2
-                                           'run.reimport_failure',  # reimports don't do anything in Py2
-                                           'run.cpp_stl_cmath_cpp17',
-                                           'run.cpp_stl_cmath_cpp20'
-                                           ]),
-    (3,): (operator.ge, lambda x: x in ['run.non_future_division',
-                                        'compile.extsetslice',
-                                        'compile.extdelslice',
-                                        'run.special_methods_T561_py2',
-                                        'run.builtin_type_inheritance_T608_py2only',
-                                        ]),
-    (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
-                                          'build.cythonize_pep420_namespace',
-                                          'run.yield_from_py33',
-                                          'pyximport.pyximport_namespace',
-                                          'run.qualname',
-                                          ]),
-    (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
-                                         'run.test_unicode',  # taken from Py3.7, difficult to backport
-                                         'run.pep442_tp_finalize',
-                                         'run.pep442_tp_finalize_cimport',
-                                         ]),
+    # FIXME: fix? delete?
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
-    (3,5): (operator.lt, lambda x: x in ['run.py35_pep492_interop',
-                                         'run.py35_asyncio_async_def',
-                                         'run.mod__spec__',
-                                         'run.pep526_variable_annotations',  # typing module
-                                         'run.test_exceptions',  # copied from Py3.7+
-                                         'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
-                                         'run.cpython_capi_py35',
-                                         'embedding.embedded',  # From the docs, needs Py_DecodeLocale
-                                         ]),
-    (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
-                                         'run.pep557_dataclasses',  # dataclasses module
-                                         'run.test_dataclasses',
-                                         'run.isolated_limited_api_tests',
-                                         ]),
+
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
     (3,11,999): (operator.gt, lambda x: x in [
@@ -1362,8 +1318,6 @@ class CythonCompileTestCase(unittest.TestCase):
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
-            if IS_PY2:
-                workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
 
             build_extension.extensions = [extension]
             build_extension.build_temp = workdir
@@ -2273,11 +2227,10 @@ class ShardExcludeSelector(object):
         self.shard_num = shard_num
         self.shard_count = shard_count
 
-    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
+    def __call__(self, testname, tags=None, _hash=zlib.crc32):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
-        # CRC32 is fast and simple, but might return negative values in Py2.
-        hashval = _hash(self._seed + testname) & 0x7fffffff if _is_py2 else _hash(self._seed + testname.encode())
-        return hashval % self.shard_count != self.shard_num
+        # CRC32 is fast and simple.
+        return _hash(self._seed + testname.encode()) % self.shard_count != self.shard_num
 
 
 class PendingThreadsError(RuntimeError):
@@ -2838,7 +2791,6 @@ def runtests(options, cmd_args, coverage=None):
         bug_files = [
             ('bugs.txt', True),
             ('pypy_bugs.txt', IS_PYPY),
-            ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
