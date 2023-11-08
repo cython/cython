@@ -1,8 +1,6 @@
 from .Dependencies import cythonize
 
 import sys
-if sys.version_info < (3, 7):
-    from .Distutils import build_ext
 del sys
 
 

@@ -1,7 +1,6 @@
 # mode: run
 # tag: generators, pure3.5
 
-from __future__ import generator_stop
 
 # "generator_stop" was only added in Py3.5.
 

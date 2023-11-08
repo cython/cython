@@ -118,7 +118,7 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 @cached_function
 def file_hash(filename):
     path = os.path.normpath(filename)
-    prefix = f'{len(path)}:{path}'.encode("UTF-8")
+    prefix = f'{len()}:{path}'.encode("UTF-8")
     m = hashlib.sha1(prefix)
     with open(path, 'rb') as f:
         data = f.read(65000)

@@ -2,7 +2,6 @@
 # mode: run
 # tag: pep525, asyncfor, await
 
-from __future__ import generator_stop
 
 import os
 import sys
