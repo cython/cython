@@ -88,7 +88,7 @@ class Scanner:
         """
         self.trace = 0
 
-        self.buffer = ''
+        self.buffer = u''
         self.buf_start_pos = 0
         self.next_pos = 0
         self.cur_pos = 0
