@@ -602,10 +602,8 @@ def untyped_untyped_unicode_cascade_bool(s1, s2):
 # bytes/str comparison
 
 @cython.test_assert_path_exists(
-    '//CondExprNode',
-    '//CondExprNode//PrimaryCmpNode',
-    '//CondExprNode//PrimaryCmpNode[@operator = "=="]',
-    '//CondExprNode//PrimaryCmpNode[@operator = "!="]',
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode[@operator = "!="]',
 )
 def literal_compare_bytes_str():
     """
