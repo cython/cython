@@ -439,9 +439,7 @@ cdef packed struct StructArray:
 def test_memslice_structarray(data, dtype):
     """
     >>> def b(s): return s.encode('ascii')
-    >>> def to_byte_values(b):
-    ...     if sys.version_info[0] >= 3: return list(b)
-    ...     else: return map(ord, b)
+    >>> def to_byte_values(b): return list(b)
 
     >>> data = [(range(4), b('spam\\0')), (range(4, 8), b('ham\\0\\0')), (range(8, 12), b('eggs\\0'))]
     >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
@@ -727,8 +725,7 @@ ctypedef struct SameTypeAfterArraysStructComposite:
 
 def same_type_after_arrays_composite():
     """
-    >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
-    >>> same_type_after_arrays_composite() if sys.version_info[:2] == (2, 7) else None
+    >>> same_type_after_arrays_composite()
     """
 
     cdef SameTypeAfterArraysStructComposite element

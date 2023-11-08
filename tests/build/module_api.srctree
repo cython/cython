@@ -99,7 +99,6 @@ flt1 = flt2 = flt3 = 5
 
 ######## inita.h ########
 
-#if PY_MAJOR_VERSION >= 3
 void inita(void)
 {
    PyObject *sys_modules = NULL;
@@ -108,7 +107,7 @@ void inita(void)
    if (!sys_modules) return;
    mod = PyInit_a();
    if (!mod) return;
-#if PY_VERSION_HEX >= 0x03050000 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
+#if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800
    /* FIXME: this is incomplete and users shouldn't have to do this in the first place... */
    if (!PyModule_Check(mod)) {
       /* In PEP 489 multi-phase init, PyInit_a returns PyModuleDef */
@@ -123,7 +122,6 @@ void inita(void)
 #endif
    PyDict_SetItemString(sys_modules, (char*)"a", mod);
 }
-#endif
 
 ######## d.pyx ########
 

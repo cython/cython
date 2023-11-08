@@ -39,51 +39,41 @@ def optimize_literals1():
     x = 5
     return (x := 10)
 
+
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals2():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    Test is in __doc__ (for Py2 string formatting reasons)
+
+    >>> optimize_literals2()
+    'a string'
     """
     x = 5
     return (x := u"a string")
+
 
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals3():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    Test is in __doc__ (for Py2 string formatting reasons)
+
+    >>> optimize_literals3()
+    b'a bytes'
     """
     x = 5
     return (x := b"a bytes")
+
 
 @cython.test_fail_if_path_exists("//CloneNode")
 def optimize_literals4():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    Test is in __doc__ (for Py2 string formatting reasons)
+
+    >>> optimize_literals4()
+    ('tuple', 1, 1.0, b'stuff')
     """
     x = 5
     return (x := (u"tuple", 1, 1.0, b"stuff"))
-
-if sys.version_info[0] != 2:
-    __doc__ = """
-        >>> optimize_literals2()
-        'a string'
-        >>> optimize_literals3()
-        b'a bytes'
-        >>> optimize_literals4()
-        ('tuple', 1, 1.0, b'stuff')
-        """
-else:
-    __doc__ = """
-        >>> optimize_literals2()
-        u'a string'
-        >>> optimize_literals3()
-        'a bytes'
-        >>> optimize_literals4()
-        (u'tuple', 1, 1.0, 'stuff')
-        """
 
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode//AssignmentExpressionNode")
@@ -96,6 +86,7 @@ def avoid_extra_coercion(x : cython.double):
     """
     y : object = "I'm an object"
     return (y := x)
+
 
 async def async_func():
     """

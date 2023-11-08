@@ -208,7 +208,7 @@ if compile_cython_itself:
 setup_args.update(setuptools_extra_args)
 
 
-def dev_status(version):
+def dev_status(version: str):
     if 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
