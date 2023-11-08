@@ -36,7 +36,7 @@ class CannotSpecialize(PyrexError):
 def context(position):
     source = position[0]
     assert not (isinstance(source, any_string_type)), (
-        "Please replace filename strings with Scanning.FileSourceDescriptor instances %r" % source)
+        f"Please replace filename strings with Scanning.FileSourceDescriptor instances {source!r}")
     try:
         F = source.get_lines()
     except UnicodeDecodeError:
@@ -44,8 +44,8 @@ def context(position):
         s = "[unprintable code]\n"
     else:
         s = ''.join(F[max(0, position[1]-6):position[1]])
-        s = '...\n{}{}^\n'.format(s, ' '*(position[2]))
-    s = '{}\n{}{}\n'.format('-'*60, s, '-'*60)
+        s = f"...\n{s}{' ' * position[2]}^\n"
+    s = f"{'-' * 60}\n{s}{'-' * 60}\n"
     return s
 
 def format_position(position):
@@ -58,7 +58,7 @@ def format_error(message, position):
     if position:
         pos_str = format_position(position)
         cont = context(position)
-        message = '\nError compiling Cython file:\n{}\n{}{}'.format(cont, pos_str, message or '')
+        message = f"\nError compiling Cython file:\n{cont}\n{pos_str}{message or ''}"
     return message
 
 class CompileError(PyrexError):
@@ -87,15 +87,14 @@ class InternalError(Exception):
 
     def __init__(self, message):
         self.message_only = message
-        Exception.__init__(self, "Internal compiler error: %s"
-            % message)
+        Exception.__init__(self, f"Internal compiler error: {message}")
 
 class AbortError(Exception):
     # Throw this to stop the compilation immediately.
 
     def __init__(self, message):
         self.message_only = message
-        Exception.__init__(self, "Abort error: %s" % message)
+        Exception.__init__(self, f"Abort error: {message}")
 
 class CompilerCrash(CompileError):
     # raised when an unexpected exception occurs in a transform
@@ -152,7 +151,7 @@ def report_error(err, use_stack=True):
         # See Main.py for why dual reporting occurs. Quick fix for now.
         if err.reported: return
         err.reported = True
-        try: line = "%s\n" % err
+        try: line = f"{err}\n"
         except UnicodeEncodeError:
             # Python <= 2.5 does this for non-ASCII Unicode exceptions
             line = format_error(getattr(err, 'message_only', "[unprintable exception message]"),
@@ -194,7 +193,7 @@ def performance_hint(position, message, env):
     if not env.directives['show_performance_hints']:
         return
     warn = CompileWarning(position, message)
-    line = "performance hint: %s\n" % warn
+    line = f"performance hint: {warn}\n"
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)
@@ -208,7 +207,7 @@ def message(position, message, level=1):
     if level < LEVEL:
         return
     warn = CompileWarning(position, message)
-    line = "note: %s\n" % warn
+    line = f"note: {warn}\n"
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)
@@ -224,7 +223,7 @@ def warning(position, message, level=0):
     if Options.warning_errors and position:
         return error(position, message)
     warn = CompileWarning(position, message)
-    line = "warning: %s\n" % warn
+    line = f"warning: {warn}\n"
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)
@@ -241,7 +240,7 @@ def warn_once(position, message, level=0):
     if message in warn_once_seen:
         return
     warn = CompileWarning(position, message)
-    line = "warning: %s\n" % warn
+    line = f"warning: {warn}\n"
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)

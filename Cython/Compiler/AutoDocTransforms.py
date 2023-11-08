@@ -92,11 +92,11 @@ class EmbedSignature(CythonTransform):
         if arg.default:
             defaultval = self._fmt_expr(arg.default)
         if annotation:
-            arg_doc = arg_doc + (': %s' % annotation)
+            arg_doc = arg_doc + f': {annotation}'
             if defaultval:
-                arg_doc = arg_doc + (' = %s' % defaultval)
+                arg_doc = arg_doc + f' = {defaultval}'
         elif defaultval:
-            arg_doc = arg_doc + ('=%s' % defaultval)
+            arg_doc = arg_doc + f'={defaultval}'
         return arg_doc
 
     def _fmt_star_arg(self, arg):
@@ -104,7 +104,7 @@ class EmbedSignature(CythonTransform):
         if arg.annotation:
             if not self.is_format_clinic:
                 annotation = self._fmt_annotation(arg.annotation)
-                arg_doc = arg_doc + (': %s' % annotation)
+                arg_doc = arg_doc + f': {annotation}'
         return arg_doc
 
     def _fmt_arglist(self, args,
@@ -118,14 +118,14 @@ class EmbedSignature(CythonTransform):
                 arglist.append(arg_doc)
         if pargs:
             arg_doc = self._fmt_star_arg(pargs)
-            arglist.insert(npargs + npoargs, '*%s' % arg_doc)
+            arglist.insert(npargs + npoargs, f'*{arg_doc}')
         elif nkargs:
             arglist.insert(npargs + npoargs, '*')
         if npoargs:
             arglist.insert(npoargs, '/')
         if kargs:
             arg_doc = self._fmt_star_arg(kargs)
-            arglist.append('**%s' % arg_doc)
+            arglist.append(f'**{arg_doc}')
         return arglist
 
     def _fmt_type(self, type):
@@ -294,7 +294,7 @@ class EmbedSignature(CythonTransform):
                 # property synthesised from a cdef public attribute
                 type_name = entry.type.declaration_code("", for_display=1)
                 if not entry.type.is_pyobject:
-                    type_name = "'%s'" % type_name
+                    type_name = f"'{type_name}'"
                 elif entry.type.is_extension_type:
                     type_name = entry.type.module_name + '.' + type_name
             elif self.is_format_python:

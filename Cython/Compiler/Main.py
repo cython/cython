@@ -206,7 +206,7 @@ class Context:
 
         if not module_name_pattern.match(qualified_name):
             raise CompileError(pos or (module_name, 0, 0),
-                               "'%s' is not a valid module name" % module_name)
+                               f"'{module_name}' is not a valid module name")
 
         if from_module:
             if debug_find_module:
@@ -227,7 +227,7 @@ class Context:
             for name, is_package in self._split_qualified_name(qualified_name, relative_import=relative_import):
                 scope = scope.find_submodule(name, as_package=is_package)
         if debug_find_module:
-            print("...scope = %s" % scope)
+            print(f"...scope = {scope}")
         if not scope.pxd_file_loaded:
             if debug_find_module:
                 print("...pxd not loaded")
@@ -239,7 +239,7 @@ class Context:
                 pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=need_pxd and not relative_import)
                 self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if debug_find_module:
-                    print("......found %s" % pxd_pathname)
+                    print(f"......found {pxd_pathname}")
                 if not pxd_pathname and need_pxd:
                     # Set pxd_file_loaded such that we don't need to
                     # look for the non-existing pxd file next time.
@@ -249,12 +249,12 @@ class Context:
                     if package_pathname and package_pathname.endswith(Utils.PACKAGE_FILES):
                         pass
                     else:
-                        error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))
+                        error(pos, f"'{qualified_name.replace('.', os.sep)}.pxd' not found")
             if pxd_pathname:
                 scope.pxd_file_loaded = True
                 try:
                     if debug_find_module:
-                        print("Context.find_module: Parsing %s" % pxd_pathname)
+                        print(f"Context.find_module: Parsing {pxd_pathname}")
                     rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
@@ -295,7 +295,7 @@ class Context:
         path = self.search_include_directories(
             filename, source_pos=pos, include=True, source_file_path=source_file_path)
         if not path:
-            error(pos, "'%s' not found" % filename)
+            error(pos, f"'{filename}' not found")
         return path
 
     def search_include_directories(self, qualified_name,
@@ -642,7 +642,7 @@ def compile_multiple(sources, options):
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
                 if verbose:
-                    sys.stderr.write("Compiling %s\n" % source)
+                    sys.stderr.write(f"Compiling {source}\n")
                 result = run_pipeline(source, options,
                                       full_module_name=options.module_name,
                                       context=context)

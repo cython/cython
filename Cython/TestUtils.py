@@ -88,7 +88,7 @@ class CythonTest(unittest.TestCase):
 
     def assertNodeExists(self, path, result_tree):
         self.assertNotEqual(TreePath.find_first(result_tree, path), None,
-                            "Path '%s' not found in result tree" % path)
+                            f"Path '{path}' not found in result tree")
 
     def fragment(self, code, pxds=None, pipeline=None):
         "Simply create a tree fragment using the name of the test-case in parse errors."
@@ -111,7 +111,7 @@ class CythonTest(unittest.TestCase):
         """
         try:
             func()
-            self.fail("Expected an exception of type %r" % exc_type)
+            self.fail(f"Expected an exception of type {exc_type!r}")
         except exc_type as e:
             self.assertTrue(isinstance(e, exc_type))
             return e
@@ -279,14 +279,14 @@ class TreeAssertVisitor(VisitorTransform):
                 if TreePath.find_first(node, path) is None:
                     Errors.error(
                         node.pos,
-                        "Expected path '%s' not found in result tree" % path)
+                        f"Expected path '{path}' not found in result tree")
         if 'test_fail_if_path_exists' in directives:
             for path in directives['test_fail_if_path_exists']:
                 first_node = TreePath.find_first(node, path)
                 if first_node is not None:
                     Errors.error(
                         first_node.pos,
-                        "Unexpected path '%s' found in result tree" % path)
+                        f"Unexpected path '{path}' found in result tree")
         if 'test_assert_c_code_has' in directives:
             self._c_patterns.extend(directives['test_assert_c_code_has'])
         if 'test_fail_if_c_code_has' in directives:

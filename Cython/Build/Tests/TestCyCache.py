@@ -76,7 +76,7 @@ class TestCyCache(CythonTest):
         with open(a_c) as f:
             a_contents = f.read()
         self.assertEqual(a_contents, 'fake stuff',
-                         'Unexpected contents: %s...' % a_contents[:100])
+                         f'Unexpected contents: {a_contents[:100]}...')
 
     def test_multi_file_output(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')

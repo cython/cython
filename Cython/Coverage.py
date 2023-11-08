@@ -291,7 +291,7 @@ class Plugin(CoveragePlugin):
             r'(\s+[^:]+|)\s*:'
         ).match
         if self._excluded_line_patterns:
-            line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
+            line_is_excluded = re.compile("|".join([f"(?:{regex})" for regex in self._excluded_line_patterns])).search
         else:
             line_is_excluded = lambda line: False
 

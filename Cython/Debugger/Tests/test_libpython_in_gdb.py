@@ -37,7 +37,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     def pyobject_fromcode(self, code, gdbvar=None):
         if gdbvar is not None:
             d = {'varname':gdbvar, 'code':code}
-            gdb.execute('set $%(varname)s = %(code)s' % d)
+            gdb.execute(f"set ${d['varname']} = {d['code']}")
             code = '$' + gdbvar
 
         return libpython.PyObjectPtr.from_pyobject_ptr(self.get_pyobject(code))
@@ -54,7 +54,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         assert b'"' not in string
 
         # ensure double quotes
-        code = '(PyObject *) %s("%s", %d)' % (funcname, string.decode('iso8859-1'), len(string))
+        code = f"(PyObject *) {funcname}(\"{string.decode('iso8859-1')}\", {len(string)})"
         return self.pyobject_fromcode(code, gdbvar=gdbvar)
 
     def alloc_unicodestring(self, string, gdbvar=None):

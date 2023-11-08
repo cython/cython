@@ -202,7 +202,7 @@ class _XMLTestResult(TextTestResult):
             self.stream.writeln(self.separator1)
             self.stream.writeln(f'{flavour} [{t:.3f}s]: {descr}')
             self.stream.writeln(self.separator2)
-            self.stream.writeln('%s' % err_info)
+            self.stream.writeln(f'{err_info}')
 
     def _get_info_by_testcase(self):
         """This method organizes test results by TestCase module. This
@@ -260,7 +260,7 @@ class _XMLTestResult(TextTestResult):
         testcase.setAttribute('name', test_result.test_method.shortDescription()
                               or getattr(test_result.test_method, '_testMethodName',
                                          str(test_result.test_method)))
-        testcase.setAttribute('time', '%.3f' % test_result.get_elapsed_time())
+        testcase.setAttribute('time', f'{test_result.get_elapsed_time():.3f}')
 
         if (test_result.outcome != _TestInfo.SUCCESS):
             elem_name = ('failure', 'error')[test_result.outcome-1]

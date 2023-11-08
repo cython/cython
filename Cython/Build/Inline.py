@@ -149,7 +149,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
             elif symbol in globals:
                 kwds[symbol] = globals[symbol]
             else:
-                print("Couldn't find %r" % symbol)
+                print(f"Couldn't find {symbol!r}")
 
 
 def _inline_key(orig_code, arg_sigs, language_level):
@@ -205,7 +205,7 @@ def cython_inline(code, get_type=unsafe_type,
     cimports = []
     for name, arg in list(kwds.items()):
         if arg is cython_module:
-            cimports.append('\ncimport cython as %s' % name)
+            cimports.append(f'\ncimport cython as {name}')
             del kwds[name]
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
@@ -236,7 +236,7 @@ def cython_inline(code, get_type=unsafe_type,
             for type, _ in arg_sigs:
                 m = qualified.match(type)
                 if m:
-                    cimports.append('\ncimport %s' % m.groups()[0])
+                    cimports.append(f'\ncimport {m.groups()[0]}')
                     # one special case
                     if m.groups()[0] == 'numpy':
                         import numpy
@@ -245,16 +245,14 @@ def cython_inline(code, get_type=unsafe_type,
                         # cflags.append('-Wno-unused')
             module_body, func_body = extract_func_code(code)
             params = ', '.join(['%s %s' % a for a in arg_sigs])
-            module_code = """
+            module_code = f"""
 {module_body}
-{cimports}
+{'\
+'.join(cimports)}
 def __invoke({params}):
 {func_body}
     return locals()
-            """.format(cimports='\n'.join(cimports),
-                   module_body=module_body,
-                   params=params,
-                   func_body=func_body )
+            """
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
             pyx_file = os.path.join(lib_dir, module_name + '.pyx')
@@ -339,7 +337,7 @@ def extract_func_code(code):
 def get_body(source):
     ix = source.index(':')
     if source[:5] == 'lambda':
-        return "return %s" % source[ix+1:]
+        return f"return {source[ix + 1:]}"
     else:
         return source[ix+1:]
 

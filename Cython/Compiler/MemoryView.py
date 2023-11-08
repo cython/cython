@@ -63,8 +63,8 @@ memviewslice_cname = '__Pyx_memviewslice'
 
 
 def put_init_entry(mv_cname, code):
-    code.putln("%s.data = NULL;" % mv_cname)
-    code.putln("%s.memview = NULL;" % mv_cname)
+    code.putln(f"{mv_cname}.data = NULL;")
+    code.putln(f"{mv_cname}.memview = NULL;")
 
 
 #def axes_to_str(axes):
@@ -183,7 +183,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         self.type = entry.type
         self.cname = entry.cname
 
-        self.buf_ptr = "%s.data" % self.cname
+        self.buf_ptr = f"{self.cname}.data"
 
         dtype = self.entry.type.dtype
         self.buf_ptr_type = PyrexTypes.CPtrType(dtype)
@@ -264,8 +264,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         """
         src = self.cname
 
-        code.putln("%(dst)s.data = %(src)s.data;" % locals())
-        code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
+        code.putln(f"{locals()['dst']}.data = {locals()['src']}.data;")
+        code.putln(f"{locals()['dst']}.memview = {locals()['src']}.memview;")
         code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
@@ -275,7 +275,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             # create global temp variable at request
             if not suboffset_dim_temp:
                 suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-                code.putln("%s = -1;" % suboffset_dim)
+                code.putln(f"{suboffset_dim} = -1;")
                 suboffset_dim_temp.append(suboffset_dim)
             return suboffset_dim_temp[0]
 
@@ -429,7 +429,7 @@ class ContigSliceIter(SliceIter):
 
         total_size = ' * '.join("%s.shape[%d]" % (self.slice_result, i)
                                 for i in range(self.ndim))
-        code.putln("Py_ssize_t __pyx_temp_extent = %s;" % total_size)
+        code.putln(f"Py_ssize_t __pyx_temp_extent = {total_size};")
         code.putln("Py_ssize_t __pyx_temp_idx;")
         code.putln("{} *__pyx_temp_pointer = ({} *) {}.data;".format(
             type_decl, type_decl, self.slice_result))
@@ -457,7 +457,7 @@ class StridedSliceIter(SliceIter):
             code.putln("char *__pyx_temp_pointer_%d;" % i)
             code.putln("Py_ssize_t __pyx_temp_idx_%d;" % i)
 
-        code.putln("__pyx_temp_pointer_0 = %s.data;" % self.slice_result)
+        code.putln(f"__pyx_temp_pointer_0 = {self.slice_result}.data;")
 
         for i in range(self.ndim):
             if i > 0:
@@ -484,8 +484,7 @@ def copy_c_or_fortran_cname(memview):
     else:
         c_or_f = 'f'
 
-    return "__pyx_memoryview_copy_slice_{}_{}".format(
-            memview.specialization_suffix(), c_or_f)
+    return f"__pyx_memoryview_copy_slice_{memview.specialization_suffix()}_{c_or_f}"
 
 
 def get_copy_new_utility(pos, from_memview, to_memview):
@@ -726,7 +725,7 @@ def validate_axes_specs(positions, specs, is_c_contig, is_f_contig):
                 else:
                     dims = "dimension %d" % valid_contig_dims[0]
 
-                raise CompileError(pos, "Only %s may be contiguous and direct" % dims)
+                raise CompileError(pos, f"Only {dims} may be contiguous and direct")
 
             has_contig = access != 'ptr'
         elif packing == 'follow':
@@ -778,12 +777,12 @@ def _resolve_AttributeNode(env, node):
         mod = scope.lookup(modname)
         if not mod or not mod.as_module:
             raise CompileError(
-                    node.pos, "undeclared name not builtin: %s" % modname)
+                    node.pos, f"undeclared name not builtin: {modname}")
         scope = mod.as_module
 
     entry = scope.lookup(path[-1])
     if not entry:
-        raise CompileError(node.pos, "No such attribute '%s'" % path[-1])
+        raise CompileError(node.pos, f"No such attribute '{path[-1]}'")
 
     return entry
 

@@ -87,7 +87,7 @@ def main():
     import importlib.util
 
     if len(sys.argv) < 3:
-        print("Usage:  %s  path/to/Python/ceval.c  script.py ..." % sys.argv[0], file=sys.stderr)
+        print(f"Usage:  {sys.argv[0]}  path/to/Python/ceval.c  script.py ...", file=sys.stderr)
         return
 
     ceval_source_file = sys.argv[1]
@@ -111,7 +111,7 @@ def main():
 
     for file_path in sys.argv[2:]:
         module_name = os.path.basename(file_path)
-        print("/*######## MODULE %s ########*/" % module_name)
+        print(f"/*######## MODULE {module_name} ########*/")
         print('')
 
         spec = importlib.util.spec_from_file_location(module_name, file_path)
@@ -121,7 +121,7 @@ def main():
         for func_name, item in sorted(vars(module).items()):
             if not callable(item):
                 continue
-            print("/* FUNCTION %s */" % func_name)
+            print(f"/* FUNCTION {func_name} */")
             print("static void")  # assuming that it highlights in editors
             print("%s() {" % func_name)
 
@@ -136,7 +136,7 @@ def main():
 
                 print("  {}:{} {{{}".format(
                     instr.opname,
-                    ' /* %s */' % instr.argrepr if instr.arg is not None else '',
+                    f' /* {instr.argrepr} */' if instr.arg is not None else '',
                     ' /* ??? */' if snippet is None else ' /* ... */ }' if snippet == '' else '',
                 ))
                 print(snippet or '')

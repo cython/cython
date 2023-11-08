@@ -58,7 +58,7 @@ except ImportError:
     class SkipTest(Exception):  # don't raise, only provided to allow except-ing it!
         pass
     def skip_test(reason):
-        sys.stderr.write("Skipping test: %s\n" % reason)
+        sys.stderr.write(f"Skipping test: {reason}\n")
 else:
     def skip_test(reason):
         raise SkipTest(reason)
@@ -326,7 +326,7 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
                 compiler_version = gcc_version.group(1)
                 if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
                     use_gcc = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std=c++{cpp_std}")
 
             if use_gcc:
                 return ext
@@ -342,7 +342,7 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
                 compiler_version = clang_version.group(1)
                 if not min_clang_version or float(compiler_version) >= float(min_clang_version):
                     use_clang = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std=c++{cpp_std}")
             if sys.platform == "darwin":
                 ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
@@ -526,7 +526,7 @@ def parse_tags(filepath):
                 if tag in ('coding', 'encoding'):
                     continue
                 if tag == 'tags':
-                    raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                    raise RuntimeError(f"test tags use the 'tag' directive, not 'tags' ({filepath})")
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
                     print(f"WARNING: unknown test directive '{tag}' found ({filepath})")
                 values = values.split(',')
@@ -1123,7 +1123,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return target
 
     def related_files(self, test_directory, module_name):
-        is_related = re.compile('%s_.*[.].*' % module_name).match
+        is_related = re.compile(f'{module_name}_.*[.].*').match
         return [filename for filename in list_unchanging_dir(test_directory)
                 if is_related(filename)]
 
@@ -1396,7 +1396,7 @@ class CythonCompileTestCase(unittest.TestCase):
                             workdir2, file,
                             workdir2, file))
                 if diffs:
-                    self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
+                    self.fail(f"Nondeterministic file generation: {', '.join(diffs)}")
 
         tostderr = sys.__stderr__.write
         if expected_warnings or (expect_warnings and warnings):
@@ -1423,7 +1423,7 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 with captured_fd(1) as get_stdout:
                     with captured_fd(2) as get_stderr:
-                        with self.stats.time(self.name, self.language, 'compile-%s' % self.language):
+                        with self.stats.time(self.name, self.language, f'compile-{self.language}'):
                             so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
@@ -1482,7 +1482,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         Options.clear_to_none = False
 
     def description_name(self):
-        return self.name if self.cython_only else "and running %s" % self.name
+        return self.name if self.cython_only else f"and running {self.name}"
 
     def run(self, result=None):
         if result is None:
@@ -1709,7 +1709,7 @@ class PartialTestResult(TextTestResult):
 
     class _StringIO(StringIO):
         def writeln(self, line):
-            self.write("%s\n" % line)
+            self.write(f"{line}\n")
 
 
 class CythonUnitTestCase(CythonRunTestCase):
@@ -2051,12 +2051,12 @@ class EmbedTest(unittest.TestCase):
         self.old_dir = os.getcwd()
         os.chdir(self.working_dir)
         os.system(
-            "make PYTHON='%s' clean > /dev/null" % sys.executable)
+            f"make PYTHON='{sys.executable}' clean > /dev/null")
 
     def tearDown(self):
         try:
             os.system(
-                "make PYTHON='%s' clean > /dev/null" % sys.executable)
+                f"make PYTHON='{sys.executable}' clean > /dev/null")
         except:
             pass
         os.chdir(self.old_dir)
@@ -2076,9 +2076,9 @@ class EmbedTest(unittest.TestCase):
         try:
             subprocess.check_output([
                     "make",
-                    "PYTHON='%s'" % sys.executable,
-                    "CYTHON='%s'" % cython,
-                    "LIBDIR1='%s'" % libdir,
+                    f"PYTHON='{sys.executable}'",
+                    f"CYTHON='{cython}'",
+                    f"LIBDIR1='{libdir}'",
                     "paths", "test",
                 ],
                 stderr=subprocess.STDOUT,
@@ -2103,7 +2103,7 @@ class MissingDependencyExcluder:
                 module = __import__(module_name)
             except ImportError:
                 self.exclude_matchers.append(string_selector(matcher))
-                print("Test dependency not found: '%s'" % module_name)
+                print(f"Test dependency not found: '{module_name}'")
             else:
                 version = self.find_dep_version(module_name, module)
                 print(f"Test dependency found: '{module_name}' version {version}")
@@ -2166,8 +2166,7 @@ class FileListExcluder:
     def __call__(self, testname, tags=None):
         exclude = any(string_selector(ex)(testname) for ex in self.excludes)
         if exclude and self.verbose:
-            print("Excluding %s because it's listed in %s"
-                  % (testname, self._list_file))
+            print(f"Excluding {testname} because it's listed in {self._list_file}")
         return exclude
 
 
@@ -2188,7 +2187,7 @@ class RegExSelector:
         try:
             self.regex_matches = re.compile(pattern_string, re.I|re.U).search
         except re.error:
-            print('Invalid pattern: %r' % pattern_string)
+            print(f'Invalid pattern: {pattern_string!r}')
             raise
 
     def __call__(self, testname, tags=None):
@@ -2248,7 +2247,7 @@ def check_thread_termination(ignore_seen=True):
         return
     sys.stderr.write("warning: left-over threads found after running test:\n")
     for t in blocking_threads:
-        sys.stderr.write('...%s\n'  % repr(t))
+        sys.stderr.write(f'...{repr(t)}\n')
     raise PendingThreadsError("left-over threads found after running test")
 
 def subprocess_output(cmd):
@@ -2320,7 +2319,7 @@ def main():
                       help="C compiler type")
     backend_list = ','.join(BACKENDS)
     parser.add_option("--backends", dest="backends", default=backend_list,
-                      help="select backends to test (default: %s)" % backend_list)
+                      help=f"select backends to test (default: {backend_list})")
     parser.add_option("--no-c", dest="use_c",
                       action="store_false", default=True,
                       help="do not test C compilation backend")
@@ -2501,7 +2500,7 @@ def main():
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if error_shards:
-            sys.stderr.write("Errors found in shards %s\n" % ", ".join([str(e) for e in error_shards]))
+            sys.stderr.write(f"Errors found in shards {', '.join([str(e) for e in error_shards])}\n")
             for failure_output in zip(error_shards, failure_outputs):
                 sys.stderr.write("\nErrors from shard %s:\n%s" % failure_output)
             return_code = 1
@@ -2585,7 +2584,7 @@ def time_stamper_thread(interval=10):
                 if stop:
                     return
                 sleep(1./4)
-            write('\n#### %s\n' % now())
+            write(f'\n#### {now()}\n')
 
     thread = threading.Thread(target=time_stamper, name='time_stamper')
     thread.daemon = True
@@ -2673,10 +2672,10 @@ def runtests(options, cmd_args, coverage=None):
         os.makedirs(WORKDIR)
 
     if options.shard_num <= 0:
-        sys.stderr.write("Python %s\n" % sys.version)
+        sys.stderr.write(f"Python {sys.version}\n")
         sys.stderr.write("\n")
         if WITH_CYTHON:
-            sys.stderr.write("Running tests against Cython %s\n" % get_version())
+            sys.stderr.write(f"Running tests against Cython {get_version()}\n")
         else:
             sys.stderr.write("Running tests without Cython.\n")
 
@@ -2723,7 +2722,7 @@ def runtests(options, cmd_args, coverage=None):
     if options.tickets:
         for ticket_number in options.tickets:
             test_bugs = True
-            cmd_args.append('ticket:%s' % ticket_number)
+            cmd_args.append(f'ticket:{ticket_number}')
     if not test_bugs:
         for selector in cmd_args:
             if selector.startswith('bugs'):
@@ -2801,7 +2800,7 @@ def runtests(options, cmd_args, coverage=None):
             sys.exit(1)
         backends.append(backend)
     if options.shard_num <= 0:
-        sys.stderr.write("Backends: %s\n" % ','.join(backends))
+        sys.stderr.write(f"Backends: {','.join(backends)}\n")
     languages = backends
 
     if 'CI' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
@@ -2855,7 +2854,7 @@ def runtests(options, cmd_args, coverage=None):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                     options, True, languages, test_bugs,
                                     sys.version_info[0], common_utility_dir, stats=stats)
-            sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
+            sys.stderr.write(f"Including CPython regression tests in {sys_pyregr_dir}\n")
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
     if options.code_style and options.shard_num <= 0:
@@ -2929,7 +2928,7 @@ def runtests(options, cmd_args, coverage=None):
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
         for test in missing_dep_excluder.tests_missing_deps:
-            sys.stderr.write("   %s\n" % test)
+            sys.stderr.write(f"   {test}\n")
 
     if options.with_refnanny:
         import refnanny

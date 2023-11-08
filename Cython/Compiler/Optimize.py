@@ -1010,7 +1010,7 @@ class IterationTransform(Visitor.EnvTransform):
             method_node = ExprNodes.StringNode(
                 dict_obj.pos, is_identifier=True, value=method)
             dict_obj = dict_obj.as_none_safe_node(
-                "'NoneType' object has no attribute '%{}s'".format('.30' if len(method) <= 30 else ''),
+                f"'NoneType' object has no attribute '%{'.30' if len(method) <= 30 else ''}s'",
                 error = "PyExc_AttributeError",
                 format_args = [method])
         else:
@@ -1644,9 +1644,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     def _dispatch_to_handler(self, node, function, args, kwargs=None):
         if kwargs is None:
-            handler_name = '_handle_simple_function_%s' % function.name
+            handler_name = f'_handle_simple_function_{function.name}'
         else:
-            handler_name = '_handle_general_function_%s' % function.name
+            handler_name = f'_handle_general_function_{function.name}'
         handle_call = getattr(self, handler_name, None)
         if handle_call is not None:
             if kwargs is None:
@@ -1670,7 +1670,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         else:
             arg_str = ''
         if expected is not None:
-            expected_str = 'expected %s, ' % expected
+            expected_str = f'expected {expected}, '
         else:
             expected_str = ''
         error(node.pos, "%s(%s) called with wrong number of args, %sfound %d" % (
@@ -2369,7 +2369,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         else:
             arg_str = ''
         if expected is not None:
-            expected_str = 'expected %s, ' % expected
+            expected_str = f'expected {expected}, '
         else:
             expected_str = ''
         error(node.pos, "%s(%s) called with wrong number of args, %sfound %d" % (
@@ -3252,7 +3252,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             type_name = 'Object'
         if len(args) == 1:
             return ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_Py%s_Pop" % type_name,
+                node.pos, f"__Pyx_Py{type_name}_Pop",
                 self.PyObject_Pop_func_type,
                 args=[obj],
                 may_return_none=True,
@@ -3287,7 +3287,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             conversion_type = PyrexTypes.CFuncType(
                 PyrexTypes.py_object_type, [PyrexTypes.CFuncTypeArg("intval", orig_index_type, None)])
             return ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_Py%s_PopIndex" % type_name,
+                node.pos, f"__Pyx_Py{type_name}_PopIndex",
                 self.PyObject_PopIndex_func_type,
                 args=[obj, py_index, index,
                       ExprNodes.IntNode(index.pos, value=str(orig_index_type.signed and 1 or 0),
@@ -3522,7 +3522,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function,
             func_cname,
             self.Pyx_BinopInt_func_types[(num_type, ret_type)],
-            '__%s__' % operator[:3].lower(), is_unbound_method, args,
+            f'__{operator[:3].lower()}__', is_unbound_method, args,
             may_return_none=True,
             with_none_check=False,
             utility_code=utility_code)
@@ -3554,7 +3554,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             function_name = '__Pyx_Py_UNICODE_ISTITLE'
         else:
             utility_code = None
-            function_name = 'Py_UNICODE_%s' % method_name.upper()
+            function_name = f'Py_UNICODE_{method_name.upper()}'
         func_call = self._substitute_method_call(
             node, function,
             function_name, self.PyUnicode_uchar_predicate_func_type,
@@ -3726,7 +3726,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         method_call = self._substitute_method_call(
             node, function,
-            "__Pyx_Py%s_Tailmatch" % type_name.capitalize(),
+            f"__Pyx_Py{type_name.capitalize()}_Tailmatch",
             self.PyString_Tailmatch_func_type,
             method_name, is_unbound_method, args,
             utility_code = utility_code)
@@ -3756,7 +3756,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         direct call to the corresponding C-API function.
         """
         if len(args) not in (2,3,4):
-            self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
+            self._error_wrong_arg_count(f'unicode.{method_name}', node, args, "2-4")
             return node
         self._inject_int_default_argument(
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
@@ -3873,7 +3873,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # try to find a specific encoder function
             codec_name = self._find_special_codec_name(encoding)
             if codec_name is not None and '-' not in codec_name:
-                encode_function = "PyUnicode_As%sString" % codec_name
+                encode_function = f"PyUnicode_As{codec_name}String"
                 return self._substitute_method_call(
                     node, function, encode_function,
                     self.PyUnicode_AsXyzString_func_type,
@@ -3967,9 +3967,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             codec_name = self._find_special_codec_name(encoding)
         if codec_name is not None:
             if codec_name in ('UTF16', 'UTF-16LE', 'UTF-16BE'):
-                codec_cname = "__Pyx_PyUnicode_Decode%s" % codec_name.replace('-', '')
+                codec_cname = f"__Pyx_PyUnicode_Decode{codec_name.replace('-', '')}"
             else:
-                codec_cname = "PyUnicode_Decode%s" % codec_name
+                codec_cname = f"PyUnicode_Decode{codec_name}"
             decode_function = ExprNodes.RawCNameExprNode(
                 node.pos, type=self.PyUnicode_DecodeXyz_func_ptr_type, cname=codec_cname)
             encoding_node = ExprNodes.NullNode(node.pos)
@@ -4022,7 +4022,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 utility_code_name = 'decode_bytearray'
 
         node = ExprNodes.PythonCapiCallNode(
-            node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,
+            node.pos, f'__Pyx_{utility_code_name}', helper_func_type,
             args=[string_node, start, stop, encoding_node, error_handling_node, decode_function],
             is_temp=node.is_temp,
             utility_code=UtilityCode.load_cached(utility_code_name, 'StringTools.c'),
@@ -4152,7 +4152,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 format_args=[attr_name, self_arg.type.name])
         else:
             self_arg = self_arg.as_none_safe_node(
-                "'NoneType' object has no attribute '%{}s'".format('.30' if len(attr_name) <= 30 else ''),
+                f"'NoneType' object has no attribute '%{'.30' if len(attr_name) <= 30 else ''}s'",
                 error="PyExc_AttributeError",
                 format_args=[attr_name])
         return self_arg
@@ -4549,7 +4549,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value * multiplier,
                     string_node.bytes_value.encoding)
         else:
-            assert False, "unknown string node type: %s" % type(string_node)
+            assert False, f"unknown string node type: {type(string_node)}"
         string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
@@ -4608,7 +4608,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 continue
             if s[0] != '%':
                 if s[-1] == '%':
-                    warning(pos, "Incomplete format: '...%s'" % s[-3:], level=1)
+                    warning(pos, f"Incomplete format: '...{s[-3:]}'", level=1)
                     can_be_optimised = False
                 substrings.append(ExprNodes.UnicodeNode(pos, value=EncodedString(s), constant_result=s))
                 continue

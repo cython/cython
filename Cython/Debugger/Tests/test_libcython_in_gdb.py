@@ -70,7 +70,7 @@ class DebugTestCase(unittest.TestCase):
             'codefile.eggs']
 
     def read_var(self, varname, cast_to=None):
-        result = gdb.parse_and_eval('$cy_cvalue("%s")' % varname)
+        result = gdb.parse_and_eval(f'$cy_cvalue("{varname}")')
         if cast_to:
             result = cast_to(result)
 
@@ -407,8 +407,7 @@ class TestExec(DebugTestCase):
             os.remove(self.tmpfilename)
 
     def eval_command(self, command):
-        gdb.execute('cy exec open(%r, "w").write(str(%s))' %
-                                                (self.tmpfilename, command))
+        gdb.execute(f'cy exec open({self.tmpfilename!r}, "w").write(str({command}))')
         return self.tmpfile.read().strip()
 
     def test_cython_exec(self):

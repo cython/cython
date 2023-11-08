@@ -2,7 +2,7 @@
 
 def typename(t):
     name = type(t).__name__
-    return "<type '%s'>" % name
+    return f"<type '{name}'>"
 
 
 class MyException(Exception):

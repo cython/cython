@@ -42,14 +42,14 @@ def fused_classmethod_free(cls, x: IntOrFloat):
 
 @cython.cclass
 class Cdef:
-    __doc__ = """
+    __doc__ = f"""
     >>> c = Cdef()
 
     # functions are callable with an instance of c
     >>> c.fused_func()
     ('Cdef', 'Cdef')
     >>> c.regular_func()
-    ('Cdef', '{typeofCdef}')
+    ('Cdef', '{'Python object' if cython.compiled else 'Cdef'}')
     >>> c.fused_in_class(1.5)
     ('float', 'float')
 
@@ -80,7 +80,7 @@ class Cdef:
     ('Cdef', 'int')
     >>> Cdef.fused_classmethod_free(1)
     ('Cdef', 'int')
-    """.format(typeofCdef = 'Python object' if cython.compiled else 'Cdef')
+    """
 
     if cython.compiled:
         __doc__ += """

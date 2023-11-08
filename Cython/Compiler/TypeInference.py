@@ -248,7 +248,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_YieldExprNode(self, node):
         if self.parallel_block_stack:
-            error(node.pos, "'%s' not allowed in parallel sections" % node.expr_keyword)
+            error(node.pos, f"'{node.expr_keyword}' not allowed in parallel sections")
         return node
 
     def visit_ReturnStatNode(self, node):

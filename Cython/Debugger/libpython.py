@@ -461,7 +461,7 @@ def _write_instance_repr(out, visited, name, pyop_attrdict, address):
             out.write('=')
             pyop_val.write_repr(out, visited)
         out.write(')')
-    out.write(' at remote 0x%x>' % address)
+    out.write(f' at remote 0x{address:x}>')
 
 
 class InstanceProxy:
@@ -475,11 +475,9 @@ class InstanceProxy:
         if isinstance(self.attrdict, dict):
             kwargs = ', '.join([f"{arg}={val!r}"
                                 for arg, val in self.attrdict.iteritems()])
-            return '<{}({}) at remote 0x{:x}>'.format(self.cl_name,
-                                                kwargs, self.address)
+            return f'<{self.cl_name}({kwargs}) at remote 0x{self.address:x}>'
         else:
-            return '<{} at remote 0x{:x}>'.format(self.cl_name,
-                                            self.address)
+            return f'<{self.cl_name} at remote 0x{self.address:x}>'
 
 def _PyObject_VAR_SIZE(typeobj, nitems):
     if _PyObject_VAR_SIZE._type_size_t is None:
@@ -605,7 +603,7 @@ class BuiltInFunctionProxy:
         self.ml_name = ml_name
 
     def __repr__(self):
-        return "<built-in function %s>" % self.ml_name
+        return f"<built-in function {self.ml_name}>"
 
 class BuiltInMethodProxy:
     def __init__(self, ml_name, pyop_m_self):
@@ -827,7 +825,7 @@ class PyLongObjectPtr(PyObjectPtr):
     def write_repr(self, out, visited):
         # Write this out as a Python 3 int literal, i.e. without the "L" suffix
         proxy = self.proxyval(visited)
-        out.write("%s" % proxy)
+        out.write(f"{proxy}")
 
 
 class PyBoolObjectPtr(PyLongObjectPtr):
@@ -1001,7 +999,7 @@ class PyFrameObjectPtr(PyObjectPtr):
 
     def print_traceback(self):
         if self.is_optimized_out():
-            sys.stdout.write('  %s\n' % FRAME_INFO_OPTIMIZED_OUT)
+            sys.stdout.write(f'  {FRAME_INFO_OPTIMIZED_OUT}\n')
             return
         visited = set()
         lineno = self.current_line_num()
@@ -1030,7 +1028,7 @@ class PySetObjectPtr(PyObjectPtr):
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
-            return ProxyAlreadyVisited('%s(...)' % self.safe_tp_name())
+            return ProxyAlreadyVisited(f'{self.safe_tp_name()}(...)')
         visited.add(self.as_address())
 
         members = (key.proxyval(visited) for key in self)
@@ -1391,8 +1389,7 @@ class wrapperobject(PyObjectPtr):
         name = self.safe_name()
         tp_name = self.safe_tp_name()
         self_address = self.safe_self_addresss()
-        return ("<method-wrapper %s of %s object at %s>"
-                % (name, tp_name, self_address))
+        return (f"<method-wrapper {name} of {tp_name} object at {self_address}>")
 
     def write_repr(self, out, visited):
         proxy = self.proxyval(visited)
@@ -1587,7 +1584,7 @@ class Frame:
                 return ('PyCFunction invocation (unable to read %s: '
                         'missing debuginfos?)' % arg_name)
             except RuntimeError:
-                return 'PyCFunction invocation (unable to read %s)' % arg_name
+                return f'PyCFunction invocation (unable to read {arg_name})'
 
         if caller == 'wrapper_call':
             arg_name = 'wp'
@@ -1598,7 +1595,7 @@ class Frame:
                 return ('<wrapper_call invocation (unable to read %s: '
                         'missing debuginfos?)>' % arg_name)
             except RuntimeError:
-                return '<wrapper_call invocation (unable to read %s)>' % arg_name
+                return f'<wrapper_call invocation (unable to read {arg_name})>'
 
         # This frame isn't worth reporting:
         return False
@@ -1682,7 +1679,7 @@ class Frame:
                 if not pyop.is_optimized_out():
                     line = pyop.current_line()
                     if line is not None:
-                        sys.stdout.write('    %s\n' % line.strip())
+                        sys.stdout.write(f'    {line.strip()}\n')
             else:
                 sys.stdout.write('#%i (unable to read python frame information)\n' % self.get_index())
         else:
@@ -1700,13 +1697,13 @@ class Frame:
                 if not pyop.is_optimized_out():
                     line = pyop.current_line()
                     if line is not None:
-                        sys.stdout.write('    %s\n' % line.strip())
+                        sys.stdout.write(f'    {line.strip()}\n')
             else:
                 sys.stdout.write('  (unable to read python frame information)\n')
         else:
             info = self.is_other_python_frame()
             if info:
-                sys.stdout.write('  %s\n' % info)
+                sys.stdout.write(f'  {info}\n')
             else:
                 sys.stdout.write('  (not a python frame)\n')
 
@@ -1771,8 +1768,7 @@ class PyList(gdb.Command):
         try:
             f = open(os_fsencode(filename))
         except OSError as err:
-            sys.stdout.write('Unable to open %s: %s\n'
-                             % (filename, err))
+            sys.stdout.write(f'Unable to open {filename}: {err}\n')
             return
         with f:
             all_lines = f.readlines()
@@ -1918,12 +1914,9 @@ class PyPrint(gdb.Command):
         pyop_var, scope = pyop_frame.get_var_by_name(name)
 
         if pyop_var:
-            print('%s %r = %s'
-                   % (scope,
-                      name,
-                      pyop_var.get_truncated_repr(MAX_OUTPUT_LEN)))
+            print(f'{scope} {name!r} = {pyop_var.get_truncated_repr(MAX_OUTPUT_LEN)}')
         else:
-            print('%r not found' % name)
+            print(f'{name!r} not found')
 
 PyPrint()
 
@@ -2087,10 +2080,9 @@ class PyBreak(gdb.Command):
     def invoke(self, funcname, from_tty):
         if '.' in funcname:
             modname, dot, funcname = funcname.rpartition('.')
-            cond = '$pyname_equals("{}") && $pymod_equals("{}")'.format(funcname,
-                                                                    modname)
+            cond = f'$pyname_equals("{funcname}") && $pymod_equals("{modname}")'
         else:
-            cond = '$pyname_equals("%s")' % funcname
+            cond = f'$pyname_equals("{funcname}")'
 
         gdb.execute('break PyEval_EvalFrameEx if ' + cond)
 
@@ -2107,7 +2099,7 @@ class _LoggingState:
         self.file = f
         self.filename = f.name
         self.fd = f.fileno()
-        _execute("set logging file %s" % self.filename)
+        _execute(f"set logging file {self.filename}")
         self.file_position_stack = []
 
     def __enter__(self):
@@ -2181,7 +2173,7 @@ def source_gdb_script(script_contents, to_string=False):
     f = os.fdopen(fd, 'w')
     f.write(script_contents)
     f.close()
-    gdb.execute("source %s" % filename, to_string=to_string)
+    gdb.execute(f"source {filename}", to_string=to_string)
     os.remove(filename)
 
 
@@ -2233,12 +2225,12 @@ class ExecutionControlCommandBase(gdb.Command):
             self.lang_info.runtime_break_functions())
 
         for location in all_locations:
-            result = gdb.execute('break %s' % location, to_string=True)
+            result = gdb.execute(f'break {location}', to_string=True)
             yield re.search(r'Breakpoint (\d+)', result).group(1)
 
     def delete_breakpoints(self, breakpoint_list):
         for bp in breakpoint_list:
-            gdb.execute("delete %s" % bp)
+            gdb.execute(f"delete {bp}")
 
     def filter_output(self, result):
         reflags = re.MULTILINE
@@ -2268,7 +2260,7 @@ class ExecutionControlCommandBase(gdb.Command):
         match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
                                  re.MULTILINE)
         if match_finish:
-            finish_output = 'Value returned: %s\n' % match_finish.group(1)
+            finish_output = f'Value returned: {match_finish.group(1)}\n'
         else:
             finish_output = ''
 
@@ -2533,7 +2525,7 @@ class PythonStepperMixin:
         output = gdb.execute('watch f->f_lasti', to_string=True)
         watchpoint = int(re.search(r'[Ww]atchpoint (\d+):', output).group(1))
         self.step(stepinto=stepinto, stepover_command='finish')
-        gdb.execute('delete %s' % watchpoint)
+        gdb.execute(f'delete {watchpoint}')
 
 
 class PyStep(ExecutionControlCommandBase, PythonStepperMixin):

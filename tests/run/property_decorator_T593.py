@@ -33,7 +33,7 @@ class Prop:
 
     @property
     def prop(self):
-        print("GETTING '%s'" % self._value)
+        print(f"GETTING '{self._value}'")
         return self._value
 
     @prop.setter
@@ -43,7 +43,7 @@ class Prop:
 
     @prop.deleter
     def prop(self):
-        print("DELETING (previously: '%s')" % self._value)
+        print(f"DELETING (previously: '{self._value}')")
         self._value = None
 
     @my_property

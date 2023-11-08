@@ -45,11 +45,11 @@ def pythran_type(Ty, ptype="ndarray"):
         elif isinstance(dtype, CTypedefType):
             ctype = dtype.typedef_cname
         else:
-            raise ValueError("unsupported type %s!" % dtype)
+            raise ValueError(f"unsupported type {dtype}!")
         if pythran_is_pre_0_9:
             return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
         else:
-            return "pythonic::types::{}<{},pythonic::types::pshape<{}>>".format(ptype,ctype, ",".join(("long",)*ndim))
+            return f"pythonic::types::{ptype}<{ctype},pythonic::types::pshape<{','.join(('long',) * ndim)}>>"
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
@@ -61,7 +61,7 @@ def pythran_type(Ty, ptype="ndarray"):
 
 @cython.cfunc
 def type_remove_ref(ty):
-    return "typename std::remove_reference<%s>::type" % ty
+    return f"typename std::remove_reference<{ty}>::type"
 
 
 def pythran_binop_type(op, tA, tB):
@@ -74,8 +74,7 @@ def pythran_binop_type(op, tA, tB):
 
 
 def pythran_unaryop_type(op, type_):
-    return "decltype({}std::declval<{}>())".format(
-        op, pythran_type(type_))
+    return f"decltype({op}std::declval<{pythran_type(type_)}>())"
 
 
 @cython.cfunc
@@ -92,10 +91,10 @@ def _index_type_code(index_with_type):
             pythran_builtins,
             ",".join(["0"]*n))
     elif index_type.is_int:
-        return "std::declval<%s>()" % index_type.sign_and_name()
+        return f"std::declval<{index_type.sign_and_name()}>()"
     elif index_type.is_pythran_expr:
-        return "std::declval<%s>()" % index_type.pythran_type
-    raise ValueError("unsupported indexing type %s!" % index_type)
+        return f"std::declval<{index_type.pythran_type}>()"
+    raise ValueError(f"unsupported indexing type {index_type}!")
 
 
 def _index_code(idx):
@@ -112,7 +111,7 @@ def _index_code(idx):
         return to_pythran(idx)
     elif idx.type.is_pythran_expr:
         return idx.pythran_result()
-    raise ValueError("unsupported indexing type %s" % idx.type)
+    raise ValueError(f"unsupported indexing type {idx.type}")
 
 
 def pythran_indexing_type(type_, indices):
@@ -149,7 +148,7 @@ def pythran_functor(func):
     return f"pythonic::numpy::{submodules}::{func[-1]}"
 
 def pythran_func_type(func, args):
-    args = ",".join("std::declval<%s>()" % pythran_type(a.type) for a in args)
+    args = ",".join(f"std::declval<{pythran_type(a.type)}>()" for a in args)
     return f"decltype({pythran_functor(func)}{{}}({args}))"
 
 
@@ -162,7 +161,7 @@ def to_pythran(op, ptype=None):
     if is_type(op_type, ["is_pythran_expr", "is_numeric", "is_float", "is_complex"]):
         return op.result()
     if op.is_none:
-        return "pythonic::%s::None" % pythran_builtins
+        return f"pythonic::{pythran_builtins}::None"
     if ptype is None:
         ptype = pythran_type(op_type)
 
@@ -206,7 +205,7 @@ def is_pythran_buffer(type_):
 
 def pythran_get_func_include_file(func):
     func = np_func_to_list(func)
-    return "pythonic/numpy/%s.hpp" % "/".join(func)
+    return f"pythonic/numpy/{'/'.join(func)}.hpp"
 
 def include_pythran_generic(env):
     # Generic files
@@ -215,7 +214,7 @@ def include_pythran_generic(env):
     env.add_include_file("pythonic/types/bool.hpp")
     env.add_include_file("pythonic/types/ndarray.hpp")
     env.add_include_file("pythonic/numpy/power.hpp")
-    env.add_include_file("pythonic/%s/slice.hpp" % pythran_builtins)
+    env.add_include_file(f"pythonic/{pythran_builtins}/slice.hpp")
     env.add_include_file("<new>")  # for placement new
 
     for i in (8, 16, 32, 64):
@@ -223,4 +222,4 @@ def include_pythran_generic(env):
         env.add_include_file("pythonic/types/int%d.hpp" % i)
     for t in ("float", "float32", "float64", "set", "slice", "tuple", "int",
               "complex", "complex64", "complex128"):
-        env.add_include_file("pythonic/types/%s.hpp" % t)
+        env.add_include_file(f"pythonic/types/{t}.hpp")

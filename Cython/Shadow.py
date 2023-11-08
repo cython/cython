@@ -32,7 +32,7 @@ class _ArrayType:
         elif self.is_f_contig:
             axes[0] = "::1"
 
-        return "{}[{}]".format(self.dtype, ", ".join(axes))
+        return f"{self.dtype}[{', '.join(axes)}]"
 
 
 def index_type(base_type, item):
@@ -319,7 +319,7 @@ class StructType(CythonType):
         if data:
             raise ValueError('Cannot accept keyword arguments when casting.')
         if type(cast_from) is not type(self):
-            raise ValueError('Cannot cast from %s' % cast_from)
+            raise ValueError(f'Cannot cast from {cast_from}')
         for key, value in cast_from.__dict__.items():
             setattr(self, key, value)
 
@@ -327,7 +327,7 @@ class StructType(CythonType):
         if key in self._members:
             self.__dict__[key] = cast(self._members[key], value)
         else:
-            raise AttributeError("Struct has no member '%s'" % key)
+            raise AttributeError(f"Struct has no member '{key}'")
 
 
 class UnionType(CythonType):
@@ -342,7 +342,7 @@ class UnionType(CythonType):
             elif type(cast_from) is type(self):
                 datadict = cast_from.__dict__
             else:
-                raise ValueError('Cannot cast from %s' % cast_from)
+                raise ValueError(f'Cannot cast from {cast_from}')
         else:
             datadict = data
         if len(datadict) > 1:
@@ -356,7 +356,7 @@ class UnionType(CythonType):
         elif key in self._members:
             self.__dict__ = {key: cast(self._members[key], value)}
         else:
-            raise AttributeError("Union has no member '%s'" % key)
+            raise AttributeError(f"Union has no member '{key}'")
 
 def pointer(basetype):
     class PointerInstance(PointerType):
@@ -506,7 +506,7 @@ Py_tss_t = typedef(None, "Py_tss_t")
 
 for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
-        gs["{}_{}".format('p'*i, t)] = gs[t]._pointer(i)
+        gs[f"{'p' * i}_{t}"] = gs[t]._pointer(i)
 
 NULL = gs['p_void'](0)
 
@@ -560,7 +560,7 @@ class CythonDotImportedFromElsewhere:
             # you can't use them
             raise AttributeError("%s: the standard library module %s is not available" %
                                  (attr, self.__name__))
-        sys.modules['cython.%s' % self.__name__] = mod
+        sys.modules[f'cython.{self.__name__}'] = mod
         return getattr(mod, attr)
 
 class CythonCImports:

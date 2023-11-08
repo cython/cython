@@ -173,7 +173,7 @@ class FastMachine:
         file.write("Plex.FastMachine:\n")
         file.write("   Initial states:\n")
         for name, state in sorted(self.initial_states.items()):
-            file.write("      {}: {}\n".format(repr(name), state['number']))
+            file.write(f"      {repr(name)}: {state['number']}\n")
         for state in self.states:
             self.dump_state(state, file)
 
@@ -185,7 +185,7 @@ class FastMachine:
         # Action
         action = state['action']
         if action is not None:
-            file.write("      %s\n" % action)
+            file.write(f"      {action}\n")
 
     def dump_transitions(self, state, file):
         chars_leading_to_state = {}

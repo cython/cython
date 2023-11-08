@@ -72,7 +72,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         """css template will later allow to choose a colormap"""
         css = [self._css_template]
         for i in range(255):
-            color = "FFFF%02x" % int(255.0 // (1.0 + i/10.0))
+            color = f"FFFF{int(255.0 // (1.0 + i / 10.0)):02x}"
             css.append('.cython.score-%d {background-color: #%s;}' % (i, color))
         try:
             from pygments.formatters import HtmlFormatter
@@ -235,8 +235,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         def annotate(match):
             group_name = match.lastgroup
             calls[group_name] += 1
-            return "<span class='{}'>{}</span>".format(
-                group_name, match.group(group_name))
+            return f"<span class='{group_name}'>{match.group(group_name)}</span>"
 
         lines = self._htmlify_code(cython_code, "cython").splitlines()
         lineno_width = len(str(len(lines)))

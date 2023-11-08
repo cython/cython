@@ -728,7 +728,7 @@ def p_atom(s):
         elif kind == '':
             return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
         else:
-            s.error("invalid string kind '%s'" % kind)
+            s.error(f"invalid string kind '{kind}'")
     elif sy == 'IDENT':
         name = s.systring
         if name == "None":
@@ -975,14 +975,13 @@ def p_string_literal(s, kind_override=None):
         elif sy == 'EOF':
             s.error("Unclosed string literal", pos=pos)
         else:
-            s.error("Unexpected token {!r}:{!r} in string literal".format(
-                sy, s.systring))
+            s.error(f"Unexpected token {sy!r}:{s.systring!r} in string literal")
 
     if kind == 'c':
         unicode_value = None
         bytes_value = chars.getchar()
         if len(bytes_value) != 1:
-            error(pos, "invalid character literal: %r" % bytes_value)
+            error(pos, f"invalid character literal: {bytes_value!r}")
     else:
         bytes_value, unicode_value = chars.getstrings()
         if (has_non_ascii_literal_characters
@@ -1011,7 +1010,7 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
         if len(escape_sequence) == 4:
             builder.append_charval(int(escape_sequence[2:], 16))
         else:
-            s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
+            s.error(f"Invalid hex escape '{escape_sequence}'", fatal=False)
     elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
         chrval = -1
         if c == 'N':
@@ -1033,10 +1032,10 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
         elif len(escape_sequence) in (6, 10):
             chrval = int(escape_sequence[2:], 16)
             if chrval > 1114111:  # sys.maxunicode:
-                s.error("Invalid unicode escape '%s'" % escape_sequence)
+                s.error(f"Invalid unicode escape '{escape_sequence}'")
                 chrval = -1
         else:
-            s.error("Invalid unicode escape '%s'" % escape_sequence, fatal=False)
+            s.error(f"Invalid unicode escape '{escape_sequence}'", fatal=False)
         if chrval >= 0:
             builder.append_uescape(chrval, escape_sequence)
     else:
@@ -1239,16 +1238,16 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if terminal_char != '}':
         error(_f_string_error_pos(pos, unicode_value, i),
               "missing '}' in format string expression" + (
-                  ", found '%s'" % terminal_char if terminal_char else ""))
+                  f", found '{terminal_char}'" if terminal_char else ""))
 
     # parse the expression as if it was surrounded by parentheses
-    buf = StringIO('(%s)' % expr_str)
+    buf = StringIO(f'({expr_str})')
     scanner = PyrexScanner(buf, expr_pos[0], parent_scanner=s, source_encoding=s.source_encoding, initial_pos=expr_pos)
     expr = p_testlist(scanner)  # TODO is testlist right here?
 
     # validate the conversion char
     if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
-        error(expr_pos, "invalid conversion character '%s'" % conversion_char)
+        error(expr_pos, f"invalid conversion character '{conversion_char}'")
 
     # the format spec is itself treated like an f-string
     if format_spec_str:
@@ -1656,7 +1655,7 @@ def p_exec_statement(s):
         tuple_variant = True
         args = code.args
         if len(args) not in (2, 3):
-            s.error("expected tuple of length 2 or 3, got length %d" % len(args),
+            s.error(f"expected tuple of length 2 or 3, got length {len(args)}",
                     pos=pos, fatal=False)
             args = [code]
     else:
@@ -1825,7 +1824,7 @@ def p_from_import_statement(s, first_statement = 0):
                 try:
                     directive = getattr(Future, name)
                 except AttributeError:
-                    s.error("future feature %s is not defined" % name, name_pos)
+                    s.error(f"future feature {name} is not defined", name_pos)
                     break
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
@@ -2547,7 +2546,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         if s.sy != ',':
             if s.sy not in end_sy_set:
                 if parsed_type:
-                    s.error("Unmatched %s" % " or ".join(end_sy_set))
+                    s.error(f"Unmatched {' or '.join(end_sy_set)}")
             break
         s.next()
     return positional_args, keyword_args
@@ -2631,7 +2630,7 @@ def p_c_simple_base_type(s, nonempty, templates=None):
             base_type=base_type, is_const=is_const, is_volatile=is_volatile)
 
     if s.sy != 'IDENT':
-        error(pos, "Expected an identifier, found '%s'" % s.sy)
+        error(pos, f"Expected an identifier, found '{s.sy}'")
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
@@ -3033,13 +3032,13 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                     op += s.sy    # +=, -=, ...
                     s.next()
                 if op not in supported_overloaded_operators:
-                    s.error("Overloading operator '%s' not yet supported." % op,
+                    s.error(f"Overloading operator '{op}' not yet supported.",
                             fatal=False)
                 name += op
             elif op == 'IDENT':
                 op = s.systring
                 if op not in supported_overloaded_operators:
-                    s.error("Overloading operator '%s' not yet supported." % op,
+                    s.error(f"Overloading operator '{op}' not yet supported.",
                             fatal=False)
                 name = name + ' ' + op
                 s.next()
@@ -3182,7 +3181,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         else:
             s.error("Expected 'None'")
         if not in_pyfunc:
-            error(pos, "'%s None' only allowed in Python functions" % kind)
+            error(pos, f"'{kind} None' only allowed in Python functions")
         or_none = kind == 'or'
         not_none = kind == 'not'
     if annotated and s.sy == ':':
@@ -3223,7 +3222,7 @@ def p_cdef_statement(s, ctx):
     ctx.api = ctx.api or p_api(s)
     if ctx.api:
         if ctx.visibility not in ('private', 'public'):
-            error(pos, "Cannot combine 'api' with '%s'" % ctx.visibility)
+            error(pos, f"Cannot combine 'api' with '{ctx.visibility}'")
     if (ctx.visibility == 'extern') and s.sy == 'from':
         return p_cdef_extern_block(s, pos, ctx)
     elif s.sy == 'import':
@@ -3580,7 +3579,7 @@ def _reject_cdef_modifier_in_py(s, name):
     """
     if s.sy == 'IDENT' and name in _CDEF_MODIFIERS:
         # Special enough to provide a good error message.
-        s.error("Cannot use cdef modifier '%s' in Python function signature. Use a decorator instead." % name, fatal=False)
+        s.error(f"Cannot use cdef modifier '{name}' in Python function signature. Use a decorator instead.", fatal=False)
         return p_ident(s)  # Keep going, in case there are other errors.
     return name
 
@@ -3745,7 +3744,7 @@ def p_c_class_definition(s, pos,  ctx):
             if not typeobj_name:
                 error(pos, "Type object name specification required for 'api' C class")
     else:
-        error(pos, "Invalid class visibility '%s'" % ctx.visibility)
+        error(pos, f"Invalid class visibility '{ctx.visibility}'")
     return Nodes.CClassDefNode(pos,
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
@@ -3780,7 +3779,7 @@ def p_c_class_options(s):
             s.next()
             check_size = p_ident(s)
             if check_size not in ('ignore', 'warn', 'error'):
-                s.error("Expected one of ignore, warn or error, found %r" % check_size)
+                s.error(f"Expected one of ignore, warn or error, found {check_size!r}")
         if s.sy != ',':
             break
         s.next()
@@ -3860,8 +3859,7 @@ def _extract_docstring(node):
 def p_code(s, level=None, ctx=Ctx):
     body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
-        s.error("Syntax error in statement [{},{}]".format(
-            repr(s.sy), repr(s.systring)))
+        s.error(f"Syntax error in statement [{repr(s.sy)},{repr(s.systring)}]")
     return body
 
 
@@ -3929,8 +3927,7 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     doc = p_doc_string(s)
     body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
-        s.error("Syntax error in statement [{},{}]".format(
-            repr(s.sy), repr(s.systring)))
+        s.error(f"Syntax error in statement [{repr(s.sy)},{repr(s.systring)}]")
     return ModuleNode(pos, doc = doc, body = body,
                       full_module_name = full_module_name,
                       directive_comments = directive_comments)
@@ -4043,13 +4040,13 @@ def print_parse_tree(f, node, level, key = None):
     if node:
         f.write(ind)
         if key:
-            f.write("%s: " % key)
+            f.write(f"{key}: ")
         t = type(node)
         if t is tuple:
             f.write(f"({node[0]} @ {node[1]}\n")
             for i in range(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
-            f.write("%s)\n" % ind)
+            f.write(f"{ind})\n")
             return
         elif isinstance(node, Nodes.Node):
             try:
@@ -4065,7 +4062,7 @@ def print_parse_tree(f, node, level, key = None):
             f.write("[\n")
             for i in range(len(node)):
                 print_parse_tree(f, node[i], level+1)
-            f.write("%s]\n" % ind)
+            f.write(f"{ind}]\n")
             return
     f.write(f"{ind}{node}\n")
 

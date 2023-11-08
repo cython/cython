@@ -307,7 +307,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _dtype_name(self, dtype):
         if dtype.is_typedef:
-            return '___pyx_%s' % dtype
+            return f'___pyx_{dtype}'
         return str(dtype).replace(' ', '_')
 
     def _dtype_type(self, dtype):
@@ -319,7 +319,7 @@ class FusedCFuncDefNode(StatListNode):
         if dtype.is_pyobject:
             return 'sizeof(void *)'
         else:
-            return "sizeof(%s)" % self._dtype_type(dtype)
+            return f"sizeof({self._dtype_type(dtype)})"
 
     def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
         "Setup some common cases to match dtypes against specializations"
@@ -354,7 +354,7 @@ class FusedCFuncDefNode(StatListNode):
             dtype = specialized_type.dtype
             pyx_code.context.update(
                 itemsize_match=self._sizeof_dtype(dtype) + " == itemsize",
-                signed_match="not (%s_is_signed ^ dtype_signed)" % self._dtype_name(dtype),
+                signed_match=f"not ({self._dtype_name(dtype)}_is_signed ^ dtype_signed)",
                 dtype=dtype,
                 specialized_type_name=final_type.specialization_string)
 
@@ -375,7 +375,7 @@ class FusedCFuncDefNode(StatListNode):
                 if final_type.is_pythran_expr:
                     cond += ' and arg_is_pythran_compatible'
 
-                with codewriter.indenter("if %s:" % cond):
+                with codewriter.indenter(f"if {cond}:"):
                     #codewriter.putln("print 'buffer match found based on numpy dtype'")
                     codewriter.putln(self.match)
                     codewriter.putln("break")
@@ -501,11 +501,11 @@ class FusedCFuncDefNode(StatListNode):
                 specialized_type_name=buffer_types[0].specialization_string
             )
             pyx_code.put_chunk(
-                """
+                f"""
                 if arg is None:
-                    %s
+                    {self.match}
                     break
-                """ % self.match)
+                """)
 
         # creating a Cython memoryview from a Python memoryview avoids the
         # need to get the buffer multiple times, and we can

@@ -827,9 +827,9 @@ class CyBreak(CythonCommand):
                 break_funcs = [funcs[0]]
 
         for func in break_funcs:
-            gdb.execute('break %s' % func.cname)
+            gdb.execute(f'break {func.cname}')
             if func.pf_cname:
-                gdb.execute('break %s' % func.pf_cname)
+                gdb.execute(f'break {func.pf_cname}')
 
     @libpython.dont_suppress_errors
     def invoke(self, function_names, from_tty):
@@ -844,7 +844,7 @@ class CyBreak(CythonCommand):
 
         for funcname in argv:
             if python_breakpoints:
-                gdb.execute('py-break %s' % funcname)
+                gdb.execute(f'py-break {funcname}')
             elif ':' in funcname:
                 self._break_pyx(funcname)
             else:
@@ -1122,12 +1122,12 @@ class CyPrint(CythonCommand):
             try:
                 value = gdb.parse_and_eval(cname)
             except RuntimeError:
-                print("unable to get value of %s" % name)
+                print(f"unable to get value of {name}")
             else:
                 if not value.is_optimized_out:
                     self.print_gdb_value(name, value)
                 else:
-                    print("%s is optimized out" % name)
+                    print(f"{name} is optimized out")
         elif self.is_python_function():
             return gdb.execute('py-print ' + name)
         elif self.is_cython_function():
@@ -1385,7 +1385,7 @@ class CyCName(gdb.Function, CythonBase):
             cname = self.cy.functions_by_qualified_name.get(cyname)
 
         if not cname:
-            raise gdb.GdbError('No such Cython variable: %s' % cyname)
+            raise gdb.GdbError(f'No such Cython variable: {cyname}')
 
         return cname
 
@@ -1408,7 +1408,7 @@ class CyCValue(CyCName):
         elif cyname in globals_dict:
             return globals_dict[cyname]._gdbval
         else:
-            raise gdb.GdbError("Variable %s is not initialized." % cyname)
+            raise gdb.GdbError(f"Variable {cyname} is not initialized.")
 
 
 class CyLine(gdb.Function, CythonBase):

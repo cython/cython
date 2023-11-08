@@ -81,9 +81,9 @@ def make_command_file(path_to_debug_info, prefix_code='',
                     interpreter = interpreter_file.read()
                 finally:
                     interpreter_file.close()
-                f.write("file %s\n" % interpreter)
+                f.write(f"file {interpreter}\n")
 
-            f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
+            f.write('\n'.join(f'cy import {fn}\n' for fn in debug_files))
 
             if not skip_interpreter:
                 f.write(textwrap.dedent('''\

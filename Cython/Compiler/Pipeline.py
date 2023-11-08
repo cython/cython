@@ -384,12 +384,12 @@ def run_pipeline(pipeline, source, printtree=True):
 
                 phase_name = getattr(phase, '__name__', type(phase).__name__)
                 if DebugFlags.debug_verbose_pipeline:
-                    print("Entering pipeline phase %r" % phase)
+                    print(f"Entering pipeline phase {phase!r}")
                     # create a new wrapper for each step to show the name in profiles
                     try:
                         run = _pipeline_entry_points[phase_name]
                     except KeyError:
-                        exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
+                        exec(f"def {phase_name}(phase, data): return phase(data)", exec_ns)
                         run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
 
                 t = time()
@@ -402,7 +402,7 @@ def run_pipeline(pipeline, source, printtree=True):
                     old_t, count = 0, 0
                 timings[phase_name] = (old_t + int(t * 1000000), count + 1)
                 if DebugFlags.debug_verbose_pipeline:
-                    print("    %.3f seconds" % t)
+                    print(f"    {t:.3f} seconds")
         except CompileError as err:
             # err is set
             Errors.report_error(err, use_stack=False)

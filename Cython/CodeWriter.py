@@ -89,7 +89,7 @@ class DeclarationWriter(TreeVisitor):
         self.dedent()
 
     def visit_Node(self, node):
-        raise AssertionError("Node not handled by serializer: %r" % node)
+        raise AssertionError(f"Node not handled by serializer: {node!r}")
 
     def visit_ModuleNode(self, node):
         self.visitchildren(node)
@@ -101,8 +101,8 @@ class DeclarationWriter(TreeVisitor):
         if node.include_file is None:
             file = '*'
         else:
-            file = '"%s"' % node.include_file
-        self.putline("cdef extern from %s:" % file)
+            file = f'"{node.include_file}"'
+        self.putline(f"cdef extern from {file}:")
         self._visit_indented(node.body)
 
     def visit_CPtrDeclaratorNode(self, node):
@@ -170,7 +170,7 @@ class DeclarationWriter(TreeVisitor):
             self.put(' ')
             self.put(node.name)
             if node.cname is not None:
-                self.put(' "%s"' % node.cname)
+                self.put(f' "{node.cname}"')
         if extras:
             self.put(extras)
         self.endline(':')
@@ -197,9 +197,9 @@ class DeclarationWriter(TreeVisitor):
     def visit_CppClassNode(self, node):
         extras = ""
         if node.templates:
-            extras = "[%s]" % ", ".join(node.templates)
+            extras = f"[{', '.join(node.templates)}]"
         if node.base_classes:
-            extras += "(%s)" % ", ".join(node.base_classes)
+            extras += f"({', '.join(node.base_classes)})"
         self._visit_container_node(node, "cdef cppclass", extras, node.attributes)
 
     def visit_CEnumDefNode(self, node):
@@ -208,7 +208,7 @@ class DeclarationWriter(TreeVisitor):
     def visit_CEnumDefItemNode(self, node):
         self.startline(node.name)
         if node.cname:
-            self.put(' "%s"' % node.cname)
+            self.put(f' "{node.cname}"')
         if node.value:
             self.put(" = ")
             self.visit(node.value)
@@ -240,7 +240,7 @@ class DeclarationWriter(TreeVisitor):
 
     def visit_FuncDefNode(self, node):
         # TODO: support cdef + cpdef functions
-        self.startline("def %s(" % node.name)
+        self.startline(f"def {node.name}(")
         self.comma_separated_list(node.args)
         self.endline("):")
         self._visit_indented(node.body)
@@ -408,7 +408,7 @@ class StatementWriter(DeclarationWriter):
     def visit_InPlaceAssignmentNode(self, node):
         self.startline()
         self.visit(node.lhs)
-        self.put(" %s= " % node.operator)
+        self.put(f" {node.operator}= ")
         self.visit(node.rhs)
         self.endline()
 
@@ -458,7 +458,7 @@ class StatementWriter(DeclarationWriter):
         self.line("raise")
 
     def visit_ImportNode(self, node):
-        self.put("(import %s)" % node.module_name.value)
+        self.put(f"(import {node.module_name.value})")
 
     def visit_TempsBlockNode(self, node):
         """
@@ -508,7 +508,7 @@ class ExpressionWriter(TreeVisitor):
             self.visit(items[-1])
 
     def visit_Node(self, node):
-        raise AssertionError("Node not handled by serializer: %r" % node)
+        raise AssertionError(f"Node not handled by serializer: {node!r}")
 
     def visit_IntNode(self, node):
         self.put(node.value)
@@ -620,7 +620,7 @@ class ExpressionWriter(TreeVisitor):
         op = node.operator
         prec = self.unop_precedence[op]
         self.operator_enter(prec)
-        self.put("%s" % node.operator)
+        self.put(f"{node.operator}")
         self.visit(node.operand)
         self.operator_exit()
 
@@ -629,7 +629,7 @@ class ExpressionWriter(TreeVisitor):
         prec = self.binop_precedence.get(op, 0)
         self.operator_enter(prec)
         self.visit(node.operand1)
-        self.put(" %s " % op.replace('_', ' '))
+        self.put(f" {op.replace('_', ' ')} ")
         self.visit(node.operand2)
         self.operator_exit()
 
@@ -683,7 +683,7 @@ class ExpressionWriter(TreeVisitor):
 
     def visit_AttributeNode(self, node):
         self.visit(node.obj)
-        self.put(".%s" % node.attribute)
+        self.put(f".{node.attribute}")
 
     def visit_SimpleCallNode(self, node):
         self.visit(node.function)
@@ -717,7 +717,7 @@ class ExpressionWriter(TreeVisitor):
                 self.emit_kwd_args(expr)
         elif isinstance(node, DictNode):
             for expr in node.subexpr_nodes():
-                self.put("%s=" % expr.key.value)
+                self.put(f"{expr.key.value}=")
                 self.visit(expr.value)
                 self.put(", ")
         else:

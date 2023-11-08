@@ -122,7 +122,7 @@ def handle_special_build(modname, pyxfilename):
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
-            assert ext and ext.sources, "make_ext in %s did not return Extension" % special_build
+            assert ext and ext.sources, f"make_ext in {special_build} did not return Extension"
         make_setup_args = getattr(mod, 'make_setup_args',None)
         if make_setup_args:
             setup_args = make_setup_args()
@@ -175,7 +175,7 @@ def handle_dependencies(pyxfilename):
 
 
 def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_level=None):
-    assert os.path.exists(pyxfilename), "Path does not exist: %s" % pyxfilename
+    assert os.path.exists(pyxfilename), f"Path does not exist: {pyxfilename}"
     handle_dependencies(pyxfilename)
 
     extension_mod, setup_args = get_distutils_extension(name, pyxfilename, language_level)
@@ -205,7 +205,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     finally:
         os.chdir(olddir)
     so_path = os.path.join(common, so_path)
-    assert os.path.exists(so_path), "Cannot find: %s" % so_path
+    assert os.path.exists(so_path), f"Cannot find: {so_path}"
 
     junkpath = os.path.join(os.path.dirname(so_path), name+"_*")  #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
@@ -234,7 +234,7 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
             mod.__path__ = [os.path.dirname(so_path)]
         assert mod.__file__ == so_path, (mod.__file__, so_path)
     except Exception as failure_exc:
-        _debug("Failed to load extension module: %r" % failure_exc)
+        _debug(f"Failed to load extension module: {failure_exc!r}")
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
             # try to fall back to normal import
             mod = imp.load_source(name, pyxfilename)
@@ -352,7 +352,7 @@ class PyxImporter:
                              language_level=self.language_level)
 
         # not found, normal package, not a .pyx file, none of our business
-        _debug("%s not found" % fullname)
+        _debug(f"{fullname} not found")
         return None
 
 
@@ -436,7 +436,7 @@ class LibLoader:
         try:
             source_path, so_path, is_package = self._libs[fullname]
         except KeyError:
-            raise ValueError("invalid module %s" % fullname)
+            raise ValueError(f"invalid module {fullname}")
         _debug("Loading shared library module '%s' from %s", fullname, so_path)
         return load_module(fullname, source_path, so_path=so_path, is_package=is_package)
 
@@ -462,8 +462,7 @@ class PyxLoader:
 
     def load_module(self, fullname):
         assert self.fullname == fullname, (
-            "invalid module, expected {}, got {}".format(
-            self.fullname, fullname))
+            f"invalid module, expected {self.fullname}, got {fullname}")
         if self.init_path:
             # package
             #print "PACKAGE", fullname

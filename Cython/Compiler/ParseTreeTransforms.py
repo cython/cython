@@ -887,7 +887,7 @@ class InterpretCompilerDirectives(CythonTransform):
         ]
         for wrong, correct in hints:
             if module_name.startswith("cython." + wrong):
-                extra = "Did you mean 'cython.%s' ?" % correct
+                extra = f"Did you mean 'cython.{correct}' ?"
                 break
         if not extra:
             is_simple_cython_name = submodule in Options.directive_types
@@ -897,7 +897,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 from .. import Shadow
                 is_simple_cython_name = hasattr(Shadow, submodule)
             if is_simple_cython_name:
-                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
+                extra = f"Instead, use 'import cython' and then 'cython.{submodule}'."
 
         error(pos, "'{}' is not a valid cython.* module{}{}".format(
             module_name,
@@ -948,10 +948,10 @@ class InterpretCompilerDirectives(CythonTransform):
                 self.parallel_directives["parallel"] = "cython.parallel"
             elif full_name == "cython.parallel.*":
                 for name in self.valid_parallel_directives:
-                    self.parallel_directives[name] = "cython.parallel.%s" % name
+                    self.parallel_directives[name] = f"cython.parallel.{name}"
             elif (len(directive) != 3 or
                   directive[-1] not in self.valid_parallel_directives):
-                error(pos, "No such directive: %s" % full_name)
+                error(pos, f"No such directive: {full_name}")
 
         return result
 
@@ -1160,12 +1160,12 @@ class InterpretCompilerDirectives(CythonTransform):
                     return [(optname, None)]
                 else:
                     raise PostParseError(
-                        node.pos, "The '%s' directive should be used as a function call." % optname)
+                        node.pos, f"The '{optname}' directive should be used as a function call.")
         return None
 
     def try_to_parse_directive(self, optname, args, kwds, pos):
         if optname == 'np_pythran' and not self.context.cpp:
-            raise PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
+            raise PostParseError(pos, f'The {optname} directive can only be used in C++ mode.')
         elif optname == 'exceptval':
             # default: exceptval(None, check=True)
             arg_error = len(args) > 1
@@ -1189,39 +1189,39 @@ class InterpretCompilerDirectives(CythonTransform):
         elif directivetype is bool:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
                 raise PostParseError(pos,
-                    'The %s directive takes one compile-time boolean argument' % optname)
+                    f'The {optname} directive takes one compile-time boolean argument')
             return (optname, args[0].value)
         elif directivetype is int:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.IntNode):
                 raise PostParseError(pos,
-                    'The %s directive takes one compile-time integer argument' % optname)
+                    f'The {optname} directive takes one compile-time integer argument')
             return (optname, int(args[0].value))
         elif directivetype is str:
             if kwds is not None or len(args) != 1 or not isinstance(
                     args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
                 raise PostParseError(pos,
-                    'The %s directive takes one compile-time string argument' % optname)
+                    f'The {optname} directive takes one compile-time string argument')
             return (optname, str(args[0].value))
         elif directivetype is type:
             if kwds is not None or len(args) != 1:
                 raise PostParseError(pos,
-                    'The %s directive takes one type argument' % optname)
+                    f'The {optname} directive takes one type argument')
             return (optname, args[0])
         elif directivetype is dict:
             if len(args) != 0:
                 raise PostParseError(pos,
-                    'The %s directive takes no prepositional arguments' % optname)
+                    f'The {optname} directive takes no prepositional arguments')
             return optname, kwds.as_python_dict()
         elif directivetype is list:
             if kwds and len(kwds.key_value_pairs) != 0:
                 raise PostParseError(pos,
-                    'The %s directive takes no keyword arguments' % optname)
+                    f'The {optname} directive takes no keyword arguments')
             return optname, [ str(arg.value) for arg in args ]
         elif callable(directivetype):
             if kwds is not None or len(args) != 1 or not isinstance(
                     args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
                 raise PostParseError(pos,
-                    'The %s directive takes one compile-time string argument' % optname)
+                    f'The {optname} directive takes one compile-time string argument')
             return (optname, directivetype(optname, str(args[0].value)))
         elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
             # signal to pass things on without processing
@@ -1324,7 +1324,7 @@ class InterpretCompilerDirectives(CythonTransform):
                             else:
                                 args, kwds = value
                                 if kwds or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
-                                    raise PostParseError(dec.pos, 'The %s directive takes one compile-time boolean argument' % name)
+                                    raise PostParseError(dec.pos, f'The {name} directive takes one compile-time boolean argument')
                                 value = args[0].value
                             directive = (name, value)
                         if current_opt_dict.get(name, missing) != value:
@@ -1334,7 +1334,7 @@ class InterpretCompilerDirectives(CythonTransform):
                             current_opt_dict[name] = value
                         else:
                             warning(dec.pos, "Directive does not change previous value ({}{})".format(
-                                name, '=%r' % value if value is not None else ''))
+                                name, f'={value!r}' if value is not None else ''))
                         if directive[0] == 'staticmethod':
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
@@ -1381,10 +1381,10 @@ class InterpretCompilerDirectives(CythonTransform):
                                 condition = node.manager.args[0]
                             else:
                                 self.context.nonfatal_error(
-                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+                                    PostParseError(node.pos, f"Compiler directive {name} accepts one positional argument."))
                         elif isinstance(node.manager, ExprNodes.GeneralCallNode):
                             self.context.nonfatal_error(
-                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+                                PostParseError(node.pos, f"Compiler directive {name} accepts one positional argument."))
                         node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
@@ -1441,14 +1441,13 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
             directive = '.'.join(self.parallel_directive)
         else:
             directive = self.parallel_directives[self.parallel_directive[0]]
-            directive = '{}.{}'.format(directive,
-                                   '.'.join(self.parallel_directive[1:]))
+            directive = f"{directive}.{'.'.join(self.parallel_directive[1:])}"
             directive = directive.rstrip('.')
 
         cls = self.directive_to_node.get(directive)
         if cls is None and not (self.namenode_is_cython_module and
                                 self.parallel_directive[0] != 'parallel'):
-            error(node.pos, "Invalid directive: %s" % directive)
+            error(node.pos, f"Invalid directive: {directive}")
 
         self.namenode_is_cython_module = False
         self.parallel_directive = None
@@ -1790,7 +1789,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     def visit_PropertyNode(self, node):
         # Low-level warning for other code until we can convert all our uses over.
         level = 2 if isinstance(node.pos[0], str) else 0
-        warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
+        warning(node.pos, f"'property {node.name}:' syntax is deprecated, use '@property'", level)
         return node
 
     def visit_CFuncDefNode(self, node):
@@ -2222,7 +2221,7 @@ if VALUE is not None:
             all_members_names = [e.name for e in all_members]
             checksums = _calculate_pickle_checksums(all_members_names)
 
-            unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
+            unpickle_func_name = f'__pyx_unpickle_{node.punycode_class_name}'
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
@@ -2532,7 +2531,7 @@ if VALUE is not None:
                 }, pos = entry.pos))
 
         # create the class
-        str_format = "{}({})".format(node.entry.type.name, ("%s, " * len(attributes))[:-2])
+        str_format = f"{node.entry.type.name}({('%s, ' * len(attributes))[:-2]})"
         wrapper_class = self.struct_or_union_wrapper.substitute({
             "INIT_ASSIGNMENTS": Nodes.StatListNode(node.pos, stats = init_assignments),
             "IS_UNION": ExprNodes.BoolNode(node.pos, value = not node.entry.type.is_struct),
@@ -2602,7 +2601,7 @@ if VALUE is not None:
             entry = self.current_env().lookup(node.name)
             if (entry is None or entry.visibility != 'extern'
                     and not entry.scope.is_c_class_scope):
-                error(node.pos, "cdef variable '%s' declared after it is used" % node.name)
+                error(node.pos, f"cdef variable '{node.name}' declared after it is used")
         self.visitchildren(node)
         return node
 
@@ -3020,7 +3019,7 @@ class AlignFunctionDefinitions(CythonTransform):
             if pxd_def.is_cclass:
                 return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
             elif not pxd_def.scope or not pxd_def.scope.is_builtin_scope:
-                error(node.pos, "'%s' redeclared" % node.name)
+                error(node.pos, f"'{node.name}' redeclared")
                 if pxd_def.pos:
                     error(pxd_def.pos, "previous declaration here")
                 return None
@@ -3043,7 +3042,7 @@ class AlignFunctionDefinitions(CythonTransform):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def and (not pxd_def.scope or not pxd_def.scope.is_builtin_scope):
             if not pxd_def.is_cfunction:
-                error(node.pos, "'%s' redeclared" % node.name)
+                error(node.pos, f"'{node.name}' redeclared")
                 if pxd_def.pos:
                     error(pxd_def.pos, "previous declaration here")
                 return None
@@ -3712,7 +3711,7 @@ class TransformBuiltinMethods(EnvTransform):
             elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
             else:
-                error(node.pos, "'%s' not a valid cython attribute or is being used incorrectly" % attribute)
+                error(node.pos, f"'{attribute}' not a valid cython attribute or is being used incorrectly")
         return node
 
     def visit_ExecStatNode(self, node):
@@ -3825,13 +3824,13 @@ class TransformBuiltinMethods(EnvTransform):
         if function:
             if function in InterpretCompilerDirectives.unop_method_nodes:
                 if len(node.args) != 1:
-                    error(node.function.pos, "%s() takes exactly one argument" % function)
+                    error(node.function.pos, f"{function}() takes exactly one argument")
                 else:
                     node = InterpretCompilerDirectives.unop_method_nodes[function](
                         node.function.pos, operand=node.args[0])
             elif function in InterpretCompilerDirectives.binop_method_nodes:
                 if len(node.args) != 2:
-                    error(node.function.pos, "%s() takes exactly two arguments" % function)
+                    error(node.function.pos, f"{function}() takes exactly two arguments")
                 else:
                     node = InterpretCompilerDirectives.binop_method_nodes[function](
                         node.function.pos, operand1=node.args[0], operand2=node.args[1])
@@ -3875,7 +3874,7 @@ class TransformBuiltinMethods(EnvTransform):
                 pass
             else:
                 error(node.function.pos,
-                      "'%s' not a valid cython language construct" % function)
+                      f"'{function}' not a valid cython language construct")
 
         self.visitchildren(node)
 
@@ -4183,15 +4182,13 @@ class DebugTransform(CythonTransform):
             if entry.from_closure:
                 # We're dealing with a closure where a variable from an outer
                 # scope is accessed, get it from the scope object.
-                cname = '{}->{}'.format(Naming.cur_scope_cname,
-                                    entry.outer_entry.cname)
+                cname = f'{Naming.cur_scope_cname}->{entry.outer_entry.cname}'
 
                 qname = '{}.{}.{}'.format(entry.scope.outer_scope.qualified_name,
                                       entry.scope.name,
                                       entry.name)
             elif entry.in_closure:
-                cname = '{}->{}'.format(Naming.cur_scope_cname,
-                                    entry.cname)
+                cname = f'{Naming.cur_scope_cname}->{entry.cname}'
                 qname = entry.qualified_name
             else:
                 cname = entry.cname

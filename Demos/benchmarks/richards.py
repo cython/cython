@@ -403,7 +403,7 @@ def entry_point(iterations):
     return result, startTime, endTime
 
 def main(iterations = 10, entry_point = entry_point):
-    print("Richards benchmark (Python) starting... [%r]" % entry_point)
+    print(f"Richards benchmark (Python) starting... [{entry_point!r}]")
     result, startTime, endTime = entry_point(iterations)
     if not result:
         print("Incorrect results!")
@@ -411,7 +411,7 @@ def main(iterations = 10, entry_point = entry_point):
     print("finished.")
     total_s = endTime - startTime
     print("Total time for %d iterations: %.2f secs" % (iterations, total_s))
-    print("Average time per iteration: %.2f ms" % (total_s*1000/iterations))
+    print(f"Average time per iteration: {total_s * 1000 / iterations:.2f} ms")
     return 42
 
 try:

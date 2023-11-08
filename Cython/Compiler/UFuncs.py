@@ -51,14 +51,14 @@ def _get_type_constant(pos, type_):
             return "NPY_CLONGDOUBLE"
     elif type_.is_numeric:
         postfix = type_.empty_declaration_code().upper().replace(" ", "")
-        typename = "NPY_%s" % postfix
+        typename = f"NPY_{postfix}"
         if typename in numpy_numeric_types:
             return typename
     elif type_.is_pyobject:
         return "NPY_OBJECT"
     # TODO possible NPY_BOOL to bint but it needs a cast?
     # TODO NPY_DATETIME, NPY_TIMEDELTA, NPY_STRING, NPY_UNICODE and maybe NPY_VOID might be handleable
-    error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
+    error(pos, f"Type '{type_}' cannot be used as a ufunc argument")
 
 
 class _FindCFuncDefNode(TreeVisitor):

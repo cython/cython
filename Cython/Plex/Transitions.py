@@ -171,10 +171,7 @@ class TransitionMap:
         special_strs = {}
         for event, set in self.special.items():
             special_strs[event] = state_set_str(set)
-        return "[{}]+{}".format(
-            ','.join(map_strs),
-            special_strs
-        )
+        return f"[{','.join(map_strs)}]+{special_strs}"
 
     # --------------------- Debugging methods -----------------------
 
@@ -203,14 +200,13 @@ class TransitionMap:
                 if code1 == maxint:
                     k = "any"
                 else:
-                    k = "< %s" % self.dump_char(code1)
+                    k = f"< {self.dump_char(code1)}"
             elif code1 == maxint:
-                k = "> %s" % self.dump_char(code0 - 1)
+                k = f"> {self.dump_char(code0 - 1)}"
             elif code0 == code1 - 1:
                 k = self.dump_char(code0)
             else:
-                k = "{}..{}".format(self.dump_char(code0),
-                                self.dump_char(code1 - 1))
+                k = f"{self.dump_char(code0)}..{self.dump_char(code1 - 1)}"
             self.dump_trans(k, set, file)
 
     def dump_char(self, code):
@@ -231,4 +227,4 @@ class TransitionMap:
 #
 
 def state_set_str(set):
-    return "[%s]" % ','.join(["S%d" % state.number for state in set])
+    return f"[{','.join([('S%d' % state.number) for state in set])}]"

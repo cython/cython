@@ -270,8 +270,7 @@ extra_warnings = {
 def one_of(*args):
     def validate(name, value):
         if value not in args:
-            raise ValueError("{} directive must be one of {}, got '{}'".format(
-                name, args, value))
+            raise ValueError(f"{name} directive must be one of {args}, got '{value}'")
         else:
             return value
     return validate
@@ -522,7 +521,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
         if not item:
             continue
         if '=' not in item:
-            raise ValueError('Expected "=" in option "%s"' % item)
+            raise ValueError(f'Expected "=" in option "{item}"')
         name, value = (s.strip() for s in item.strip().split('=', 1))
         if name not in _directive_defaults:
             found = False
@@ -534,7 +533,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
                         parsed_value = parse_directive_value(directive, value, relaxed_bool=relaxed_bool)
                         result[directive] = parsed_value
             if not found and not ignore_unknown:
-                raise ValueError('Unknown option: "%s"' % name)
+                raise ValueError(f'Unknown option: "{name}"')
         elif directive_types.get(name) is list:
             if name in result:
                 result[name].append(value)
@@ -610,7 +609,7 @@ def parse_compile_time_env(s, current_settings=None):
         if not item:
             continue
         if '=' not in item:
-            raise ValueError('Expected "=" in option "%s"' % item)
+            raise ValueError(f'Expected "=" in option "{item}"')
         name, value = (s.strip() for s in item.split('=', 1))
         result[name] = parse_variable_value(value)
     return result

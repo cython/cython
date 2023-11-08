@@ -600,15 +600,13 @@ def check_definitions(flow, compiler_directives):
                         entry.type.is_pyobject or entry.type.is_unspecified)):
                     messages.error(
                         node.pos,
-                        "local variable '%s' referenced before assignment"
-                        % entry.name)
+                        f"local variable '{entry.name}' referenced before assignment")
                 else:
                     messages.warning(
                         node.pos,
-                        "local variable '%s' referenced before assignment"
-                        % entry.name)
+                        f"local variable '{entry.name}' referenced before assignment")
             elif warn_maybe_uninitialized:
-                msg = "local variable '%s' might be referenced before assignment" % entry.name
+                msg = f"local variable '{entry.name}' might be referenced before assignment"
                 if entry.in_closure:
                     msg += " (maybe initialized inside a closure)"
                 messages.warning(
@@ -645,12 +643,10 @@ def check_definitions(flow, compiler_directives):
                 # '_' is often used for unused variables, e.g. in loops
                 if entry.is_arg:
                     if warn_unused_arg:
-                        messages.warning(entry.pos, "Unused argument '%s'" %
-                                         entry.name)
+                        messages.warning(entry.pos, f"Unused argument '{entry.name}'")
                 else:
                     if warn_unused:
-                        messages.warning(entry.pos, "Unused entry '%s'" %
-                                         entry.name)
+                        messages.warning(entry.pos, f"Unused entry '{entry.name}'")
             entry.cf_used = False
 
     messages.report()
@@ -821,7 +817,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_AssignmentNode(self, node):
-        raise InternalError("Unhandled assignment node %s" % type(node))
+        raise InternalError(f"Unhandled assignment node {type(node)}")
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)

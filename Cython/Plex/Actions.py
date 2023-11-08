@@ -30,7 +30,7 @@ class Return(Action):
         return self.value
 
     def __repr__(self):
-        return "Return(%r)" % self.value
+        return f"Return({self.value!r})"
 
 
 class Call(Action):
@@ -45,7 +45,7 @@ class Call(Action):
         return self.function(token_stream, text)
 
     def __repr__(self):
-        return "Call(%s)" % self.function.__name__
+        return f"Call({self.function.__name__})"
 
 
 class Method(Action):
@@ -67,7 +67,7 @@ class Method(Action):
         kwargs = (
             ', '.join(sorted(['%s=%r' % item for item in self.kwargs.items()]))
             if self.kwargs is not None else '')
-        return "Method({}{}{})".format(self.name, ', ' if kwargs else '', kwargs)
+        return f"Method({self.name}{', ' if kwargs else ''}{kwargs})"
 
 
 class Begin(Action):
@@ -84,7 +84,7 @@ class Begin(Action):
         token_stream.begin(self.state_name)
 
     def __repr__(self):
-        return "Begin(%s)" % self.state_name
+        return f"Begin({self.state_name})"
 
 
 class Ignore(Action):

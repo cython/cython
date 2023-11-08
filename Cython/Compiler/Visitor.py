@@ -101,7 +101,7 @@ class TreeVisitor:
             if value is None or value == 0:
                 continue
             elif isinstance(value, list):
-                value = '[...]/%d' % len(value)
+                value = f'[...]/{len(value)}'
             elif not isinstance(value, _PRINTABLE):
                 continue
             else:
@@ -596,7 +596,7 @@ class MethodDispatcherTransform(EnvTransform):
         call_type = 'general' if has_kwargs else 'simple'
         handler = getattr(self, f'_handle_{call_type}_{match_name}', None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % match_name, None)
+            handler = getattr(self, f'_handle_any_{match_name}', None)
         return handler
 
     def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
@@ -641,7 +641,7 @@ class MethodDispatcherTransform(EnvTransform):
                             node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
-                "function_%s" % function.name, kwargs)
+                f"function_{function.name}", kwargs)
             if function_handler is None:
                 return self._handle_function(node, function.name, function, arg_list, kwargs)
             if kwargs:
@@ -689,7 +689,7 @@ class MethodDispatcherTransform(EnvTransform):
             if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
-                    "slot%s" % attr_name, kwargs)
+                    f"slot{attr_name}", kwargs)
             if method_handler is None:
                 return self._handle_method(
                     node, type_name, attr_name, function,
@@ -796,7 +796,7 @@ class PrintTree(TreeVisitor):
         self._indent = self._indent[:-2]
 
     def __call__(self, tree, phase=None):
-        print("Parse tree dump at phase '%s'" % phase)
+        print(f"Parse tree dump at phase '{phase}'")
         self.visit(tree)
         return tree
 
@@ -816,7 +816,7 @@ class PrintTree(TreeVisitor):
         self.indent()
         line = node.pos[1]
         if self._line_range is None or self._line_range[0] <= line <= self._line_range[1]:
-            print("{}- {}: {}".format(self._indent, 'arg', self.repr_of(node.arg)))
+            print(f"{self._indent}- arg: {self.repr_of(node.arg)}")
         self.indent()
         self.visitchildren(node.arg)
         self.unindent()
@@ -844,16 +844,16 @@ class PrintTree(TreeVisitor):
             if isinstance(node, ExprNodes.NameNode):
                 result += f"(type={repr(node.type)}, name=\"{node.name}\")"
             elif isinstance(node, Nodes.DefNode):
-                result += "(name=\"%s\")" % node.name
+                result += f"(name=\"{node.name}\")"
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += f"(name=\"{node.declared_name()}\")"
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += f"(type={repr(node.type)}, attribute=\"{node.attribute}\")"
             elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
                 result += f"(type={repr(node.type)}, value={node.value!r})"
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type
-                result += "(type=%s)" % repr(t)
+                result += f"(type={repr(t)})"
             elif node.pos:
                 pos = node.pos
                 path = pos[0].get_description()

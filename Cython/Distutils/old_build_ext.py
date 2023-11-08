@@ -313,7 +313,7 @@ class old_build_ext(_build_ext.build_ext):
             from Cython.Compiler.Errors import PyrexError
         except ImportError:
             e = sys.exc_info()[1]
-            print("failed to import Cython: %s" % e)
+            print(f"failed to import Cython: {e}")
             raise DistutilsPlatformError("Cython does not appear to be installed")
 
         module_name = extension.name

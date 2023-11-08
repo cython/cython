@@ -47,7 +47,7 @@ class CythonScope(ModuleScope):
         return entry
 
     def find_module(self, module_name, pos):
-        error("cython.%s is not available" % module_name, pos)
+        error(f"cython.{module_name} is not available", pos)
 
     def find_submodule(self, module_name, as_package=False):
         entry = self.entries.get(module_name, None)
@@ -63,7 +63,7 @@ class CythonScope(ModuleScope):
             # possible immutability). Hack ourselves out of the situation
             # for now.
             raise error((StringSourceDescriptor("cython", ""), 0, 0),
-                  "cython.%s is not available" % module_name)
+                  f"cython.{module_name} is not available")
 
     def lookup_qualified_name(self, qname):
         # ExprNode.as_cython_attribute generates qnames and we untangle it here...

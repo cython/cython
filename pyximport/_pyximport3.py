@@ -120,7 +120,7 @@ def handle_special_build(modname, pyxfilename):
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
-            assert ext and ext.sources, "make_ext in %s did not return Extension" % special_build
+            assert ext and ext.sources, f"make_ext in {special_build} did not return Extension"
         make_setup_args = getattr(mod, 'make_setup_args',None)
         if make_setup_args:
             setup_args = make_setup_args()
@@ -173,7 +173,7 @@ def handle_dependencies(pyxfilename):
 
 
 def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_level=None):
-    assert os.path.exists(pyxfilename), "Path does not exist: %s" % pyxfilename
+    assert os.path.exists(pyxfilename), f"Path does not exist: {pyxfilename}"
     handle_dependencies(pyxfilename)
 
     extension_mod, setup_args = get_distutils_extension(name, pyxfilename, language_level)
@@ -203,7 +203,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     finally:
         os.chdir(olddir)
     so_path = os.path.join(common, so_path)
-    assert os.path.exists(so_path), "Cannot find: %s" % so_path
+    assert os.path.exists(so_path), f"Cannot find: {so_path}"
 
     junkpath = os.path.join(os.path.dirname(so_path), name+"_*")  #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
@@ -317,7 +317,7 @@ class PyxImportLoader(ExtensionFileLoader):
             spec.origin = so_path
             return super().create_module(spec)
         except Exception as failure_exc:
-            _debug("Failed to load extension module: %r" % failure_exc)
+            _debug(f"Failed to load extension module: {failure_exc!r}")
             if pyxargs.load_py_module_on_import_failure and spec.origin.endswith(PY_EXT):
                 spec = importlib.util.spec_from_file_location(spec.name, spec.origin,
                                                               loader=SourceFileLoader(spec.name, spec.origin))
@@ -336,7 +336,7 @@ class PyxImportLoader(ExtensionFileLoader):
             return super().exec_module(module)
         except Exception as failure_exc:
             import traceback
-            _debug("Failed to load extension module: %r" % failure_exc)
+            _debug(f"Failed to load extension module: {failure_exc!r}")
             raise ImportError("Executing module {} failed {}".format(
                     module.__file__, traceback.format_exception_only(*sys.exc_info()[:2])))
 

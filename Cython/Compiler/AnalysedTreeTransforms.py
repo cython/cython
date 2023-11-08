@@ -87,8 +87,7 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                 class_name = self.scope_node.class_name
             if isinstance(node.entry.scope, Symtab.PropertyScope):
                 property_method_name = node.entry.scope.name
-                path = "{}.{}.{}".format(class_name, node.entry.scope.name,
-                                     node.entry.name)
+                path = f"{class_name}.{node.entry.scope.name}.{node.entry.name}"
             else:
                 path = f"{class_name}.{node.entry.name}"
         else:

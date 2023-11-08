@@ -165,8 +165,7 @@ class RE:
 
     def wrong_type(self, num, value, expected):
         if type(value) == types.InstanceType:
-            got = "{}.{} instance".format(
-                value.__class__.__module__, value.__class__.__name__)
+            got = f"{value.__class__.__module__}.{value.__class__.__name__} instance"
         else:
             got = type(value).__name__
         raise Errors.PlexTypeError("Invalid type for argument %d of Plex.%s "
@@ -189,7 +188,7 @@ def Char(c):
         result = CodeRange(ord(c), ord(c) + 1)
     else:
         result = SpecialSymbol(c)
-    result.str = "Char(%s)" % repr(c)
+    result.str = f"Char({repr(c)})"
     return result
 
 
@@ -302,7 +301,7 @@ class Seq(RE):
                 match_bol = re.match_nl or (match_bol and re.nullable)
 
     def calc_str(self):
-        return "Seq(%s)" % ','.join(map(str, self.re_list))
+        return f"Seq({','.join(map(str, self.re_list))})"
 
 
 class Alt(RE):
@@ -341,7 +340,7 @@ class Alt(RE):
                 re.build_machine(m, initial_state, final_state, 0, nocase)
 
     def calc_str(self):
-        return "Alt(%s)" % ','.join(map(str, self.re_list))
+        return f"Alt({','.join(map(str, self.re_list))})"
 
 
 class Rep1(RE):
@@ -362,7 +361,7 @@ class Rep1(RE):
         s2.link_to(final_state)
 
     def calc_str(self):
-        return "Rep1(%s)" % self.re
+        return f"Rep1({self.re})"
 
 
 class SwitchCase(RE):
@@ -412,7 +411,7 @@ def Str1(s):
     Str1(s) is an RE which matches the literal string |s|.
     """
     result = Seq(*tuple(map(Char, s)))
-    result.str = "Str(%s)" % repr(s)
+    result.str = f"Str({repr(s)})"
     return result
 
 
@@ -425,7 +424,7 @@ def Str(*strs):
         return Str1(strs[0])
     else:
         result = Alt(*tuple(map(Str1, strs)))
-        result.str = "Str(%s)" % ','.join(map(repr, strs))
+        result.str = f"Str({','.join(map(repr, strs))})"
         return result
 
 
@@ -434,7 +433,7 @@ def Any(s):
     Any(s) is an RE which matches any character in the string |s|.
     """
     result = CodeRanges(chars_to_ranges(s))
-    result.str = "Any(%s)" % repr(s)
+    result.str = f"Any({repr(s)})"
     return result
 
 
@@ -447,7 +446,7 @@ def AnyBut(s):
     ranges.insert(0, -maxint)
     ranges.append(maxint)
     result = CodeRanges(ranges)
-    result.str = "AnyBut(%s)" % repr(s)
+    result.str = f"AnyBut({repr(s)})"
     return result
 
 
@@ -474,7 +473,7 @@ def Range(s1, s2=None):
         for i in range(0, len(s1), 2):
             ranges.append(CodeRange(ord(s1[i]), ord(s1[i + 1]) + 1))
         result = Alt(*ranges)
-        result.str = "Range(%s)" % repr(s1)
+        result.str = f"Range({repr(s1)})"
     return result
 
 
@@ -483,7 +482,7 @@ def Opt(re):
     Opt(re) is an RE which matches either |re| or the empty string.
     """
     result = Alt(re, Empty)
-    result.str = "Opt(%s)" % re
+    result.str = f"Opt({re})"
     return result
 
 
@@ -492,7 +491,7 @@ def Rep(re):
     Rep(re) is an RE which matches zero or more repetitions of |re|.
     """
     result = Opt(Rep1(re))
-    result.str = "Rep(%s)" % re
+    result.str = f"Rep({re})"
     return result
 
 

@@ -195,7 +195,7 @@ class BufferEntry:
         self.entry = entry
         self.type = entry.type
         self.cname = entry.buffer_aux.buflocal_nd_var.cname
-        self.buf_ptr = "%s.rcbuffer->pybuffer.buf" % self.cname
+        self.buf_ptr = f"{self.cname}.rcbuffer->pybuffer.buf"
         self.buf_ptr_type = entry.type.buffer_ptr_type
         self.init_attributes()
 
@@ -306,12 +306,12 @@ def put_init_vars(entry, code):
     pybuffernd_struct = bufaux.buflocal_nd_var.cname
     pybuffer_struct = bufaux.rcbuf_var.cname
     # init pybuffer_struct
-    code.putln("%s.pybuffer.buf = NULL;" % pybuffer_struct)
-    code.putln("%s.refcount = 0;" % pybuffer_struct)
+    code.putln(f"{pybuffer_struct}.pybuffer.buf = NULL;")
+    code.putln(f"{pybuffer_struct}.refcount = 0;")
     # init the buffer object
     # code.put_init_var_to_py_none(entry)
     # init the pybuffernd_struct
-    code.putln("%s.data = NULL;" % pybuffernd_struct)
+    code.putln(f"{pybuffernd_struct}.data = NULL;")
     code.putln(f"{pybuffernd_struct}.rcbuffer = &{pybuffer_struct};")
 
 
@@ -322,7 +322,7 @@ def put_acquire_arg_buffer(entry, code, pos):
     # Acquire any new buffer
     code.putln("{")
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % entry.type.dtype.struct_nesting_depth())
-    code.putln(code.error_goto_if("%s == -1" % getbuffer, pos))
+    code.putln(code.error_goto_if(f"{getbuffer} == -1", pos))
     code.putln("}")
     # An exception raised in arg parsing cannot be caught, so no
     # need to care about the buffer then.
@@ -331,7 +331,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 
 def put_release_buffer_code(code, entry):
     code.globalstate.use_utility_code(acquire_utility_code)
-    code.putln("__Pyx_SafeReleaseBuffer(&%s.rcbuffer->pybuffer);" % entry.buffer_aux.buflocal_nd_var.cname)
+    code.putln(f"__Pyx_SafeReleaseBuffer(&{entry.buffer_aux.buflocal_nd_var.cname}.rcbuffer->pybuffer);")
 
 
 def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
@@ -375,7 +375,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
 
     if is_initialized:
         # Release any existing buffer
-        code.putln('__Pyx_SafeReleaseBuffer(&%s.rcbuffer->pybuffer);' % pybuffernd_struct)
+        code.putln(f'__Pyx_SafeReleaseBuffer(&{pybuffernd_struct}.rcbuffer->pybuffer);')
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         code.putln(f"{retcode_cname} = {getbuffer % rhs_cname};")
@@ -443,7 +443,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
         # If an error occurs, the temp is set to the index dimension the
         # error is occurring at.
         failed_dim_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-        code.putln("%s = -1;" % failed_dim_temp)
+        code.putln(f"{failed_dim_temp} = -1;")
         for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames, entry.get_buf_shapevars())):
             if signed != 0:
                 # not unsigned, deal with negative index
@@ -529,7 +529,7 @@ def buf_lookup_c_code(proto, defin, name, nd):
     Still we keep the same signature for now.
     """
     if nd == 1:
-        proto.putln("#define %s(type, buf, i0, s0) ((type)buf + i0)" % name)
+        proto.putln(f"#define {name}(type, buf, i0, s0) ((type)buf + i0)")
     else:
         args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
         offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd - 1)])
@@ -541,7 +541,7 @@ def buf_lookup_fortran_code(proto, defin, name, nd):
     Like C lookup, but the first index is optimized instead.
     """
     if nd == 1:
-        proto.putln("#define %s(type, buf, i0, s0) ((type)buf + i0)" % name)
+        proto.putln(f"#define {name}(type, buf, i0, s0) ((type)buf + i0)")
     else:
         args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
         offset = " + ".join(["i%d * s%d" % (i, i) for i in range(1, nd)])
@@ -573,8 +573,8 @@ def get_type_information_cname(code, dtype, maxdepth=None):
     filled in.
     """
     namesuffix = mangle_dtype_name(dtype)
-    name = "__Pyx_TypeInfo_%s" % namesuffix
-    structinfo_name = "__Pyx_StructFields_%s" % namesuffix
+    name = f"__Pyx_TypeInfo_{namesuffix}"
+    structinfo_name = f"__Pyx_StructFields_{namesuffix}"
 
     if dtype.is_error: return "<error>"
 
@@ -630,11 +630,11 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         flags = "0"
         is_unsigned = "0"
         if dtype is PyrexTypes.c_char_type:
-            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
+            is_unsigned = f"__PYX_IS_UNSIGNED({declcode})"
             typegroup = "'H'"
         elif dtype.is_int:
-            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
-            typegroup = "%s ? 'U' : 'I'" % is_unsigned
+            is_unsigned = f"__PYX_IS_UNSIGNED({declcode})"
+            typegroup = f"{is_unsigned} ? 'U' : 'I'"
         elif complex_possible or dtype.is_complex:
             typegroup = "'C'"
         elif dtype.is_float:

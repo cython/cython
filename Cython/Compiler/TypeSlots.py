@@ -253,7 +253,7 @@ class SlotDescriptor:
         py3 = self.py3
         guard = None
         if ifdef:
-            guard = "#if %s" % ifdef
+            guard = f"#if {ifdef}"
         elif not py3 or py3 == '<RESERVED>':
             guard = "#if PY_MAJOR_VERSION < 3"
         elif not py2:
@@ -270,7 +270,7 @@ class SlotDescriptor:
         if not preprocessor_guard:
             if self.py3 and self.slot_name.startswith('bf_'):
                 # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
-                preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
+                preprocessor_guard = f"#if defined(Py_{self.slot_name})"
         if preprocessor_guard:
             code.putln(preprocessor_guard)
         code.putln(f"{{Py_{self.slot_name}, (void *){value}}},")
@@ -309,11 +309,11 @@ class SlotDescriptor:
                     end_pypy_guard = True
 
         if self.used_ifdef:
-            code.putln("#if %s" % self.used_ifdef)
+            code.putln(f"#if {self.used_ifdef}")
         code.putln(f"{value}, /*{self.slot_name}*/")
         if self.used_ifdef:
             code.putln("#else")
-            code.putln("NULL, /*%s*/" % self.slot_name)
+            code.putln(f"NULL, /*{self.slot_name}*/")
             code.putln("#endif")
 
         if end_pypy_guard:
@@ -561,7 +561,7 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
         else:
             # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
-            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
+            value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
         value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
@@ -587,7 +587,7 @@ class DocStringSlot(SlotDescriptor):
             return "0"
         if doc.is_unicode:
             doc = doc.as_utf8_string()
-        return "PyDoc_STR(%s)" % doc.as_c_string_literal()
+        return f"PyDoc_STR({doc.as_c_string_literal()})"
 
 
 class SuiteSlot(SlotDescriptor):
@@ -612,18 +612,16 @@ class SuiteSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         if not self.is_empty(scope):
-            return "&%s" % self.substructure_cname(scope)
+            return f"&{self.substructure_cname(scope)}"
         return "0"
 
     def generate_substructure(self, scope, code):
         if not self.is_empty(scope):
             code.putln("")
             if self.ifdef:
-                code.putln("#if %s" % self.ifdef)
+                code.putln(f"#if {self.ifdef}")
             code.putln(
-                "static {} {} = {{".format(
-                    self.slot_type,
-                    self.substructure_cname(scope)))
+                f"static {self.slot_type} {self.substructure_cname(scope)} = {{")
             for slot in self.sub_slots:
                 slot.generate(scope, code)
             code.putln("};")
@@ -723,10 +721,8 @@ class DictOffsetSlot(SlotDescriptor):
             if type.typedef_flag:
                 objstruct = type.objstruct_cname
             else:
-                objstruct = "struct %s" % type.objstruct_cname
-            return ("offsetof({}, {})".format(
-                        objstruct,
-                        dict_entry.cname))
+                objstruct = f"struct {type.objstruct_cname}"
+            return (f"offsetof({objstruct}, {dict_entry.cname})")
         else:
             return "0"
 
@@ -787,7 +783,7 @@ def get_slot_by_name(slot_name, compiler_directives):
     for slot in get_slot_table(compiler_directives).slot_table:
         if slot.slot_name == slot_name:
             return slot
-    assert False, "Slot not found: %s" % slot_name
+    assert False, f"Slot not found: {slot_name}"
 
 
 def get_slot_code_by_name(scope, slot_name):

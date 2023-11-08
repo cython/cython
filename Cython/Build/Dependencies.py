@@ -118,7 +118,7 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 @cached_function
 def file_hash(filename):
     path = os.path.normpath(filename)
-    prefix = ('%d:%s' % (len(path), path)).encode("UTF-8")
+    prefix = f'{len(path)}:{path}'.encode("UTF-8")
     m = hashlib.sha1(prefix)
     with open(path, 'rb') as f:
         data = f.read(65000)
@@ -839,7 +839,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                                                         pattern.__class__))
             raise TypeError(msg)
 
-        for file in nonempty(sorted(extended_iglob(filepattern)), "'%s' doesn't match any files" % filepattern):
+        for file in nonempty(sorted(extended_iglob(filepattern)), f"'{filepattern}' doesn't match any files"):
             if os.path.abspath(file) in to_exclude:
                 continue
             module_name = deps.fully_qualified_name(file)
@@ -897,7 +897,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                         m.sources.remove(target_file)
                     except ValueError:
                         # never seen this in the wild, but probably better to warn about this unexpected case
-                        print("Warning: Cython source file not found in sources list, adding %s" % file)
+                        print(f"Warning: Cython source file not found in sources list, adding {file}")
                     m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
@@ -1090,7 +1090,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if force or c_timestamp < dep_timestamp:
                     if not quiet and not force:
                         if source == dep:
-                            print("Compiling %s because it changed." % Utils.decode_filename(source))
+                            print(f"Compiling {Utils.decode_filename(source)} because it changed.")
                         else:
                             print("Compiling {} because it depends on {}.".format(
                                 Utils.decode_filename(source),
@@ -1298,7 +1298,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         if result.num_errors > 0:
             any_failures = 1
     except (OSError, PyrexError) as e:
-        sys.stderr.write('%s\n' % e)
+        sys.stderr.write(f'{e}\n')
         any_failures = 1
         # XXX
         import traceback

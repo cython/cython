@@ -460,7 +460,7 @@ def init_builtin_types():
         elif name == 'StopAsyncIteration':
             objstruct_cname = "PyBaseExceptionObject"
         else:
-            objstruct_cname = 'Py%sObject' % name.capitalize()
+            objstruct_cname = f'Py{name.capitalize()}Object'
         type_class = PyrexTypes.BuiltinObjectType
         if name in ['dict', 'list', 'set', 'frozenset']:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
@@ -593,7 +593,7 @@ def get_known_standard_library_module_scope(module_name):
         var_entry.is_pyglobal = True
         var_entry.scope = mod
         entry.as_variable = var_entry
-        entry.known_standard_library_import = "%s.InitVar" % module_name
+        entry.known_standard_library_import = f"{module_name}.InitVar"
         for name in ["dataclass", "field"]:
             mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
         _known_module_scopes[module_name] = mod

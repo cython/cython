@@ -119,7 +119,7 @@ class CythonMagics(Magics):
             try:
                 self.shell.push({k: mdict[k]})
             except KeyError:
-                msg = "'module' object has no attribute '%s'" % k
+                msg = f"'module' object has no attribute '{k}'"
                 raise AttributeError(msg)
 
     @cell_magic

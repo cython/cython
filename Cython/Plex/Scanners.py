@@ -274,7 +274,7 @@ class Scanner:
         self.next_pos = next_pos
         if trace:
             if action is not None:
-                print("Doing %s" % action)
+                print(f"Doing {action}")
         return action
 
     def next_char(self):

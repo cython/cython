@@ -120,8 +120,7 @@ def build(extensions):
         result = True
     except:
         import traceback
-        print('error building extensions {}'.format(
-            [ext.name for ext in extensions]))
+        print(f'error building extensions {[ext.name for ext in extensions]}')
         traceback.print_exc()
         result = False
     return extensions, result
@@ -150,7 +149,7 @@ def parse_args():
     if not args:
         args = ['./Lib']
     elif len(args) > 1:
-        parser.error('only one argument expected, got %d' % len(args))
+        parser.error(f'only one argument expected, got {len(args)}')
     return options, args
 
 

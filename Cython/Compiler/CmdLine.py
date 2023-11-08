@@ -225,7 +225,7 @@ def parse_command_line(args):
             if name in dir(DebugFlags):
                 setattr(DebugFlags, name, value)
             else:
-                parser.error("Unknown debug flag: %s\n" % name)
+                parser.error(f"Unknown debug flag: {name}\n")
         elif hasattr(Options, name):
             setattr(Options, name, value)
         else:

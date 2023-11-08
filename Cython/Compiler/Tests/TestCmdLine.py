@@ -544,13 +544,12 @@ class CmdLineParserTest(TestCase):
             msg = stderr.getvalue()
             err_msg = f'Message "{msg.strip()}"'
             self.assertTrue(msg.startswith('usage: '),
-                            '%s does not start with "usage :"' % err_msg)
+                            f'{err_msg} does not start with "usage :"')
             self.assertTrue(': error: ' in msg,
-                            '%s does not contain ": error :"' % err_msg)
+                            f'{err_msg} does not contain ": error :"')
             if regex:
                 self.assertTrue(re.search(regex, msg),
-                                '%s does not match search "%s"' %
-                                (err_msg, regex))
+                                f'{err_msg} does not match search "{regex}"')
 
         error(['-1'],
               'unknown option -1')

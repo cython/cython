@@ -56,7 +56,7 @@ def parse_func(next, token):
     name = token[1]
     token = next()
     if token[0] != '(':
-        raise ValueError("Expected '(' after function name '%s'" % name)
+        raise ValueError(f"Expected '(' after function name '{name}'")
     predicate = handle_predicate(next, token)
     return name, predicate
 
@@ -194,7 +194,7 @@ def parse_path_value(next):
             return True
         elif name == 'false':
             return False
-    raise ValueError("Invalid attribute predicate: '%s'" % value)
+    raise ValueError(f"Invalid attribute predicate: '{value}'")
 
 def handle_predicate(next, token):
     token = next()

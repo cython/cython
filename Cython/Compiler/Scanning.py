@@ -251,7 +251,7 @@ class FileSourceDescriptor(SourceDescriptor):
         return hash(self.filename)
 
     def __repr__(self):
-        return "<FileSourceDescriptor:%s>" % self.filename
+        return f"<FileSourceDescriptor:{self.filename}>"
 
 
 class StringSourceDescriptor(SourceDescriptor):
@@ -290,7 +290,7 @@ class StringSourceDescriptor(SourceDescriptor):
         return isinstance(other, StringSourceDescriptor) and self.name == other.name
 
     def __repr__(self):
-        return "<StringSourceDescriptor:%s>" % self.name
+        return f"<StringSourceDescriptor:{self.name}>"
 
 
 #------------------------------------------------------------------

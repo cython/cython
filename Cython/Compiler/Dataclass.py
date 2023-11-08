@@ -207,13 +207,13 @@ class Field:
 
         for k, v in additional_kwds.items():
             # There should not be any additional keywords!
-            error(v.pos, "cython.dataclasses.field() got an unexpected keyword argument '%s'" % k)
+            error(v.pos, f"cython.dataclasses.field() got an unexpected keyword argument '{k}'")
 
         for field_name in self.literal_keys:
             field_value = getattr(self, field_name)
             if not field_value.is_literal:
                 error(field_value.pos,
-                      "cython.dataclasses.field parameter '%s' must be a literal value" % field_name)
+                      f"cython.dataclasses.field parameter '{field_name}' must be a literal value")
 
     def iterate_record_node_arguments(self):
         for key in (self.literal_keys + ('default', 'default_factory')):
@@ -303,7 +303,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         for k, v in dataclass_args[1].items():
             if k not in kwargs:
                 error(node.pos,
-                      "cython.dataclasses.dataclass() got an unexpected keyword argument '%s'" % k)
+                      f"cython.dataclasses.dataclass() got an unexpected keyword argument '{k}'")
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
@@ -413,7 +413,7 @@ def generate_init_code(code, init, node, fields, kw_only):
     for name, field in fields.items():
         entry = node.scope.lookup(name)
         if entry.annotation:
-            annotation = ": %s" % entry.annotation.string.value
+            annotation = f": {entry.annotation.string.value}"
         else:
             annotation = ""
         assignment = ''
@@ -423,7 +423,7 @@ def generate_init_code(code, init, node, fields, kw_only):
                 ph_name = default_factory_placeholder
             else:
                 ph_name = code.new_placeholder(fields, field.default)  # 'default' should be a node
-            assignment = " = %s" % ph_name
+            assignment = f" = {ph_name}"
         elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
@@ -451,8 +451,7 @@ def generate_init_code(code, init, node, fields, kw_only):
                     selfname, name, ph_name, name, default_factory_placeholder, name))
             else:
                 # still need to use the default factory to initialize
-                code.add_code_line("    {}.{} = {}()".format(
-                    selfname, name, ph_name))
+                code.add_code_line(f"    {selfname}.{name} = {ph_name}()")
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
@@ -463,7 +462,7 @@ def generate_init_code(code, init, node, fields, kw_only):
         code.add_code_line("    pass")
 
     args = ", ".join(args)
-    function_start_point.add_code_line("def __init__(%s):" % args)
+    function_start_point.add_code_line(f"def __init__({args}):")
 
 
 def generate_repr_code(code, repr, node, fields):
@@ -528,12 +527,12 @@ def generate_cmp_code(code, op, funcname, node, fields):
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
 
     code.add_code_lines([
-        "def %s(self, other):" % funcname,
-        "    if not isinstance(other, %s):" % node.class_name,
+        f"def {funcname}(self, other):",
+        f"    if not isinstance(other, {node.class_name}):",
         "        return NotImplemented",
         #
-        "    cdef %s other_cast" % node.class_name,
-        "    other_cast = <%s>other" % node.class_name,
+        f"    cdef {node.class_name} other_cast",
+        f"    other_cast = <{node.class_name}>other",
     ])
 
     # The Python implementation of dataclasses.py does a tuple comparison
@@ -548,8 +547,7 @@ def generate_cmp_code(code, op, funcname, node, fields):
     #    compare them that way (I think not, but it might be in demand)?
     checks = []
     for name in names:
-        checks.append("(self.{} {} other_cast.{})".format(
-            name, op, name))
+        checks.append(f"(self.{name} {op} other_cast.{name})")
 
     if checks:
         code.add_code_line("    return " + " and ".join(checks))
@@ -621,7 +619,7 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
         # but difficult to get the right information here
         if unsafe_hash:
             # error message taken from CPython dataclasses module
-            error(node.pos, "Cannot overwrite attribute __hash__ in class %s" % node.class_name)
+            error(node.pos, f"Cannot overwrite attribute __hash__ in class {node.class_name}")
         return
 
     if not unsafe_hash:
@@ -644,14 +642,14 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
     ]
 
     # make a tuple of the hashes
-    hash_tuple_items = ", ".join("self.%s" % name for name in names)
+    hash_tuple_items = ", ".join(f"self.{name}" for name in names)
     if hash_tuple_items:
         hash_tuple_items += ","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
     code.add_code_lines([
         "def __hash__(self):",
-        "    return hash((%s))" % hash_tuple_items,
+        f"    return hash(({hash_tuple_items}))",
     ])
 
 
@@ -774,13 +772,13 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
     for name, field in fields.items():
         if field.private:
             continue  # doesn't appear in the public interface
-        type_placeholder_name = "PLACEHOLDER_%s" % name
+        type_placeholder_name = f"PLACEHOLDER_{name}"
         placeholders[type_placeholder_name] = get_field_type(
             node.pos, node.scope.entries[name]
         )
 
         # defining these make the fields introspect more like a Python dataclass
-        field_type_placeholder_name = "PLACEHOLDER_FIELD_TYPE_%s" % name
+        field_type_placeholder_name = f"PLACEHOLDER_FIELD_TYPE_{name}"
         if field.is_initvar:
             placeholders[field_type_placeholder_name] = ExprNodes.AttributeNode(
                 node.pos, obj=dataclass_module,

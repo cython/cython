@@ -345,7 +345,7 @@ def print_pos(pos, output):
                 c = str(done[id][0]) if done[id][0] != EMPTY else "."
             else:
                 c = "?"
-            print("%s " % c, end="", file=output)
+            print(f"{c} ", end="", file=output)
         print(end="\n", file=output)
     for y in range(1, size):
         print(" " * y, end="", file=output)
@@ -357,7 +357,7 @@ def print_pos(pos, output):
                 c = str(done[id][0]) if done[id][0] != EMPTY else (".")
             else:
                 c = "?"
-            print("%s " % c, end="", file=output)
+            print(f"{c} ", end="", file=output)
         print(end="\n", file=output)
 
 OPEN = 0
@@ -538,7 +538,7 @@ def run_level36():
    2 2 . 1
 """
     if output.getvalue() != expected:
-        raise AssertionError("got a wrong answer:\n%s" % output.getvalue())
+        raise AssertionError(f"got a wrong answer:\n{output.getvalue()}")
 
 def main(n):
     # only run 1/25th of the requested number of iterations.

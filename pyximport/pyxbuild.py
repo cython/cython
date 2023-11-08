@@ -24,7 +24,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                setup_args=None, reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so
        or .dll ."""
-    assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
+    assert os.path.exists(filename), f"Could not find {os.path.abspath(filename)}"
 
     path, name = os.path.split(os.path.abspath(filename))
 
@@ -120,7 +120,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                 while count < 100:
                     count += 1
                     r_path = os.path.join(obj_build_ext.build_lib,
-                                          basename + '.reload%s' % count)
+                                          basename + f'.reload{count}')
                     try:
                         import shutil  # late import / reload_support is: debugging
                         try:
@@ -141,7 +141,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                     break
                 else:
                     # used up all 100 slots
-                    raise ImportError("reload count for %s reached maximum" % org_path)
+                    raise ImportError(f"reload count for {org_path} reached maximum")
                 _reloads[org_path]=(timestamp, so_path, count)
         return so_path
     except KeyboardInterrupt:

@@ -151,7 +151,7 @@ class TestGrammar(CythonTest):
                 except CompileError as exc:
                     assert code in [s.strip() for s in str(exc).splitlines()], str(exc)
                 else:
-                    assert False, "Invalid Cython code '%s' failed to raise an exception" % code
+                    assert False, f"Invalid Cython code '{code}' failed to raise an exception"
 
     def test_valid_number_literals(self):
         for literal in VALID_UNDERSCORE_LITERALS:
@@ -185,7 +185,7 @@ class TestGrammar(CythonTest):
             except SyntaxError as exc:
                 assert True
             else:
-                assert False, "Invalid Python code '%s' failed to raise an exception" % code
+                assert False, f"Invalid Python code '{code}' failed to raise an exception"
 
             try:
                 self.fragment('''\
@@ -194,7 +194,7 @@ class TestGrammar(CythonTest):
             except CompileError as exc:
                 assert ERR.format(line, col) in str(exc), str(exc)
             else:
-                assert False, "Invalid Cython code '%s' failed to raise an exception" % code
+                assert False, f"Invalid Cython code '{code}' failed to raise an exception"
 
 
 if __name__ == "__main__":
