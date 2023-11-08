@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import re
 import sys
 import copy
@@ -156,7 +154,7 @@ class IterationTransform(Visitor.EnvTransform):
             target_handle = UtilNodes.TempHandle(base_type)
             target = target_handle.ref(pos)
             cmp_node = ExprNodes.PrimaryCmpNode(
-                pos, operator=u'==', operand1=node.operand1, operand2=target)
+                pos, operator='==', operand1=node.operand1, operand2=target)
             if_body = Nodes.StatListNode(
                 pos,
                 stats = [Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=1)),
@@ -1012,7 +1010,7 @@ class IterationTransform(Visitor.EnvTransform):
             method_node = ExprNodes.StringNode(
                 dict_obj.pos, is_identifier=True, value=method)
             dict_obj = dict_obj.as_none_safe_node(
-                "'NoneType' object has no attribute '%{0}s'".format('.30' if len(method) <= 30 else ''),
+                "'NoneType' object has no attribute '%{}s'".format('.30' if len(method) <= 30 else ''),
                 error = "PyExc_AttributeError",
                 format_args = [method])
         else:
@@ -2277,12 +2275,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return node
         return coerce_node
 
-    float_float_func_types = dict(
-        (float_type, PyrexTypes.CFuncType(
+    float_float_func_types = {
+        float_type: PyrexTypes.CFuncType(
             float_type, [
                 PyrexTypes.CFuncTypeArg("arg", float_type, None)
-            ]))
-        for float_type in (PyrexTypes.c_float_type, PyrexTypes.c_double_type, PyrexTypes.c_longdouble_type))
+            ])
+        for float_type in (PyrexTypes.c_float_type, PyrexTypes.c_double_type, PyrexTypes.c_longdouble_type)}
 
     def _optimise_numeric_cast_call(self, node, arg):
         function = arg.function
@@ -2484,7 +2482,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         if len(pos_args) != 1:
             if len(pos_args) == 0:
-                return ExprNodes.UnicodeNode(node.pos, value=EncodedString(), constant_result=u'')
+                return ExprNodes.UnicodeNode(node.pos, value=EncodedString(), constant_result='')
             return node
         arg = pos_args[0]
         if arg.type is Builtin.unicode_type:
@@ -3400,18 +3398,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             may_return_none=True,
             utility_code=load_c_utility('py_dict_pop'))
 
-    Pyx_BinopInt_func_types = dict(
-        ((ctype, ret_type), PyrexTypes.CFuncType(
+    Pyx_BinopInt_func_types = {
+        (ctype, ret_type): PyrexTypes.CFuncType(
             ret_type, [
                 PyrexTypes.CFuncTypeArg("op1", PyrexTypes.py_object_type, None),
                 PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
                 PyrexTypes.CFuncTypeArg("cval", ctype, None),
                 PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_bint_type, None),
                 PyrexTypes.CFuncTypeArg("zerodiv_check", PyrexTypes.c_bint_type, None),
-            ], exception_value=None if ret_type.is_pyobject else ret_type.exception_value))
+            ], exception_value=None if ret_type.is_pyobject else ret_type.exception_value)
         for ctype in (PyrexTypes.c_long_type, PyrexTypes.c_double_type)
         for ret_type in (PyrexTypes.py_object_type, PyrexTypes.c_bint_type)
-        )
+        }
 
     def _handle_simple_method_object___add__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Add', node, function, args, is_unbound_method)
@@ -3717,7 +3715,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         by a direct call to the corresponding C-API function.
         """
         if len(args) not in (2,3,4):
-            self._error_wrong_arg_count('%s.%s' % (type_name, method_name), node, args, "2-4")
+            self._error_wrong_arg_count('{}.{}'.format(type_name, method_name), node, args, "2-4")
             return node
         self._inject_int_default_argument(
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
@@ -4154,7 +4152,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 format_args=[attr_name, self_arg.type.name])
         else:
             self_arg = self_arg.as_none_safe_node(
-                "'NoneType' object has no attribute '%{0}s'".format('.30' if len(attr_name) <= 30 else ''),
+                "'NoneType' object has no attribute '%{}s'".format('.30' if len(attr_name) <= 30 else ''),
                 error="PyExc_AttributeError",
                 format_args=[attr_name])
         return self_arg
@@ -4259,7 +4257,7 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
         "Optimize.c",
         context=dict(op=operator, order=arg_order, ret_type=ret_type))
 
-    func_cname = "__Pyx_Py%s_%s%s%s" % (
+    func_cname = "__Pyx_Py{}_{}{}{}".format(
         'Float' if is_float else 'Int',
         '' if ret_type.is_pyobject else 'Bool',
         operator,
@@ -4295,7 +4293,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         The reevaluate argument specifies whether constant values that were
         previously computed should be recomputed.
         """
-        super(ConstantFolding, self).__init__()
+        super().__init__()
         self.reevaluate = reevaluate
 
     def _calculate_const(self, node):
@@ -4591,10 +4589,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return self.visit_BinopNode(node)
 
     _parse_string_format_regex = (
-        u'(%(?:'              # %...
-        u'(?:[-0-9]+|[ ])?'   # width (optional) or space prefix fill character (optional)
-        u'(?:[.][0-9]+)?'     # precision (optional)
-        u')?.)'               # format type (or something different for unsupported formats)
+        '(%(?:'              # %...
+        '(?:[-0-9]+|[ ])?'   # width (optional) or space prefix fill character (optional)
+        '(?:[.][0-9]+)?'     # precision (optional)
+        ')?.)'               # format type (or something different for unsupported formats)
     )
 
     def _build_fstring(self, pos, ustring, format_args):
@@ -4605,11 +4603,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         for s in re.split(self._parse_string_format_regex, ustring):
             if not s:
                 continue
-            if s == u'%%':
-                substrings.append(ExprNodes.UnicodeNode(pos, value=EncodedString(u'%'), constant_result=u'%'))
+            if s == '%%':
+                substrings.append(ExprNodes.UnicodeNode(pos, value=EncodedString('%'), constant_result='%'))
                 continue
-            if s[0] != u'%':
-                if s[-1] == u'%':
+            if s[0] != '%':
+                if s[-1] == '%':
                     warning(pos, "Incomplete format: '...%s'" % s[-3:], level=1)
                     can_be_optimised = False
                 substrings.append(ExprNodes.UnicodeNode(pos, value=EncodedString(s), constant_result=s))
@@ -4624,18 +4622,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             if arg.is_starred:
                 can_be_optimised = False
                 break
-            if format_type in u'asrfdoxX':
+            if format_type in 'asrfdoxX':
                 format_spec = s[1:]
                 conversion_char = None
-                if format_type in u'doxX' and u'.' in format_spec:
+                if format_type in 'doxX' and '.' in format_spec:
                     # Precision is not allowed for integers in format(), but ok in %-formatting.
                     can_be_optimised = False
-                elif format_type in u'ars':
+                elif format_type in 'ars':
                     format_spec = format_spec[:-1]
                     conversion_char = format_type
                     if format_spec.startswith('0'):
                         format_spec = '>' + format_spec[1:]  # right-alignment '%05s' spells '{:>5}'
-                elif format_type == u'd':
+                elif format_type == 'd':
                     # '%d' formatting supports float, but '{obj:d}' does not => convert to int first.
                     conversion_char = 'd'
 
@@ -4702,7 +4700,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 substrings = list(substrings)
                 unode = substrings[0]
                 if len(substrings) > 1:
-                    value = EncodedString(u''.join(value.value for value in substrings))
+                    value = EncodedString(''.join(value.value for value in substrings))
                     unode = ExprNodes.UnicodeNode(unode.pos, value=value, constant_result=value)
                 # ignore empty Unicode strings
                 if unode.value:

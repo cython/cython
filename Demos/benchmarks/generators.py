@@ -7,8 +7,7 @@ import cython
 
 @cython.locals(N=cython.Py_ssize_t)
 def count_to(N):
-    for i in range(N):
-        yield i
+    yield from range(N)
 
 @cython.locals(i=cython.Py_ssize_t)
 def round_robin(*_iterators):

@@ -453,7 +453,7 @@ print(a)"""
         def spam(a):
             return a
 
-        res = spam((b := 2))
+        res = spam(b := 2)
 
         self.assertEqual(res, 2)
         self.assertEqual(b, 2)

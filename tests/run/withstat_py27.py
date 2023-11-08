@@ -9,13 +9,13 @@ class MyException(Exception):
     pass
 
 
-class ContextManager(object):
+class ContextManager:
     def __init__(self, value, exit_ret = None):
         self.value = value
         self.exit_ret = exit_ret
 
     def __exit__(self, a, b, tb):
-        print("exit %s %s %s" % (typename(a), typename(b), typename(tb)))
+        print("exit {} {} {}".format(typename(a), typename(b), typename(tb)))
         return self.exit_ret
 
     def __enter__(self):
@@ -48,11 +48,11 @@ def multimanager():
         with ContextManager('nested') as nested:
             print(x)
             print(y)
-            print('%s %s %s %s %s' % (a, b, c, d, e))
+            print('{} {} {} {} {}'.format(a, b, c, d, e))
             print(nested)
 
 
-class GetManager(object):
+class GetManager:
     def get(self, *args):
         return ContextManager(*args)
 
@@ -77,7 +77,7 @@ def manager_from_expression():
 # modified to follow the constraints of Cython.
 import unittest
 
-class Dummy(object):
+class Dummy:
     def __init__(self, value=None, gobble=False):
         if value is None:
             value = self
@@ -96,14 +96,14 @@ class Dummy(object):
         if self.gobble:
             return True
 
-class InitRaises(object):
+class InitRaises:
     def __init__(self): raise RuntimeError()
 
-class EnterRaises(object):
+class EnterRaises:
     def __enter__(self): raise RuntimeError()
     def __exit__(self, *exc_info): pass
 
-class ExitRaises(object):
+class ExitRaises:
     def __enter__(self): pass
     def __exit__(self, *exc_info): raise RuntimeError()
 

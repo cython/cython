@@ -1,4 +1,3 @@
-# coding=utf-8
 # NOTE: requires Python 3.6 or later if not compiled with Cython
 
 from time import time
@@ -15,7 +14,7 @@ def run():
     n = 5
     i = 12345678
     s = 'abc'
-    u = u'üöä'
+    u = 'üöä'
 
     # repeat without fast looping ...
     f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"

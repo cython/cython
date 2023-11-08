@@ -64,7 +64,7 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
     generated, while recording what it has removed so that it can be used in the initialization.
     """
     def __init__(self, names):
-        super(RemoveAssignmentsToNames, self).__init__()
+        super().__init__()
         self.names = names
         self.removed_assignments = {}
 
@@ -95,7 +95,7 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
         return node
 
 
-class TemplateCode(object):
+class TemplateCode:
     """
     Adds the ability to keep track of placeholder argument names to PyxCodeWriter.
 
@@ -167,12 +167,12 @@ class TemplateCode(object):
         )
 
 
-class _MISSING_TYPE(object):
+class _MISSING_TYPE:
     pass
 MISSING = _MISSING_TYPE()
 
 
-class Field(object):
+class Field:
     """
     Field is based on the dataclasses.field class from the standard library module.
     It is used internally during the generation of Cython dataclasses to keep track
@@ -277,7 +277,7 @@ def process_class_get_fields(node):
                     # The standard library module generates a TypeError at runtime
                     # in this situation.
                     # Error message is copied from CPython
-                    error(assignment.pos, "mutable default <class '{0}'> for field {1} is not allowed: "
+                    error(assignment.pos, "mutable default <class '{}'> for field {} is not allowed: "
                           "use default_factory".format(assignment.type.name, name))
 
                 field = Field(node.pos, default=assignment)
@@ -413,17 +413,17 @@ def generate_init_code(code, init, node, fields, kw_only):
     for name, field in fields.items():
         entry = node.scope.lookup(name)
         if entry.annotation:
-            annotation = u": %s" % entry.annotation.string.value
+            annotation = ": %s" % entry.annotation.string.value
         else:
-            annotation = u""
-        assignment = u''
+            annotation = ""
+        assignment = ''
         if field.default is not MISSING or field.default_factory is not MISSING:
             seen_default = True
             if field.default_factory is not MISSING:
                 ph_name = default_factory_placeholder
             else:
                 ph_name = code.new_placeholder(fields, field.default)  # 'default' should be a node
-            assignment = u" = %s" % ph_name
+            assignment = " = %s" % ph_name
         elif seen_default and not kw_only and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
@@ -431,39 +431,39 @@ def generate_init_code(code, init, node, fields, kw_only):
             return
 
         if field.init.value:
-            args.append(u"%s%s%s" % (name, annotation, assignment))
+            args.append("{}{}{}".format(name, annotation, assignment))
 
         if field.is_initvar:
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
-                code.add_code_line(u"    %s.%s = %s" % (selfname, name, name))
+                code.add_code_line("    {}.{} = {}".format(selfname, name, name))
             elif assignment:
                 # not an argument to the function, but is still initialized
-                code.add_code_line(u"    %s.%s%s" % (selfname, name, assignment))
+                code.add_code_line("    {}.{}{}".format(selfname, name, assignment))
         else:
             ph_name = code.new_placeholder(fields, field.default_factory)
             if field.init.value:
                 # close to:
                 # def __init__(self, name=_PLACEHOLDER_VALUE):
                 #     self.name = name_default_factory() if name is _PLACEHOLDER_VALUE else name
-                code.add_code_line(u"    %s.%s = %s() if %s is %s else %s" % (
+                code.add_code_line("    {}.{} = {}() if {} is {} else {}".format(
                     selfname, name, ph_name, name, default_factory_placeholder, name))
             else:
                 # still need to use the default factory to initialize
-                code.add_code_line(u"    %s.%s = %s()" % (
+                code.add_code_line("    {}.{} = {}()".format(
                     selfname, name, ph_name))
 
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
-        code.add_code_line("    %s.__post_init__(%s)" % (selfname, post_init_vars))
+        code.add_code_line("    {}.__post_init__({})".format(selfname, post_init_vars))
 
     if code.empty():
         code.add_code_line("    pass")
 
-    args = u", ".join(args)
-    function_start_point.add_code_line(u"def __init__(%s):" % args)
+    args = ", ".join(args)
+    function_start_point.add_code_line("def __init__(%s):" % args)
 
 
 def generate_repr_code(code, repr, node, fields):
@@ -509,13 +509,13 @@ def generate_repr_code(code, repr, node, fields):
         code.add_code_line("    if key in guard_set: return '...'")
         code.add_code_line("    guard_set.add(key)")
         code.add_code_line("    try:")
-    strs = [u"%s={self.%s!r}" % (name, name)
+    strs = ["{}={{self.{}!r}}".format(name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
-    format_string = u", ".join(strs)
+    format_string = ", ".join(strs)
 
-    code.add_code_line(u'        name = getattr(type(self), "__qualname__", type(self).__name__)')
-    code.add_code_line(u"        return f'{name}(%s)'" % format_string)
+    code.add_code_line('        name = getattr(type(self), "__qualname__", type(self).__name__)')
+    code.add_code_line("        return f'{name}(%s)'" % format_string)
     if needs_recursive_guard:
         code.add_code_line("    finally:")
         code.add_code_line("        guard_set.remove(key)")
@@ -548,7 +548,7 @@ def generate_cmp_code(code, op, funcname, node, fields):
     #    compare them that way (I think not, but it might be in demand)?
     checks = []
     for name in names:
-        checks.append("(self.%s %s other_cast.%s)" % (
+        checks.append("(self.{} {} other_cast.{})".format(
             name, op, name))
 
     if checks:
@@ -644,9 +644,9 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
     ]
 
     # make a tuple of the hashes
-    hash_tuple_items = u", ".join(u"self.%s" % name for name in names)
+    hash_tuple_items = ", ".join("self.%s" % name for name in names)
     if hash_tuple_items:
-        hash_tuple_items += u","  # ensure that one arg form is a tuple
+        hash_tuple_items += ","  # ensure that one arg form is a tuple
 
     # if we're here we want to generate a hash
     code.add_code_lines([
@@ -701,7 +701,7 @@ class FieldRecordNode(ExprNodes.ExprNode):
     subexprs = ['arg']
 
     def __init__(self, pos, arg):
-        super(FieldRecordNode, self).__init__(pos, arg=arg)
+        super().__init__(pos, arg=arg)
 
     def analyse_types(self, env):
         self.arg.analyse_types(env)
@@ -814,7 +814,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 key=ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(name)),
                 value=dc_field_call))
         dc_fields_namevalue_assignments.append(
-            dedent(u"""\
+            dedent("""\
                 __dataclass_fields__[{0!r}].name = {0!r}
                 __dataclass_fields__[{0!r}].type = {1}
                 __dataclass_fields__[{0!r}]._field_type = {2}
@@ -826,7 +826,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                                         name=EncodedString("__dataclass_fields__")),
                         rhs = dc_fields)
 
-    dc_fields_namevalue_assignments = u"\n".join(dc_fields_namevalue_assignments)
+    dc_fields_namevalue_assignments = "\n".join(dc_fields_namevalue_assignments)
     dc_fields_namevalue_assignments = TreeFragment(dc_fields_namevalue_assignments,
                                                    level="c_class",
                                                    pipeline=[NormalizeTree(None)])

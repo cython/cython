@@ -11,6 +11,6 @@ def main():
     d: cython.int[::view.contiguous, ::view.indirect, :]
     e: cython.int[::1, ::view.indirect, :]
 
-_ERRORS = u"""
+_ERRORS = """
 12:17: Only dimension 2 may be contiguous and direct
 """

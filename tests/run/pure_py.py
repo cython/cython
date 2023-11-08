@@ -445,7 +445,7 @@ def ccall_except_no_check(x):
 
 @cython.final
 @cython.cclass
-class CClass(object):
+class CClass:
     """
     >>> c = CClass(2)
     >>> c.get_attr()
@@ -483,7 +483,7 @@ class Foo:
         self.c = c
 
 @cython.cclass
-class EmptyClass(object):
+class EmptyClass:
     def __init__(self, *args):
         pass
 

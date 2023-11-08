@@ -8,7 +8,7 @@ This version represents state sets directly as dicts for speed.
 maxint = 2**31-1  # sentinel value
 
 
-class TransitionMap(object):
+class TransitionMap:
     """
     A TransitionMap maps an input event to a set of states.
     An input event is one of: a range of character codes,
@@ -171,7 +171,7 @@ class TransitionMap(object):
         special_strs = {}
         for event, set in self.special.items():
             special_strs[event] = state_set_str(set)
-        return "[%s]+%s" % (
+        return "[{}]+{}".format(
             ','.join(map_strs),
             special_strs
         )
@@ -209,7 +209,7 @@ class TransitionMap(object):
             elif code0 == code1 - 1:
                 k = self.dump_char(code0)
             else:
-                k = "%s..%s" % (self.dump_char(code0),
+                k = "{}..{}".format(self.dump_char(code0),
                                 self.dump_char(code1 - 1))
             self.dump_trans(k, set, file)
 
@@ -220,7 +220,7 @@ class TransitionMap(object):
             return "chr(%d)" % code
 
     def dump_trans(self, key, set, file):
-        file.write("      %s --> %s\n" % (key, self.dump_set(set)))
+        file.write("      {} --> {}\n".format(key, self.dump_set(set)))
 
     def dump_set(self, set):
         return state_set_str(set)

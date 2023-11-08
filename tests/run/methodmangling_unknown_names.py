@@ -1,7 +1,7 @@
 # mode: run
 # tag: allow_unknown_names, pure2.0, pure3.0
 
-class Test(object):
+class Test:
     def run(self):
         """
         >>> Test().run()

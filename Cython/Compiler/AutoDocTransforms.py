@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
@@ -22,11 +20,11 @@ class AnnotationWriter(ExpressionWriter):
         self.incomplete = False
 
     def visit_Node(self, node):
-        self.put(u"<???>")
+        self.put("<???>")
         self.incomplete = True
         if self.description:
             warning(node.pos,
-                    "Failed to convert code to string representation in {0}".format(
+                    "Failed to convert code to string representation in {}".format(
                         self.description), level=1)
 
     def visit_LambdaNode(self, node):
@@ -35,7 +33,7 @@ class AnnotationWriter(ExpressionWriter):
         self.incomplete = True
         if self.description:
             warning(node.pos,
-                    "Failed to convert lambda to string representation in {0}".format(
+                    "Failed to convert lambda to string representation in {}".format(
                         self.description), level=1)
 
     def visit_UnicodeNode(self, node):
@@ -50,7 +48,7 @@ class AnnotationWriter(ExpressionWriter):
 class EmbedSignature(CythonTransform):
 
     def __init__(self, context):
-        super(EmbedSignature, self).__init__(context)
+        super().__init__(context)
         self.class_name = None
         self.class_node = None
 
@@ -158,9 +156,9 @@ class EmbedSignature(CythonTransform):
             hide_self=hide_self,
         )
         arglist_doc = ', '.join(arglist)
-        func_doc = '%s(%s)' % (func_name, arglist_doc)
+        func_doc = '{}({})'.format(func_name, arglist_doc)
         if self.is_format_c and cls_name:
-            func_doc = '%s.%s' % (cls_name, func_doc)
+            func_doc = '{}.{}'.format(cls_name, func_doc)
         if not self.is_format_clinic:
             ret_doc = None
             if return_expr:
@@ -168,7 +166,7 @@ class EmbedSignature(CythonTransform):
             elif return_type:
                 ret_doc = self._fmt_type(return_type)
             if ret_doc:
-                func_doc = '%s -> %s' % (func_doc, ret_doc)
+                func_doc = '{} -> {}'.format(func_doc, ret_doc)
         return func_doc
 
     def _embed_signature(self, signature, node_doc):
@@ -191,7 +189,7 @@ class EmbedSignature(CythonTransform):
         if not Options.docstrings:
             return node
         else:
-            return super(EmbedSignature, self).__call__(node)
+            return super().__call__(node)
 
     def visit_ClassDefNode(self, node):
         oldname = self.class_name
@@ -306,12 +304,12 @@ class EmbedSignature(CythonTransform):
                 if stat.name != '__get__':
                     continue
                 if self.is_format_c:
-                    prop_name = '%s.%s' % (self.class_name, prop_name)
+                    prop_name = '{}.{}'.format(self.class_name, prop_name)
                 ret_annotation = stat.return_type_annotation
                 if ret_annotation:
                     type_name = self._fmt_annotation(ret_annotation)
         if type_name is not None :
-            signature = '%s: %s' % (prop_name, type_name)
+            signature = '{}: {}'.format(prop_name, type_name)
             new_doc = self._embed_signature(signature, entry.doc)
             if not self.is_format_clinic:
                 entry.doc = EncodedString(new_doc)

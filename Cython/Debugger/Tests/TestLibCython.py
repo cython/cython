@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -22,7 +21,7 @@ codefile = os.path.join(root, 'codefile')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
 
 with open(codefile) as f:
-    source_to_lineno = dict((line.strip(), i + 1) for i, line in enumerate(f))
+    source_to_lineno = {line.strip(): i + 1 for i, line in enumerate(f)}
 
 
 have_gdb = None
@@ -172,7 +171,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
         if not test_gdb():
             return
 
-        super(GdbDebuggerTestCase, self).setUp()
+        super().setUp()
 
         prefix_code = textwrap.dedent('''\
             python
@@ -200,10 +199,10 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             python
 
             from Cython.Debugger.Tests import test_libcython_in_gdb
-            test_libcython_in_gdb.main(version=%r)
+            test_libcython_in_gdb.main(version={!r})
 
             end
-            ''' % (sys.version_info[:2],))
+            '''.format(sys.version_info[:2]))
 
         self.gdb_command_file = cygdb.make_command_file(self.tempdir,
                                                         prefix_code)
@@ -233,7 +232,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             return
 
         try:
-            super(GdbDebuggerTestCase, self).tearDown()
+            super().tearDown()
             if self.p:
                 try: self.p.stdout.close()
                 except: pass
@@ -260,11 +259,11 @@ class TestAll(GdbDebuggerTestCase):
             sys.stderr.write(out)
             sys.stderr.write(err)
         elif exit_status >= 2:
-            border = u'*' * 30
-            start  = u'%s   v INSIDE GDB v   %s' % (border, border)
-            stderr = u'%s   v STDERR v   %s' % (border, border)
-            end    = u'%s   ^ INSIDE GDB ^   %s' % (border, border)
-            errmsg = u'\n%s\n%s%s\n%s%s' % (start, out, stderr, err, end)
+            border = '*' * 30
+            start  = '{}   v INSIDE GDB v   {}'.format(border, border)
+            stderr = '{}   v STDERR v   {}'.format(border, border)
+            end    = '{}   ^ INSIDE GDB ^   {}'.format(border, border)
+            errmsg = '\n{}\n{}{}\n{}{}'.format(start, out, stderr, err, end)
 
             sys.stderr.write(errmsg)
 

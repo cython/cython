@@ -5,7 +5,7 @@ compiled = cython.compiled
 
 
 @cython.cclass
-class X(object):
+class X:
     x = cython.declare(cython.int)
 
     def __init__(self, x):

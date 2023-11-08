@@ -213,7 +213,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
         if path != so_path:
             try:
                 os.remove(path)
-            except IOError:
+            except OSError:
                 _info("Couldn't remove %s", path)
 
     return so_path
@@ -242,7 +242,7 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
         else:
             tb = sys.exc_info()[2]
             import traceback
-            exc = ImportError("Building module %s failed: %s" % (
+            exc = ImportError("Building module {} failed: {}".format(
                 name, traceback.format_exception_only(*sys.exc_info()[:2])))
             if sys.version_info[0] >= 3:
                 raise exc.with_traceback(tb)
@@ -253,7 +253,7 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
 
 # import hooks
 
-class PyxImporter(object):
+class PyxImporter:
     """A meta-path importer for .pyx files.
     """
     def __init__(self, extension=PYX_EXT, pyxbuild_dir=None, inplace=False,
@@ -324,7 +324,7 @@ class PyxImporter(object):
                 try:
                     zi = zipimporter(path)
                     pyx_data = zi.get_data(pyx_module_name)
-                except (ZipImportError, IOError, OSError):
+                except (ZipImportError, OSError):
                     continue  # Module not found.
                 # unzip the imported file into the build dir
                 # FIXME: can interfere with later imports if build dir is in sys.path and comes before zip file
@@ -362,7 +362,7 @@ class PyImporter(PyxImporter):
     def __init__(self, pyxbuild_dir=None, inplace=False, language_level=None):
         if language_level is None:
             language_level = sys.version_info[0]
-        self.super = super(PyImporter, self)
+        self.super = super()
         self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir, inplace=inplace,
                             language_level=language_level)
         self.uncompilable_modules = {}
@@ -428,7 +428,7 @@ class PyImporter(PyxImporter):
         return importer
 
 
-class LibLoader(object):
+class LibLoader:
     def __init__(self):
         self._libs = {}
 
@@ -449,7 +449,7 @@ class LibLoader(object):
 _lib_loader = LibLoader()
 
 
-class PyxLoader(object):
+class PyxLoader:
     def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None,
                  inplace=False, language_level=None):
         _debug("PyxLoader created for loading %s from %s (init path: %s)",
@@ -462,7 +462,7 @@ class PyxLoader(object):
 
     def load_module(self, fullname):
         assert self.fullname == fullname, (
-            "invalid module, expected %s, got %s" % (
+            "invalid module, expected {}, got {}".format(
             self.fullname, fullname))
         if self.init_path:
             # package
@@ -482,7 +482,7 @@ class PyxLoader(object):
 
 
 #install args
-class PyxArgs(object):
+class PyxArgs:
     build_dir=True
     build_in_temp=True
     setup_args={}   #None

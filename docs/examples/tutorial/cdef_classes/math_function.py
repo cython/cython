@@ -1,4 +1,4 @@
-class MathFunction(object):
+class MathFunction:
     def __init__(self, name, operator):
         self.name = name
         self.operator = operator

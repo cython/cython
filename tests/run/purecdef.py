@@ -41,10 +41,10 @@ with cfunc:
 
 with cclass:
     @cython.test_assert_path_exists('//CClassDefNode')
-    class Egg(object):
+    class Egg:
         pass
     @cython.test_assert_path_exists('//CClassDefNode')
-    class BigEgg(object):
+    class BigEgg:
         @cython.test_assert_path_exists('//CFuncDefNode')
         @cython.cfunc
         def f(self, a):
@@ -59,7 +59,7 @@ def test_with():
 
 @cython.test_assert_path_exists('//CClassDefNode')
 @cython.cclass
-class PureFoo(object):
+class PureFoo:
     a = cython.declare(cython.double)
 
     def __init__(self, a):
@@ -92,7 +92,7 @@ def ccall_sqr(x):
     return x*x
 
 @cclass
-class Overridable(object):
+class Overridable:
     @ccall
     def meth(self):
         return 0

@@ -92,7 +92,7 @@ def listcomp_over_multiplied_constant_list():
     ]
 
 
-class Iterable(object):
+class Iterable:
     """
     >>> for_in_pyiter(Iterable(5))
     [0, 1, 2, 3, 4]
@@ -111,7 +111,7 @@ class Iterable(object):
     next = __next__
 
 
-class NextReplacingIterable(object):
+class NextReplacingIterable:
     def __init__(self):
         self.i = 0
     def __iter__(self):
@@ -143,8 +143,7 @@ def for_in_gen(N):
     >>> for_in_pyiter(for_in_gen(10))
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
-    for i in range(N):
-        yield i
+    yield from range(N)
 
 def for_in_range_invalid_arg_count():
     """

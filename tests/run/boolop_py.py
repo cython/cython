@@ -1,4 +1,3 @@
-
 def non_simple_values(obj1, obj2, obj3, obj4):
     """
     >>> non_simple_values(1, 2, 3, 4)

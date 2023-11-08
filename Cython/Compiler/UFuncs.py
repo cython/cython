@@ -88,7 +88,7 @@ def get_cfunc_from_tree(tree):
     return _FindCFuncDefNode()(tree)
 
 
-class _ArgumentInfo(object):
+class _ArgumentInfo:
     """
     Everything related to defining an input/output argument for a ufunc
 
@@ -101,7 +101,7 @@ class _ArgumentInfo(object):
         self.type_constant = type_constant
 
 
-class UFuncConversion(object):
+class UFuncConversion:
     def __init__(self, node):
         self.node = node
         self.global_scope = node.local_scope.global_scope()
@@ -237,7 +237,7 @@ def generate_ufunc_initialization(converters, cfunc_nodes, original_node):
     pos = original_node.pos
     func_name = original_node.entry.name
     docstr = original_node.doc
-    args_to_func = '%s(), %s, %s(), %s, %s, %s, PyUFunc_None, "%s", %s, 0' % (
+    args_to_func = '{}(), {}, {}(), {}, {}, {}, PyUFunc_None, "{}", {}, 0'.format(
         ufunc_funcs_name,
         ufunc_data_name,
         ufunc_types_name,

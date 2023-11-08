@@ -1,4 +1,4 @@
-class Base(object):
+class Base:
     '''
     >>> base = Base()
     >>> print(base.noargs())

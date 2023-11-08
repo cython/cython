@@ -13,7 +13,7 @@ True
 """
 
 def make_class_with_new(n):
-    class X(object):
+    class X:
         __new__ = n
     return X
 

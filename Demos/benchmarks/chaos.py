@@ -3,7 +3,6 @@
 """create chaosgame-like fractals
 """
 
-from __future__ import division, print_function
 
 import cython
 
@@ -19,7 +18,7 @@ if not cython.compiled:
     from math import sqrt
 
 
-class GVector(object):
+class GVector:
     def __init__(self, x = 0, y = 0, z = 0):
         self.x = x
         self.y = y
@@ -59,10 +58,10 @@ class GVector(object):
         return v
 
     def __str__(self):
-        return "<%f, %f, %f>" % (self.x, self.y, self.z)
+        return "<{:f}, {:f}, {:f}>".format(self.x, self.y, self.z)
 
     def __repr__(self):
-        return "GVector(%f, %f, %f)" % (self.x, self.y, self.z)
+        return "GVector({:f}, {:f}, {:f})".format(self.x, self.y, self.z)
 
 
 def GetKnots(points, degree):
@@ -71,7 +70,7 @@ def GetKnots(points, degree):
     return knots
 
 
-class Spline(object):
+class Spline:
     """Class for representing B-Splines and NURBS of arbitrary degree"""
     def __init__(self, points, degree = 3, knots = None):
         """Creates a Spline. points is a list of GVector, degree is the degree of the Spline."""
@@ -137,10 +136,10 @@ class Spline(object):
         return len(self.points)
 
     def __repr__(self):
-        return "Spline(%r, %r, %r)" % (self.points, self.degree, self.knots)
+        return "Spline({!r}, {!r}, {!r})".format(self.points, self.degree, self.knots)
 
 
-class Chaosgame(object):
+class Chaosgame:
     @cython.locals(splines=list, thickness=cython.double, maxlength=cython.double, length=cython.double,
                    curr=GVector, last=GVector, p=GVector, spl=Spline, t=cython.double, i=int)
     def __init__(self, splines, thickness=0.1):

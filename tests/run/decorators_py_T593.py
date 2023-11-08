@@ -56,12 +56,12 @@ def class_in_closure(x):
     >>> c0.__class__.smeth0()
     1
     """
-    class ClosureClass1(object):
+    class ClosureClass1:
         @staticmethod
         def smeth1(*args):
             return x, args
 
-    class ClosureClass0(object):
+    class ClosureClass0:
         @staticmethod
         def smeth0():
             return 1
@@ -76,7 +76,7 @@ def class_not_in_closure():
     >>> c.__class__.smeth0()
     1
     """
-    class ClosureClass0(object):
+    class ClosureClass0:
         @staticmethod
         def smeth0():
             return 1

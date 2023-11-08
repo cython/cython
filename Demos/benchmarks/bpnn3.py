@@ -25,7 +25,7 @@ def makeMatrix(I, J, fill=0.0):
                 m.append([fill]*J)
         return m
 
-class NN(object):
+class NN:
 #    print 'class NN'
     def __init__(self, ni, nh, no):
         # number of input, hidden, and output nodes
@@ -123,7 +123,7 @@ class NN(object):
 
     def test(self, patterns):
         for p in patterns:
-            print('%s -> %s' % (p[0], self.update(p[0])))
+            print('{} -> {}'.format(p[0], self.update(p[0])))
 
     def weights(self):
         print('Input weights:')

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .TreeFragment import parse_from_strings, StringParseContext
 from . import Symtab
 from . import Naming
@@ -16,7 +14,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
+        return super().add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
@@ -24,7 +22,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
                 # Functions, classes etc. gets a manually defined prefix easily
                 # manually callable instead (the one passed to CythonUtilityCode)
                 prefix = self.prefix
-            return "%s%s" % (prefix, name)
+            return "{}{}".format(prefix, name)
         else:
             return Symtab.ModuleScope.mangle(self, prefix)
 

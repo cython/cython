@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Errors import error, message
 from . import ExprNodes
 from . import Nodes
@@ -20,7 +18,7 @@ class TypedExprNode(ExprNodes.ExprNode):
     subexprs = []
 
     def __init__(self, type, pos=None):
-        super(TypedExprNode, self).__init__(pos, type=type)
+        super().__init__(pos, type=type)
 
 object_expr = TypedExprNode(py_object_type)
 
@@ -37,7 +35,7 @@ class MarkParallelAssignments(EnvTransform):
     def __init__(self, context):
         # Track the parallel block scopes (with parallel, for i in prange())
         self.parallel_block_stack = []
-        super(MarkParallelAssignments, self).__init__(context)
+        super().__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
@@ -268,7 +266,7 @@ class MarkOverflowingArithmetic(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.env = root.scope
-        return super(MarkOverflowingArithmetic, self).__call__(root)
+        return super().__call__(root)
 
     def visit_safe_node(self, node):
         self.might_overflow, saved = False, self.might_overflow
@@ -340,7 +338,7 @@ class MarkOverflowingArithmetic(CythonTransform):
         self.visitchildren(node)
         return node
 
-class PyObjectTypeInferer(object):
+class PyObjectTypeInferer:
     """
     If it's not declared, it's a PyObject.
     """
@@ -352,7 +350,7 @@ class PyObjectTypeInferer(object):
             if entry.type is unspecified_type:
                 entry.type = py_object_type
 
-class SimpleAssignmentTypeInferer(object):
+class SimpleAssignmentTypeInferer:
     """
     Very basic type inference.
 
@@ -517,7 +515,7 @@ class SimpleAssignmentTypeInferer(object):
 
         if verbose:
             for entry in inferred:
-                message(entry.pos, "inferred '%s' to be of type '%s'" % (
+                message(entry.pos, "inferred '{}' to be of type '{}'".format(
                     entry.name, entry.type))
 
 

@@ -1,17 +1,16 @@
-
 import cython
 
-class Unhashable(object):
+class Unhashable:
     def __hash__(self):
         raise TypeError('I am not hashable')
 
-class Hashable(object):
+class Hashable:
     def __hash__(self):
         return 1
     def __eq__(self, other):
         return isinstance(other, Hashable)
 
-class CountedHashable(object):
+class CountedHashable:
     def __init__(self):
         self.hash_count = 0
         self.eq_count = 0

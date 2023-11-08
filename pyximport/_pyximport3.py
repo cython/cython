@@ -211,7 +211,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
         if path != so_path:
             try:
                 os.remove(path)
-            except IOError:
+            except OSError:
                 _info("Couldn't remove %s", path)
 
     return so_path
@@ -327,7 +327,7 @@ class PyxImportLoader(ExtensionFileLoader):
             else:
                 tb = sys.exc_info()[2]
                 import traceback
-                exc = ImportError("Building module %s failed: %s" % (
+                exc = ImportError("Building module {} failed: {}".format(
                     spec.name, traceback.format_exception_only(*sys.exc_info()[:2])))
                 raise exc.with_traceback(tb)
 
@@ -337,12 +337,12 @@ class PyxImportLoader(ExtensionFileLoader):
         except Exception as failure_exc:
             import traceback
             _debug("Failed to load extension module: %r" % failure_exc)
-            raise ImportError("Executing module %s failed %s" % (
+            raise ImportError("Executing module {} failed {}".format(
                     module.__file__, traceback.format_exception_only(*sys.exc_info()[:2])))
 
 
 #install args
-class PyxArgs(object):
+class PyxArgs:
     build_dir=True
     build_in_temp=True
     setup_args={}   #None

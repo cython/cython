@@ -5,7 +5,6 @@ Translate the byte code of a Python function into the corresponding
 sequences of C code in CPython's "ceval.c".
 """
 
-from __future__ import print_function, absolute_import
 
 import re
 import os.path
@@ -26,7 +25,7 @@ _find_pyversion = re.compile(r'\#define \s+ PY_VERSION \s+ "([^"]+)"', re.VERBOS
 
 class ParseError(Exception):
     def __init__(self, message="Failed to parse ceval.c"):
-        super(ParseError, self).__init__(message)
+        super().__init__(message)
 
 
 def parse_ceval(file_path):
@@ -99,7 +98,7 @@ def main():
         if py_version:
             py_version = py_version[0]
             if not sys.version.startswith(py_version + ' '):
-                print("Warning:  disassembling with Python %s, but ceval.c has version %s" % (
+                print("Warning:  disassembling with Python {}, but ceval.c has version {}".format(
                     sys.version.split(None, 1)[0],
                     py_version,
                 ), file=sys.stderr)
@@ -135,7 +134,7 @@ def main():
                         print('')
                     last_line = line_no
 
-                print("  %s:%s {%s" % (
+                print("  {}:{} {{{}".format(
                     instr.opname,
                     ' /* %s */' % instr.argrepr if instr.arg is not None else '',
                     ' /* ??? */' if snippet is None else ' /* ... */ }' if snippet == '' else '',

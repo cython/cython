@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # The Computer Language Benchmarks Game
 # http://shootout.alioth.debian.org/
 # Contributed by Sebastien Loisel

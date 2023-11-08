@@ -2,7 +2,6 @@
 #   Builtin Definitions
 #
 
-from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
@@ -27,7 +26,7 @@ builtin_utility_code = {
 
 # mapping from builtins to their C-level equivalents
 
-class _BuiltinOverride(object):
+class _BuiltinOverride:
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
                  utility_code=None, sig=None, func_type=None,
                  is_strict_signature=False, builtin_return_type=None,
@@ -52,7 +51,7 @@ class _BuiltinOverride(object):
         return func_type
 
 
-class BuiltinAttribute(object):
+class BuiltinAttribute:
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
@@ -91,7 +90,7 @@ class BuiltinMethod(_BuiltinOverride):
             self.py_name, method_type, self.cname, utility_code=self.utility_code)
 
 
-class BuiltinProperty(object):
+class BuiltinProperty:
     # read only for now
     def __init__(self, py_name, property_type, call_cname,
                  exception_value=None, exception_check=None, utility_code=None):
@@ -131,14 +130,14 @@ builtin_function_table = [
                         ],
                     is_strict_signature = True, nogil=True)),
     ] + list(
-        BuiltinFunction('abs',        None,    None,   "/*abs_{0}*/".format(t.specialization_name()),
+        BuiltinFunction('abs',        None,    None,   "/*abs_{}*/".format(t.specialization_name()),
                     func_type = PyrexTypes.CFuncType(
                         t,
                         [PyrexTypes.CFuncTypeArg("arg", t, None)],
                         is_strict_signature = True, nogil=True))
                             for t in (PyrexTypes.c_uint_type, PyrexTypes.c_ulong_type, PyrexTypes.c_ulonglong_type)
              ) + list(
-        BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(t.funcsuffix),
+        BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{}".format(t.funcsuffix),
                     func_type = PyrexTypes.CFuncType(
                         t.real_type, [
                             PyrexTypes.CFuncTypeArg("arg", t, None)
@@ -572,7 +571,7 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.is_variable = True
             var_entry.scope = mod
             entry.as_variable = var_entry
-            entry.known_standard_library_import = "%s.%s" % (module_name, name)
+            entry.known_standard_library_import = "{}.{}".format(module_name, name)
 
         for name in ['ClassVar', 'Optional']:
             name = EncodedString(name)
@@ -583,7 +582,7 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.is_variable = True
             var_entry.scope = mod
             entry.as_variable = var_entry
-            entry.known_standard_library_import = "%s.%s" % (module_name, name)
+            entry.known_standard_library_import = "{}.{}".format(module_name, name)
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)

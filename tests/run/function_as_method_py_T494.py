@@ -24,7 +24,7 @@ class B:
     plus1 = f_plus
 
 
-class C(object):
+class C:
     """
     >>> C.plus1(1)
     2

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import cython
 from .. import __version__
 
@@ -18,7 +16,7 @@ import zipfile
 try:
     from collections.abc import Iterable
 except ImportError:
-    from collections import Iterable
+    from collections.abc import Iterable
 
 try:
     import gzip
@@ -223,7 +221,7 @@ def _legacy_strtobool(val):
     elif val in ('n', 'no', 'f', 'false', 'off', '0'):
         return False
     else:
-        raise ValueError("invalid truth value %r" % (val,))
+        raise ValueError("invalid truth value {!r}".format(val))
 
 
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
@@ -238,11 +236,10 @@ def line_iter(source):
             yield source[start:end]
             start = end+1
     else:
-        for line in source:
-            yield line
+        yield from source
 
 
-class DistutilsInfo(object):
+class DistutilsInfo:
 
     def __init__(self, source=None, exn=None):
         self.values = {}
@@ -256,7 +253,7 @@ class DistutilsInfo(object):
                 line = line[1:].lstrip()
                 kind = next((k for k in ("distutils:","cython:") if line.startswith(k)), None)
                 if kind is not None:
-                    key, _, value = [s.strip() for s in line[len(kind):].partition('=')]
+                    key, _, value = (s.strip() for s in line[len(kind):].partition('='))
                     type = distutils_settings.get(key, None)
                     if line.startswith("cython:") and type is None: continue
                     if type in (list, transitive_list):
@@ -364,9 +361,9 @@ def strip_string_literals(code, prefix='__Pyx_L'):
 
         # Try to close the quote.
         elif in_quote:
-            if code[q-1] == u'\\':
+            if code[q-1] == '\\':
                 k = 2
-                while q >= k and code[q-k] == u'\\':
+                while q >= k and code[q-k] == '\\':
                     k += 1
                 if k % 2 == 0:
                     q += 1
@@ -374,7 +371,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
             if code[q] == quote_type and (
                     quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
                 counter += 1
-                label = "%s%s_" % (prefix, counter)
+                label = "{}{}_".format(prefix, counter)
                 literals[label] = code[start+quote_len:q]
                 full_quote = code[q:q+quote_len]
                 new_code.append(full_quote)
@@ -391,7 +388,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
             new_code.append(code[start:hash_mark+1])
             end = code.find('\n', hash_mark)
             counter += 1
-            label = "%s%s_" % (prefix, counter)
+            label = "{}{}_".format(prefix, counter)
             if end == -1:
                 end_or_none = None
             else:
@@ -521,7 +518,7 @@ def parse_dependencies(source_filename):
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
-                cimports.extend("{0}.{1}".format(cimport_from, s.strip())
+                cimports.extend("{}.{}".format(cimport_from, s.strip())
                                 for s in subimports.split(','))
 
         elif cimport_list:
@@ -533,7 +530,7 @@ def parse_dependencies(source_filename):
     return cimports, includes, externs, distutils_info
 
 
-class DependencyTree(object):
+class DependencyTree:
 
     def __init__(self, context, quiet=False):
         self.context = context
@@ -560,7 +557,7 @@ class DependencyTree(object):
                 all.add(include_path)
                 all.update(self.included_files(include_path))
             elif not self.quiet:
-                print(u"Unable to locate '%s' referenced from '%s'" % (filename, include))
+                print("Unable to locate '{}' referenced from '{}'".format(filename, include))
         return all
 
     @cached_method
@@ -678,7 +675,7 @@ class DependencyTree(object):
 
             m.update(compilation_options.get_fingerprint().encode('UTF-8'))
             return m.hexdigest()
-        except IOError:
+        except OSError:
             return None
 
     def distutils_info0(self, filename):
@@ -824,9 +821,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             if cython_sources:
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
-                    print(u"Warning: Multiple cython sources found for extension '%s': %s\n"
-                          u"See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
-                          u"for sharing declarations among Cython files." % (pattern.name, cython_sources))
+                    print("Warning: Multiple cython sources found for extension '%s': %s\n"
+                          "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                          "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -900,7 +897,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                         m.sources.remove(target_file)
                     except ValueError:
                         # never seen this in the wild, but probably better to warn about this unexpected case
-                        print(u"Warning: Cython source file not found in sources list, adding %s" % file)
+                        print("Warning: Cython source file not found in sources list, adding %s" % file)
                     m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
@@ -1093,9 +1090,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if force or c_timestamp < dep_timestamp:
                     if not quiet and not force:
                         if source == dep:
-                            print(u"Compiling %s because it changed." % Utils.decode_filename(source))
+                            print("Compiling %s because it changed." % Utils.decode_filename(source))
                         else:
-                            print(u"Compiling %s because it depends on %s." % (
+                            print("Compiling {} because it depends on {}.".format(
                                 Utils.decode_filename(source),
                                 Utils.decode_filename(dep),
                             ))
@@ -1169,7 +1166,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         if failed_modules:
             for module in failed_modules:
                 module_list.remove(module)
-            print(u"Failed compilations: %s" % ', '.join(sorted([
+            print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
     if options.cache:
@@ -1266,12 +1263,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file_base = join_path(
-            options.cache, "%s-%s" % (os.path.basename(c_file), fingerprint))
+            options.cache, "{}-{}".format(os.path.basename(c_file), fingerprint))
         gz_fingerprint_file = fingerprint_file_base + gzip_ext
         zip_fingerprint_file = fingerprint_file_base + '.zip'
         if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
             if not quiet:
-                print(u"%sFound compiled %s in cache" % (progress, pyx_file))
+                print("{}Found compiled {} in cache".format(progress, pyx_file))
             if os.path.exists(gz_fingerprint_file):
                 os.utime(gz_fingerprint_file, None)
                 with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
@@ -1285,7 +1282,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
                         z.extract(artifact, os.path.join(dirname, artifact))
             return
     if not quiet:
-        print(u"%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
+        print("{}Cythonizing {}".format(progress, Utils.decode_filename(pyx_file)))
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
@@ -1300,7 +1297,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         result = compile_single(pyx_file, options, full_module_name=full_module_name)
         if result.num_errors > 0:
             any_failures = 1
-    except (EnvironmentError, PyrexError) as e:
+    except (OSError, PyrexError) as e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
         # XXX

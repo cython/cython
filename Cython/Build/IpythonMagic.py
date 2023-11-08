@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 =====================
 Cython related magics
@@ -44,7 +43,6 @@ Parts of this code were taken from Cython.inline.
 # The full license is in the file ipython-COPYING.rst, distributed with this software.
 #-----------------------------------------------------------------------------
 
-from __future__ import absolute_import, print_function
 
 import io
 import os
@@ -105,7 +103,7 @@ else:
 class CythonMagics(Magics):
 
     def __init__(self, shell):
-        super(CythonMagics, self).__init__(shell)
+        super().__init__(shell)
         self._reloads = {}
         self._code_cache = {}
         self._pyximport_installed = False
@@ -162,7 +160,7 @@ class CythonMagics(Magics):
         if not module_name:
             raise ValueError('module name must be given')
         fname = module_name + '.pyx'
-        with io.open(fname, 'w', encoding='utf-8') as f:
+        with open(fname, 'w', encoding='utf-8') as f:
             f.write(cell)
         if 'pyximport' not in sys.modules or not self._pyximport_installed:
             import pyximport
@@ -339,8 +337,8 @@ class CythonMagics(Magics):
 
         def print_compiler_output(stdout, stderr, where):
             # On windows, errors are printed to stdout, we redirect both to sys.stderr.
-            print_captured(stdout, where, u"Content of stdout:\n")
-            print_captured(stderr, where, u"Content of stderr:\n")
+            print_captured(stdout, where, "Content of stdout:\n")
+            print_captured(stderr, where, "Content of stderr:\n")
 
         get_stderr = get_stdout = None
         try:
@@ -361,9 +359,9 @@ class CythonMagics(Magics):
 
         if args.annotate:
             try:
-                with io.open(html_file, encoding='utf-8') as f:
+                with open(html_file, encoding='utf-8') as f:
                     annotated_html = f.read()
-            except IOError as e:
+            except OSError as e:
                 # File could not be opened. Most likely the user has a version
                 # of Cython before 0.15.1 (when `cythonize` learned the
                 # `force` keyword argument) and has already compiled this
@@ -387,30 +385,30 @@ class CythonMagics(Magics):
         module_name = extension.name
         pgo_module_name = '_pgo_' + module_name
         pgo_wrapper_c_file = os.path.join(lib_dir, pgo_module_name + '.c')
-        with io.open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
-            f.write(textwrap.dedent(u"""
+        with open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
+            f.write(textwrap.dedent("""
             #include "Python.h"
             #if PY_MAJOR_VERSION < 3
-            extern PyMODINIT_FUNC init%(module_name)s(void);
-            PyMODINIT_FUNC init%(pgo_module_name)s(void); /*proto*/
-            PyMODINIT_FUNC init%(pgo_module_name)s(void) {
+            extern PyMODINIT_FUNC init{module_name}(void);
+            PyMODINIT_FUNC init{pgo_module_name}(void); /*proto*/
+            PyMODINIT_FUNC init{pgo_module_name}(void) {{
                 PyObject *sys_modules;
-                init%(module_name)s();  if (PyErr_Occurred()) return;
+                init{module_name}();  if (PyErr_Occurred()) return;
                 sys_modules = PyImport_GetModuleDict();  /* borrowed, no exception, "never" fails */
-                if (sys_modules) {
-                    PyObject *module = PyDict_GetItemString(sys_modules, "%(module_name)s");  if (!module) return;
-                    PyDict_SetItemString(sys_modules, "%(pgo_module_name)s", module);
+                if (sys_modules) {{
+                    PyObject *module = PyDict_GetItemString(sys_modules, "{module_name}");  if (!module) return;
+                    PyDict_SetItemString(sys_modules, "{pgo_module_name}", module);
                     Py_DECREF(module);
-                }
-            }
+                }}
+            }}
             #else
-            extern PyMODINIT_FUNC PyInit_%(module_name)s(void);
-            PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void); /*proto*/
-            PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void) {
-                return PyInit_%(module_name)s();
-            }
+            extern PyMODINIT_FUNC PyInit_{module_name}(void);
+            PyMODINIT_FUNC PyInit_{pgo_module_name}(void); /*proto*/
+            PyMODINIT_FUNC PyInit_{pgo_module_name}(void) {{
+                return PyInit_{module_name}();
+            }}
             #endif
-            """ % {'module_name': module_name, 'pgo_module_name': pgo_module_name}))
+            """.format(module_name=module_name, pgo_module_name=pgo_module_name)))
 
         extension.sources = extension.sources + [pgo_wrapper_c_file]  # do not modify in place!
         extension.name = pgo_module_name
@@ -430,7 +428,7 @@ class CythonMagics(Magics):
         if 'numpy' in code:
             import numpy
             c_include_dirs.append(numpy.get_include())
-        with io.open(pyx_file, 'w', encoding='utf-8') as f:
+        with open(pyx_file, 'w', encoding='utf-8') as f:
             f.write(code)
         extension = Extension(
             name=module_name,
@@ -492,7 +490,7 @@ class CythonMagics(Magics):
                 extension.extra_compile_args = extension.extra_compile_args + flags
                 extension.extra_link_args = extension.extra_link_args + flags
         else:
-            print("No PGO %s configuration known for C compiler type '%s'" % (step_name, compiler_type),
+            print("No PGO {} configuration known for C compiler type '{}'".format(step_name, compiler_type),
                   file=sys.stderr)
         return orig_flags
 

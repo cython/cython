@@ -5,7 +5,6 @@ Source: https://github.com/slowfrog/hexiom : hexiom2.py, level36.txt
 (Main function tweaked by Armin Rigo.)
 """
 
-from __future__ import division, print_function
 import time
 
 from io import StringIO
@@ -13,7 +12,7 @@ from io import StringIO
 import cython
 
 ##################################
-class Dir(object):
+class Dir:
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -28,7 +27,7 @@ DIRS = [ Dir(1, 0),
 EMPTY = 7
 
 ##################################
-class Done(object):
+class Done:
     MIN_CHOICE_STRATEGY = 0
     MAX_CHOICE_STRATEGY = 1
     HIGHEST_VALUE_STRATEGY = 2
@@ -163,14 +162,14 @@ class Done(object):
             raise Exception("Wrong strategy: %d" % strategy)
 
 ##################################
-class Node(object):
+class Node:
     def __init__(self, pos, id, links):
         self.pos = pos
         self.id = id
         self.links = links
 
 ##################################
-class Hex(object):
+class Hex:
     @cython.locals(size=cython.int, id=cython.int, x=cython.int, y=cython.int)
     def __init__(self, size):
         self.size = size
@@ -215,7 +214,7 @@ class Hex(object):
 
 
 ##################################
-class Pos(object):
+class Pos:
     def __init__(self, hex, tiles, done = None):
         self.hex = hex
         self.tiles = tiles
@@ -338,28 +337,28 @@ def print_pos(pos, output):
     done = pos.done
     size = hex.size
     for y in range(size):
-        print(u" " * (size - y - 1), end=u"", file=output)
+        print(" " * (size - y - 1), end="", file=output)
         for x in range(size + y):
             pos2 = (x, y)
             id = hex.get_by_pos(pos2).id
             if done.already_done(id):
-                c = str(done[id][0]) if done[id][0] != EMPTY else u"."
+                c = str(done[id][0]) if done[id][0] != EMPTY else "."
             else:
-                c = u"?"
-            print(u"%s " % c, end=u"", file=output)
-        print(end=u"\n", file=output)
+                c = "?"
+            print("%s " % c, end="", file=output)
+        print(end="\n", file=output)
     for y in range(1, size):
-        print(u" " * y, end=u"", file=output)
+        print(" " * y, end="", file=output)
         for x in range(y, size * 2 - 1):
             ry = size + y - 1
             pos2 = (x, ry)
             id = hex.get_by_pos(pos2).id
             if done.already_done(id):
-                c = str(done[id][0]) if done[id][0] != EMPTY else (u".")
+                c = str(done[id][0]) if done[id][0] != EMPTY else (".")
             else:
-                c = u"?"
-            print(u"%s " % c, end=u"", file=output)
-        print(end=u"\n", file=output)
+                c = "?"
+            print("%s " % c, end="", file=output)
+        print(end="\n", file=output)
 
 OPEN = 0
 SOLVED = 1

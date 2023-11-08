@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 char_or_float = cython.fused_type(cython.char, cython.float)
 
 

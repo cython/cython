@@ -49,7 +49,7 @@ def optimize_literals2():
     'a string'
     """
     x = 5
-    return (x := u"a string")
+    return (x := "a string")
 
 
 @cython.test_fail_if_path_exists("//CloneNode")
@@ -73,7 +73,7 @@ def optimize_literals4():
     ('tuple', 1, 1.0, b'stuff')
     """
     x = 5
-    return (x := (u"tuple", 1, 1.0, b"stuff"))
+    return (x := ("tuple", 1, 1.0, b"stuff"))
 
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode//AssignmentExpressionNode")

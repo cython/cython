@@ -245,7 +245,7 @@ def from_unicode_literals():
     >>> from_unicode_literals()
     (123.0, 123.23, 123.45, 1e+100, 123.23)
     """
-    return float(u"123"), float(u"123.23"), float(u"12_3.4_5"), float(u"1e100"), float(u"123.23\N{PUNCTUATION SPACE}")
+    return float("123"), float("123.23"), float("12_3.4_5"), float("1e100"), float("123.23\N{PUNCTUATION SPACE}")
 
 
 def catch_valueerror(val):

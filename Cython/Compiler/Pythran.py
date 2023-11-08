@@ -1,6 +1,5 @@
 # cython: language_level=3
 
-from __future__ import absolute_import
 
 from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
 
@@ -50,14 +49,14 @@ def pythran_type(Ty, ptype="ndarray"):
         if pythran_is_pre_0_9:
             return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
         else:
-            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("long",)*ndim))
+            return "pythonic::types::{}<{},pythonic::types::pshape<{}>>".format(ptype,ctype, ",".join(("long",)*ndim))
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
     #    return "decltype(pythonic::builtins::None)"
     if Ty.is_numeric:
         return Ty.sign_and_name()
-    raise ValueError("unsupported pythran type %s (%s)" % (Ty, type(Ty)))
+    raise ValueError("unsupported pythran type {} ({})".format(Ty, type(Ty)))
 
 
 @cython.cfunc
@@ -67,15 +66,15 @@ def type_remove_ref(ty):
 
 def pythran_binop_type(op, tA, tB):
     if op == '**':
-        return 'decltype(pythonic::numpy::functor::power{}(std::declval<%s>(), std::declval<%s>()))' % (
+        return 'decltype(pythonic::numpy::functor::power{{}}(std::declval<{}>(), std::declval<{}>()))'.format(
             pythran_type(tA), pythran_type(tB))
     else:
-        return "decltype(std::declval<%s>() %s std::declval<%s>())" % (
+        return "decltype(std::declval<{}>() {} std::declval<{}>())".format(
             pythran_type(tA), op, pythran_type(tB))
 
 
 def pythran_unaryop_type(op, type_):
-    return "decltype(%sstd::declval<%s>())" % (
+    return "decltype({}std::declval<{}>())".format(
         op, pythran_type(type_))
 
 
@@ -89,7 +88,7 @@ def _index_type_code(index_with_type):
     idx, index_type = index_with_type
     if idx.is_slice:
         n = 2 + int(not idx.step.is_none)
-        return "pythonic::%s::functor::slice{}(%s)" % (
+        return "pythonic::{}::functor::slice{{}}({})".format(
             pythran_builtins,
             ",".join(["0"]*n))
     elif index_type.is_int:
@@ -107,8 +106,8 @@ def _index_code(idx):
             values = values[:2]
         else:
             func = "slice"
-        return "pythonic::types::%s(%s)" % (
-            func, ",".join((v.pythran_result() for v in values)))
+        return "pythonic::types::{}({})".format(
+            func, ",".join(v.pythran_result() for v in values))
     elif idx.type.is_int:
         return to_pythran(idx)
     elif idx.type.is_pythran_expr:
@@ -117,7 +116,7 @@ def _index_code(idx):
 
 
 def pythran_indexing_type(type_, indices):
-    return type_remove_ref("decltype(std::declval<%s>()%s)" % (
+    return type_remove_ref("decltype(std::declval<{}>(){})".format(
         pythran_type(type_),
         _index_access(_index_type_code, indices),
     ))
@@ -147,11 +146,11 @@ else:
 def pythran_functor(func):
     func = np_func_to_list(func)
     submodules = "::".join(func[:-1] + ["functor"])
-    return "pythonic::numpy::%s::%s" % (submodules, func[-1])
+    return "pythonic::numpy::{}::{}".format(submodules, func[-1])
 
 def pythran_func_type(func, args):
-    args = ",".join(("std::declval<%s>()" % pythran_type(a.type) for a in args))
-    return "decltype(%s{}(%s))" % (pythran_functor(func), args)
+    args = ",".join("std::declval<%s>()" % pythran_type(a.type) for a in args)
+    return "decltype({}{{}}({}))".format(pythran_functor(func), args)
 
 
 @cython.ccall
@@ -168,7 +167,7 @@ def to_pythran(op, ptype=None):
         ptype = pythran_type(op_type)
 
     assert op.type.is_pyobject
-    return "from_python<%s>(%s)" % (ptype, op.py_result())
+    return "from_python<{}>({})".format(ptype, op.py_result())
 
 
 @cython.cfunc

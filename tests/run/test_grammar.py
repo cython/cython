@@ -210,7 +210,7 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(x, 0, 'backslash ending comment')
 
     def test_plain_integers(self):
-        self.assertEqual(type(000), type(0))
+        self.assertEqual(int, int)
         self.assertEqual(0xff, 255)
         self.assertEqual(0o377, 255)
         self.assertEqual(2147483647, 0o17777777777)
@@ -1843,7 +1843,7 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(list(x for x, in [(7,), (8,), (9,)]), [7, 8, 9])
 
     def test_with_statement(self):
-        class manager(object):
+        class manager:
             def __enter__(self):
                 return (1, 2)
             def __exit__(self, *args):

@@ -4,7 +4,6 @@ Python Lexical Analyser
 
 Converting NFA to DFA
 """
-from __future__ import absolute_import
 
 from . import Machines
 from .Machines import LOWEST_PRIORITY
@@ -91,7 +90,7 @@ def add_to_epsilon_closure(state_set, state):
                 add_to_epsilon_closure(state_set, state2)
 
 
-class StateMap(object):
+class StateMap:
     """
     Helper class used by nfa_to_dfa() to map back and forth between
     sets of states from the old machine and states of the new machine.
@@ -145,5 +144,5 @@ class StateMap(object):
 
         for new_state in self.new_machine.states:
             old_state_set = self.new_to_old_dict[id(new_state)]
-            file.write("   State %s <-- %s\n" % (
+            file.write("   State {} <-- {}\n".format(
                 new_state['number'], state_set_str(old_state_set)))

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Errors import CompileError, error
 from . import ExprNodes
 from .ExprNodes import IntNode, NameNode, AttributeNode
@@ -58,10 +56,10 @@ _spec_to_abbrev = {
 
 memslice_entry_init = "{ 0, 0, { 0 }, { 0 }, { 0 } }"
 
-memview_name = u'memoryview'
+memview_name = 'memoryview'
 memview_typeptr_cname = '__pyx_memoryview_type'
 memview_objstruct_cname = '__pyx_memoryview_obj'
-memviewslice_cname = u'__Pyx_memviewslice'
+memviewslice_cname = '__Pyx_memviewslice'
 
 
 def put_init_entry(mv_cname, code):
@@ -83,7 +81,7 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
         rhstmp = rhs.result()
     else:
         rhstmp = code.funcstate.allocate_temp(lhs_type, manage_ref=False)
-        code.putln("%s = %s;" % (rhstmp, rhs.result_as(lhs_type)))
+        code.putln("{} = {};".format(rhstmp, rhs.result_as(lhs_type)))
 
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
@@ -109,7 +107,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
     if not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
 
-    code.putln("%s = %s;" % (lhs_cname, rhs_cname))
+    code.putln("{} = {};".format(lhs_cname, rhs_cname))
 
 
 def get_buf_flags(specs):
@@ -230,24 +228,24 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                                             (bufp, index, stride, suboffset))
 
             elif flag == "indirect":
-                bufp = "(%s + %s * %s)" % (bufp, index, stride)
-                bufp = ("(*((char **) %s) + %s)" % (bufp, suboffset))
+                bufp = "({} + {} * {})".format(bufp, index, stride)
+                bufp = ("(*((char **) {}) + {})".format(bufp, suboffset))
 
             elif flag == "indirect_contiguous":
                 # Note: we do char ** arithmetic
-                bufp = "(*((char **) %s + %s) + %s)" % (bufp, index, suboffset)
+                bufp = "(*((char **) {} + {}) + {})".format(bufp, index, suboffset)
 
             elif flag == "strided":
-                bufp = "(%s + %s * %s)" % (bufp, index, stride)
+                bufp = "({} + {} * {})".format(bufp, index, stride)
 
             else:
                 assert flag == 'contiguous', flag
-                bufp = '((char *) (((%s *) %s) + %s))' % (type_decl, bufp, index)
+                bufp = '((char *) ((({} *) {}) + {}))'.format(type_decl, bufp, index)
 
             bufp = '( /* dim=%d */ %s )' % (dim, bufp)
 
         if cast_result:
-            return "((%s *) %s)" % (type_decl, bufp)
+            return "(({} *) {})".format(type_decl, bufp)
 
         return bufp
 
@@ -414,7 +412,7 @@ def slice_iter(slice_type, slice_result, ndim, code, force_strided=False):
         return StridedSliceIter(slice_type, slice_result, ndim, code)
 
 
-class SliceIter(object):
+class SliceIter:
     def __init__(self, slice_type, slice_result, ndim, code):
         self.slice_type = slice_type
         self.slice_result = slice_result
@@ -433,7 +431,7 @@ class ContigSliceIter(SliceIter):
                                 for i in range(self.ndim))
         code.putln("Py_ssize_t __pyx_temp_extent = %s;" % total_size)
         code.putln("Py_ssize_t __pyx_temp_idx;")
-        code.putln("%s *__pyx_temp_pointer = (%s *) %s.data;" % (
+        code.putln("{} *__pyx_temp_pointer = ({} *) {}.data;".format(
             type_decl, type_decl, self.slice_result))
         code.putln("for (__pyx_temp_idx = 0; "
                         "__pyx_temp_idx < __pyx_temp_extent; "
@@ -486,7 +484,7 @@ def copy_c_or_fortran_cname(memview):
     else:
         c_or_f = 'f'
 
-    return "__pyx_memoryview_copy_slice_%s_%s" % (
+    return "__pyx_memoryview_copy_slice_{}_{}".format(
             memview.specialization_suffix(), c_or_f)
 
 

@@ -2,7 +2,6 @@
 GDB extension that adds Cython support.
 """
 
-from __future__ import print_function
 
 try:
     input = raw_input
@@ -31,7 +30,8 @@ except ImportError:
     have_lxml = False
     try:
         # Python 2.5
-        from xml.etree import cElementTree as etree
+
+        from xml.etree import ElementTree as etree
     except ImportError:
         try:
             # Python 2.5
@@ -143,7 +143,7 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
-class CythonModule(object):
+class CythonModule:
     def __init__(self, module_name, filename, c_filename):
         self.name = module_name
         self.filename = filename
@@ -156,7 +156,7 @@ class CythonModule(object):
         self.functions = {}
 
 
-class CythonVariable(object):
+class CythonVariable:
 
     def __init__(self, name, cname, qualified_name, type, lineno):
         self.name = name
@@ -176,7 +176,7 @@ class CythonFunction(CythonVariable):
                  lineno,
                  type=CObject,
                  is_initmodule_function="False"):
-        super(CythonFunction, self).__init__(name,
+        super().__init__(name,
                                              cname,
                                              qualified_name,
                                              type,
@@ -191,7 +191,7 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-class CythonBase(object):
+class CythonBase:
 
     @default_selected_gdb_frame(err=False)
     def is_cython_function(self, frame):
@@ -341,11 +341,11 @@ class CythonBase(object):
                     func_address = str(func_address)
                 func_address = int(func_address.split()[0], 0)
 
-        a = ', '.join('%s=%s' % (name, val) for name, val in func_args)
+        a = ', '.join('{}={}'.format(name, val) for name, val in func_args)
         sys.stdout.write('#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a))
 
         if source_desc.filename is not None:
-            sys.stdout.write(' at %s:%s' % (source_desc.filename, lineno))
+            sys.stdout.write(' at {}:{}'.format(source_desc.filename, lineno))
 
         sys.stdout.write('\n')
 
@@ -389,10 +389,10 @@ class CythonBase(object):
         if libpython.pretty_printer_lookup(value):
             typename = ''
         else:
-            typename = '(%s) ' % (value.type,)
+            typename = '({}) '.format(value.type)
 
         if max_name_length is None:
-            print('%s%s = %s%s' % (prefix, name, typename, value))
+            print('{}{} = {}{}'.format(prefix, name, typename, value))
         else:
             print('%s%-*s = %s%s' % (prefix, max_name_length, name, typename, value))
 
@@ -411,7 +411,7 @@ class CythonBase(object):
         return cur_lineno > cyvar.lineno
 
 
-class SourceFileDescriptor(object):
+class SourceFileDescriptor:
     def __init__(self, filename, lexer, formatter=None):
         self.filename = filename
         self.lexer = lexer
@@ -468,7 +468,7 @@ class SourceFileDescriptor(object):
         try:
             return '\n'.join(
                 self._get_source(start, stop, lex_source, mark_line, lex_entire))
-        except IOError:
+        except OSError:
             raise exc
 
 
@@ -481,7 +481,7 @@ class CyGDBError(gdb.GdbError):
 
     def __init__(self, *args):
         args = args or (self.msg,)
-        super(CyGDBError, self).__init__(*args)
+        super().__init__(*args)
 
 
 class NoCythonFunctionInFrameError(CyGDBError):
@@ -510,7 +510,7 @@ class CythonParameter(gdb.Parameter):
 
     def __init__(self, name, command_class, parameter_class, default=None):
         self.show_doc = self.set_doc = self.__class__.__doc__
-        super(CythonParameter, self).__init__(name, command_class,
+        super().__init__(name, command_class,
                                               parameter_class)
         if default is not None:
             self.value = default
@@ -540,7 +540,7 @@ class TerminalBackground(CythonParameter):
     """
 
 
-class CythonParameters(object):
+class CythonParameters:
     """
     Simple container class that might get more functionality in the distant
     future (mostly to remind us that we're dealing with parameters).
@@ -691,7 +691,7 @@ class CyImport(CythonCommand):
             try:
                 f = open(arg)
             except OSError as e:
-                raise gdb.GdbError('Unable to open file %r: %s' % (args, e.args[1]))
+                raise gdb.GdbError('Unable to open file {!r}: {}'.format(args, e.args[1]))
 
             t = etree.parse(f)
 
@@ -776,7 +776,7 @@ class CyBreak(CythonCommand):
 
         if (cython_module.filename, lineno) in cython_module.lineno_cy2c:
             c_lineno = cython_module.lineno_cy2c[cython_module.filename, lineno]
-            breakpoint = '%s:%s' % (cython_module.c_filename, c_lineno)
+            breakpoint = '{}:{}'.format(cython_module.c_filename, c_lineno)
             gdb.execute('break ' + breakpoint)
         else:
             raise gdb.GdbError("Not a valid line number. "
@@ -896,11 +896,11 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
             return self.get_cython_lineno(frame)[1]
-        return super(CythonInfo, self).lineno(frame)
+        return super().lineno(frame)
 
     def get_source_line(self, frame):
         try:
-            line = super(CythonInfo, self).get_source_line(frame)
+            line = super().get_source_line(frame)
         except gdb.GdbError:
             return None
         else:
@@ -908,7 +908,7 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
 
     def exc_info(self, frame):
         if self.is_python_function:
-            return super(CythonInfo, self).exc_info(frame)
+            return super().exc_info(frame)
 
     def runtime_break_functions(self):
         if self.is_cython_function():
@@ -1034,7 +1034,7 @@ class CySelect(CythonCommand):
         try:
             stackno = int(stackno)
         except ValueError:
-            raise gdb.GdbError("Not a valid number: %r" % (stackno,))
+            raise gdb.GdbError("Not a valid number: {!r}".format(stackno))
 
         frame = gdb.selected_frame()
         while frame.newer():
@@ -1114,7 +1114,7 @@ class CyPrint(CythonCommand):
 
         if name in global_python_dict:
             value = global_python_dict[name].get_truncated_repr(libpython.MAX_OUTPUT_LEN)
-            print('%s = %s' % (name, value))
+            print('{} = {}'.format(name, value))
             #This also would work, but because the output of cy exec is not captured in gdb.execute, TestPrint would fail
             #self.cy.exec_.invoke("print('"+name+"','=', type(" + name + "), "+name+", flush=True )", from_tty)
         elif name in module_globals:
@@ -1226,7 +1226,7 @@ class CyGlobals(CyLocals):
                                              max_name_length, '    ')
 
 
-class EvaluateOrExecuteCodeMixin(object):
+class EvaluateOrExecuteCodeMixin:
     """
     Evaluate or execute Python code in a Cython or Python frame. The 'evalcode'
     method evaluations Python code, prints a traceback if an exception went
@@ -1348,7 +1348,7 @@ class CySet(CythonCommand):
 
         varname, expr = name_and_expr
         cname = self.cy.cy_cname.invoke(varname.strip())
-        gdb.execute("set %s = %s" % (cname, expr))
+        gdb.execute("set {} = {}".format(cname, expr))
 
 
 # Functions
@@ -1377,7 +1377,7 @@ class CyCName(gdb.Function, CythonBase):
             elif cyname in cython_function.module.globals:
                 cname = cython_function.module.globals[cyname].cname
             else:
-                qname = '%s.%s' % (cython_function.module.name, cyname)
+                qname = '{}.{}'.format(cython_function.module.name, cyname)
                 if qname in cython_function.module.functions:
                     cname = cython_function.module.functions[qname].cname
 
@@ -1403,7 +1403,7 @@ class CyCValue(CyCName):
         cython_function = self.get_cython_function(frame)
 
         if self.is_initialized(cython_function, cyname):
-            cname = super(CyCValue, self).invoke(cyname, frame=frame)
+            cname = super().invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
         elif cyname in globals_dict:
             return globals_dict[cyname]._gdbval

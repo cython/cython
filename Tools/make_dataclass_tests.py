@@ -225,7 +225,7 @@ class SubstituteNameString(ast.NodeTransformer):
             if node.value.find("<locals>") != -1:
                 import re
 
-                new_value = new_value2 = re.sub("[\w.]*<locals>", "", node.value)
+                new_value = new_value2 = re.sub(r"[\w.]*<locals>", "", node.value)
                 for key, value in self.substitutions.items():
                     new_value2 = re.sub(f"(?<![\w])[.]{key}(?![\w])", value, new_value2)
                 if new_value != new_value2:
@@ -417,7 +417,7 @@ def main():
     script_path = os.path.split(sys.argv[0])[0]
     filename = "test_dataclasses.py"
     py_module_path = os.path.join(script_path, "dataclass_test_data", filename)
-    with open(py_module_path, "r") as f:
+    with open(py_module_path) as f:
         tree = ast.parse(f.read(), filename)
 
     cdef_class_finder = IdentifyCdefClasses()

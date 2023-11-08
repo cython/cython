@@ -244,7 +244,7 @@ def test_lambdas():
     x = lambda a, b, /, : a + b
     print(x(1, 2))
 
-class TestPosonlyMethods(object):
+class TestPosonlyMethods:
     """
     >>> TestPosonlyMethods().f(1,2)
     (1, 2)
@@ -262,7 +262,7 @@ class TestPosonlyMethods(object):
     def f(self, a, b, /):
         return a, b
 
-class TestMangling(object):
+class TestMangling:
     """
     >>> TestMangling().f()
     42

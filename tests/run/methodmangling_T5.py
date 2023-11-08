@@ -6,7 +6,7 @@
 # 2) this works correctly with cdef classes - methodmangling_cdef.pyx
 # 3) with "error_on_unknown_names" - methodmangling_unknown_names.py
 
-class CyTest(object):
+class CyTest:
     """
     >>> cy = CyTest()
     >>> '_CyTest__private' in dir(cy)
@@ -97,7 +97,7 @@ class CyTestSub(CyTest):
             return o._CyTest__x, o._CyTestSub__y, o.__y, o.__private()
         return get(self)
 
-class _UnderscoreTest(object):
+class _UnderscoreTest:
     """
     >>> ut = _UnderscoreTest()
     >>> '__x' in dir(ut)
@@ -120,7 +120,7 @@ class _UnderscoreTest(object):
     def get(self):
         return self.__x
 
-    class __UnderscoreNested(object):
+    class __UnderscoreNested:
         def ret1(self):
             return 1
 

@@ -1,7 +1,6 @@
 # mode: run
 # tag: pure3.6
 
-from __future__ import print_function
 
 import cython
 

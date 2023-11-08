@@ -4,7 +4,6 @@
 # so it is convenient to have them in a separate module.
 #
 
-from __future__ import absolute_import
 
 from . import Nodes
 from . import ExprNodes
@@ -13,7 +12,7 @@ from .ExprNodes import AtomicExprNode
 from .PyrexTypes import c_ptr_type, c_bint_type
 
 
-class TempHandle(object):
+class TempHandle:
     # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
@@ -56,7 +55,7 @@ class TempRefNode(AtomicExprNode):
             rhs.make_owned_reference(code)
             # TODO: analyse control flow to see if this is necessary
             code.put_xdecref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (
+        code.putln('{} = {};'.format(
             self.result(),
             rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
         ))
@@ -205,7 +204,7 @@ class ResultRefNode(AtomicExprNode):
             rhs.make_owned_reference(code)
             if not self.lhs_of_first_assignment:
                 code.put_decref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (
+        code.putln('{} = {};'.format(
             self.result(),
             rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
         ))
@@ -242,7 +241,7 @@ class LetNodeMixin:
                 self.temp_expression.make_owned_reference(code)
             self.temp = code.funcstate.allocate_temp(
                 self.temp_type, manage_ref=True)
-            code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
+            code.putln("{} = {};".format(self.temp, self.temp_expression.result()))
             self.temp_expression.generate_disposal_code(code)
             self.temp_expression.free_temps(code)
         self.lazy_temp.result_code = self.temp

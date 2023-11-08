@@ -37,8 +37,8 @@ class PyAnnotatedClass:
     """
     CLASS_VAR: ClassVar[int] = 1
     obj: str
-    literal: "int"
-    recurse: "PyAnnotatedClass"
+    literal: int
+    recurse: PyAnnotatedClass
     default: bool = False
     # https://github.com/cython/cython/issues/4196 and https://github.com/cython/cython/issues/4198
     not_object: float = 0.1  # Shouldn't try to create a c attribute

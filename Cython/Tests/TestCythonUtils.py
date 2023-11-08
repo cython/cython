@@ -15,7 +15,7 @@ METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
 NAMES = CACHE_NAME, METHOD_NAME
 
-class Cached(object):
+class Cached:
     @cached_method
     def cached_next(self, x):
         return next(x)
@@ -201,5 +201,5 @@ class TestCythonUtils(unittest.TestCase):
             self.assertEqual(float(float_str), float(result))
             self.assertEqual(
                 result, norm_str,
-                "normalise_float_repr(%r) == %r != %r  (%.330f)" % (float_str, result, norm_str, float(float_str))
+                "normalise_float_repr({!r}) == {!r} != {!r}  ({:.330f})".format(float_str, result, norm_str, float(float_str))
             )

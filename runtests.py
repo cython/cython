@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 
 import atexit
 import base64
@@ -205,7 +204,7 @@ def def_to_cdef(source):
                 args_no_types = ", ".join(arg.split()[-1] for arg in args.split(','))
             else:
                 args_no_types = ""
-            output.append("def %s(%s):" % (name, args_no_types))
+            output.append("def {}({}):".format(name, args_no_types))
             line = next(lines)
             if '"""' in line:
                 has_docstring = True
@@ -216,9 +215,9 @@ def def_to_cdef(source):
                         break
             else:
                 has_docstring = False
-            output.append("    return %s_c(%s)" % (name, args_no_types))
+            output.append("    return {}_c({})".format(name, args_no_types))
             output.append('')
-            output.append("cdef %s_c(%s):" % (name, args))
+            output.append("cdef {}_c({}):".format(name, args))
             if not has_docstring:
                 output.append(line)
 
@@ -270,7 +269,7 @@ def update_gdb_extension(ext, _has_gdb=[None]):
     if _has_gdb[0] is None:
         try:
             subprocess.check_call(["gdb", "--version"])
-        except (IOError, subprocess.CalledProcessError):
+        except (OSError, subprocess.CalledProcessError):
             _has_gdb[0] = False
         else:
             _has_gdb[0] = True
@@ -390,7 +389,7 @@ def get_cc_version(language):
     env['LC_MESSAGES'] = 'C'
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
-    except EnvironmentError as exc:
+    except OSError as exc:
         warnings.warn("Unable to find the %s compiler: %s: %s" %
                       (language, os.strerror(exc.errno), cc))
         return ''
@@ -488,7 +487,7 @@ TEST_SUPPORT_DIR = 'testsupport'
 
 BACKENDS = ['c', 'cpp']
 
-UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
+UTF8_BOM_BYTES = br'\xef\xbb\xbf'.decode('unicode_escape')
 
 # A selector that can be used to determine whether to run with Py_LIMITED_API
 # (if run in limited api mode)
@@ -529,7 +528,7 @@ def parse_tags(filepath):
                 if tag == 'tags':
                     raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
-                    print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
+                    print("WARNING: unknown test directive '{}' found ({})".format(tag, filepath))
                 values = values.split(',')
                 tags[tag].extend(filter(None, [value.strip() for value in values]))
             elif tags:
@@ -589,7 +588,7 @@ class build_ext(_build_ext):
         _build_ext.build_extension(self, ext)
 
 
-class ErrorWriter(object):
+class ErrorWriter:
     match_error = re.compile(
         r'(?:(warning|performance hint):)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
@@ -626,7 +625,7 @@ class ErrorWriter(object):
         pass  # ignore, only to match file-like interface
 
 
-class Stats(object):
+class Stats:
     def __init__(self, top_n=8):
         self.top_n = top_n
         self.test_counts = defaultdict(int)
@@ -671,7 +670,7 @@ class Stats(object):
         out.write(''.join(lines))
 
 
-class TestBuilder(object):
+class TestBuilder:
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, options,
                  with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
@@ -746,7 +745,7 @@ class TestBuilder(object):
                 tags = defaultdict(list)
             else:
                 tags = parse_tags(filepath)
-            fqmodule = "%s.%s" % (context, module)
+            fqmodule = "{}.{}".format(context, module)
             if not [ 1 for match in self.selectors
                      if match(fqmodule, tags) ]:
                 continue
@@ -879,11 +878,11 @@ class TestBuilder(object):
             os.makedirs(language_workdir)
         workdir = os.path.join(language_workdir, module)
         if preparse != 'id':
-            workdir += '_%s' % (preparse,)
+            workdir += '_{}'.format(preparse)
         if language_level:
             workdir += '_cy%d' % (language_level,)
         if extra_directives:
-            workdir += ('_directives_'+ '_'.join('%s_%s' % (k, v) for k,v in extra_directives.items()))
+            workdir += ('_directives_'+ '_'.join('{}_{}'.format(k, v) for k,v in extra_directives.items()))
         return test_class(path, workdir, module, module_path, tags,
                           language=language,
                           preparse=preparse,
@@ -972,7 +971,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.module_path = module_path
         self.language = language
         self.preparse = preparse
-        self.name = module if self.preparse == "id" else "%s_%s" % (module, preparse)
+        self.name = module if self.preparse == "id" else "{}_{}".format(module, preparse)
         self.expect_log = expect_log
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
@@ -1092,7 +1091,7 @@ class CythonCompileTestCase(unittest.TestCase):
                             _to_clean.append(rmfile)
                         else:
                             os.remove(rmfile)
-                    except IOError:
+                    except OSError:
                         pass
 
                 if cleanup_c_files and cleanup_lib_files and is_cygwin:
@@ -1120,7 +1119,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return source_file
 
     def build_target_filename(self, module_name):
-        target = '%s.%s' % (module_name, self.language)
+        target = '{}.{}'.format(module_name, self.language)
         return target
 
     def related_files(self, test_directory, module_name):
@@ -1163,21 +1162,21 @@ class CythonCompileTestCase(unittest.TestCase):
                           'w', encoding='ISO-8859-1')
             try:
                 for line in source_and_output:
-                    if line.startswith(u"_ERRORS"):
+                    if line.startswith("_ERRORS"):
                         out.close()
                         out = error_writer = ErrorWriter(encoding=encoding)
-                    elif line.startswith(u"_WARNINGS"):
+                    elif line.startswith("_WARNINGS"):
                         out.close()
                         out = warnings_writer = ErrorWriter(encoding=encoding)
-                    elif line.startswith(u"_PERFORMANCE_HINTS"):
+                    elif line.startswith("_PERFORMANCE_HINTS"):
                         out.close()
                         out = perf_hint_writer = ErrorWriter(encoding=encoding)
                     else:
                         if add_cython_import and line.strip() and not (
-                                line.startswith(u'#') or line.startswith(u"from __future__ import ")):
+                                line.startswith('#') or line.startswith("from __future__ import ")):
                             # insert "import cython" statement after any directives or future imports
-                            if line !=  u"import cython\n":
-                                out.write(u"import cython\n")
+                            if line !=  "import cython\n":
+                                out.write("import cython\n")
                             add_cython_import = False
                         out.write(line)
             finally:
@@ -1306,7 +1305,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
-                        return skip_test("Test '%s' excluded due to tags '%s'" % (
+                        return skip_test("Test '{}' excluded due to tags '{}'".format(
                             self.name, ', '.join(self.tags.get('tag', ''))))
                     extension = newext or extension
             if self.language == 'cpp':
@@ -1337,7 +1336,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
                 sys.stdout.buffer.write(output)
             if error is not None:
-                raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
+                raise CompileError("{}\nCompiler output:\n{}".format(error, prepare_captured(stderr)))
         finally:
             os.chdir(cwd)
 
@@ -1392,7 +1391,7 @@ class CythonCompileTestCase(unittest.TestCase):
                         txt2 = fid.read()
                     if txt1 != txt2:
                         diffs.append(file)
-                        os.system('diff -u %s/%s %s/%s > %s/%s.diff' % (
+                        os.system('diff -u {}/{} {}/{} > {}/{}.diff'.format(
                             workdir, file,
                             workdir2, file,
                             workdir2, file))
@@ -1664,7 +1663,7 @@ class PureDoctestTestCase(unittest.TestCase):
 
 is_private_field = re.compile('^_[^_]').match
 
-class _FakeClass(object):
+class _FakeClass:
     def __init__(self, **kwargs):
         self._shortDescription = kwargs.get('module_name')
         self.__dict__.update(kwargs)
@@ -1750,7 +1749,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         for cls in classes:
             if isinstance(cls, str):
                 if cls in sys.modules:
-                    suite.addTest(unittest.findTestCases(sys.modules[cls]))
+                    suite.addTest(unittest.defaultTestLoader.loadTestsFromModule(sys.modules[cls]))
                 else:
                     raise ValueError("str arguments must be keys in sys.modules")
             elif isinstance(cls, valid_types):
@@ -2032,11 +2031,11 @@ class EndToEndTest(unittest.TestCase):
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
                         self.shard_num, c, self._try_decode(o), self._try_decode(e)))
-                sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
+                sys.stderr.write("Final directory layout of '{}':\n{}\n\n".format(
                     self.name,
                     '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
                 ))
-                self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
+                self.assertEqual(0, res, "non-zero exit status, last output was:\n{!r}\n-- stdout:{}\n-- stderr:{}\n".format(
                     ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
         self.success = True
 
@@ -2095,7 +2094,7 @@ def load_listfile(filename):
     # just reuse the FileListExclude implementation
     return list(FileListExcluder(filename))
 
-class MissingDependencyExcluder(object):
+class MissingDependencyExcluder:
     def __init__(self, deps):
         # deps: { matcher func : module name }
         self.exclude_matchers = []
@@ -2107,7 +2106,7 @@ class MissingDependencyExcluder(object):
                 print("Test dependency not found: '%s'" % module_name)
             else:
                 version = self.find_dep_version(module_name, module)
-                print("Test dependency found: '%s' version %s" % (module_name, version))
+                print("Test dependency found: '{}' version {}".format(module_name, version))
         self.tests_missing_deps = []
 
     def find_dep_version(self, name, module):
@@ -2136,7 +2135,7 @@ class MissingDependencyExcluder(object):
         return False
 
 
-class VersionDependencyExcluder(object):
+class VersionDependencyExcluder:
     def __init__(self, deps):
         # deps: { version : matcher func }
         from sys import version_info
@@ -2153,7 +2152,7 @@ class VersionDependencyExcluder(object):
         return False
 
 
-class FileListExcluder(object):
+class FileListExcluder:
     def __init__(self, list_file, verbose=False):
         self.verbose = verbose
         self.excludes = {}
@@ -2172,7 +2171,7 @@ class FileListExcluder(object):
         return exclude
 
 
-class TagsSelector(object):
+class TagsSelector:
     def __init__(self, tag, value):
         self.tag = tag
         self.value = value
@@ -2184,7 +2183,7 @@ class TagsSelector(object):
             return self.value in tags[self.tag]
 
 
-class RegExSelector(object):
+class RegExSelector:
     def __init__(self, pattern_string):
         try:
             self.regex_matches = re.compile(pattern_string, re.I|re.U).search
@@ -2203,7 +2202,7 @@ def string_selector(s):
         return RegExSelector(s)
 
 
-class ShardExcludeSelector(object):
+class ShardExcludeSelector:
     # This is an exclude selector so it can override the (include) selectors.
     # It may not provide uniform distribution (in time or count), but is a
     # determanistic partition of the tests which is important.
@@ -2488,8 +2487,8 @@ def main():
                 if return_code != 0:
                     error_shards.append(shard_num)
                     failure_outputs.append(failure_output)
-                    sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
-                sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
+                    sys.stderr.write("FAILED ({}/{})\n".format(shard_num, options.shard_count))
+                sys.stderr.write("ALL DONE ({}/{})\n".format(shard_num, options.shard_count))
 
                 stats.update(shard_stats)
                 for stage_name, (stage_time, stage_count) in pipeline_stats.items():
@@ -2797,7 +2796,7 @@ def runtests(options, cmd_args, coverage=None):
         elif backend == 'cpp' and not options.use_cpp:
             continue
         elif backend not in BACKENDS:
-            sys.stderr.write("Unknown backend requested: '%s' not one of [%s]\n" % (
+            sys.stderr.write("Unknown backend requested: '{}' not one of [{}]\n".format(
                 backend, ','.join(BACKENDS)))
             sys.exit(1)
         backends.append(backend)
@@ -2951,7 +2950,7 @@ def collect_failure_output(result):
     failure_output = []
     for flavour, errors in (("ERROR", result.errors), ("FAIL", result.failures)):
         for test, err in errors:
-            failure_output.append("%s\n%s: %s\n%s\n%s\n" % (
+            failure_output.append("{}\n{}: {}\n{}\n{}\n".format(
                 result.separator1,
                 flavour, result.getDescription(test),
                 result.separator2,

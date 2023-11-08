@@ -136,7 +136,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                             continue
                         shutil.copy2(org_path, r_path)
                         so_path = r_path
-                    except IOError:
+                    except OSError:
                         continue
                     break
                 else:
@@ -146,7 +146,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         return so_path
     except KeyboardInterrupt:
         sys.exit(1)
-    except (IOError, os.error):
+    except OSError:
         exc = sys.exc_info()[1]
         error = grok_environment_error(exc)
 

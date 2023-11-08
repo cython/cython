@@ -31,7 +31,6 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
-from __future__ import absolute_import
 
 import re
 import sys
@@ -60,7 +59,7 @@ class TemplateError(Exception):
     def __str__(self):
         msg = ' '.join(self.args)
         if self.position:
-            msg = '%s at line %s column %s' % (
+            msg = '{} at line {} column {}'.format(
                 msg, self.position[0], self.position[1])
         if self.name:
             msg += ' in %s' % self.name
@@ -82,7 +81,7 @@ def get_file_template(name, from_template):
         get_template=from_template.get_template)
 
 
-class Template(object):
+class Template:
 
     default_namespace = {
         'start_braces': '{{',
@@ -159,7 +158,7 @@ class Template(object):
     from_filename = classmethod(from_filename)
 
     def __repr__(self):
-        return '<%s %s name=%r>' % (
+        return '<{} {} name={!r}>'.format(
             self.__class__.__name__,
             hex(id(self))[2:], self.name)
 
@@ -368,7 +367,7 @@ class Template(object):
             return value
 
     def _add_line_info(self, msg, pos):
-        msg = "%s at line %s column %s" % (
+        msg = "{} at line {} column {}".format(
             msg, pos[0], pos[1])
         if self.name:
             msg += " in file %s" % self.name
@@ -412,12 +411,12 @@ class bunch(dict):
             return dict.__getitem__(self, key)
 
     def __repr__(self):
-        return '<%s %s>' % (
+        return '<{} {}>'.format(
             self.__class__.__name__,
-            ' '.join(['%s=%r' % (k, v) for k, v in sorted(self.items())]))
+            ' '.join(['{}={!r}'.format(k, v) for k, v in sorted(self.items())]))
 
 
-class TemplateDef(object):
+class TemplateDef:
     def __init__(self, template, func_name, func_signature,
                  body, ns, pos, bound_self=None):
         self._template = template
@@ -429,7 +428,7 @@ class TemplateDef(object):
         self._bound_self = bound_self
 
     def __repr__(self):
-        return '<tempita function %s(%s) at %s:%s>' % (
+        return '<tempita function {}({}) at {}:{}>'.format(
             self._func_name, self._func_signature,
             self._template.name, self._pos)
 
@@ -494,17 +493,17 @@ class TemplateDef(object):
         return values
 
 
-class TemplateObject(object):
+class TemplateObject:
 
     def __init__(self, name):
         self.__name = name
         self.get = TemplateObjectGetter(self)
 
     def __repr__(self):
-        return '<%s %s>' % (self.__class__.__name__, self.__name)
+        return '<{} {}>'.format(self.__class__.__name__, self.__name)
 
 
-class TemplateObjectGetter(object):
+class TemplateObjectGetter:
 
     def __init__(self, template_obj):
         self.__template_obj = template_obj
@@ -513,10 +512,10 @@ class TemplateObjectGetter(object):
         return getattr(self.__template_obj, attr, Empty)
 
     def __repr__(self):
-        return '<%s around %r>' % (self.__class__.__name__, self.__template_obj)
+        return '<{} around {!r}>'.format(self.__class__.__name__, self.__template_obj)
 
 
-class _Empty(object):
+class _Empty:
     def __call__(self, *args, **kw):
         return self
 
@@ -527,7 +526,7 @@ class _Empty(object):
         return 'Empty'
 
     def __unicode__(self):
-        return u''
+        return ''
 
     def __iter__(self):
         return iter(())
@@ -576,7 +575,7 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
     last = 0
     last_pos = (line_offset + 1, 1)
 
-    token_re = re.compile(r'%s|%s' % (re.escape(delimiters[0]),
+    token_re = re.compile(r'{}|{}'.format(re.escape(delimiters[0]),
                                       re.escape(delimiters[1])))
     for match in token_re.finditer(s):
         expr = match.group(0)
@@ -825,7 +824,7 @@ def parse_one_cond(tokens, name, context):
     elif first == 'else':
         part = ('else', pos, None, content)
     else:
-        assert 0, "Unexpected token %r at %s" % (first, pos)
+        assert 0, "Unexpected token {!r} at {}".format(first, pos)
     while 1:
         if not tokens:
             raise TemplateError(

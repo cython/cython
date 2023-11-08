@@ -2,7 +2,7 @@
 # tag: generators
 
 
-class TestClass(object):
+class TestClass:
     """
     >>> TestClass.x
     [1, 2, 3]

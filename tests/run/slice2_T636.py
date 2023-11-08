@@ -2,7 +2,7 @@
 # ticket 636
 # tag: slicing, getitem
 
-class Sliceable(object):
+class Sliceable:
     """
     >>> sl = Sliceable()
 

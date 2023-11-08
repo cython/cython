@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import timeit
 
 import integrate0, integrate1, integrate2

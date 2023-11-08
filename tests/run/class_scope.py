@@ -1,7 +1,7 @@
 # mode:run
 # tag: class, scope
 
-class MethodRedef(object):
+class MethodRedef:
     """
     >>> MethodRedef().a(5)
     7

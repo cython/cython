@@ -4,7 +4,7 @@
 
 pyvar = 2
 
-class TestPyAttr(object):
+class TestPyAttr:
     """
     >>> TestPyAttr.pyvar    # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -23,7 +23,7 @@ class TestPyAttr(object):
 import cython
 cdefvar = cython.declare(int, 10)
 
-class TestCdefAttr(object):
+class TestCdefAttr:
     """
     >>> TestCdefAttr.cdefvar   # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -39,7 +39,7 @@ class TestCdefAttr(object):
     # cdefval2 = cdefvar       # FIXME: doesn't currently work ...
 
 
-class ForLoopInPyClass(object):
+class ForLoopInPyClass:
     """
     >>> ForLoopInPyClass.i    # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -67,7 +67,7 @@ def del_in_class(x):
     NameError
     """
     try:
-        class Test(object):
+        class Test:
             if x:
                 attr = 1
             del attr

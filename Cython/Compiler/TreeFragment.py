@@ -6,7 +6,6 @@
 Support for parsing strings into code trees.
 """
 
-from __future__ import absolute_import
 
 import re
 from io import StringIO
@@ -104,11 +103,11 @@ class TreeCopier(VisitorTransform):
 
 class ApplyPositionAndCopy(TreeCopier):
     def __init__(self, pos):
-        super(ApplyPositionAndCopy, self).__init__()
+        super().__init__()
         self.pos = pos
 
     def visit_Node(self, node):
-        copy = super(ApplyPositionAndCopy, self).visit_Node(node)
+        copy = super().visit_Node(node)
         copy.pos = self.pos
         return copy
 
@@ -154,7 +153,7 @@ class TemplateTransform(VisitorTransform):
             tempmap[temp] = handle
             temphandles.append(handle)
         self.tempmap = tempmap
-        result = super(TemplateTransform, self).__call__(node)
+        result = super().__call__(node)
         if temps:
             result = UtilNodes.TempsBlockNode(self.get_pos(node),
                                               temps=temphandles,
@@ -207,20 +206,20 @@ def copy_code_tree(node):
     return TreeCopier()(node)
 
 
-_match_indent = re.compile(u"^ *").match
+_match_indent = re.compile("^ *").match
 
 
 def strip_common_indent(lines):
     """Strips empty lines and common indentation from the list of strings given in lines"""
     # TODO: Facilitate textwrap.indent instead
-    lines = [x for x in lines if x.strip() != u""]
+    lines = [x for x in lines if x.strip() != ""]
     if lines:
         minindent = min([len(_match_indent(x).group(0)) for x in lines])
         lines = [x[minindent:] for x in lines]
     return lines
 
 
-class TreeFragment(object):
+class TreeFragment:
     def __init__(self, code, name=None, pxds=None, temps=None, pipeline=None, level=None, initial_pos=None):
         if pxds is None:
             pxds = {}
@@ -232,7 +231,7 @@ class TreeFragment(object):
             name = "(tree fragment)"
 
         if isinstance(code, _unicode):
-            def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
+            def fmt(x): return "\n".join(strip_common_indent(x.split("\n")))
 
             fmt_code = fmt(code)
             fmt_pxds = {}
@@ -271,7 +270,7 @@ class TreeFragment(object):
 
 class SetPosTransform(VisitorTransform):
     def __init__(self, pos):
-        super(SetPosTransform, self).__init__()
+        super().__init__()
         self.pos = pos
 
     def visit_Node(self, node):

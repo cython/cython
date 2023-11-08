@@ -9,13 +9,13 @@ class MyException(Exception):
     pass
 
 
-class ContextManager(object):
+class ContextManager:
     def __init__(self, value, exit_ret = None):
         self.value = value
         self.exit_ret = exit_ret
 
     def __exit__(self, a, b, tb):
-        print("exit %s %s %s" % (typename(a), typename(b), typename(tb)))
+        print("exit {} {} {}".format(typename(a), typename(b), typename(tb)))
         return self.exit_ret
 
     def __enter__(self):
@@ -165,7 +165,7 @@ def multitarget():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
     with ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
-        print('%s %s %s %s %s' % (a, b, c, d, e))
+        print('{} {} {} {} {}'.format(a, b, c, d, e))
 
 
 def tupletarget():
@@ -179,7 +179,7 @@ def tupletarget():
         print(t)
 
 
-class GetManager(object):
+class GetManager:
     def get(self, *args):
         return ContextManager(*args)
 

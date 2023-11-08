@@ -2,9 +2,7 @@
 Inject Cython type declarations into a .py file using the Jedi static analysis tool.
 """
 
-from __future__ import absolute_import
 
-from io import open
 from collections import defaultdict
 from itertools import chain
 
@@ -74,23 +72,23 @@ def inject_types(source_path, types, type_map=default_type_map, mode='python'):
 
     @param mode is currently 'python', which means that the generated type declarations use pure Python syntax.
     """
-    col_and_types_by_line = dict(
+    col_and_types_by_line = {
         # {line: (column, scope_name or None, [(name, type)])}
-        (k[-1][0], (k[-1][1], k[0], [(n, next(iter(t))) for (n, t) in v.items() if len(t) == 1]))
-        for (k, v) in types.items())
+        k[-1][0]: (k[-1][1], k[0], [(n, next(iter(t))) for (n, t) in v.items() if len(t) == 1])
+        for (k, v) in types.items()}
 
-    lines = [u'import cython\n']
+    lines = ['import cython\n']
     with open_source_file(source_path) as f:
         for line_no, line in enumerate(f, 1):
             if line_no in col_and_types_by_line:
                 col, scope, types = col_and_types_by_line[line_no]
                 if types:
-                    types = ', '.join("%s='%s'" % (name, type_map.get(type_name, type_name))
+                    types = ', '.join("{}='{}'".format(name, type_map.get(type_name, type_name))
                                     for name, type_name in types)
                     if scope is None:
-                        type_decl = u'{indent}cython.declare({types})\n'
+                        type_decl = '{indent}cython.declare({types})\n'
                     else:
-                        type_decl = u'{indent}@cython.locals({types})\n'
+                        type_decl = '{indent}@cython.locals({types})\n'
                     lines.append(type_decl.format(indent=' '*col, types=types))
             lines.append(line)
 

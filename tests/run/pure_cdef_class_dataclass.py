@@ -1,7 +1,6 @@
 # mode: run
 # tag: dataclass, pure3.7
 
-from __future__ import print_function
 
 import cython
 

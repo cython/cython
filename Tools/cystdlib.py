@@ -120,8 +120,8 @@ def build(extensions):
         result = True
     except:
         import traceback
-        print('error building extensions %s' % (
-            [ext.name for ext in extensions],))
+        print('error building extensions {}'.format(
+            [ext.name for ext in extensions]))
         traceback.print_exc()
         result = False
     return extensions, result
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         pool.join()
         for ext, result in results:
             if not result:
-                print("building extension %s failed" % (ext[0].name,))
+                print("building extension {} failed".format(ext[0].name))
     else:
         sys.argv[1:] = sys_args
         build(extensions)

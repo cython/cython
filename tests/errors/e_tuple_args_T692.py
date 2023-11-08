@@ -4,7 +4,7 @@
 def func((a, b)):
     return a + b
 
-_ERRORS = u"""
+_ERRORS = """
 4:9: Missing argument name
 5:11: undeclared name not builtin: a
 5:15: undeclared name not builtin: b

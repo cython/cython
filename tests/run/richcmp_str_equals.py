@@ -1,10 +1,10 @@
 # mode: run
 
-class plop(object):
+class plop:
     def __init__(self):
         pass
 
-class testobj(object):
+class testobj:
     def __init__(self):
         pass
 

@@ -68,7 +68,7 @@ def wrong_decorator() -> cython.int:
     return 0
 
 
-_ERRORS = u"""
+_ERRORS = """
 22:14: Accessing Python global or builtin not allowed without gil
 22:19: Calling gil-requiring function not allowed without gil
 22:19: Coercion from Python not allowed without the GIL

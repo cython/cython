@@ -1,4 +1,3 @@
-# coding=utf8
 # mode: run
 # tag: constant_folding
 

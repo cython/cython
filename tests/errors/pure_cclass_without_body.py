@@ -1,8 +1,8 @@
 # mode: error
 
-class Test(object):
+class Test:
     pass
 
-_ERRORS = u"""
+_ERRORS = """
 3:5: C class 'Test' is declared but not defined
 """

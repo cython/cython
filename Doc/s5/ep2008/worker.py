@@ -1,6 +1,5 @@
-
-class HardWorker(object):
-    u"Almost Sisyphus"
+class HardWorker:
+    "Almost Sisyphus"
     def __init__(self, task):
         self.task = task
 

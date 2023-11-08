@@ -49,7 +49,7 @@ except ImportError:
         wrapped = wraps(func)
 
         # copied from types.py in Py3.6
-        class _GeneratorWrapper(object):
+        class _GeneratorWrapper:
             # TODO: Implement this in C.
             def __init__(self, gen):
                 self.__wrapped = gen

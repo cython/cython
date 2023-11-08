@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import hashlib
 import inspect
 import os
@@ -61,7 +59,7 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
             self.unbound.add(node.name)
         return node
     def __call__(self, node):
-        super(UnboundSymbols, self).__call__(node)
+        super().__call__(node)
         return self.unbound
 
 
@@ -105,7 +103,7 @@ def safe_type(arg, context=None):
     elif py_type is bool:
         return 'bint'
     elif 'numpy' in sys.modules and isinstance(arg, sys.modules['numpy'].ndarray):
-        return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
+        return 'numpy.ndarray[numpy.{}_t, ndim={}]'.format(arg.dtype.name, arg.ndim)
     else:
         for base_type in py_type.__mro__:
             if base_type.__module__ in ('__builtin__', 'builtins'):
@@ -114,7 +112,7 @@ def safe_type(arg, context=None):
             if module:
                 entry = module.lookup(base_type.__name__)
                 if entry.is_type:
-                    return '%s.%s' % (base_type.__module__, base_type.__name__)
+                    return '{}.{}'.format(base_type.__module__, base_type.__name__)
         return 'object'
 
 
@@ -253,15 +251,15 @@ def cython_inline(code, get_type=unsafe_type,
             module_body, func_body = extract_func_code(code)
             params = ', '.join(['%s %s' % a for a in arg_sigs])
             module_code = """
-%(module_body)s
-%(cimports)s
-def __invoke(%(params)s):
-%(func_body)s
+{module_body}
+{cimports}
+def __invoke({params}):
+{func_body}
     return locals()
-            """ % {'cimports': '\n'.join(cimports),
-                   'module_body': module_body,
-                   'params': params,
-                   'func_body': func_body }
+            """.format(cimports='\n'.join(cimports),
+                   module_body=module_body,
+                   params=params,
+                   func_body=func_body )
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
             pyx_file = os.path.join(lib_dir, module_name + '.pyx')
@@ -353,7 +351,7 @@ def get_body(source):
 
 # Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
-class RuntimeCompiledFunction(object):
+class RuntimeCompiledFunction:
 
     def __init__(self, f):
         self._f = f

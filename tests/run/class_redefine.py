@@ -1,11 +1,10 @@
-
-class set(object):
+class set:
     def __init__(self, x):
         self.x = x
 
-SET = set([1])
+SET = {1}
 
-class set(object):
+class set:
     def __init__(self, x):
         self.X = x
 
@@ -16,4 +15,4 @@ def test_class_redef(x):
     >>> test_class_redef(2).X
     [2]
     """
-    return set([x])
+    return {x}

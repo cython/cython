@@ -32,7 +32,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
         debug_files = glob.glob(pattern)
 
         if not debug_files:
-            sys.exit('%s.\nNo debug files were found in %s. Aborting.' % (
+            sys.exit('{}.\nNo debug files were found in {}. Aborting.'.format(
                                    usage, os.path.abspath(path_to_debug_info)))
 
     fd, tempfilename = tempfile.mkstemp()

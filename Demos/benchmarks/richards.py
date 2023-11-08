@@ -25,7 +25,7 @@ BUFSIZE = 4
 
 BUFSIZE_RANGE = range(BUFSIZE)
 
-class Packet(object):
+class Packet:
     def __init__(self,l,i,k):
         self.link = l
         self.ident = i
@@ -48,7 +48,7 @@ class Packet(object):
 
 # Task Records
 
-class TaskRec(object):
+class TaskRec:
     pass
 
 class DeviceTaskRec(TaskRec):
@@ -79,7 +79,7 @@ class WorkerTaskRec(TaskRec):
         self.count = 0
 # Task
 
-class TaskState(object):
+class TaskState:
     def __init__(self):
         self.packet_pending = True
         self.task_waiting = False
@@ -142,7 +142,7 @@ def trace(a):
 
 TASKTABSIZE = 10
 
-class TaskWorkArea(object):
+class TaskWorkArea:
     def __init__(self):
         self.taskTab = [None] * TASKTABSIZE
 
@@ -359,7 +359,7 @@ def schedule():
             if tracing: trace(chr(ord("0")+t.ident))
             t = t.runTask()
 
-class Richards(object):
+class Richards:
 
     def run(self, iterations):
         for i in range(iterations):

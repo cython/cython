@@ -5,11 +5,11 @@
 import cython
 
 
-class PyClass(object):
+class PyClass:
     a = 2
 
 
-class PyClass99(object):
+class PyClass99:
     a = 99
 
     def pymethod(self, x, y=1, z=PyClass):

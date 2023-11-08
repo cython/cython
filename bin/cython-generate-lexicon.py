@@ -46,7 +46,7 @@ def main():
     )
 
     print("Reading file", Lexicon.__file__)
-    with open(Lexicon.__file__, 'r') as f:
+    with open(Lexicon.__file__) as f:
         parts = re.split(r"(# (?:BEGIN|END) GENERATED CODE\n?)", f.read())
 
     if len(parts) not in (4,5) or ' GENERATED CODE' not in parts[1] or ' GENERATED CODE' not in parts[3]:

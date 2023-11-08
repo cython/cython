@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """unittest-xml-reporting is a PyUnit-based TestRunner that can export test
 results to XML files that can be consumed by a wide range of tools, such as
 build systems, IDEs and Continuous Integration servers.
@@ -38,7 +36,6 @@ if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
 """
 
-from __future__ import absolute_import
 
 import os
 import sys
@@ -58,7 +55,7 @@ class XMLDocument(xml.dom.minidom.Document):
         return self.createCDATASection(data)
 
 
-class _TestInfo(object):
+class _TestInfo:
     """This class is used to keep useful information about the execution of a
     test method.
     """
@@ -203,7 +200,7 @@ class _XMLTestResult(TextTestResult):
                 err_info = str(test_info)
 
             self.stream.writeln(self.separator1)
-            self.stream.writeln('%s [%.3fs]: %s' % (flavour, t, descr))
+            self.stream.writeln('{} [{:.3f}s]: {}'.format(flavour, t, descr))
             self.stream.writeln(self.separator2)
             self.stream.writeln('%s' % err_info)
 
@@ -217,7 +214,7 @@ class _XMLTestResult(TextTestResult):
         for tests in (self.successes, self.failures, self.errors):
             for test_info in tests:
                 if not isinstance(test_info, _TestInfo):
-                    print("Unexpected test result type: %r" % (test_info,))
+                    print("Unexpected test result type: {!r}".format(test_info))
                     continue
                 testcase = type(test_info.test_method)
 

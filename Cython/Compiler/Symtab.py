@@ -2,7 +2,6 @@
 #   Symbol Table
 #
 
-from __future__ import absolute_import
 
 import re
 import copy
@@ -55,7 +54,7 @@ def punycodify_name(cname, mangle_with=None):
             # sometimes it necessary to mangle unicode names alone where
             # they'll be inserted directly into C, because the punycode
             # transformation can turn them into invalid identifiers
-            cname = "%s_%s" % (mangle_with, cname)
+            cname = "{}_{}".format(mangle_with, cname)
         elif cname.startswith(Naming.pyrex_prefix):
             # a punycode name could also be a valid ascii variable name so
             # change the prefix to distinguish
@@ -67,7 +66,7 @@ def punycodify_name(cname, mangle_with=None):
 
 
 
-class BufferAux(object):
+class BufferAux:
     writable_needed = False
 
     def __init__(self, buflocal_nd_var, rcbuf_var):
@@ -78,7 +77,7 @@ class BufferAux(object):
         return "<BufferAux %r>" % self.__dict__
 
 
-class Entry(object):
+class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
     #
     # name             string     Python name of entity
@@ -256,7 +255,7 @@ class Entry(object):
         self.defining_entry = self
 
     def __repr__(self):
-        return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)
+        return "{}(<{:x}>, name={}, type={})".format(type(self).__name__, id(self), self.name, self.type)
 
     def already_declared_here(self):
         error(self.pos, "Previous declaration is here")
@@ -327,7 +326,7 @@ class InnerEntry(Entry):
         return self.defining_entry.all_entries()
 
 
-class Scope(object):
+class Scope:
     # name              string             Unqualified name
     # outer_scope       Scope or None      Enclosing scope
     # entries           {string : Entry}   Python name to entry, non-types
@@ -442,27 +441,27 @@ class Scope(object):
                      'cfunc_entries',
                      'c_class_entries'):
             self_entries = getattr(self, attr)
-            names = set(e.name for e in self_entries)
+            names = {e.name for e in self_entries}
             for entry in getattr(other, attr):
                 if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)
 
     def __str__(self):
-        return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
+        return "<{} {}>".format(self.__class__.__name__, self.qualified_name)
 
     def qualifying_scope(self):
         return self.parent_scope
 
     def mangle(self, prefix, name = None):
         if name:
-            return punycodify_name("%s%s%s" % (prefix, self.scope_prefix, name))
+            return punycodify_name("{}{}{}".format(prefix, self.scope_prefix, name))
         else:
             return self.parent_scope.mangle(prefix, self.name)
 
     def mangle_internal(self, name):
         # Mangle an internal name so as not to clash with any
         # user-defined name in this scope.
-        prefix = "%s%s_" % (Naming.pyrex_prefix, name)
+        prefix = "{}{}_".format(Naming.pyrex_prefix, name)
         return self.mangle(prefix)
         #return self.parent_scope.mangle(prefix, self.name)
 
@@ -498,8 +497,7 @@ class Scope(object):
     def iter_local_scopes(self):
         yield self
         if self.subscopes:
-            for scope in sorted(self.subscopes, key=operator.attrgetter('scope_prefix')):
-                yield scope
+            yield from sorted(self.subscopes, key=operator.attrgetter('scope_prefix'))
 
     @try_finally_contextmanager
     def new_c_type_context(self, in_c_type_context=None):
@@ -568,7 +566,7 @@ class Scope(object):
         return entry
 
     def qualify_name(self, name):
-        return EncodedString("%s.%s" % (self.qualified_name, name))
+        return EncodedString("{}.{}".format(self.qualified_name, name))
 
     def declare_const(self, name, type, value, pos, cname = None, visibility = 'private', api = 0, create_wrapper = 0):
         # Add an entry for a named constant.
@@ -718,12 +716,12 @@ class Scope(object):
 
     def check_previous_typedef_flag(self, entry, typedef_flag, pos):
         if typedef_flag != entry.type.typedef_flag:
-            error(pos, "'%s' previously declared using '%s'" % (
+            error(pos, "'{}' previously declared using '{}'".format(
                 entry.name, ("cdef", "ctypedef")[entry.type.typedef_flag]))
 
     def check_previous_visibility(self, entry, visibility, pos):
         if entry.visibility != visibility:
-            error(pos, "'%s' previously declared as '%s'" % (
+            error(pos, "'{}' previously declared as '{}'".format(
                 entry.name, entry.visibility))
 
     def declare_enum(self, name, pos, cname, scoped, typedef_flag,
@@ -833,8 +831,8 @@ class Scope(object):
 
     def declare_lambda_function(self, lambda_name, pos):
         # Add an entry for an anonymous Python function.
-        func_cname = self.mangle(Naming.lambda_func_prefix + u'funcdef_', lambda_name)
-        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + u'methdef_', lambda_name)
+        func_cname = self.mangle(Naming.lambda_func_prefix + 'funcdef_', lambda_name)
+        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + 'methdef_', lambda_name)
         qualified_name = self.qualify_name(lambda_name)
 
         entry = self.declare(None, func_cname, py_object_type, pos, 'private')
@@ -875,10 +873,10 @@ class Scope(object):
                 entry.cname = cname
                 entry.func_cname = cname
             if visibility != 'private' and visibility != entry.visibility:
-                warning(pos, "Function '%s' previously declared as '%s', now as '%s'" % (
+                warning(pos, "Function '{}' previously declared as '{}', now as '{}'".format(
                     name, entry.visibility, visibility), 1)
             if overridable != entry.is_overridable:
-                warning(pos, "Function '%s' previously declared as '%s'" % (
+                warning(pos, "Function '{}' previously declared as '{}'".format(
                     name, 'cpdef' if overridable else 'cdef'), 1)
             if entry.type.same_as(type):
                 # Fix with_gil vs nogil.
@@ -926,7 +924,7 @@ class Scope(object):
         if modifiers:
             entry.func_modifiers = modifiers
         if utility_code:
-            assert not entry.utility_code, "duplicate utility code definition in entry %s (%s)" % (name, cname)
+            assert not entry.utility_code, "duplicate utility code definition in entry {} ({})".format(name, cname)
             entry.utility_code = utility_code
         if overridable:
             # names of cpdef functions can be used as variables and can be assigned to
@@ -1769,7 +1767,7 @@ class ModuleScope(Scope):
         type = entry.type
         if type.base_type and type.base_type.vtabslot_cname:
             #print "...allocating vtabslot_cname because base type has one" ###
-            type.vtabslot_cname = "%s.%s" % (
+            type.vtabslot_cname = "{}.{}".format(
                 Naming.obj_base_cname, type.base_type.vtabslot_cname)
         elif type.scope and type.scope.cfunc_entries:
             # one special case here: when inheriting from builtin
@@ -1850,7 +1848,7 @@ class ModuleScope(Scope):
             print("Scope.check_c_classes: checking scope " + self.qualified_name)
         for entry in self.c_class_entries:
             if debug_check_c_classes:
-                print("...entry %s %s" % (entry.name, entry))
+                print("...entry {} {}".format(entry.name, entry))
                 print("......type = ",  entry.type)
                 print("......visibility = ", entry.visibility)
             self.check_c_class(entry)
@@ -1995,10 +1993,10 @@ class LocalScope(Scope):
                     else:
                         if cname.startswith(Naming.cur_scope_cname):
                             cname = cname[len(Naming.cur_scope_cname)+2:]
-                        entry.cname = "%s->%s" % (outer_scope_cname, cname)
+                        entry.cname = "{}->{}".format(outer_scope_cname, cname)
                 elif entry.in_closure:
                     entry.original_cname = entry.cname
-                    entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+                    entry.cname = "{}->{}".format(Naming.cur_scope_cname, entry.cname)
                     if entry.type.is_cpp_class and entry.scope.directives['cpp_locals']:
                         entry.make_cpp_optional()
 
@@ -2028,7 +2026,7 @@ class ComprehensionScope(Scope):
         outer_scope.subscopes.add(self)
 
     def mangle(self, prefix, name):
-        return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(prefix, name))
+        return '{}{}'.format(self.genexp_prefix, self.parent_scope.mangle(prefix, name))
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2041,7 +2039,7 @@ class ComprehensionScope(Scope):
         self._reject_pytyping_modifiers(pos, pytyping_modifiers)
         # the parent scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
-        cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
+        cname = '{}{}'.format(self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = True
         if self.parent_scope.is_module_scope:
@@ -2080,7 +2078,7 @@ class ClosureScope(LocalScope):
 
     def __init__(self, name, scope_name, outer_scope, parent_scope=None):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
-        self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
+        self.closure_cname = "{}{}".format(Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):
 #        for entry in self.entries.values() + self.temp_entries:
@@ -2172,7 +2170,7 @@ class ClassScope(Scope):
         if name and name.lower().startswith("__pyx_"):
             return name
         if name and name.startswith('__') and not name.endswith('__'):
-            name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
+            name = EncodedString('_{}{}'.format(self.class_name.lstrip('_'), name))
         return name
 
     def __init__(self, name, outer_scope):
@@ -2545,7 +2543,7 @@ class CClassScope(ClassScope):
         entry.utility_code = utility_code
         type.entry = entry
 
-        if u'inline' in modifiers:
+        if 'inline' in modifiers:
             entry.is_inline_cmethod = True
 
         if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):
@@ -2621,7 +2619,7 @@ class CClassScope(ClassScope):
         # inherited type, with cnames modified appropriately
         # to work with this type.
         def adapt(cname):
-            return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
+            return "{}.{}".format(Naming.obj_base_cname, base_entry.cname)
 
         entries = base_scope.inherited_var_entries + base_scope.var_entries
         for base_entry in entries:
@@ -2702,7 +2700,7 @@ class CppClassScope(Scope):
         entry.is_variable = 1
         if type.is_cfunction and self.type:
             if not self.type.get_fused_types():
-                entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
+                entry.func_cname = "{}::{}".format(self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
         return entry
@@ -2712,7 +2710,7 @@ class CppClassScope(Scope):
                           defining=0, modifiers=(), utility_code=None, overridable=False):
         class_name = self.name.split('::')[-1]
         if name in (class_name, '__init__') and cname is None:
-            cname = "%s__init__%s" % (Naming.func_prefix, class_name)
+            cname = "{}__init__{}".format(Naming.func_prefix, class_name)
             name = EncodedString('<init>')
             type.return_type = PyrexTypes.CVoidType()
             # This is called by the actual constructor, but need to support
@@ -2726,7 +2724,7 @@ class CppClassScope(Scope):
                     return arg
             type.args = [maybe_ref(arg) for arg in type.args]
         elif name == '__dealloc__' and cname is None:
-            cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
+            cname = "{}__dealloc__{}".format(Naming.func_prefix, class_name)
             name = EncodedString('<del>')
             type.return_type = PyrexTypes.CVoidType()
         if name in ('<init>', '<del>') and type.nogil:

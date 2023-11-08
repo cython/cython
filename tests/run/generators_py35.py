@@ -18,8 +18,7 @@ def with_outer_raising(*args):
     OK!
     """
     def generator():
-        for i in args:
-            yield i
+        yield from args
         raise StopIteration
     return generator
 

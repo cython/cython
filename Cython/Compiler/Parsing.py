@@ -3,7 +3,6 @@
 #   Parser
 #
 
-from __future__ import absolute_import
 
 # This should be done automatically
 import cython
@@ -39,7 +38,7 @@ _IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
 _CDEF_MODIFIERS = ('inline', 'nogil', 'api')
 
 
-class Ctx(object):
+class Ctx:
     #  Parsing context
     level = 'other'
     visibility = 'private'
@@ -177,7 +176,7 @@ def p_namedexpr_test(s):
 COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
 def p_or_test(s):
-    return p_rassoc_binop_expr(s, u'or', p_and_test)
+    return p_rassoc_binop_expr(s, 'or', p_and_test)
 
 def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
@@ -190,7 +189,7 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
     elif s.sy in COMMON_BINOP_MISTAKES and COMMON_BINOP_MISTAKES[s.sy] == op:
         # Only report this for the current operator since we pass through here twice for 'and' and 'or'.
         warning(s.position(),
-                "Found the C operator '%s', did you mean the Python operator '%s'?" % (s.sy, op),
+                "Found the C operator '{}', did you mean the Python operator '{}'?".format(s.sy, op),
                 level=1)
     return n1
 
@@ -198,7 +197,7 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, u'and', p_not_test)
+    return p_rassoc_binop_expr(s, 'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 
@@ -753,8 +752,8 @@ def p_int_literal(s):
     s.next()
     unsigned = ""
     longness = ""
-    while value[-1] in u"UuLl":
-        if value[-1] in u"Ll":
+    while value[-1] in "UuLl":
+        if value[-1] in "Ll":
             longness += "L"
         else:
             unsigned += "U"
@@ -851,7 +850,7 @@ def p_cat_string_literal(s):
             if {kind, next_kind} in ({'f', 'u'}, {'f', ''}):
                 kind = 'f'
             else:
-                error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" % (
+                error(pos, "Cannot mix string literals of different types, expected {}'', got {}''".format(
                     kind, next_kind))
                 continue
         bstrings.append(next_bytes_value)
@@ -862,7 +861,7 @@ def p_cat_string_literal(s):
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
         bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
-        unicode_value = EncodedString(u''.join([u for u in ustrings if u is not None]))
+        unicode_value = EncodedString(''.join([u for u in ustrings if u is not None]))
     if kind == 'f':
         unicode_value = []
         for u, pos in zip(ustrings, positions):
@@ -891,7 +890,7 @@ def p_opt_string_literal(s, required_type='u'):
 
 def check_for_non_ascii_characters(string):
     for c in string:
-        if c >= u'\x80':
+        if c >= '\x80':
             return True
     return False
 
@@ -963,27 +962,27 @@ def p_string_literal(s, kind_override=None):
                 has_non_ascii_literal_characters = True
         elif sy == 'ESCAPE':
             # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
-            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in u'Uu'):
+            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
                 chars.append(systr)
                 if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                     has_non_ascii_literal_characters = True
             else:
                 _append_escape_sequence(kind, chars, systr, s)
         elif sy == 'NEWLINE':
-            chars.append(u'\n')
+            chars.append('\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
             s.error("Unclosed string literal", pos=pos)
         else:
-            s.error("Unexpected token %r:%r in string literal" % (
+            s.error("Unexpected token {!r}:{!r} in string literal".format(
                 sy, s.systring))
 
     if kind == 'c':
         unicode_value = None
         bytes_value = chars.getchar()
         if len(bytes_value) != 1:
-            error(pos, u"invalid character literal: %r" % bytes_value)
+            error(pos, "invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
         if (has_non_ascii_literal_characters
@@ -1000,22 +999,22 @@ def p_string_literal(s, kind_override=None):
 
 def _append_escape_sequence(kind, builder, escape_sequence, s):
     c = escape_sequence[1]
-    if c in u"01234567":
+    if c in "01234567":
         builder.append_charval(int(escape_sequence[1:], 8))
-    elif c in u"'\"\\":
+    elif c in "'\"\\":
         builder.append(c)
-    elif c in u"abfnrtv":
+    elif c in "abfnrtv":
         builder.append(StringEncoding.char_from_escape_sequence(escape_sequence))
-    elif c == u'\n':
+    elif c == '\n':
         pass  # line continuation
-    elif c == u'x':  # \xXX
+    elif c == 'x':  # \xXX
         if len(escape_sequence) == 4:
             builder.append_charval(int(escape_sequence[2:], 16))
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
-    elif c in u'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
+    elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
         chrval = -1
-        if c == u'N':
+        if c == 'N':
             uchar = None
             try:
                 uchar = lookup_unicodechar(escape_sequence[3:-1])
@@ -1044,7 +1043,7 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
         builder.append(escape_sequence)
 
 
-_parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
+_parse_escape_sequences_raw, _parse_escape_sequences = (re.compile((
     # escape sequences:
     br'(\\(?:' +
     (br'\\?' if is_raw else (
@@ -1062,7 +1061,7 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     br'\}\}?|'
     br'[^\\{}]+)'
     ).decode('us-ascii')).match
-    for is_raw in (True, False)]
+    for is_raw in (True, False))
 
 
 def _f_string_error_pos(pos, string, i):
@@ -1362,7 +1361,7 @@ def p_dict_or_set_maker(s):
             if target_type == 0:
                 target_type = 1 if s.sy == '*' else 2  # 'stars'
             elif target_type != len(s.sy):
-                s.error("unexpected %sitem found in %s literal" % (
+                s.error("unexpected {}item found in {} literal".format(
                     s.sy, 'set' if target_type == 1 else 'dict'))
             s.next()
             if s.sy == '*':
@@ -1870,7 +1869,7 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, s.context.intern_ustring(u'.'.join(names)), as_name)
+    return (pos, target_name, s.context.intern_ustring('.'.join(names)), as_name)
 
 
 def p_as_name(s):
@@ -2448,7 +2447,7 @@ def p_statement(s, ctx, first_statement = 0):
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
+                    s.put_back('IDENT', ident_name, ident_pos)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2669,13 +2668,13 @@ def p_c_simple_base_type(s, nonempty, templates=None):
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back('(', '(', old_pos)
                 else:
-                    s.put_back(u'(', u'(', old_pos)
-                    s.put_back(u'IDENT', name, name_pos)
+                    s.put_back('(', '(', old_pos)
+                    s.put_back('IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back(u'IDENT', name, name_pos)
+                s.put_back('IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2817,10 +2816,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back(u'IDENT', *p)
-            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
+            s.put_back('IDENT', *p)
+            s.put_back('.', '.', p[1])  # gets the position slightly wrong
 
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2835,7 +2834,7 @@ def looking_at_dotted_name(s):
         name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return result
     else:
         return 0
@@ -2903,7 +2902,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_name(s):
-            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(u""), cname=None)
+            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(""), cname=None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -3118,7 +3117,7 @@ def p_exception_value_clause(s, is_extern):
                     exc_val = p_name(s, name)
                     s.next()
             elif s.sy == '*':
-                exc_val = ExprNodes.CharNode(s.position(), value=u'*')
+                exc_val = ExprNodes.CharNode(s.position(), value='*')
                 s.next()
         else:
             if s.sy == '?':
@@ -3861,7 +3860,7 @@ def _extract_docstring(node):
 def p_code(s, level=None, ctx=Ctx):
     body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
-        s.error("Syntax error in statement [%s,%s]" % (
+        s.error("Syntax error in statement [{},{}]".format(
             repr(s.sy), repr(s.systring)))
     return body
 
@@ -3891,9 +3890,9 @@ def p_compiler_directive_comments(s):
                     result[name] += new_directives[name]
                     new_directives[name] = result[name]
                 elif new_directives[name] == result[name]:
-                    warning(pos, "Duplicate directive found: %s" % (name,))
+                    warning(pos, "Duplicate directive found: {}".format(name))
                 else:
-                    s.error("Conflicting settings found for top-level directive %s: %r and %r" % (
+                    s.error("Conflicting settings found for top-level directive {}: {!r} and {!r}".format(
                         name, result[name], new_directives[name]), pos=pos)
 
             if 'language_level' in new_directives:
@@ -3930,7 +3929,7 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     doc = p_doc_string(s)
     body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
-        s.error("Syntax error in statement [%s,%s]" % (
+        s.error("Syntax error in statement [{},{}]".format(
             repr(s.sy), repr(s.systring)))
     return ModuleNode(pos, doc = doc, body = body,
                       full_module_name = full_module_name,
@@ -4047,7 +4046,7 @@ def print_parse_tree(f, node, level, key = None):
             f.write("%s: " % key)
         t = type(node)
         if t is tuple:
-            f.write("(%s @ %s\n" % (node[0], node[1]))
+            f.write("({} @ {}\n".format(node[0], node[1]))
             for i in range(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s)\n" % ind)
@@ -4057,7 +4056,7 @@ def print_parse_tree(f, node, level, key = None):
                 tag = node.tag
             except AttributeError:
                 tag = node.__class__.__name__
-            f.write("%s @ %s\n" % (tag, node.pos))
+            f.write("{} @ {}\n".format(tag, node.pos))
             for name, value in node.__dict__.items():
                 if name != 'tag' and name != 'pos':
                     print_parse_tree(f, value, level+1, name)
@@ -4068,7 +4067,7 @@ def print_parse_tree(f, node, level, key = None):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s]\n" % ind)
             return
-    f.write("%s%s\n" % (ind, node))
+    f.write("{}{}\n".format(ind, node))
 
 def p_annotation(s):
     """An annotation just has the "test" syntax, but also stores the string it came from

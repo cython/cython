@@ -75,7 +75,7 @@ def slice_none(m: cython.double[:]):
     return 1 if m is None else 2
 
 
-def slice_optional(m: typing.Optional[cython.double[:]]):
+def slice_optional(m: cython.double[:] | None):
     """
     >>> slice_optional(None)
     1

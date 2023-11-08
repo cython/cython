@@ -3,7 +3,7 @@
 # cython: profile = True
 # distutils: define_macros = CYTHON_TRACE_NOGIL=1
 
-u"""
+"""
     >>> import os, tempfile, cProfile as profile, pstats
     >>> statsfile = tempfile.mkstemp()[1]
     >>> profile.runctx("test_profile(100)", locals(), globals(), statsfile)
@@ -221,7 +221,7 @@ def nogil_prof(a: cython.long) -> cython.long:
 
 
 @cython.cclass
-class A(object):
+class A:
     def m_def(self, a: cython.long):
         return a
     @cython.ccall

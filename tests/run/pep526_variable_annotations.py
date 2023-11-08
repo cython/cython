@@ -24,12 +24,12 @@ var = 1  # type: annotation
 var: cython.int = 2
 fvar: cython.float = 1.2
 some_number: cython.int    # variable without initial value
-some_list: List[cython.int] = []  # variable with initial value
+some_list: list[cython.int] = []  # variable with initial value
 another_list: list[cython.int] = []
-t: Tuple[cython.int, ...] = (1, 2, 3)
+t: tuple[cython.int, ...] = (1, 2, 3)
 t2: tuple[cython.int, ...]
-body: Optional[List[str]]
-descr_only : "descriptions are allowed but ignored"
+body: list[str] | None
+descr_only : descriptions are allowed but ignored
 
 
 some_number = 5
@@ -45,15 +45,15 @@ def f():
     var: cython.int = 2
     fvar: cython.float = 1.5
     some_number: cython.int    # variable without initial value
-    some_list: List[cython.int] = []  # variable with initial value
-    t: Tuple[cython.int, ...] = (1, 2, 3)
-    body: Optional[List[str]]
-    descr_only: "descriptions are allowed but ignored"
+    some_list: list[cython.int] = []  # variable with initial value
+    t: tuple[cython.int, ...] = (1, 2, 3)
+    body: list[str] | None
+    descr_only: descriptions are allowed but ignored
 
     return var, fvar, some_list, t
 
 
-class BasicStarship(object):
+class BasicStarship:
     """
     >>> bs = BasicStarship(5)
     >>> bs.damage
@@ -67,15 +67,15 @@ class BasicStarship(object):
     """
     captain: str = 'Picard'               # instance variable with default
     damage: cython.int                    # instance variable without default
-    stats: ClassVar[Dict[str, cython.int]] = {}  # class variable
-    descr_only: "descriptions are allowed but ignored"
+    stats: ClassVar[dict[str, cython.int]] = {}  # class variable
+    descr_only: descriptions are allowed but ignored
 
     def __init__(self, damage):
         self.damage = damage
 
 
 @cython.cclass
-class BasicStarshipExt(object):
+class BasicStarshipExt:
     """
     >>> bs = BasicStarshipExt(5)
     >>> bs.test()
@@ -83,8 +83,8 @@ class BasicStarshipExt(object):
     """
     captain: str = 'Picard'               # instance variable with default
     damage: cython.int                    # instance variable without default
-    stats: ClassVar[Dict[str, cython.int]] = {}  # class variable
-    descr_only: "descriptions are allowed but ignored"
+    stats: ClassVar[dict[str, cython.int]] = {}  # class variable
+    descr_only: descriptions are allowed but ignored
 
     def __init__(self, damage):
         self.damage = damage
@@ -104,7 +104,7 @@ T = TypeVar('T')
 #box = Box(content=5)
 
 
-class Cls(object):
+class Cls:
     pass
 
 
@@ -132,7 +132,7 @@ def iter_declared_dict(d):
 
     # specialized "compiled" test in module-level __doc__
     """
-    typed_dict : Dict[cython.float, cython.float] = d
+    typed_dict : dict[cython.float, cython.float] = d
     s = 0.0
     for key in typed_dict:
         s += d[key]
@@ -143,7 +143,7 @@ def iter_declared_dict(d):
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode",
 )
-def iter_declared_dict_arg(d : Dict[cython.float, cython.float]):
+def iter_declared_dict_arg(d : dict[cython.float, cython.float]):
     """
     >>> d = {1.1: 2.5, 3.3: 4.5}
     >>> iter_declared_dict_arg(d)
@@ -176,11 +176,11 @@ def test_subscripted_types():
     list object
     set object
     """
-    a1: typing.Dict[cython.int, cython.float] = {}
+    a1: dict[cython.int, cython.float] = {}
     a2: dict[cython.int, cython.float] = {}
-    b1: List[cython.int] = []
+    b1: list[cython.int] = []
     b2: list[cython.int] = []
-    b3: List = []  # doesn't need to be subscripted
+    b3: list = []  # doesn't need to be subscripted
     c: _SET_[object] = set()
 
     print(cython.typeof(a1) + (" object" if not cython.compiled else ""))
@@ -191,8 +191,8 @@ def test_subscripted_types():
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
 # because tuple is specifically special cased to go to ctuple where possible
-def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython.int, ...],
-               c: Tuple[cython.int, object]  # cannot be a ctuple
+def test_tuple(a: tuple[cython.int, cython.float], b: tuple[cython.int, ...],
+               c: tuple[cython.int, object]  # cannot be a ctuple
                ):
     """
     >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
@@ -206,9 +206,9 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     tuple object
     tuple object
     """
-    x: typing.Tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
-    y: Tuple[cython.int, ...] = (1,2.)
-    plain_tuple: Tuple = ()
+    x: tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
+    y: tuple[cython.int, ...] = (1,2.)
+    plain_tuple: tuple = ()
     z = a[0]  # should infer to C int
     p = x[1]  # should infer to Python float -> C double
 
@@ -288,7 +288,7 @@ def test_use_typing_attributes_as_non_annotations():
     print(y1, str(y2) in allowed_optional_frozenset_strings  or  str(y2))
     print(z1, str(z2) in allowed_optional_dict_strings  or  str(z2))
 
-def test_optional_ctuple(x: typing.Optional[tuple[float]]):
+def test_optional_ctuple(x: tuple[float] | None):
     """
     Should not be a C-tuple (because these can't be optional)
     >>> test_optional_ctuple((1.0,))
@@ -306,7 +306,7 @@ except ImportError:
     # available to use it in annotations, so don't fail if it's not there
     pass
 
-def list_float_to_numpy(z: List[float]) -> List[npt.NDArray[np.float64]]:
+def list_float_to_numpy(z: list[float]) -> list[npt.NDArray[np.float64]]:
     # since we're not actually requiring numpy, don't make the return type match
     assert cython.typeof(z) == 'list'
     return [z[0]]

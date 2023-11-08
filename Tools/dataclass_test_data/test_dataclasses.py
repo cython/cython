@@ -662,7 +662,7 @@ class TestCase(unittest.TestCase):
         # For the known types, don't allow mutable default values.
         for typ, empty, non_empty in [(list, [], [1]),
                                       (dict, {}, {0:1}),
-                                      (set, set(), set([1])),
+                                      (set, set(), {1}),
                                       ]:
             with self.subTest(typ=typ):
                 # Can't use a zero-length value.

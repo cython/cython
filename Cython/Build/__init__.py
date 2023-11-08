@@ -11,4 +11,4 @@ def __getattr__(name):
         # Lazy import, fails if distutils is not available (in Python 3.12+).
         from .Distutils import build_ext
         return build_ext
-    raise AttributeError("module '%s' has no attribute '%s'" % (__name__, name))
+    raise AttributeError("module '{}' has no attribute '{}'".format(__name__, name))

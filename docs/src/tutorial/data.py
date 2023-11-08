@@ -13,7 +13,7 @@ C libraries.
       'surname': 'Behnel',
       'address': '',
       'country': 'Germany',
-      'email_address': 'stefan\_ml@behnel.de',
+      'email_address': r'stefan\_ml@behnel.de',
       'institution': ''},
      {'first_names': 'Robert W.',
       'surname': 'Bradshaw',

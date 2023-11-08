@@ -4,7 +4,7 @@
 
 my_property = property
 
-class Prop(object):
+class Prop:
     """
     >>> p = Prop()
     >>> p.prop
@@ -38,7 +38,7 @@ class Prop(object):
 
     @prop.setter
     def prop(self, value):
-        print("SETTING '%s' (previously: '%s')" % (value, self._value))
+        print("SETTING '{}' (previously: '{}')".format(value, self._value))
         self._value = value
 
     @prop.deleter

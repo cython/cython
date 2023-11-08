@@ -2,7 +2,7 @@
 # tag: class, scope, del
 # ticket: t684
 
-class DelInClass(object):
+class DelInClass:
     """
     >>> DelInClass.y
     5

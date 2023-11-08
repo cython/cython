@@ -119,7 +119,7 @@ class Cdef:
     def fused_classmethod(cls, x: IntOrFloat):
         return (cls.__name__, type(x).__name__)
 
-class Regular(object):
+class Regular:
     __doc__ = """
     >>> c = Regular()
 

@@ -40,8 +40,7 @@ def simple_seq(seq):
     >>> list(x)
     ['a', 'b', 'c']
     """
-    for i in seq:
-        yield i
+    yield from seq
 
 def simple_send():
     """
@@ -77,8 +76,7 @@ def with_outer(*args):
     [1, 2, 3]
     """
     def generator():
-        for i in args:
-            yield i
+        yield from args
     return generator
 
 
@@ -218,15 +216,14 @@ def test_swap_assignment():
     yield (x,y)
 
 
-class Foo(object):
+class Foo:
     """
     >>> obj = Foo()
     >>> list(obj.simple(1, 2, 3))
     [1, 2, 3]
     """
     def simple(self, *args):
-        for i in args:
-            yield i
+        yield from args
 
 def test_nested(a, b, c):
     """
@@ -261,8 +258,7 @@ def test_decorated(*args):
     >>> test_decorated(1, 2, 3)
     [1, 2, 3]
     """
-    for i in args:
-        yield i
+    yield from args
 
 def test_return(a):
     """

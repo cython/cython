@@ -29,7 +29,7 @@ def getg():
     return g
 
 
-class Test(object):
+class Test:
     """
     >>> global_in_class
     9

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import os
 import sys
 import errno
@@ -10,7 +8,8 @@ try:
 except ImportError:
     have_lxml = False
     try:
-        from xml.etree import cElementTree as etree
+
+        from xml.etree import ElementTree as etree
     except ImportError:
         try:
             from xml.etree import ElementTree as etree
@@ -35,7 +34,7 @@ def is_valid_tag(name):
     return True
 
 
-class CythonDebugWriter(object):
+class CythonDebugWriter:
     """
     Class to output debugging information for cygdb
 

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Visitor import CythonTransform
 from .ModuleNode import ModuleNode
 from .Errors import CompileError
@@ -32,7 +30,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
     def __call__(self, node):
         assert isinstance(node, ModuleNode)
         self.max_ndim = 0
-        result = super(IntroduceBufferAuxiliaryVars, self).__call__(node)
+        result = super().__call__(node)
         if self.buffers_exists:
             use_bufstruct_declare_code(node.scope)
 
@@ -90,7 +88,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
             auxvars = ((PyrexTypes.c_pyx_buffer_nd_type, Naming.pybuffernd_prefix),
                        (PyrexTypes.c_pyx_buffer_type, Naming.pybufferstruct_prefix))
-            pybuffernd, rcbuffer = [decvar(type, prefix) for (type, prefix) in auxvars]
+            pybuffernd, rcbuffer = (decvar(type, prefix) for (type, prefix) in auxvars)
 
             entry.buffer_aux = Symtab.BufferAux(pybuffernd, rcbuffer)
 
@@ -192,7 +190,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 # Code generation
 #
 
-class BufferEntry(object):
+class BufferEntry:
     def __init__(self, entry):
         self.entry = entry
         self.type = entry.type
@@ -258,7 +256,7 @@ class BufferEntry(object):
             funcgen(protocode, defcode, name=funcname, nd=nd)
 
         buf_ptr_type_code = self.buf_ptr_type.empty_declaration_code()
-        ptrcode = "%s(%s, %s, %s)" % (funcname, buf_ptr_type_code, self.buf_ptr,
+        ptrcode = "{}({}, {}, {})".format(funcname, buf_ptr_type_code, self.buf_ptr,
                                       ", ".join(params))
         return ptrcode
 
@@ -314,7 +312,7 @@ def put_init_vars(entry, code):
     # code.put_init_var_to_py_none(entry)
     # init the pybuffernd_struct
     code.putln("%s.data = NULL;" % pybuffernd_struct)
-    code.putln("%s.rcbuffer = &%s;" % (pybuffernd_struct, pybuffer_struct))
+    code.putln("{}.rcbuffer = &{};".format(pybuffernd_struct, pybuffer_struct))
 
 
 def put_acquire_arg_buffer(entry, code, pos):
@@ -380,7 +378,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         code.putln('__Pyx_SafeReleaseBuffer(&%s.rcbuffer->pybuffer);' % pybuffernd_struct)
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-        code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
+        code.putln("{} = {};".format(retcode_cname, getbuffer % rhs_cname))
         code.putln('if (%s) {' % (code.unlikely("%s < 0" % retcode_cname)))
         # If acquisition failed, attempt to reacquire the old buffer
         # before raising the exception. A failure of reacquisition
@@ -451,7 +449,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
                 # not unsigned, deal with negative index
                 code.putln("if (%s < 0) {" % cname)
                 if negative_indices:
-                    code.putln("%s += %s;" % (cname, shape))
+                    code.putln("{} += {};".format(cname, shape))
                     code.putln("if (%s) %s = %d;" % (
                         code.unlikely("%s < 0" % cname),
                         failed_dim_temp, dim))
@@ -464,7 +462,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             else:
                 cast = "(size_t)"
             code.putln("if (%s) %s = %d;" % (
-                code.unlikely("%s >= %s%s" % (cname, cast, shape)),
+                code.unlikely("{} >= {}{}".format(cname, cast, shape)),
                 failed_dim_temp, dim))
 
         if in_nogil_context:
@@ -475,7 +473,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             func = '__Pyx_RaiseBufferIndexError'
 
         code.putln("if (%s) {" % code.unlikely("%s != -1" % failed_dim_temp))
-        code.putln('%s(%s);' % (func, failed_dim_temp))
+        code.putln('{}({});'.format(func, failed_dim_temp))
         code.putln(code.error_goto(pos))
         code.putln('}')
         code.funcstate.release_temp(failed_dim_temp)
@@ -483,7 +481,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
         # Only fix negative indices.
         for signed, cname, shape in zip(index_signeds, index_cnames, entry.get_buf_shapevars()):
             if signed != 0:
-                code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape))
+                code.putln("if ({} < 0) {} += {};".format(cname, cname, shape))
 
     return entry.generate_buffer_lookup_code(code, index_cnames)
 
@@ -499,10 +497,10 @@ def buf_lookup_full_code(proto, defin, name, nd):
     """
     # _i_ndex, _s_tride, sub_o_ffset
     macroargs = ", ".join(["i%d, s%d, o%d" % (i, i, i) for i in range(nd)])
-    proto.putln("#define %s(type, buf, %s) (type)(%s_imp(buf, %s))" % (name, macroargs, name, macroargs))
+    proto.putln("#define {}(type, buf, {}) (type)({}_imp(buf, {}))".format(name, macroargs, name, macroargs))
 
     funcargs = ", ".join(["Py_ssize_t i%d, Py_ssize_t s%d, Py_ssize_t o%d" % (i, i, i) for i in range(nd)])
-    proto.putln("static CYTHON_INLINE void* %s_imp(void* buf, %s);" % (name, funcargs))
+    proto.putln("static CYTHON_INLINE void* {}_imp(void* buf, {});".format(name, funcargs))
     defin.putln(dedent("""
         static CYTHON_INLINE void* %s_imp(void* buf, %s) {
           char* ptr = (char*)buf;
@@ -521,7 +519,7 @@ def buf_lookup_strided_code(proto, defin, name, nd):
     # _i_ndex, _s_tride
     args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
     offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd)])
-    proto.putln("#define %s(type, buf, %s) (type)((char*)buf + %s)" % (name, args, offset))
+    proto.putln("#define {}(type, buf, {}) (type)((char*)buf + {})".format(name, args, offset))
 
 
 def buf_lookup_c_code(proto, defin, name, nd):

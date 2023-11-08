@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import unittest
 
 import Cython.Compiler.PyrexTypes as PT
@@ -71,5 +69,5 @@ class TestTypeIdentifiers(unittest.TestCase):
         escape = getattr(PT, func_name)
         for declaration, expected in test_data:
             escaped_value = escape(declaration)
-            self.assertEqual(escaped_value, expected, "%s('%s') == '%s' != '%s'" % (
+            self.assertEqual(escaped_value, expected, "{}('{}') == '{}' != '{}'".format(
                 func_name, declaration, escaped_value, expected))

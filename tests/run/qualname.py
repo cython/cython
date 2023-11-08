@@ -2,7 +2,6 @@
 # mode: run
 # tag: cyfunction, qualname, pure3.5
 
-from __future__ import print_function
 
 import cython
 
@@ -66,7 +65,7 @@ def test_nested_qualname():
     'XYZ.Inner.inner'
     """
     def outer():
-        class Test(object):
+        class Test:
             print("defining class Test", __qualname__, __module__)
             def test(self):
                 global XYZinner
@@ -80,9 +79,9 @@ def test_nested_qualname():
         return Test
 
     global XYZ
-    class XYZ(object):
+    class XYZ:
         print("defining class XYZ", __qualname__, __module__)
-        class Inner(object):
+        class Inner:
             print("defining class Inner", __qualname__, __module__)
             def inner(self):
                 pass

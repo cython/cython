@@ -2,14 +2,13 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-from __future__ import absolute_import
 
 import os
 
 from .. import Utils
 
 
-class ShouldBeFromDirective(object):
+class ShouldBeFromDirective:
 
     known_directives = []
 
@@ -29,7 +28,7 @@ class ShouldBeFromDirective(object):
         raise RuntimeError(repr(self))
 
     def __repr__(self):
-        return "Illegal access of '%s' from Options module rather than directive '%s'" % (
+        return "Illegal access of '{}' from Options module rather than directive '{}'".format(
             self.options_name, self.directive_name)
 
 
@@ -159,7 +158,7 @@ def get_directive_defaults():
         if not isinstance(value, ShouldBeFromDirective):
             if old_option.disallow:
                 raise RuntimeError(
-                    "Option '%s' must be set from directive '%s'" % (
+                    "Option '{}' must be set from directive '{}'".format(
                     old_option.option_name, old_option.directive_name))
             else:
                 # Warn?
@@ -271,7 +270,7 @@ extra_warnings = {
 def one_of(*args):
     def validate(name, value):
         if value not in args:
-            raise ValueError("%s directive must be one of %s, got '%s'" % (
+            raise ValueError("{} directive must be one of {}, got '{}'".format(
                 name, args, value))
         else:
             return value
@@ -469,13 +468,13 @@ def parse_directive_value(name, value, relaxed_bool=False):
                 return True
             elif value in ("false", "no"):
                 return False
-        raise ValueError("%s directive must be set to True or False, got '%s'" % (
+        raise ValueError("{} directive must be set to True or False, got '{}'".format(
             name, orig_value))
     elif type is int:
         try:
             return int(value)
         except ValueError:
-            raise ValueError("%s directive must be set to an integer, got '%s'" % (
+            raise ValueError("{} directive must be set to an integer, got '{}'".format(
                 name, orig_value))
     elif type is str:
         return str(value)
@@ -524,7 +523,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
             continue
         if '=' not in item:
             raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = [s.strip() for s in item.strip().split('=', 1)]
+        name, value = (s.strip() for s in item.strip().split('=', 1))
         if name not in _directive_defaults:
             found = False
             if name.endswith('.all'):
@@ -612,7 +611,7 @@ def parse_compile_time_env(s, current_settings=None):
             continue
         if '=' not in item:
             raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = [s.strip() for s in item.split('=', 1)]
+        name, value = (s.strip() for s in item.split('=', 1))
         result[name] = parse_variable_value(value)
     return result
 
@@ -621,7 +620,7 @@ def parse_compile_time_env(s, current_settings=None):
 # CompilationOptions are constructed from user input and are the `option`
 #  object passed throughout the compilation pipeline.
 
-class CompilationOptions(object):
+class CompilationOptions:
     r"""
     See default_options at the end of this module for a list of all possible
     options and CmdLine.usage and CmdLine.parse_command_line() for their
@@ -644,7 +643,7 @@ class CompilationOptions(object):
         # ignore valid options that are not in the defaults
         unknown_options.difference_update(['include_path'])
         if unknown_options:
-            message = "got unknown compilation option%s, please remove: %s" % (
+            message = "got unknown compilation option{}, please remove: {}".format(
                 's' if len(unknown_options) > 1 else '',
                 ', '.join(unknown_options))
             raise ValueError(message)
@@ -654,7 +653,7 @@ class CompilationOptions(object):
         # check for invalid directives
         unknown_directives = set(directives) - set(directive_defaults)
         if unknown_directives:
-            message = "got unknown compiler directive%s: %s" % (
+            message = "got unknown compiler directive{}: {}".format(
                 's' if len(unknown_directives) > 1 else '',
                 ', '.join(unknown_directives))
             raise ValueError(message)

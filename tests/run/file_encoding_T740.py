@@ -1,4 +1,3 @@
-# encoding: koi8-r
 # mode: run
 # ticket: t740
 """

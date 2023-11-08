@@ -1,4 +1,3 @@
-
 def stupid_lower_case(char* s):
     cdef Py_ssize_t size, i
 

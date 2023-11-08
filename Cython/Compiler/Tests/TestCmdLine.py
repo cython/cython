@@ -5,7 +5,7 @@ from unittest import TestCase
 try:
     from unittest.mock import patch, Mock
 except ImportError:  # Py2
-    from mock import patch, Mock
+    from unittest.mock import patch, Mock
 try:
     from StringIO import StringIO
 except ImportError:

@@ -14,7 +14,7 @@ def print_call_chain(*args):
         if s:
             c = getattr(s, "__class__", None)
             if c:
-                name = "%s.%s" % (c.__name__, name)
-        print("Called from: %s %s" % (name, f.f_lineno))
+                name = "{}.{}".format(c.__name__, name)
+        print("Called from: {} {}".format(name, f.f_lineno))
         f = f.f_back
     print("-" * 70)

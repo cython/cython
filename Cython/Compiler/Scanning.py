@@ -3,7 +3,6 @@
 #   Cython Scanner
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
@@ -55,7 +54,7 @@ pyx_reserved_words = py_reserved_words + [
 
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer=None):
         self.entries = {}
@@ -126,7 +125,7 @@ def initial_compile_time_env():
 
 #------------------------------------------------------------------
 
-class SourceDescriptor(object):
+class SourceDescriptor:
     """
     A SourceDescriptor should be considered immutable.
     """
@@ -450,9 +449,9 @@ class PyrexScanner(Scanner):
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
-                if systring == u'print' and print_function in self.context.future_directives:
+                if systring == 'print' and print_function in self.context.future_directives:
                     self.keywords.pop('print', None)
-                elif systring == u'exec' and self.context.language_level >= 3:
+                elif systring == 'exec' and self.context.language_level >= 3:
                     self.keywords.pop('exec', None)
                 else:
                     sy = self.keywords[systring]  # intern
@@ -466,7 +465,7 @@ class PyrexScanner(Scanner):
             if not self.systring or self.sy == self.systring:
                 t = self.sy
             else:
-                t = "%s %s" % (self.sy, self.systring)
+                t = "{} {}".format(self.sy, self.systring)
             print("--- %3d %2d %s" % (line, col, t))
 
     def peek(self):
@@ -520,7 +519,7 @@ class PyrexScanner(Scanner):
                 found = self.systring
             else:
                 found = self.sy
-            self.error("Expected '%s', found '%s'" % (what, found))
+            self.error("Expected '{}', found '{}'".format(what, found))
 
     def expect_indent(self):
         self.expect('INDENT', "Expected an increase in indentation level")

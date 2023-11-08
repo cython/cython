@@ -24,7 +24,7 @@ from Cython.Tempita.compat3 import basestring_
 __all__ = ['looper']
 
 
-class looper(object):
+class looper:
     """
     Helper for looping (particularly in templates)
 
@@ -42,11 +42,11 @@ class looper(object):
         return looper_iter(self.seq)
 
     def __repr__(self):
-        return '<%s for %r>' % (
+        return '<{} for {!r}>'.format(
             self.__class__.__name__, self.seq)
 
 
-class looper_iter(object):
+class looper_iter:
 
     def __init__(self, seq):
         self.seq = list(seq)
@@ -66,14 +66,14 @@ class looper_iter(object):
         next = __next__
 
 
-class loop_pos(object):
+class loop_pos:
 
     def __init__(self, seq, pos):
         self.seq = seq
         self.pos = pos
 
     def __repr__(self):
-        return '<loop pos=%r at %r>' % (
+        return '<loop pos={!r} at {!r}>'.format(
             self.seq[self.pos], self.pos)
 
     def index(self):
