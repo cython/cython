@@ -2586,7 +2586,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = f"struct {ext_type.objstruct_cname}"
         classname = scope.class_name.as_c_string_literal()
         code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
-        code.putln(f"\"{self.full_module_name}.{classname.replace('\"', '')}\",")
+        code.putln('"{}.{}",'.format(self.full_module_name, classname.replace('"', '')))
         code.putln(f"sizeof({objstruct}),")
         code.putln("0,")
         code.putln(f"{TypeSlots.get_slot_by_name('tp_flags', scope.directives).slot_code(scope)},")
