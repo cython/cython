@@ -312,7 +312,7 @@ def put_init_vars(entry, code):
     # code.put_init_var_to_py_none(entry)
     # init the pybuffernd_struct
     code.putln("%s.data = NULL;" % pybuffernd_struct)
-    code.putln("{}.rcbuffer = &{};".format(pybuffernd_struct, pybuffer_struct))
+    code.putln(f"{pybuffernd_struct}.rcbuffer = &{pybuffer_struct};")
 
 
 def put_acquire_arg_buffer(entry, code, pos):
@@ -378,7 +378,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         code.putln('__Pyx_SafeReleaseBuffer(&%s.rcbuffer->pybuffer);' % pybuffernd_struct)
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-        code.putln("{} = {};".format(retcode_cname, getbuffer % rhs_cname))
+        code.putln(f"{retcode_cname} = {getbuffer % rhs_cname};")
         code.putln('if (%s) {' % (code.unlikely("%s < 0" % retcode_cname)))
         # If acquisition failed, attempt to reacquire the old buffer
         # before raising the exception. A failure of reacquisition
@@ -449,7 +449,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
                 # not unsigned, deal with negative index
                 code.putln("if (%s < 0) {" % cname)
                 if negative_indices:
-                    code.putln("{} += {};".format(cname, shape))
+                    code.putln(f"{cname} += {shape};")
                     code.putln("if (%s) %s = %d;" % (
                         code.unlikely("%s < 0" % cname),
                         failed_dim_temp, dim))
@@ -462,7 +462,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             else:
                 cast = "(size_t)"
             code.putln("if (%s) %s = %d;" % (
-                code.unlikely("{} >= {}{}".format(cname, cast, shape)),
+                code.unlikely(f"{cname} >= {cast}{shape}"),
                 failed_dim_temp, dim))
 
         if in_nogil_context:
@@ -473,7 +473,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             func = '__Pyx_RaiseBufferIndexError'
 
         code.putln("if (%s) {" % code.unlikely("%s != -1" % failed_dim_temp))
-        code.putln('{}({});'.format(func, failed_dim_temp))
+        code.putln(f'{func}({failed_dim_temp});')
         code.putln(code.error_goto(pos))
         code.putln('}')
         code.funcstate.release_temp(failed_dim_temp)
@@ -481,7 +481,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
         # Only fix negative indices.
         for signed, cname, shape in zip(index_signeds, index_cnames, entry.get_buf_shapevars()):
             if signed != 0:
-                code.putln("if ({} < 0) {} += {};".format(cname, cname, shape))
+                code.putln(f"if ({cname} < 0) {cname} += {shape};")
 
     return entry.generate_buffer_lookup_code(code, index_cnames)
 
@@ -497,10 +497,10 @@ def buf_lookup_full_code(proto, defin, name, nd):
     """
     # _i_ndex, _s_tride, sub_o_ffset
     macroargs = ", ".join(["i%d, s%d, o%d" % (i, i, i) for i in range(nd)])
-    proto.putln("#define {}(type, buf, {}) (type)({}_imp(buf, {}))".format(name, macroargs, name, macroargs))
+    proto.putln(f"#define {name}(type, buf, {macroargs}) (type)({name}_imp(buf, {macroargs}))")
 
     funcargs = ", ".join(["Py_ssize_t i%d, Py_ssize_t s%d, Py_ssize_t o%d" % (i, i, i) for i in range(nd)])
-    proto.putln("static CYTHON_INLINE void* {}_imp(void* buf, {});".format(name, funcargs))
+    proto.putln(f"static CYTHON_INLINE void* {name}_imp(void* buf, {funcargs});")
     defin.putln(dedent("""
         static CYTHON_INLINE void* %s_imp(void* buf, %s) {
           char* ptr = (char*)buf;
@@ -519,7 +519,7 @@ def buf_lookup_strided_code(proto, defin, name, nd):
     # _i_ndex, _s_tride
     args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
     offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd)])
-    proto.putln("#define {}(type, buf, {}) (type)((char*)buf + {})".format(name, args, offset))
+    proto.putln(f"#define {name}(type, buf, {args}) (type)((char*)buf + {offset})")
 
 
 def buf_lookup_c_code(proto, defin, name, nd):

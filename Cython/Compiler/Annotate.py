@@ -156,7 +156,7 @@ class AnnotationCCodeWriter(CCodeWriter):
                         more_info=coverage_info)
         ]
         if c_file:
-            outlist.append('<p>Raw output: <a href="{}">{}</a></p>\n'.format(c_file, c_file))
+            outlist.append(f'<p>Raw output: <a href="{c_file}">{c_file}</a></p>\n')
         return outlist
 
     def _save_annotation_footer(self):
@@ -299,7 +299,7 @@ class AnnotationCCodeWriter(CCodeWriter):
                               title=AnnotationCCodeWriter.COMPLETE_CODE_TITLE,
                            ))
             complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), "c/cpp")
-            outlist.append("<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
+            outlist.append(f"<pre class='cython code'>{complete_code_as_html}</pre>")
             outlist.append("</div></p>")
 
         return outlist
@@ -334,7 +334,7 @@ class AnnotationItem:
         self.size = size
 
     def start(self):
-        return "<span class='cython tag {}' title='{}'>{}".format(self.style, self.text, self.tag)
+        return f"<span class='cython tag {self.style}' title='{self.text}'>{self.tag}"
 
     def end(self):
         return self.size, "</span>"

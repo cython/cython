@@ -341,11 +341,11 @@ class CythonBase:
                     func_address = str(func_address)
                 func_address = int(func_address.split()[0], 0)
 
-        a = ', '.join('{}={}'.format(name, val) for name, val in func_args)
+        a = ', '.join(f'{name}={val}' for name, val in func_args)
         sys.stdout.write('#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a))
 
         if source_desc.filename is not None:
-            sys.stdout.write(' at {}:{}'.format(source_desc.filename, lineno))
+            sys.stdout.write(f' at {source_desc.filename}:{lineno}')
 
         sys.stdout.write('\n')
 
@@ -389,10 +389,10 @@ class CythonBase:
         if libpython.pretty_printer_lookup(value):
             typename = ''
         else:
-            typename = '({}) '.format(value.type)
+            typename = f'({value.type}) '
 
         if max_name_length is None:
-            print('{}{} = {}{}'.format(prefix, name, typename, value))
+            print(f'{prefix}{name} = {typename}{value}')
         else:
             print('%s%-*s = %s%s' % (prefix, max_name_length, name, typename, value))
 
@@ -691,7 +691,7 @@ class CyImport(CythonCommand):
             try:
                 f = open(arg)
             except OSError as e:
-                raise gdb.GdbError('Unable to open file {!r}: {}'.format(args, e.args[1]))
+                raise gdb.GdbError(f'Unable to open file {args!r}: {e.args[1]}')
 
             t = etree.parse(f)
 
@@ -776,7 +776,7 @@ class CyBreak(CythonCommand):
 
         if (cython_module.filename, lineno) in cython_module.lineno_cy2c:
             c_lineno = cython_module.lineno_cy2c[cython_module.filename, lineno]
-            breakpoint = '{}:{}'.format(cython_module.c_filename, c_lineno)
+            breakpoint = f'{cython_module.c_filename}:{c_lineno}'
             gdb.execute('break ' + breakpoint)
         else:
             raise gdb.GdbError("Not a valid line number. "
@@ -1034,7 +1034,7 @@ class CySelect(CythonCommand):
         try:
             stackno = int(stackno)
         except ValueError:
-            raise gdb.GdbError("Not a valid number: {!r}".format(stackno))
+            raise gdb.GdbError(f"Not a valid number: {stackno!r}")
 
         frame = gdb.selected_frame()
         while frame.newer():
@@ -1114,7 +1114,7 @@ class CyPrint(CythonCommand):
 
         if name in global_python_dict:
             value = global_python_dict[name].get_truncated_repr(libpython.MAX_OUTPUT_LEN)
-            print('{} = {}'.format(name, value))
+            print(f'{name} = {value}')
             #This also would work, but because the output of cy exec is not captured in gdb.execute, TestPrint would fail
             #self.cy.exec_.invoke("print('"+name+"','=', type(" + name + "), "+name+", flush=True )", from_tty)
         elif name in module_globals:
@@ -1348,7 +1348,7 @@ class CySet(CythonCommand):
 
         varname, expr = name_and_expr
         cname = self.cy.cy_cname.invoke(varname.strip())
-        gdb.execute("set {} = {}".format(cname, expr))
+        gdb.execute(f"set {cname} = {expr}")
 
 
 # Functions
@@ -1377,7 +1377,7 @@ class CyCName(gdb.Function, CythonBase):
             elif cyname in cython_function.module.globals:
                 cname = cython_function.module.globals[cyname].cname
             else:
-                qname = '{}.{}'.format(cython_function.module.name, cyname)
+                qname = f'{cython_function.module.name}.{cyname}'
                 if qname in cython_function.module.functions:
                     cname = cython_function.module.functions[qname].cname
 

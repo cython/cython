@@ -911,7 +911,7 @@ class GrammarTests(unittest.TestCase):
             "if 1:\n    {} {{1:foo}}",
         ]
         for keyword in keywords:
-            custom_msg = "call to '{}'".format(keyword)
+            custom_msg = f"call to '{keyword}'"
             for case in cases:
                 source = case.format(keyword)
                 with self.subTest(source=source):

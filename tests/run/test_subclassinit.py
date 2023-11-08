@@ -14,7 +14,7 @@ class Test(unittest.TestCase):
     if not hasattr(unittest.TestCase, 'assertRegex'):
         def assertRegex(self, value, regex):
             self.assertTrue(re.search(regex, str(value)),
-                            "'{}' did not match '{}'".format(value, regex))
+                            f"'{value}' did not match '{regex}'")
 
     if not hasattr(unittest.TestCase, 'assertCountEqual'):
         def assertCountEqual(self, first, second):

@@ -83,7 +83,7 @@ def inject_types(source_path, types, type_map=default_type_map, mode='python'):
             if line_no in col_and_types_by_line:
                 col, scope, types = col_and_types_by_line[line_no]
                 if types:
-                    types = ', '.join("{}='{}'".format(name, type_map.get(type_name, type_name))
+                    types = ', '.join(f"{name}='{type_map.get(type_name, type_name)}'"
                                     for name, type_name in types)
                     if scope is None:
                         type_decl = '{indent}cython.declare({types})\n'

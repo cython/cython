@@ -413,7 +413,7 @@ class bunch(dict):
     def __repr__(self):
         return '<{} {}>'.format(
             self.__class__.__name__,
-            ' '.join(['{}={!r}'.format(k, v) for k, v in sorted(self.items())]))
+            ' '.join([f'{k}={v!r}' for k, v in sorted(self.items())]))
 
 
 class TemplateDef:
@@ -500,7 +500,7 @@ class TemplateObject:
         self.get = TemplateObjectGetter(self)
 
     def __repr__(self):
-        return '<{} {}>'.format(self.__class__.__name__, self.__name)
+        return f'<{self.__class__.__name__} {self.__name}>'
 
 
 class TemplateObjectGetter:
@@ -512,7 +512,7 @@ class TemplateObjectGetter:
         return getattr(self.__template_obj, attr, Empty)
 
     def __repr__(self):
-        return '<{} around {!r}>'.format(self.__class__.__name__, self.__template_obj)
+        return f'<{self.__class__.__name__} around {self.__template_obj!r}>'
 
 
 class _Empty:
@@ -824,7 +824,7 @@ def parse_one_cond(tokens, name, context):
     elif first == 'else':
         part = ('else', pos, None, content)
     else:
-        assert 0, "Unexpected token {!r} at {}".format(first, pos)
+        assert 0, f"Unexpected token {first!r} at {pos}"
     while 1:
         if not tokens:
             raise TemplateError(

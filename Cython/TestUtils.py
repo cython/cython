@@ -31,7 +31,7 @@ class NodeTypeWriter(TreeVisitor):
                 name = tip[1]
 
         self.result.append("  " * self._indents +
-                           "{}: {}".format(name, node.__class__.__name__))
+                           f"{name}: {node.__class__.__name__}")
         self._indents += 1
         self.visitchildren(node)
         self._indents -= 1

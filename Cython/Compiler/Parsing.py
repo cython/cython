@@ -189,7 +189,7 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
     elif s.sy in COMMON_BINOP_MISTAKES and COMMON_BINOP_MISTAKES[s.sy] == op:
         # Only report this for the current operator since we pass through here twice for 'and' and 'or'.
         warning(s.position(),
-                "Found the C operator '{}', did you mean the Python operator '{}'?".format(s.sy, op),
+                f"Found the C operator '{s.sy}', did you mean the Python operator '{op}'?",
                 level=1)
     return n1
 
@@ -3890,7 +3890,7 @@ def p_compiler_directive_comments(s):
                     result[name] += new_directives[name]
                     new_directives[name] = result[name]
                 elif new_directives[name] == result[name]:
-                    warning(pos, "Duplicate directive found: {}".format(name))
+                    warning(pos, f"Duplicate directive found: {name}")
                 else:
                     s.error("Conflicting settings found for top-level directive {}: {!r} and {!r}".format(
                         name, result[name], new_directives[name]), pos=pos)
@@ -4046,7 +4046,7 @@ def print_parse_tree(f, node, level, key = None):
             f.write("%s: " % key)
         t = type(node)
         if t is tuple:
-            f.write("({} @ {}\n".format(node[0], node[1]))
+            f.write(f"({node[0]} @ {node[1]}\n")
             for i in range(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s)\n" % ind)
@@ -4056,7 +4056,7 @@ def print_parse_tree(f, node, level, key = None):
                 tag = node.tag
             except AttributeError:
                 tag = node.__class__.__name__
-            f.write("{} @ {}\n".format(tag, node.pos))
+            f.write(f"{tag} @ {node.pos}\n")
             for name, value in node.__dict__.items():
                 if name != 'tag' and name != 'pos':
                     print_parse_tree(f, value, level+1, name)
@@ -4067,7 +4067,7 @@ def print_parse_tree(f, node, level, key = None):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s]\n" % ind)
             return
-    f.write("{}{}\n".format(ind, node))
+    f.write(f"{ind}{node}\n")
 
 def p_annotation(s):
     """An annotation just has the "test" syntax, but also stores the string it came from

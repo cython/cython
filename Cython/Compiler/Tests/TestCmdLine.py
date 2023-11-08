@@ -542,7 +542,7 @@ class CmdLineParserTest(TestCase):
             finally:
                 sys.stderr = old_stderr
             msg = stderr.getvalue()
-            err_msg = 'Message "{}"'.format(msg.strip())
+            err_msg = f'Message "{msg.strip()}"'
             self.assertTrue(msg.startswith('usage: '),
                             '%s does not start with "usage :"' % err_msg)
             self.assertTrue(': error: ' in msg,

@@ -221,7 +221,7 @@ def _legacy_strtobool(val):
     elif val in ('n', 'no', 'f', 'false', 'off', '0'):
         return False
     else:
-        raise ValueError("invalid truth value {!r}".format(val))
+        raise ValueError(f"invalid truth value {val!r}")
 
 
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
@@ -371,7 +371,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
             if code[q] == quote_type and (
                     quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
                 counter += 1
-                label = "{}{}_".format(prefix, counter)
+                label = f"{prefix}{counter}_"
                 literals[label] = code[start+quote_len:q]
                 full_quote = code[q:q+quote_len]
                 new_code.append(full_quote)
@@ -388,7 +388,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
             new_code.append(code[start:hash_mark+1])
             end = code.find('\n', hash_mark)
             counter += 1
-            label = "{}{}_".format(prefix, counter)
+            label = f"{prefix}{counter}_"
             if end == -1:
                 end_or_none = None
             else:
@@ -518,7 +518,7 @@ def parse_dependencies(source_filename):
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
-                cimports.extend("{}.{}".format(cimport_from, s.strip())
+                cimports.extend(f"{cimport_from}.{s.strip()}"
                                 for s in subimports.split(','))
 
         elif cimport_list:
@@ -557,7 +557,7 @@ class DependencyTree:
                 all.add(include_path)
                 all.update(self.included_files(include_path))
             elif not self.quiet:
-                print("Unable to locate '{}' referenced from '{}'".format(filename, include))
+                print(f"Unable to locate '{filename}' referenced from '{include}'")
         return all
 
     @cached_method
@@ -1263,12 +1263,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file_base = join_path(
-            options.cache, "{}-{}".format(os.path.basename(c_file), fingerprint))
+            options.cache, f"{os.path.basename(c_file)}-{fingerprint}")
         gz_fingerprint_file = fingerprint_file_base + gzip_ext
         zip_fingerprint_file = fingerprint_file_base + '.zip'
         if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
             if not quiet:
-                print("{}Found compiled {} in cache".format(progress, pyx_file))
+                print(f"{progress}Found compiled {pyx_file} in cache")
             if os.path.exists(gz_fingerprint_file):
                 os.utime(gz_fingerprint_file, None)
                 with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
@@ -1282,7 +1282,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
                         z.extract(artifact, os.path.join(dirname, artifact))
             return
     if not quiet:
-        print("{}Cythonizing {}".format(progress, Utils.decode_filename(pyx_file)))
+        print(f"{progress}Cythonizing {Utils.decode_filename(pyx_file)}")
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file

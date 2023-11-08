@@ -321,7 +321,7 @@ class PyObjectPtr:
                 # http://bugs.python.org/issue8032#msg100882
                 if self.address == 0:
                     return '0x0'
-                return '<{} at remote 0x{:x}>'.format(self.tp_name, self.address)
+                return f'<{self.tp_name} at remote 0x{self.address:x}>'
 
         return FakeRepr(self.safe_tp_name(),
                         long(self._gdbval))
@@ -473,7 +473,7 @@ class InstanceProxy:
 
     def __repr__(self):
         if isinstance(self.attrdict, dict):
-            kwargs = ', '.join(["{}={!r}".format(arg, val)
+            kwargs = ', '.join([f"{arg}={val!r}"
                                 for arg, val in self.attrdict.iteritems()])
             return '<{}({}) at remote 0x{:x}>'.format(self.cl_name,
                                                 kwargs, self.address)
@@ -564,7 +564,7 @@ class ProxyException(Exception):
         self.args = args
 
     def __repr__(self):
-        return '{}{!r}'.format(self.tp_name, self.args)
+        return f'{self.tp_name}{self.args!r}'
 
 class PyBaseExceptionObjectPtr(PyObjectPtr):
     """
@@ -2510,7 +2510,7 @@ class PythonInfo(LanguageInfo):
                     inf_value = tstate['curexc_value']
 
                 if inf_type:
-                    return 'An exception was raised: {}'.format(inf_value)
+                    return f'An exception was raised: {inf_value}'
         except (ValueError, RuntimeError):
             # Could not read the variable tstate or it's memory, it's ok
             pass
@@ -2782,7 +2782,7 @@ class FixGdbCommand(gdb.Command):
     def invoke(self, args, from_tty):
         self.fix_gdb()
         try:
-            gdb.execute('{} {}'.format(self.actual_command, args))
+            gdb.execute(f'{self.actual_command} {args}')
         except RuntimeError as e:
             raise gdb.GdbError(str(e))
         self.fix_gdb()

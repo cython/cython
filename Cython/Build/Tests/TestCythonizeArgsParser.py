@@ -104,7 +104,7 @@ class TestCythonizeArgsParser(TestCase):
                 'set_initial_path' : 'my_initial_path',
         }
         for key, value in directives.items():
-            cmd = '{key}={value}'.format(key=key, value=str(value))
+            cmd = f'{key}={str(value)}'
             options, args =  self.parse_args(['-X', cmd])
             self.assertFalse(args)
             self.assertTrue(self.are_default(options, ['directives']), msg = "Error for option: "+cmd)
@@ -119,7 +119,7 @@ class TestCythonizeArgsParser(TestCase):
                 #'language_level' : 4,
         }
         for key, value in directives.items():
-            cmd = '{key}={value}'.format(key=key, value=str(value))
+            cmd = f'{key}={str(value)}'
             with self.assertRaises(ValueError, msg = "Error for option: "+cmd) as context:
                 options, args =  self.parse_args(['-X', cmd])
 

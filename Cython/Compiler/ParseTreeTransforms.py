@@ -864,7 +864,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return False
         else:
             if directive not in Options.directive_types:
-                error(pos, "Invalid directive: '{}'.".format(directive))
+                error(pos, f"Invalid directive: '{directive}'.")
             return True
 
     def _check_valid_cython_module(self, pos, module_name):
@@ -1135,7 +1135,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     if kwds is not None and directivetype is not dict:
                         for keyvalue in kwds.key_value_pairs:
                             key, value = keyvalue
-                            sub_optname = "{}.{}".format(optname, key.value)
+                            sub_optname = f"{optname}.{key.value}"
                             if Options.directive_types.get(sub_optname):
                                 directives.append(self.try_to_parse_directive(sub_optname, [value], None, keyvalue.pos))
                             else:
@@ -1707,7 +1707,7 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
             # but use it as a starting point
             name_source = self.tag_count
             self.tag_count += 1
-            name = EncodedString(".{}".format(name_source))
+            name = EncodedString(f".{name_source}")
             def_node = self.gen_node.def_node
             if not def_node.local_scope.lookup_here(name):
                 from . import Symtab
@@ -2248,7 +2248,7 @@ if VALUE is not None:
                     'members': ', '.join(all_members_names),
                     'class_name': node.class_name,
                     'assignments': '; '.join(
-                        '__pyx_result.{} = __pyx_state[{}]'.format(v, ix)
+                        f'__pyx_result.{v} = __pyx_state[{ix}]'
                         for ix, v in enumerate(all_members_names)),
                     'num_members': len(all_members_names),
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})

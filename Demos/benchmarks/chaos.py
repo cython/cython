@@ -58,10 +58,10 @@ class GVector:
         return v
 
     def __str__(self):
-        return "<{:f}, {:f}, {:f}>".format(self.x, self.y, self.z)
+        return f"<{self.x:f}, {self.y:f}, {self.z:f}>"
 
     def __repr__(self):
-        return "GVector({:f}, {:f}, {:f})".format(self.x, self.y, self.z)
+        return f"GVector({self.x:f}, {self.y:f}, {self.z:f})"
 
 
 def GetKnots(points, degree):
@@ -136,7 +136,7 @@ class Spline:
         return len(self.points)
 
     def __repr__(self):
-        return "Spline({!r}, {!r}, {!r})".format(self.points, self.degree, self.knots)
+        return f"Spline({self.points!r}, {self.degree!r}, {self.knots!r})"
 
 
 class Chaosgame:

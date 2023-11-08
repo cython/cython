@@ -130,14 +130,14 @@ builtin_function_table = [
                         ],
                     is_strict_signature = True, nogil=True)),
     ] + list(
-        BuiltinFunction('abs',        None,    None,   "/*abs_{}*/".format(t.specialization_name()),
+        BuiltinFunction('abs',        None,    None,   f"/*abs_{t.specialization_name()}*/",
                     func_type = PyrexTypes.CFuncType(
                         t,
                         [PyrexTypes.CFuncTypeArg("arg", t, None)],
                         is_strict_signature = True, nogil=True))
                             for t in (PyrexTypes.c_uint_type, PyrexTypes.c_ulong_type, PyrexTypes.c_ulonglong_type)
              ) + list(
-        BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{}".format(t.funcsuffix),
+        BuiltinFunction('abs',        None,    None,   f"__Pyx_c_abs{t.funcsuffix}",
                     func_type = PyrexTypes.CFuncType(
                         t.real_type, [
                             PyrexTypes.CFuncTypeArg("arg", t, None)
@@ -571,7 +571,7 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.is_variable = True
             var_entry.scope = mod
             entry.as_variable = var_entry
-            entry.known_standard_library_import = "{}.{}".format(module_name, name)
+            entry.known_standard_library_import = f"{module_name}.{name}"
 
         for name in ['ClassVar', 'Optional']:
             name = EncodedString(name)
@@ -582,7 +582,7 @@ def get_known_standard_library_module_scope(module_name):
             var_entry.is_variable = True
             var_entry.scope = mod
             entry.as_variable = var_entry
-            entry.known_standard_library_import = "{}.{}".format(module_name, name)
+            entry.known_standard_library_import = f"{module_name}.{name}"
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)

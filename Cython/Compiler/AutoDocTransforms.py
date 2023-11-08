@@ -156,9 +156,9 @@ class EmbedSignature(CythonTransform):
             hide_self=hide_self,
         )
         arglist_doc = ', '.join(arglist)
-        func_doc = '{}({})'.format(func_name, arglist_doc)
+        func_doc = f'{func_name}({arglist_doc})'
         if self.is_format_c and cls_name:
-            func_doc = '{}.{}'.format(cls_name, func_doc)
+            func_doc = f'{cls_name}.{func_doc}'
         if not self.is_format_clinic:
             ret_doc = None
             if return_expr:
@@ -166,7 +166,7 @@ class EmbedSignature(CythonTransform):
             elif return_type:
                 ret_doc = self._fmt_type(return_type)
             if ret_doc:
-                func_doc = '{} -> {}'.format(func_doc, ret_doc)
+                func_doc = f'{func_doc} -> {ret_doc}'
         return func_doc
 
     def _embed_signature(self, signature, node_doc):
@@ -304,12 +304,12 @@ class EmbedSignature(CythonTransform):
                 if stat.name != '__get__':
                     continue
                 if self.is_format_c:
-                    prop_name = '{}.{}'.format(self.class_name, prop_name)
+                    prop_name = f'{self.class_name}.{prop_name}'
                 ret_annotation = stat.return_type_annotation
                 if ret_annotation:
                     type_name = self._fmt_annotation(ret_annotation)
         if type_name is not None :
-            signature = '{}: {}'.format(prop_name, type_name)
+            signature = f'{prop_name}: {type_name}'
             new_doc = self._embed_signature(signature, entry.doc)
             if not self.is_format_clinic:
                 entry.doc = EncodedString(new_doc)

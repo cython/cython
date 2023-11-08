@@ -200,7 +200,7 @@ class _XMLTestResult(TextTestResult):
                 err_info = str(test_info)
 
             self.stream.writeln(self.separator1)
-            self.stream.writeln('{} [{:.3f}s]: {}'.format(flavour, t, descr))
+            self.stream.writeln(f'{flavour} [{t:.3f}s]: {descr}')
             self.stream.writeln(self.separator2)
             self.stream.writeln('%s' % err_info)
 
@@ -214,7 +214,7 @@ class _XMLTestResult(TextTestResult):
         for tests in (self.successes, self.failures, self.errors):
             for test_info in tests:
                 if not isinstance(test_info, _TestInfo):
-                    print("Unexpected test result type: {!r}".format(test_info))
+                    print(f"Unexpected test result type: {test_info!r}")
                     continue
                 testcase = type(test_info.test_method)
 

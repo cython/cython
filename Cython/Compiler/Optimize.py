@@ -3715,7 +3715,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         by a direct call to the corresponding C-API function.
         """
         if len(args) not in (2,3,4):
-            self._error_wrong_arg_count('{}.{}'.format(type_name, method_name), node, args, "2-4")
+            self._error_wrong_arg_count(f'{type_name}.{method_name}', node, args, "2-4")
             return node
         self._inject_int_default_argument(
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")

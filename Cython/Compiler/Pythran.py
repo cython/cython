@@ -56,7 +56,7 @@ def pythran_type(Ty, ptype="ndarray"):
     #    return "decltype(pythonic::builtins::None)"
     if Ty.is_numeric:
         return Ty.sign_and_name()
-    raise ValueError("unsupported pythran type {} ({})".format(Ty, type(Ty)))
+    raise ValueError(f"unsupported pythran type {Ty} ({type(Ty)})")
 
 
 @cython.cfunc
@@ -146,11 +146,11 @@ else:
 def pythran_functor(func):
     func = np_func_to_list(func)
     submodules = "::".join(func[:-1] + ["functor"])
-    return "pythonic::numpy::{}::{}".format(submodules, func[-1])
+    return f"pythonic::numpy::{submodules}::{func[-1]}"
 
 def pythran_func_type(func, args):
     args = ",".join("std::declval<%s>()" % pythran_type(a.type) for a in args)
-    return "decltype({}{{}}({}))".format(pythran_functor(func), args)
+    return f"decltype({pythran_functor(func)}{{}}({args}))"
 
 
 @cython.ccall
@@ -167,7 +167,7 @@ def to_pythran(op, ptype=None):
         ptype = pythran_type(op_type)
 
     assert op.type.is_pyobject
-    return "from_python<{}>({})".format(ptype, op.py_result())
+    return f"from_python<{ptype}>({op.py_result()})"
 
 
 @cython.cfunc

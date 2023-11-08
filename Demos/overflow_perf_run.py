@@ -23,10 +23,10 @@ def run_tests(N):
             else:
                 arg = N
             try:
-                print("{}[{}]({})".format(func.__name__, type, N))
+                print(f"{func.__name__}[{type}]({N})")
                 with_overflow = my_timeit(globals()[func.__name__ + "_overflow"][type], arg)
                 no_overflow = my_timeit(func[type], arg)
-                print("\t{:0.04e}\t{:0.04e}\t{:0.04f}".format(no_overflow, with_overflow, with_overflow / no_overflow))
+                print(f"\t{no_overflow:0.04e}\t{with_overflow:0.04e}\t{with_overflow / no_overflow:0.04f}")
                 if func.__name__ + "_overflow_fold" in globals():
                     with_overflow = my_timeit(globals()[func.__name__ + "_overflow_fold"][type], arg)
                     print("\t{:0.04e}\t{:0.04e}\t{:0.04f} (folded)".format(

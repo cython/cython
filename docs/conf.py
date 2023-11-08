@@ -60,7 +60,7 @@ master_doc = 'index'
 # General information about the project.
 project = 'Cython'
 authors = 'Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
-copyright = '{}, {}'.format(YEAR, authors)
+copyright = f'{YEAR}, {authors}'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

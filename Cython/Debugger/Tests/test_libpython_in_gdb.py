@@ -59,7 +59,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
 
     def alloc_unicodestring(self, string, gdbvar=None):
         postfix = libpython.get_inferior_unicode_postfix()
-        funcname = 'PyUnicode{}_DecodeUnicodeEscape'.format(postfix)
+        funcname = f'PyUnicode{postfix}_DecodeUnicodeEscape'
 
         data = string.encode("unicode_escape").decode('iso8859-1')
         return self.pyobject_fromcode(

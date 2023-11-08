@@ -490,7 +490,7 @@ class CythonMagics(Magics):
                 extension.extra_compile_args = extension.extra_compile_args + flags
                 extension.extra_link_args = extension.extra_link_args + flags
         else:
-            print("No PGO {} configuration known for C compiler type '{}'".format(step_name, compiler_type),
+            print(f"No PGO {step_name} configuration known for C compiler type '{compiler_type}'",
                   file=sys.stderr)
         return orig_flags
 

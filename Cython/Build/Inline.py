@@ -35,19 +35,14 @@ else:
     to_unicode = lambda x: x
 
 
-if sys.version_info < (3, 5):
-    import imp
-    def load_dynamic(name, module_path):
-        return imp.load_dynamic(name, module_path)
-else:
-    import importlib.util
-    from importlib.machinery import ExtensionFileLoader
+import importlib.util
+from importlib.machinery import ExtensionFileLoader
 
-    def load_dynamic(name, path):
-        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+def load_dynamic(name, path):
+    spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
@@ -103,7 +98,7 @@ def safe_type(arg, context=None):
     elif py_type is bool:
         return 'bint'
     elif 'numpy' in sys.modules and isinstance(arg, sys.modules['numpy'].ndarray):
-        return 'numpy.ndarray[numpy.{}_t, ndim={}]'.format(arg.dtype.name, arg.ndim)
+        return f'numpy.ndarray[numpy.{arg.dtype.name}_t, ndim={arg.ndim}]'
     else:
         for base_type in py_type.__mro__:
             if base_type.__module__ in ('__builtin__', 'builtins'):
@@ -112,7 +107,7 @@ def safe_type(arg, context=None):
             if module:
                 entry = module.lookup(base_type.__name__)
                 if entry.is_type:
-                    return '{}.{}'.format(base_type.__module__, base_type.__name__)
+                    return f'{base_type.__module__}.{base_type.__name__}'
         return 'object'
 
 

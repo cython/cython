@@ -241,7 +241,7 @@ class LetNodeMixin:
                 self.temp_expression.make_owned_reference(code)
             self.temp = code.funcstate.allocate_temp(
                 self.temp_type, manage_ref=True)
-            code.putln("{} = {};".format(self.temp, self.temp_expression.result()))
+            code.putln(f"{self.temp} = {self.temp_expression.result()};")
             self.temp_expression.generate_disposal_code(code)
             self.temp_expression.free_temps(code)
         self.lazy_temp.result_code = self.temp

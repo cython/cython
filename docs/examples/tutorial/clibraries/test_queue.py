@@ -24,7 +24,7 @@ Q.extend(values)
 
 end_time = time.time() - start_time
 
-print("Adding {} items took {:1.3f} msecs.".format(i, 1000 * end_time))
+print(f"Adding {i} items took {1000 * end_time:1.3f} msecs.")
 
 for i in range(41):
     Q.pop()

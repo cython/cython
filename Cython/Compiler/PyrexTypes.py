@@ -45,7 +45,7 @@ class BaseType:
         raise NotImplementedError("C types that support string formatting must override this method")
 
     def cast_code(self, expr_code):
-        return "(({}){})".format(self.empty_declaration_code(), expr_code)
+        return f"(({self.empty_declaration_code()}){expr_code})"
 
     def empty_declaration_code(self, pyrex=False):
         if pyrex:
@@ -68,7 +68,7 @@ class BaseType:
 
     def base_declaration_code(self, base_code, entity_code):
         if entity_code:
-            return "{} {}".format(base_code, entity_code)
+            return f"{base_code} {entity_code}"
         else:
             return base_code
 
@@ -382,7 +382,7 @@ class PyrexType(BaseType):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
-        code.putln("{} = {}".format(cname, rhs_cname))
+        code.putln(f"{cname} = {rhs_cname}")
 
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
@@ -462,7 +462,7 @@ class CTypedefType(BaseType):
         else:
             base_code = public_decl(self.typedef_cname, dll_linkage)
         if self.typedef_namespace is not None and not pyrex:
-            base_code = "{}::{}".format(self.typedef_namespace.empty_declaration_code(), base_code)
+            base_code = f"{self.typedef_namespace.empty_declaration_code()}::{base_code}"
         return self.base_declaration_code(base_code, entity_code)
 
     def as_argument_type(self):
@@ -603,7 +603,7 @@ class CTypedefType(BaseType):
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "Binop", "Overflow.c",
                 context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
-        return "__Pyx_{}_{}_checking_overflow".format(binop, name)
+        return f"__Pyx_{binop}_{name}_checking_overflow"
 
     def error_condition(self, result_code):
         if self.typedef_is_external:
@@ -958,7 +958,7 @@ class MemoryViewSliceType(PyrexType):
             self.specialization_suffix())
 
     def specialization_suffix(self):
-        return "{}_{}".format(self.axes_to_name(), self.dtype_name)
+        return f"{self.axes_to_name()}_{self.dtype_name}"
 
     def can_coerce_to_pyobject(self, env):
         return True
@@ -1077,13 +1077,13 @@ class MemoryViewSliceType(PyrexType):
         """Return a list of code constants for each axis"""
         from . import MemoryView
         d = MemoryView._spec_to_const
-        return ["({} | {})".format(d[a], d[p]) for a, p in self.axes]
+        return [f"({d[a]} | {d[p]})" for a, p in self.axes]
 
     def axes_to_name(self):
         """Return an abbreviated name for our axes"""
         from . import MemoryView
         d = MemoryView._spec_to_abbrev
-        return "".join(["{}{}".format(d[a], d[p]) for a, p in self.axes])
+        return "".join([f"{d[a]}{d[p]}" for a, p in self.axes])
 
     def error_condition(self, result_code):
         return "!%s.memview" % result_code
@@ -1143,7 +1143,7 @@ class MemoryViewSliceType(PyrexType):
 
     def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
         self.generate_xdecref(code, cname, **kwds)
-        code.putln("{}.memview = NULL; {}.data = NULL;".format(cname, cname))
+        code.putln(f"{cname}.memview = NULL; {cname}.data = NULL;")
 
     def generate_decref_clear(self, code, cname, **kwds):
         # memoryviews don't currently distinguish between xdecref and decref
@@ -1363,11 +1363,11 @@ class PyObjectType(PyrexType):
 
     def generate_decref_set(self, code, cname, rhs_cname):
         code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_DECREF_SET({}, {});".format(cname, rhs_cname))
+        code.putln(f"__Pyx_DECREF_SET({cname}, {rhs_cname});")
 
     def generate_xdecref_set(self, code, cname, rhs_cname):
         code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XDECREF_SET({}, {});".format(cname, rhs_cname))
+        code.putln(f"__Pyx_XDECREF_SET({cname}, {rhs_cname});")
 
     def _generate_decref(self, code, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):
@@ -1381,7 +1381,7 @@ class PyObjectType(PyrexType):
             if clear_before_decref:
                 if not nanny:
                     X = ''  # CPython doesn't have a Py_XCLEAR()
-                code.putln("{}_{}CLEAR({});".format(prefix, X, cname))
+                code.putln(f"{prefix}_{X}CLEAR({cname});")
             else:
                 code.putln("{}_{}DECREF({}); {} = 0;".format(
                     prefix, X, self.as_pyobject(cname), cname))
@@ -1505,18 +1505,18 @@ class BuiltinObjectType(PyObjectType):
         return type_check
 
     def isinstance_code(self, arg):
-        return '{}({})'.format(self.type_check_function(exact=False), arg)
+        return f'{self.type_check_function(exact=False)}({arg})'
 
     def type_test_code(self, arg, notnone=False, exact=True):
         type_check = self.type_check_function(exact=exact)
-        check = 'likely({}({}))'.format(type_check, arg)
+        check = f'likely({type_check}({arg}))'
         if not notnone:
             check += '||((%s) == Py_None)' % arg
         if self.name == 'basestring':
             name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
         else:
             name = '"%s"' % self.name
-        return check + ' || __Pyx_RaiseUnexpectedTypeError({}, {})'.format(name, arg)
+        return check + f' || __Pyx_RaiseUnexpectedTypeError({name}, {arg})'
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1660,7 +1660,7 @@ class PyExtensionType(PyObjectType):
         if notnone:
             return type_check
         else:
-            return "likely({} || {})".format(none_check, type_check)
+            return f"likely({none_check} || {type_check})"
 
     def attributes_known(self):
         return self.scope is not None
@@ -1709,7 +1709,7 @@ class CType(PyrexType):
         if self.is_string or self.is_pyunicode_ptr:
             conds.append("(!%s)" % result_code)
         elif self.exception_value is not None:
-            conds.append("({} == ({}){})".format(result_code, self.sign_and_name(), self.exception_value))
+            conds.append(f"({result_code} == ({self.sign_and_name()}){self.exception_value})")
         if self.exception_check:
             conds.append("PyErr_Occurred()")
         if len(conds) > 0:
@@ -1759,7 +1759,7 @@ class PythranExpr(CType):
 
     def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
         assert not pyrex
-        return "{} {}".format(self.cname, entity_code)
+        return f"{self.cname} {entity_code}"
 
     def attributes_known(self):
         if self.scope is None:
@@ -1814,7 +1814,7 @@ class CConstOrVolatileType(BaseType):
         return cvstring
 
     def __repr__(self):
-        return "<CConstOrVolatileType {}{!r}>".format(self.cv_string(), self.cv_base_type)
+        return f"<CConstOrVolatileType {self.cv_string()}{self.cv_base_type!r}>"
 
     def __str__(self):
         return self.declaration_code("", for_display=1)
@@ -2154,7 +2154,7 @@ class CIntType(CIntLike, CNumericType):
             if self.rank >= list(rank_to_type_name).index('PY_LONG_LONG'):
                 Prefix = "Long"
                 TypeName = "LongLong"
-            return "Py{}_From{}{}".format(Prefix, SignWord, TypeName)
+            return f"Py{Prefix}_From{SignWord}{TypeName}"
 
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
@@ -2189,7 +2189,7 @@ class CIntType(CIntLike, CNumericType):
                     context={'UINT': type, 'NAME': name}))
             elif self.rank <= 1:
                 # sizeof(short) < sizeof(int)
-                return "__Pyx_{}_{}_no_overflow".format(binop, name)
+                return f"__Pyx_{binop}_{name}_no_overflow"
             else:
                 _load_overflow_base(env)
                 env.use_utility_code(TempitaUtilityCode.load_cached(
@@ -2198,7 +2198,7 @@ class CIntType(CIntLike, CNumericType):
                 env.use_utility_code(TempitaUtilityCode.load_cached(
                     "Binop", "Overflow.c",
                     context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
-        return "__Pyx_{}_{}_checking_overflow".format(binop, name)
+        return f"__Pyx_{binop}_{name}_checking_overflow"
 
 
 def _load_overflow_base(env):
@@ -2268,7 +2268,7 @@ class CBIntType(CIntType):
                 "TO_PY_FUNCTION": utility_code_name,
             })
         code.globalstate.use_utility_code(to_pyunicode_utility)
-        return "{}({})".format(utility_code_name, cvalue)
+        return f"{utility_code_name}({cvalue})"
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -2557,7 +2557,7 @@ class CComplexType(CNumericType):
             pass
         try:
             op_name = complex_ops[nargs, op]
-            self.binops[nargs, op] = func_name = "__Pyx_c_{}{}".format(op_name, self.funcsuffix)
+            self.binops[nargs, op] = func_name = f"__Pyx_c_{op_name}{self.funcsuffix}"
             return func_name
         except KeyError:
             return None
@@ -2575,10 +2575,10 @@ class CComplexType(CNumericType):
         return expr_code
 
     def real_code(self, expr_code):
-        return "__Pyx_CREAL{}({})".format(self.implementation_suffix, expr_code)
+        return f"__Pyx_CREAL{self.implementation_suffix}({expr_code})"
 
     def imag_code(self, expr_code):
-        return "__Pyx_CIMAG{}({})".format(self.implementation_suffix, expr_code)
+        return f"__Pyx_CIMAG{self.implementation_suffix}({expr_code})"
 
 complex_ops = {
     (1, '-'): 'neg',
@@ -2626,7 +2626,7 @@ class SoftCComplexType(CComplexType):
     def __repr__(self):
         result = super().__repr__()
         assert result[-1] == ">"
-        return "{} (soft){}".format(result[:-1], result[-1])
+        return f"{result[:-1]} (soft){result[-1]}"
 
 class CPyTSSTType(CType):
     #
@@ -2723,7 +2723,7 @@ class CArrayType(CPointerBaseType):
         return hash(self.base_type) + 28  # arbitrarily chosen offset
 
     def __repr__(self):
-        return "<CArrayType {} {}>".format(self.size, repr(self.base_type))
+        return f"<CArrayType {self.size} {repr(self.base_type)}>"
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_array and
@@ -2750,7 +2750,7 @@ class CArrayType(CPointerBaseType):
         if entity_code.startswith("*"):
             entity_code = "(%s)" % entity_code
         return self.base_type.declaration_code(
-            "{}[{}]".format(entity_code, dimension_code),
+            f"{entity_code}[{dimension_code}]",
             for_display, dll_linkage, pyrex)
 
     def as_argument_type(self):
@@ -2839,8 +2839,8 @@ class CArrayType(CPointerBaseType):
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None,
                           special_none_cvalue=None):
-        assert not error_condition, '{}: {}'.format(error_pos, error_condition)
-        assert not special_none_cvalue, '{}: {}'.format(error_pos, special_none_cvalue)  # not currently supported
+        assert not error_condition, f'{error_pos}: {error_condition}'
+        assert not special_none_cvalue, f'{error_pos}: {special_none_cvalue}'  # not currently supported
         call_code = "{}({}, {}, {})".format(
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)
@@ -2922,7 +2922,7 @@ class CPtrType(CPointerBaseType):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = "Exception values are incompatible."
                 if not self.base_type.exception_check and not self.base_type.exception_value:
-                    msg += " Suggest adding 'noexcept' to type '{}'.".format(src_type)
+                    msg += f" Suggest adding 'noexcept' to type '{src_type}'."
                 return msg
         return super().assignment_failure_extra_info(src_type)
 
@@ -2970,7 +2970,7 @@ class CReferenceBaseType(BaseType):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<{!r} {}>".format(self.__class__.__name__, self.ref_base_type)
+        return f"<{self.__class__.__name__!r} {self.ref_base_type}>"
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)
@@ -3011,7 +3011,7 @@ class CFakeReferenceType(CReferenceType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         #print "CReferenceType.declaration_code: pointer to", self.base_type ###
-        return "__Pyx_FakeReference<{}> {}".format(self.ref_base_type.empty_declaration_code(), entity_code)
+        return f"__Pyx_FakeReference<{self.ref_base_type.empty_declaration_code()}> {entity_code}"
 
 
 class CppRvalueReferenceType(CReferenceBaseType):
@@ -3326,12 +3326,12 @@ class CFuncType(CType):
         else:
             cc = self.calling_convention_prefix()
             if (not entity_code and cc) or entity_code.startswith("*"):
-                entity_code = "({}{})".format(cc, entity_code)
+                entity_code = f"({cc}{entity_code})"
                 cc = ""
         if self.is_const_method:
             trailer += " const"
         return self.return_type.declaration_code(
-            "{}{}({}){}".format(cc, entity_code, arg_decl_code, trailer),
+            f"{cc}{entity_code}({arg_decl_code}){trailer}",
             for_display, dll_linkage, pyrex)
 
     def function_header_code(self, func_name, arg_code):
@@ -3471,11 +3471,11 @@ class CFuncType(CType):
         # between functions with identical types but different argument names
         from .Symtab import punycodify_name
         def arg_name_part(arg):
-            return "{}{}".format(len(arg.name), punycodify_name(arg.name)) if arg.name else "0"
+            return f"{len(arg.name)}{punycodify_name(arg.name)}" if arg.name else "0"
         arg_names = [ arg_name_part(arg) for arg in self.args ]
         arg_names = "_".join(arg_names)
         safe_typename = type_identifier(self, pyrex=True)
-        to_py_function = "__Pyx_CFunc_{}_to_py_{}".format(safe_typename, arg_names)
+        to_py_function = f"__Pyx_CFunc_{safe_typename}_to_py_{arg_names}"
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
@@ -3545,7 +3545,7 @@ def specialize_entry(entry, cname):
         entry.cname = entry.name
         if entry.is_inherited:
             entry.cname = StringEncoding.EncodedString(
-                    "{}.{}".format(Naming.obj_base_cname, entry.cname))
+                    f"{Naming.obj_base_cname}.{entry.cname}")
     else:
         entry.cname = get_fused_cname(cname, entry.cname)
 
@@ -3583,7 +3583,7 @@ def _get_all_specialized_permutations(fused_types, id="", f2s=()):
         f2s.update({ fused_type: specific_type })
 
         if id:
-            cname = '{}_{}'.format(id, newid)
+            cname = f'{id}_{newid}'
         else:
             cname = str(newid)
 
@@ -3670,7 +3670,7 @@ class CFuncTypeArg(BaseType):
         self.needs_type_test = False  # TODO: should these defaults be set in analyse_types()?
 
     def __repr__(self):
-        return "{}:{}".format(self.name, repr(self.type))
+        return f"{self.name}:{repr(self.type)}"
 
     def declaration_code(self, for_display = 0):
         return self.type.declaration_code(self.cname, for_display)
@@ -3868,7 +3868,7 @@ class CStructOrUnionType(CType):
             if self.typedef_flag:
                 base_code = self.cname
             else:
-                base_code = "{} {}".format(self.kind, self.cname)
+                base_code = f"{self.kind} {self.cname}"
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
@@ -4098,7 +4098,7 @@ class CppClassType(CType):
             # classes scope as a concrete name we could use.
             template_values = template_values + [
                 TemplatePlaceholderType(
-                    "{}::{}".format(partial_specialization, param.name), True)
+                    f"{partial_specialization}::{param.name}", True)
                 for param in self.templates[-num_defaults:]]
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
@@ -4195,11 +4195,11 @@ class CppClassType(CType):
         else:
             templates = ""
         if pyrex or for_display:
-            base_code = "{}{}".format(self.name, templates)
+            base_code = f"{self.name}{templates}"
         else:
-            base_code = "{}{}".format(self.cname, templates)
+            base_code = f"{self.cname}{templates}"
             if self.namespace is not None:
-                base_code = "{}::{}".format(self.namespace.empty_declaration_code(), base_code)
+                base_code = f"{self.namespace.empty_declaration_code()}::{base_code}"
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
@@ -4547,8 +4547,8 @@ class CTupleType(CType):
         self.cname = cname
         self.components = components
         self.size = len(components)
-        self.to_py_function = "{}_to_py_{}".format(Naming.convert_func_prefix, self.cname)
-        self.from_py_function = "{}_from_py_{}".format(Naming.convert_func_prefix, self.cname)
+        self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
+        self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
@@ -4562,7 +4562,7 @@ class CTupleType(CType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
-            return "{} {}".format(str(self), entity_code)
+            return f"{str(self)} {entity_code}"
         else:
             return self.base_declaration_code(self.cname, entity_code)
 
@@ -4689,7 +4689,7 @@ class PythonTypeConstructorMixin:
 
     def __repr__(self):
         if self.base_type:
-            return "{}[{!r}]".format(self.name, self.base_type)
+            return f"{self.name}[{self.base_type!r}]"
         else:
             return self.name
 
@@ -5075,7 +5075,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                 else:
                     score[0] += 1
             else:
-                error_mesg = "Invalid conversion from '{}' to '{}'".format(src_type, dst_type)
+                error_mesg = f"Invalid conversion from '{src_type}' to '{dst_type}'"
                 bad_types.append((func, error_mesg))
                 break
         else:
@@ -5434,7 +5434,7 @@ def cap_length(s, max_prefix=63, max_len=1024):
     if len(s) <= max_prefix:
         return s
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
-    return '{}__{}__etc'.format(hash_prefix, s[:max_len-17])
+    return f'{hash_prefix}__{s[:max_len-17]}__etc'
 
 def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False):
     on_what = "on '%s' " % function_name if function_name else ""
@@ -5447,9 +5447,9 @@ def write_noexcept_performance_hint(pos, env, function_name=None, void_return=Fa
         solutions.append(
             "Use an 'int' return type on the function to allow an error code to be returned.")
     if len(solutions) == 1:
-        msg = "{} {}".format(msg, solutions[0])
+        msg = f"{msg} {solutions[0]}"
     else:
-        solutions = ["\t{}. {}".format(i+1, s) for i, s in enumerate(solutions)]
+        solutions = [f"\t{i+1}. {s}" for i, s in enumerate(solutions)]
         msg = "{}\nPossible solutions:\n{}".format(msg, "\n".join(solutions))
     performance_hint(pos, msg, env)
 

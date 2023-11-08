@@ -38,7 +38,7 @@ from .Lexicon import (unicode_start_ch_any, unicode_continuation_ch_any,
 def _make_range_re(chrs):
     out = []
     for i in range(0, len(chrs), 2):
-        out.append("{}-{}".format(chrs[i], chrs[i+1]))
+        out.append(f"{chrs[i]}-{chrs[i+1]}")
     return "".join(out)
 
 # py2 version looked like r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$"
@@ -765,7 +765,7 @@ def main(command_line = 0):
             if errno.ENOENT != e.errno:
                 # Raised IOError is not caused by missing file.
                 raise
-            print("{}: No such file or directory: '{}'".format(sys.argv[0], e.filename), file=sys.stderr)
+            print(f"{sys.argv[0]}: No such file or directory: '{e.filename}'", file=sys.stderr)
             sys.exit(1)
     else:
         options = CompilationOptions(default_options)

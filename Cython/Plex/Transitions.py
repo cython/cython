@@ -220,7 +220,7 @@ class TransitionMap:
             return "chr(%d)" % code
 
     def dump_trans(self, key, set, file):
-        file.write("      {} --> {}\n".format(key, self.dump_set(set)))
+        file.write(f"      {key} --> {self.dump_set(set)}\n")
 
     def dump_set(self, set):
         return state_set_str(set)

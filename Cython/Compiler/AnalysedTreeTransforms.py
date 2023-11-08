@@ -90,7 +90,7 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                 path = "{}.{}.{}".format(class_name, node.entry.scope.name,
                                      node.entry.name)
             else:
-                path = "{}.{}".format(class_name, node.entry.name)
+                path = f"{class_name}.{node.entry.name}"
         else:
             assert False
         self.add_test(node.pos, path, node.doc)

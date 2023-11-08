@@ -260,10 +260,10 @@ class TestAll(GdbDebuggerTestCase):
             sys.stderr.write(err)
         elif exit_status >= 2:
             border = '*' * 30
-            start  = '{}   v INSIDE GDB v   {}'.format(border, border)
-            stderr = '{}   v STDERR v   {}'.format(border, border)
-            end    = '{}   ^ INSIDE GDB ^   {}'.format(border, border)
-            errmsg = '\n{}\n{}{}\n{}{}'.format(start, out, stderr, err, end)
+            start  = f'{border}   v INSIDE GDB v   {border}'
+            stderr = f'{border}   v STDERR v   {border}'
+            end    = f'{border}   ^ INSIDE GDB ^   {border}'
+            errmsg = f'\n{start}\n{out}{stderr}\n{err}{end}'
 
             sys.stderr.write(errmsg)
 

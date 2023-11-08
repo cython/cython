@@ -389,7 +389,7 @@ class SwitchCase(RE):
             name = "NoCase"
         else:
             name = "Case"
-        return "{}({})".format(name, self.re)
+        return f"{name}({self.re})"
 
 
 #
@@ -468,7 +468,7 @@ def Range(s1, s2=None):
     """
     if s2:
         result = CodeRange(ord(s1), ord(s2) + 1)
-        result.str = "Range({},{})".format(s1, s2)
+        result.str = f"Range({s1},{s2})"
     else:
         ranges = []
         for i in range(0, len(s1), 2):

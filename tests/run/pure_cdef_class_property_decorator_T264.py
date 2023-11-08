@@ -42,7 +42,7 @@ class Prop:
 
     @prop.setter
     def prop(self, value):
-        print("SETTING '{}' (previously: '{}')".format(value, self._value))
+        print(f"SETTING '{value}' (previously: '{self._value}')")
         self._value = value
 
     @prop.deleter

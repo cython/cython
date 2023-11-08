@@ -10,7 +10,7 @@ from ..Errors import init_thread
 # generate some fake code - just a bunch of lines of the form "a0 a1 ..."
 code = []
 for ch in string.ascii_lowercase:
-    line = " ".join(["{}{}".format(ch, n) for n in range(10)])
+    line = " ".join([f"{ch}{n}" for n in range(10)])
     code.append(line)
 code = "\n".join(code)
 

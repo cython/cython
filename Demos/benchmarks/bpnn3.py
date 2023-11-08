@@ -123,7 +123,7 @@ class NN:
 
     def test(self, patterns):
         for p in patterns:
-            print('{} -> {}'.format(p[0], self.update(p[0])))
+            print(f'{p[0]} -> {self.update(p[0])}')
 
     def weights(self):
         print('Input weights:')

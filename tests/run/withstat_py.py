@@ -15,7 +15,7 @@ class ContextManager:
         self.exit_ret = exit_ret
 
     def __exit__(self, a, b, tb):
-        print("exit {} {} {}".format(typename(a), typename(b), typename(tb)))
+        print(f"exit {typename(a)} {typename(b)} {typename(tb)}")
         return self.exit_ret
 
     def __enter__(self):
@@ -165,7 +165,7 @@ def multitarget():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
     with ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
-        print('{} {} {} {} {}'.format(a, b, c, d, e))
+        print(f'{a} {b} {c} {d} {e}')
 
 
 def tupletarget():

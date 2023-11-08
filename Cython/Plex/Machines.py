@@ -238,4 +238,4 @@ class FastMachine:
         if c1 == c2:
             return repr(c1)
         else:
-            return "{}..{}".format(repr(c1), repr(c2))
+            return f"{repr(c1)}..{repr(c2)}"

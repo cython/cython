@@ -81,7 +81,7 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
         rhstmp = rhs.result()
     else:
         rhstmp = code.funcstate.allocate_temp(lhs_type, manage_ref=False)
-        code.putln("{} = {};".format(rhstmp, rhs.result_as(lhs_type)))
+        code.putln(f"{rhstmp} = {rhs.result_as(lhs_type)};")
 
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
@@ -107,7 +107,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
     if not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
 
-    code.putln("{} = {};".format(lhs_cname, rhs_cname))
+    code.putln(f"{lhs_cname} = {rhs_cname};")
 
 
 def get_buf_flags(specs):
@@ -228,24 +228,24 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                                             (bufp, index, stride, suboffset))
 
             elif flag == "indirect":
-                bufp = "({} + {} * {})".format(bufp, index, stride)
-                bufp = ("(*((char **) {}) + {})".format(bufp, suboffset))
+                bufp = f"({bufp} + {index} * {stride})"
+                bufp = (f"(*((char **) {bufp}) + {suboffset})")
 
             elif flag == "indirect_contiguous":
                 # Note: we do char ** arithmetic
-                bufp = "(*((char **) {} + {}) + {})".format(bufp, index, suboffset)
+                bufp = f"(*((char **) {bufp} + {index}) + {suboffset})"
 
             elif flag == "strided":
-                bufp = "({} + {} * {})".format(bufp, index, stride)
+                bufp = f"({bufp} + {index} * {stride})"
 
             else:
                 assert flag == 'contiguous', flag
-                bufp = '((char *) ((({} *) {}) + {}))'.format(type_decl, bufp, index)
+                bufp = f'((char *) ((({type_decl} *) {bufp}) + {index}))'
 
             bufp = '( /* dim=%d */ %s )' % (dim, bufp)
 
         if cast_result:
-            return "(({} *) {})".format(type_decl, bufp)
+            return f"(({type_decl} *) {bufp})"
 
         return bufp
 

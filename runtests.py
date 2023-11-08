@@ -204,7 +204,7 @@ def def_to_cdef(source):
                 args_no_types = ", ".join(arg.split()[-1] for arg in args.split(','))
             else:
                 args_no_types = ""
-            output.append("def {}({}):".format(name, args_no_types))
+            output.append(f"def {name}({args_no_types}):")
             line = next(lines)
             if '"""' in line:
                 has_docstring = True
@@ -215,9 +215,9 @@ def def_to_cdef(source):
                         break
             else:
                 has_docstring = False
-            output.append("    return {}_c({})".format(name, args_no_types))
+            output.append(f"    return {name}_c({args_no_types})")
             output.append('')
-            output.append("cdef {}_c({}):".format(name, args))
+            output.append(f"cdef {name}_c({args}):")
             if not has_docstring:
                 output.append(line)
 
@@ -528,7 +528,7 @@ def parse_tags(filepath):
                 if tag == 'tags':
                     raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
-                    print("WARNING: unknown test directive '{}' found ({})".format(tag, filepath))
+                    print(f"WARNING: unknown test directive '{tag}' found ({filepath})")
                 values = values.split(',')
                 tags[tag].extend(filter(None, [value.strip() for value in values]))
             elif tags:
@@ -745,7 +745,7 @@ class TestBuilder:
                 tags = defaultdict(list)
             else:
                 tags = parse_tags(filepath)
-            fqmodule = "{}.{}".format(context, module)
+            fqmodule = f"{context}.{module}"
             if not [ 1 for match in self.selectors
                      if match(fqmodule, tags) ]:
                 continue
@@ -878,11 +878,11 @@ class TestBuilder:
             os.makedirs(language_workdir)
         workdir = os.path.join(language_workdir, module)
         if preparse != 'id':
-            workdir += '_{}'.format(preparse)
+            workdir += f'_{preparse}'
         if language_level:
             workdir += '_cy%d' % (language_level,)
         if extra_directives:
-            workdir += ('_directives_'+ '_'.join('{}_{}'.format(k, v) for k,v in extra_directives.items()))
+            workdir += ('_directives_'+ '_'.join(f'{k}_{v}' for k,v in extra_directives.items()))
         return test_class(path, workdir, module, module_path, tags,
                           language=language,
                           preparse=preparse,
@@ -971,7 +971,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.module_path = module_path
         self.language = language
         self.preparse = preparse
-        self.name = module if self.preparse == "id" else "{}_{}".format(module, preparse)
+        self.name = module if self.preparse == "id" else f"{module}_{preparse}"
         self.expect_log = expect_log
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
@@ -1119,7 +1119,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return source_file
 
     def build_target_filename(self, module_name):
-        target = '{}.{}'.format(module_name, self.language)
+        target = f'{module_name}.{self.language}'
         return target
 
     def related_files(self, test_directory, module_name):
@@ -1336,7 +1336,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
                 sys.stdout.buffer.write(output)
             if error is not None:
-                raise CompileError("{}\nCompiler output:\n{}".format(error, prepare_captured(stderr)))
+                raise CompileError(f"{error}\nCompiler output:\n{prepare_captured(stderr)}")
         finally:
             os.chdir(cwd)
 
@@ -2106,7 +2106,7 @@ class MissingDependencyExcluder:
                 print("Test dependency not found: '%s'" % module_name)
             else:
                 version = self.find_dep_version(module_name, module)
-                print("Test dependency found: '{}' version {}".format(module_name, version))
+                print(f"Test dependency found: '{module_name}' version {version}")
         self.tests_missing_deps = []
 
     def find_dep_version(self, name, module):
@@ -2487,8 +2487,8 @@ def main():
                 if return_code != 0:
                     error_shards.append(shard_num)
                     failure_outputs.append(failure_output)
-                    sys.stderr.write("FAILED ({}/{})\n".format(shard_num, options.shard_count))
-                sys.stderr.write("ALL DONE ({}/{})\n".format(shard_num, options.shard_count))
+                    sys.stderr.write(f"FAILED ({shard_num}/{options.shard_count})\n")
+                sys.stderr.write(f"ALL DONE ({shard_num}/{options.shard_count})\n")
 
                 stats.update(shard_stats)
                 for stage_name, (stage_time, stage_count) in pipeline_stats.items():

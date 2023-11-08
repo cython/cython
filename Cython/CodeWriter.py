@@ -539,7 +539,7 @@ class ExpressionWriter(TreeVisitor):
         repr_val = repr(node.value)
         if repr_val[0] in 'ub':
             repr_val = repr_val[1:]
-        self.put("{}{}".format(prefix, repr_val))
+        self.put(f"{prefix}{repr_val}")
 
     def visit_BytesNode(self, node):
         self.emit_string(node, "b")

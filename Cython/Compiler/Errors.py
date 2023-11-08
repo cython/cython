@@ -106,7 +106,7 @@ class CompilerCrash(CompileError):
             message = '\n'
         self.message_only = message
         if context:
-            message = "Compiler crash in {}{}".format(context, message)
+            message = f"Compiler crash in {context}{message}"
         if stacktrace:
             import traceback
             message += (
@@ -115,7 +115,7 @@ class CompilerCrash(CompileError):
         if cause:
             if not stacktrace:
                 message += '\n'
-            message += '{}: {}'.format(cause.__class__.__name__, cause)
+            message += f'{cause.__class__.__name__}: {cause}'
         CompileError.__init__(self, pos, message)
         # Python Exception subclass pickling is broken,
         # see https://bugs.python.org/issue1692335

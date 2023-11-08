@@ -465,7 +465,7 @@ class PyrexScanner(Scanner):
             if not self.systring or self.sy == self.systring:
                 t = self.sy
             else:
-                t = "{} {}".format(self.sy, self.systring)
+                t = f"{self.sy} {self.systring}"
             print("--- %3d %2d %s" % (line, col, t))
 
     def peek(self):
@@ -519,7 +519,7 @@ class PyrexScanner(Scanner):
                 found = self.systring
             else:
                 found = self.sy
-            self.error("Expected '{}', found '{}'".format(what, found))
+            self.error(f"Expected '{what}', found '{found}'")
 
     def expect_indent(self):
         self.expect('INDENT', "Expected an increase in indentation level")

@@ -201,5 +201,5 @@ class TestCythonUtils(unittest.TestCase):
             self.assertEqual(float(float_str), float(result))
             self.assertEqual(
                 result, norm_str,
-                "normalise_float_repr({!r}) == {!r} != {!r}  ({:.330f})".format(float_str, result, norm_str, float(float_str))
+                f"normalise_float_repr({float_str!r}) == {result!r} != {norm_str!r}  ({float(float_str):.330f})"
             )

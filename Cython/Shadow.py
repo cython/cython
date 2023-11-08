@@ -279,7 +279,7 @@ class PointerType(CythonType):
             return not self._items and not value._items
 
     def __repr__(self):
-        return "{} *".format(self._basetype)
+        return f"{self._basetype} *"
 
 class ArrayType(PointerType):
 

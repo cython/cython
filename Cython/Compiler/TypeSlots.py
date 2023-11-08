@@ -273,7 +273,7 @@ class SlotDescriptor:
                 preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
-        code.putln("{{Py_{}, (void *){}}},".format(self.slot_name, value))
+        code.putln(f"{{Py_{self.slot_name}, (void *){value}}},")
         if preprocessor_guard:
             code.putln("#endif")
 
@@ -304,13 +304,13 @@ class SlotDescriptor:
                     # we always need inherited buffer slots for the type spec
                     is_buffer_slot = int(self.slot_name in ("bf_getbuffer", "bf_releasebuffer"))
                     code.putln("#if CYTHON_COMPILING_IN_PYPY || %d" % is_buffer_slot)
-                    code.putln("{}, /*{}*/".format(inherited_value, self.slot_name))
+                    code.putln(f"{inherited_value}, /*{self.slot_name}*/")
                     code.putln("#else")
                     end_pypy_guard = True
 
         if self.used_ifdef:
             code.putln("#if %s" % self.used_ifdef)
-        code.putln("{}, /*{}*/".format(value, self.slot_name))
+        code.putln(f"{value}, /*{self.slot_name}*/")
         if self.used_ifdef:
             code.putln("#else")
             code.putln("NULL, /*%s*/" % self.slot_name)
@@ -340,12 +340,12 @@ class SlotDescriptor:
             return
 
         if scope.parent_type.typeptr_cname:
-            target = "{}->{}".format(scope.parent_type.typeptr_cname, self.slot_name)
+            target = f"{scope.parent_type.typeptr_cname}->{self.slot_name}"
         else:
             assert scope.parent_type.typeobj_cname
-            target = "{}.{}".format(scope.parent_type.typeobj_cname, self.slot_name)
+            target = f"{scope.parent_type.typeobj_cname}.{self.slot_name}"
 
-        code.putln("{} = {};".format(target, value))
+        code.putln(f"{target} = {value};")
 
 
 class FixedSlot(SlotDescriptor):
@@ -497,9 +497,9 @@ class ConstructorSlot(InternalMethodSlot):
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
         if base_type.typeptr_cname:
-            src = '{}->{}'.format(base_type.typeptr_cname, self.slot_name)
+            src = f'{base_type.typeptr_cname}->{self.slot_name}'
         elif base_type.is_extension_type and base_type.typeobj_cname:
-            src = '{}.{}'.format(base_type.typeobj_cname, self.slot_name)
+            src = f'{base_type.typeobj_cname}.{self.slot_name}'
         else:
             return
 
@@ -608,7 +608,7 @@ class SuiteSlot(SlotDescriptor):
         return True
 
     def substructure_cname(self, scope):
-        return "{}{}_{}".format(Naming.pyrex_prefix, self.slot_name, scope.class_name)
+        return f"{Naming.pyrex_prefix}{self.slot_name}_{scope.class_name}"
 
     def slot_code(self, scope):
         if not self.is_empty(scope):
@@ -664,7 +664,7 @@ class MemberTableSlot(SlotDescriptor):
         return True
 
     def substructure_cname(self, scope):
-        return "{}{}_{}".format(Naming.pyrex_prefix, self.slot_name, scope.class_name)
+        return f"{Naming.pyrex_prefix}{self.slot_name}_{scope.class_name}"
 
     def generate_substructure_spec(self, scope, code):
         if self.is_empty(scope):

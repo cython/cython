@@ -329,7 +329,7 @@ class NameAssignment:
         self.rhs_scope = rhs_scope
 
     def __repr__(self):
-        return '{}(entry={!r})'.format(self.__class__.__name__, self.entry)
+        return f'{self.__class__.__name__}(entry={self.entry!r})'
 
     def infer_type(self):
         self.inferred_type = self.rhs.infer_type(self.rhs_scope or self.entry.scope)
@@ -400,7 +400,7 @@ class NameReference:
         self.pos = node.pos
 
     def __repr__(self):
-        return '{}(entry={!r})'.format(self.__class__.__name__, self.entry)
+        return f'{self.__class__.__name__}(entry={self.entry!r})'
 
 
 class ControlFlowState(list):
@@ -493,15 +493,15 @@ class GV:
                             stat.entry.name, 'deletion' if stat.is_deletion else 'definition', stat.pos[1])
                     elif isinstance(stat, NameReference):
                         if stat.entry:
-                            label += '\n {} [reference {}]'.format(stat.entry.name, stat.pos[1])
+                            label += f'\n {stat.entry.name} [reference {stat.pos[1]}]'
             if not label:
                 label = 'empty'
             pid = ctx.nodeid(block)
-            fp.write('  {} [label="{}"];\n'.format(pid, ctx.escape(label)))
+            fp.write(f'  {pid} [label="{ctx.escape(label)}"];\n')
         for block in self.flow.blocks:
             pid = ctx.nodeid(block)
             for child in block.children:
-                fp.write('  {} -> {};\n'.format(pid, ctx.nodeid(child)))
+                fp.write(f'  {pid} -> {ctx.nodeid(child)};\n')
         fp.write(' }\n')
 
 

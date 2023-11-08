@@ -15,7 +15,7 @@ class ContextManager:
         self.exit_ret = exit_ret
 
     def __exit__(self, a, b, tb):
-        print("exit {} {} {}".format(typename(a), typename(b), typename(tb)))
+        print(f"exit {typename(a)} {typename(b)} {typename(tb)}")
         return self.exit_ret
 
     def __enter__(self):
@@ -48,7 +48,7 @@ def multimanager():
         with ContextManager('nested') as nested:
             print(x)
             print(y)
-            print('{} {} {} {} {}'.format(a, b, c, d, e))
+            print(f'{a} {b} {c} {d} {e}')
             print(nested)
 
 

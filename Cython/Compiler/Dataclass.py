@@ -431,16 +431,16 @@ def generate_init_code(code, init, node, fields, kw_only):
             return
 
         if field.init.value:
-            args.append("{}{}{}".format(name, annotation, assignment))
+            args.append(f"{name}{annotation}{assignment}")
 
         if field.is_initvar:
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
-                code.add_code_line("    {}.{} = {}".format(selfname, name, name))
+                code.add_code_line(f"    {selfname}.{name} = {name}")
             elif assignment:
                 # not an argument to the function, but is still initialized
-                code.add_code_line("    {}.{}{}".format(selfname, name, assignment))
+                code.add_code_line(f"    {selfname}.{name}{assignment}")
         else:
             ph_name = code.new_placeholder(fields, field.default_factory)
             if field.init.value:
@@ -457,7 +457,7 @@ def generate_init_code(code, init, node, fields, kw_only):
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
-        code.add_code_line("    {}.__post_init__({})".format(selfname, post_init_vars))
+        code.add_code_line(f"    {selfname}.__post_init__({post_init_vars})")
 
     if code.empty():
         code.add_code_line("    pass")
@@ -509,7 +509,7 @@ def generate_repr_code(code, repr, node, fields):
         code.add_code_line("    if key in guard_set: return '...'")
         code.add_code_line("    guard_set.add(key)")
         code.add_code_line("    try:")
-    strs = ["{}={{self.{}!r}}".format(name, name)
+    strs = [f"{name}={{self.{name}!r}}"
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = ", ".join(strs)

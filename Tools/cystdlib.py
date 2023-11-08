@@ -183,7 +183,7 @@ if __name__ == '__main__':
         pool.join()
         for ext, result in results:
             if not result:
-                print("building extension {} failed".format(ext[0].name))
+                print(f"building extension {ext[0].name} failed")
     else:
         sys.argv[1:] = sys_args
         build(extensions)
