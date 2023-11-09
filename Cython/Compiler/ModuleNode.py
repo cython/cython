@@ -2712,7 +2712,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{__PYX_CAST_TO_CHAR_PTR_ON_PY36(%s), %s, %s, __PYX_CAST_TO_CHAR_PTR_ON_PY36(%s), 0},' % (
+                    '{%s, %s, %s, %s, 0},' % (
                         entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",

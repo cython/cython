@@ -1490,9 +1490,9 @@ static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self
 
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration."))},
+     PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"throw", (PyCFunction) __Pyx_CoroutineAwait_Throw, METH_VARARGS,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration."))},
+     PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 // only needed with type-specs, but included in all versions for clarity
 // #if CYTHON_USE_TYPE_SPECS
@@ -1616,32 +1616,32 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
 
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration."))},
+     PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration."))},
+     PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
     {0, 0, 0, 0}
 };
 
 static PyMemberDef __pyx_Coroutine_memberlist[] = {
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_running"), T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_await"), T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("object being awaited, or None"))},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_code"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__module__"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+    {"cr_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    {"cr_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     PyDoc_STR("object being awaited, or None")},
+    {"cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
+    {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
 #if CYTHON_USE_TYPE_SPECS
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__weaklistoffset__"), T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+    {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
 #endif
     {0, 0, 0, 0, 0}
 };
 
 static PyGetSetDef __pyx_Coroutine_getsets[] = {
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__name__"), (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("name of the coroutine")), 0},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__qualname__"), (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("qualified name of the coroutine")), 0},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("cr_frame"), (getter)__Pyx_Coroutine_get_frame, NULL,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("Frame of the coroutine")), 0},
+    {"__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
+     PyDoc_STR("name of the coroutine"), 0},
+    {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
+     PyDoc_STR("qualified name of the coroutine"), 0},
+    {"cr_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
+     PyDoc_STR("Frame of the coroutine"), 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -1921,33 +1921,33 @@ static int __pyx_IterableCoroutine_init(PyObject *module) {
 
 static PyMethodDef __pyx_Generator_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration."))},
+     PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration.")},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration."))},
+     PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("close() -> raise GeneratorExit inside generator."))},
+     PyDoc_STR("close() -> raise GeneratorExit inside generator.")},
     {0, 0, 0, 0}
 };
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_running"), T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_yieldfrom"), T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("object being iterated by 'yield from', or None"))},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_code"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__module__"), T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+    {"gi_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    {"gi_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     PyDoc_STR("object being iterated by 'yield from', or None")},
+    {"gi_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
+    {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
 #if CYTHON_USE_TYPE_SPECS
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__weaklistoffset__"), T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+    {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
 #endif
     {0, 0, 0, 0, 0}
 };
 
 static PyGetSetDef __pyx_Generator_getsets[] = {
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__name__"), (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("name of the generator")), 0},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("__qualname__"), (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("qualified name of the generator")), 0},
-    {__PYX_CAST_TO_CHAR_PTR_ON_PY36("gi_frame"), (getter)__Pyx_Coroutine_get_frame, NULL,
-     __PYX_CAST_TO_CHAR_PTR_ON_PY36(PyDoc_STR("Frame of the generator")), 0},
+    {"__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
+     PyDoc_STR("name of the generator"), 0},
+    {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
+     PyDoc_STR("qualified name of the generator"), 0},
+    {"gi_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
+     PyDoc_STR("Frame of the generator"), 0},
     {0, 0, 0, 0, 0}
 };
 
