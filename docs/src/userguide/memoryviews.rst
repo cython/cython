@@ -6,6 +6,9 @@
 Typed Memoryviews
 *****************
 
+.. include::
+    ../two-syntax-variants-used
+
 Typed memoryviews allow efficient access to memory buffers, such as those
 underlying NumPy arrays, without incurring any Python overhead.
 Memoryviews are similar to the current NumPy array buffer support
@@ -31,7 +34,15 @@ Quickstart
 If you are used to working with NumPy, the following examples should get you
 started with Cython memory views.
 
-.. literalinclude:: ../../examples/userguide/memoryviews/quickstart.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/quickstart.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/quickstart.pyx
 
 This code should give the following output::
 
@@ -52,27 +63,71 @@ Syntax
 
 Memory views use Python slicing syntax in a similar way as NumPy.
 
-To create a complete view on a one-dimensional int buffer::
+To create a complete view on a one-dimensional ``int`` buffer:
 
-    cdef int[:] view1D = exporting_object
+.. tabs::
 
-A complete 3D view::
+    .. group-tab:: Pure Python
 
-    cdef int[:,:,:] view3D = exporting_object
+        .. code-block:: python
+
+            view1D: cython.int[:] = exporting_object
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int[:] view1D = exporting_object
+
+A complete 3D view:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            view3D: cython.int[:,:,:] = exporting_object
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int[:,:,:] view3D = exporting_object
 
 They also work conveniently as function arguments:
 
-.. code-block:: cython
+.. tabs::
 
-    def process_3d_buffer(int[:,:,:] view not None):
-        ...
+    .. group-tab:: Pure Python
 
-The ``not None`` declaration for the argument automatically rejects
-None values as input, which would otherwise be allowed.  The reason why
-None is allowed by default is that it is conveniently used for return
-arguments:
+        .. code-block:: python
 
-.. literalinclude:: ../../examples/userguide/memoryviews/not_none.pyx
+            def process_3d_buffer(view: cython.int[:,:,:]):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def process_3d_buffer(int[:,:,:] view not None):
+                ...
+
+The Cython ``not None`` declaration for the argument automatically rejects
+``None`` values as input, which would otherwise be allowed. The reason why
+``None`` is allowed by default is that it is conveniently used for return
+arguments. On the other hand, when pure python mode is used, ``None`` value
+is rejected by default. It is allowed only when type is declared as ``Optional``:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/not_none.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/not_none.pyx
 
 Cython will reject incompatible buffers automatically, e.g. passing a
 three dimensional buffer into a function that requires a two
@@ -84,17 +139,35 @@ declare an equivalent packed struct that mimics the dtype:
 
 .. literalinclude:: ../../examples/userguide/memoryviews/custom_dtype.pyx
 
+.. note::
+
+    Pure python mode currently does not support packed structs
+
 
 Indexing
 --------
 
 In Cython, index access on memory views is automatically translated
 into memory addresses.  The following code requests a two-dimensional
-memory view of C ``int`` typed items and indexes into it::
+memory view of C ``int`` typed items and indexes into it:
 
-   cdef int[:,:] buf = exporting_object
+.. tabs::
 
-   print(buf[1,2])
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+           buf: cython.int[:,:] = exporting_object
+
+           print(buf[1,2])
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+           cdef int[:,:] buf = exporting_object
+
+           print(buf[1,2])
 
 Negative indices work as well, counting from the end of the respective
 dimension::
@@ -104,22 +177,46 @@ dimension::
 The following function loops over each dimension of a 2D array and
 adds 1 to each item:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/add_one.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/add_one.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/add_one.pyx
 
 Indexing and slicing can be done with or without the GIL.  It basically works
 like NumPy.  If indices are specified for every dimension you will get an element
-of the base type (e.g. `int`).  Otherwise, you will get a new view.  An Ellipsis
+of the base type (e.g. ``int``).  Otherwise, you will get a new view.  An Ellipsis
 means you get consecutive slices for every unspecified dimension:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/slicing.pyx
+.. tabs::
 
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/slicing.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/slicing.pyx
 
 Copying
 -------
 
 Memory views can be copied in place:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/copy.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/copy.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/copy.pyx
+
 
 They can also be copied with the ``copy()`` and ``copy_fortran()`` methods; see
 :ref:`view_copy_c_fortran`.
@@ -132,7 +229,15 @@ Transposing
 In most cases (see below), the memoryview can be transposed in the same way that
 NumPy slices can be transposed:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/transpose.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/transpose.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/transpose.pyx
 
 This gives a new, transposed, view on the data.
 
@@ -143,19 +248,41 @@ See :ref:`view_general_layouts` for details.
 Newaxis
 -------
 
-As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
+As for NumPy, new axes can be introduced by indexing an array with ``None`` :
 
-    cdef double[:] myslice = np.linspace(0, 10, num=50)
+.. tabs::
 
-    # 2D array with shape (1, 50)
-    myslice[None] # or
-    myslice[None, :]
+    .. group-tab:: Pure Python
 
-    # 2D array with shape (50, 1)
-    myslice[:, None]
+        .. code-block:: python
 
-    # 3D array with shape (1, 10, 1)
-    myslice[None, 10:-20:2, None]
+            myslice: cython.double[:] = np.linspace(0, 10, num=50)
+
+            # 2D array with shape (1, 50)
+            myslice[None] # or
+            myslice[None, :]
+
+            # 2D array with shape (50, 1)
+            myslice[:, None]
+
+            # 3D array with shape (1, 10, 1)
+            myslice[None, 10:-20:2, None]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef double[:] myslice = np.linspace(0, 10, num=50)
+
+            # 2D array with shape (1, 50)
+            myslice[None] # or
+            myslice[None, :]
+
+            # 2D array with shape (50, 1)
+            myslice[:, None]
+
+            # 3D array with shape (1, 10, 1)
+            myslice[None, 10:-20:2, None]
 
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
@@ -165,6 +292,10 @@ See also an example_.
 
 Read-only views
 ---------------
+
+.. note::
+
+    Pure python mode currently does not support read-only views.
 
 Since Cython 0.28, the memoryview item type can be declared as ``const`` to
 support read-only buffers as input:
@@ -200,18 +331,9 @@ You will probably prefer memoryviews to the older syntax because:
 * Memoryviews do not usually need the GIL (see :ref:`view_needs_gil`)
 * Memoryviews are considerably faster
 
-For example, this is the old syntax equivalent of the ``sum3d`` function above::
+For example, this is the old syntax equivalent of the ``sum3d`` function above:
 
-    cpdef int old_sum3d(object[int, ndim=3, mode='strided'] arr):
-        cdef int I, J, K, total = 0
-        I = arr.shape[0]
-        J = arr.shape[1]
-        K = arr.shape[2]
-        for i in range(I):
-            for j in range(J):
-                for k in range(K):
-                    total += arr[i, j, k]
-        return total
+.. literalinclude:: ../../examples/userguide/memoryviews/old_sum3d.pyx
 
 Note that we can't use ``nogil`` for the buffer version of the function as we
 could for the memoryview version of ``sum3d`` above, because buffer objects
@@ -303,7 +425,7 @@ A contiguous array is one for which a single continuous block of memory contains
 all the data for the elements of the array, and therefore the memory block
 length is the product of number of elements in the array and the size of the
 elements in bytes. In the example above, the memory block is 2 * 3 * 4 * 1 bytes
-long, where 1 is the length of an int8.
+long, where 1 is the length of an ``np.int8``.
 
 An array can be contiguous without being C or Fortran order::
 
@@ -331,9 +453,21 @@ As you'll see in :ref:`view_general_layouts`, you can specify memory layout for
 any dimension of an memoryview.  For any dimension for which you don't specify a
 layout, then the data access is assumed to be direct, and the data packing
 assumed to be strided.  For example, that will be the assumption for memoryviews
-like::
+like:
 
-    int [:, :, :] my_memoryview = obj
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_memoryview: cython.int[:, :, :]  = obj
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            int [:, :, :] my_memoryview = obj
 
 .. _c_and_fortran_contiguous_memoryviews:
 
@@ -342,26 +476,66 @@ C and Fortran contiguous memoryviews
 
 You can specify C and Fortran contiguous layouts for the memoryview by using the
 ``::1`` step syntax at definition.  For example, if you know for sure your
-memoryview will be on top of a 3D C contiguous layout, you could write::
+memoryview will be on top of a 3D C contiguous layout, you could write:
 
-    cdef int[:, :, ::1] c_contiguous = c_contig
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            c_contiguous: cython.int[:, :, ::1] = c_contig
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int[:, :, ::1] c_contiguous = c_contig
 
 where ``c_contig`` could be a C contiguous NumPy array.  The ``::1`` at the 3rd
 position means that the elements in this 3rd dimension will be one element apart
-in memory.  If you know you will have a 3D Fortran contiguous array::
+in memory.  If you know you will have a 3D Fortran contiguous array:
 
-    cdef int[::1, :, :] f_contiguous = f_contig
+.. tabs::
 
-If you pass a non-contiguous buffer, for example
+    .. group-tab:: Pure Python
 
-::
+        .. code-block:: python
 
-    # This array is C contiguous
-    c_contig = np.arange(24).reshape((2,3,4))
-    cdef int[:, :, ::1] c_contiguous = c_contig
+            f_contiguous: cython.int[::1, :, :] = f_contig
 
-    # But this isn't
-    c_contiguous = np.array(c_contig, order='F')
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int[::1, :, :] f_contiguous = f_contig
+
+If you pass a non-contiguous buffer, for example:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            # This array is C contiguous
+            c_contig = np.arange(24).reshape((2,3,4))
+            c_contiguous: cython.int[:, :, ::1] = c_contig
+
+            # But this isn't
+            c_contiguous = np.array(c_contig, order='F')
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # This array is C contiguous
+            c_contig = np.arange(24).reshape((2,3,4))
+            cdef int[:, :, ::1] c_contiguous = c_contig
+
+            # But this isn't
+            c_contiguous = np.array(c_contig, order='F')
+
 
 you will get a ``ValueError`` at runtime::
 
@@ -378,7 +552,7 @@ you will get a ``ValueError`` at runtime::
 
     ValueError: ndarray is not C-contiguous
 
-Thus the `::1` in the slice type specification indicates in which dimension the
+Thus the ``::1`` in the slice type specification indicates in which dimension the
 data is contiguous.  It can only be used to specify full C or Fortran
 contiguity.
 
@@ -399,13 +573,29 @@ C and Fortran contiguous copies
     cdef int[::1, :, :] c2f = c_contig_view.copy_fortran()
 
 Copies can be made C or Fortran contiguous using the ``.copy()`` and
-``.copy_fortran()`` methods::
+``.copy_fortran()`` methods:
 
-    # This view is C contiguous
-    cdef int[:, :, ::1] c_contiguous = myview.copy()
+.. tabs::
 
-    # This view is Fortran contiguous
-    cdef int[::1, :] f_contiguous_slice = myview.copy_fortran()
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            # This view is C contiguous
+            c_contiguous: cython.int[:, :, ::1] = myview.copy()
+
+            # This view is Fortran contiguous
+            f_contiguous_slice: cython.int[::1, :] = myview.copy_fortran()
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # This view is C contiguous
+            cdef int[:, :, ::1] c_contiguous = myview.copy()
+
+            # This view is Fortran contiguous
+            cdef int[::1, :] f_contiguous_slice = myview.copy_fortran()
 
 .. _view_general_layouts:
 
@@ -417,44 +607,73 @@ by using any of the constants in ``cython.view``. If no specifier is given in
 any dimension, then the data access is assumed to be direct, and the data
 packing assumed to be strided.  If you don't know whether a dimension will be
 direct or indirect (because you're getting an object with a buffer interface
-from some library perhaps), then you can specify the `generic` flag, in which
+from some library perhaps), then you can specify the ``generic`` flag, in which
 case it will be determined at runtime.
 
 The flags are as follows:
 
-* generic - strided and direct or indirect
-* strided - strided and direct (this is the default)
-* indirect - strided and indirect
-* contiguous - contiguous and direct
-* indirect_contiguous - the list of pointers is contiguous
+* ``generic`` - strided and direct or indirect
+* ``strided`` - strided and direct (this is the default)
+* ``indirect`` - strided and indirect
+* ``contiguous`` - contiguous and direct
+* ``indirect_contiguous`` - the list of pointers is contiguous
 
 and they can be used like this:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/memory_layout.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout.pyx
 
 Only the first, last or the dimension following an indirect dimension may be
 specified contiguous:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.pyx
+.. tabs::
 
-::
+    .. group-tab:: Pure Python
 
-    # INVALID
-    cdef int[::view.contiguous, ::view.indirect, :] d
-    cdef int[::1, ::view.indirect, :] e
+        .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.py
+            :lines: 2-13
 
+    .. group-tab:: Cython
 
-The difference between the `contiguous` flag and the `::1` specifier is that the
+        .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.pyx
+            :lines: 2-12
+
+The difference between the ``contiguous`` flag and the ``::1`` specifier is that the
 former specifies contiguity for only one dimension, whereas the latter specifies
-contiguity for all following (Fortran) or preceding (C) dimensions::
+contiguity for all following (Fortran) or preceding (C) dimensions:
 
-    cdef int[:, ::1] c_contig = ...
+.. tabs::
 
-    # VALID
-    cdef int[:, ::view.contiguous] myslice = c_contig[::2]
+    .. group-tab:: Pure Python
 
-    # INVALID
-    cdef int[:, ::1] myslice = c_contig[::2]
+        .. code-block:: python
+
+            c_contig: cython.int[:, ::1] = ...
+
+            # VALID
+            myslice: cython.int[:, ::view.contiguous] = c_contig[::2]
+
+            # INVALID
+            myslice: cython.int[:, ::1] = c_contig[::2]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int[:, ::1] c_contig = ...
+
+            # VALID
+            cdef int[:, ::view.contiguous] myslice = c_contig[::2]
+
+            # INVALID
+            cdef int[:, ::1] myslice = c_contig[::2]
 
 The former case is valid because the last dimension remains contiguous, but the
 first dimension does not "follow" the last one anymore (meaning, it was strided
@@ -466,10 +685,25 @@ Memoryviews and the GIL
 =======================
 
 As you will see from the :ref:`view_quickstart` section, memoryviews often do
-not need the GIL::
+not need the GIL:
 
-    cpdef int sum3d(int[:, :, :] arr) nogil:
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.nogil
+            @cython.ccall
+            def sum3d(arr: cython.int[:, :, :]) -> cython.int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cpdef int sum3d(int[:, :, :] arr) nogil:
+                ...
 
 In particular, you do not need the GIL for memoryview indexing, slicing or
 transposing. Memoryviews require the GIL for the copy methods
@@ -480,7 +714,7 @@ Memoryview Objects and Cython Arrays
 ====================================
 
 These typed memoryviews can be converted to Python memoryview objects
-(`cython.view.memoryview`).  These Python objects are indexable, sliceable and
+(``cython.view.memoryview``).  These Python objects are indexable, sliceable and
 transposable in the same way that the original memoryviews are. They can also be
 converted back to Cython-space memoryviews at any time.
 
@@ -497,22 +731,19 @@ They have the following attributes:
 
 And of course the aforementioned ``T`` attribute (:ref:`view_transposing`).
 These attributes have the same semantics as in NumPy_.  For instance, to
-retrieve the original object::
+retrieve the original object:
 
-    import numpy
-    cimport numpy as cnp
+.. tabs::
 
-    cdef cnp.int32_t[:] a = numpy.arange(10, dtype=numpy.int32)
-    a = a[::2]
+    .. group-tab:: Pure Python
 
-    print(a)
-    print(numpy.asarray(a))
-    print(a.base)
+        .. literalinclude:: ../../examples/userguide/memoryviews/cython_array.py
+            :lines: 2-
 
-    # this prints:
-    #    <MemoryView of 'ndarray' object>
-    #    [0 2 4 6 8]
-    #    [0 1 2 3 4 5 6 7 8 9]
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/cython_array.pyx
+            :lines: 2-
 
 Note that this example returns the original object from which the view was
 obtained, and that the view was resliced in the meantime.
@@ -522,36 +753,95 @@ obtained, and that the view was resliced in the meantime.
 Cython arrays
 =============
 
-Whenever a Cython memoryview is copied (using any of the `copy` or
-`copy_fortran` methods), you get a new memoryview slice of a newly created
+Whenever a Cython memoryview is copied (using any of the ``copy()`` or
+``copy_fortran()`` methods), you get a new memoryview slice of a newly created
 ``cython.view.array`` object. This array can also be used manually, and will
 automatically allocate a block of data. It can later be assigned to a C or
-Fortran contiguous slice (or a strided slice). It can be used like::
+Fortran contiguous slice (or a strided slice). It can be used like:
 
-    from cython cimport view
+.. tabs::
 
-    my_array = view.array(shape=(10, 2), itemsize=sizeof(int), format="i")
-    cdef int[:, :] my_slice = my_array
+    .. group-tab:: Pure Python
 
-It also takes an optional argument `mode` ('c' or 'fortran') and a boolean
-`allocate_buffer`, that indicates whether a buffer should be allocated and freed
-when it goes out of scope::
+        .. code-block:: python
 
-    cdef view.array my_array = view.array(..., mode="fortran", allocate_buffer=False)
-    my_array.data = <char *> my_data_pointer
+            from cython.cimports.cython import view
 
-    # define a function that can deallocate the data (if needed)
-    my_array.callback_free_data = free
+            my_array = view.array(shape=(10, 2), itemsize=cython.sizeof(cython.int), format="i")
+            my_slice: cython.int[:, :] = my_array
 
-You can also cast pointers to array, or C arrays to arrays::
+    .. group-tab:: Cython
 
-    cdef view.array my_array = <int[:10, :2]> my_data_pointer
-    cdef view.array my_array = <int[:, :]> my_c_array
+        .. code-block:: cython
+
+            from cython cimport view
+
+            my_array = view.array(shape=(10, 2), itemsize=sizeof(int), format="i")
+            cdef int[:, :] my_slice = my_array
+
+
+It also takes an optional argument ``mode`` ('c' or 'fortran') and a boolean
+``allocate_buffer``, that indicates whether a buffer should be allocated and freed
+when it goes out of scope:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_array: view.array = view.array(..., mode="fortran", allocate_buffer=False)
+            my_array.data = cython.cast(cython.p_char, my_data_pointer)
+
+            # define a function that can deallocate the data (if needed)
+            my_array.callback_free_data = free
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef view.array my_array = view.array(..., mode="fortran", allocate_buffer=False)
+            my_array.data = <char *> my_data_pointer
+
+            # define a function that can deallocate the data (if needed)
+            my_array.callback_free_data = free
+
+
+
+You can also cast pointers to array, or C arrays to arrays:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            my_array: view.array = cython.cast(cython.int[:10, :2], my_data_pointer)
+            my_array: view.array = cython.cast(cython.int[:, :], my_c_array)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef view.array my_array = <int[:10, :2]> my_data_pointer
+            cdef view.array my_array = <int[:, :]> my_c_array
 
 Of course, you can also immediately assign a cython.view.array to a typed memoryview slice. A C array
-may be assigned directly to a memoryview slice::
+may be assigned directly to a memoryview slice:
 
-    cdef int[:, ::1] myslice = my_2d_c_array
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            myslice: cython.int[:, ::1] = my_2d_c_array
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int[:, ::1] myslice = my_2d_c_array
 
 The arrays are indexable and sliceable from Python space just like memoryview objects, and have the same
 attributes as memoryview objects.
@@ -566,39 +856,66 @@ additional setup.
 
 Starting with Cython 0.17, however, it is possible to use these arrays
 as buffer providers also in Python 2.  This is done through explicitly
-cimporting the ``cpython.array`` module as follows::
+cimporting the ``cpython.array`` module as follows:
 
-    cimport cpython.array
+.. tabs::
 
-    def sum_array(int[:] view):
-        """
-        >>> from array import array
-        >>> sum_array( array('i', [1,2,3]) )
-        6
-        """
-        cdef int total
-        for i in range(view.shape[0]):
-            total += view[i]
-        return total
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/cpython_array.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/cpython_array.pyx
 
 Note that the cimport also enables the old buffer syntax for the array
-type.  Therefore, the following also works::
+type.  Therefore, the following also works:
 
-    from cpython cimport array
+.. tabs::
 
-    def sum_array(array.array[int] arr):  # using old buffer syntax
-        ...
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from cython.cimports.cpython import array
+
+            def sum_array(arr: array.array[cython.int]):  # using old buffer syntax
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            from cpython cimport array
+
+            def sum_array(array.array[int] arr):  # using old buffer syntax
+                ...
 
 Coercion to NumPy
 =================
 
 Memoryview (and array) objects can be coerced to a NumPy ndarray, without having
-to copy the data. You can e.g. do::
+to copy the data. You can e.g. do:
 
-    cimport numpy as cnp
-    import numpy as np
+.. tabs::
 
-    numpy_array = np.asarray(<cnp.int32_t[:10, :10]> my_pointer)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from cython.cimports.numpy import int32_t
+            import numpy as np
+
+            numpy_array = np.asarray(cython.cast(int32_t[:10, :10], my_pointer))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cimport numpy as cnp
+            import numpy as np
+
+            numpy_array = np.asarray(<cnp.int32_t[:10, :10]> my_pointer)
 
 Of course, you are not restricted to using NumPy's type (such as ``cnp.int32_t``
 here), you can use any usable type.
@@ -606,21 +923,46 @@ here), you can use any usable type.
 None Slices
 ===========
 
-Although memoryview slices are not objects they can be set to None and they can
-be checked for being None as well::
+Although memoryview slices are not objects they can be set to ``None`` and they can
+be checked for being ``None`` as well:
 
-    def func(double[:] myarray = None):
-        print(myarray is None)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def func(myarray: typing.Optional[cython.double[:]] = None):
+                print(myarray is None)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def func(double[:] myarray = None):
+                print(myarray is None)
 
 If the function requires real memory views as input, it is therefore best to
-reject None input straight away in the signature, which is supported in Cython
-0.17 and later as follows::
+reject ``None`` input straight away in the signature:
 
-    def func(double[:] myarray not None):
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def func(myarray: cython.double[:]):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def func(double[:] myarray not None):
+                ...
 
 Unlike object attributes of extension classes, memoryview slices are not
-initialized to None.
+initialized to ``None``.
 
 
 Pass data from a C function via pointer
@@ -633,24 +975,41 @@ anything that supports the buffer interface), but you want to perform computatio
 array with an external C function implemented in :file:`C_func_file.c`:
 
 .. literalinclude:: ../../examples/userguide/memoryviews/C_func_file.c
+    :caption: C_func_file.c
     :linenos:
 
 This file comes with a header file called :file:`C_func_file.h` containing:
 
 .. literalinclude:: ../../examples/userguide/memoryviews/C_func_file.h
+    :caption: C_func_file.h
     :linenos:
 
 where ``arr`` points to the array and ``n`` is its size.
 
 You can call the function in a Cython file in the following way:
 
-.. literalinclude:: ../../examples/userguide/memoryviews/memview_to_c.pyx
-    :linenos:
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/memview_to_c.pxd
+            :caption: memview_to_c.pxd
+            :linenos:
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/memview_to_c.py
+            :caption: memview_to_c.py
+            :linenos:
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/memoryviews/memview_to_c.pyx
+            :caption: memview_to_c.pyx
+            :linenos:
 
 Several things to note:
  - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
    See :ref:`c_and_fortran_contiguous_memoryviews`.
- - ``&arr_memview[0]`` can be understood as 'the address of the first element of the
+ - ``&arr_memview[0]`` and ``cython.address(arr_memview[0]`` can be understood as 'the address of the first element of the
    memoryview'. For contiguous arrays, this is equivalent to the
    start address of the flat memory buffer.
  - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,

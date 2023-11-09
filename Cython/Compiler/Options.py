@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import os
 
-from Cython import Utils
+from .. import Utils
 
 
 class ShouldBeFromDirective(object):
@@ -199,6 +199,8 @@ _directive_defaults = {
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'nogil' : False,
+    'gil' : False,
+    'with_gil' : False,
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
@@ -234,6 +236,7 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'show_performance_hints': True,
 
 # optimizations
     'optimize.inline_defnode_calls': True,
@@ -322,7 +325,9 @@ directive_types = {
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
     'collection_type': one_of('sequence'),
-    'nogil' : bool,
+    'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
@@ -356,8 +361,11 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'ccomplex' : ('module',),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
+    'gil' : ('with statement'),
+    'with_gil' : ('function',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -378,6 +386,7 @@ directive_scopes = {  # defaults to available everywhere
     'test_assert_c_code_has' : ('module',),
     'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
+    'formal_grammar': ('module',),
     'emit_code_comments': ('module',),
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
@@ -388,6 +397,7 @@ directive_scopes = {  # defaults to available everywhere
     # but that would complicate the implementation
     'old_style_globals': ('module',),
     'np_pythran': ('module',),
+    'preliminary_late_includes_cy28': ('module',),
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
@@ -396,15 +406,17 @@ directive_scopes = {  # defaults to available everywhere
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'control_flow.dot_output': ('module',),
+    'control_flow.dot_annotate_defs': ('module',),
 }
 
 
-# a list of directives that (when used as a decorator) are only applied to
+# A list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
     'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
     # function signature directives
-    'inline', 'exceptval', 'returns',
+    'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
     'auto_pickle', 'internal', 'collection_type', 'total_ordering',

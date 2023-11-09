@@ -74,12 +74,6 @@ def _create_trace_func(trace):
     local_names = {}
 
     def _trace_func(frame, event, arg):
-        if sys.version_info < (3,) and (
-            'line_trace' not in frame.f_code.co_filename and
-            '<string>' not in frame.f_code.co_filename):
-            # Prevent tracing into Py2 doctest functions.
-            return None
-
         trace.append((map_trace_types(event, event), frame.f_lineno - frame.f_code.co_firstlineno))
 
         lnames = frame.f_code.co_varnames

@@ -46,7 +46,7 @@ The main difference is that you can define attributes using
 
             @cython.cclass
             class Shrubbery:
-                width = declare(cython.int)
+                width = cython.declare(cython.int)
                 height: cython.int
 
     .. group-tab:: Cython
@@ -1165,7 +1165,7 @@ values. If we write an extension module ``wrapper``::
             cdef:
                 int field0
                 int field1
-                int feild2
+                int field2
 
     def sum(Foo f):
         return f.field0 + f.field1 + f.field2

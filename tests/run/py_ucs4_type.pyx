@@ -111,13 +111,13 @@ def ord_py_ucs4(Py_UCS4 x):
 def unicode_type_methods(Py_UCS4 uchar):
     """
     >>> unicode_type_methods(ord('A'))
-    [True, True, False, False, False, False, False, True, True]
+    [True, True, False, False, False, False, False, True, True, True]
     >>> unicode_type_methods(ord('a'))
-    [True, True, False, False, True, False, False, False, False]
+    [True, True, False, False, True, False, False, False, False, True]
     >>> unicode_type_methods(ord('8'))
-    [True, False, True, True, False, True, False, False, False]
+    [True, False, True, True, False, True, False, False, False, True]
     >>> unicode_type_methods(ord('\\t'))
-    [False, False, False, False, False, False, True, False, False]
+    [False, False, False, False, False, False, True, False, False, False]
     """
     return [
         # character types
@@ -130,6 +130,7 @@ def unicode_type_methods(Py_UCS4 uchar):
         uchar.isspace(),
         uchar.istitle(),
         uchar.isupper(),
+        uchar.isprintable(),
         ]
 
 #@cython.test_assert_path_exists('//PythonCapiCallNode')
@@ -407,5 +408,5 @@ def uchar_cast_to_float(Py_UCS4 uchar):
 
 
 _WARNINGS = """
-373:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+374:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
 """
