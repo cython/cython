@@ -306,10 +306,6 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             Py_INCREF(Py_None);
             (*frame)->f_trace = Py_None;
         }
-#if PY_VERSION_HEX < 0x030400B1
-    } else {
-        (*frame)->f_tstate = tstate;
-#endif
     }
     __Pyx_PyFrame_SetLineNumber(*frame, firstlineno);
 
@@ -337,46 +333,11 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
 }
 
 static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
-    PyCodeObject *py_code = 0;
-
-#if PY_MAJOR_VERSION >= 3
-    py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
+    PyCodeObject *py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
     // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
     if (likely(py_code)) {
         py_code->co_flags |= CO_OPTIMIZED | CO_NEWLOCALS;
     }
-#else
-    PyObject *py_srcfile = 0;
-    PyObject *py_funcname = 0;
-
-    py_funcname = PyString_FromString(funcname);
-    if (unlikely(!py_funcname)) goto bad;
-    py_srcfile = PyString_FromString(srcfile);
-    if (unlikely(!py_srcfile)) goto bad;
-
-    py_code = PyCode_New(
-        0,                /*int argcount,*/
-        0,                /*int nlocals,*/
-        0,                /*int stacksize,*/
-        // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
-        CO_OPTIMIZED | CO_NEWLOCALS,  /*int flags,*/
-        CGLOBAL($empty_bytes),     /*PyObject *code,*/
-        CGLOBAL($empty_tuple),     /*PyObject *consts,*/
-        CGLOBAL($empty_tuple),     /*PyObject *names,*/
-        CGLOBAL($empty_tuple),     /*PyObject *varnames,*/
-        CGLOBAL($empty_tuple),     /*PyObject *freevars,*/
-        CGLOBAL($empty_tuple),     /*PyObject *cellvars,*/
-        py_srcfile,       /*PyObject *filename,*/
-        py_funcname,      /*PyObject *name,*/
-        firstlineno,      /*int firstlineno,*/
-        CGLOBAL($empty_bytes)      /*PyObject *lnotab*/
-    );
-
-bad:
-    Py_XDECREF(py_srcfile);
-    Py_XDECREF(py_funcname);
-#endif
-
     return py_code;
 }
 

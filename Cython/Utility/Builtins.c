@@ -75,7 +75,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-        #if PY_VERSION_HEX < 0x030200B1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030400)
+        #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030400
         result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
         #else
         result = PyEval_EvalCode(o, globals, locals);
@@ -91,11 +91,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             s = PyUnicode_AsUTF8String(o);
             if (unlikely(!s)) goto bad;
             o = s;
-        #if PY_MAJOR_VERSION >= 3
         } else if (unlikely(!PyBytes_Check(o))) {
-        #else
-        } else if (unlikely(!PyString_Check(o))) {
-        #endif
             __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
                 "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
@@ -103,11 +99,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             __Pyx_DECREF_TypeName(o_type_name);
             goto bad;
         }
-        #if PY_MAJOR_VERSION >= 3
         code = PyBytes_AS_STRING(o);
-        #else
-        code = PyString_AS_STRING(o);
-        #endif
         if (PyEval_MergeCompilerFlags(&cf)) {
             result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
         } else {
@@ -132,6 +124,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -141,10 +134,16 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     Py_INCREF(d);
     return d;
 }
+#endif
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r;
-#if CYTHON_USE_TYPE_SLOTS
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+    int res = PyObject_GetOptionalAttr(o, n, &r);
+    // On failure (res == -1), r is set to NULL.
+    return (res != 0) ? r : __Pyx_NewRef(d);
+#else
+  #if CYTHON_USE_TYPE_SLOTS
     if (likely(PyString_Check(n))) {
         r = __Pyx_PyObject_GetAttrStrNoError(o, n);
         if (unlikely(!r) && likely(!PyErr_Occurred())) {
@@ -152,18 +151,24 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
         }
         return r;
     }
-#endif
+  #endif
     r = PyObject_GetAttr(o, n);
     return (likely(r)) ? r : __Pyx_GetAttr3Default(d);
+#endif
 }
 
 //////////////////// HasAttr.proto ////////////////////
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#define __Pyx_HasAttr(o, n)  PyObject_HasAttrWithError(o, n)
+#else
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
+#endif
 
 //////////////////// HasAttr ////////////////////
 //@requires: ObjectHandling.c::GetAttr
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
     if (unlikely(!__Pyx_PyBaseString_Check(n))) {
@@ -180,6 +185,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         return 1;
     }
 }
+#endif
 
 //////////////////// Intern.proto ////////////////////
 
@@ -189,16 +195,12 @@ static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 //@requires: ObjectHandling.c::RaiseUnexpectedTypeError
 
 static PyObject* __Pyx_Intern(PyObject* s) {
-    if (unlikely(!PyString_CheckExact(s))) {
+    if (unlikely(!PyUnicode_CheckExact(s))) {
         __Pyx_RaiseUnexpectedTypeError("str", s);
         return NULL;
     }
     Py_INCREF(s);
-    #if PY_MAJOR_VERSION >= 3
     PyUnicode_InternInPlace(&s);
-    #else
-    PyString_InternInPlace(&s);
-    #endif
     return s;
 }
 
@@ -252,7 +254,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
@@ -317,12 +319,8 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
 //////////////////// object_ord.proto ////////////////////
 //@requires: TypeConversion.c::UnicodeAsUCS4
 
-#if PY_MAJOR_VERSION >= 3
 #define __Pyx_PyObject_Ord(c) \
     (likely(PyUnicode_Check(c)) ? (long)__Pyx_PyUnicode_AsPy_UCS4(c) : __Pyx__PyObject_Ord(c))
-#else
-#define __Pyx_PyObject_Ord(c) __Pyx__PyObject_Ord(c)
-#endif
 static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 
 //////////////////// object_ord ////////////////////
@@ -334,10 +332,6 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
         if (likely(size == 1)) {
             return (unsigned char) PyBytes_AS_STRING(c)[0];
         }
-#if PY_MAJOR_VERSION < 3
-    } else if (PyUnicode_Check(c)) {
-        return (long)__Pyx_PyUnicode_AsPy_UCS4(c);
-#endif
 #if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     } else if (PyByteArray_Check(c)) {
         size = PyByteArray_GET_SIZE(c);
@@ -367,10 +361,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
 //////////////////// py_dict_keys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
-    else
-        return PyDict_Keys(d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
 //////////////////// py_dict_values.proto ////////////////////
@@ -380,10 +371,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
 //////////////////// py_dict_values ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
-    else
-        return PyDict_Values(d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
 //////////////////// py_dict_items.proto ////////////////////
@@ -393,10 +381,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 //////////////////// py_dict_items ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
-    else
-        return PyDict_Items(d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
 }
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
@@ -406,10 +391,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d); /*proto*/
 //////////////////// py_dict_iterkeys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "iterkeys", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
 //////////////////// py_dict_itervalues.proto ////////////////////
@@ -419,10 +401,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d); /*proto*/
 //////////////////// py_dict_itervalues ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "itervalues", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
 //////////////////// py_dict_iteritems.proto ////////////////////
@@ -432,10 +411,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
 //////////////////// py_dict_iteritems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "iteritems", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
 }
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
@@ -445,10 +421,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 //////////////////// py_dict_viewkeys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "viewkeys", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
@@ -458,10 +431,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 //////////////////// py_dict_viewvalues ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "viewvalues", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
 //////////////////// py_dict_viewitems.proto ////////////////////
@@ -471,10 +441,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 //////////////////// py_dict_viewitems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "viewitems", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
 }
 
 

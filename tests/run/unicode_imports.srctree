@@ -6,12 +6,6 @@ PYTHON -m mydoctest
 
 ########### mydoctest.py #######
 
-import sys
-if sys.version_info < (3, 5):
-    # The module is only Cythonized and not build for these versions
-    # so don't run the tests
-    exit()
-    
 import doctest
 import from_py
 val = doctest.testmod(from_py)[0]
@@ -26,22 +20,17 @@ exit(val)
 
 from __future__ import unicode_literals
 
-import sys
 from Cython.Build import cythonize
 
 files = ["mymoð.pyx", "from_cy.pyx"]
 
-
-# For Python 2 and Python <= 3.4 just run pyx->c; 
-# don't compile the C file
 modules = cythonize(files)
 
-if sys.version_info >= (3, 5):
-    from distutils.core import setup
+from distutils.core import setup
 
-    setup(
-        ext_modules = modules
-    )
+setup(
+    ext_modules = modules
+)
 
 ############ mymoð.pyx #########
 

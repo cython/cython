@@ -585,6 +585,7 @@ class UtilityCode(UtilityCodeBase):
 
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
+            type_cname = '&%s' % type_cname
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
             assert len(args) < 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
             return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
@@ -645,6 +646,8 @@ class UtilityCode(UtilityCodeBase):
                 writer.put(self.inject_cglobal(self.format_code(self.init)))
             else:
                 self.init(writer, output.module_pos)
+            # 'init' code can end with an 'if' statement for an error condition like:
+            # if (check_ok()) ; else
             writer.putln(writer.error_goto_if_PyErr(output.module_pos))
             writer.putln()
         if self.cleanup and Options.generate_cleanup_code:
@@ -772,6 +775,8 @@ class FunctionState(object):
         self.uses_error_indicator = False
 
         self.error_without_exception = False
+
+        self.needs_refnanny = False
 
     # safety checks
 
@@ -1582,7 +1587,7 @@ class GlobalState(object):
             decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
                 cname))
             # split type reference storage as it might not be static
-            init.putln('%s.type = (PyObject*)&%s;' % (
+            init.putln('%s.type = (PyObject*)%s;' % (
                 cname, type_cname))
             # method name string isn't static in limited api
             init.putln('%s.method_name = &%s->%s;' % (

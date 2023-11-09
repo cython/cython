@@ -96,5 +96,8 @@ cdef fused_checker(fused_type i):
     else:
         return False
 
+cpdef fused_cpdef(fused_type i):
+    return not fused_checker(i)
+
 def test():
-    return fused_checker(0)
+    return fused_checker(0) and fused_cpdef(1.0)
