@@ -6641,6 +6641,7 @@ class PyMethodCallNode(CallNode):
                 kwnames_temp, len(self.kwdict.key_value_pairs),
                 code.error_goto_if_null(kwnames_temp, self.pos)
             ))
+            code.put_gotref(kwnames_temp, py_object_type)
         elif self.kwdict:
             code.globalstate.use_utility_code(
                     UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
