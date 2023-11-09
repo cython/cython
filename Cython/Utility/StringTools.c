@@ -589,6 +589,37 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
 }
 
 
+/////////////// py_unicode_isprintable.proto ///////////////
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)
+static int __Pyx_Py_UNICODE_ISPRINTABLE(Py_UCS4 uchar);/*proto*/
+#else
+#define __Pyx_Py_UNICODE_ISPRINTABLE(u)  Py_UNICODE_ISPRINTABLE(u)
+#endif
+
+/////////////// py_unicode_isprintable ///////////////
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)
+static int __Pyx_Py_UNICODE_ISPRINTABLE(Py_UCS4 uchar) {
+    int result;
+    PyObject* py_result;
+    PyObject* ustring = PyUnicode_FromOrdinal(uchar);
+    if (!ustring) goto bad;
+    py_result = PyObject_CallMethod(ustring, "isprintable", NULL);
+    Py_DECREF(ustring);
+    if (!py_result) goto bad;
+    result = PyObject_IsTrue(py_result);
+    Py_DECREF(py_result);
+    if (result == -1) goto bad;
+    return result != 0;
+
+bad:
+    PyErr_Clear();
+    return 0; /* cannot fail */
+}
+#endif
+
+
 /////////////// unicode_tailmatch.proto ///////////////
 
 static int __Pyx_PyUnicode_Tailmatch(
