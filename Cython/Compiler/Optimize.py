@@ -3554,6 +3554,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             utility_code = UtilityCode.load_cached(
                 "py_unicode_istitle", "StringTools.c")
             function_name = '__Pyx_Py_UNICODE_ISTITLE'
+        elif method_name == 'isprintable':
+            # needs utility code to adapt for pypy
+            utility_code = UtilityCode.load_cached(
+                "py_unicode_isprintable", "StringTools.c")
+            function_name = '__Pyx_Py_UNICODE_ISPRINTABLE'
         else:
             utility_code = None
             function_name = 'Py_UNICODE_%s' % method_name.upper()
