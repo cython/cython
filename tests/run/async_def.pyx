@@ -7,8 +7,6 @@ Cython specific tests in addition to "test_coroutines_pep492.pyx"
 (which is copied from CPython).
 """
 
-import sys
-
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
@@ -20,7 +18,7 @@ def run_async(coro):
         try:
             buffer.append(coro.send(None))
         except StopIteration as ex:
-            result = ex.value if sys.version_info >= (3, 5) else ex.args[0] if ex.args else None
+            result = ex.value
             break
     return buffer, result
 

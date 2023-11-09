@@ -14,7 +14,7 @@ cdef class SomeMemory:
     def resize(self, size_t new_number):
         # Allocates new_number * sizeof(double) bytes,
         # preserving the current content and making a best-effort to
-        # re-use the original data location.
+        # reuse the original data location.
         mem = <double*> PyMem_Realloc(
             self.data, new_number * sizeof(double))
         if not mem:

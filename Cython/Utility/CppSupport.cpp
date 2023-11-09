@@ -69,6 +69,7 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 #endif
 
 ////////////// EnumClassDecl.proto //////////////////
+//@proto_block: utility_code_proto_before_types
 
 #if defined (_MSC_VER)
   #if _MSC_VER >= 1910

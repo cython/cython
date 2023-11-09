@@ -1,5 +1,6 @@
+# mode: run
 
-import sys, types
+import sys
 
 def test(obj):
     """
@@ -12,8 +13,5 @@ def test(obj):
         raise obj
     except:
         info = sys.exc_info()
-        if sys.version_info >= (2,5):
-            assert isinstance(info[0], type)
-        else:
-            assert isinstance(info[0], types.ClassType)
+        assert isinstance(info[0], type)
         print u"Caught: %s%r" % (info[1].__class__.__name__, info[1].args)
