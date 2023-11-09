@@ -194,5 +194,3 @@ cdef extern from "Python.h":
     # string encode() method. The codec to be used is looked up using
     # the Python codec registry. Return NULL if an exception was
     # raised by the codec.
-
-

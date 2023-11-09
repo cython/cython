@@ -4,10 +4,10 @@ from cython.cimports.libcpp.vector import vector
 
 @cython.cclass
 class Matrix:
-    ncols: cython.unsigned
+    ncols: cython.uint
     v: vector[cython.float]
 
-    def __cinit__(self, ncols: cython.unsigned):
+    def __cinit__(self, ncols: cython.uint):
         self.ncols = ncols
 
     def add_row(self):

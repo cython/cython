@@ -14,7 +14,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*'
+PYTHON_REQUIRES = '>=3.7'
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -208,7 +208,7 @@ if compile_cython_itself:
 setup_args.update(setuptools_extra_args)
 
 
-def dev_status(version):
+def dev_status(version: str):
     if 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
@@ -280,16 +280,13 @@ def run_build():
             "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
             "Programming Language :: Python",
-            "Programming Language :: Python :: 2",
-            "Programming Language :: Python :: 2.7",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.4",
-            "Programming Language :: Python :: 3.5",
-            "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
             "Programming Language :: C",

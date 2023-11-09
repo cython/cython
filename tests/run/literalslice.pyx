@@ -3,8 +3,8 @@ __doc__ = u"""
   'b'
 
   >>> test_unicode_ascii(2)
-  u'c'
-  >>> test_unicode(2) == u'\u00e4'
+  'c'
+  >>> test_unicode(2) == '\u00e4'
   True
 
   >>> test_int_list(2)
@@ -21,13 +21,6 @@ __doc__ = u"""
   >>> test_mix_tuple(0)
   1
 """
-
-import sys
-IS_PY3 = sys.version_info[0] >= 3
-if IS_PY3:
-    __doc__ = __doc__.replace(u" u'", u" '")
-else:
-    __doc__ = __doc__.replace(u" b'", u" '")
 
 def test_str(n):
     return "abcd"[n]

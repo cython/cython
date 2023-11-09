@@ -165,6 +165,7 @@ class Entry(object):
     #                             or a string of "modulename.something.attribute"
     #                             Used for identifying imports from typing/dataclasses etc
     # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
+    # enum_int_value  None or int  If known, the int that corresponds to this enum value
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -240,6 +241,7 @@ class Entry(object):
     is_cpp_optional = False
     known_standard_library_import = None
     pytyping_modifiers = None
+    enum_int_value = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -357,6 +359,8 @@ class Scope(object):
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
+    # scope_predefined_names  list of str   Class variable containing special names defined by
+    #                                      this type of scope (e.g. __builtins__, __qualname__)
 
     is_builtin_scope = 0
     is_py_class_scope = 0
@@ -376,6 +380,7 @@ class Scope(object):
     nogil = 0
     fused_to_specific = None
     return_type = None
+    scope_predefined_names = []
     # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
     in_c_type_context = True
 
@@ -412,6 +417,8 @@ class Scope(object):
         self.buffer_entries = []
         self.lambda_defs = []
         self.id_counters = {}
+        for var_name in self.scope_predefined_names:
+            self.declare_var(EncodedString(var_name), py_object_type, pos=None)
 
     def __deepcopy__(self, memo):
         return self
@@ -588,7 +595,8 @@ class Scope(object):
         if defining:
             self.type_entries.append(entry)
 
-        if not template:
+        # don't replace an entry that's already set
+        if not template and getattr(type, "entry", None) is None:
             type.entry = entry
 
         # here we would set as_variable to an object representing this type
@@ -853,6 +861,10 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
+        inline_in_pxd = 'inline' in modifiers and in_pxd and defining
+        if inline_in_pxd:
+            # in_pxd does special things that we don't want to apply to inline functions
+            in_pxd = False
         entry = self.lookup_here(name)
         if entry:
             if not in_pxd and visibility != entry.visibility and visibility == 'extern':
@@ -901,6 +913,8 @@ class Scope(object):
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
             entry.is_overridable = overridable
+        if inline_in_pxd:
+            entry.inline_func_in_pxd = True
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
@@ -923,6 +937,12 @@ class Scope(object):
             var_entry.scope = entry.scope
             entry.as_variable = var_entry
         type.entry = entry
+        if (type.exception_check and type.exception_value is None and type.nogil and
+                not pos[0].in_utility_code and
+                # don't warn about external functions here - the user likely can't do anything
+                defining and not in_pxd and not inline_in_pxd):
+            PyrexTypes.write_noexcept_performance_hint(
+                pos, self, function_name=name, void_return=type.return_type.is_void)
         return entry
 
     def declare_cgetter(self, name, return_type, pos=None, cname=None,
@@ -1161,9 +1181,9 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        for name, definition in sorted(self.builtin_entries.items()):
-            cname, type = definition
-            self.declare_var(name, type, None, cname)
+        # Most entries are initialized in init_builtins, except for "bool"
+        # which is apparently a special case because it conflicts with C++ bool
+        self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
 
     def lookup(self, name, language_level=None, str_is_str=None):
         # 'language_level' and 'str_is_str' are passed by ModuleScope
@@ -1203,10 +1223,11 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
 
-    def declare_builtin_type(self, name, cname, utility_code = None, objstruct_cname = None):
+    def declare_builtin_type(self, name, cname, utility_code=None,
+                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
         name = EncodedString(name)
-        type = PyrexTypes.BuiltinObjectType(name, cname, objstruct_cname)
-        scope = CClassScope(name, outer_scope=None, visibility='extern')
+        type = type_class(name, cname, objstruct_cname)
+        scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
         if name == 'bool':
             type.is_final_type = True
@@ -1237,35 +1258,6 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
-    # FIXME: remove redundancy with Builtin.builtin_types_table
-    builtin_entries = {
-
-        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
-
-        "bool":   ["((PyObject*)&PyBool_Type)", py_object_type],
-        "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
-        "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
-        "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
-        "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
-
-        "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
-        "bytearray":   ["((PyObject*)&PyByteArray_Type)", py_object_type],
-        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
-        "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
-
-        "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
-        "list":   ["((PyObject*)&PyList_Type)", py_object_type],
-        "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
-        "set":    ["((PyObject*)&PySet_Type)", py_object_type],
-        "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
-
-        "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
-#        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],  # not in Py3
-
-        "None":   ["Py_None", py_object_type],
-        "False":  ["Py_False", py_object_type],
-        "True":   ["Py_True", py_object_type],
-    }
 
 const_counter = 1  # As a temporary solution for compiling code in pxds
 
@@ -1297,6 +1289,10 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
+    scope_predefined_names = [
+        '__builtins__', '__name__', '__file__', '__doc__', '__path__',
+        '__spec__', '__loader__', '__package__', '__cached__',
+    ]
 
     def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
@@ -1325,9 +1321,6 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
-        for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
-                         '__spec__', '__loader__', '__package__', '__cached__']:
-            self.declare_var(EncodedString(var_name), py_object_type, None)
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
@@ -1411,30 +1404,31 @@ class ModuleScope(Scope):
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
-        relative_to = None
+        is_relative_import = relative_level is not None and relative_level > 0
+        from_module = None
         absolute_fallback = False
         if relative_level is not None and relative_level > 0:
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
-            relative_to = self
+            from_module = self
 
             top_level = 1 if self.is_package else 0
-            # * top_level == 1 when file is __init__.pyx, current package (relative_to) is the current module
+            # * top_level == 1 when file is __init__.pyx, current package (from_module) is the current module
             #   i.e. dot in `from . import ...` points to the current package
-            # * top_level == 0 when file is regular module, current package (relative_to) is parent module
+            # * top_level == 0 when file is regular module, current package (from_module) is parent module
             #   i.e. dot in `from . import ...` points to the package where module is placed
-            while relative_level > top_level and relative_to:
-                relative_to = relative_to.parent_module
+            while relative_level > top_level and from_module:
+                from_module = from_module.parent_module
                 relative_level -= 1
 
         elif relative_level != 0:
             # -1 or None: try relative cimport first, then absolute
-            relative_to = self.parent_module
+            from_module = self.parent_module
             absolute_fallback = True
 
         module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
+            module_name, from_module=from_module, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
     def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
@@ -1715,7 +1709,8 @@ class ModuleScope(Scope):
         if not type.scope:
             if defining or implementing:
                 scope = CClassScope(name = name, outer_scope = self,
-                    visibility = visibility)
+                    visibility=visibility,
+                    parent_type=type)
                 scope.directives = self.directives.copy()
                 if base_type and base_type.scope:
                     scope.declare_inherited_c_attributes(base_type.scope)
@@ -1749,6 +1744,15 @@ class ModuleScope(Scope):
 
         if self.directives.get('final'):
             entry.type.is_final_type = True
+        collection_type = self.directives.get('collection_type')
+        if collection_type:
+            from .UtilityCode import NonManglingModuleScope
+            if not isinstance(self, NonManglingModuleScope):
+                # TODO - DW would like to make it public, but I'm making it internal-only
+                # for now to avoid adding new features without consensus
+                error(pos, "'collection_type' is not a public cython directive")
+        if collection_type == 'sequence':
+            entry.type.has_sequence_flag = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -2114,7 +2118,7 @@ class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
 
     def __init__(self, name="?"):
-        Scope.__init__(self, name, None, None)
+        Scope.__init__(self, name, outer_scope=None, parent_scope=None)
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2141,8 +2145,6 @@ class StructOrUnionScope(Scope):
         elif type.needs_refcounting:
             if not allow_refcounted:
                 error(pos, "C struct/union member cannot be reference-counted type '%s'" % type)
-        if visibility != 'private':
-            error(pos, "C struct/union member cannot be declared %s" % visibility)
         return entry
 
     def declare_cfunction(self, name, type, pos,
@@ -2162,6 +2164,8 @@ class ClassScope(Scope):
     #  scope_prefix   string   Additional prefix for names
     #                          declared in the class
     #  doc    string or None   Doc string
+
+    scope_predefined_names = ['__module__', '__qualname__']
 
     def mangle_class_private_name(self, name):
         # a few utilitycode names need to specifically be ignored
@@ -2272,13 +2276,21 @@ class CClassScope(ClassScope):
     defined = False
     implemented = False
 
-    def __init__(self, name, outer_scope, visibility):
+    def __init__(self, name, outer_scope, visibility, parent_type):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
         self.property_entries = []
         self.inherited_var_entries = []
+        self.parent_type = parent_type
+        # Usually parent_type will be an extension type and so the typeptr_cname
+        # can be used to calculate the namespace_cname. Occasionally other types
+        # are used (e.g. numeric/complex types) and in these cases the typeptr
+        # isn't relevant.
+        if ((parent_type.is_builtin_type or parent_type.is_extension_type)
+                and parent_type.typeptr_cname):
+            self.namespace_cname = "(PyObject *)%s" % parent_type.typeptr_cname
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
@@ -2432,7 +2444,6 @@ class CClassScope(ClassScope):
             # xxx: is_pyglobal changes behaviour in so many places that I keep it in for now.
             # is_member should be enough later on
             entry.is_pyglobal = 1
-            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
             return entry
 

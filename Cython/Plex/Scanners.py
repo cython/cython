@@ -239,18 +239,18 @@ class Scanner(object):
                         input_state = 4
                     else:
                         cur_char = c
-                elif input_state == 2:
+                elif input_state == 2:  # after EoL (1) -> BoL (3)
                     cur_char = u'\n'
                     input_state = 3
-                elif input_state == 3:
+                elif input_state == 3:  # start new code line
                     cur_line += 1
                     cur_line_start = cur_pos = next_pos
                     cur_char = BOL
                     input_state = 1
-                elif input_state == 4:
+                elif input_state == 4:  # after final line (1) -> EoF (5)
                     cur_char = EOF
                     input_state = 5
-                else:  # input_state = 5
+                else:  # input_state == 5  (EoF)
                     cur_char = u''
                     # End inlined self.next_char()
             else:  # not new_state

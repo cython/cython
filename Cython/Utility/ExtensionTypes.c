@@ -112,19 +112,24 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     // tp_dictoffset (i.e. there is no __dict__ attribute in the object
     // structure), we need to check that none of the base classes sets
     // it either.
-    Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
+    Py_ssize_t i, n;
+#if CYTHON_ASSUME_SAFE_MACROS
+    n = PyTuple_GET_SIZE(bases);
+#else
+    n = PyTuple_Size(bases);
+    if (n < 0) return -1;
+#endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
-        PyObject *b0 = PyTuple_GET_ITEM(bases, i);
         PyTypeObject *b;
-#if PY_MAJOR_VERSION < 3
-        /* Disallow old-style classes */
-        if (PyClass_Check(b0))
-        {
-            PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
-                         PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
-            return -1;
-        }
+#if CYTHON_AVOID_BORROWED_REFS
+        PyObject *b0 = PySequence_GetItem(bases, i);
+        if (!b0) return -1;
+#elif CYTHON_ASSUME_SAFE_MACROS
+        PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+#else
+        PyObject *b0 = PyTuple_GetItem(bases, i);
+        if (!b0) return -1;
 #endif
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
@@ -133,20 +138,46 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             PyErr_Format(PyExc_TypeError,
                 "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
             __Pyx_DECREF_TypeName(b_name);
+#if CYTHON_AVOID_BORROWED_REFS
+            Py_DECREF(b0);
+#endif
             return -1;
         }
-        if (dictoffset == 0 && b->tp_dictoffset)
+        if (dictoffset == 0)
         {
-            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
-            PyErr_Format(PyExc_TypeError,
-                "extension type '%.200s' has no __dict__ slot, "
-                "but base type '" __Pyx_FMT_TYPENAME "' has: "
-                "either add 'cdef dict __dict__' to the extension type "
-                "or add '__slots__ = [...]' to the base type",
-                type_name, b_name);
-            __Pyx_DECREF_TypeName(b_name);
-            return -1;
+            Py_ssize_t b_dictoffset = 0;
+#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
+            b_dictoffset = b->tp_dictoffset;
+#else
+            PyObject *py_b_dictoffset = PyObject_GetAttrString((PyObject*)b, "__dictoffset__");
+            if (!py_b_dictoffset) goto dictoffset_return;
+            b_dictoffset = PyLong_AsSsize_t(py_b_dictoffset);
+            Py_DECREF(py_b_dictoffset);
+            if (b_dictoffset == -1 && PyErr_Occurred()) goto dictoffset_return;
+#endif
+            if (b_dictoffset) {
+                {
+                    __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+                    PyErr_Format(PyExc_TypeError,
+                        "extension type '%.200s' has no __dict__ slot, "
+                        "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                        "either add 'cdef dict __dict__' to the extension type "
+                        "or add '__slots__ = [...]' to the base type",
+                        type_name, b_name);
+                    __Pyx_DECREF_TypeName(b_name);
+                }
+#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)
+              dictoffset_return:
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+                Py_DECREF(b0);
+#endif
+                return -1;
+            }
         }
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(b0);
+#endif
     }
     return 0;
 }
@@ -182,7 +213,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
 
-#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
+#if !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
@@ -196,7 +227,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Call gc.disable() as a backwards compatible fallback, but only if needed.
         PyObject *ret, *py_status;
         PyObject *gc = NULL;
-        #if PY_VERSION_HEX >= 0x030700a1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400)
+        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400
         // https://foss.heptapod.net/pypy/pypy/-/issues/3385
         gc = PyImport_GetModule(PYUNICODE("gc"));
         #endif
@@ -230,6 +261,15 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#if PY_VERSION_HEX >= 0x030A0000
+        // As of https://github.com/python/cpython/pull/25520
+        // PyType_Ready marks types as immutable if they are static types
+        // and requires the Py_TPFLAGS_IMMUTABLETYPE flag to mark types as
+        // immutable
+        // Manually set the Py_TPFLAGS_IMMUTABLETYPE flag, since the type
+        // is immutable
+        t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
+#endif
 #else
         // avoid C warning about unused helper function
         (void)__Pyx_PyObject_CallMethod0;
@@ -237,7 +277,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
     r = PyType_Ready(t);
 
-#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
+#if !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
     #if PY_VERSION_HEX >= 0x030A00b1
@@ -276,14 +316,14 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 // Unlike the Py_TRASHCAN_SAFE_BEGIN/Py_TRASHCAN_SAFE_END macros, they
 // allow dealing correctly with subclasses.
 
-// This requires CPython version >= 2.7.4
-// (or >= 3.2.4 but we don't support such old Python 3 versions anyway)
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
 // https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
 // is no longer necessary
 #define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN
 #define __Pyx_TRASHCAN_END Py_TRASHCAN_END
-#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
+
+#elif CYTHON_COMPILING_IN_CPYTHON
+
 #define __Pyx_TRASHCAN_BEGIN_CONDITION(op, cond) \
     do { \
         PyThreadState *_tstate = NULL; \
@@ -516,7 +556,7 @@ __PYX_GOOD:
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
-#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
     slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
 #else
     slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
@@ -531,34 +571,42 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
             || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
+
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+    {{if not overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || __Pyx_TypeCheck(right, {{type_cname}});
-    }
+            || __Pyx_TypeCheck(right, {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && {{overloads_right}} && !({{overloads_left}})) {
+
+        {{if overloads_right and not overloads_left}}
+        if (maybe_self_is_right) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
             // Don't bother calling it again.
             maybe_self_is_right = 0;
         }
+        {{endif}}
+
         res = {{call_left}};
         if (res != Py_NotImplemented) return res;
         Py_DECREF(res);
     }
-    if (({{overloads_left}})) {
-        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+
+    {{if overloads_left}}
+    maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
-                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
 #endif
-                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
-    }
+            || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    {{endif}}
+
     if (maybe_self_is_right) {
         return {{call_right}};
     }
@@ -580,7 +628,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
 #if !CYTHON_COMPILING_IN_LIMITED_API
     itemsize = ((PyTypeObject *)base)->tp_itemsize;
 #else
-    py_itemsize = PyObject_GetAttrString(base, "__itemsize__");
+    py_itemsize = PyObject_GetAttrString((PyObject*)base, "__itemsize__");
     if (!py_itemsize)
         return -1;
     itemsize = PyLong_AsSsize_t(py_itemsize);

@@ -64,7 +64,7 @@ cdef extern from "<set>" namespace "std" nogil:
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
             bint operator!=(const_reverse_iterator)
-    
+
         set() except +
         set(set&) except +
         #set(key_compare&)

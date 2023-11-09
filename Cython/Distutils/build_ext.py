@@ -13,7 +13,15 @@ except ImportError:
 # setuptools imports Cython's "build_ext", so make sure we go first.
 _build_ext_module = sys.modules.get('setuptools.command.build_ext')
 if _build_ext_module is None:
-    import distutils.command.build_ext as _build_ext_module
+    try:
+        import distutils.command.build_ext as _build_ext_module
+    except ImportError:
+        # Python 3.12 no longer has distutils, but setuptools can replace it.
+        try:
+            import setuptools.command.build_ext as _build_ext_module
+        except ImportError:
+            raise ImportError("'distutils' cannot be imported. Please install setuptools.")
+
 
 # setuptools remembers the original distutils "build_ext" as "_du_build_ext"
 _build_ext = getattr(_build_ext_module, '_du_build_ext', None)
