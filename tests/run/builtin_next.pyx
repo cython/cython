@@ -1,11 +1,6 @@
 
-import sys
-IS_PY3 = sys.version_info[0] >= 3
-
 __doc__ = """
 >>> it = iter([1,2,3])
->>> if not IS_PY3:
-...     next = type(it).next
 >>> next(it)
 1
 >>> next(it)
@@ -21,13 +16,9 @@ StopIteration
 Traceback (most recent call last):
 StopIteration
 
->>> if IS_PY3: next(it, 123)
-... else: print(123)
+>>> next(it, 123)
 123
-"""
 
-if IS_PY3:
-    __doc__ += """
 >>> next(123)      # doctest: +ELLIPSIS
 Traceback (most recent call last):
 TypeError: ...int... object is not an iterator

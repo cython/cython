@@ -2,6 +2,65 @@
 Cython Changelog
 ================
 
+3.1.0 (202?-??-??)
+==================
+
+Other changes
+-------------
+
+* Support for Python 2.7 - 3.6 was removed.
+
+
+3.0.6 (2023-??-??)
+==================
+
+Features added
+--------------
+
+* Fused def function dispatch is a bit faster.
+
+Bugs fixed
+----------
+
+* A crash was fixed when string-formatting a Python value fails.
+  (Github issue :issue:`5787`)
+
+* On item access, Cython could try the sequence protocol before the mapping protocol
+  in some cases if an object supports both.
+  (Github issue :issue:`5776`)
+
+* A C compiler warning was resolved.
+  (Github issue :issue:`5794`)
+
+* Some issues with the Limited API and with PyPy were resolved.
+  (Github issues :issue:`5695`, :issue:`5696`)
+
+* A C++ issue in Python 3.13 was resolved.
+  (Github issue :issue:`5790`)
+
+
+3.0.5 (2023-10-31)
+==================
+
+Features added
+--------------
+
+* Preliminary support for CPython 3.13a1 was added to allow early testing.
+  (Github issue :issue:`5767`)
+
+Bugs fixed
+----------
+
+* A compiler crash was fixed.
+  (Github issue :issue:`5771`)
+
+* A typo in the ``always_allow_keywords`` directive for Python code was fixed.
+  Patch by lk-1984.  (Github issue :issue:`5772`)
+
+* Some C compiler warnings were resolved.
+  Patch by Pierre Jolivet.  (Github issue :issue:`5780`)
+
+
 3.0.4 (2023-10-17)
 ==================
 

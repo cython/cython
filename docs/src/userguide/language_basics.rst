@@ -1514,15 +1514,23 @@ of functions or class bodies.
 Conditional Compilation
 =======================
 
-Some features are available for conditional compilation and compile-time
+Some language features are available for conditional compilation and compile-time
 constants within a Cython source file.
 
 .. note::
 
+    This feature has been deprecated and should not be used in new code.
+    It is very foreign to the Python language and also behaves
+    differently from the C preprocessor.  It is often misunderstood by users.
+    For the current deprecation status, see https://github.com/cython/cython/issues/4310.
+    For alternatives, see :ref:`deprecated_DEF_IF`.
+
+.. note::
+
     This feature has very little use cases.  Specifically, it is not a good
-    way to adapt code to platform and environment.  Use code generation or
-    (preferably) C compile time adaptation for this.  See, for example,
-    :ref:`verbatim_c`.
+    way to adapt code to platform and environment.  Use runtime conditions,
+    conditional Python imports, or C compile time adaptation for this.
+    See, for example, :ref:`verbatim_c` or :ref:`resolve-conflicts`.
 
 .. note::
 
