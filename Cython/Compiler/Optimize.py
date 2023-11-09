@@ -3575,6 +3575,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _handle_simple_method_unicode_isspace   = _inject_unicode_predicate
     _handle_simple_method_unicode_istitle   = _inject_unicode_predicate
     _handle_simple_method_unicode_isupper   = _inject_unicode_predicate
+    _handle_simple_method_unicode_isprintable = _inject_unicode_predicate
 
     PyUnicode_uchar_conversion_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ucs4_type, [
