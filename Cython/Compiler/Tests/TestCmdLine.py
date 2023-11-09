@@ -248,7 +248,7 @@ class CmdLineParserTest(TestCase):
             '--3str',
             'source.pyx'
         ])
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.language_level, '3')
         self.check_default_global_options()
         self.check_default_options(options, ['language_level'])
 

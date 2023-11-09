@@ -100,7 +100,7 @@ class TestCythonizeArgsParser(TestCase):
             ('c_string_encoding', 'ascii'),
             ('language_level', '2'),
             ('language_level', '3'),
-            ('language_level', '3str'),
+            #('language_level', '3str'),
             ('set_initial_path', 'my_initial_path'),
         ]
         for key, value in directives:
@@ -240,7 +240,7 @@ class TestCythonizeArgsParser(TestCase):
         options, args =  self.parse_args(['--3str'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['language_level']))
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.language_level, '3')
 
     def test_annotate_short(self):
         options, args =  self.parse_args(['-a'])
@@ -271,7 +271,7 @@ class TestCythonizeArgsParser(TestCase):
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['annotate', 'language_level']))
         self.assertEqual(options.annotate, 'default')
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.language_level, '3')
 
     def test_exclude_short(self):
         options, args =  self.parse_args(['-x', '*.pyx'])
