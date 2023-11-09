@@ -4,7 +4,6 @@ Python Lexical Analyser
 
 Classes for building NFAs and DFAs
 """
-from __future__ import absolute_import
 
 import cython
 from .Transitions import TransitionMap
@@ -20,7 +19,7 @@ if not cython.compiled:
 LOWEST_PRIORITY = -maxint
 
 
-class Machine(object):
+class Machine:
     """A collection of Nodes representing an NFA or DFA."""
     def __init__(self):
         self.states = []  # [Node]
@@ -61,7 +60,7 @@ class Machine(object):
             s.dump(file)
 
 
-class Node(object):
+class Node:
     """A state of an NFA or DFA."""
 
     def __init__(self):
@@ -125,7 +124,7 @@ class Node(object):
         return id(self) & maxint
 
 
-class FastMachine(object):
+class FastMachine:
     """
     FastMachine is a deterministic machine represented in a way that
     allows fast scanning.
