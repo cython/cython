@@ -2712,7 +2712,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                    '{%s, %s, %s, %s, 0},' % (
                         entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
@@ -3616,7 +3616,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
         code.putln(
-            '%s = __Pyx_PyImport_AddModuleRef((const char *) "cython_runtime"); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.putln(
