@@ -67,7 +67,7 @@ class MatchCaseNode(Node):
 class PatternNode(Node):
     """
     PatternNode is not an expression because
-    it does several things (evalutating a boolean expression,
+    it does several things (evaluating a boolean expression,
     assignment of targets), and they need to be done at different
     times.
 

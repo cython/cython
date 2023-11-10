@@ -4078,7 +4078,7 @@ def p_match_statement(s, ctx):
     if errors:
         return None
 
-    # at this stage were commited to it being a match block so continue
+    # at this stage we are committed to it being a match block so continue
     # outside "with tentatively_scan"
     # (I think this deviates from the PEG parser slightly, and it'd
     # backtrack on the whole thing)
