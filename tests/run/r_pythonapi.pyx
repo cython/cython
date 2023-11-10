@@ -1,12 +1,10 @@
+# mode: run
+
 __doc__ = u"""
     >>> x = spam()
     >>> print(repr(x))
-    u'Ftang\\x00Ftang!'
+    'Ftang\\x00Ftang!'
 """
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
 
 cdef extern from "string.h":
     void memcpy(char *d, char *s, int n)

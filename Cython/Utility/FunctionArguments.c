@@ -17,12 +17,7 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
         PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
-    else if (exact) {
-        #if PY_MAJOR_VERSION == 2
-        if ((type == &PyBaseString_Type) && likely(__Pyx_PyBaseString_CheckExact(obj))) return 1;
-        #endif
-    }
-    else {
+    else if (!exact) {
         if (likely(__Pyx_TypeCheck(obj, type))) return 1;
     }
     type_name = __Pyx_PyType_GetName(type);
@@ -81,12 +76,7 @@ static void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name)
 
 static void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name) {
     PyErr_Format(PyExc_TypeError,
-        #if PY_MAJOR_VERSION >= 3
         "%s() needs keyword-only argument %U", func_name, kw_name);
-        #else
-        "%s() needs keyword-only argument %s", func_name,
-        PyString_AS_STRING(kw_name));
-        #endif
 }
 
 
@@ -101,12 +91,7 @@ static void __Pyx_RaiseDoubleKeywordsError(
     PyObject* kw_name)
 {
     PyErr_Format(PyExc_TypeError,
-        #if PY_MAJOR_VERSION >= 3
         "%s() got multiple values for keyword argument '%U'", func_name, kw_name);
-        #else
-        "%s() got multiple values for keyword argument '%s'", func_name,
-        PyString_AsString(kw_name));
-        #endif
 }
 
 
@@ -187,11 +172,8 @@ static int __Pyx_CheckKeywordStrings(
     }
 
     while (PyDict_Next(kw, &pos, &key, 0)) {
-        #if PY_MAJOR_VERSION < 3
-        if (unlikely(!PyString_Check(key)))
-        #endif
-            if (unlikely(!PyUnicode_Check(key)))
-                goto invalid_keyword_type;
+        if (unlikely(!PyUnicode_Check(key)))
+            goto invalid_keyword_type;
     }
     if (!kw_allowed && unlikely(key))
         goto invalid_keyword;
@@ -202,15 +184,9 @@ invalid_keyword_type:
     return 0;
 #endif
 invalid_keyword:
-    #if PY_MAJOR_VERSION < 3
-    PyErr_Format(PyExc_TypeError,
-        "%.200s() got an unexpected keyword argument '%.200s'",
-        function_name, PyString_AsString(key));
-    #else
     PyErr_Format(PyExc_TypeError,
         "%s() got an unexpected keyword argument '%U'",
         function_name, key);
-    #endif
     return 0;
 }
 
@@ -316,38 +292,10 @@ static int __Pyx_ParseOptionalKeywords(
         Py_INCREF(value);
 
         name = first_kw_arg;
-        #if PY_MAJOR_VERSION < 3
-        if (likely(PyString_Check(key))) {
-            while (*name) {
-                if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
-                        && _PyString_Eq(**name, key)) {
-                    values[name-argnames] = value;
-#if CYTHON_AVOID_BORROWED_REFS
-                    value = NULL;  // ownership transferred to values
-#endif
-                    break;
-                }
-                name++;
-            }
-            if (*name) continue;
-            else {
-                // not found after positional args, check for duplicate
-                PyObject*** argname = argnames;
-                while (argname != first_kw_arg) {
-                    if ((**argname == key) || (
-                            (CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**argname) == PyString_GET_SIZE(key))
-                             && _PyString_Eq(**argname, key))) {
-                        goto arg_passed_twice;
-                    }
-                    argname++;
-                }
-            }
-        } else
-        #endif
         if (likely(PyUnicode_Check(key))) {
             while (*name) {
                 int cmp = (
-                #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
+                #if !CYTHON_COMPILING_IN_PYPY
                     (__Pyx_PyUnicode_GET_LENGTH(**name) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
                 #endif
                     // In Py2, we may need to convert the argument name from str to unicode for comparison.
@@ -369,7 +317,7 @@ static int __Pyx_ParseOptionalKeywords(
                 PyObject*** argname = argnames;
                 while (argname != first_kw_arg) {
                     int cmp = (**argname == key) ? 0 :
-                    #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
+                    #if !CYTHON_COMPILING_IN_PYPY
                         (__Pyx_PyUnicode_GET_LENGTH(**argname) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
                     #endif
                         // need to convert argument name from bytes to unicode for comparison
@@ -399,15 +347,9 @@ invalid_keyword_type:
         "%.200s() keywords must be strings", function_name);
     goto bad;
 invalid_keyword:
-    #if PY_MAJOR_VERSION < 3
-    PyErr_Format(PyExc_TypeError,
-        "%.200s() got an unexpected keyword argument '%.200s'",
-        function_name, PyString_AsString(key));
-    #else
     PyErr_Format(PyExc_TypeError,
         "%s() got an unexpected keyword argument '%U'",
         function_name, key);
-    #endif
 bad:
     Py_XDECREF(key);
     Py_XDECREF(value);

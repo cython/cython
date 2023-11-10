@@ -2,17 +2,12 @@
 # tag: pure3.6
 # cython: language_level=3str
 
-import sys
-HAS_NATIVE_SUPPORT = sys.version_info >= (3, 6)
-IS_PY2 = sys.version_info[0] == 2
-
 import re
+import sys
 import types
 import unittest
 
 ZERO = 0
-
-skip_if_not_native = unittest.skipIf(not HAS_NATIVE_SUPPORT, "currently requires Python 3.6+")
 
 
 class Test(unittest.TestCase):
@@ -31,8 +26,7 @@ class Test(unittest.TestCase):
             initialized = False
 
             def __init_subclass__(cls):
-                if HAS_NATIVE_SUPPORT:
-                    super().__init_subclass__()
+                super().__init_subclass__()
                 cls.initialized = True
 
         class B(A):
@@ -46,8 +40,7 @@ class Test(unittest.TestCase):
             initialized = False
 
             def __init_subclass__(cls):
-                if HAS_NATIVE_SUPPORT:
-                    super().__init_subclass__()
+                super().__init_subclass__()
                 cls.initialized = True
 
         class B(A):
@@ -87,8 +80,7 @@ class Test(unittest.TestCase):
     def test_init_subclass_skipped(self):
         class BaseWithInit:
             def __init_subclass__(cls, **kwargs):
-                if HAS_NATIVE_SUPPORT:
-                    super().__init_subclass__(**kwargs)
+                super().__init_subclass__(**kwargs)
                 cls.initialized = cls
 
         class BaseWithoutInit(BaseWithInit):
@@ -103,8 +95,7 @@ class Test(unittest.TestCase):
     def test_init_subclass_diamond(self):
         class Base:
             def __init_subclass__(cls, **kwargs):
-                if HAS_NATIVE_SUPPORT:
-                    super().__init_subclass__(**kwargs)
+                super().__init_subclass__(**kwargs)
                 cls.calls = []
 
         class Left(Base):
@@ -139,7 +130,6 @@ class Test(unittest.TestCase):
         self.assertEqual(A.d.name, "d")
         self.assertIs(A.d.owner, A)
 
-    @skip_if_not_native
     def test_set_name_metaclass(self):
         class Meta(type):
             def __new__(cls, name, bases, ns):
@@ -176,8 +166,7 @@ class Test(unittest.TestCase):
             self.assertRegex(str(exc), r'\bNotGoingToWork\b')
             self.assertRegex(str(exc), r'\battr\b')
             self.assertRegex(str(exc), r'\bDescriptor\b')
-            if HAS_NATIVE_SUPPORT:
-                self.assertIsInstance(exc.__cause__, ZeroDivisionError)
+            self.assertIsInstance(exc.__cause__, ZeroDivisionError)
 
     def test_set_name_wrong(self):
         class Descriptor:
@@ -198,8 +187,7 @@ class Test(unittest.TestCase):
             self.assertRegex(str(exc), r'\bNotGoingToWork\b')
             self.assertRegex(str(exc), r'\battr\b')
             self.assertRegex(str(exc), r'\bDescriptor\b')
-            if HAS_NATIVE_SUPPORT:
-                self.assertIsInstance(exc.__cause__, TypeError)
+            self.assertIsInstance(exc.__cause__, TypeError)
 
     def test_set_name_lookup(self):
         resolved = []
@@ -213,7 +201,6 @@ class Test(unittest.TestCase):
         self.assertNotIn('__set_name__', resolved,
                          '__set_name__ is looked up in instance dict')
 
-    @skip_if_not_native
     def test_set_name_init_subclass(self):
         class Descriptor:
             def __set_name__(self, owner, name):
@@ -264,12 +251,11 @@ class Test(unittest.TestCase):
             class MyClass(metaclass=MyMeta, otherarg=1):
                 pass
 
-        if not IS_PY2:
-            with self.assertRaises(TypeError):
-                types.new_class("MyClass", (object,),
-                                dict(metaclass=MyMeta, otherarg=1))
-            types.prepare_class("MyClass", (object,),
-                                dict(metaclass=MyMeta, otherarg=1))
+        with self.assertRaises(TypeError):
+            types.new_class("MyClass", (object,),
+                            dict(metaclass=MyMeta, otherarg=1))
+        types.prepare_class("MyClass", (object,),
+                            dict(metaclass=MyMeta, otherarg=1))
 
         class MyMeta(type):
             def __init__(self, name, bases, namespace, otherarg):
@@ -292,7 +278,6 @@ class Test(unittest.TestCase):
 
         self.assertEqual(MyClass.otherarg, 1)
 
-    @skip_if_not_native
     def test_errors_changed_pep487(self):
         # These tests failed before Python 3.6, PEP 487
         class MyMeta(type):

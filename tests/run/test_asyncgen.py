@@ -20,9 +20,6 @@ import contextlib
 ZERO = 0
 
 try:
-    if sys.version_info[:2] == (3, 4):
-        # asnycio in Py3.4 does not support awaitable coroutines (requires iterators instead)
-        raise ImportError
     import asyncio
 except ImportError:
     try:
@@ -37,14 +34,6 @@ else:
     def requires_asyncio(c):
         return c
 
-
-def needs_py36_asyncio(f):
-    if sys.version_info >= (3, 6) or asyncio is None:
-        # Py<3.4 doesn't have asyncio at all => avoid having to special case 2.6's unittest below
-        return f
-
-    from unittest import skip
-    return skip("needs Python 3.6 or later")(f)
 
 def not_pypy(f):
     if getattr(sys, "pypy_version_info", False):
@@ -240,17 +229,6 @@ class AsyncGenSyntaxTest(unittest.TestCase):
 
 
 class AsyncGenTest(unittest.TestCase):
-
-    if sys.version_info < (3, 3):
-        @contextlib.contextmanager
-        def assertRaisesRegex(self, exc_type, regex=None):
-            # the error messages usually don't match, so we just ignore them
-            try:
-                yield
-            except exc_type:
-                self.assertTrue(True)
-            else:
-                self.assertTrue(False)
 
     def compare_generators(self, sync_gen, async_gen):
         def sync_iterate(g):
@@ -504,11 +482,11 @@ class AsyncGenTest(unittest.TestCase):
         g = gen()
 
         self.assertEqual(g.__name__, 'gen')
-        g.__name__ = '123' if sys.version_info[0] >= 3 else b'123'
+        g.__name__ = '123'
         self.assertEqual(g.__name__, '123')
 
         self.assertIn('.gen', g.__qualname__)
-        g.__qualname__ = '123' if sys.version_info[0] >= 3 else b'123'
+        g.__qualname__ = '123'
         self.assertEqual(g.__qualname__, '123')
 
         #self.assertIsNone(g.ag_await)
@@ -800,7 +778,6 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
 
     @not_pypy
-    @needs_py36_asyncio
     def test_async_gen_asyncio_gc_aclose_09(self):
         DONE = 0
 
@@ -1202,7 +1179,6 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         self.loop.run_until_complete(run())
 
-    @needs_py36_asyncio
     def test_async_gen_asyncio_shutdown_01(self):
         finalized = 0
 
