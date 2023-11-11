@@ -1294,7 +1294,7 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
-    namespace_cname_typecast = ""
+    namespace_cname_is_type = False
     scope_predefined_names = [
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',
@@ -2215,7 +2215,7 @@ class PyClassScope(ClassScope):
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
-    namespace_cname_typecast = ""
+    namespace_cname_is_type = False
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2300,7 +2300,7 @@ class CClassScope(ClassScope):
         if ((parent_type.is_builtin_type or parent_type.is_extension_type)
                 and parent_type.typeptr_cname):
             self.namespace_cname = self.parent_type.typeptr_cname
-            self.namespace_cname_typecast = "(PyObject *)"
+            self.namespace_cname_is_type = True
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued

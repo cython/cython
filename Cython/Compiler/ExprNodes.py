@@ -2492,14 +2492,14 @@ class NameNode(AtomicExprNode):
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
                 namespace_cname = code.namespace_cname_in_module_state(entry.scope)
-                namespace_typecast = self.entry.scope.namespace_cname_typecast
+                namespace_cname_is_type = self.entry.scope.namespace_cname_is_type
                 # FIXME: is_pyglobal is also used for class namespace
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
                 code.putln(
                     '__Pyx_GetNameInClass(%s, %s%s, %s); %s' % (
                         self.result(),
-                        namespace_typecast,
+                        "(PyObject*)" if namespace_cname_is_type else "",
                         namespace_cname,
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
@@ -2542,11 +2542,13 @@ class NameNode(AtomicExprNode):
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             namespace = code.namespace_cname_in_module_state(self.entry.scope)
-            namespace_typecast = self.entry.scope.namespace_cname_typecast
+            namespace_is_type = self.entry.scope.namespace_cname_is_type
+            namespace_needs_type = False
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict.
                 setter = '__Pyx_SetItemOnTypeDict'
+                namespace_needs_type = True
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = code.name_in_module_state(Naming.moddict_cname)
@@ -2557,8 +2559,10 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
-            if namespace_typecast:
-                namespace = "(%s%s)" % (namespace_typecast, namespace)
+            if namespace_is_type and not namespace_needs_type:
+                namespace = "((PyObject*)%s)" % namespace
+            # This combination shouldn't happen, and we don't know enough to cast
+            assert not (namespace_needs_type and not namespace_is_type)
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
