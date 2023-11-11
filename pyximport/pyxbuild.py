@@ -6,9 +6,18 @@ out_fname = pyx_to_dll("foo.pyx")
 import os
 import sys
 
-from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
-from distutils.extension import Extension
-from distutils.util import grok_environment_error
+try:
+    from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
+    from distutils.extension import Extension
+    from distutils.util import grok_environment_error
+except ImportError:
+    try:
+        from setuptools.errors import DistutilsArgError, DistutilsError, CCompilerError
+        from setuptools.extension import Extension
+        from setuptools._distutils.util import grok_environment_error
+    except ImportError:
+        raise ImportError("'distutils' cannot be imported. Please install setuptools.")
+
 try:
     from Cython.Distutils.build_ext import build_ext
     HAS_CYTHON = True

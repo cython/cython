@@ -237,8 +237,8 @@ x = sin(0.0)
         @contextmanager
         def mock_distutils():
             class MockLog:
-                DEBUG = 1
-                INFO = 2
+                DEBUG = IpythonMagic.logging.DEBUG
+                INFO = IpythonMagic.logging.INFO
                 thresholds = [INFO]
 
                 def set_threshold(self, val):
@@ -247,12 +247,12 @@ x = sin(0.0)
 
 
             new_log = MockLog()
-            old_log = IpythonMagic.distutils.log
+            old_log = IpythonMagic.set_threshold
             try:
-                IpythonMagic.distutils.log = new_log
+                IpythonMagic.set_threshold = new_log.set_threshold
                 yield new_log
             finally:
-                IpythonMagic.distutils.log = old_log
+                IpythonMagic.set_threshold = old_log
 
         ip = self._ip
         with mock_distutils() as verbose_log:

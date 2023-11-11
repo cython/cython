@@ -105,7 +105,9 @@ def run_distutils(args):
         try:
             from setuptools import setup
         except ImportError:
-            raise ImportError("'distutils' is not available. Please install 'setuptools' for binary builds.")
+            raise ImportError(
+                "'distutils' cannot be imported. Please install setuptools."
+            )
 
     base_dir, ext_modules = args
     script_args = ['build_ext', '-i']
