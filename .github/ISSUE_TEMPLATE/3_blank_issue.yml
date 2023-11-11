@@ -1,0 +1,21 @@
+name: Blank Issue
+description: Not a Bug or a Feature Request. DO NOT post support questions here, see the "I NEED HELP" section
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **PLEASE READ THIS FIRST:**
+        - DO NOT use the bug and feature tracker for general questions and support requests.
+        Use the [`cython-users`](https://groups.google.com/g/cython-users) mailing list instead.
+        It has a wider audience, so you get more and better answers.
+        - Did you search for SIMILAR ISSUES already?
+        Please do, it helps to save us precious time that we otherwise could not invest into development.
+        - Did you try the LATEST MASTER BRANCH or pre-release?
+        It might already have what you want to report.
+        Specifically, the legacy stable 0.29.x release series receives only important low-risk bug fixes.
+        Also see the [Changelog](https://github.com/cython/cython/blob/master/CHANGES.rst) regarding recent changes
+  - type: textarea
+    attributes:
+      label: "Describe your issue"
+    validations:
+      required: true

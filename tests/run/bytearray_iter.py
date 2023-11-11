@@ -88,3 +88,18 @@ def modifying_reversed_bytearray_iter(x):
     for a in reversed(x):
         print(chr(a))
         del x[0]
+
+# ticket: 3473
+
+def test_bytearray_iteration(src):
+    """
+    >>> src = b'123'
+    >>> test_bytearray_iteration(src)
+    49
+    50
+    51
+    """
+
+    data = bytearray(src)
+    for elem in data:
+        print(elem)

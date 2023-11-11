@@ -1,8 +1,8 @@
 cimport cython
 
 cdef extern from *:
-    cdef Py_ssize_t PY_SSIZE_T_MIN
-    cdef Py_ssize_t PY_SSIZE_T_MAX
+    const Py_ssize_t PY_SSIZE_T_MIN
+    const Py_ssize_t PY_SSIZE_T_MAX
 
 SSIZE_T_MAX = PY_SSIZE_T_MAX
 SSIZE_T_MIN = PY_SSIZE_T_MIN
@@ -277,3 +277,11 @@ def literal_join(*args):
     result = b'|'.join(args)
     assert cython.typeof(result) == 'Python object', cython.typeof(result)
     return result
+
+def fromhex(bytes b):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> fromhex(b"")
+    """
+    assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'

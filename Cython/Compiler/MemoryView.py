@@ -295,7 +295,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             dim += 1
             access, packing = self.type.axes[dim]
 
-            if isinstance(index, ExprNodes.SliceNode):
+            if index.is_slice:
                 # slice, unspecified dimension, or part of ellipsis
                 d = dict(locals())
                 for s in "start stop step".split():
@@ -814,6 +814,7 @@ context = {
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
     'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
+    'THREAD_LOCKS_PREALLOCATED': 8,
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",
@@ -845,14 +846,13 @@ copy_contents_new_utility = load_memview_c_utility(
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
         context=context,
-        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
-                  Buffer.buffer_struct_declare_code,
+        requires=[Buffer.buffer_struct_declare_code,
                   Buffer.buffer_formats_declare_code,
                   memviewslice_init_code,
                   is_contig_utility,
                   overlapping_utility,
                   copy_contents_new_utility,
-                  ModuleNode.capsule_utility_code],
+                  ],
 )
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',

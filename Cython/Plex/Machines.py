@@ -154,7 +154,7 @@ class FastMachine(object):
     def make_initial_state(self, name, state):
         self.initial_states[name] = state
 
-    @cython.locals(code0=cython.long, code1=cython.long, maxint=cython.long, state=dict)
+    @cython.locals(code0=cython.int, code1=cython.int, maxint=cython.int, state=dict)
     def add_transitions(self, state, event, new_state, maxint=maxint):
         if type(event) is tuple:
             code0, code1 = event

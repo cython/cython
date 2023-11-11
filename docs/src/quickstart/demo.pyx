@@ -12,6 +12,7 @@ def timeit(f, label):
         first_time = elapsed
     print label, elapsed, (100*elapsed/first_time), '% or', first_time/elapsed, 'x'
 
+
 # Pure Python
 
 py_funcs = {'sin': sin}
@@ -30,20 +31,20 @@ def integrate_f(a, b, N):
 """ in py_funcs
 timeit(py_funcs['integrate_f'], "Python")
 
+
 # Just compiled
 
 def f0(x):
-      return x**2-x
+    return x**2-x
 
 def integrate_f0(a, b, N):
-      s = 0
-      dx = (b-a)/N
-      for i in range(N):
-          s += f0(a+i*dx)
-      return s * dx
+    s = 0
+    dx = (b-a)/N
+    for i in range(N):
+        s += f0(a+i*dx)
+    return s * dx
 
 timeit(integrate_f0, "Cython")
-
 
 
 # Typed vars
@@ -61,7 +62,6 @@ def integrate_f1(double a, double b, int N):
     return s * dx
 
 timeit(integrate_f1, "Typed vars")
-
 
 
 # Typed func

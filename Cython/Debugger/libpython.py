@@ -2504,8 +2504,11 @@ class PythonInfo(LanguageInfo):
             tstate = frame.read_var('tstate').dereference()
             if gdb.parse_and_eval('tstate->frame == f'):
                 # tstate local variable initialized, check for an exception
-                inf_type = tstate['curexc_type']
-                inf_value = tstate['curexc_value']
+                if sys.version_info >= (3, 12, 0, 'alpha', 6):
+                    inf_type = inf_value = tstate['current_exception']
+                else:
+                    inf_type = tstate['curexc_type']
+                    inf_value = tstate['curexc_value']
 
                 if inf_type:
                     return 'An exception was raised: %s' % (inf_value,)

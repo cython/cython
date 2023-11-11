@@ -30,6 +30,18 @@ def test_multimap_insert_it(vals):
     mm.insert(umm.begin(), umm.end())
     return [ (item.first, item.second) for item in mm ]
 
+def test_const_multimap_insert_it(vals):
+    """
+    >>> test_const_multimap_insert_it([(1,1),(2,2),(2,2),(3,3),(-1,-1)])
+    [(-1, -1), (1, 1), (2, 2), (2, 2), (3, 3)]
+    """
+    cdef unordered_multimap[int,int] umm = unordered_multimap[int,int]()
+    cdef multimap[int,int] mm = multimap[int,int]()
+    for k, v in vals:
+        umm.insert(pair[int,int](k, v))
+    mm.insert(umm.cbegin(), umm.cend())
+    return [ (item.first, item.second) for item in mm ]
+
 def test_multimap_count(vals, to_find):
     """
     >>> test_multimap_count([(1,1),(2,2),(2,2),(3,3),(-1,-1)], 1)
@@ -92,6 +104,18 @@ def test_unordered_multimap_insert_it(vals):
     for v in vals:
         mm.insert(v)
     umm.insert(mm.begin(), mm.end())
+    return sorted([ (item.first, item.second) for item in umm ])
+
+def test_const_unordered_multimap_insert_it(vals):
+    """
+    >>> test_const_unordered_multimap_insert_it([(1,1),(2,2),(2,2),(3,3),(-1,-1)])
+    [(-1, -1), (1, 1), (2, 2), (2, 2), (3, 3)]
+    """
+    cdef multimap[int,int] mm = multimap[int,int]()
+    cdef unordered_multimap[int,int] umm = unordered_multimap[int,int]()
+    for v in vals:
+        mm.insert(v)
+    umm.insert(mm.cbegin(), mm.cend())
     return sorted([ (item.first, item.second) for item in umm ])
 
 def test_unordered_multimap_count(vals, to_find):

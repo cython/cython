@@ -62,7 +62,7 @@ class Lexicon(object):
     Actions
     -------
 
-    The |action| in a token specication may be one of three things:
+    The |action| in a token specification may be one of three things:
 
        1) A function, which is called as follows:
 

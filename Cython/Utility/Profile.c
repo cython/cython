@@ -38,6 +38,12 @@
   #include "compile.h"
   #include "frameobject.h"
   #include "traceback.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
 
   #if CYTHON_PROFILE_REUSE_FRAME
     #define CYTHON_FRAME_MODIFIER static
@@ -55,15 +61,21 @@
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
+
 #if PY_VERSION_HEX >= 0x030b00a2
+  #if PY_VERSION_HEX >= 0x030C00b1
+  #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
+     ((!(check_tracing) || !(tstate)->tracing) && \
+         (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
+  #else
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
      (unlikely((tstate)->cframe->use_tracing) && \
          (!(check_tracing) || !(tstate)->tracing) && \
          (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
+  #endif
 
-  #define __Pyx_EnterTracing(tstate) PyThreadState_EnterTracing(tstate)
-
-  #define __Pyx_LeaveTracing(tstate) PyThreadState_LeaveTracing(tstate)
+  #define __Pyx_EnterTracing(tstate)  PyThreadState_EnterTracing(tstate)
+  #define __Pyx_LeaveTracing(tstate)  PyThreadState_LeaveTracing(tstate)
 
 #elif PY_VERSION_HEX >= 0x030a00b1
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
@@ -294,10 +306,6 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             Py_INCREF(Py_None);
             (*frame)->f_trace = Py_None;
         }
-#if PY_VERSION_HEX < 0x030400B1
-    } else {
-        (*frame)->f_tstate = tstate;
-#endif
     }
     __Pyx_PyFrame_SetLineNumber(*frame, firstlineno);
 
@@ -325,46 +333,11 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
 }
 
 static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
-    PyCodeObject *py_code = 0;
-
-#if PY_MAJOR_VERSION >= 3
-    py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
+    PyCodeObject *py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
     // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
     if (likely(py_code)) {
         py_code->co_flags |= CO_OPTIMIZED | CO_NEWLOCALS;
     }
-#else
-    PyObject *py_srcfile = 0;
-    PyObject *py_funcname = 0;
-
-    py_funcname = PyString_FromString(funcname);
-    if (unlikely(!py_funcname)) goto bad;
-    py_srcfile = PyString_FromString(srcfile);
-    if (unlikely(!py_srcfile)) goto bad;
-
-    py_code = PyCode_New(
-        0,                /*int argcount,*/
-        0,                /*int nlocals,*/
-        0,                /*int stacksize,*/
-        // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
-        CO_OPTIMIZED | CO_NEWLOCALS,  /*int flags,*/
-        $empty_bytes,     /*PyObject *code,*/
-        $empty_tuple,     /*PyObject *consts,*/
-        $empty_tuple,     /*PyObject *names,*/
-        $empty_tuple,     /*PyObject *varnames,*/
-        $empty_tuple,     /*PyObject *freevars,*/
-        $empty_tuple,     /*PyObject *cellvars,*/
-        py_srcfile,       /*PyObject *filename,*/
-        py_funcname,      /*PyObject *name,*/
-        firstlineno,      /*int firstlineno,*/
-        $empty_bytes      /*PyObject *lnotab*/
-    );
-
-bad:
-    Py_XDECREF(py_srcfile);
-    Py_XDECREF(py_funcname);
-#endif
-
     return py_code;
 }
 

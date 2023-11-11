@@ -58,7 +58,7 @@ def generate_pyx_code_stage_factory(options, result):
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
         for name, (statlistnode, scope) in context.pxds.items():
-            module_node.merge_in(statlistnode, scope)
+            module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
     return inject_pxd_code_stage
 
@@ -130,7 +130,8 @@ def inject_utility_code_stage_factory(context):
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
                 module_node.merge_in(tree.with_compiler_directives(),
-                                     tree.scope, merge_scope=True)
+                                     tree.scope, stage="utility",
+                                     merge_scope=True)
         return module_node
 
     return inject_utility_code_stage
@@ -231,14 +232,15 @@ def create_pipeline(context, mode, exclude_classes=()):
     return stages
 
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
-    if py:
-        mode = 'py'
-    else:
-        mode = 'pyx'
+    mode = 'py' if py else 'pyx'
+
     test_support = []
+    ctest_support = []
     if options.evaluate_tree_assertions:
         from ..TestUtils import TreeAssertVisitor
-        test_support.append(TreeAssertVisitor())
+        test_validator = TreeAssertVisitor()
+        test_support.append(test_validator)
+        ctest_support.append(test_validator.create_c_file_validator())
 
     if options.gdb_debug:
         from ..Debugger import DebugWriter  # requires Py2.5+
@@ -257,7 +259,9 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
          inject_utility_code_stage_factory(context),
          abort_on_errors],
         debug_transform,
-        [generate_pyx_code_stage_factory(options, result)]))
+        [generate_pyx_code_stage_factory(options, result)],
+        ctest_support,
+    ))
 
 def create_pxd_pipeline(context, scope, module_name):
     from .CodeGeneration import ExtractPxdCode

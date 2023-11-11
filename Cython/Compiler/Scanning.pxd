@@ -29,13 +29,14 @@ cdef class PyrexScanner(Scanner):
     cdef public bint parse_comments
     cdef public bint in_python_file
     cdef public source_encoding
-    cdef set keywords
+    cdef dict keywords
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
     cdef readonly bint async_enabled
     cdef public unicode sy
     cdef public systring  # EncodedString
+    cdef public list put_back_on_failure
 
     cdef Py_ssize_t current_level(self)
     #cpdef commentline(self, text)
@@ -51,7 +52,6 @@ cdef class PyrexScanner(Scanner):
     ##cdef next(self)
     ##cdef peek(self)
     #cpdef put_back(self, sy, systring)
-    #cdef unread(self, token, value)
     ##cdef bint expect(self, what, message = *) except -2
     ##cdef expect_keyword(self, what, message = *)
     ##cdef expected(self, what, message = *)
@@ -60,3 +60,4 @@ cdef class PyrexScanner(Scanner):
     ##cdef expect_newline(self, message=*, bint ignore_semicolon=*)
     ##cdef int enter_async(self) except -1
     ##cdef int exit_async(self) except -1
+    cdef void error_at_scanpos(self, str message) except *

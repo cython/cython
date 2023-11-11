@@ -206,6 +206,30 @@ def object_default(object o): # always behaves like 'or None'
     return type(o).__name__
 
 @cython.allow_none_for_extension_args(False)
+def object_default_annotation(o : object):
+    """
+    >>> object_default_annotation(object())
+    'object'
+    >>> object_default_annotation([])
+    'list'
+    >>> object_default_annotation(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+# no decorator
+def object_default_annotation2(o : object):
+    """
+    >>> object_default_annotation2(object())
+    'object'
+    >>> object_default_annotation2([])
+    'list'
+    >>> object_default_annotation2(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+@cython.allow_none_for_extension_args(False)
 def object_default_none(object o=None): # behaves like 'or None'
     """
     >>> object_default_none(object())
