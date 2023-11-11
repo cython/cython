@@ -202,7 +202,7 @@ def test_incdec():
     try:
         # FIXME related to https://github.com/cython/cython/issues/4535
         # global scope operator++ with different numbers of arguments don't get
-        # added as alteratives, but get rejected as redeclarations
+        # added as alternatives, but get rejected as redeclarations
         e = cython.operator.preincrement(t1[0])
         out(e, typeof(e))
         f = cython.operator.postincrement(t1[0])
