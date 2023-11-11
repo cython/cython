@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import os
 import shutil
 import tempfile
-from distutils.core import setup
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
@@ -45,10 +42,12 @@ def find_package_base(path):
         package_path = '%s/%s' % (parent, package_path)
     return base_dir, package_path
 
-
 def cython_compile(path_pattern, options):
-    pool = None
     all_paths = map(os.path.abspath, extended_iglob(path_pattern))
+    _cython_compile_files(all_paths, options)
+
+def _cython_compile_files(all_paths, options):
+    pool = None
     try:
         for path in all_paths:
             if options.build_inplace:
@@ -75,6 +74,7 @@ def cython_compile(path_pattern, options):
                 force=options.force,
                 quiet=options.quiet,
                 depfile=options.depfile,
+                language=options.language,
                 **options.options)
 
             if ext_modules and options.build:
@@ -99,6 +99,14 @@ def cython_compile(path_pattern, options):
 
 
 def run_distutils(args):
+    try:
+        from distutils.core import setup
+    except ImportError:
+        try:
+            from setuptools import setup
+        except ImportError:
+            raise ImportError("'distutils' is not available. Please install 'setuptools' for binary builds.")
+
     base_dir, ext_modules = args
     script_args = ['build_ext', '-i']
     cwd = os.getcwd()
@@ -121,10 +129,18 @@ def run_distutils(args):
 
 
 def create_args_parser():
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser, RawDescriptionHelpFormatter
     from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""\
+Environment variables:
+  CYTHON_FORCE_REGEN: if set to 1, forces cythonize to regenerate the output files regardless
+        of modification times and changes.
+  Environment variables accepted by setuptools are supported to configure the C compiler and build:
+  https://setuptools.pypa.io/en/latest/userguide/ext_modules.html#compiler-and-linker-options"""
+    )
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='directives', default={}, type=str,
@@ -144,6 +160,8 @@ def create_args_parser():
                       help='use Python 3 syntax mode by default')
     parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
                       help='use Python 3 syntax mode by default')
+    parser.add_argument('-+', '--cplus', dest='language', action='store_const', const='c++', default=None,
+                        help='Compile as C++ rather than C')
     parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
                       help='Produce a colorized HTML version of the source.')
     parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
@@ -154,9 +172,9 @@ def create_args_parser():
                       help='exclude certain file patterns from the compilation')
 
     parser.add_argument('-b', '--build', dest='build', action='store_true', default=None,
-                      help='build extension modules using distutils')
+                      help='build extension modules using distutils/setuptools')
     parser.add_argument('-i', '--inplace', dest='build_inplace', action='store_true', default=None,
-                      help='build extension modules in place using distutils (implies -b)')
+                      help='build extension modules in place using distutils/setuptools (implies -b)')
     parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
                       type=int, default=parallel_compiles,
                       help=('run builds in N parallel jobs (default: %d)' %
@@ -222,8 +240,15 @@ def parse_args(args):
 def main(args=None):
     options, paths = parse_args(args)
 
+    all_paths = []
     for path in paths:
-        cython_compile(path, options)
+        expanded_path = [os.path.abspath(p) for p in extended_iglob(path)]
+        if not expanded_path:
+            import sys
+            print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
+            sys.exit(1)
+        all_paths.extend(expanded_path)
+    _cython_compile_files(all_paths, options)
 
 
 if __name__ == '__main__':

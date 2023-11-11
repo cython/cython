@@ -29,6 +29,18 @@ def test_multiset_insert_it(vals):
     ms.insert(ums.begin(), ums.end())
     return [ item for item in ms ]
 
+def test_const_multiset_insert_it(vals):
+    """
+    >>> test_const_multiset_insert_it([1,2,2,3, -1])
+    [-1, 1, 2, 2, 3]
+    """
+    cdef unordered_multiset[int] ums = unordered_multiset[int]()
+    cdef multiset[int] ms = multiset[int]()
+    for v in vals:
+        ums.insert(v)
+    ms.insert(ums.cbegin(), ums.cend())
+    return [ item for item in ms ]
+
 def test_multiset_count(vals, to_find):
     """
     >>> test_multiset_count([1,2,2,3, -1], 1)
@@ -92,6 +104,18 @@ def test_unordered_multiset_insert_it(vals):
     for v in vals:
         ms.insert(v)
     ums.insert(ms.begin(), ms.end())
+    return sorted([ item for item in ums ])
+
+def test_const_unordered_multiset_insert_it(vals):
+    """
+    >>> test_const_unordered_multiset_insert_it([1,2,2,3, -1])
+    [-1, 1, 2, 2, 3]
+    """
+    cdef multiset[int] ms = multiset[int]()
+    cdef unordered_multiset[int] ums = unordered_multiset[int]()
+    for v in vals:
+        ms.insert(v)
+    ums.insert(ms.cbegin(), ms.cend())
     return sorted([ item for item in ums ])
 
 def test_unordered_multiset_count(vals, to_find):

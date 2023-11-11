@@ -3,9 +3,8 @@
 
 import sys
 
-if sys.version_info >= (3, 5, 0, 'beta'):
-    # pass Cython implemented AsyncIter() into a Python async-for loop
-    __doc__ = u"""
+# pass Cython implemented AsyncIter() into a Python async-for loop
+__doc__ = u"""
 >>> def test_py35(AsyncIterClass):
 ...     buffer = []
 ...     async def coro():
@@ -13,7 +12,7 @@ if sys.version_info >= (3, 5, 0, 'beta'):
 ...             buffer.append(i1 + i2)
 ...     return coro, buffer
 
->>> testfunc, buffer = test_py35(AsyncIterOld if sys.version_info < (3, 5, 2) else AsyncIter)
+>>> testfunc, buffer = test_py35(AsyncIter)
 >>> buffer
 []
 
@@ -84,15 +83,6 @@ cdef class AsyncIter:
             raise StopAsyncIteration
 
         return self.i, self.i
-
-
-cdef class AsyncIterOld(AsyncIter):
-    """
-    Same as AsyncIter, but with the old async-def interface for __aiter__().
-    """
-    async def __aiter__(self):
-        self.aiter_calls += 1
-        return self
 
 
 def test_for_1():
@@ -211,6 +201,9 @@ cdef class Iterable:
         self.i += 1
         return self.i
 
+def has_getrefcount():
+    import sys
+    return hasattr(sys, "getrefcount")
 
 def test_with_for():
     """
@@ -223,8 +216,9 @@ def test_with_for():
 
     manager = Manager(I)
     iterable = Iterable()
-    mrefs_before = sys.getrefcount(manager)
-    irefs_before = sys.getrefcount(iterable)
+    if has_getrefcount():
+        mrefs_before = sys.getrefcount(manager)
+        irefs_before = sys.getrefcount(iterable)
 
     async def main():
         async with manager:
@@ -235,8 +229,9 @@ def test_with_for():
     run_async(main())
     print(I[0])
 
-    assert sys.getrefcount(manager) == mrefs_before
-    assert sys.getrefcount(iterable) == irefs_before
+    if has_getrefcount():
+        assert sys.getrefcount(manager) == mrefs_before
+        assert sys.getrefcount(iterable) == irefs_before
 
     ##############
 

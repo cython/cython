@@ -4,9 +4,15 @@
 
 from __future__ import absolute_import
 
+import sys
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
+
+
+if sys.version_info < (3, 3):
+    # TODO: This workaround can be removed in Cython 3.1
+    FileNotFoundError = IOError
 
 
 class ParseDirectivesAction(Action):
@@ -145,6 +151,12 @@ def create_cython_argparser():
                       dest='compile_time_env', type=str,
                       action=ParseCompileTimeEnvAction,
                       help='Provides compile time env like DEF would do.')
+    parser.add_argument("--module-name",
+                      dest='module_name', type=str, action='store',
+                      help='Fully qualified module name. If not given, is '
+                           'deduced from the import path if source file is in '
+                           'a package, or equals the filename otherwise.')
+    parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
@@ -204,6 +216,14 @@ def parse_command_line(args):
     parser = create_cython_argparser()
     arguments, sources = parse_command_line_raw(parser, args)
 
+    work_dir = getattr(arguments, 'working_path', '')
+    for source in sources:
+        if work_dir and not os.path.isabs(source):
+            source = os.path.join(work_dir, source)
+        if not os.path.exists(source):
+            import errno
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), source)
+
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
         if name.startswith('debug'):
@@ -222,5 +242,10 @@ def parse_command_line(args):
     if len(sources) == 0 and not options.show_version:
         parser.error("cython: Need at least one source file\n")
     if Options.embed and len(sources) > 1:
-        parser.error("cython: Only one source file allowed when using -embed\n")
+        parser.error("cython: Only one source file allowed when using --embed\n")
+    if options.module_name:
+        if options.timestamps:
+            parser.error("cython: Cannot use --module-name with --timestamps\n")
+        if len(sources) > 1:
+            parser.error("cython: Only one source file allowed when using --module-name\n")
     return options, sources

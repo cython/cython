@@ -1,5 +1,5 @@
 # mode: error
-
+# tag: warnings
 cimport cython
 
 @cython.dataclasses.dataclass(1, shouldnt_be_here=True, init=5, unsafe_hash=True)

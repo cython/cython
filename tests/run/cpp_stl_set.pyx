@@ -30,6 +30,18 @@ def test_set_insert_it(vals):
     s.insert(us.begin(), us.end())
     return [item for item in s]
 
+def test_const_set_insert_it(vals):
+    """
+    >>> test_const_set_insert_it([1,2,2,3, -1])
+    [-1, 1, 2, 3]
+    """
+    cdef unordered_set[int] us = unordered_set[int]()
+    cdef set[int] s = set[int]()
+    for v in vals:
+        us.insert(v)
+    s.insert(us.cbegin(), us.cend())
+    return [item for item in s]
+
 def test_set_count(vals, to_find):
     """
     >>> test_set_count([1,2,2,3, -1], 1)
@@ -95,6 +107,18 @@ def test_unordered_set_insert_it(vals):
     us.insert(s.begin(), s.end())
     return sorted([item for item in us])
 
+def test_const_unordered_set_insert_it(vals):
+    """
+    >>> test_const_unordered_set_insert_it([1,2,2,3, -1])
+    [-1, 1, 2, 3]
+    """
+    cdef set[int] s = set[int]()
+    cdef unordered_set[int] us = unordered_set[int]()
+    for v in vals:
+        s.insert(v)
+    us.insert(s.cbegin(), s.cend())
+    return sorted([item for item in us])
+
 def test_unordered_set_count(vals, to_find):
     """
     >>> test_unordered_set_count([1,2,2,3, -1], 1)
@@ -135,3 +159,17 @@ def test_unordered_set_find_erase(vals, to_remove):
     it = us.find(to_remove)
     it = us.erase(it)
     return sorted([item for item in us])
+
+def test_iterator_stack_allocated():
+    """
+    https://github.com/cython/cython/issues/4657 - mainly a compile test showing
+    that const iterators can be stack allocated
+    >>> test_iterator_stack_allocated()
+    """
+    cdef set[int] myset = set[int]()
+    cdef unordered_set[int] myuset = unordered_set[int]()
+    cdef int ckey = 5
+    it = myset.const_find(ckey)
+    assert it == myset.const_end()
+    uit = myuset.const_find(ckey)
+    assert uit == myuset.const_end()

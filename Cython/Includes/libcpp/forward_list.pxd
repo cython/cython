@@ -14,6 +14,7 @@ cdef extern from "<forward_list>" namespace "std" nogil:
             iterator(iterator &)
             T& operator*()
             iterator operator++()
+            iterator operator++(int)
             bint operator==(iterator)
             bint operator!=(iterator)
         cppclass const_iterator(iterator):

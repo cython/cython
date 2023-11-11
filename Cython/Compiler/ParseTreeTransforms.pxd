@@ -6,8 +6,8 @@ from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 
-cdef class SkipDeclarations: # (object):
-    pass
+# Don't include mixins, only the main classes.
+#cdef class SkipDeclarations:
 
 cdef class NormalizeTree(CythonTransform):
     cdef bint is_in_statlist
@@ -76,6 +76,7 @@ cdef class GilCheck(VisitorTransform):
     cdef list env_stack
     cdef bint nogil
     cdef bint nogil_declarator_only
+    cdef bint current_gilstat_node_knows_gil_state
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef visit_cython_attribute(self, node)

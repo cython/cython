@@ -89,7 +89,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt transform[InputIt, OutputIt, UnaryOp](
         InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
 
-    # This overload is ambiguos with the next one. We just let C++ disambiguate from the arguments
+    # This overload is ambiguous with the next one. We just let C++ disambiguate from the arguments
     # OutputIt transform[ExecutionPolicy, InputIt, OutputIt, UnaryOp](
     #     ExecutionPolicy&& policy, InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
 
@@ -153,6 +153,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
     OutputIt unique_copy[ExecutionPolicy, InputIt, OutputIt, BinaryPred](
         ExecutionPolicy&& policy, InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
+
+    SampleIt sample[PopulationIt, SampleIt, Distance, URBG](PopulationIt first, PopulationIt last, SampleIt out, Distance n, URBG&& g) except +
 
     # Partitioning operations
     bool is_partitioned[Iter, Pred](Iter first, Iter last, Pred p) except +
@@ -230,14 +232,14 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
     OutputIt merge[InputIt1, InputIt2, OutputIt, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
-    
+
     void inplace_merge[BidirIt](BidirIt first, BidirIt middle, BidirIt last) except +
     void inplace_merge[BidirIt, Compare](BidirIt first, BidirIt middle, BidirIt last, Compare comp) except +
 
     # Set operations (on sorted ranges)
     bool includes[InputIt1, InputIt2](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
-        
+
     bool includes[InputIt1, InputIt2, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Compare comp) except +
 
@@ -245,21 +247,21 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
     OutputIt set_difference[InputIt1, InputIt2, OutputIt, Compare](
-        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, 
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2,
         OutputIt out, Compare comp) except +
-    
+
     OutputIt set_intersection[InputIt1, InputIt2, OutputIt](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
     OutputIt set_intersection[InputIt1, InputIt2, OutputIt, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
-    
+
     OutputIt set_symmetric_difference[InputIt1, InputIt2, OutputIt](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
     OutputIt set_symmetric_difference[InputIt1, InputIt2, OutputIt, Compare](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
-    
+
     OutputIt set_union[InputIt1, InputIt2, OutputIt](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
 
@@ -300,7 +302,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     # ambiguous with previous overload
     #bool equal[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
     bool equal[InputIt1, InputIt2, BinPred](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, BinPred pred) except +
-    
+
     bool lexicographical_compare[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
     # ambiguous with next overload
     #bool lexicographical_compare[InputIt1, InputIt2, ExecutionPolicy](ExecutionPolicy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
@@ -316,5 +318,3 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool next_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
     bool prev_permutation[BidirIt](BidirIt first, BidirIt last) except +
     bool prev_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
-
-

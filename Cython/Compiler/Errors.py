@@ -45,7 +45,7 @@ def context(position):
         s = u"[unprintable code]\n"
     else:
         s = u''.join(F[max(0, position[1]-6):position[1]])
-        s = u'...\n%s%s^\n' % (s, u' '*(position[2]-1))
+        s = u'...\n%s%s^\n' % (s, u' '*(position[2]))
     s = u'%s\n%s%s\n' % (u'-'*60, s, u'-'*60)
     return s
 
@@ -189,6 +189,20 @@ def _write_file_encode(file, line):
         file.write(line)
     except UnicodeEncodeError:
         file.write(line.encode('ascii', 'replace'))
+
+
+def performance_hint(position, message, env):
+    if not env.directives['show_performance_hints']:
+        return
+    warn = CompileWarning(position, message)
+    line = "performance hint: %s\n" % warn
+    listing_file = threadlocal.cython_errors_listing_file
+    if listing_file:
+        _write_file_encode(listing_file, line)
+    echo_file = threadlocal.cython_errors_echo_file
+    if echo_file:
+        _write_file_encode(echo_file, line)
+    return warn
 
 
 def message(position, message, level=1):

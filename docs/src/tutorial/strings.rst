@@ -1,5 +1,7 @@
 .. highlight:: cython
 
+.. _string_tutorial:
+
 Unicode and passing strings
 ===========================
 

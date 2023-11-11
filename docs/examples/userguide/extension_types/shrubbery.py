@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 @cython.cclass
 class Shrubbery:
     width: cython.int

@@ -18,7 +18,8 @@ class _MISSING_TYPE(object):
 MISSING = _MISSING_TYPE()
 
 _DataclassParams = namedtuple('_DataclassParams',
-    ["init", "repr", "eq", "order", "unsafe_hash", "frozen"])
+    ["init", "repr", "eq", "order", "unsafe_hash", "frozen",
+     "match_args", "kw_only", "slots", "weakref_slot"])
 class Field(object):
     __slots__ = ('name',
                  'type',
@@ -29,11 +30,12 @@ class Field(object):
                  'init',
                  'compare',
                  'metadata',
+                 'kw_only',
                  '_field_type',  # Private: not to be used by user code.
                  )
 
     def __init__(self, default, default_factory, init, repr, hash, compare,
-                 metadata):
+                 metadata, kw_only):
         self.name = None
         self.type = None
         self.default = default
@@ -47,6 +49,7 @@ class Field(object):
         self.metadata = (MappingProxyType({})
                          if metadata is None else
                          MappingProxyType(metadata))
+        self.kw_only = kw_only
         self._field_type = None
 
     def __repr__(self):
@@ -60,10 +63,11 @@ class Field(object):
                 'hash={6!r},'
                 'compare={7!r},'
                 'metadata={8!r},'
+                'kwonly={9!r},'
                 ')'.format(self.name, self.type, self.default,
                            self.default_factory, self.init,
                            self.repr, self.hash, self.compare,
-                           self.metadata))
+                           self.metadata, self.kw_only))
 
 # A sentinel object for default values to signal that a default
 # factory will be used.  This is given a nice repr() which will appear
@@ -95,6 +99,7 @@ def field(*ignore, **kwds):
     hash = kwds.pop("hash", None)
     compare = kwds.pop("compare", True)
     metadata = kwds.pop("metadata", None)
+    kw_only = kwds.pop("kw_only", None)
 
     if kwds:
         raise ValueError("field received unexpected keyword arguments: %s"
@@ -103,4 +108,5 @@ def field(*ignore, **kwds):
         raise ValueError('cannot specify both default and default_factory')
     if ignore:
         raise ValueError("'field' does not take any positional arguments")
-    return Field(default, default_factory, init, repr, hash, compare, metadata)
+    return Field(default, default_factory, init,
+                 repr, hash, compare, metadata, kw_only)

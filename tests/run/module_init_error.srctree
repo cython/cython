@@ -23,9 +23,7 @@ def try_import():
     else:
         raise RuntimeError("expected ValueError from import")
 
-    if (3, 3) <= sys.version_info < (3, 5):
-        assert 'fail_in_init' not in sys.modules
-    elif 'fail_in_init' in sys.modules:
+    if 'fail_in_init' in sys.modules:
         try:
             sys.modules['fail_in_init'].fail()
         except AttributeError:
