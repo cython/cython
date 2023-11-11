@@ -846,8 +846,7 @@ copy_contents_new_utility = load_memview_c_utility(
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
         context=context,
-        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
-                  Buffer.buffer_struct_declare_code,
+        requires=[Buffer.buffer_struct_declare_code,
                   Buffer.buffer_formats_declare_code,
                   memviewslice_init_code,
                   is_contig_utility,

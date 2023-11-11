@@ -18,6 +18,8 @@ def main():
     foo8: (1 + x).b
     foo9: mod.a.b
     foo10: func().b
+    foo11: Bar[:, :, :]  # warning
+    foo12: cython.int[:, ::1]
     with cython.annotation_typing(False):
         foo8: Bar = 1
         foo9: stdint.bar = 5
@@ -25,16 +27,19 @@ def main():
 
 
 @cython.cfunc
-def bar() -> cython.bar:
+def bar() -> cython.bar:  # error
     pass
 
 
 @cython.cfunc
-def bar2() -> Bar:
+def bar2() -> Bar:  # warning
     pass
 
 @cython.cfunc
-def bar3() -> stdint.bar:
+def bar3() -> stdint.bar:  # error
+    pass
+
+def bar4(a: cython.foo[:]):  # error
     pass
 
 _WARNINGS = """
@@ -43,21 +48,26 @@ _WARNINGS = """
 18:17: Unknown type declaration in annotation, ignoring
 19:15: Unknown type declaration in annotation, ignoring
 20:17: Unknown type declaration in annotation, ignoring
-33:14: Unknown type declaration 'Bar' in annotation, ignoring
-37:20: Unknown type declaration 'stdint.bar' in annotation, ignoring
+21:14: Unknown type declaration in annotation, ignoring
+35:14: Unknown type declaration 'Bar' in annotation, ignoring
+39:20: Unknown type declaration 'stdint.bar' in annotation, ignoring
 
 # Spurious warnings from utility code - not part of the core test
 25:10: 'cpdef_method' redeclared
 36:10: 'cpdef_cname_method' redeclared
-980:29: Ambiguous exception value, same as default return value: 0
-1021:46: Ambiguous exception value, same as default return value: 0
-1111:29: Ambiguous exception value, same as default return value: 0
+961:29: Ambiguous exception value, same as default return value: 0
+961:29: Ambiguous exception value, same as default return value: 0
+1002:46: Ambiguous exception value, same as default return value: 0
+1002:46: Ambiguous exception value, same as default return value: 0
+1092:29: Ambiguous exception value, same as default return value: 0
+1092:29: Ambiguous exception value, same as default return value: 0
 """
 
 _ERRORS = """
 17:16: Unknown type declaration 'cython.bar' in annotation
-28:13: Not a type
-28:19: Unknown type declaration 'cython.bar' in annotation
-33:14: Not a type
-37:14: Not a type
+30:13: Not a type
+30:19: Unknown type declaration 'cython.bar' in annotation
+35:14: Not a type
+39:14: Not a type
+42:18: Unknown type declaration 'cython.foo[:]' in annotation
 """

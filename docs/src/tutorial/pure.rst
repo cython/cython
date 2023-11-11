@@ -419,6 +419,19 @@ efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to
 improve the type analysis in Cython.
 
+Reference table
+^^^^^^^^^^^^^^^
+
+The following reference table documents how type annotations are currently interpreted.
+Cython 0.29 behaviour is only shown where it differs from Cython 3.0 behaviour.
+The current limitations will likely be lifted at some point.
+
+.. csv-table:: Annotation typing rules
+   :file: annotation_typing_table.csv
+   :header-rows: 1
+   :class: longtable
+   :widths: 1 1 1
+
 Tips and Tricks
 ---------------
 

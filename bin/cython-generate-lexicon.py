@@ -39,7 +39,7 @@ def main():
         return
 
     generated_code = (
-        f"# generated with:\n"
+        f"# Generated with 'cython-generate-lexicon.py' based on:\n"
         f"# {sys.implementation.name} {sys.version.splitlines()[0].strip()}\n"
         "\n"
         f"{generate_character_sets()}\n"
@@ -107,8 +107,18 @@ def to_ranges(char_num_list):
     return ''.join(single_chars), ''.join(ranges)
 
 
-def make_split_strings(chars, splitby=60, indent="    "):
-    lines = [f'u"{chars[i:i+splitby]}"' for i in range(0, len(chars), splitby)]
+def escape_chars(chars):
+    escapes = []
+    for char in chars:
+        charval = ord(char)
+        escape = f'\\U{charval:08x}' if charval > 65535 else f'\\u{charval:04x}'
+        escapes.append(escape)
+    return ''.join(escapes)
+
+
+def make_split_strings(chars, splitby=113, indent="    "):
+    splitby //= 10  # max length of "\U..." unicode escapes
+    lines = [f'u"{escape_chars(chars[i:i+splitby])}"' for i in range(0, len(chars), splitby)]
     return indent + f"\n{indent}".join(lines)
 
 

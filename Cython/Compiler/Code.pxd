@@ -56,6 +56,8 @@ cdef class FunctionState:
     cdef public bint uses_error_indicator
     cdef public bint error_without_exception
 
+    cdef public bint needs_refnanny
+
     @cython.locals(n=size_t)
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)

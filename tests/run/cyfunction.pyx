@@ -2,11 +2,6 @@
 # mode: run
 # tag: cyfunction
 
-import sys
-IS_PY2 = sys.version_info[0] < 3
-IS_PY3 = sys.version_info[0] >= 3
-IS_PY34 = sys.version_info > (3, 4, 0, 'beta', 3)
-
 
 def inspect_isroutine():
     """
@@ -42,34 +37,28 @@ def inspect_isbuiltin():
 def inspect_signature(a, b, c=123, *, d=234):
     """
     >>> sig = inspect_signature(1, 2)
-    >>> if IS_PY34: list(sig.parameters)
-    ... else: ['a', 'b', 'c', 'd']
+    >>> list(sig.parameters)
     ['a', 'b', 'c', 'd']
-    >>> if IS_PY34: sig.parameters['c'].default == 123
-    ... else: True
+    >>> sig.parameters['c'].default == 123
     True
-    >>> if IS_PY34: sig.parameters['d'].default == 234
-    ... else: True
+    >>> sig.parameters['d'].default == 234
     True
     """
     import inspect
-    return inspect.signature(inspect_signature) if IS_PY34 else None
+    return inspect.signature(inspect_signature)
 
 
 # def test___signature__(a, b, c=123, *, d=234):
 #     """
 #     >>> sig = test___signature__(1, 2)
-#     >>> if IS_PY34: list(sig.parameters)
-#     ... else: ['a', 'b', 'c', 'd']
+#     >>> list(sig.parameters)
 #     ['a', 'b', 'c', 'd']
-#     >>> if IS_PY34: sig.parameters['c'].default == 123
-#     ... else: True
+#     >>> sig.parameters['c'].default == 123
 #     True
-#     >>> if IS_PY34: sig.parameters['d'].default == 234
-#     ... else: True
+#     >>> sig.parameters['d'].default == 234
 #     True
 #     """
-#     return inspect_signature.__signature__ if IS_PY34 else None
+#     return inspect_signature.__signature__
 
 
 def test_dict():
@@ -168,24 +157,16 @@ class BindingTest:
 
 
 def codeof(func):
-    if IS_PY3:
-        return func.__code__
-    else:
-        return func.func_code
+    return func.__code__
 
 def varnamesof(func):
     code = codeof(func)
     varnames = code.co_varnames
-    if sys.version_info < (2,5):
-        pos = {'a':0, 'x':1, 'b':2, 'l':3, 'm':4}
-        varnames = tuple(sorted(varnames, key=pos.__getitem__))
     return varnames
 
 def namesof(func):
     code = codeof(func)
     names = code.co_names
-    if sys.version_info < (2,5):
-        names = ()
     return names
 
 def cy_no_arg():
@@ -361,7 +342,7 @@ cdef class TestDecoratedMethods:
 cdef class TestUnboundMethodCdef:
     """
     >>> C = TestUnboundMethodCdef
-    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    >>> C.meth is C.__dict__["meth"]
     True
     >>> TestUnboundMethodCdef.meth()  # doctest:+ELLIPSIS
     Traceback (most recent call last):
@@ -373,7 +354,7 @@ cdef class TestUnboundMethodCdef:
 class TestUnboundMethod:
     """
     >>> C = TestUnboundMethod
-    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    >>> C.meth is C.__dict__["meth"]
     True
     >>> TestUnboundMethod.meth()  # doctest:+ELLIPSIS
     Traceback (most recent call last):

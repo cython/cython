@@ -1,7 +1,7 @@
-from cython.dataclasses cimport dataclass, field
 from cython cimport cclass
 from dataclasses import (
-    fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace,
+    dataclass, field,
+    fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace
 )
 try:
     from dataclasses import KW_ONLY

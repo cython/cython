@@ -68,18 +68,6 @@ if cython.compiled:
                 raised_message = "; ".join(raised_message)
             raise SyntaxError(raised_message) from None
 
-if sys.version_info[0] < 3:
-    # some monkey patching
-    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
-
-    class FakeSubTest(object):
-        def __init__(self, *args, **kwds):
-            pass
-        def __enter__(self):
-            pass
-        def __exit__(self, *args):
-            pass
-    unittest.TestCase.subTest = FakeSubTest
 
 class NamedExpressionInvalidTest(unittest.TestCase):
 

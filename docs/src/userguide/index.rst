@@ -27,6 +27,8 @@ Contents:
    numpy_ufuncs
    numpy_pythran
    nogil
+   troubleshooting
+   faq
 
 Indices and tables
 ------------------

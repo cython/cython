@@ -336,7 +336,6 @@ class UnicodeTest(CommonTest,
         self.assertRaises(ValueError, ('a' * 100).rindex, '\U00100304a')
         self.assertRaises(ValueError, ('\u0102' * 100).rindex, '\U00100304\u0102')
 
-    @unittest.skipIf(sys.version_info < (3, 6), 'Python str.translate() test requires Py3.6+')
     def test_maketrans_translate(self):
         # these work with plain translate()
         self.checkequalnofix('bbbc', 'abababc', 'translate',
@@ -668,7 +667,6 @@ class UnicodeTest(CommonTest,
         self.assertFalse('\U0001F40D'.isalpha())
         self.assertFalse('\U0001F46F'.isalpha())
 
-    @unittest.skipIf(sys.version_info < (3, 7), 'Python lacks str.isascii()')
     def test_isascii(self):
         super().test_isascii()
         self.assertFalse("\u20ac".isascii())
@@ -1269,7 +1267,6 @@ class UnicodeTest(CommonTest,
         self.assertEqual("{!s}".format(n), 'N(data)')
         self.assertRaises(TypeError, "{}".format, n)
 
-    @unittest.skipIf(sys.version_info < (3, 6), 'Python str.format_map() test requires Py3.6+')
     def test_format_map(self):
         self.assertEqual(''.format_map({}), '')
         self.assertEqual('a'.format_map({}), 'a')
@@ -1452,12 +1449,11 @@ class UnicodeTest(CommonTest,
         self.assertEqual('%X' % letter_m, '6D')
         self.assertEqual('%o' % letter_m, '155')
         self.assertEqual('%c' % letter_m, 'm')
-        if sys.version_info >= (3, 5):
-            self.assertRaisesRegex(TypeError, '%x format: an integer is required, not float', operator.mod, '%x', 3.14),
-            self.assertRaisesRegex(TypeError, '%X format: an integer is required, not float', operator.mod, '%X', 2.11),
-            self.assertRaisesRegex(TypeError, '%o format: an integer is required, not float', operator.mod, '%o', 1.79),
-            self.assertRaisesRegex(TypeError, '%x format: an integer is required, not PseudoFloat', operator.mod, '%x', pi),
-            self.assertRaises(TypeError, operator.mod, '%c', pi),
+        self.assertRaisesRegex(TypeError, '%x format: an integer is required, not float', operator.mod, '%x', 3.14),
+        self.assertRaisesRegex(TypeError, '%X format: an integer is required, not float', operator.mod, '%X', 2.11),
+        self.assertRaisesRegex(TypeError, '%o format: an integer is required, not float', operator.mod, '%o', 1.79),
+        self.assertRaisesRegex(TypeError, '%x format: an integer is required, not PseudoFloat', operator.mod, '%x', pi),
+        self.assertRaises(TypeError, operator.mod, '%c', pi),
 
     def test_formatting_with_enum(self):
         # issue18780
@@ -1621,7 +1617,6 @@ class UnicodeTest(CommonTest,
         # The errors argument defaults to strict.
         self.assertRaises(UnicodeDecodeError, str, utf8_cent, encoding='ascii')
 
-    @unittest.skipIf(sys.version_info < (3, 6), 'Python utf-7 codec test requires Py3.6+')
     def test_codecs_utf7(self):
         utfTests = [
             ('A\u2262\u0391.', b'A+ImIDkQ.'),             # RFC2152 example
@@ -2173,7 +2168,6 @@ class UnicodeTest(CommonTest,
         for encoding in ('utf-8',):
             self.assertEqual(str(u.encode(encoding),encoding), u)
 
-    @unittest.skipIf(sys.version_info < (3, 5), 'codecs test requires Py3.5+')
     def test_codecs_charmap(self):
         # 0-127
         s = bytes(range(128))

@@ -31,6 +31,11 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+
+  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
+    # see https://trac.macports.org/ticket/62757
+    unset MACOSX_DEPLOYMENT_TARGET
+  fi
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
@@ -45,7 +50,7 @@ else
 
   echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 
-  echo "Make a soft symlinks to ccache"
+  echo "Set up symlinks to ccache"
   cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
   ln -s ccache /usr/local/bin/g++
@@ -85,18 +90,11 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "2.7"* ]]; then
-  pip install wheel || exit 1
-  pip install -r test-requirements-27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
-  python -m pip install wheel || exit 1
-  python -m pip install -r test-requirements-34.txt || exit 1
-elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
-  pip install wheel || exit 1
-  pip install -r test-requirements-pypy27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
-  python -m pip install wheel || exit 1
-  python -m pip install -r test-requirements-312.txt || exit 1
+if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+  python -m pip install -U pip wheel setuptools || exit 1
+  if [[ $PYTHON_VERSION == "3.12"* ]]; then
+    python -m pip install --pre -r test-requirements-312.txt || exit 1
+  fi
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
@@ -121,8 +119,7 @@ else
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* &&
-          $PYTHON_VERSION != "2"* && $PYTHON_VERSION != "3.4"* ]]; then
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -144,7 +141,7 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   CFLAGS="-Od /Z7 /MP /W4 /wd4711 /wd4127 /wd5045 /wd4820"
 else
-  CFLAGS="-O0 -ggdb -Wall -Wextra"
+  CFLAGS="-O0 -ggdb -Wall -Wextra -Wcast-qual -Wconversion -Wdeprecated -Wunused-result"
 fi
 # Trying to cover debug assertions in the CI without adding
 # extra jobs. Therefore, odd-numbered minor versions of Python
@@ -178,7 +175,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
   # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) and not sys.platform.startswith("win") else "")')"
+    $(python -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
