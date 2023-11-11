@@ -3,9 +3,6 @@
 import cython
 compiled = cython.compiled
 
-import sys
-IS_PY2 = sys.version_info[0] == 2
-
 
 @cython.cclass
 class X(object):
@@ -42,8 +39,7 @@ class ClassEq(X):
 
     >>> a == c
     True
-    >>> if IS_PY2 and not compiled: a is c
-    ... else: a != c
+    >>> a != c
     False
 
     >>> b == c
@@ -53,8 +49,7 @@ class ClassEq(X):
 
     >>> c == a
     True
-    >>> if IS_PY2 and not compiled: c is a
-    ... else: c != a
+    >>> c != a
     False
 
     >>> b == a
@@ -62,20 +57,16 @@ class ClassEq(X):
     >>> b != a
     True
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a < b
+    >>> a < b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a > b
+    >>> a > b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a <= b
+    >>> a <= b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a >= b
+    >>> a >= b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
 
@@ -129,20 +120,16 @@ class ClassEqNe(ClassEq):
     >>> b != a
     True
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a < b
+    >>> a < b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a > b
+    >>> a > b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a <= b
+    >>> a <= b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a >= b
+    >>> a >= b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
 
@@ -222,12 +209,10 @@ class ClassEqNeGe(ClassEqNe):
     >>> a <= b
     True
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a < b
+    >>> a < b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a > b
+    >>> a > b  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
 
@@ -242,12 +227,10 @@ class ClassEqNeGe(ClassEqNe):
     >>> a >= 2
     False
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: 'x' <= a
+    >>> 'x' <= a  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a >= 'x'
+    >>> a >= 'x'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
 
@@ -285,7 +268,7 @@ class ClassRichcmpOverride(ClassEqNeGe):
     >>> a == b if compiled else a != b  # Python ignores __richcmp__()
     False
 
-    >>> if IS_PY2 or not compiled: raise TypeError  # doctest: +ELLIPSIS
+    >>> if not compiled: raise TypeError  # doctest: +ELLIPSIS
     ... else: a >= b  # should no longer work when __richcmp__ is overwritten
     Traceback (most recent call last):
     TypeError...
@@ -339,12 +322,10 @@ class ClassLe(X):
     >>> a <= 0
     False
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: 'x' >= a
+    >>> 'x' >= a  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a <= 'x'
+    >>> a <= 'x'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
     """
@@ -406,17 +387,14 @@ class ClassLt(X):
     >>> a < 1
     False
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: 1 < a
+    >>> 1 < a  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: 'x' > a
+    >>> 'x' > a  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a < 'x'
+    >>> a < 'x'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
     """
@@ -527,20 +505,16 @@ class ClassLtGt(X):
     >>> a > 2
     False
 
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: 'x' > a
+    >>> 'x' > a  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: 'x' < a
+    >>> 'x' < a  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a < 'x'
+    >>> a < 'x'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
-    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
-    ... else: a > 'x'
+    >>> a > 'x'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
     """

@@ -64,8 +64,7 @@ if cython.compiled:
 
 
 def use_old_parser():
-    # FIXME: currently disabling new PEG parser tests.
-    return True
+    return False
 
 
 import unittest
@@ -798,8 +797,6 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(f.__annotations__, {'return': 'list'})
 
         # Test expressions as decorators (PEP 614):
-        # FIXME: implement PEP 614
-        """
         @False or null
         def f(x): pass
         @d := null
@@ -812,7 +809,6 @@ class GrammarTests(unittest.TestCase):
         def f(x): pass
         @[null][0].__call__.__call__
         def f(x): pass
-        """
 
         # test closures with a variety of opargs
         closure = 1
@@ -1706,8 +1702,6 @@ class GrammarTests(unittest.TestCase):
         class G: pass
 
         # Test expressions as decorators (PEP 614):
-        # FIXME: implement PEP 614
-        """
         @False or class_decorator
         class H: pass
         @d := class_decorator
@@ -1720,7 +1714,6 @@ class GrammarTests(unittest.TestCase):
         class L: pass
         @[class_decorator][0].__call__.__call__
         class M: pass
-        """
 
     def test_dictcomps(self):
         # dictorsetmaker: ( (test ':' test (comp_for |
@@ -1869,68 +1862,53 @@ class GrammarTests(unittest.TestCase):
         with manager() as x, manager():
             pass
 
-        if not use_old_parser():
-            test_cases = [
-                """if 1:
-                    with (
-                        manager()
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as (x, y),
-                        manager() as z,
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager(),
-                        manager()
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager() as y
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager()
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager() as y,
-                        manager() as z,
-                    ):
-                        pass
-                """,
-                """if 1:
-                    with (
-                        manager() as x,
-                        manager() as y,
-                        manager(),
-                    ):
-                        pass
-                """,
-            ]
-            for case in test_cases:
-                with self.subTest(case=case):
-                    compile(case, "<string>", "exec")
+        with (
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x
+        ):
+            pass
+
+        with (
+            manager() as (x, y),
+            manager() as z,
+        ):
+            pass
+
+        with (
+            manager(),
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager()
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y,
+            manager() as z,
+        ):
+            pass
+
+        with (
+            manager() as x,
+            manager() as y,
+            manager(),
+        ):
+            pass
 
 
     def test_if_else_expr(self):

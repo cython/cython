@@ -1,0 +1,24 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Configuration file version
+version: 2
+
+# Set the versions of the tools
+build:
+  os: ubuntu-20.04
+  tools:
+    python: "3.11"
+
+python:
+  install:
+    - requirements: doc-requirements.txt
+    - method: setuptools  # runs setup.py
+      path: .
+
+sphinx:
+  builder: html
+  configuration: docs/conf.py
+
+# Don't build the docs in additional formats like pdf or epub
+formats: []

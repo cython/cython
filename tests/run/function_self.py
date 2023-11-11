@@ -4,7 +4,6 @@
 # cython: binding=True
 
 import cython
-import sys
 
 def regular(x):
     """
@@ -25,13 +24,8 @@ def fused(x):
     >>> hasattr(nested, "__self__")
     False
 
-    #>>> hasattr(fused, "__self__")  # FIXME this fails for fused functions
-    #False
-    # but this is OK:
-    >>> fused.__self__  #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
+    >>> hasattr(fused, "__self__")
+    False
     """
     def nested_in_fused(y):
         return x+y
@@ -51,6 +45,13 @@ class C:
     True
     >>> c.fused.__self__ is c
     True
+
+    >>> hasattr(C.regular, "__self__")  # __self__==None on pure-python 2
+    False
+
+    >>> C.fused.__self__  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: ...__self__...
     """
     def regular(self):
         pass
@@ -59,36 +60,20 @@ class C:
     def fused(self, x):
         return x
 
-__doc__ = ""
-if sys.version_info[0] > 2 or cython.compiled:
-    __doc__ += """
-    >>> hasattr(C.regular, "__self__")  # __self__==None on pure-python 2
-    False
-
-    # returns None on pure-python 2
-    >>> C.fused.__self__  #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
-    """
 
 if cython.compiled:
     __doc__ = """
-    >>> fused['double'].__self__   #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
+    >>> hasattr(fused['double'], '__self__')
+    False
 
-    >>> C.fused['double'].__self__   #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: 'function' object has no attribute '__self__'...
+    >>> hasattr(C.fused['double'], '__self__')
+    False
 
     >>> c = C()
-    >>> c.fused['double'].__self__ is c   #doctest: +ELLIPSIS
+    >>> c.fused['double'].__self__ is c
     True
 
     # The PR that changed __self__ also changed how __doc__ is set up slightly
     >>> fused['double'].__doc__ == fused.__doc__ and isinstance(fused.__doc__, str)
     True
-    """
+"""

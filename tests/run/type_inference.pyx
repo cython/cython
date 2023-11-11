@@ -242,7 +242,7 @@ def c_functions():
     >>> c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 def builtin_functions():
@@ -531,13 +531,19 @@ def safe_only():
     cdef int c_int = 1
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
+    # float can be inferred
+    cdef float fl = 5.0
+    from_fl = fl
+    assert typeof(from_fl) == "float", typeof(from_fl)
+
+
 @infer_types(None)
 def safe_c_functions():
     """
     >>> safe_c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 @infer_types(None)

@@ -13,8 +13,6 @@ import re, sys, time
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
-from distutils.extension import Extension
-from distutils.util import strtobool
 import zipfile
 
 try:
@@ -43,10 +41,11 @@ except:
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir)
+    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
-from ..Compiler.Options import CompilationOptions, default_options
+from ..Compiler.Options import (CompilationOptions, default_options,
+    get_directive_defaults)
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
@@ -85,11 +84,14 @@ def extended_iglob(pattern):
                 for path in extended_iglob(before + case + after):
                     yield path
             return
-    if '**/' in pattern:
+
+    # We always accept '/' and also '\' on Windows,
+    # because '/' is generally common for relative paths.
+    if '**/' in pattern or os.sep == '\\' and '**\\' in pattern:
         seen = set()
-        first, rest = pattern.split('**/', 1)
+        first, rest = re.split(r'\*\*[%s]' % ('/\\\\' if os.sep == '\\' else '/'), pattern, 1)
         if first:
-            first = iglob(first+'/')
+            first = iglob(first + os.sep)
         else:
             first = ['']
         for root in first:
@@ -97,7 +99,7 @@ def extended_iglob(pattern):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(join_path(root, '*', '**/' + rest)):
+            for path in extended_iglob(join_path(root, '*', '**', rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
@@ -206,6 +208,24 @@ distutils_settings = {
 }
 
 
+def _legacy_strtobool(val):
+    # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
+    if val == "True":
+        return True
+    elif val == "False":
+        return False
+
+    import warnings
+    warnings.warn("The 'np_python' option requires 'True' or 'False'", category=DeprecationWarning)
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
+
+
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
     if isinstance(source, basestring):
@@ -246,7 +266,7 @@ class DistutilsInfo(object):
                                      if '=' in macro else (macro, None)
                                      for macro in value]
                     if type is bool_or:
-                        value = strtobool(value)
+                        value = _legacy_strtobool(value)
                     self.values[key] = value
         elif exn is not None:
             for key in distutils_settings:
@@ -728,7 +748,8 @@ def create_dependency_tree(ctx=None, quiet=False):
     global _dep_tree
     if _dep_tree is None:
         if ctx is None:
-            ctx = Context(["."], CompilationOptions(default_options))
+            ctx = Context(["."], get_directive_defaults(),
+                          options=CompilationOptions(default_options))
         _dep_tree = DependencyTree(ctx, quiet=quiet)
     return _dep_tree
 
@@ -759,9 +780,21 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         return [], {}
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
-    explicit_modules = {m.name for m in patterns if isinstance(m, Extension)}
-    seen = set()
+
+    from distutils.extension import Extension
+    if 'setuptools' in sys.modules:
+        # Support setuptools Extension instances as well.
+        extension_classes = (
+            Extension,  # should normally be the same as 'setuptools.extension._Extension'
+            sys.modules['setuptools.extension']._Extension,
+            sys.modules['setuptools'].Extension,
+        )
+    else:
+        extension_classes = (Extension,)
+
+    explicit_modules = {m.name for m in patterns if isinstance(m, extension_classes)}
     deps = create_dependency_tree(ctx, quiet=quiet)
+
     to_exclude = set()
     if not isinstance(exclude, list):
         exclude = [exclude]
@@ -771,21 +804,13 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     module_list = []
     module_metadata = {}
 
-    # workaround for setuptools
-    if 'setuptools' in sys.modules:
-        Extension_distutils = sys.modules['setuptools.extension']._Extension
-        Extension_setuptools = sys.modules['setuptools'].Extension
-    else:
-        # dummy class, in case we do not have setuptools
-        Extension_distutils = Extension
-        class Extension_setuptools(Extension): pass
-
     # if no create_extension() function is defined, use a simple
     # default function.
     create_extension = ctx.options.create_extension or default_create_extension
 
+    seen = set()
     for pattern in patterns:
-        if not isinstance(pattern, (Extension_distutils, Extension_setuptools)):
+        if not isinstance(pattern, extension_classes):
             pattern = encode_filename_in_py2(pattern)
         if isinstance(pattern, str):
             filepattern = pattern
@@ -793,7 +818,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             name = '*'
             base = None
             ext_language = language
-        elif isinstance(pattern, (Extension_distutils, Extension_setuptools)):
+        elif isinstance(pattern, extension_classes):
             cython_sources = [s for s in pattern.sources
                               if os.path.splitext(s)[1] in ('.py', '.pyx')]
             if cython_sources:
@@ -1049,21 +1074,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 # write out the depfile, if requested
                 if depfile:
                     dependencies = deps.all_dependencies(source)
-                    src_base_dir, _ = os.path.split(source)
-                    if not src_base_dir.endswith(os.sep):
-                        src_base_dir += os.sep
-                    # paths below the base_dir are relative, otherwise absolute
-                    paths = []
-                    for fname in dependencies:
-                        if fname.startswith(src_base_dir):
-                            paths.append(os.path.relpath(fname, src_base_dir))
-                        else:
-                            paths.append(os.path.abspath(fname))
-
-                    depline = os.path.split(c_file)[1] + ": \\\n  "
-                    depline += " \\\n  ".join(paths) + "\n"
-                    with open(c_file+'.dep', 'w') as outfile:
-                        outfile.write(depline)
+                    write_depfile(c_file, source, dependencies)
 
                 # Missing files and those generated by other Cython versions should always be recreated.
                 if Utils.file_generated_by_this_cython(c_file):

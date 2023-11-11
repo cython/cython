@@ -390,13 +390,13 @@ Now we can ensure that those two programs output the same values::
 
 It's possible to compare the speed now::
 
-    python -m timeit -s 'from primes_python import primes' 'primes(1000)'
+    python -m timeit -s "from primes_python import primes" "primes(1000)"
     10 loops, best of 3: 23 msec per loop
 
-    python -m timeit -s 'from primes_python_compiled import primes' 'primes(1000)'
+    python -m timeit -s "from primes_python_compiled import primes" "primes(1000)"
     100 loops, best of 3: 11.9 msec per loop
 
-    python -m timeit -s 'from primes import primes' 'primes(1000)'
+    python -m timeit -s "from primes import primes" "primes(1000)"
     1000 loops, best of 3: 1.65 msec per loop
 
 The cythonize version of ``primes_python`` is 2 times faster than the Python one,

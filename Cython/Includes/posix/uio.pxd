@@ -24,4 +24,3 @@ cdef extern from "<sys/uio.h>" nogil:
 
     ssize_t preadv2 (int fd, const iovec *iov, int iovcnt, off_t offset, int flags)
     ssize_t pwritev2(int fd, const iovec *iov, int iovcnt, off_t offset, int flags)
-

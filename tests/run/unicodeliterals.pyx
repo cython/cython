@@ -6,32 +6,32 @@ __doc__ = br"""
     >>> sa
     'abc'
     >>> ua
-    u'abc'
+    'abc'
     >>> b
-    u'123'
+    '123'
     >>> c
-    u'S\xf8k ik'
+    'S\xf8k ik'
     >>> d
-    u'\xfc\xd6\xe4'
+    '\xfc\xd6\xe4'
     >>> e
-    u'\x03g\xf8\uf8d2S\xf8k ik'
+    '\x03g\xf8\uf8d2S\xf8k ik'
     >>> f
-    u'\xf8'
+    '\xf8'
     >>> g
-    u'\udc00'
+    '\udc00'
     >>> h
-    u'\ud800'
+    '\ud800'
     >>> q
-    u'\udc00\ud800'
+    '\udc00\ud800'
 
     # The output of surrogate pairs differs between 16/32bit Unicode runtimes.
     #>>> p
     #u'\ud800\udc00'
 
     >>> add
-    u'S\xf8k ik\xfc\xd6\xe4abc'
+    'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
-    u'\x00'
+    '\x00'
 """.decode("ASCII") + b"""
     >>> len(sa)
     3
@@ -66,53 +66,48 @@ __doc__ = br"""
     >>> sys.maxunicode > 65535 and 2 or len(wide_literal)  # test for narrow build
     2
 """.decode("ASCII") + u"""
-    >>> ua == u'abc'
+    >>> ua ==  'abc'
     True
-    >>> b == u'123'
+    >>> b ==  '123'
     True
-    >>> c == u'Søk ik'
+    >>> c ==  'Søk ik'
     True
-    >>> d == u'üÖä'
+    >>> d ==  'üÖä'
     True
-    >>> e == u'\x03\x67\xf8\uf8d2Søk ik'     # unescaped by Cython
+    >>> e ==  '\x03\x67\xf8\uf8d2Søk ik'     # unescaped by Cython
     True
-    >>> e == u'\\x03\\x67\\xf8\\uf8d2Søk ik' # unescaped by Python
+    >>> e ==  '\\x03\\x67\\xf8\\uf8d2Søk ik' # unescaped by Python
     True
-    >>> f == u'\xf8'  # unescaped by Cython
+    >>> f ==  '\xf8'  # unescaped by Cython
     True
-    >>> f == u'\\xf8' # unescaped by Python
+    >>> f ==  '\\xf8' # unescaped by Python
     True
-    >>> g == u'\\udc00' # unescaped by Python (required by doctest)
+    >>> g ==  '\\udc00' # unescaped by Python (required by doctest)
     True
-    >>> h == u'\\ud800' # unescaped by Python (required by doctest)
+    >>> h ==  '\\ud800' # unescaped by Python (required by doctest)
     True
-    >>> p == (u'\\ud800\\udc00' if sys.maxunicode == 1114111 else u'\\U00010000')  or  p  # unescaped by Python (required by doctest)
+    >>> p == (u'\\ud800\\udc00' if sys.maxunicode == 1114111 else  '\\U00010000')  or  p  # unescaped by Python (required by doctest)
     True
-    >>> q == u'\\udc00\\ud800'  or  q  # unescaped by Python (required by doctest)
+    >>> q ==  '\\udc00\\ud800'  or  q  # unescaped by Python (required by doctest)
     True
-    >>> k == u'\\N{SNOWMAN}' == u'\\u2603'  or  k
+    >>> k ==  '\\N{SNOWMAN}' ==  '\\u2603'  or  k
     True
-    >>> m == u'abc\\\\xf8\\\\t\\u00f8\\U000000f8'  or  m  # unescaped by Python (required by doctest)
+    >>> m ==  'abc\\\\xf8\\\\t\\u00f8\\U000000f8'  or  m  # unescaped by Python (required by doctest)
     True
-    >>> add == u'Søk ik' + u'üÖä' + 'abc'  or  add
+    >>> add ==  'Søk ik' +  'üÖä' + 'abc'  or  add
     True
-    >>> null == u'\\x00' # unescaped by Python (required by doctest)
+    >>> null ==  '\\x00' # unescaped by Python (required by doctest)
     True
-    >>> wide_literal == u'\\U00101234'   # unescaped by Python
+    >>> wide_literal ==  '\\U00101234'   # unescaped by Python
     True
-    >>> ustring_in_constant_tuple == ('a', u'abc', u'\\N{SNOWMAN}', u'x' * 3, u'\\N{SNOWMAN}' * 4 + u'O')  or  ustring_in_constant_tuple  # unescaped by Python
+    >>> ustring_in_constant_tuple == ('a',  'abc',  '\\N{SNOWMAN}',  'x' * 3,  '\\N{SNOWMAN}' * 4 +  'O')  or  ustring_in_constant_tuple  # unescaped by Python
     True
 
-    >>> expected = u'\U00101234'    # unescaped by Cython
+    >>> expected =  '\U00101234'    # unescaped by Cython
     >>> if wide_literal == expected: print(True)
     ... else: print(repr(wide_literal), repr(expected), sys.maxunicode)
     True
 """
-
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
-else:
-    __doc__ = __doc__.replace(u" b'", u" '")
 
 sa = 'abc'
 ua = u'abc'

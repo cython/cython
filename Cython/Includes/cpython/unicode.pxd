@@ -1,4 +1,8 @@
+
 cdef extern from *:
+    ctypedef unsigned char Py_UCS1  # uint8_t
+    ctypedef unsigned short Py_UCS2  # uint16_t
+
     # Return true if the object o is a Unicode object or an instance
     # of a Unicode subtype. Changed in version 2.2: Allowed subtypes
     # to be accepted.
@@ -23,6 +27,21 @@ cdef extern from *:
     # New in version 3.3.
     Py_ssize_t PyUnicode_GET_LENGTH(object o)
 
+    Py_UCS1 *PyUnicode_1BYTE_DATA(object o)
+    Py_UCS2 *PyUnicode_2BYTE_DATA(object o)
+    Py_UCS4 *PyUnicode_4BYTE_DATA(object o)
+
+    int PyUnicode_WCHAR_KIND  # Deprecated since Python 3.10, removed in 3.12.
+    int PyUnicode_1BYTE_KIND
+    int PyUnicode_2BYTE_KIND
+    int PyUnicode_4BYTE_KIND
+    void PyUnicode_WRITE(int kind, void *data, Py_ssize_t index, Py_UCS4 value)
+    Py_UCS4 PyUnicode_READ(int kind, void *data, Py_ssize_t index)
+    Py_UCS4 PyUnicode_READ_CHAR(object o, Py_ssize_t index)
+
+    unsigned int PyUnicode_KIND(object o)
+    void *PyUnicode_DATA(object o)
+
     # Return the size of the object's internal buffer in bytes. o has
     # to be a PyUnicodeObject (not checked).
     Py_ssize_t PyUnicode_GET_DATA_SIZE(object o)
@@ -34,6 +53,8 @@ cdef extern from *:
     # Return a pointer to the internal buffer of the object. o has to
     # be a PyUnicodeObject (not checked).
     char* PyUnicode_AS_DATA(object o)
+
+    bint PyUnicode_IsIdentifier(object o)
 
     # Return 1 or 0 depending on whether ch is a whitespace character.
     bint Py_UNICODE_ISSPACE(Py_UCS4 ch)
@@ -64,6 +85,8 @@ cdef extern from *:
 
     # Return 1 or 0 depending on whether ch is an alphanumeric character.
     bint Py_UNICODE_ISALNUM(Py_UCS4 ch)
+
+    bint Py_UNICODE_ISPRINTABLE(Py_UCS4 ch)
 
     # Return the character ch converted to lower case.
     # Used to return a Py_UNICODE value before Py3.3.
@@ -110,6 +133,18 @@ cdef extern from *:
     # Similar to PyUnicode_FromUnicode(), but u points to null-terminated
     # UTF-8 encoded bytes.  The size is determined with strlen().
     unicode PyUnicode_FromString(const char *u)
+
+    unicode PyUnicode_New(Py_ssize_t size, Py_UCS4 maxchar)
+    unicode PyUnicode_FromKindAndData(int kind, const void *buffer, Py_ssize_t size)
+    unicode PyUnicode_FromFormat(const char *format, ...)
+    Py_ssize_t PyUnicode_GetLength(object unicode) except -1
+    Py_ssize_t PyUnicode_CopyCharacters(object to, Py_ssize_t to_start, object from_, Py_ssize_t from_start, Py_ssize_t how_many) except -1
+    Py_ssize_t PyUnicode_Fill(object unicode, Py_ssize_t start, Py_ssize_t length, Py_UCS4 fill_char) except -1
+    int PyUnicode_WriteChar(object unicode, Py_ssize_t index, Py_UCS4 character) except -1
+    Py_UCS4 PyUnicode_ReadChar(object unicode, Py_ssize_t index) except -1
+    unicode PyUnicode_Substring(object str, Py_ssize_t start, Py_ssize_t end)
+    Py_UCS4 *PyUnicode_AsUCS4(object u, Py_UCS4 *buffer, Py_ssize_t buflen, int copy_null) except NULL
+    Py_UCS4 *PyUnicode_AsUCS4Copy(object u) except NULL
 
     # Create a Unicode Object from the given Unicode code point ordinal.
     #
@@ -322,8 +357,24 @@ cdef extern from *:
     # raised by the codec.
     bytes PyUnicode_EncodeUTF8(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
-    # Encode a Unicode objects using UTF-8 and return the result as Python string object. Error handling is ``strict''. Return NULL if an exception was raised by the codec.
+    # Encode a Unicode objects using UTF-8 and return the result as Python bytes object. Error handling is ``strict''. Return NULL if an exception was raised by the codec.
     bytes PyUnicode_AsUTF8String(object unicode)
+
+
+    # Return a pointer to the UTF-8 encoding of the Unicode object,
+    # and store the size of the encoded representation (in bytes) in size.
+    # The size argument can be NULL; in this case no size will be stored.
+    # The returned buffer always has an extra null byte appended
+    # (not included in size), regardless of whether there are any
+    # other null code points.
+
+    # In the case of an error, NULL is returned with an exception set and
+    # no size is stored.
+
+    # This caches the UTF-8 representation of the string in the Unicode
+    # object, and subsequent calls will return a pointer to the same buffer.
+    # The caller is not responsible for deallocating the buffer
+    const char* PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
 
 # These are the UTF-16 codec APIs:
 

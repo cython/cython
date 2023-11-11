@@ -183,3 +183,14 @@ def test_struct_to_obj_cnames():
     {'x': 2}
     """
     return OverriddenCname(2)
+
+cdef struct ArrayFieldStruct:
+    int arr[4]
+
+def test_array_field_init():
+    """
+    >>> test_array_field_init()
+    [1, 2, 3, 4]
+    """
+    cdef ArrayFieldStruct s = ArrayFieldStruct([1, 2, 3, 4])
+    print(s.arr);

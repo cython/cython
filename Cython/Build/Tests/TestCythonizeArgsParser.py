@@ -90,20 +90,20 @@ class TestCythonizeArgsParser(TestCase):
             options, args =  self.parse_args(['-X', 'cdivision'])
 
     def test_directives_types(self):
-        directives = {
-                'auto_pickle': True,
-                'c_string_type': 'bytearray',
-                'c_string_type': 'bytes',
-                'c_string_type': 'str',
-                'c_string_type': 'bytearray',
-                'c_string_type': 'unicode',
-                'c_string_encoding' : 'ascii',
-                'language_level' : 2,
-                'language_level' : 3,
-                'language_level' : '3str',
-                'set_initial_path' : 'my_initial_path',
-        }
-        for key, value in directives.items():
+        directives = [
+            ('auto_pickle', True),
+            ('c_string_type', 'bytearray'),
+            ('c_string_type', 'bytes'),
+            ('c_string_type', 'str'),
+            ('c_string_type', 'bytearray'),
+            ('c_string_type', 'unicode'),
+            ('c_string_encoding', 'ascii'),
+            ('language_level', '2'),
+            ('language_level', '3'),
+            ('language_level', '3str'),
+            ('set_initial_path', 'my_initial_path'),
+        ]
+        for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
             options, args =  self.parse_args(['-X', cmd])
             self.assertFalse(args)
@@ -111,14 +111,14 @@ class TestCythonizeArgsParser(TestCase):
             self.assertEqual(options.directives[key], value, msg = "Error for option: "+cmd)
 
     def test_directives_wrong(self):
-        directives = {
-                'auto_pickle': 42,        # for bool type
-                'auto_pickle': 'NONONO',  # for bool type
-                'c_string_type': 'bites',
-                #'c_string_encoding' : 'a',
-                #'language_level' : 4,
-        }
-        for key, value in directives.items():
+        directives = [
+            ('auto_pickle', 42),        # for bool type
+            ('auto_pickle', 'NONONO'),  # for bool type
+            ('c_string_type', 'bites'),
+            #('c_string_encoding', 'a'),
+            #('language_level', 4),
+        ]
+        for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
             with self.assertRaises(ValueError, msg = "Error for option: "+cmd) as context:
                 options, args =  self.parse_args(['-X', cmd])

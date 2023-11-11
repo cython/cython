@@ -1,3 +1,5 @@
+cimport cython
+
 def f(obj2, obj3):
     """
     >>> f(1.0, 2.95)[0] == f(1.0, 2.95)[1]
@@ -55,14 +57,27 @@ def small_int_pow(long s):
     return s**0, s**1, s**2, s**3, s**4
 
 
+@cython.cpow(True)
+def int_pow_cpow(short a, short b):
+    """
+    >>> int_pow_cpow(7, 2)
+    49
+    >>> int_pow_cpow(5, 3)
+    125
+    >>> int_pow_cpow(2, 10)
+    1024
+    """
+    return a**b
+
+@cython.cpow(False)
 def int_pow(short a, short b):
     """
     >>> int_pow(7, 2)
-    49
+    49.0
     >>> int_pow(5, 3)
-    125
+    125.0
     >>> int_pow(2, 10)
-    1024
+    1024.0
     """
     return a**b
 

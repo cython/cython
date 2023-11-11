@@ -251,6 +251,15 @@ cdef extern from "<string>" namespace "std" nogil:
         string substr(size_t pos) except +
         string substr()
 
+        # C++20
+        bint starts_with(char c) except +
+        bint starts_with(const char* s)
+        bint ends_with(char c) except +
+        bint ends_with(const char* s)
+        # C++23
+        bint contains(char c) except +
+        bint contains(const char* s)
+
         #string& operator= (const string&)
         #string& operator= (const char*)
         #string& operator= (char)
