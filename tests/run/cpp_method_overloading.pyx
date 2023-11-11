@@ -5,22 +5,18 @@ cdef extern from *:
     """
     class Base {
     public:
-        int foo(double a) {
-            return (int) (a+0.5);
-        }
-        int foo(double* a) {
-          return (int) (*a+0.5) - 1;
+        double foo(double a) {
+            return a + 0.5;
         }
     };
     """
     cdef cppclass Base:
         __init__()
-        __init__(int a)
         int foo(double)
-        int foo(double*)
 
 cdef cppclass Derived(Base):
-    pass
+    double foo(double a):
+        return a * 2;
 
 cdef cppclass DefinedBase:
     int state
@@ -36,53 +32,42 @@ cdef cppclass DefinedBase:
     int getter():
         return this.state
 
-    void setter(int a):
-        this.state = a
-
-    void setter(int* a):
-        if a != NULL:
-            this.state = a[0]
+    int foo(int a):
+        return this.state + a
 
 cdef cppclass DefinedDerived(DefinedBase):
     __init__(int a):
-        DefinedBase.__init__(a)
+        DefinedBase.__init__(2*a)
+
+    int foo(int a):
+        return this.state * a
 
 def testDeclared():
     """
     >>> testDeclared()
-    4 3
+    4.7 8.4
     """
-    #pass
     cdef double a = 4.2
-    cdef double *b = &a
+    cdef Base b
     cdef Derived d
-    rst_a = d.foo(a)
-    rst_b = d.foo(b)
+    rst_a = b.foo(a)
+    rst_b = d.foo(a)
     print rst_a, rst_b
 
 def testDefined():
     """
     >>> testDefined()
-    24 42 42
+    24 34 48 480
     """
 
+    db = new DefinedBase(24)
     dd = new DefinedDerived(24)
 
-    dorig = dd.getter()
+    rst_a = db.getter()
+    rst_b = db.foo(10)
+    rst_c = dd.getter()
+    rst_d = dd.foo(10)
 
-    cdef int val = 42
-
-    dd.setter(val)
-
-    dstate = dd.getter()
-    # dstate should be 42
-
-    da_addr = &dstate
-
-    dd.setter(da_addr)
-
-    # dstate2 should be 42
-    dstate2 = dd.getter()
-
-    print dorig, dstate, dstate2
+    print rst_a, rst_b, rst_c, rst_d
+    del db
     del dd
