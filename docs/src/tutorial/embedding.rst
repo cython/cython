@@ -170,3 +170,24 @@ One of the Cython developers has written a
 However, he considers it sufficiently hacky that it is only linked here,
 and not reproduced directly. It is an option though, if you're unable to
 use the inittab mechanism before initializing the interpreter.
+
+Problems with multiprocessing and pickle
+---------------------------------------
+
+If you try to use ``multiprocessing`` while using a Cython module embedded into
+an executable it will likely fail with errors related to the pickle module.
+``multiprocessing`` often uses pickle to serialize and deserialize data to
+be run in another interpreter.  What happens depends on the multiprocessing
+"start method". However, on the "spawn" start method used on Windows, it starts a 
+fresh copy of the **Python** interpreter (rather than a fresh copy of your embedded program)
+and then tries to import your Cython module. Since your Cython module is only
+available by the inittab mechanism and not be a regular import then that import
+fails.
+
+The solution likely involves setting ```multiprocessing.set_executable`` <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_executable>`_ to point to your
+embedded program then modifying that program to handle the
+``--multiprocessing-fork`` command-line argument that multiprocessing passes
+to the Python interpreter.  You may also need to call ``multiprocessing.freeze_support()``.
+
+At the moment that solution is untested so you should treat multiprocessing
+from an embedded Cython executable as unsupported.

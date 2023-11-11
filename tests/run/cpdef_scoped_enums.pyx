@@ -67,11 +67,7 @@ def to_from_py_conversion(Enum1 val):
 def test_pickle():
     """
     >>> from pickle import loads, dumps
-    >>> import sys
 
-    Pickling enums won't work without the enum module, so disable the test
-    >>> if sys.version_info < (3, 4):
-    ...     loads = dumps = lambda x: x
     >>> loads(dumps(Enum1.Item2)) == Enum1.Item2
     True
     >>> loads(dumps(Enum2.Item4)) == Enum2.Item4

@@ -40,13 +40,9 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         PyObject *localDict, *runValue, *builtins, *modulename;
         if (!PyErr_ExceptionMatches(PyExc_ImportError)) goto bad;
         PyErr_Clear();  // this is reasonably likely (especially on older versions of Python)
-#if PY_MAJOR_VERSION < 3
-        modulename = PyBytes_FromFormat("_cython_" CYTHON_ABI ".%s", name);
-#else
         modulename = PyUnicode_FromFormat("_cython_" CYTHON_ABI ".%s", name);
-#endif
         if (!modulename) goto bad;
-#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
         module = PyImport_AddModuleObject(modulename); // borrowed
 #else
         module = PyImport_AddModule(PyBytes_AsString(modulename)); // borrowed
@@ -99,7 +95,6 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
 // of arguments from the most recent version we know of, so needs
 // to remove any arguments that don't exist on earlier versions.
 
-#if PY_MAJOR_VERSION >= 3
 static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject *kwds, PyObject *new_kwds, PyObject *args_list, int is_kwonly) {
     Py_ssize_t size, i;
     size = PySequence_Size(args_list);
@@ -147,13 +142,8 @@ static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject
     }
     return 0;
 }
-#endif
 
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds) {
-#if PY_MAJOR_VERSION < 3
-    // We're falling back to our full replacement anyway
-    return PyObject_Call(callable, $empty_tuple, kwds);
-#else
     PyObject *new_kwds=NULL, *result=NULL;
     PyObject *inspect;
     PyObject *args_list=NULL, *kwonly_args_list=NULL, *getfullargspec_result=NULL;
@@ -184,5 +174,4 @@ bad:
     Py_XDECREF(kwonly_args_list);
     Py_XDECREF(new_kwds);
     return result;
-#endif
 }

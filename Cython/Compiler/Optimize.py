@@ -3549,11 +3549,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         uchar = ustring.arg
         method_name = function.attribute
-        if method_name == 'istitle':
+        if method_name in ('istitle', 'isprintable'):
             # istitle() doesn't directly map to Py_UNICODE_ISTITLE()
+            # isprintable() is lacking C-API support in PyPy
             utility_code = UtilityCode.load_cached(
-                "py_unicode_istitle", "StringTools.c")
-            function_name = '__Pyx_Py_UNICODE_ISTITLE'
+                "py_unicode_%s" % method_name, "StringTools.c")
+            function_name = '__Pyx_Py_UNICODE_%s' % method_name.upper()
         else:
             utility_code = None
             function_name = 'Py_UNICODE_%s' % method_name.upper()
@@ -3575,6 +3576,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _handle_simple_method_unicode_isspace   = _inject_unicode_predicate
     _handle_simple_method_unicode_istitle   = _inject_unicode_predicate
     _handle_simple_method_unicode_isupper   = _inject_unicode_predicate
+    _handle_simple_method_unicode_isprintable = _inject_unicode_predicate
 
     PyUnicode_uchar_conversion_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ucs4_type, [

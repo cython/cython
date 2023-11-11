@@ -1,5 +1,3 @@
-cimport cython
-
 cdef class B
 
 cdef class A(object):
@@ -26,12 +24,6 @@ def test():
     Z
     """
     A(), B(), C(), X(), Y(), Z()
-    import sys
-    py_version = sys.version_info[:2]
-    if py_version >= (3, 7): # built-in dict is insertion-ordered
-        global_values = list(globals().values())
-    else:
-        global_values = [A, B, C, X, Y, Z]
-    for value in global_values:
+    for value in list(globals().values()):
         if isinstance(value, type):
             print(value.__name__)

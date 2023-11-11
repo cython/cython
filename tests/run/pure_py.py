@@ -1,8 +1,5 @@
 # mode: run
 
-import sys
-IS_PY2 = sys.version_info[0] < 3
-
 import cython
 from cython import sizeof
 
@@ -153,11 +150,8 @@ def test_struct(n, x):
     a = cython.declare(MyStruct3)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
     a[1] = MyStruct(is_integral=False, data={'x': x})
-    if sys.version_info >= (3, 6):
-        # dict is ordered => struct creation via keyword arguments above was deterministic!
-        a[2] = MyStruct(False, MyUnion(x=x))
-    else:
-        a[2] = MyStruct(is_integral=False, data=MyUnion(x=x))
+    # dict is ordered => struct creation via keyword arguments above was deterministic!
+    a[2] = MyStruct(False, MyUnion(x=x))
     return a[0].data.n, a[1].data.x, a[2].is_integral
 
 import cython as cy
@@ -471,7 +465,7 @@ class CClass(object):
 class TestUnboundMethod:
     """
     >>> C = TestUnboundMethod
-    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    >>> C.meth is C.__dict__["meth"]
     True
     """
     def meth(self): pass

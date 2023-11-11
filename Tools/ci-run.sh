@@ -90,19 +90,7 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "2.7"* ]]; then
-  pip install "wheel<0.38" || exit 1
-  pip install -r test-requirements-27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
-  python -m pip install "wheel<0.38" || exit 1
-  python -m pip install -r test-requirements-34.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.6"* ]]; then
-  python -m pip install "wheel<0.38" || exit 1
-  python -m pip install -r test-requirements-36.txt || exit 1
-elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
-  pip install "wheel<0.38" || exit 1
-  pip install -r test-requirements-pypy27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
   if [[ $PYTHON_VERSION == "3.12"* ]]; then
     python -m pip install --pre -r test-requirements-312.txt || exit 1
@@ -131,8 +119,7 @@ else
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* &&
-          $PYTHON_VERSION != "2"* && $PYTHON_VERSION != "3.4"* ]]; then
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -188,7 +175,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
   # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) and not sys.platform.startswith("win") else "")')"
+    $(python -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1

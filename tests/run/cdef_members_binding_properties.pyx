@@ -59,8 +59,6 @@ True
 >>> b.a1 is not b.a2
 True
 
-TYPE_FIXES_REQUIRED:
-
 >>> try: b.b1 = 1
 ... except (TypeError, AttributeError): pass
 
@@ -76,11 +74,6 @@ TYPE_FIXES_REQUIRED:
 >>> try: b.c2 = A()
 ... except (TypeError, AttributeError): pass
 """
-
-import sys
-if sys.version_info < (2,5):
-    __doc__ = (__doc__.split('TYPE_FIXES_REQUIRED')[0] +
-               __doc__.split('TYPE_FIXES_REQUIRED')[1].replace('\nAttributeError: ...', '\nTypeError: ...'))
 
 
 cdef class A:

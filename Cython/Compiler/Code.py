@@ -556,6 +556,7 @@ class UtilityCode(UtilityCodeBase):
 
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
+            type_cname = '&%s' % type_cname
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
             assert len(args) < 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
             return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
@@ -1548,7 +1549,7 @@ class GlobalState(object):
             decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
                 cname))
             # split type reference storage as it might not be static
-            init.putln('%s.type = (PyObject*)&%s;' % (
+            init.putln('%s.type = (PyObject*)%s;' % (
                 cname, type_cname))
             # method name string isn't static in limited api
             init.putln('%s.method_name = &%s;' % (
@@ -1665,9 +1666,9 @@ class GlobalState(object):
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
-                function = 'PyLong_FromString((char *)"%s", 0, 0)'
+                function = 'PyLong_FromString("%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString((char *)"%s", 0, 0)'
+                function = 'PyInt_FromString("%s", 0, 0)'
             elif len(value.lstrip('-')) > 4:
                 function = "PyInt_FromLong(%sL)"
             else:

@@ -95,21 +95,17 @@ class Base(object):
         return cython.typeof(self) == 'Base'
 
 
-if sys.version_info >= (3, 5):
-    __doc__ += """
-    >>> Base() @ 1
-    True
-    >>> set() @ Base()
-    True
-    """
+__doc__ += """
+>>> Base() @ 1
+True
+>>> set() @ Base()
+True
 
-if sys.version_info >= (3, 0):
-    __doc__ += """
-    >>> Base() / 1
-    True
-    >>> set() / Base()
-    True
-    """
+>>> Base() / 1
+True
+>>> set() / Base()
+True
+"""
 
 
 @cython.c_api_binop_methods(False)
@@ -227,17 +223,16 @@ class OverloadCApi(Base):
             return NotImplemented
 
 
-if sys.version_info >= (3, 5):
-    __doc__ += """
-    >>> d = PyVersionDependent()
-    >>> d @ 2
-    9
-    >>> 2 @ d
-    99
-    >>> i = d
-    >>> i @= 2
-    >>> i
-    999
+__doc__ += """
+>>> d = PyVersionDependent()
+>>> d @ 2
+9
+>>> 2 @ d
+99
+>>> i = d
+>>> i @= 2
+>>> i
+999
 """
 
 

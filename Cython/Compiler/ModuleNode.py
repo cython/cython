@@ -1999,7 +1999,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
-            # Note: shouldn't this call __Pyx_ReleaseBuffer ??
+            # Note: shouldn't this call PyBuffer_Release ??
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
@@ -2728,7 +2728,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                    '{%s, %s, %s, %s, 0},' % (
                         entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
@@ -3116,12 +3116,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Library function declarations ---*/")
         if env.directives['np_pythran']:
             code.put_error_if_neg(self.pos, "_import_array()")
-
-        code.putln("/*--- Threads initialization code ---*/")
-        code.putln("#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0 "
-                   "&& defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
-        code.putln("PyEval_InitThreads();")
-        code.putln("#endif")
 
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitConstants()")
@@ -3638,7 +3632,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
         code.putln(
-            '%s = __Pyx_PyImport_AddModuleRef((const char *) "cython_runtime"); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.putln(

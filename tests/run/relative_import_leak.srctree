@@ -7,10 +7,7 @@ import sys
 from contextlib import contextmanager
 from Cython.Compiler.Errors import CompileError
 from Cython.Build.Dependencies import cythonize
-if sys.version_info[0] < 3:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from io import StringIO
 
 @contextmanager
 def assert_stderr(expected_error):
