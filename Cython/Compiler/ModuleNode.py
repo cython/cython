@@ -794,7 +794,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
         from .. import __version__
-        code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
+        code.putln('#if defined(CYTHON_LIMITED_API) && CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
+        # The limited API makes some significant changes to data structures, so we don't
+        # want to shared implementation compiled with and without the limited API.
+        code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME "limited"')
+        code.putln('#else')
+        code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME ""')
+        code.putln('#endif')
+        code.putln('#define CYTHON_ABI "%s" __PYX_EXTRA_ABI_MODULE_NAME' %
+                   __version__.replace('.', '_'))
         code.putln('#define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI')
         code.putln('#define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."')
         code.putln('#define CYTHON_HEX_VERSION %s' % build_hex_version(__version__))
@@ -1572,8 +1580,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
                 obj_struct = type.declaration_code("", deref=True)
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name, obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1581,7 +1590,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("(void) PyObject_INIT(o, t);")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
-                code.putln("} else {")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{")
             if not is_final_type:
                 code.putln("if (likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
             code.putln("o = (*t->tp_alloc)(t, 0);")
@@ -1725,10 +1736,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # in Py3.4+, call tp_finalize() as early as possible
             code.putln("#if CYTHON_USE_TP_FINALIZE")
             if needs_gc:
-                finalised_check = '!_PyGC_FINALIZED(o)'
+                finalised_check = '!__Pyx_PyObject_GC_IsFinalized(o)'
             else:
                 finalised_check = (
-                    '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
+                    '(!PyType_IS_GC(Py_TYPE(o)) || !__Pyx_PyObject_GC_IsFinalized(o))')
             code.putln(
                 "if (unlikely("
                 "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
@@ -1782,7 +1793,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if base_type.scope.needs_gc():
                         code.putln("PyObject_GC_Track(o);")
                 else:
+                    code.putln("#if PY_MAJOR_VERSION < 3")
+                    # Py2 lacks guarantees that the type pointer is still valid if we dealloc the object
+                    # at system exit time.  Thus, we need an extra NULL check.
+                    code.putln("if (!(%s) || PyType_IS_GC(%s)) PyObject_GC_Track(o);" % (base_cname, base_cname))
+                    code.putln("#else")
                     code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
+                    code.putln("#endif")
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
@@ -1812,16 +1829,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
 
                 type = scope.parent_type
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
                 code.putln(
-                    "if (CYTHON_COMPILING_IN_CPYTHON && ((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
+                    "if (((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
                         freecount_name,
                         freelist_size,
                         type.declaration_code("", deref=True),
                         type_safety_check))
                 code.putln("%s[%s++] = %s;" % (
                     freelist_name, freecount_name, type.cast_code("o")))
-                code.putln("} else {")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+            # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
+            code.putln("#else")
+            code.putln("{")
+            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+            code.putln("if (tp_free) tp_free(o);")
+            code.putln("}")
+            code.putln("#endif")
             if freelist_size:
                 code.putln("}")
 
@@ -1967,7 +1995,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
-            # Note: shouldn't this call __Pyx_ReleaseBuffer ??
+            # Note: shouldn't this call PyBuffer_Release ??
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
@@ -2696,7 +2724,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                    '{%s, %s, %s, %s, 0},' % (
                         entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
@@ -3060,7 +3088,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
-        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
+        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
+                                        "__PYX_LIMITED_VERSION_HEX, "
+                                        "__Pyx_get_runtime_version(), "
+                                        "CYTHON_COMPILING_IN_LIMITED_API)"
+        )
 
         code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")
@@ -3080,12 +3112,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Library function declarations ---*/")
         if env.directives['np_pythran']:
             code.put_error_if_neg(self.pos, "_import_array()")
-
-        code.putln("/*--- Threads initialization code ---*/")
-        code.putln("#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0 "
-                   "&& defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
-        code.putln("PyEval_InitThreads();")
-        code.putln("#endif")
 
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitConstants()")
@@ -3398,7 +3424,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
+                code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
                 code.putln("(*Py_TYPE(o)->tp_free)(o);")
+                code.putln("#else")
+                # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
+                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+                code.putln("if (tp_free) tp_free(o);")
+                code.putln("#endif")
                 code.putln("}")
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
@@ -3592,15 +3624,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
 
         code.putln(
-            '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef(__Pyx_BUILTIN_MODULE_NAME); %s' % (
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
-        code.put_incref(Naming.builtins_cname, py_object_type, nanny=False)
         code.putln(
-            '%s = PyImport_AddModule((char *) "cython_runtime"); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
-        code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
         code.putln(
             'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s' % (
                 env.module_cname,
@@ -3608,11 +3638,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
-                '%s = PyImport_AddModule("%s"); %s' % (
+                '%s = __Pyx_PyImport_AddModuleRef("%s"); %s' % (
                     Naming.preimport_cname,
                     Options.pre_import,
                     code.error_goto_if_null(Naming.preimport_cname, self.pos)))
-            code.put_incref(Naming.preimport_cname, py_object_type, nanny=False)
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *

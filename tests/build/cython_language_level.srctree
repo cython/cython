@@ -1,0 +1,10 @@
+# The test is checking the combination of passing command-line compiler directives
+# and language level to make sure that language level is preserved. The test
+# is designed to fail when language_level isn't 3 due to fstring
+# being unicode and str being ambiguous.
+CYTHON -3 foo.pyx
+CYTHON -3 -X always_allow_keywords=true foo.pyx
+
+######## foo.pyx ########
+def join(a: str, b: str) -> str:
+    return f'{a}{b}'

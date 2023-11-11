@@ -479,6 +479,7 @@ you should use the cell magic like this:
     # distutils: extra_compile_args=-fopenmp
     # distutils: extra_link_args=-fopenmp
 
+For MSVC (on Windows) you should use ``/openmp`` instead of ``-fopenmp``.
 The GIL must be released (see :ref:`Releasing the GIL <nogil>`), so this is why we
 declare our :func:`clip` function ``nogil``.
 

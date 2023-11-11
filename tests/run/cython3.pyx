@@ -12,7 +12,7 @@ __doc__ = """
 ...     print('%s = %r' % item)
 a = 1
 b = 2
-x = u'abc'
+x = 'abc'
 
 >>> except_as_deletes
 True
@@ -20,11 +20,6 @@ True
 >>> no_match_does_not_touch_target
 True
 """
-
-import sys
-IS_PY2 = sys.version_info[0] < 3
-if not IS_PY2:
-    __doc__ = __doc__.replace(" u'", " '")
 
 
 def locals_function(a, b=2):

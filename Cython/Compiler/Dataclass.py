@@ -477,7 +477,7 @@ def generate_repr_code(code, repr, node, fields):
     The only notable difference here is self.__class__.__qualname__ -> type(self).__name__
     which is because Cython currently supports Python 2.
 
-    However, it also has some guards for recursive repr invokations. In the standard
+    However, it also has some guards for recursive repr invocations. In the standard
     library implementation they're done with a wrapper decorator that captures a set
     (with the set keyed by id and thread). Here we create a set as a thread local
     variable and key only by id.

@@ -1033,7 +1033,7 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | C array                    | iterable           | list [#2]_       |
 +----------------------------+--------------------+------------------+
-| struct,                    |                    | dict [#1]_       |
+| struct,                    |                    | dict [#1]_ [#4]_ |
 | union                      |                    |                  |
 +----------------------------+--------------------+------------------+
 
@@ -1048,6 +1048,10 @@ possibilities.
 .. [#2] Other than signed/unsigned char[].
    The conversion will fail if the length of C array is not known at compile time,
    and when using a slice of a C array.
+   
+.. [#4] The automatic conversion of a struct to a ``dict`` (and vice
+   versa) does have some potential pitfalls detailed
+   :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
 
 
 Caveats when using a Python string in a C context
@@ -1510,15 +1514,23 @@ of functions or class bodies.
 Conditional Compilation
 =======================
 
-Some features are available for conditional compilation and compile-time
+Some language features are available for conditional compilation and compile-time
 constants within a Cython source file.
 
 .. note::
 
+    This feature has been deprecated and should not be used in new code.
+    It is very foreign to the Python language and also behaves
+    differently from the C preprocessor.  It is often misunderstood by users.
+    For the current deprecation status, see https://github.com/cython/cython/issues/4310.
+    For alternatives, see :ref:`deprecated_DEF_IF`.
+
+.. note::
+
     This feature has very little use cases.  Specifically, it is not a good
-    way to adapt code to platform and environment.  Use code generation or
-    (preferably) C compile time adaptation for this.  See, for example,
-    :ref:`verbatim_c`.
+    way to adapt code to platform and environment.  Use runtime conditions,
+    conditional Python imports, or C compile time adaptation for this.
+    See, for example, :ref:`verbatim_c` or :ref:`resolve-conflicts`.
 
 .. note::
 
@@ -1539,8 +1551,19 @@ The right-hand side of the ``DEF`` must be a valid compile-time expression.
 Such expressions are made up of literal values and names defined using ``DEF``
 statements, combined using any of the Python expression syntax.
 
+.. note::
+    Cython does not intend to copy literal compile-time values 1:1 into the generated code.
+    Instead, these values are internally represented and calculated as plain Python
+    values and use Python's ``repr()`` when a serialisation is needed.  This means
+    that values defined using ``DEF`` may lose precision or change their type
+    depending on the calculation rules of the Python environment where Cython parses and
+    translates the source code.  Specifically, using ``DEF`` to define high-precision
+    floating point constants may not give the intended result and may generate different
+    C values in different Python versions.
+
 The following compile-time names are predefined, corresponding to the values
-returned by :func:`os.uname`.
+returned by :func:`os.uname`.  As noted above, they are not considered good ways
+to adapt code to different platforms and are mostly provided for legacy reasons.
 
     UNAME_SYSNAME, UNAME_NODENAME, UNAME_RELEASE,
     UNAME_VERSION, UNAME_MACHINE
@@ -1570,16 +1593,16 @@ Conditional Statements
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
-directive in C.::
+directive in C.
 
-    IF UNAME_SYSNAME == "Windows":
-        include "icky_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Darwin":
-        include "nice_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Linux":
-        include "penguin_definitions.pxi"
+::
+
+    IF ARRAY_SIZE > 64:
+        include "large_arrays.pxi"
+    ELIF ARRAY_SIZE > 16:
+        include "medium_arrays.pxi"
     ELSE:
-        include "other_definitions.pxi"
+        include "small_arrays.pxi"
 
 The ``ELIF`` and ``ELSE`` clauses are optional. An ``IF`` statement can appear
 anywhere that a normal statement or declaration can appear, and it can contain

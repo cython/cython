@@ -145,7 +145,7 @@ class Context(object):
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
-    def _split_qualified_name(self, qualified_name):
+    def _split_qualified_name(self, qualified_name, relative_import=False):
         # Splits qualified_name into parts in form of 2-tuples: (PART_NAME, IS_PACKAGE).
         qualified_name_parts = qualified_name.split('.')
         last_part = qualified_name_parts.pop()
@@ -156,7 +156,7 @@ class Context(object):
             is_package = False
             for suffix in ('.py', '.pyx'):
                 path = self.search_include_directories(
-                    qualified_name, suffix=suffix, source_pos=None, source_file_path=None)
+                    qualified_name, suffix=suffix, source_pos=None, source_file_path=None, sys_path=not relative_import)
                 if path:
                     is_package = self._is_init_file(path)
                     break
@@ -177,31 +177,31 @@ class Context(object):
             warning(pos, "Dotted filenames ('%s') are deprecated."
                     " Please use the normal Python package directory layout." % pxd_filename, level=1)
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
-                    absolute_fallback=True):
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=1,
+                    absolute_fallback=True, relative_import=False):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
         # the corresponding .pxd file and process it.
-        # If relative_to is not None, it must be a module scope,
+        # If from_module is not None, it must be a module scope,
         # and the module will first be searched for relative to
         # that module, provided its name is not a dotted name.
         debug_find_module = 0
         if debug_find_module:
-            print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
-                module_name, relative_to, pos, need_pxd))
+            print("Context.find_module: module_name = %s, from_module = %s, pos = %s, need_pxd = %s" % (
+                module_name, from_module, pos, need_pxd))
 
         scope = None
         pxd_pathname = None
-        if relative_to:
+        if from_module:
             if module_name:
                 # from .module import ...
-                qualified_name = relative_to.qualify_name(module_name)
+                qualified_name = from_module.qualify_name(module_name)
             else:
                 # from . import ...
-                qualified_name = relative_to.qualified_name
-                scope = relative_to
-                relative_to = None
+                qualified_name = from_module.qualified_name
+                scope = from_module
+                from_module = None
         else:
             qualified_name = module_name
 
@@ -209,23 +209,23 @@ class Context(object):
             raise CompileError(pos or (module_name, 0, 0),
                                u"'%s' is not a valid module name" % module_name)
 
-        if relative_to:
+        if from_module:
             if debug_find_module:
                 print("...trying relative import")
-            scope = relative_to.lookup_submodule(module_name)
+            scope = from_module.lookup_submodule(module_name)
             if not scope:
-                pxd_pathname = self.find_pxd_file(qualified_name, pos)
+                pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=not relative_import)
                 self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if pxd_pathname:
                     is_package = self._is_init_file(pxd_pathname)
-                    scope = relative_to.find_submodule(module_name, as_package=is_package)
+                    scope = from_module.find_submodule(module_name, as_package=is_package)
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")
             if absolute_fallback:
                 qualified_name = module_name
             scope = self
-            for name, is_package in self._split_qualified_name(qualified_name):
+            for name, is_package in self._split_qualified_name(qualified_name, relative_import=relative_import):
                 scope = scope.find_submodule(name, as_package=is_package)
         if debug_find_module:
             print("...scope = %s" % scope)
@@ -237,7 +237,7 @@ class Context(object):
                     print("...looking for pxd file")
                 # Only look in sys.path if we are explicitly looking
                 # for a .pxd file.
-                pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=need_pxd)
+                pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=need_pxd and not relative_import)
                 self._check_pxd_filename(pos, pxd_pathname, qualified_name)
                 if debug_find_module:
                     print("......found %s" % pxd_pathname)
@@ -246,7 +246,7 @@ class Context(object):
                     # look for the non-existing pxd file next time.
                     scope.pxd_file_loaded = True
                     package_pathname = self.search_include_directories(
-                        qualified_name, suffix=".py", source_pos=pos)
+                        qualified_name, suffix=".py", source_pos=pos, sys_path=not relative_import)
                     if package_pathname and package_pathname.endswith(Utils.PACKAGE_FILES):
                         pass
                     else:
@@ -281,14 +281,14 @@ class Context(object):
         pxd = self.search_include_directories(
             qualified_name, suffix=".pxd", source_pos=pos, sys_path=sys_path, source_file_path=source_file_path)
         if pxd is None and Options.cimport_from_pyx:
-            return self.find_pyx_file(qualified_name, pos)
+            return self.find_pyx_file(qualified_name, pos, sys_path=sys_path)
         return pxd
 
-    def find_pyx_file(self, qualified_name, pos=None, source_file_path=None):
+    def find_pyx_file(self, qualified_name, pos=None, sys_path=True, source_file_path=None):
         # Search include path for the .pyx file corresponding to the
         # given fully-qualified module name, as for find_pxd_file().
         return self.search_include_directories(
-            qualified_name, suffix=".pyx", source_pos=pos, source_file_path=source_file_path)
+            qualified_name, suffix=".pyx", source_pos=pos, sys_path=sys_path, source_file_path=source_file_path)
 
     def find_include_file(self, filename, pos=None, source_file_path=None):
         # Search list of include directories for filename.
@@ -666,10 +666,11 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, basestring) and not options.timestamps:
-        return compile_single(source, options, full_module_name)
-    else:
-        return compile_multiple(source, options)
+    if isinstance(source, basestring):
+        if not options.timestamps:
+            return compile_single(source, options, full_module_name)
+        source = [source]
+    return compile_multiple(source, options)
 
 
 @Utils.cached_function
@@ -772,10 +773,11 @@ def main(command_line = 0):
         sources = args
 
     if options.show_version:
-        from .. import __version__
-        sys.stderr.write("Cython version %s\n" % __version__)
+        Utils.print_version()
+
     if options.working_path!="":
         os.chdir(options.working_path)
+
     try:
         result = compile(sources, options)
         if result.num_errors > 0:
