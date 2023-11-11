@@ -561,7 +561,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     // to be pickleable
     if (!m->func_closure) {
         // a '<' in the qualname indicate that it's in a local scope or a lambda or similar
-        int len = PyUnicode_GetLength(m->func_qualname);
+        Py_ssize_t len = PyUnicode_GetLength(m->func_qualname);
         if (len==-1) return NULL;
         int char_pos = PyUnicode_FindChar(m->func_qualname, '<', 0, len, 1);
         if (char_pos == -2) {
@@ -572,9 +572,16 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         }
     }
 
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        PyObject *f = ((__pyx_CyFunctionObject*)m)->func;
+        cfunc = PyCFunction_GetFunction(f);
+    }
+    #else
     // it'd be nice to use "PyCFunction_GetFunction" here but cyfunction doesn't actually
     // inherit from PyCFunction
     cfunc = ((PyCFunctionObject*)m)->m_ml->ml_meth;
+    #endif
     if (!cfunc) {
         goto fail;
     }
