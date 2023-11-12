@@ -5,17 +5,17 @@ cdef extern from *:
     """
     class Base {
     public:
-        double foo(double a) {
-            return a + 0.5;
+        int foo(int a) {
+            return a + 1;
         }
     };
     """
     cdef cppclass Base:
         __init__()
-        int foo(double)
+        int foo(int)
 
 cdef cppclass Derived(Base):
-    double foo(double a):
+    int foo(int a):
         return a * 2;
 
 cdef cppclass DefinedBase:
@@ -45,9 +45,9 @@ cdef cppclass DefinedDerived(DefinedBase):
 def testDeclared():
     """
     >>> testDeclared()
-    4.7 8.4
+    5 8
     """
-    cdef double a = 4.2
+    cdef int a = 4
     cdef Base b
     cdef Derived d
     rst_a = b.foo(a)
