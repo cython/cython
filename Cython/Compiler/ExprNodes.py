@@ -7243,12 +7243,25 @@ class MergedDictNode(ExprNode):
             code.putln("%s = %s;" % (self.result(), item.py_result()))
             item.generate_post_assignment_code(code)
         else:
+            if item.is_temp:
+                # For the fairly plausible special case where item is a temporary
+                # with a refcount of 1 (so created specifically for us),
+                # avoid making a copy
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+                code.putln("if (Py_REFCNT(%s) == 1) {" % item.py_result())
+                code.putln("%s = %s;" % (self.result(), item.py_result()))
+                item.generate_post_assignment_code(code)
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{")
             code.putln("%s = PyDict_Copy(%s); %s" % (
                 self.result(),
                 item.py_result(),
                 code.error_goto_if_null(self.result(), item.pos)))
             self.generate_gotref(code)
             item.generate_disposal_code(code)
+            if item.is_temp:
+                code.putln("}")
 
         if item.type is not dict_type:
             code.putln('} else {')
