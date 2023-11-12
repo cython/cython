@@ -5101,7 +5101,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         else:
             # optimise simple Python methods calls
-            if self._check_positional_args_for_method_call(node):
+            if self._check_positional_args_for_method_call(node.arg_tuple):
                 # simple call, now exclude calls to objects that are definitely not methods
                 if self._check_function_may_be_method_call(function):
                     if (node.self and function.is_attribute and
