@@ -6006,6 +6006,17 @@ class CallNode(ExprNode):
             self.type = type
             return True
 
+    def function_type(self):
+        # Return the type of the function being called, coercing a function
+        # pointer to a function if necessary. If the function has fused
+        # arguments, return the specific type.
+        func_type = self.function.type
+
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+
+        return func_type
+
     def is_lvalue(self):
         return self.type.is_reference
 
@@ -6127,17 +6138,6 @@ class SimpleCallNode(CallNode):
                 self.is_temp = True
 
         return self
-
-    def function_type(self):
-        # Return the type of the function being called, coercing a function
-        # pointer to a function if necessary. If the function has fused
-        # arguments, return the specific type.
-        func_type = self.function.type
-
-        if func_type.is_ptr:
-            func_type = func_type.base_type
-
-        return func_type
 
     def analyse_c_function_call(self, env):
         func_type = self.function.type
