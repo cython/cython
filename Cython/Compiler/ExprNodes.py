@@ -6669,9 +6669,14 @@ class PyMethodCallNode(CallNode):
         ))
         if use_kwnames:
             for n, keyvalue in enumerate(self.kwdict.key_value_pairs):
+                key_is_str = (
+                    (keyvalue.key.type is Builtin.str_type or keyvalue.key.type is Builtin.unicode_type)
+                    and not keyvalue.key.may_be_none()
+                )
                 code.put_error_if_neg(
                     self.pos,
-                    "__Pyx_VectorcallBuilder_AddArg(%s, %s, %s, __pyx_callargs+%d, %d)" % (
+                    "__Pyx_VectorcallBuilder_AddArg%s(%s, %s, %s, __pyx_callargs+%d, %d)" % (
+                        "" if key_is_str else "_Check",
                         keyvalue.key.py_result(),
                         keyvalue.value.py_result(),
                         kwnames_temp,
