@@ -1973,10 +1973,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 // For versions that define PyObject_Vectorcall, use PyObject_Vectorcall and define functions to build a kwnames tuple and add arguments to args.
 // For versions that don't, use __Pyx_PyObject_FastCallDict and functions to build a keyword dictionary
 
-static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
+CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 
 #if CYTHON_VECTORCALL
-#if PY_VERSION_HEX > 0x03080000
+#if __Pyx > 0x03080000
 #define __Pyx_Object_Vectorcall_CallFromBuilder PyObject_Vectorcall
 #else
 #define __Pyx_Object_Vectorcall_CallFromBuilder _PyObject_Vectorcall
@@ -1984,14 +1984,14 @@ static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObje
 
 #define __Pyx_MakeVectorcallBuilderKwds(n) PyTuple_New(n)
 
-static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
+static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 #else
 #define __Pyx_Object_Vectorcall_CallFromBuilder __Pyx_PyObject_FastCallDict
 
 #define __Pyx_MakeVectorcallBuilderKwds(n) PyDict_New()
 
-#define __Pyx_VectorcallBuilder_AddArg_Check(key, value, builder, args, n) PyDict_SetItem(builder, key, value)
+#define __Pyx_VectorcallBuilder_AddArg(key, value, builder, args, n) PyDict_SetItem(builder, key, value)
 #define __Pyx_VectorcallBuilder_AddArgStr(key, value, builder, args, n) PyDict_SetItemString(builder, key, value)
 #endif
 
@@ -2013,7 +2013,7 @@ static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObje
     return 0;
 }
 
-static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
+CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     (void)__Pyx_VectorcallBuilder_AddArgStr;
     if (unlikely(!PyUnicode_Check(key))) {
         PyErr_SetString(PyExc_TypeError, "keywords must be strings");
@@ -2025,11 +2025,10 @@ static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, 
 static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     PyObject *pyKey = PyUnicode_FromString(key);
     if (!pyKey) return -1;
-    (void)__Pyx_VectorcallBuilder_AddArg_Check;
     return __Pyx_VectorcallBuilder_AddArg(pyKey, value, builder, args, n);
 }
 #else // CYTHON_VECTORCALL
-static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
+CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     if (unlikely(!PyUnicode_Check(key))) {
         PyErr_SetString(PyExc_TypeError, "keywords must be strings");
         return -1;

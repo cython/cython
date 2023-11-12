@@ -6569,7 +6569,7 @@ class PyMethodCallNode(CallNode):
         for arg in args:
             arg.generate_evaluation_code(code)
         if isinstance(self.kwdict, DictNode):
-            use_kwnames = True 
+            use_kwnames = True
             for keyvalue in self.kwdict.key_value_pairs:
                 keyvalue.generate_evaluation_code(code)
         elif self.kwdict:
@@ -6651,7 +6651,7 @@ class PyMethodCallNode(CallNode):
                 UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
             function_caller = "__Pyx_PyObject_FastCall"
         # actually call the function
-        
+
 
         code.putln("{")
         extra_keyword_args = ""

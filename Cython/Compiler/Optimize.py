@@ -5050,19 +5050,19 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             lhs = node.lhs
             lhs.lhs_of_first_assignment = True
         return node
-    
+
     def _check_optimize_method_calls(self, node):
         function = node.function
         return (node.is_temp and function.type.is_pyobject and self.current_directives.get(
                 "optimize.unpack_method_calls_in_pyinit"
                 if not self.in_loop and self.current_env().is_module_scope
                 else "optimize.unpack_method_calls"))
-    
+
     def _check_positional_args_for_method_call(self, positional_args):
         # Do the positional args imply we can substitute a PyMethodCallNode
         return isinstance(positional_args, ExprNodes.TupleNode) and not (
             positional_args.mult_factor or (positional_args.is_literal and len(positional_args.args) > 1))
-    
+
     def _check_function_may_be_method_call(self, function):
         may_be_a_method = True
         if function.type is Builtin.type_type:
@@ -5112,7 +5112,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type,
                         unpack=self._check_optimize_method_calls(node)))
         return node
-    
+
     def visit_GeneralCallNode(self, node):
         """
         Replace likely Python method calls by a specialised PyMethodCallNode.
@@ -5125,7 +5125,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             return node
 
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-            node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args, 
+            node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args,
             type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 
