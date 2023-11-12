@@ -54,9 +54,6 @@ jobs:
         env: [{}]
 
         include:
-          # Temporary - Allow failure on Python 3.12+ jobs (https://github.com/cython/cython/issues/5470)
-          - python-version: "3.12"
-            allowed_failure: true
           - python-version: "3.13-dev"
             allowed_failure: true
 
