@@ -88,6 +88,7 @@ typedef struct {
     #include <intrin.h>
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type long
+    #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
     #pragma intrinsic (_InterlockedExchangeAdd)
     #define __pyx_atomic_incr_aligned(value) _InterlockedExchangeAdd(value, 1)
@@ -636,7 +637,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
         }
     }
 
-    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, (char *) mode, NULL);
+    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, mode, NULL);
     if (unlikely(!array_obj)) {
         goto fail;
     }

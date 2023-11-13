@@ -19,3 +19,8 @@ cdef extern from "<functional>" namespace "std" nogil:
         # https://github.com/cython/cython/issues/3193
         greater() except +
         bool operator()(const T& lhs, const T& rhs) except +
+
+    cdef cppclass reference_wrapper[T]:
+        reference_wrapper()
+        reference_wrapper(T)
+        T& get() const

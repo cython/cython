@@ -159,12 +159,7 @@ def h(a, b, c, *args, **kwargs):
     print a, b, c, u'*', len(args), len(kwargs)
 
 args = (9,8,7)
-
-import sys
-if sys.version_info[0] >= 3:
-    kwargs = {u"test" : u"toast"}
-else:
-    kwargs = {"test" : u"toast"}
+kwargs = {u"test" : u"toast"}
 
 def test_kw_args(f):
     """

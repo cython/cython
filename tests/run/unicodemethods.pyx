@@ -2,7 +2,6 @@
 
 cimport cython
 
-import sys
 
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 sep = u'  '

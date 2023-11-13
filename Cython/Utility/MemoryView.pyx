@@ -27,8 +27,8 @@ cdef extern from "<string.h>":
 
 cdef extern from *:
     bint __PYX_CYTHON_ATOMICS_ENABLED()
-    int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
-    void __Pyx_ReleaseBuffer(Py_buffer *)
+    int PyObject_GetBuffer(object, Py_buffer *, int) except -1
+    void PyBuffer_Release(Py_buffer *)
 
     ctypedef struct PyObject
     ctypedef Py_ssize_t Py_intptr_t
@@ -265,7 +265,7 @@ cdef int _allocate_buffer(array self) except -1:
 
 
 @cname("__pyx_array_new")
-cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *c_mode, char *buf):
+cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const char *c_mode, char *buf):
     cdef array result
     cdef str mode = "fortran" if c_mode[0] == b'f' else "c"  # this often comes from a constant C string.
 
@@ -345,7 +345,7 @@ cdef class memoryview:
         self.obj = obj
         self.flags = flags
         if type(self) is memoryview or obj is not None:
-            __Pyx_GetBuffer(obj, &self.view, flags)
+            PyObject_GetBuffer(obj, &self.view, flags)
             if <PyObject *> self.view.obj == NULL:
                 (<__pyx_buffer *> &self.view).obj = Py_None
                 Py_INCREF(Py_None)
@@ -370,7 +370,7 @@ cdef class memoryview:
 
     def __dealloc__(memoryview self):
         if self.obj is not None:
-            __Pyx_ReleaseBuffer(&self.view)
+            PyBuffer_Release(&self.view)
         elif (<__pyx_buffer *> &self.view).obj == Py_None:
             # Undo the incref in __cinit__() above.
             (<__pyx_buffer *> &self.view).obj = NULL

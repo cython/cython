@@ -39,7 +39,8 @@ class StringParseContext(Main.Context):
 
 
 def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
-                       context=None, allow_struct_enum_decorator=False):
+                       context=None, allow_struct_enum_decorator=False,
+                       in_utility_code=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -47,6 +48,9 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
 
     code - a unicode string containing Cython (module-level) code
     name - a descriptive name for the code source (to use in error messages etc.)
+    in_utility_code - used to suppress some messages from utility code. False by default
+                      because some generated code snippets like properties and dataclasses
+                      probably want to see those messages.
 
     RETURNS
 
@@ -66,6 +70,8 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
     if initial_pos is None:
         initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
+    if in_utility_code:
+        code_source.in_utility_code = True
 
     scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
 

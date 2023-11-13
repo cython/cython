@@ -205,8 +205,7 @@ def to_from_py_conversion_with_duplicates3(CyDefinedHasDuplicates2 val):
 def to_from_py_conversion_with_duplicates4(CyDefinedHasDuplicates3 val):
     """
     Mainly a compile-time test - we can't optimize to a switch here
-    >>> import sys
-    >>> True if sys.version_info < (3, 6, 0) else to_from_py_conversion_with_duplicates4(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
+    >>> to_from_py_conversion_with_duplicates4(CY_DUP3_C) == CyDefinedHasDuplicates3.CY_DUP3_C
     True
     """
     return val
@@ -217,11 +216,9 @@ def test_pickle():
     >>> from pickle import loads, dumps
     >>> import sys
 
-    Pickling enums won't work without the enum module, so disable the test in Py<3.6.
-    (requires 3.6 for IntFlag)
     Python 3.11.4 has a bug that breaks pickling: https://github.com/python/cpython/issues/105332
 
-    >>> if sys.version_info < (3, 6) or sys.version_info[:3] == (3,11,4):
+    >>> if sys.version_info[:3] == (3,11,4):
     ...     loads = dumps = lambda x: x
 
     >>> loads(dumps(PyxEnum.TWO)) == PyxEnum.TWO
