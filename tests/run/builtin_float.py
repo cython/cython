@@ -84,6 +84,9 @@ def from_bytes(s: bytes):
     >>> from_bytes(b"na_n")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...na_n...
+    >>> from_bytes(b"_" * 10000)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...____...
     >>> from_bytes(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
