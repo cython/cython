@@ -15,7 +15,8 @@ cdef extern from *:
         int foo(int)
 
 cdef cppclass Derived(Base):
-    int foo(int a):
+    # We need to specify noexcept here because Base.foo(int) is by default wrapped as noexcept.
+    int foo(int a) noexcept:
         return a * 2;
 
 cdef cppclass DefinedBase:
