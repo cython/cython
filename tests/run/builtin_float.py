@@ -204,6 +204,8 @@ def from_unicode(s: 'unicode'):
     1.2413112312318938e+47
     >>> from_unicode(u"123E100")
     1.23e+102
+    >>> from_unicode("೬")
+    6.0
     >>> from_unicode(u"123.23\\N{PUNCTUATION SPACE}")
     123.23
     >>> from_unicode(u"\\N{PUNCTUATION SPACE} 123.23 \\N{PUNCTUATION SPACE}")
