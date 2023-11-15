@@ -68,7 +68,7 @@ class BytesLiteralBuilder(object):
 
     def getstring(self):
         # this *must* return a byte string!
-        return bytes_literal(joinbytes(self.chars), self.target_encoding)
+        return bytes_literal(join_bytes(self.chars), self.target_encoding)
 
     def getchar(self):
         # this *must* return a byte string!
