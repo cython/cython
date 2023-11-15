@@ -1,4 +1,4 @@
-# cython: language_level=3str
+# cython: language_level=3
 # cython: auto_pickle=False
 """
 Python Lexical Analyser
