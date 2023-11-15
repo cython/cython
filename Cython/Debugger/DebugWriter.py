@@ -7,10 +7,7 @@ try:
     have_lxml = True
 except ImportError:
     have_lxml = False
-    try:
-        from xml.etree import ElementTree as etree
-    except ImportError:
-        etree = None
+    from xml.etree import ElementTree as etree
 
 from ..Compiler import Errors
 from ..Compiler.StringEncoding import EncodedString

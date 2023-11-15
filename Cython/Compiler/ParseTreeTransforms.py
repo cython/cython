@@ -2630,8 +2630,8 @@ if VALUE is not None:
             template = self.basic_property_ro
         property = template.substitute({
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
-                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
-                                                 attribute=entry.name),
+                                                obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
+                                                attribute=entry.name),
             }, pos=entry.pos).stats[0]
         property.name = entry.name
         property.doc = entry.doc

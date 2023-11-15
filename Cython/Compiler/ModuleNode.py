@@ -560,10 +560,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         coverage_xml_filename = Options.annotate_coverage_xml or options.annotate_coverage_xml
         if coverage_xml_filename and os.path.exists(coverage_xml_filename):
-            try:
-                import xml.etree.ElementTree as ET
-            except ImportError:
-                import xml.etree.ElementTree as ET
+            import xml.etree.ElementTree as ET
             coverage_xml = ET.parse(coverage_xml_filename).getroot()
             for el in coverage_xml.iter():
                 el.tail = None  # save some memory

@@ -76,8 +76,7 @@ class Signature:
         # and are not looked up in here
     }
 
-    type_to_format_map = {
-        type_: format_ for format_, type_ in format_map.items()}
+    type_to_format_map = {type_: format_ for format_, type_ in format_map.items()}
 
     error_value_map = {
         'O': "NULL",

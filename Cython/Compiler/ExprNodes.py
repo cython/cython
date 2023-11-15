@@ -6956,8 +6956,8 @@ class GeneralCallNode(CallNode):
         temps = []
         if len(kwargs.key_value_pairs) > matched_kwargs_count:
             unmatched_args = declared_args[len(args):]
-            keywords = { arg.key.value: (i+len(pos_args), arg)
-                              for i, arg in enumerate(kwargs.key_value_pairs) }
+            keywords = {arg.key.value: (i+len(pos_args), arg)
+                        for i, arg in enumerate(kwargs.key_value_pairs)}
             first_missing_keyword = None
             for decl_arg in unmatched_args:
                 name = decl_arg.name

@@ -579,7 +579,6 @@ class CythonCImports:
         try:
             return __import__(item)
         except ImportError:
-            import sys
             ex = AttributeError(item)
             ex.__cause__ = None
             raise ex

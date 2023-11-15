@@ -1284,7 +1284,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             if sys.version_info[0] < 3:
                 # Py 2.x enforces byte strings as keyword arguments ...
                 options = {name.encode('ASCII'): value
-                                for name, value in options.items()}
+                           for name, value in options.items()}
 
             self.type = PyrexTypes.BufferType(base_type, **options)
             if has_np_pythran(env) and is_pythran_buffer(self.type):

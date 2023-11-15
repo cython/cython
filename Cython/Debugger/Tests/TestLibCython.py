@@ -21,7 +21,7 @@ codefile = os.path.join(root, 'codefile')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
 
 with open(codefile) as f:
-    source_to_lineno = {line.strip(): i + 1 for i, line in enumerate(f)}
+    source_to_lineno = {line.strip(): i for i, line in enumerate(f, 1)}
 
 
 have_gdb = None

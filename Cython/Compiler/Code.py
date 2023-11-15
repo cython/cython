@@ -986,7 +986,7 @@ class PyObjectConst:
 
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
                replace_identifier=object, find_alphanums=object)
-possible_unicode_identifier = re.compile(br"(?![0-9])\w+$".decode('ascii'), re.U).match
+possible_unicode_identifier = re.compile(r"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(br"(?![0-9])\w+$").match
 replace_identifier = re.compile(r'[^a-zA-Z0-9_]+').sub
 find_alphanums = re.compile('([a-zA-Z0-9]+)').findall

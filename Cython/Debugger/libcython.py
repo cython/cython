@@ -28,15 +28,7 @@ try:
     have_lxml = True
 except ImportError:
     have_lxml = False
-    try:
-        from xml.etree import ElementTree as etree
-    except ImportError:
-        try:
-            # normal cElementTree install
-            import cElementTree as etree
-        except ImportError:
-            # normal ElementTree install
-            import elementtree.ElementTree as etree
+    from xml.etree import ElementTree as etree
 
 try:
     import pygments.lexers

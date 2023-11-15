@@ -2280,7 +2280,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             float_type, [
                 PyrexTypes.CFuncTypeArg("arg", float_type, None)
             ])
-        for float_type in (PyrexTypes.c_float_type, PyrexTypes.c_double_type, PyrexTypes.c_longdouble_type)}
+        for float_type in (PyrexTypes.c_float_type, PyrexTypes.c_double_type, PyrexTypes.c_longdouble_type)
+    }
 
     def _optimise_numeric_cast_call(self, node, arg):
         function = arg.function
