@@ -118,7 +118,7 @@ def escape_chars(chars):
 
 def make_split_strings(chars, splitby=113, indent="    "):
     splitby //= 10  # max length of "\U..." unicode escapes
-    lines = [f'u"{escape_chars(chars[i:i+splitby])}"' for i in range(0, len(chars), splitby)]
+    lines = [f'"{escape_chars(chars[i:i+splitby])}"' for i in range(0, len(chars), splitby)]
     return indent + f"\n{indent}".join(lines)
 
 
