@@ -92,10 +92,6 @@ PGO_CONFIG = {
 PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 
 
-def encode_fs(name):
-    return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
-
-
 @magics_class
 class CythonMagics(Magics):
 
@@ -418,7 +414,6 @@ class CythonMagics(Magics):
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        pyx_file = encode_fs(pyx_file)
 
         c_include_dirs = args.include
         c_src_files = list(map(str, args.src))
@@ -537,10 +532,8 @@ class CythonMagics(Magics):
         build_extension = _build_ext(dist)
         build_extension.finalize_options()
         if temp_dir:
-            temp_dir = encode_fs(temp_dir)
             build_extension.build_temp = temp_dir
         if lib_dir:
-            lib_dir = encode_fs(lib_dir)
             build_extension.build_lib = lib_dir
         if extension is not None:
             build_extension.extensions = [extension]
