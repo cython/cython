@@ -24,7 +24,7 @@ cdef cppclass DefinedBase:
 
     __init__():
         # If we skip this one, inheritance won't work because of the
-        # derived class constructor implicitely calling default constructor
+        # derived class constructor implicitly calling default constructor
         this.__init__(0)
 
     __init__(int a):
