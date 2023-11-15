@@ -17,7 +17,6 @@ from ..Compiler.Options import (default_options, CompilationOptions,
 from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
-from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
 from ..Compiler import Pipeline
 from ..Utils import get_cython_cache_dir
@@ -138,7 +137,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 
 def _inline_key(orig_code, arg_sigs, language_level):
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    return hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+    return hashlib.sha1(str(key).encode('utf-8')).hexdigest()
 
 
 def cython_inline(code, get_type=unsafe_type,

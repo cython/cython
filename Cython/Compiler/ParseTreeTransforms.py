@@ -25,7 +25,7 @@ from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
-from .StringEncoding import EncodedString, _unicode
+from .StringEncoding import EncodedString
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
@@ -854,7 +854,7 @@ class InterpretCompilerDirectives(CythonTransform):
         self.parallel_directives = {}
         directives = copy.deepcopy(Options.get_directive_defaults())
         for key, value in compilation_directive_defaults.items():
-            directives[_unicode(key)] = copy.deepcopy(value)
+            directives[str(key)] = copy.deepcopy(value)
         self.directives = directives
 
     def check_directive_scope(self, pos, directive, scope):
