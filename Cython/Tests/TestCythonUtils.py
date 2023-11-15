@@ -58,7 +58,7 @@ class TestCythonUtils(unittest.TestCase):
 
     def test_cached_method(self):
         obj = Cached()
-        value = range(3)
+        value = iter(range(3))
         cache = {(value,): 0}
 
         # cache args
@@ -73,7 +73,7 @@ class TestCythonUtils(unittest.TestCase):
 
     def test_clear_method_caches(self):
         obj = Cached()
-        value = range(3)
+        value = iter(range(3))
         cache = {(value,): 1}
 
         obj.cached_next(value)  # cache args
