@@ -23,14 +23,14 @@ def foo(dtype_t[:] a, dtype_t_out[:, :] b):
 # unrelated to this test.
 _WARNINGS = """
 # cpdef redeclaration bug, from TestCythonScope.pyx
-25:10: 'cpdef_method' redeclared
-36:10: 'cpdef_cname_method' redeclared
+23:10: 'cpdef_method' redeclared
+34:10: 'cpdef_cname_method' redeclared
 
 # from MemoryView.pyx
-961:29: Ambiguous exception value, same as default return value: 0
-961:29: Ambiguous exception value, same as default return value: 0
-1002:46: Ambiguous exception value, same as default return value: 0
-1002:46: Ambiguous exception value, same as default return value: 0
-1092:29: Ambiguous exception value, same as default return value: 0
-1092:29: Ambiguous exception value, same as default return value: 0
+956:29: Ambiguous exception value, same as default return value: 0
+956:29: Ambiguous exception value, same as default return value: 0
+997:46: Ambiguous exception value, same as default return value: 0
+997:46: Ambiguous exception value, same as default return value: 0
+1087:29: Ambiguous exception value, same as default return value: 0
+1087:29: Ambiguous exception value, same as default return value: 0
 """
