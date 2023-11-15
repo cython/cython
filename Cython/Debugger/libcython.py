@@ -4,11 +4,6 @@ GDB extension that adds Cython support.
 
 from __future__ import print_function
 
-try:
-    input = raw_input
-except NameError:
-    pass
-
 import sys
 import textwrap
 import functools
@@ -17,32 +12,17 @@ import collections
 
 import gdb
 
-try:  # python 2
-    UNICODE = unicode
-    BYTES = str
-except NameError:  # python 3
-    UNICODE = str
-    BYTES = bytes
-
 try:
     from lxml import etree
     have_lxml = True
 except ImportError:
     have_lxml = False
     try:
-        # Python 2.5
-        from xml.etree import cElementTree as etree
+        # normal cElementTree install
+        import cElementTree as etree
     except ImportError:
-        try:
-            # Python 2.5
-            from xml.etree import ElementTree as etree
-        except ImportError:
-            try:
-                # normal cElementTree install
-                import cElementTree as etree
-            except ImportError:
-                # normal ElementTree install
-                import elementtree.ElementTree as etree
+        # normal ElementTree install
+        import elementtree.ElementTree as etree
 
 try:
     import pygments.lexers
@@ -685,7 +665,7 @@ class CyImport(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, args, from_tty):
-        if isinstance(args, BYTES):
+        if isinstance(args, bytes):
             args = args.decode(_filesystemencoding)
         for arg in string_to_argv(args):
             try:
@@ -833,7 +813,7 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, function_names, from_tty):
-        if isinstance(function_names, BYTES):
+        if isinstance(function_names, bytes):
             function_names = function_names.decode(_filesystemencoding)
         argv = string_to_argv(function_names)
         if function_names.startswith('-p'):

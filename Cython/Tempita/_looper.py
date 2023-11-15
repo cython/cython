@@ -18,8 +18,7 @@ looper you can get a better sense of the context.  Use like::
 
 """
 
-import sys
-from Cython.Tempita.compat3 import basestring_
+basestring_ = (bytes, str)
 
 __all__ = ['looper']
 
@@ -62,9 +61,6 @@ class looper_iter(object):
         self.pos += 1
         return result
 
-    if sys.version < "3":
-        next = __next__
-
 
 class loop_pos(object):
 
@@ -94,9 +90,6 @@ class loop_pos(object):
         except IndexError:
             return None
     __next__ = property(__next__)
-
-    if sys.version < "3":
-        next = __next__
 
     def previous(self):
         if self.pos == 0:

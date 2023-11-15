@@ -2,14 +2,9 @@ import os
 import sys
 import re
 from unittest import TestCase
-try:
-    from unittest.mock import patch, Mock
-except ImportError:  # Py2
-    from mock import patch, Mock
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
+from unittest.mock import patch, Mock
+
+from io import StringIO
 
 from .. import Options
 from ..CmdLine import parse_command_line

@@ -9,10 +9,7 @@ from Cython.Compiler.Tests.Utils import backup_Options, restore_Options, check_g
 from unittest import TestCase
 
 import sys
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
+from io import StringIO
 
 
 class TestCythonizeArgsParser(TestCase):

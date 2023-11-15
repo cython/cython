@@ -40,13 +40,20 @@ import tokenize
 from io import StringIO
 
 from ._looper import looper
-from .compat3 import bytes, unicode_, basestring_, next, is_unicode, coerce_text
 
 __all__ = ['TemplateError', 'Template', 'sub', 'bunch']
 
 in_re = re.compile(r'\s+in\s+')
 var_re = re.compile(r'^[a-z_][a-z0-9_]*$', re.I)
+basestring_ = (bytes, str)
 
+def coerce_text(v):
+    if not isinstance(v, basestring_):
+        if hasattr(v, '__str__'):
+            return str(v)
+        else:
+            return bytes(v)
+    return v
 
 class TemplateError(Exception):
     """Exception raised while parsing a template
@@ -119,7 +126,7 @@ class Template(object):
             self.default_namespace['end_braces'] = delimiters[1]
         self.delimiters = self.delimeters = delimiters  # Keep a legacy read-only copy, but don't use it.
 
-        self._unicode = is_unicode(content)
+        self._unicode = isinstance(content, str)
         if name is None and stacklevel is not None:
             try:
                 caller = sys._getframe(stacklevel)
@@ -332,13 +339,13 @@ class Template(object):
                 return ''
             if self._unicode:
                 try:
-                    value = unicode_(value)
+                    value = str(value)
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
                 if not isinstance(value, basestring_):
                     value = coerce_text(value)
-                if (is_unicode(value)
+                if (isinstance(value, str)
                         and self.default_encoding):
                     value = value.encode(self.default_encoding)
         except Exception as e:
@@ -359,7 +366,7 @@ class Template(object):
                         e.start,
                         e.end,
                         e.reason + ' in string %r' % value)
-            elif not self._unicode and is_unicode(value):
+            elif not self._unicode and isinstance(value, str):
                 if not self.default_encoding:
                     raise UnicodeEncodeError(
                         'Cannot encode unicode value %r into bytes '
@@ -534,9 +541,6 @@ class _Empty(object):
 
     def __bool__(self):
         return False
-
-    if sys.version < "3":
-        __nonzero__ = __bool__
 
 Empty = _Empty()
 del _Empty

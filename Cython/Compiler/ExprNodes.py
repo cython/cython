@@ -54,23 +54,8 @@ from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supporte
      pythran_is_numpy_func_supported, pythran_get_func_include_file, pythran_functor)
 from .PyrexTypes import PythranExpr
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    # Python 3
-    basestring = str
-    any_string_type = (bytes, str)
-else:
-    # Python 2
-    any_string_type = (bytes, unicode)
-
-
-if sys.version_info[0] >= 3:
-    IS_PYTHON3 = True
-    _py_int_types = int
-else:
-    IS_PYTHON3 = False
-    _py_int_types = (int, long)
+any_string_type = (bytes, str)
+_py_int_types = int
 
 
 class NotConstant(object):
@@ -1550,7 +1535,7 @@ class FloatNode(ConstNode):
 
     def get_constant_c_result_code(self):
         strval = self.value
-        assert isinstance(strval, basestring)
+        assert isinstance(strval, str)
         cmpval = repr(float(strval))
         if cmpval == 'nan':
             return "(Py_HUGE_VAL * 0)"
@@ -1871,10 +1856,6 @@ class StringNode(PyConstNode):
     def compile_time_value(self, env):
         if self.value.is_unicode:
             return self.value
-        if not IS_PYTHON3:
-            # use plain str/bytes object in Py2
-            return self.value.byteencode()
-        # in Py3, always return a Unicode string
         if self.unicode_value is not None:
             return self.unicode_value
         return self.value.decode('iso8859-1')

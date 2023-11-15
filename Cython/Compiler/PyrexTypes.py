@@ -8,10 +8,7 @@ import copy
 import hashlib
 import re
 
-try:
-    reduce
-except NameError:
-    from functools import reduce
+from functools import reduce
 from functools import partial
 from itertools import product
 

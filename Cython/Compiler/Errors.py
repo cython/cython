@@ -2,12 +2,7 @@
 #   Errors
 #
 
-from __future__ import absolute_import
-
-try:
-    from __builtin__ import basestring as any_string_type
-except ImportError:
-    any_string_type = (bytes, str)
+any_string_type = (bytes, str)
 
 import sys
 from contextlib import contextmanager

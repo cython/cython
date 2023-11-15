@@ -7,17 +7,7 @@ from __future__ import absolute_import
 import re
 import sys
 
-if sys.version_info[0] >= 3:
-    _unicode, _str, _bytes, _unichr = str, str, bytes, chr
-    IS_PYTHON3 = True
-else:
-    _unicode, _str, _bytes, _unichr = unicode, str, str, unichr
-    IS_PYTHON3 = False
-
-empty_bytes = _bytes()
-empty_unicode = _unicode()
-
-join_bytes = empty_bytes.join
+join_bytes = bytes().join
 
 
 class UnicodeLiteralBuilder(object):
@@ -27,10 +17,10 @@ class UnicodeLiteralBuilder(object):
         self.chars = []
 
     def append(self, characters):
-        if isinstance(characters, _bytes):
+        if isinstance(characters, bytes):
             # this came from a Py2 string literal in the parser code
             characters = characters.decode("ASCII")
-        assert isinstance(characters, _unicode), str(type(characters))
+        assert isinstance(characters, str), str(type(characters))
         self.chars.append(characters)
 
     if sys.maxunicode == 65535:
@@ -39,13 +29,13 @@ class UnicodeLiteralBuilder(object):
                 # wide Unicode character on narrow platform => replace
                 # by surrogate pair
                 char_number -= 0x10000
-                self.chars.append( _unichr((char_number // 1024) + 0xD800) )
-                self.chars.append( _unichr((char_number  % 1024) + 0xDC00) )
+                self.chars.append( chr((char_number // 1024) + 0xD800) )
+                self.chars.append( chr((char_number  % 1024) + 0xDC00) )
             else:
-                self.chars.append( _unichr(char_number) )
+                self.chars.append( chr(char_number) )
     else:
         def append_charval(self, char_number):
-            self.chars.append( _unichr(char_number) )
+            self.chars.append( chr(char_number) )
 
     def append_uescape(self, char_number, escape_string):
         self.append_charval(char_number)
@@ -65,20 +55,20 @@ class BytesLiteralBuilder(object):
         self.target_encoding = target_encoding
 
     def append(self, characters):
-        if isinstance(characters, _unicode):
+        if isinstance(characters, str):
             characters = characters.encode(self.target_encoding)
-        assert isinstance(characters, _bytes), str(type(characters))
+        assert isinstance(characters, bytes), str(type(characters))
         self.chars.append(characters)
 
     def append_charval(self, char_number):
-        self.chars.append( _unichr(char_number).encode('ISO-8859-1') )
+        self.chars.append( chr(char_number).encode('ISO-8859-1') )
 
     def append_uescape(self, char_number, escape_string):
         self.append(escape_string)
 
     def getstring(self):
         # this *must* return a byte string!
-        return bytes_literal(join_bytes(self.chars), self.target_encoding)
+        return bytes_literal(joinbytes(self.chars), self.target_encoding)
 
     def getchar(self):
         # this *must* return a byte string!
@@ -111,7 +101,7 @@ class StrLiteralBuilder(object):
         return (self._bytes.getstring(), self._unicode.getstring())
 
 
-class EncodedString(_unicode):
+class EncodedString(str):
     # unicode string subclass to keep track of the original encoding.
     # 'encoding' is None for unicode strings and the source encoding
     # otherwise
@@ -146,7 +136,7 @@ class EncodedString(_unicode):
             s = bytes_literal(self.byteencode(), self.encoding)
         return s.as_c_string_literal()
 
-    if not hasattr(_unicode, "isascii"):
+    if not hasattr(str, "isascii"):
         def isascii(self):
             # not defined for Python3.7+ since the class already has it
             try:
@@ -200,7 +190,7 @@ def string_contains_lone_surrogates(ustring):
     return last_was_start
 
 
-class BytesLiteral(_bytes):
+class BytesLiteral(bytes):
     # bytes subclass that is compatible with EncodedString
     encoding = None
 
@@ -208,11 +198,7 @@ class BytesLiteral(_bytes):
         return self
 
     def byteencode(self):
-        if IS_PYTHON3:
-            return _bytes(self)
-        else:
-            # fake-recode the string to make it a plain bytes object
-            return self.decode('ISO-8859-1').encode('ISO-8859-1')
+        return bytes(self)
 
     def utf8encode(self):
         assert False, "this is not a unicode string: %r" % self
@@ -229,7 +215,7 @@ class BytesLiteral(_bytes):
         value = split_string_literal(escape_byte_string(self))
         return '"%s"' % value
 
-    if not hasattr(_bytes, "isascii"):
+    if not hasattr(bytes, "isascii"):
         def isascii(self):
             # already defined for Python3.7+
             return True
@@ -243,7 +229,7 @@ def bytes_literal(s, encoding):
 
 
 def encoded_string(s, encoding):
-    assert isinstance(s, (_unicode, bytes))
+    assert isinstance(s, (str, bytes))
     s = EncodedString(s)
     if encoding is not None:
         s.encoding = encoding
@@ -299,8 +285,7 @@ _replace_specials = _build_specials_replacer()
 
 
 def escape_char(c):
-    if IS_PYTHON3:
-        c = c.decode('ISO-8859-1')
+    c = c.decode('ISO-8859-1')
     if c in '\n\r\t\\':
         return repr(c)[1:-1]
     elif c == "'":
@@ -323,25 +308,14 @@ def escape_byte_string(s):
         return s.decode("ASCII")  #  trial decoding: plain ASCII => done
     except UnicodeDecodeError:
         pass
-    if IS_PYTHON3:
-        s_new = bytearray()
-        append, extend = s_new.append, s_new.extend
-        for b in s:
-            if b >= 128:
-                extend(('\\%3o' % b).encode('ASCII'))
-            else:
-                append(b)
-        return s_new.decode('ISO-8859-1')
-    else:
-        l = []
-        append = l.append
-        for c in s:
-            o = ord(c)
-            if o >= 128:
-                append('\\%3o' % o)
-            else:
-                append(c)
-        return join_bytes(l).decode('ISO-8859-1')
+    s_new = bytearray()
+    append, extend = s_new.append, s_new.extend
+    for b in s:
+        if b >= 128:
+            extend(('\\%3o' % b).encode('ASCII'))
+        else:
+            append(b)
+    return s_new.decode('ISO-8859-1')
 
 def split_string_literal(s, limit=2000):
     # MSVC can't handle long string literals.
@@ -389,4 +363,4 @@ def encode_pyunicode_string(s):
 
     if utf16 == utf32:
         utf16 = []
-    return ",".join(map(_unicode, utf16)), ",".join(map(_unicode, utf32))
+    return ",".join(map(str, utf16)), ",".join(map(str, utf32))

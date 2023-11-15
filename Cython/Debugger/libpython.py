@@ -57,11 +57,6 @@ import os
 import locale
 import sys
 
-if sys.version_info[0] >= 3:
-    unichr = chr
-    xrange = range
-    long = int
-
 # Look up the gdb.Type for some standard types:
 # Those need to be refreshed as types (pointer sizes) may change when
 # gdb loads different executables
@@ -124,19 +119,10 @@ def safety_limit(val):
 def safe_range(val):
     # As per range, but don't trust the value too much: cap it to a safety
     # threshold in case the data was corrupted
-    return xrange(safety_limit(int(val)))
+    return range(safety_limit(int(val)))
 
-if sys.version_info[0] >= 3:
-    def write_unicode(file, text):
-        file.write(text)
-else:
-    def write_unicode(file, text):
-        # Write a byte or unicode string to file. Unicode strings are encoded to
-        # ENCODING encoding with 'backslashreplace' error handler to avoid
-        # UnicodeEncodeError.
-        if isinstance(text, unicode):
-            text = text.encode(ENCODING, 'backslashreplace')
-        file.write(text)
+def write_unicode(file, text):
+    file.write(text)
 
 try:
     os_fsencode = os.fsencode
@@ -263,7 +249,7 @@ class PyObjectPtr(object):
         return PyTypeObjectPtr(self.field('ob_type'))
 
     def is_null(self):
-        return 0 == long(self._gdbval)
+        return 0 == int(self._gdbval)
 
     def is_optimized_out(self):
         '''
@@ -325,7 +311,7 @@ class PyObjectPtr(object):
                 return '<%s at remote 0x%x>' % (self.tp_name, self.address)
 
         return FakeRepr(self.safe_tp_name(),
-                        long(self._gdbval))
+                        int(self._gdbval))
 
     def write_repr(self, out, visited):
         '''
@@ -425,7 +411,7 @@ class PyObjectPtr(object):
         return gdb.lookup_type(cls._typename).pointer()
 
     def as_address(self):
-        return long(self._gdbval)
+        return int(self._gdbval)
 
 class PyVarObjectPtr(PyObjectPtr):
     _typename = 'PyVarObject'
@@ -546,7 +532,7 @@ class HeapTypeObjectPtr(PyObjectPtr):
         tp_name = self.safe_tp_name()
 
         # Class:
-        return InstanceProxy(tp_name, attr_dict, long(self._gdbval))
+        return InstanceProxy(tp_name, attr_dict, int(self._gdbval))
 
     def write_repr(self, out, visited):
         # Guard against infinite loops:
@@ -687,7 +673,7 @@ class PyDictObjectPtr(PyObjectPtr):
         entries, nentries = self._get_entries(keys)
         for i in safe_range(nentries):
             ep = entries[i]
-            if long(values):
+            if int(values):
                 pyop_value = PyObjectPtr.from_pyobject_ptr(values[i])
             else:
                 pyop_value = PyObjectPtr.from_pyobject_ptr(ep['me_value'])
@@ -807,7 +793,7 @@ class PyLongObjectPtr(PyObjectPtr):
             #define PyLong_SHIFT        30
             #define PyLong_SHIFT        15
         '''
-        ob_size = long(self.field('ob_size'))
+        ob_size = int(self.field('ob_size'))
         if ob_size == 0:
             return 0
 
@@ -818,7 +804,7 @@ class PyLongObjectPtr(PyObjectPtr):
         else:
             SHIFT = 30
 
-        digits = [long(ob_digit[i]) * 2**(SHIFT*i)
+        digits = [int(ob_digit[i]) * 2**(SHIFT*i)
                   for i in safe_range(abs(ob_size))]
         result = sum(digits)
         if ob_size < 0:
@@ -940,7 +926,7 @@ class PyFrameObjectPtr(PyObjectPtr):
         if self.is_optimized_out():
             return None
         f_trace = self.field('f_trace')
-        if long(f_trace) != 0:
+        if int(f_trace) != 0:
             # we have a non-NULL f_trace:
             return self.f_lineno
 
@@ -1159,22 +1145,22 @@ class PyTypeObjectPtr(PyObjectPtr):
 
 def _unichr_is_printable(char):
     # Logic adapted from Python 3's Tools/unicode/makeunicodedata.py
-    if char == u" ":
+    if char == " ":
         return True
     import unicodedata
     return unicodedata.category(char) not in ("C", "Z")
 
 if sys.maxunicode >= 0x10000:
-    _unichr = unichr
+    _unichr = chr
 else:
     # Needed for proper surrogate support if sizeof(Py_UNICODE) is 2 in gdb
     def _unichr(x):
         if x < 0x10000:
-            return unichr(x)
+            return chr(x)
         x -= 0x10000
         ch1 = 0xD800 | (x >> 10)
         ch2 = 0xDC00 | (x & 0x3FF)
-        return unichr(ch1) + unichr(ch2)
+        return chr(ch1) + chr(ch2)
 
 
 class PyUnicodeObjectPtr(PyObjectPtr):
@@ -1198,11 +1184,11 @@ class PyUnicodeObjectPtr(PyObjectPtr):
             is_compact_ascii = (int(state['ascii']) and int(state['compact']))
             if not int(state['ready']):
                 # string is not ready
-                field_length = long(compact['wstr_length'])
+                field_length = int(compact['wstr_length'])
                 may_have_surrogates = True
                 field_str = ascii['wstr']
             else:
-                field_length = long(ascii['length'])
+                field_length = int(ascii['length'])
                 if is_compact_ascii:
                     field_str = ascii.address + 1
                 elif int(state['compact']):
@@ -1218,7 +1204,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
                     field_str = field_str.cast(_type_unsigned_int_ptr())
         else:
             # Python 3.2 and earlier
-            field_length = long(self.field('length'))
+            field_length = int(self.field('length'))
             field_str = self.field('str')
             may_have_surrogates = self.char_width() == 2
 
@@ -1383,7 +1369,7 @@ class wrapperobject(PyObjectPtr):
 
     def safe_self_addresss(self):
         try:
-            address = long(self.field('self'))
+            address = int(self.field('self'))
             return '%#x' % address
         except (NullPyObjectPtr, RuntimeError):
             return '<failed to get self address>'
@@ -2813,10 +2799,7 @@ class PyExec(gdb.Command):
             lines = []
             while True:
                 try:
-                    if sys.version_info[0] == 2:
-                        line = raw_input()
-                    else:
-                        line = input('>')
+                    line = input('>')
                 except EOFError:
                     break
                 else:

@@ -27,7 +27,6 @@ else:
 
 # not using IPython's decorators here because they depend on "nose"
 skip_win32 = skipIf(sys.platform == 'win32', "Skip on Windows")
-skip_py27 = skipIf(sys.version_info[:2] == (2,7), "Disabled in Py2.7")
 
 try:
     # disable IPython history thread before it gets started to avoid having to clean it up
@@ -149,12 +148,8 @@ class TestIPythonMagic(CythonTest):
         ip = self._ip
         ip.run_cell_magic('cython', '', cython3_code)
         ip.ex('g = f(10); h = call(10)')
-        if sys.version_info[0] < 3:
-            self.assertEqual(ip.user_ns['g'], 2 // 10)
-            self.assertEqual(ip.user_ns['h'], 2 // 10)
-        else:
-            self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
-            self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
 
     def test_cython3(self):
         # The Cython cell defines the functions f() and call().
@@ -205,7 +200,6 @@ class TestIPythonMagic(CythonTest):
         # check that warning was printed to stdout even if build hasn't failed
         self.assertTrue("CWarning" in captured_out)
 
-    @skip_py27  # Not strictly broken in Py2.7 but currently fails in CI due to C compiler issues.
     @skip_win32
     def test_cython3_pgo(self):
         # The Cython cell defines the functions f() and call().

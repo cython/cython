@@ -4,11 +4,6 @@ from __future__ import absolute_import
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
 __version__ = "3.1.0a0"
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str
-
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
 
@@ -142,7 +137,7 @@ class warn:
 
 _cython_inline = None
 def inline(f, *args, **kwds):
-    if isinstance(f, basestring):
+    if isinstance(f, str):
         global _cython_inline
         if _cython_inline is None:
             from Cython.Build.Inline import cython_inline as _cython_inline
@@ -479,11 +474,7 @@ to_repr = {
 
 gs = globals()
 
-# note: cannot simply name the unicode type here as 2to3 gets in the way and replaces it by str
-try:
-    import __builtin__ as builtins
-except ImportError:  # Py3
-    import builtins
+import builtins
 
 gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
 del builtins
@@ -580,10 +571,8 @@ class CythonCImports(object):
         try:
             return __import__(item)
         except ImportError:
-            import sys
             ex = AttributeError(item)
-            if sys.version_info >= (3, 0):
-                ex.__cause__ = None
+            ex.__cause__ = None
             raise ex
 
 

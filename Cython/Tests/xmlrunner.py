@@ -45,10 +45,8 @@ import sys
 import time
 from unittest import TestResult, TextTestResult, TextTestRunner
 import xml.dom.minidom
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
+
+from io import StringIO
 
 
 class XMLDocument(xml.dom.minidom.Document):

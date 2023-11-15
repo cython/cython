@@ -51,19 +51,8 @@ join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
 safe_makedirs_once = cached_function(safe_makedirs)
 
-if sys.version_info[0] < 3:
-    # stupid Py2 distutils enforces str type in list of sources
-    _fs_encoding = sys.getfilesystemencoding()
-    if _fs_encoding is None:
-        _fs_encoding = sys.getdefaultencoding()
-    def encode_filename_in_py2(filename):
-        if not isinstance(filename, bytes):
-            return filename.encode(_fs_encoding)
-        return filename
-else:
-    def encode_filename_in_py2(filename):
-        return filename
-    basestring = str
+def encode_filename_in_py2(filename):
+    return filename
 
 
 def _make_relative(file_paths, base=None):
@@ -228,7 +217,7 @@ def _legacy_strtobool(val):
 
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
-    if isinstance(source, basestring):
+    if isinstance(source, str):
         start = 0
         while True:
             end = source.find('\n', start)
@@ -778,7 +767,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         exclude = []
     if patterns is None:
         return [], {}
-    elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
+    elif isinstance(patterns, str) or not isinstance(patterns, Iterable):
         patterns = [patterns]
 
     from distutils.extension import Extension
@@ -1185,7 +1174,7 @@ def fix_windows_unicode_modules(module_list):
     # https://bugs.python.org/issue39432
     if sys.platform != "win32":
         return
-    if sys.version_info < (3, 5) or sys.version_info >= (3, 8, 2):
+    if sys.version_info >= (3, 8, 2):
         return
 
     def make_filtered_list(ignored_symbol, old_entries):

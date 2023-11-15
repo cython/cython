@@ -56,7 +56,6 @@ import distutils.log
 import textwrap
 
 IO_ENCODING = sys.getfilesystemencoding()
-IS_PY2 = sys.version_info[0] < 3
 
 import hashlib
 from distutils.core import Distribution, Extension
@@ -93,12 +92,8 @@ PGO_CONFIG = {
 PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 
 
-if IS_PY2:
-    def encode_fs(name):
-        return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
-else:
-    def encode_fs(name):
-        return name
+def encode_fs(name):
+    return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
 
 
 @magics_class

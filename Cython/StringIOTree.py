@@ -37,11 +37,7 @@ EXAMPLE:
 
 from __future__ import absolute_import  #, unicode_literals
 
-try:
-    # Prefer cStringIO since io.StringIO() does not support writing 'str' in Py2.
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 
 class StringIOTree(object):

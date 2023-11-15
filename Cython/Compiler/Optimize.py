@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import re
-import sys
 import copy
 import codecs
 import itertools
@@ -13,12 +12,9 @@ cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, e
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
                UtilNodes=object, _py_int_types=object)
 
-if sys.version_info[0] >= 3:
-    _py_int_types = int
-    _py_string_types = (bytes, str)
-else:
-    _py_int_types = (int, long)
-    _py_string_types = (bytes, unicode)
+_py_int_types = int
+_py_string_types = (bytes, str)
+
 
 from . import Nodes
 from . import ExprNodes
@@ -34,15 +30,7 @@ from .Errors import error, warning
 from .ParseTreeTransforms import SkipDeclarations
 from .. import Utils
 
-try:
-    from __builtin__ import reduce
-except ImportError:
-    from functools import reduce
-
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str  # Python 3
+from functools import reduce
 
 
 def load_c_utility(name):
@@ -1665,7 +1653,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
         if not expected:  # None or 0
             arg_str = ''
-        elif isinstance(expected, basestring) or expected > 1:
+        elif isinstance(expected, str) or expected > 1:
             arg_str = '...'
         elif expected == 1:
             arg_str = 'x'
@@ -2364,7 +2352,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
         if not expected:  # None or 0
             arg_str = ''
-        elif isinstance(expected, basestring) or expected > 1:
+        elif isinstance(expected, str) or expected > 1:
             arg_str = '...'
         elif expected == 1:
             arg_str = 'x'

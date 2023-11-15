@@ -34,7 +34,6 @@ from .. import Utils
 from . import Future
 from . import Options
 
-_IS_PY3 = sys.version_info[0] >= 3
 _IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
 _CDEF_MODIFIERS = ('inline', 'nogil', 'api')
 
@@ -823,8 +822,6 @@ def wrap_compile_time_constant(pos, value):
         else:
             # error already reported
             return None
-    elif not _IS_PY3 and isinstance(value, long):
-        return ExprNodes.IntNode(pos, value=rep.rstrip('L'), constant_result=value)
     error(pos, "Invalid type for compile-time constant: %r (type %s)"
                % (value, value.__class__.__name__))
     return None
