@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.29.37 (2023-11-15)
+====================
+
+Bugs fixed
+----------
+
+* Fix a ``complex`` related compile error on Windows.
+  (Github issue :issue:`5512`)
+
+* ``cythonize`` failed to consider the ``CYTHON_FORCE_REGEN`` env variable.
+  Patch by Harmen Stoppels.  (Github issue :issue:`5712`)
+
+
 0.29.36 (2023-07-04)
 ====================
 
