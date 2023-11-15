@@ -94,4 +94,3 @@ class Extension(_Extension.Extension):
 # class Extension
 
 read_setup_file = _Extension.read_setup_file
-
