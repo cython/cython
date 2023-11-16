@@ -15,7 +15,7 @@ METHOD_NAME = "cached_next"
 CACHE_NAME = _build_cache_name(METHOD_NAME)
 NAMES = CACHE_NAME, METHOD_NAME
 
-class Cached(object):
+class Cached:
     @cached_method
     def cached_next(self, x):
         return next(x)

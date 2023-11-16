@@ -3,7 +3,6 @@ import os.path
 import sys
 import tempfile
 import unittest
-from io import open
 from os.path import join as pjoin
 
 from ..Dependencies import extended_iglob
@@ -32,14 +31,14 @@ class TestGlobbing(unittest.TestCase):
                     dir_path = pjoin(dir1x, dir2)
                     os.makedirs(dir_path)
                     with writable_file(dir_path, "file2_pyx.pyx") as f:
-                        f.write(u'""" PYX """')
+                        f.write('""" PYX """')
                     with writable_file(dir_path, "file2_py.py") as f:
-                        f.write(u'""" PY """')
+                        f.write('""" PY """')
 
                 with writable_file(dir1x, "file1_pyx.pyx") as f:
-                    f.write(u'""" PYX """')
+                    f.write('""" PYX """')
                 with writable_file(dir1x, "file1_py.py") as f:
-                    f.write(u'""" PY """')
+                    f.write('""" PY """')
 
     @classmethod
     def tearDownClass(cls):

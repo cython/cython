@@ -2,7 +2,6 @@
 #   Cython -- encoding related tools
 #
 
-from __future__ import absolute_import
 
 import re
 import sys
@@ -20,7 +19,7 @@ empty_unicode = _unicode()
 join_bytes = empty_bytes.join
 
 
-class UnicodeLiteralBuilder(object):
+class UnicodeLiteralBuilder:
     """Assemble a unicode string.
     """
     def __init__(self):
@@ -51,13 +50,13 @@ class UnicodeLiteralBuilder(object):
         self.append_charval(char_number)
 
     def getstring(self):
-        return EncodedString(u''.join(self.chars))
+        return EncodedString(''.join(self.chars))
 
     def getstrings(self):
         return (None, self.getstring())
 
 
-class BytesLiteralBuilder(object):
+class BytesLiteralBuilder:
     """Assemble a byte string or char value.
     """
     def __init__(self, target_encoding):
@@ -88,7 +87,7 @@ class BytesLiteralBuilder(object):
         return (self.getstring(), None)
 
 
-class StrLiteralBuilder(object):
+class StrLiteralBuilder:
     """Assemble both a bytes and a unicode representation of a string.
     """
     def __init__(self, target_encoding):
@@ -257,13 +256,13 @@ def encoded_string_or_bytes_literal(s, encoding):
 
 
 char_from_escape_sequence = {
-    r'\a' : u'\a',
-    r'\b' : u'\b',
-    r'\f' : u'\f',
-    r'\n' : u'\n',
-    r'\r' : u'\r',
-    r'\t' : u'\t',
-    r'\v' : u'\v',
+    r'\a' : '\a',
+    r'\b' : '\b',
+    r'\f' : '\f',
+    r'\n' : '\n',
+    r'\r' : '\r',
+    r'\t' : '\t',
+    r'\v' : '\v',
     }.get
 
 _c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))

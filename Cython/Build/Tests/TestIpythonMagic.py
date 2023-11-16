@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 # tag: ipython
 
 """Tests for the Cython magics extension."""
 
-from __future__ import absolute_import
 
 import os
 import io
@@ -56,12 +54,12 @@ def capture_output():
             wrapper.close()
 
 
-code = u"""\
+code = """\
 def f(x):
     return 2*x
 """
 
-cython3_code = u"""\
+cython3_code = """\
 def f(int x):
     return 2 / x
 
@@ -69,13 +67,13 @@ def call(x):
     return f(*(x,))
 """
 
-pgo_cython3_code = cython3_code + u"""\
+pgo_cython3_code = cython3_code + """\
 def main():
     for _ in range(100): call(5)
 main()
 """
 
-compile_error_code = u'''\
+compile_error_code = '''\
 cdef extern from *:
     """
     xxx a=1;
@@ -85,7 +83,7 @@ def doit():
     return a
 '''
 
-compile_warning_code = u'''\
+compile_warning_code = '''\
 cdef extern from *:
     """
     #pragma message ( "CWarning" )
@@ -218,7 +216,7 @@ class TestIPythonMagic(CythonTest):
     @skip_win32
     def test_extlibs(self):
         ip = self._ip
-        code = u"""
+        code = """
 from libc.math cimport sin
 x = sin(0.0)
         """
