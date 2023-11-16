@@ -28,26 +28,46 @@ class LinesResult(object):
         self.put(s)
         self.newline()
 
+    def __str__(self):
+        value = "\n".join(self.lines)
 
-class DeclarationWriter(TreeVisitor):
+        if self.s:
+            value += "\n" + self.s
+
+        return value
+
+
+class IndentationWriter:
     """
-    A Cython code writer that is limited to declarations nodes.
+    Mixin class for writing indented code.
     """
 
-    indent_string = u"    "
+    class Indented:
+        def __init__(self, writer):
+            self.writer = writer
+
+        def __enter__(self):
+            self.writer.indent()
+
+        def __exit__(self, type, value, traceback):
+            self.writer.dedent()
 
     def __init__(self, result=None):
-        super(DeclarationWriter, self).__init__()
+        super(IndentationWriter, self).__init__()
         if result is None:
             result = LinesResult()
+
         self.result = result
         self.numindents = 0
-        self.tempnames = {}
-        self.tempblockindex = 0
+
+    indent_string = u"    "
 
     def write(self, tree):
         self.visit(tree)
         return self.result
+
+    def indented(self):
+        return self.Indented(self)
 
     def indent(self):
         self.numindents += 1
@@ -71,6 +91,26 @@ class DeclarationWriter(TreeVisitor):
         self.startline(s)
         self.endline()
 
+    def emptyline(self):
+        self.result.putline("")
+
+
+class DeclarationWriter(TreeVisitor, IndentationWriter):
+    """
+    A Cython code writer that is limited to declarations nodes.
+    """
+
+    def __init__(self, result=None):
+        TreeVisitor.__init__(self)
+        IndentationWriter.__init__(self, result)
+        self.tempnames = {}
+        self.tempblockindex = 0
+
+    def _visit_indented(self, node):
+        self.indent()
+        self.visit(node)
+        self.dedent()
+
     def comma_separated_list(self, items, output_rhs=False):
         if len(items) > 0:
             for item in items[:-1]:
@@ -83,11 +123,6 @@ class DeclarationWriter(TreeVisitor):
             if output_rhs and items[-1].default is not None:
                 self.put(u" = ")
                 self.visit(items[-1].default)
-
-    def _visit_indented(self, node):
-        self.indent()
-        self.visit(node)
-        self.dedent()
 
     def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
