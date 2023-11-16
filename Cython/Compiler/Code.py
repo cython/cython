@@ -1,4 +1,3 @@
-# cython: auto_pickle=False
 #
 #   Code output module
 #

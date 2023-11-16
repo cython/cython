@@ -1,5 +1,4 @@
 # cython: infer_types=True
-# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework
