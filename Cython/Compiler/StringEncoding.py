@@ -6,7 +6,7 @@
 import re
 import sys
 
-join_bytes = bytes().join
+join_bytes = b''.join
 
 
 class UnicodeLiteralBuilder:
