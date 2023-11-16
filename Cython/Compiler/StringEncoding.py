@@ -214,10 +214,6 @@ class BytesLiteral(bytes):
         value = split_string_literal(escape_byte_string(self))
         return '"%s"' % value
 
-    if not hasattr(bytes, "isascii"):
-        def isascii(self):
-            # already defined for Python3.7+
-            return True
 
 
 def bytes_literal(s, encoding):
