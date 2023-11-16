@@ -9,6 +9,10 @@ import re
 import sys
 import io
 
+if sys.version_info[:2] < (3, 7):
+    sys.stderr.write("Sorry, Cython requires Python 3.7+, found %d.%d\n" % tuple(sys.version_info[:2]))
+    sys.exit(1)
+
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a
 # conditional metaclass. These options are processed by CmdLine called from
