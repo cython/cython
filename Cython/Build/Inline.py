@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import hashlib
 import inspect
 import os
@@ -61,7 +59,7 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
             self.unbound.add(node.name)
         return node
     def __call__(self, node):
-        super(UnboundSymbols, self).__call__(node)
+        super().__call__(node)
         return self.unbound
 
 
@@ -353,7 +351,7 @@ def get_body(source):
 
 # Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
-class RuntimeCompiledFunction(object):
+class RuntimeCompiledFunction:
 
     def __init__(self, f):
         self._f = f

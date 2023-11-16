@@ -35,7 +35,6 @@ EXAMPLE:
 ['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
 """
 
-from __future__ import absolute_import  #, unicode_literals
 
 try:
     # Prefer cStringIO since io.StringIO() does not support writing 'str' in Py2.
@@ -44,7 +43,7 @@ except ImportError:
     from io import StringIO
 
 
-class StringIOTree(object):
+class StringIOTree:
     """
     See module docs.
     """

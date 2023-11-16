@@ -81,14 +81,14 @@ cdef class ExtTypeNoTotalOrdering:
     >>> import sys
     >>> try: _ =  a >= b
     ... except TypeError:
-    ...     assert sys.version_info[0] >= 3
+    ...     pass
     ... else:
-    ...     assert sys.version_info[0] < 3
+    ...     print("FAILED!")
     >>> try: _ =  a <= b
     ... except TypeError:
-    ...     assert sys.version_info[0] >= 3
+    ...     pass
     ... else:
-    ...     assert sys.version_info[0] < 3
+    ...     print("FAILED!")
     """
     cdef public int value
     def __init__(self, val):

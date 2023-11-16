@@ -14,7 +14,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*'
+PYTHON_REQUIRES = '>=3.7'
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -208,7 +208,7 @@ if compile_cython_itself:
 setup_args.update(setuptools_extra_args)
 
 
-def dev_status(version):
+def dev_status(version: str):
     if 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
@@ -263,13 +263,18 @@ def run_build():
         This makes Cython the ideal language for writing glue code for external
         C/C++ libraries, and for fast C modules that speed up the execution of
         Python code.
-
+        
+        The newest Cython release can always be downloaded from https://cython.org/. 
+        Unpack the tarball or zip file, enter the directory, and then run::
+        
+            pip install .
+            
         Note that for one-time builds, e.g. for CI/testing, on platforms that are not
         covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
         that we provide is not used, it is substantially faster than a full source build
         to install an uncompiled (slower) version of Cython with::
 
-            pip install Cython --install-option="--no-cython-compile"
+            NO_CYTHON_COMPILE=true pip install .
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
         """),
@@ -280,12 +285,7 @@ def run_build():
             "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
             "Programming Language :: Python",
-            "Programming Language :: Python :: 2",
-            "Programming Language :: Python :: 2.7",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.4",
-            "Programming Language :: Python :: 3.5",
-            "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",

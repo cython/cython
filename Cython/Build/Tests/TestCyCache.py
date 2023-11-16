@@ -2,7 +2,9 @@ import difflib
 import glob
 import gzip
 import os
+import sys
 import tempfile
+import unittest
 
 import Cython.Build.Dependencies
 import Cython.Utils
@@ -63,6 +65,9 @@ class TestCyCache(CythonTest):
             msg='\n'.join(list(difflib.unified_diff(
                 a_contents.split('\n'), a_contents1.split('\n')))[:10]))
 
+    @unittest.skipIf(sys.version_info[:2] == (3, 12) and sys.platform == "win32",
+                     "This test is mysteriously broken on Windows on the CI only "
+                     "(https://github.com/cython/cython/issues/5825)")
     def test_cycache_uses_cache(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
@@ -70,7 +75,7 @@ class TestCyCache(CythonTest):
             f.write('pass')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
-        gzip.GzipFile(a_cache, 'wb').write('fake stuff'.encode('ascii'))
+        gzip.GzipFile(a_cache, 'wb').write(b'fake stuff')
         os.unlink(a_c)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         with open(a_c) as f:

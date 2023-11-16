@@ -3,10 +3,8 @@
 
 from __future__ import generator_stop
 
-import sys
-if sys.version_info[0] >= 3:
-    # additionally test exception chaining
-    __doc__ = u"""
+# additionally test exception chaining
+__doc__ = u"""
 >>> g = test_raise_StopIteration_value()
 >>> next(g)
 1

@@ -51,7 +51,6 @@ The module also extends gdb with some python-specific commands.
 # NOTE: some gdbs are linked with Python 3, so this file should be dual-syntax
 # compatible (2.6+ and 3.0+).  See #19308.
 
-from __future__ import print_function
 import gdb
 import os
 import locale
@@ -161,7 +160,7 @@ except AttributeError:
 class StringTruncated(RuntimeError):
     pass
 
-class TruncatedStringIO(object):
+class TruncatedStringIO:
     '''Similar to io.StringIO, but can truncate the output by raising a
     StringTruncated exception'''
     def __init__(self, maxlen=None):
@@ -180,7 +179,7 @@ class TruncatedStringIO(object):
     def getvalue(self):
         return self._val
 
-class PyObjectPtr(object):
+class PyObjectPtr:
     """
     Class wrapping a gdb.Value that's either a (PyObject*) within the
     inferior process, or some subclass pointer e.g. (PyBytesObject*)
@@ -305,7 +304,7 @@ class PyObjectPtr(object):
         Py_ReprLeave
         '''
 
-        class FakeRepr(object):
+        class FakeRepr:
             """
             Class representing a non-descript PyObject* value in the inferior
             process for when we don't have a custom scraper, intended to have
@@ -430,7 +429,7 @@ class PyObjectPtr(object):
 class PyVarObjectPtr(PyObjectPtr):
     _typename = 'PyVarObject'
 
-class ProxyAlreadyVisited(object):
+class ProxyAlreadyVisited:
     '''
     Placeholder proxy to use when protecting against infinite recursion due to
     loops in the object graph.
@@ -465,7 +464,7 @@ def _write_instance_repr(out, visited, name, pyop_attrdict, address):
     out.write(' at remote 0x%x>' % address)
 
 
-class InstanceProxy(object):
+class InstanceProxy:
 
     def __init__(self, cl_name, attrdict, address):
         self.cl_name = cl_name
@@ -601,14 +600,14 @@ class PyClassObjectPtr(PyObjectPtr):
     _typename = 'PyClassObject'
 
 
-class BuiltInFunctionProxy(object):
+class BuiltInFunctionProxy:
     def __init__(self, ml_name):
         self.ml_name = ml_name
 
     def __repr__(self):
         return "<built-in function %s>" % self.ml_name
 
-class BuiltInMethodProxy(object):
+class BuiltInMethodProxy:
     def __init__(self, ml_name, pyop_m_self):
         self.ml_name = ml_name
         self.pyop_m_self = pyop_m_self
@@ -966,9 +965,9 @@ class PyFrameObjectPtr(PyObjectPtr):
 
         filename = self.filename()
         try:
-            with open(os_fsencode(filename), 'r') as fp:
+            with open(os_fsencode(filename)) as fp:
                 lines = fp.readlines()
-        except IOError:
+        except OSError:
             return None
 
         try:
@@ -1159,7 +1158,7 @@ class PyTypeObjectPtr(PyObjectPtr):
 
 def _unichr_is_printable(char):
     # Logic adapted from Python 3's Tools/unicode/makeunicodedata.py
-    if char == u" ":
+    if char == " ":
         return True
     import unicodedata
     return unicodedata.category(char) not in ("C", "Z")
@@ -1251,7 +1250,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         # Convert the int code points to unicode characters, and generate a
         # local unicode instance.
         # This splits surrogate pairs if sizeof(Py_UNICODE) is 2 here (in gdb).
-        result = u''.join([
+        result = ''.join([
             (_unichr(ucs) if ucs <= 0x10ffff else '\ufffd')
             for ucs in Py_UNICODEs])
         return result
@@ -1474,7 +1473,7 @@ register (gdb.current_objfile ())
 # from build to build
 # See http://bugs.python.org/issue8279?#msg102276
 
-class Frame(object):
+class Frame:
     '''
     Wrapper for gdb.Frame, adding various methods
     '''
@@ -1770,8 +1769,8 @@ class PyList(gdb.Command):
             start = 1
 
         try:
-            f = open(os_fsencode(filename), 'r')
-        except IOError as err:
+            f = open(os_fsencode(filename))
+        except OSError as err:
             sys.stdout.write('Unable to open %s: %s\n'
                              % (filename, err))
             return
@@ -2098,7 +2097,7 @@ class PyBreak(gdb.Command):
 PyBreak("py-break", gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
 
 
-class _LoggingState(object):
+class _LoggingState:
     """
     State that helps to provide a reentrant gdb.execute() function.
     """
@@ -2224,7 +2223,7 @@ class ExecutionControlCommandBase(gdb.Command):
     """
 
     def __init__(self, name, lang_info):
-        super(ExecutionControlCommandBase, self).__init__(
+        super().__init__(
                                 name, gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
         self.lang_info = lang_info
 
@@ -2430,7 +2429,7 @@ class ExecutionControlCommandBase(gdb.Command):
         self.finish_executing(gdb.execute('cont', to_string=True))
 
 
-class LanguageInfo(object):
+class LanguageInfo:
     """
     This class defines the interface that ExecutionControlCommandBase needs to
     provide language-specific execution control.
@@ -2496,7 +2495,7 @@ class PythonInfo(LanguageInfo):
             pyframe = self.pyframe(frame)
             return '%4d    %s' % (pyframe.current_line_num(),
                                   pyframe.current_line().rstrip())
-        except IOError:
+        except OSError:
             return None
 
     def exc_info(self, frame):
@@ -2520,7 +2519,7 @@ class PythonInfo(LanguageInfo):
         yield 'PyEval_EvalFrameEx'
 
 
-class PythonStepperMixin(object):
+class PythonStepperMixin:
     """
     Make this a mixin so CyStep can also inherit from this and use a
     CythonCodeStepper at the same time.
@@ -2613,7 +2612,7 @@ def get_inferior_unicode_postfix():
         return ''
 
 
-class PythonCodeExecutor(object):
+class PythonCodeExecutor:
 
     Py_single_input = 256
     Py_file_input = 257
@@ -2750,7 +2749,7 @@ class FetchAndRestoreError(PythonCodeExecutor):
 class FixGdbCommand(gdb.Command):
 
     def __init__(self, command, actual_command):
-        super(FixGdbCommand, self).__init__(command, gdb.COMMAND_DATA,
+        super().__init__(command, gdb.COMMAND_DATA,
                                             gdb.COMPLETE_NONE)
         self.actual_command = actual_command
 

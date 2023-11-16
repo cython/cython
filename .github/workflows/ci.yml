@@ -44,9 +44,6 @@ jobs:
         os: [ubuntu-20.04, windows-2019, macos-11]
         backend: [c, cpp]
         python-version:
-          - "2.7"
-          - "3.5"
-          - "3.6"
           - "3.7"
           - "3.8"
           - "3.9"
@@ -57,9 +54,6 @@ jobs:
         env: [{}]
 
         include:
-          # Temporary - Allow failure on Python 3.12+ jobs (https://github.com/cython/cython/issues/5470)
-          - python-version: "3.12"
-            allowed_failure: true
           - python-version: "3.13-dev"
             allowed_failure: true
 
@@ -67,33 +61,38 @@ jobs:
           # ================
           # GCC 11 (with latest language standards)
           - os: ubuntu-20.04
-            python-version: 3.9
+            python-version: 3.8
+            backend: c
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c99" }
+            extra_hash: "-c99"
+          - os: ubuntu-20.04
+            python-version: 3.11
             backend: c
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-20.04
-            python-version: 3.9
+            python-version: 3.11
             backend: cpp
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
           # compile all modules
           - os: ubuntu-20.04
-            python-version: 2.7
+            python-version: 3.7
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-20.04
-            python-version: 2.7
+            python-version: 3.7
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-20.04
-            python-version: "3.10"
+            python-version: "3.11"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-20.04
-            python-version: "3.10"
+            python-version: "3.11"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
@@ -104,11 +103,6 @@ jobs:
             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"
           # Limited API
-          - os: ubuntu-20.04
-            python-version: 3.6
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
           - os: ubuntu-20.04
             python-version: 3.7
             backend: "c,cpp"
@@ -152,22 +146,7 @@ jobs:
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-20.04
-            python-version: 3.6
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
           # Stackless
-          - os: ubuntu-20.04
-            python-version: 2.7
-            backend: c
-            env: { STACKLESS: true, PY: 2 }
-            extra_hash: "-stackless"
-          - os: ubuntu-20.04
-            python-version: 3.6
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
           - os: ubuntu-20.04
             python-version: 3.8
             backend: c
@@ -175,35 +154,9 @@ jobs:
             extra_hash: "-stackless"
           # Pypy
           - os: ubuntu-20.04
-            python-version: pypy-2.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-20.04
             python-version: pypy-3.9-v7.3.12
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          # Coverage
-          - os: ubuntu-20.04
-            python-version: 3.8
-            backend: "c,cpp"
-            env: { COVERAGE: 1 }
-            extra_hash: '-coverage'
-
-          - os: windows-2019
-            # missing dependencies
-            python-version: 3.6
-            allowed_failure: true
-
-        exclude:
-          # fails due to lack of a compatible compiler
-          - os: windows-2019
-            python-version: 2.7
-
-          # cpp specific test fails
-          - os: windows-2019
-            python-version: 3.5
-            backend: cpp
-
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
@@ -229,20 +182,8 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v3
-        if: startsWith(matrix.python-version, '3.') || startsWith(matrix.python-version, 'pypy')
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Setup Python2 (Linux)
-        if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
-        run: |
-            sudo ln -fs python2 /usr/bin/python
-            sudo apt-get update
-            sudo apt-get install python-setuptools python2.7 python2.7-dev
-            curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-            sudo python2 get-pip.py
-            ls -l /usr/bin/pip* /usr/local/bin/pip*
-            which pip
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.9
@@ -277,7 +218,7 @@ jobs:
     env:
       BACKEND: c,cpp
       OS_NAME: ubuntu-20.04
-      PYTHON_VERSION: "3.10"
+      PYTHON_VERSION: "3.11"
 
     steps:
       - name: Checkout repo
@@ -286,7 +227,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Run Coverage
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
@@ -304,7 +245,7 @@ jobs:
     env:
       BACKEND: c,cpp
       OS_NAME: ubuntu-20.04
-      PYTHON_VERSION: "3.10"
+      PYTHON_VERSION: "3.11"
 
     steps:
       - name: Checkout repo
@@ -315,7 +256,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v3
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Run Coverage
         env: { COVERAGE: 1 }
