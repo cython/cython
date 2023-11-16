@@ -51,9 +51,6 @@ join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
 safe_makedirs_once = cached_function(safe_makedirs)
 
-def encode_filename_in_py2(filename):
-    return filename
-
 
 def _make_relative(file_paths, base=None):
     if not base:
@@ -800,7 +797,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     seen = set()
     for pattern in patterns:
         if not isinstance(pattern, extension_classes):
-            pattern = encode_filename_in_py2(pattern)
         if isinstance(pattern, str):
             filepattern = pattern
             template = Extension(pattern, [])  # Fake Extension without sources
@@ -861,7 +857,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 if 'sources' in kwds:
                     # allow users to add .c files etc.
                     for source in kwds['sources']:
-                        source = encode_filename_in_py2(source)
                         if source not in sources:
                             sources.append(source)
                 kwds['sources'] = sources
