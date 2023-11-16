@@ -11,10 +11,7 @@ import re
 import operator
 import sys
 
-if sys.version_info[0] >= 3:
-    _unicode = str
-else:
-    _unicode = unicode
+_unicode = str
 
 path_tokenizer = re.compile(
     r"("
