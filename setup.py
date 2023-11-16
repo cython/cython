@@ -166,7 +166,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     from Cython.Distutils.build_ext import build_ext
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
-        language_level=2,
+        language_level=3,
         binding=False,
         always_allow_keywords=False,
         autotestdict=False,
