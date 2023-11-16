@@ -10,7 +10,6 @@ cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, e
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
                UtilNodes=object, _py_int_types=object)
 
-_py_int_types = int
 _py_string_types = (bytes, str)
 
 
@@ -568,7 +567,7 @@ class IterationTransform(Visitor.EnvTransform):
             stop = filter_none_node(index.stop)
             step = filter_none_node(index.step)
             if step:
-                if not isinstance(step.constant_result, _py_int_types) \
+                if not isinstance(step.constant_result, int) \
                        or step.constant_result == 0 \
                        or step.constant_result > 0 and not stop \
                        or step.constant_result < 0 and not start:
@@ -806,7 +805,7 @@ class IterationTransform(Visitor.EnvTransform):
         else:
             step = args[2]
             step_pos = step.pos
-            if not isinstance(step.constant_result, _py_int_types):
+            if not isinstance(step.constant_result, int):
                 # cannot determine step direction
                 return node
             step_value = step.constant_result
@@ -831,8 +830,8 @@ class IterationTransform(Visitor.EnvTransform):
             bound1, bound2 = bound2, bound1
             abs_step = abs(step_value)
             if abs_step != 1:
-                if (isinstance(bound1.constant_result, _py_int_types) and
-                        isinstance(bound2.constant_result, _py_int_types)):
+                if (isinstance(bound1.constant_result, int) and
+                        isinstance(bound2.constant_result, int)):
                     # calculate final bounds now
                     if step_value < 0:
                         begin_value = bound2.constant_result
@@ -4529,7 +4528,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def _multiply_string(self, node, string_node, multiplier_node):
         multiplier = multiplier_node.constant_result
-        if not isinstance(multiplier, _py_int_types):
+        if not isinstance(multiplier, int):
             return node
         if not (node.has_constant_result() and isinstance(node.constant_result, _py_string_types)):
             return node
@@ -4565,12 +4564,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def _calculate_constant_seq(self, node, sequence_node, factor):
         if factor.constant_result != 1 and sequence_node.args:
-            if isinstance(factor.constant_result, _py_int_types) and factor.constant_result <= 0:
+            if isinstance(factor.constant_result, int) and factor.constant_result <= 0:
                 del sequence_node.args[:]
                 sequence_node.mult_factor = None
             elif sequence_node.mult_factor is not None:
-                if (isinstance(factor.constant_result, _py_int_types) and
-                        isinstance(sequence_node.mult_factor.constant_result, _py_int_types)):
+                if (isinstance(factor.constant_result, int) and
+                        isinstance(sequence_node.mult_factor.constant_result, int)):
                     value = sequence_node.mult_factor.constant_result * factor.constant_result
                     sequence_node.mult_factor = ExprNodes.IntNode(
                         sequence_node.mult_factor.pos,
