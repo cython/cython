@@ -215,7 +215,6 @@ class BytesLiteral(bytes):
         return '"%s"' % value
 
 
-
 def bytes_literal(s, encoding):
     assert isinstance(s, bytes)
     s = BytesLiteral(s)
