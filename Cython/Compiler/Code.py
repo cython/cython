@@ -2381,13 +2381,11 @@ class CCodeWriter:
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.use_fast_gil_utility_code()
-        self.putln("#ifdef WITH_THREAD")
         if not variable:
             variable = '__pyx_gilstate_save'
             if declare_gilstate:
                 self.put("PyGILState_STATE ")
         self.putln("%s = __Pyx_PyGILState_Ensure();" % variable)
-        self.putln("#endif")
 
     def put_release_ensured_gil(self, variable=None):
         """
@@ -2396,9 +2394,7 @@ class CCodeWriter:
         self.use_fast_gil_utility_code()
         if not variable:
             variable = '__pyx_gilstate_save'
-        self.putln("#ifdef WITH_THREAD")
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
-        self.putln("#endif")
 
     def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
@@ -2406,7 +2402,6 @@ class CCodeWriter:
         by a previous `put_release_gil`
         """
         self.use_fast_gil_utility_code()
-        self.putln("#ifdef WITH_THREAD")
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
@@ -2415,12 +2410,10 @@ class CCodeWriter:
         self.putln("Py_BLOCK_THREADS")
         if unknown_gil_state:
             self.putln("}")
-        self.putln("#endif")
 
     def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
-        self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save;")
         self.putln("_save = NULL;")
         if unknown_gil_state:
@@ -2433,12 +2426,9 @@ class CCodeWriter:
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
-        self.putln("#endif")
 
     def declare_gilstate(self):
-        self.putln("#ifdef WITH_THREAD")
         self.putln("PyGILState_STATE __pyx_gilstate_save;")
-        self.putln("#endif")
 
     # error handling
 

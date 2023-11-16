@@ -2735,13 +2735,9 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);/*proto*
 
 // Don't inline the function, it should really never be called in production
 static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
-    #ifdef WITH_THREAD
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    #endif
     __Pyx_RaiseUnboundLocalError(varname);
-    #ifdef WITH_THREAD
     PyGILState_Release(gilstate);
-    #endif
 }
 
 //////////////// RaiseCppGlobalNameError.proto ///////////////////////
