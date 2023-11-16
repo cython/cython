@@ -24,11 +24,8 @@ compile.cnumop
 compile.coercetovoidptr
 compile.complex
 compile.const
-# compile.cppenum - cpdef enums don't work because __Pyx_EnumMeta inherits from type
-# which is opaque in the limited API. That's probably best fixed when we drop support
-# for versions < 3.6 and so can drop __Pyx_EnumMeta
+compile.cppenum
 # cpp_temp_assignment uses generators/coroutines/similar
 compile.cpp_[^t]
 compile.cpp_template
-# ewing5 should be fixed by https://github.com/cython/cython/pull/5699
-compile.ewing[^5]
+compile.ewing

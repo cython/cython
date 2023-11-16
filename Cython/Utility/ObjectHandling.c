@@ -966,7 +966,7 @@ static PyObject*
 __Pyx_PEP560_update_bases(PyObject *bases)
 {
     Py_ssize_t i, j, size_bases;
-    PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
+    PyObject *base = NULL, *meth, *new_base, *result, *new_bases = NULL;
     /*assert(PyTuple_Check(bases));*/
 
 #if CYTHON_ASSUME_SAFE_MACROS
@@ -977,11 +977,17 @@ __Pyx_PEP560_update_bases(PyObject *bases)
 #endif
     for (i = 0; i < size_bases; i++) {
         // original code in CPython: base  = args[i];
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_CLEAR(base);
+#endif
 #if CYTHON_ASSUME_SAFE_MACROS
         base = PyTuple_GET_ITEM(bases, i);
 #else
         base = PyTuple_GetItem(bases, i);
         if (!base) goto error;
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_INCREF(base);
 #endif
         if (PyType_Check(base)) {
             if (new_bases) {
@@ -1026,15 +1032,17 @@ __Pyx_PEP560_update_bases(PyObject *bases)
             }
             for (j = 0; j < i; j++) {
                 // original code in CPython: base = args[j];
+                // We use a different name here to keep refcounting separate from base
+                PyObject *base_from_list;
 #if CYTHON_ASSUME_SAFE_MACROS
-                base = PyTuple_GET_ITEM(bases, j);
-                PyList_SET_ITEM(new_bases, j, base);
-                Py_INCREF(base);
+                base_from_list = PyTuple_GET_ITEM(bases, j);
+                PyList_SET_ITEM(new_bases, j, base_from_list);
+                Py_INCREF(base_from_list);
 #else
-                base = PyTuple_GetItem(bases, j);
-                if (!base) goto error;
-                Py_INCREF(base);
-                if (PyList_SetItem(new_bases, j, base) < 0) goto error;
+                base_from_list = PyTuple_GetItem(bases, j);
+                if (!base_from_list) goto error;
+                Py_INCREF(base_from_list);
+                if (PyList_SetItem(new_bases, j, base_from_list) < 0) goto error;
 #endif
             }
         }
@@ -1056,10 +1064,16 @@ __Pyx_PEP560_update_bases(PyObject *bases)
     }
     result = PyList_AsTuple(new_bases);
     Py_DECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return result;
 
 error:
     Py_XDECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return NULL;
 }
 
