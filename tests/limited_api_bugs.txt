@@ -9,3 +9,8 @@ test_queue
 memoryview
 memview
 buffer
+
+# https://bugs.python.org/issue40703 - fused function is given a wrong
+# __module__ attribute. This is fixable with type-specs along but 
+# probably not with the limited API
+cyfunction_pickle

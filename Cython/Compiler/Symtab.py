@@ -359,6 +359,10 @@ class Scope(object):
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
+    # needs_pickleable_closure_constructor   boolean
+    #                                      a modifier to "is_internal" for
+    #                                      pickleable closures where an argument
+    #                                      to tp_new controls what is initialized
     # scope_predefined_names  list of str   Class variable containing special names defined by
     #                                      this type of scope (e.g. __builtins__, __qualname__)
 
@@ -375,6 +379,7 @@ class Scope(object):
     is_module_scope = 0
     is_c_dataclass_scope = False
     is_internal = 0
+    needs_pickleable_closure_constructor = 0
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
@@ -446,6 +451,9 @@ class Scope(object):
             for entry in getattr(other, attr):
                 if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)
+
+        self.pickleable_functions.extend(other.pickleable_functions)
+        self.pickeable_cnames_to_indices.update(other.pickeable_cnames_to_indices)
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -1284,6 +1292,9 @@ class ModuleScope(Scope):
     # cpp                  boolean            Compiling a C++ file
     # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
     # is_package           boolean            Is this a package module? (__init__)
+    # pickleable_functions [(cname, DefNode, LambdaNode or None)]
+    #                                         list of functions with closures that require pickle support
+    # pickeable_cnames_to_indices   dict
 
     is_module_scope = 1
     has_import_star = 0
@@ -1322,6 +1333,8 @@ class ModuleScope(Scope):
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
         self.process_include(Code.IncludeCode("Python.h", initial=True))
+        self.pickleable_functions = []
+        self.pickeable_cnames_to_indices = {}
 
     def qualifying_scope(self):
         return self.parent_module
@@ -1893,6 +1906,25 @@ class ModuleScope(Scope):
         from .TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
 
+    def generate_function_pickle_code(self):
+        if not self.pickleable_functions:
+            return
+        from .UtilityCode import CythonUtilityCode
+        from .Code import UtilityCode
+        pickleable_function_cnames, a, b = zip(*self.pickleable_functions)
+        self.pickeable_cnames_to_indices = { i: n for n, i in enumerate(pickleable_function_cnames) }
+
+        self.use_utility_code(CythonUtilityCode.load(
+            "function_pickling", "FunctionPickling.pyx",
+            context = { "cnames": pickleable_function_cnames,
+                        "cnames_to_index": self.pickeable_cnames_to_indices },
+            name = self.name,  # so that the qualname for the functions will be right
+        ))
+        # FIXME - this should be handled by "requires" but using requires from CythonUtilityCode
+        # seems to cause it to be loaded as Cython utility code.
+        self.use_utility_code(UtilityCode.load_cached(
+            "CFuncPtrFromPy", "TypeConversion.c"))
+
 
 class LocalScope(Scope):
     is_local_scope = True
@@ -2265,6 +2297,7 @@ class CClassScope(ClassScope):
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
     #  inherited_var_entries [Entry]  Adapted var entries from base class
+    #  unpickle_cname        None or string   Name of a C function to unpickle, set only for closure classes
 
     is_c_class_scope = 1
     is_closure_class_scope = False
@@ -2275,6 +2308,7 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
+    unpickle_cname = None
 
     def __init__(self, name, outer_scope, visibility, parent_type):
         ClassScope.__init__(self, name, outer_scope)
