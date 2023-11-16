@@ -905,18 +905,14 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{if boundscheck}}
         if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
             {{if not have_gil}}
-                #ifdef WITH_THREAD
                 PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
-                #endif
             {{endif}}
 
             PyErr_SetString(PyExc_IndexError,
                             "Index out of bounds (axis {{dim}})");
 
             {{if not have_gil}}
-                #ifdef WITH_THREAD
                 PyGILState_Release(__pyx_gilstate_save);
-                #endif
             {{endif}}
 
             {{error_goto}}
