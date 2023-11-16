@@ -1724,7 +1724,6 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNanny = NULL;
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname); /*proto*/
   #define __Pyx_RefNannyDeclarations void *__pyx_refnanny = NULL;
-#ifdef WITH_THREAD
   #define __Pyx_RefNannySetupContext(name, acquire_gil) \
           if (acquire_gil) { \
               PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
@@ -1738,11 +1737,6 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
               __Pyx_RefNannyFinishContext(); \
               PyGILState_Release(__pyx_gilstate_save); \
           }
-#else
-  #define __Pyx_RefNannySetupContext(name, acquire_gil) \
-          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), (__LINE__), (__FILE__))
-  #define __Pyx_RefNannyFinishContextNogil() __Pyx_RefNannyFinishContext()
-#endif
   #define __Pyx_RefNannyFinishContextNogil() { \
               PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
               __Pyx_RefNannyFinishContext(); \
@@ -1909,9 +1903,7 @@ bad:
 #endif
 
 /////////////// FastGil.init ///////////////
-#ifdef WITH_THREAD
 __Pyx_FastGilFuncInit();
-#endif
 
 /////////////// NoFastGil.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -1949,17 +1941,15 @@ static void __Pyx_FastGilFuncInit(void);
 #define __Pyx_FastGIL_Remember __Pyx_FastGilFuncs.FastGIL_Remember
 #define __Pyx_FastGIL_Forget __Pyx_FastGilFuncs.FastGIL_Forget
 
-#ifdef WITH_THREAD
-  #ifndef CYTHON_THREAD_LOCAL
-    #if defined(__cplusplus) && __cplusplus >= 201103L
-      #define CYTHON_THREAD_LOCAL thread_local
-    #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112
-      #define CYTHON_THREAD_LOCAL _Thread_local
-    #elif defined(__GNUC__)
-      #define CYTHON_THREAD_LOCAL __thread
-    #elif defined(_MSC_VER)
-      #define CYTHON_THREAD_LOCAL __declspec(thread)
-    #endif
+#ifndef CYTHON_THREAD_LOCAL
+  #if defined(__cplusplus) && __cplusplus >= 201103L
+    #define CYTHON_THREAD_LOCAL thread_local
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112
+    #define CYTHON_THREAD_LOCAL _Thread_local
+  #elif defined(__GNUC__)
+    #define CYTHON_THREAD_LOCAL __thread
+  #elif defined(_MSC_VER)
+    #define CYTHON_THREAD_LOCAL __declspec(thread)
   #endif
 #endif
 

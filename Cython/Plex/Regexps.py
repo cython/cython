@@ -3,7 +3,6 @@ Python Lexical Analyser
 
 Regular Expressions
 """
-from __future__ import absolute_import
 
 import types
 
@@ -103,7 +102,7 @@ def CodeRange(code1, code2):
 #     Abstract classes
 #
 
-class RE(object):
+class RE:
     """RE is the base class for regular expression constructors.
     The following operators are defined on REs:
 
@@ -154,7 +153,7 @@ class RE(object):
             self.wrong_type(num, value, "Plex.RE instance")
 
     def check_string(self, num, value):
-        if type(value) != type(''):
+        if type(value) is not str:
             self.wrong_type(num, value, "string")
 
     def check_char(self, num, value):

@@ -841,22 +841,21 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
 static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer, Py_ssize_t length) {
     // number must not start with punctuation
     int last_was_punctuation = 1;
+    int parse_error_found = 0;
     Py_ssize_t i;
     for (i=0; i < length; i++) {
         char chr = start[i];
         int is_punctuation = (chr == '_') | (chr == '.') | (chr == 'e') | (chr == 'E');
         *buffer = chr;
         buffer += (chr != '_');
-        // reject sequences of '_' and '.'
-        if (unlikely(last_was_punctuation & is_punctuation)) goto parse_failure;
+        // reject sequences of punctuation, e.g. '_.'
+        parse_error_found |= last_was_punctuation & is_punctuation;
         last_was_punctuation = is_punctuation;
     }
-    if (unlikely(last_was_punctuation)) goto parse_failure;
+    // number must not end with punctuation
+    parse_error_found |= last_was_punctuation;
     *buffer = '\0';
-    return buffer;
-
-parse_failure:
-    return NULL;
+    return unlikely(parse_error_found) ? NULL : buffer;
 }
 
 static double __Pyx__PyBytes_AsDouble_inf_nan(const char* start, Py_ssize_t length) {

@@ -88,7 +88,7 @@ def get_cfunc_from_tree(tree):
     return _FindCFuncDefNode()(tree)
 
 
-class _ArgumentInfo(object):
+class _ArgumentInfo:
     """
     Everything related to defining an input/output argument for a ufunc
 
@@ -101,7 +101,7 @@ class _ArgumentInfo(object):
         self.type_constant = type_constant
 
 
-class UFuncConversion(object):
+class UFuncConversion:
     def __init__(self, node):
         self.node = node
         self.global_scope = node.local_scope.global_scope()

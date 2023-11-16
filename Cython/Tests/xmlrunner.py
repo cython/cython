@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """unittest-xml-reporting is a PyUnit-based TestRunner that can export test
 results to XML files that can be consumed by a wide range of tools, such as
 build systems, IDEs and Continuous Integration servers.
@@ -38,7 +36,6 @@ if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
 """
 
-from __future__ import absolute_import
 
 import os
 import sys
@@ -58,7 +55,7 @@ class XMLDocument(xml.dom.minidom.Document):
         return self.createCDATASection(data)
 
 
-class _TestInfo(object):
+class _TestInfo:
     """This class is used to keep useful information about the execution of a
     test method.
     """

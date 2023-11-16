@@ -3,7 +3,6 @@
 #   Parser
 #
 
-from __future__ import absolute_import
 
 # This should be done automatically
 import cython
@@ -39,7 +38,7 @@ _IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
 _CDEF_MODIFIERS = ('inline', 'nogil', 'api')
 
 
-class Ctx(object):
+class Ctx:
     #  Parsing context
     level = 'other'
     visibility = 'private'
@@ -177,7 +176,7 @@ def p_namedexpr_test(s):
 COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
 def p_or_test(s):
-    return p_rassoc_binop_expr(s, u'or', p_and_test)
+    return p_rassoc_binop_expr(s, 'or', p_and_test)
 
 def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
@@ -198,7 +197,7 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, u'and', p_not_test)
+    return p_rassoc_binop_expr(s, 'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 
@@ -753,8 +752,8 @@ def p_int_literal(s):
     s.next()
     unsigned = ""
     longness = ""
-    while value[-1] in u"UuLl":
-        if value[-1] in u"Ll":
+    while value[-1] in "UuLl":
+        if value[-1] in "Ll":
             longness += "L"
         else:
             unsigned += "U"
@@ -862,7 +861,7 @@ def p_cat_string_literal(s):
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
         bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
-        unicode_value = EncodedString(u''.join([u for u in ustrings if u is not None]))
+        unicode_value = EncodedString(''.join([u for u in ustrings if u is not None]))
     if kind == 'f':
         unicode_value = []
         for u, pos in zip(ustrings, positions):
@@ -891,7 +890,7 @@ def p_opt_string_literal(s, required_type='u'):
 
 def check_for_non_ascii_characters(string):
     for c in string:
-        if c >= u'\x80':
+        if c >= '\x80':
             return True
     return False
 
@@ -963,14 +962,14 @@ def p_string_literal(s, kind_override=None):
                 has_non_ascii_literal_characters = True
         elif sy == 'ESCAPE':
             # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
-            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in u'Uu'):
+            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
                 chars.append(systr)
                 if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                     has_non_ascii_literal_characters = True
             else:
                 _append_escape_sequence(kind, chars, systr, s)
         elif sy == 'NEWLINE':
-            chars.append(u'\n')
+            chars.append('\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
@@ -983,7 +982,7 @@ def p_string_literal(s, kind_override=None):
         unicode_value = None
         bytes_value = chars.getchar()
         if len(bytes_value) != 1:
-            error(pos, u"invalid character literal: %r" % bytes_value)
+            error(pos, "invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
         if (has_non_ascii_literal_characters
@@ -1000,22 +999,22 @@ def p_string_literal(s, kind_override=None):
 
 def _append_escape_sequence(kind, builder, escape_sequence, s):
     c = escape_sequence[1]
-    if c in u"01234567":
+    if c in "01234567":
         builder.append_charval(int(escape_sequence[1:], 8))
-    elif c in u"'\"\\":
+    elif c in "'\"\\":
         builder.append(c)
-    elif c in u"abfnrtv":
+    elif c in "abfnrtv":
         builder.append(StringEncoding.char_from_escape_sequence(escape_sequence))
-    elif c == u'\n':
+    elif c == '\n':
         pass  # line continuation
-    elif c == u'x':  # \xXX
+    elif c == 'x':  # \xXX
         if len(escape_sequence) == 4:
             builder.append_charval(int(escape_sequence[2:], 16))
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
-    elif c in u'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
+    elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
         chrval = -1
-        if c == u'N':
+        if c == 'N':
             uchar = None
             try:
                 uchar = lookup_unicodechar(escape_sequence[3:-1])
@@ -1062,7 +1061,8 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     br'\}\}?|'
     br'[^\\{}]+)'
     ).decode('us-ascii')).match
-    for is_raw in (True, False)]
+    for is_raw in (True, False)
+]
 
 
 def _f_string_error_pos(pos, string, i):
@@ -1870,7 +1870,7 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, s.context.intern_ustring(u'.'.join(names)), as_name)
+    return (pos, target_name, s.context.intern_ustring('.'.join(names)), as_name)
 
 
 def p_as_name(s):
@@ -2448,7 +2448,7 @@ def p_statement(s, ctx, first_statement = 0):
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
+                    s.put_back('IDENT', ident_name, ident_pos)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2669,13 +2669,13 @@ def p_c_simple_base_type(s, nonempty, templates=None):
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back('(', '(', old_pos)
                 else:
-                    s.put_back(u'(', u'(', old_pos)
-                    s.put_back(u'IDENT', name, name_pos)
+                    s.put_back('(', '(', old_pos)
+                    s.put_back('IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back(u'IDENT', name, name_pos)
+                s.put_back('IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2817,10 +2817,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back(u'IDENT', *p)
-            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
+            s.put_back('IDENT', *p)
+            s.put_back('.', '.', p[1])  # gets the position slightly wrong
 
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2835,7 +2835,7 @@ def looking_at_dotted_name(s):
         name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return result
     else:
         return 0
@@ -2903,7 +2903,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_name(s):
-            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(u""), cname=None)
+            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(""), cname=None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -3118,7 +3118,7 @@ def p_exception_value_clause(s, is_extern):
                     exc_val = p_name(s, name)
                     s.next()
             elif s.sy == '*':
-                exc_val = ExprNodes.CharNode(s.position(), value=u'*')
+                exc_val = ExprNodes.CharNode(s.position(), value='*')
                 s.next()
         else:
             if s.sy == '?':
