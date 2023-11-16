@@ -37,7 +37,7 @@ from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
-    slice_type, long_type, sequence_types as builtin_sequence_types, memoryview_type,
+    slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
 from . import Symtab
@@ -1577,13 +1577,6 @@ def _analyse_name_as_type(name, pos, env):
     global_entry = global_scope.lookup(name)
     if global_entry and global_entry.is_type:
         type = global_entry.type
-        if (not env.in_c_type_context
-                and type is Builtin.int_type
-                and global_scope.context.language_level == 2):
-            # While we still support Python2 this needs to be downgraded
-            # to a generic Python object to include both int and long.
-            # With language_level > 3, we keep the type but also accept 'long' in Py2.
-            type = py_object_type
         if type and (type.is_pyobject or env.in_c_type_context):
             return type
         ctype = ctype or type
@@ -2159,17 +2152,8 @@ class NameNode(AtomicExprNode):
         if entry and entry.is_type:
             # Infer equivalent C types instead of Python types when possible.
             type = entry.type
-            if not env.in_c_type_context and type is Builtin.long_type:
-                # Try to give a helpful warning when users write plain C type names.
-                warning(self.pos, "Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?")
-                type = py_object_type
-            elif type.is_pyobject and type.equivalent_type:
+            if type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type
-            elif type is Builtin.int_type and env.global_scope().context.language_level == 2:
-                # While we still support Python 2 this must be a plain object
-                # so that it can be either int or long.  With language_level=3(str),
-                # we pick up the type but accept both int and long in Py2.
-                type = py_object_type
             return type
         if self.name == 'object':
             # This is normally parsed as "simple C type", but not if we don't parse C types.
@@ -12077,10 +12061,10 @@ class MulNode(NumBinopNode):
     def calculate_is_sequence_mul(self):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if type1 is long_type or type1.is_int:
+        if type1 is Builtin.int_type or type1.is_int:
             # normalise to (X * int)
             type1, type2 = type2, type1
-        if type2 is long_type or type2.is_int:
+        if type2 is Builtin.int_type or type2.is_int:
             if type1.is_string or type1.is_ctuple:
                 return True
             if self.is_builtin_seqmul_type(type1):

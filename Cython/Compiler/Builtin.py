@@ -279,8 +279,7 @@ builtin_types_table = [
 # resulting in unintuitive runtime behavior and segfaults.
 #    ("bool",   "&PyBool_Type",     []),
 
-    ("int",     "&PyInt_Type",     []),
-    ("long",    "&PyLong_Type",    []),
+    ("int",     "&PyLong_Type",     []),
     ("float",   "&PyFloat_Type",   []),
 
     ("complex", "&PyComplex_Type", [BuiltinAttribute('cval', field_type_name = 'Py_complex'),
@@ -405,11 +404,9 @@ builtin_types_table = [
 types_that_construct_their_instance = frozenset({
     # some builtin types do not always return an instance of
     # themselves - these do:
-    'type', 'bool', 'long', 'float', 'complex',
-    'bytes', 'unicode', 'bytearray',
+    'type', 'bool', 'int', 'float', 'complex',
+    'bytes', 'unicode', 'bytearray', 'str',
     'tuple', 'list', 'dict', 'set', 'frozenset',
-    # 'str',             # only in Py3.x
-    # 'file',            # only in Py2.x
     'memoryview'
 })
 
@@ -495,7 +492,7 @@ def init_builtins():
 
     global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
     global bytes_type, str_type, unicode_type, basestring_type, bytearray_type
-    global float_type, int_type, long_type, bool_type, complex_type
+    global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
     global sequence_types
     type_type  = builtin_scope.lookup('type').type
@@ -515,7 +512,6 @@ def init_builtins():
 
     float_type = builtin_scope.lookup('float').type
     int_type = builtin_scope.lookup('int').type
-    long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 

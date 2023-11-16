@@ -2680,7 +2680,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif func_arg.type is Builtin.str_type:
             cfunc_name = "__Pyx_PyString_AsDouble"
             utility_code_name = 'pystring_as_double'
-        elif func_arg.type is Builtin.long_type:
+        elif func_arg.type is Builtin.int_type:
             cfunc_name = "PyLong_AsDouble"
         else:
             arg = pos_args[0]  # no need for an additional None check
@@ -2924,9 +2924,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     builtin_type = None
             if builtin_type is not None:
                 type_check_function = entry.type.type_check_function(exact=False)
-                if type_check_function == '__Pyx_Py3Int_Check' and builtin_type is Builtin.int_type:
-                    # isinstance(x, int) should really test for 'int' in Py2, not 'int | long'
-                    type_check_function = "PyInt_Check"
                 if type_check_function in tests:
                     continue
                 tests.append(type_check_function)
