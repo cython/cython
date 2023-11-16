@@ -10609,7 +10609,7 @@ class UnopNode(ExprNode):
     def infer_type(self, env):
         operand_type = self.operand.infer_type(env)
         if operand_type.is_cpp_class or operand_type.is_ptr:
-            cpp_type = operand_type.find_cpp_operation_type(self.operator)
+            cpp_type = env.find_cpp_operation_type(self.operator, [operand_type])
             if cpp_type is not None:
                 return cpp_type
         return self.infer_unop_type(env, operand_type)
@@ -10708,6 +10708,17 @@ class UnopNode(ExprNode):
             self.type_error()
             return
         if entry:
+            if entry.scope != self.operand.type.scope:
+                # entry comes from outside this classes scope, so it could potentially
+                # relate to another class. We thus try a coercion, which mostly
+                # serves as an error check
+                # (Thus suppress the error here in favour of one about the operator)
+                with local_errors(True) as errors:
+                    self.operand = self.operand.coerce_to(entry.type.args[0].type, env)
+                if errors:
+                    self.type_error()
+                    return
+
             self.exception_check = entry.type.exception_check
             self.exception_value = entry.type.exception_value
             if self.exception_check == '+':
@@ -10718,14 +10729,14 @@ class UnopNode(ExprNode):
             self.exception_check = ''
             self.exception_value = ''
         if self.is_inc_dec_op and not self.is_prefix:
-            cpp_type = self.operand.type.find_cpp_operation_type(
-                self.operator, operand_type=PyrexTypes.c_int_type
+            cpp_type = env.find_cpp_operation_type(
+                self.operator, [self.operand.type, PyrexTypes.c_int_type]
             )
         else:
-            cpp_type = self.operand.type.find_cpp_operation_type(self.operator)
+            cpp_type = env.find_cpp_operation_type(self.operator, [self.operand.type])
         if overload_check and cpp_type is None:
             error(self.pos, "'%s' operator not defined for %s" % (
-                self.operator, type))
+                self.operator, self.operand.type))
             self.type_error()
             return
         self.type = cpp_type
@@ -11717,7 +11728,7 @@ class BinopNode(ExprNode):
         elif type1.is_error or type2.is_error:
             return PyrexTypes.error_type
         else:
-            return self.compute_c_result_type(type1, type2)
+            return self.compute_c_result_type(type1, type2, env)
 
     def infer_builtin_types_operation(self, type1, type2):
         return None
@@ -11807,13 +11818,10 @@ class CBinopNode(BinopNode):
             self.operator,
             self.operand2.result())
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         cpp_type = None
-        if type1.is_cpp_class or type1.is_ptr:
-            cpp_type = type1.find_cpp_operation_type(self.operator, type2)
-        if cpp_type is None and (type2.is_cpp_class or type2.is_ptr):
-            cpp_type = type2.find_cpp_operation_type(self.operator, type1)
-        # FIXME: do we need to handle other cases here?
+        if type1.is_cpp_class or type1.is_ptr or type2.is_cpp_class or type2.is_ptr:
+            cpp_type = env.find_cpp_operation_type(self.operator, [type1, type2])
         return cpp_type
 
 
@@ -11832,7 +11840,7 @@ class NumBinopNode(BinopNode):
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        self.type = self.compute_c_result_type(type1, type2)
+        self.type = self.compute_c_result_type(type1, type2, env)
         if not self.type:
             self.type_error()
             return
@@ -11856,7 +11864,7 @@ class NumBinopNode(BinopNode):
             self.operand1 = self.operand1.coerce_to(self.type, env)
             self.operand2 = self.operand2.coerce_to(self.type, env)
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         if self.c_types_okay(type1, type2):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
             if widest_type is PyrexTypes.c_bint_type:
@@ -11993,7 +12001,7 @@ class AddNode(NumBinopNode):
                                     string_types.index(type2))]
         return None
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         #print "AddNode.compute_c_result_type:", type1, self.operator, type2 ###
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
@@ -12001,7 +12009,7 @@ class AddNode(NumBinopNode):
             return type2
         else:
             return NumBinopNode.compute_c_result_type(
-                self, type1, type2)
+                self, type1, type2, env)
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
@@ -12040,14 +12048,14 @@ class AddNode(NumBinopNode):
 class SubNode(NumBinopNode):
     #  '-' operator.
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
         elif (type1.is_ptr or type1.is_array) and (type2.is_ptr or type2.is_array):
             return PyrexTypes.c_ptrdiff_t_type
         else:
             return NumBinopNode.compute_c_result_type(
-                self, type1, type2)
+                self, type1, type2, env)
 
 
 class MulNode(NumBinopNode):
@@ -12204,13 +12212,13 @@ class DivNode(NumBinopNode):
                 self.operand1 = self.operand1.coerce_to_simple(env)
                 self.operand2 = self.operand2.coerce_to_simple(env)
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         if self.operator == '/' and self.ctruedivision and not type1.is_cpp_class and not type2.is_cpp_class:
             if not type1.is_float and not type2.is_float:
                 widest_type = PyrexTypes.widest_numeric_type(type1, PyrexTypes.c_double_type)
                 widest_type = PyrexTypes.widest_numeric_type(type2, widest_type)
                 return widest_type
-        return NumBinopNode.compute_c_result_type(self, type1, type2)
+        return NumBinopNode.compute_c_result_type(self, type1, type2, env)
 
     def zero_division_message(self):
         if self.type.is_int:
@@ -12469,7 +12477,7 @@ class PowNode(NumBinopNode):
             error(self.pos, "got unexpected types for C power operator: %s, %s" %
                             (self.operand1.type, self.operand2.type))
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         from numbers import Real
         c_result_type = None
         op1_is_definitely_positive = (
@@ -12485,14 +12493,14 @@ class PowNode(NumBinopNode):
         )
         needs_widening = False
         if self.is_cpow:
-            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
+            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2, env)
             if not self.operand2.has_constant_result():
                 needs_widening = (
                     isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
                 )
         elif op1_is_definitely_positive or type2_is_int:  # cpow==False
             # if type2 is an integer then we can't end up going from real to complex
-            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
+            c_result_type = super(PowNode, self).compute_c_result_type(type1, type2, env)
             if not self.operand2.has_constant_result():
                 needs_widening = type2.is_int and type2.signed
                 if needs_widening:
