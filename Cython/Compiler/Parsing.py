@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True, language_level=3, py2_import=True
+# cython: auto_cpdef=True, infer_types=True, py2_import=True
 #
 #   Parser
 #

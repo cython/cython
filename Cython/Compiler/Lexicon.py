@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# cython: language_level=3, py2_import=True
+# cython: py2_import=True
 #
 #   Cython Scanner - Lexical Definitions
 #

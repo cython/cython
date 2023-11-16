@@ -1,4 +1,3 @@
-# cython: language_level=3
 # cython: auto_pickle=True
 
 from __future__ import absolute_import
