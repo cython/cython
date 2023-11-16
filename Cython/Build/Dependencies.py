@@ -796,7 +796,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
     seen = set()
     for pattern in patterns:
-        if not isinstance(pattern, extension_classes):
         if isinstance(pattern, str):
             filepattern = pattern
             template = Extension(pattern, [])  # Fake Extension without sources
