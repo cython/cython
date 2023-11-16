@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import os
 import shutil
 import tempfile
@@ -16,7 +14,7 @@ except ImportError:
     parallel_compiles = 0
 
 
-class _FakePool(object):
+class _FakePool:
     def map_async(self, func, args):
         for _ in map(func, args):
             pass

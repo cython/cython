@@ -1,5 +1,4 @@
 # cython.* namespace for pure mode.
-from __future__ import absolute_import
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
 __version__ = "3.1.0a0"
@@ -7,7 +6,7 @@ __version__ = "3.1.0a0"
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
 
-class _ArrayType(object):
+class _ArrayType:
 
     is_array = True
     subtypes = ['dtype']
@@ -90,7 +89,7 @@ def test_assert_path_exists(*paths):
 def test_fail_if_path_exists(*paths):
     return _empty_decorator
 
-class _EmptyDecoratorAndManager(object):
+class _EmptyDecoratorAndManager:
     def __call__(self, x):
         return x
     def __enter__(self):
@@ -98,7 +97,7 @@ class _EmptyDecoratorAndManager(object):
     def __exit__(self, exc_type, exc_value, traceback):
         pass
 
-class _Optimization(object):
+class _Optimization:
     pass
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
@@ -207,7 +206,7 @@ def declare(t=None, value=_Unspecified, **kwds):
     else:
         return None
 
-class _nogil(object):
+class _nogil:
     """Support for 'with nogil' statement and @nogil decorator.
     """
     def __call__(self, x):
@@ -283,7 +282,7 @@ class ArrayType(PointerType):
         if value is None:
             self._items = [None] * self._n
         else:
-            super(ArrayType, self).__init__(value)
+            super().__init__(value)
 
 
 class StructType(CythonType):
@@ -509,7 +508,7 @@ integral = floating = numeric = _FusedType()
 
 type_ordering = [py_int, py_long, py_float, py_complex]
 
-class CythonDotParallel(object):
+class CythonDotParallel:
     """
     The cython.parallel module.
     """
@@ -531,7 +530,7 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
-class CythonDotImportedFromElsewhere(object):
+class CythonDotImportedFromElsewhere:
     """
     cython.dataclasses just shadows the standard library modules of the same name
     """
@@ -555,7 +554,7 @@ class CythonDotImportedFromElsewhere(object):
         sys.modules['cython.%s' % self.__name__] = mod
         return getattr(mod, attr)
 
-class CythonCImports(object):
+class CythonCImports:
     """
     Simplistic module mock to make cimports sort-of work in Python code.
     """

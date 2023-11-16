@@ -6,7 +6,7 @@ Python Lexical Analyser
 Actions for use in token specifications
 """
 
-class Action(object):
+class Action:
     def perform(self, token_stream, text):
         pass  # abstract
 

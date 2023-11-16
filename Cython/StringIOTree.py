@@ -35,12 +35,11 @@ EXAMPLE:
 ['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
 """
 
-from __future__ import absolute_import  #, unicode_literals
 
 from io import StringIO
 
 
-class StringIOTree(object):
+class StringIOTree:
     """
     See module docs.
     """

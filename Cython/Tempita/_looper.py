@@ -23,7 +23,7 @@ basestring_ = (bytes, str)
 __all__ = ['looper']
 
 
-class looper(object):
+class looper:
     """
     Helper for looping (particularly in templates)
 
@@ -45,7 +45,7 @@ class looper(object):
             self.__class__.__name__, self.seq)
 
 
-class looper_iter(object):
+class looper_iter:
 
     def __init__(self, seq):
         self.seq = list(seq)
@@ -62,7 +62,7 @@ class looper_iter(object):
         return result
 
 
-class loop_pos(object):
+class loop_pos:
 
     def __init__(self, seq, pos):
         self.seq = seq

@@ -46,7 +46,7 @@ extension_name_re = _build_ext.extension_name_re
 
 show_compilers = _build_ext.show_compilers
 
-class Optimization(object):
+class Optimization:
     def __init__(self):
         self.flags = (
             'OPT',
