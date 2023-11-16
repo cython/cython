@@ -1149,18 +1149,6 @@ def _unichr_is_printable(char):
     import unicodedata
     return unicodedata.category(char) not in ("C", "Z")
 
-if sys.maxunicode >= 0x10000:
-    _unichr = chr
-else:
-    # Needed for proper surrogate support if sizeof(Py_UNICODE) is 2 in gdb
-    def _unichr(x):
-        if x < 0x10000:
-            return chr(x)
-        x -= 0x10000
-        ch1 = 0xD800 | (x >> 10)
-        ch2 = 0xDC00 | (x & 0x3FF)
-        return chr(ch1) + chr(ch2)
-
 
 class PyUnicodeObjectPtr(PyObjectPtr):
     _typename = 'PyUnicodeObject'
@@ -1237,7 +1225,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         # local unicode instance.
         # This splits surrogate pairs if sizeof(Py_UNICODE) is 2 here (in gdb).
         result = ''.join([
-            (_unichr(ucs) if ucs <= 0x10ffff else '\ufffd')
+            (chr(ucs) if ucs <= 0x10ffff else '\ufffd')
             for ucs in Py_UNICODEs])
         return result
 
