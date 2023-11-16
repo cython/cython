@@ -1744,10 +1744,17 @@ class UnicodeNode(ConstNode):
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif not dst_type.is_pyobject:
-            if dst_type.is_string or dst_type.is_int:
+            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int:
                 # Allow using '-3' enforced unicode literals in a C char/char* context.
                 if self.bytes_value is not None:
                     return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
+                if env.directives['c_string_encoding']:
+                    try:
+                        byte_string = self.value.encode(env.directives['c_string_encoding'])
+                    except (UnicodeEncodeError, LookupError):
+                        pass
+                    else:
+                        return BytesNode(self.pos, value=byte_string).coerce_to(dst_type, env)
                 if self.value.isascii():
                     return BytesNode(self.pos, value=StringEncoding.BytesLiteral(self.value.encode('ascii'))
                                      ).coerce_to(dst_type, env)
