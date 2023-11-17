@@ -1,6 +1,3 @@
-# cython: language_level=3
-
-
 from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
 
 import cython

@@ -149,7 +149,7 @@ def cython_inline(code, get_type=unsafe_type,
 
     cython_compiler_directives = dict(cython_compiler_directives) if cython_compiler_directives else {}
     if language_level is None and 'language_level' not in cython_compiler_directives:
-        language_level = '3str'
+        language_level = '3'
     if language_level is not None:
         cython_compiler_directives['language_level'] = language_level
 
