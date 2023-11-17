@@ -2090,33 +2090,28 @@ class NameNode(AtomicExprNode):
 
     def analyse_as_type(self, env):
         type = None
+        # Determine the type based on attributes or context.
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
         elif env.in_c_type_context:
             type = PyrexTypes.parse_basic_type(self.name)
+
+        # If a type has been determined, return it.
         if type:
             return type
 
-        entry = self.entry
-        if not entry:
-            entry = env.lookup(self.name)
-        if entry and not entry.is_type and entry.known_standard_library_import:
-            entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
-        if entry and entry.is_type:
-            # Infer equivalent C types instead of Python types when possible.
-            type = entry.type
-            if not env.in_c_type_context and type is Builtin.long_type:
-                # Try to give a helpful warning when users write plain C type names.
-                warning(self.pos, "Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?")
-                type = py_object_type
-            elif type.is_pyobject and type.equivalent_type:
-                type = type.equivalent_type
-            elif type is Builtin.int_type and env.global_scope().context.language_level == 2:
-                # While we still support Python 2 this must be a plain object
-                # so that it can be either int or long.  With language_level=3(str),
-                # we pick up the type but accept both int and long in Py2.
-                type = py_object_type
-            return type
+        entry = self.entry if self.entry else env.lookup(self.name)
+
+        # Processing the entry if it exists.
+        if entry:
+            if not entry.is_type and entry.known_standard_library_import:
+                entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
+            if entry.is_type:
+                type = entry.type
+                if type.is_pyobject and type.equivalent_type:
+                    type = type.equivalent_type
+                return type
+
         if self.name == 'object':
             # This is normally parsed as "simple C type", but not if we don't parse C types.
             return py_object_type
