@@ -10578,7 +10578,7 @@ class UnopNode(ExprNode):
         return self.infer_unop_type(env, operand_type)
 
     def infer_unop_type(self, env, operand_type):
-        if operand_type.is_pyobject:
+        if operand_type.is_pyobject and not operand_type.is_builtin_type:
             return py_object_type
         else:
             return operand_type
