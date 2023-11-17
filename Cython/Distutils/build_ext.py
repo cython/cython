@@ -1,11 +1,6 @@
 import sys
 import os
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str
-
 # Always inherit from the "build_ext" in distutils since setuptools already imports
 # it from Cython if available, and does the proper distutils fallback otherwise.
 # https://github.com/pypa/setuptools/blob/9f1822ee910df3df930a98ab99f66d18bb70659b/setuptools/command/build_ext.py#L16
@@ -75,7 +70,7 @@ class build_ext(_build_ext):
         super().finalize_options()
         if self.cython_include_dirs is None:
             self.cython_include_dirs = []
-        elif isinstance(self.cython_include_dirs, basestring):
+        elif isinstance(self.cython_include_dirs, str):
             self.cython_include_dirs = \
                 self.cython_include_dirs.split(os.pathsep)
         if self.cython_directives is None:

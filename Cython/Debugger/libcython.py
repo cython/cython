@@ -3,11 +3,6 @@ GDB extension that adds Cython support.
 """
 
 
-try:
-    input = raw_input
-except NameError:
-    pass
-
 import sys
 import textwrap
 import functools
@@ -16,19 +11,12 @@ import collections
 
 import gdb
 
-try:  # python 2
-    UNICODE = unicode
-    BYTES = str
-except NameError:  # python 3
-    UNICODE = str
-    BYTES = bytes
-
 try:
     from lxml import etree
     have_lxml = True
 except ImportError:
-    have_lxml = False
     from xml.etree import ElementTree as etree
+    have_lxml = False
 
 try:
     import pygments.lexers
@@ -671,7 +659,7 @@ class CyImport(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, args, from_tty):
-        if isinstance(args, BYTES):
+        if isinstance(args, bytes):
             args = args.decode(_filesystemencoding)
         for arg in string_to_argv(args):
             try:
@@ -819,7 +807,7 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, function_names, from_tty):
-        if isinstance(function_names, BYTES):
+        if isinstance(function_names, bytes):
             function_names = function_names.decode(_filesystemencoding)
         argv = string_to_argv(function_names)
         if function_names.startswith('-p'):

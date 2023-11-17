@@ -1,6 +1,5 @@
 import contextlib
 import os.path
-import sys
 import tempfile
 import unittest
 from os.path import join as pjoin
@@ -18,11 +17,8 @@ class TestGlobbing(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._orig_dir = os.getcwd()
-        if sys.version_info[0] < 3:
-            temp_path = cls._tmpdir = tempfile.mkdtemp()
-        else:
-            cls._tmpdir = tempfile.TemporaryDirectory()
-            temp_path = cls._tmpdir.name
+        cls._tmpdir = tempfile.TemporaryDirectory()
+        temp_path = cls._tmpdir.name
         os.chdir(temp_path)
 
         for dir1 in "abcd":
@@ -43,11 +39,7 @@ class TestGlobbing(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         os.chdir(cls._orig_dir)
-        if sys.version_info[0] < 3:
-            import shutil
-            shutil.rmtree(cls._tmpdir)
-        else:
-            cls._tmpdir.cleanup()
+        cls._tmpdir.cleanup()
 
     def files_equal(self, pattern, expected_files):
         expected_files = sorted(expected_files)

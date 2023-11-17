@@ -7,10 +7,7 @@ import re
 import copy
 import operator
 
-try:
-    import __builtin__ as builtins
-except ImportError:  # Py3
-    import builtins
+import builtins
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError

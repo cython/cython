@@ -7,11 +7,7 @@ import copy
 import hashlib
 import re
 
-try:
-    reduce
-except NameError:
-    from functools import reduce
-from functools import partial
+from functools import partial, reduce
 from itertools import product
 
 from Cython.Utils import cached_function

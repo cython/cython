@@ -25,7 +25,7 @@ from . import Nodes
 from . import ExprNodes
 from . import Builtin
 from . import StringEncoding
-from .StringEncoding import EncodedString, bytes_literal, _unicode, _bytes
+from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
 from .Errors import error, warning
 from .. import Utils
@@ -807,9 +807,9 @@ def wrap_compile_time_constant(pos, value):
                 pos, '+', ExprNodes.FloatNode(pos, value=repr(value.real), constant_result=value.real), node,
                 constant_result=value)
         return node
-    elif isinstance(value, _unicode):
+    elif isinstance(value, str):
         return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
-    elif isinstance(value, _bytes):
+    elif isinstance(value, bytes):
         bvalue = bytes_literal(value, 'ascii')  # actually: unknown encoding, but BytesLiteral requires one
         return ExprNodes.BytesNode(pos, value=bvalue, constant_result=value)
     elif isinstance(value, tuple):

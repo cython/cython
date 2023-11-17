@@ -688,8 +688,4 @@ def pure_truediv_int(obj2: int):
     2.5
     """
     res = obj2 / 2
-    if sys.version_info >= (3, 0):
-        return res
-    else:
-        # Workaround for python 2.7 to skip this test.
-        return 2.5
+    return res
