@@ -1,6 +1,3 @@
-# cython: language_level=3str
-
-
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
@@ -1980,8 +1977,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
                     raise AssertionError(
                             "cname decorator takes exactly one argument")
 
-                if not (args[0].is_literal and
-                        args[0].type == Builtin.str_type):
+                if not (args[0].is_literal and args[0].type is Builtin.unicode_type):
                     raise AssertionError(
                             "argument to cname decorator must be a string literal")
 
