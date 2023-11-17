@@ -14144,6 +14144,14 @@ class CoerceFromPyTypeNode(CoercionNode):
                 warning(arg.pos,
                         "Obtaining '%s' from externally modifiable global Python value" % result_type,
                         level=1)
+            if self.type.is_pyunicode_ptr:
+                warning(arg.pos,
+                        "Py_UNICODE* has been removed in Python 3.12. This conversion to a "
+                        "Py_UNICODE* will no longer compile in those Python versions. "
+                        "Use Python C API functions like PyUnicode_AsWideCharString if you "
+                        "need to obtain a wchar_t* on Windows - "
+                        "you will need to free this string manually after use.",
+                        level=1)
 
     def analyse_types(self, env):
         # The arg is always already analysed
