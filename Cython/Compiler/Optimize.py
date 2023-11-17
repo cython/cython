@@ -2669,6 +2669,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             utility_code_name = 'pystring_as_double'
         elif func_arg.type is Builtin.int_type:
             cfunc_name = "PyLong_AsDouble"
+            utility_code_name = None
         else:
             arg = pos_args[0]  # no need for an additional None check
             cfunc_name = "__Pyx_PyObject_AsDouble"
