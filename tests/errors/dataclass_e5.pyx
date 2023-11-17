@@ -13,10 +13,10 @@ cdef class C:
 
 
 _WARNINGS = """
-9:7: Found C type 'long' in a Python annotation. Did you mean to use 'cython.long'?
+9:7: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 9:7: Unknown type declaration 'long' in annotation, ignoring
-10:7: Found C type 'Py_ssize_t' in a Python annotation. Did you mean to use 'cython.Py_ssize_t'?
+10:7: Found C type name 'Py_ssize_t' in a Python annotation. Did you mean to use 'cython.Py_ssize_t'?
 10:7: Unknown type declaration 'Py_ssize_t' in annotation, ignoring
-12:7: Found C type 'double' in a Python annotation. Did you mean to use 'cython.double'?
+12:7: Found C type name 'double' in a Python annotation. Did you mean to use 'cython.double'?
 12:7: Unknown type declaration 'double' in annotation, ignoring
 """
