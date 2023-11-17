@@ -2703,18 +2703,15 @@ class ImportNode(ExprNode):
     #  Implements result =
     #    __import__(module_name, globals(), None, name_list, level)
     #
-    #  module_name   StringNode            dotted name of module. Empty module
-    #                       name means importing the parent package according
-    #                       to level
-    #  name_list     ListNode or None      list of names to be imported
-    #  level         int                   relative import level:
-    #                       -1: attempt both relative import and absolute import;
-    #                        0: absolute import;
-    #                       >0: the number of parent directories to search
-    #                           relative to the current module.
-    #                     None: decide the level according to language level and
-    #                           directives
-    #  get_top_level_module   int          true: return top-level module, false: return imported module
+    #  module_name   StringNode        Dotted name of module. Empty module
+    #                                  name means importing the parent package
+    #                                  according to level
+    #  name_list     ListNode or None  List of names to be imported
+    #  level         int               Relative import level:
+    #                                  0: absolute import;
+    #                                 >0: the number of parent directories to search
+    #                                     relative to the current module.
+    #  get_top_level_module   int      true: return top-level module, false: return imported module
     #  module_names           TupleNode    the separate names of the module and submodules, or None
 
     type = py_object_type
@@ -2725,25 +2722,24 @@ class ImportNode(ExprNode):
     subexprs = ['module_name', 'name_list', 'module_names']
 
     def analyse_types(self, env):
-        if self.level is None:
-            # For modules in packages, and without 'absolute_import' enabled, try relative (Py2) import first.
-            if env.global_scope().parent_module and (
-                    env.directives['py2_import'] or
-                    Future.absolute_import not in env.global_scope().context.future_directives):
-                self.level = -1
-            else:
-                self.level = 0
+        # Set import level: 0 for absolute, >0 for relative. Default is 0.
+        if self.level is None
+            self.level = 0
+
         module_name = self.module_name.analyse_types(env)
         self.module_name = module_name.coerce_to_pyobject(env)
         assert self.module_name.is_string_literal
+
         if self.name_list:
             name_list = self.name_list.analyse_types(env)
             self.name_list = name_list.coerce_to_pyobject(env)
         elif '.' in self.module_name.value:
+            # Splitting module name to handle submodules
             self.module_names = TupleNode(self.module_name.pos, args=[
                 IdentifierStringNode(self.module_name.pos, value=part, constant_result=part)
                 for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
             ]).analyse_types(env)
+
         return self
 
     gil_message = "Python import"
