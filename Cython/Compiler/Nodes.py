@@ -8787,9 +8787,6 @@ utility_code_for_cimports = {
     'cython.view'           : cython_view_utility_code,
 }
 
-utility_code_for_imports = {
-}
-
 def cimport_numpy_check(node, code):
     # shared code between CImportStatNode and FromCImportStatNode
     # check to ensure that import_array is called
