@@ -1761,25 +1761,21 @@ class UnicodeNode(ConstNode):
 
 
 class StringNode(PyConstNode):
-    # A Python str object, i.e. a byte string in Python 2.x and a
-    # unicode string in Python 3.x
+    # In Python 3.x, all strings are Unicode.
     #
-    # value          BytesLiteral (or EncodedString with ASCII content)
-    # unicode_value  EncodedString or None
+    # value          String literal
     # is_identifier  boolean
 
     type = str_type
     is_string_literal = True
     is_identifier = None
-    unicode_value = None
 
     def calculate_constant_result(self):
-        if self.unicode_value is not None:
-            # only the Unicode value is portable across Py2/3
-            self.constant_result = self.unicode_value
+        # The value is already in the correct format (Unicode).
+        self.constant_result = self.value
 
     def analyse_as_type(self, env):
-        return _analyse_name_as_type(self.unicode_value or self.value.decode('ISO8859-1'), self.pos, env)
+        return _analyse_name_as_type(self.value, self.pos, env)
 
     def as_sliced_node(self, start, stop, step=None):
         value = type(self.value)(self.value[start:stop:step])
