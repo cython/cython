@@ -16,7 +16,6 @@ from . import PyrexTypes
 from .Visitor import VisitorTransform
 from .Nodes import Node, StatListNode
 from .ExprNodes import NameNode
-from .StringEncoding import _unicode
 from . import Parsing
 from . import Main
 from . import UtilNodes
@@ -62,7 +61,7 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
     # to use a unicode string so that code fragments don't have to bother
     # with encoding. This means that test code passed in should not have an
     # encoding header.
-    assert isinstance(code, _unicode), "unicode code snippets only please"
+    assert isinstance(code, str), "unicode code snippets only please"
     encoding = "UTF-8"
 
     module_name = name
@@ -230,8 +229,8 @@ class TreeFragment:
         if not name:
             name = "(tree fragment)"
 
-        if isinstance(code, _unicode):
-            def fmt(x): return "\n".join(strip_common_indent(x.split("\n")))
+        if isinstance(code, str):
+            def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
 
             fmt_code = fmt(code)
             fmt_pxds = {}

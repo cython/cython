@@ -88,10 +88,7 @@ def initial_compile_time_env():
     names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    try:
-        import __builtin__ as builtins
-    except ImportError:
-        import builtins
+    import builtins
 
     names = (
         'False', 'True',

@@ -29,11 +29,6 @@ from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    from builtins import str as basestring
-
 
 non_portable_builtins_map = {
     # builtins that have different names in different Python versions
@@ -293,7 +288,7 @@ class UtilityCodeBase:
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
             strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
-            rstrip = StringEncoding._unicode.rstrip
+            rstrip = str.rstrip
         else:
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
@@ -608,7 +603,7 @@ class UtilityCode(UtilityCodeBase):
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
-            if isinstance(self.init, basestring):
+            if isinstance(self.init, str):
                 writer.put(self.format_code(self.init))
             else:
                 self.init(writer, output.module_pos)
@@ -619,7 +614,7 @@ class UtilityCode(UtilityCodeBase):
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             writer.putln("/* %s.cleanup */" % self.name)
-            if isinstance(self.cleanup, basestring):
+            if isinstance(self.cleanup, str):
                 writer.put_or_include(
                     self.format_code(self.cleanup),
                     '%s_cleanup' % self.name)

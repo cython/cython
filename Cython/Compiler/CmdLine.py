@@ -3,15 +3,9 @@
 #
 
 
-import sys
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
-
-
-if sys.version_info < (3, 3):
-    # TODO: This workaround can be removed in Cython 3.1
-    FileNotFoundError = IOError
 
 
 class ParseDirectivesAction(Action):

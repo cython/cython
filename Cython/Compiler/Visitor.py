@@ -21,10 +21,7 @@ import cython
 
 cython.declare(_PRINTABLE=tuple)
 
-if sys.version_info[0] >= 3:
-    _PRINTABLE = (bytes, str, int, float)
-else:
-    _PRINTABLE = (str, unicode, long, int, float)
+_PRINTABLE = (bytes, str, int, float)
 
 
 class TreeVisitor:

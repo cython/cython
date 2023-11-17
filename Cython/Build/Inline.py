@@ -15,39 +15,19 @@ from ..Compiler.Options import (default_options, CompilationOptions,
 from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
-from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
 from ..Compiler import Pipeline
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
+import importlib.util
+from importlib.machinery import ExtensionFileLoader
 
-IS_PY3 = sys.version_info >= (3,)
-
-# A utility function to convert user-supplied ASCII strings to unicode.
-if not IS_PY3:
-    def to_unicode(s):
-        if isinstance(s, bytes):
-            return s.decode('ascii')
-        else:
-            return s
-else:
-    to_unicode = lambda x: x
-
-
-if sys.version_info < (3, 5):
-    import imp
-    def load_dynamic(name, module_path):
-        return imp.load_dynamic(name, module_path)
-else:
-    import importlib.util
-    from importlib.machinery import ExtensionFileLoader
-
-    def load_dynamic(name, path):
-        spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+def load_dynamic(name, path):
+    spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
@@ -65,7 +45,6 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
 
 @cached_function
 def unbound_symbols(code, context=None):
-    code = to_unicode(code)
     if context is None:
         context = Context([], get_directive_defaults(),
                           options=CompilationOptions(default_options))
@@ -77,10 +56,7 @@ def unbound_symbols(code, context=None):
         tree = phase(tree)
         if isinstance(phase, AnalyseDeclarationsTransform):
             break
-    try:
-        import builtins
-    except ImportError:
-        import __builtin__ as builtins
+    import builtins
     return tuple(UnboundSymbols()(tree) - set(dir(builtins)))
 
 
@@ -159,7 +135,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 
 def _inline_key(orig_code, arg_sigs, language_level):
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    return hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+    return hashlib.sha1(str(key).encode('utf-8')).hexdigest()
 
 
 def cython_inline(code, get_type=unsafe_type,
@@ -192,7 +168,6 @@ def cython_inline(code, get_type=unsafe_type,
             return invoke(*arg_list)
 
     orig_code = code
-    code = to_unicode(code)
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     if locals is None:
@@ -359,7 +334,4 @@ class RuntimeCompiledFunction:
 
     def __call__(self, *args, **kwds):
         all = inspect.getcallargs(self._f, *args, **kwds)
-        if IS_PY3:
-            return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
-        else:
-            return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
+        return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)

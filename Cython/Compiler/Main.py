@@ -8,14 +8,9 @@ import re
 import sys
 import io
 
-if sys.version_info[:2] < (2, 7) or (3, 0) <= sys.version_info[:2] < (3, 3):
-    sys.stderr.write("Sorry, Cython requires Python 2.7 or 3.3+, found %d.%d\n" % tuple(sys.version_info[:2]))
+if sys.version_info[:2] < (3, 7):
+    sys.stderr.write("Sorry, Cython requires Python 3.7+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
-
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str
 
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a
@@ -481,12 +476,6 @@ def create_default_resultobj(compilation_source, options):
 def run_pipeline(source, options, full_module_name=None, context=None):
     from . import Pipeline
 
-    # ensure that the inputs are unicode (for Python 2)
-    if sys.version_info[0] == 2:
-        source = Utils.decode_filename(source)
-        if full_module_name:
-            full_module_name = Utils.decode_filename(full_module_name)
-
     source_ext = os.path.splitext(source)[1]
     options.configure_language_defaults(source_ext[1:])  # py/pyx
     if context is None:
@@ -663,7 +652,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, basestring):
+    if isinstance(source, str):
         if not options.timestamps:
             return compile_single(source, options, full_module_name)
         source = [source]
