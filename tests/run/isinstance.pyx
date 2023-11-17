@@ -26,7 +26,7 @@ def test_non_optimised():
 @cython.test_assert_path_exists('//PythonCapiCallNode',
                                 '//PythonCapiCallNode//SimpleCallNode',
                                 '//PythonCapiFunctionNode[@cname = "PyType_Check"]',
-                                '//PythonCapiFunctionNode[@cname = "PyInt_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyLong_Check"]',
                                 '//PythonCapiFunctionNode[@cname = "PyFloat_Check"]',
                                 '//PythonCapiFunctionNode[@cname = "PyBytes_Check"]',
                                 '//PythonCapiFunctionNode[@cname = "PyUnicode_Check"]',
