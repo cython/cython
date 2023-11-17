@@ -12,16 +12,6 @@ cython.declare(
     _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str
-
-try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = OSError
-
 import os
 import sys
 import re
@@ -465,7 +455,7 @@ def strip_py2_long_suffix(value_str):
 
 
 def long_literal(value):
-    if isinstance(value, basestring):
+    if isinstance(value, str):
         value = str_to_number(value)
     return not -2**31 <= value < 2**31
 
@@ -560,10 +550,7 @@ def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
     if header_text:
         file.write(header_text)  # note: text! => file.write() instead of out.write()
     file.flush()
-    try:
-        out = file.buffer  # Py3
-    except AttributeError:
-        out = file         # Py2
+    out = file.buffer
     out.write(s)
     if end:
         out.write(end)

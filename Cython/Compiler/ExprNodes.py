@@ -53,23 +53,7 @@ from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supporte
      pythran_is_numpy_func_supported, pythran_get_func_include_file, pythran_functor)
 from .PyrexTypes import PythranExpr
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    # Python 3
-    basestring = str
-    any_string_type = (bytes, str)
-else:
-    # Python 2
-    any_string_type = (bytes, unicode)
-
-
-if sys.version_info[0] >= 3:
-    IS_PYTHON3 = True
-    _py_int_types = int
-else:
-    IS_PYTHON3 = False
-    _py_int_types = (int, long)
+any_string_type = (bytes, str)
 
 
 class NotConstant:
@@ -156,7 +140,7 @@ def check_negative_indices(*nodes):
     """
     for node in nodes:
         if node is None or (
-                not isinstance(node.constant_result, _py_int_types) and
+                not isinstance(node.constant_result, int) and
                 not isinstance(node.constant_result, float)):
             continue
         if node.constant_result < 0:
@@ -1549,7 +1533,7 @@ class FloatNode(ConstNode):
 
     def get_constant_c_result_code(self):
         strval = self.value
-        assert isinstance(strval, basestring)
+        assert isinstance(strval, str)
         cmpval = repr(float(strval))
         if cmpval == 'nan':
             return "(Py_HUGE_VAL * 0)"
@@ -1870,10 +1854,6 @@ class StringNode(PyConstNode):
     def compile_time_value(self, env):
         if self.value.is_unicode:
             return self.value
-        if not IS_PYTHON3:
-            # use plain str/bytes object in Py2
-            return self.value.byteencode()
-        # in Py3, always return a Unicode string
         if self.unicode_value is not None:
             return self.unicode_value
         return self.value.decode('iso8859-1')
@@ -3088,7 +3068,7 @@ class IteratorNode(ScopedExprNode):
             if self.sequence.mult_factor is None:
                 final_size = item_count
                 size_is_safe = True
-            elif isinstance(self.sequence.mult_factor.constant_result, _py_int_types):
+            elif isinstance(self.sequence.mult_factor.constant_result, int):
                 final_size = item_count * self.sequence.mult_factor.constant_result
                 size_is_safe = True
 
@@ -4492,7 +4472,7 @@ class IndexNode(_IndexingBaseNode):
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
-                not (isinstance(self.index.constant_result, _py_int_types)
+                not (isinstance(self.index.constant_result, int)
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             return ", %s, %d, %s, %d, %d, %d" % (
@@ -5692,7 +5672,7 @@ class SliceIndexNode(ExprNode):
                         start = '%s + %d' % (self.base.type.size, start)
                     else:
                         start += total_length
-                if isinstance(slice_size, _py_int_types):
+                if isinstance(slice_size, int):
                     slice_size -= start
                 else:
                     slice_size = '%s - (%s)' % (slice_size, start)
@@ -5707,7 +5687,7 @@ class SliceIndexNode(ExprNode):
         except ValueError:
             int_target_size = None
         else:
-            compile_time_check = isinstance(slice_size, _py_int_types)
+            compile_time_check = isinstance(slice_size, int)
 
         if compile_time_check and slice_size < 0:
             if int_target_size > 0:
@@ -8057,7 +8037,7 @@ class SequenceNode(ExprNode):
             mult_factor = self.mult_factor
             if mult_factor.type.is_int:
                 c_mult = mult_factor.result()
-                if (isinstance(mult_factor.constant_result, _py_int_types) and
+                if (isinstance(mult_factor.constant_result, int) and
                         mult_factor.constant_result > 0):
                     size_factor = ' * %s' % mult_factor.constant_result
                 elif mult_factor.type.signed:
@@ -8499,7 +8479,7 @@ class TupleNode(SequenceNode):
             return node
         if not node.mult_factor or (
                 node.mult_factor.is_literal and
-                isinstance(node.mult_factor.constant_result, _py_int_types)):
+                isinstance(node.mult_factor.constant_result, int)):
             node.is_temp = False
             node.is_literal = True
         else:
@@ -8653,7 +8633,7 @@ class ListNode(SequenceNode):
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
             array_length = len(self.args)
             if self.mult_factor:
-                if isinstance(self.mult_factor.constant_result, _py_int_types):
+                if isinstance(self.mult_factor.constant_result, int):
                     if self.mult_factor.constant_result <= 0:
                         error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
                     else:
@@ -12154,7 +12134,7 @@ class DivNode(NumBinopNode):
         func = compile_time_binary_operators[self.operator]
         if self.operator == '/' and self.truedivision is None:
             # => true div for floats, floor div for integers
-            if isinstance(op1, _py_int_types) and isinstance(op2, _py_int_types):
+            if isinstance(op1, int) and isinstance(op2, int):
                 func = compile_time_binary_operators['//']
         return func
 
@@ -12487,7 +12467,7 @@ class PowNode(NumBinopNode):
             c_result_type = super().compute_c_result_type(type1, type2)
             if not self.operand2.has_constant_result():
                 needs_widening = (
-                    isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
+                    isinstance(self.operand2.constant_result, int) and self.operand2.constant_result < 0
                 )
         elif op1_is_definitely_positive or type2_is_int:  # cpow==False
             # if type2 is an integer then we can't end up going from real to complex
@@ -12498,7 +12478,7 @@ class PowNode(NumBinopNode):
                     self.type_was_inferred = True
             else:
                 needs_widening = (
-                    isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0
+                    isinstance(self.operand2.constant_result, int) and self.operand2.constant_result < 0
                 )
         elif self.c_types_okay(type1, type2):
             # Allowable result types are double or complex double.
@@ -12525,7 +12505,7 @@ class PowNode(NumBinopNode):
     def py_operation_function(self, code):
         if (self.type.is_pyobject and
                 self.operand1.constant_result == 2 and
-                isinstance(self.operand1.constant_result, _py_int_types) and
+                isinstance(self.operand1.constant_result, int) and
                 self.operand2.type is py_object_type):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
