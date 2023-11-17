@@ -5,14 +5,14 @@
 
 import cython
 
-cython.declare(sys=object, os=object, copy=object,
+cython.declare(os=object, copy=object, chain=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               error_type=object, _py_int_types=object)
+               error_type=object)
 
-import sys, copy
+import copy
 from itertools import chain
 
 from . import Builtin
@@ -31,12 +31,6 @@ from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
 from ..Utils import add_metaclass, str_to_number
-
-
-if sys.version_info[0] >= 3:
-    _py_int_types = int
-else:
-    _py_int_types = (int, long)
 
 
 IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
@@ -1280,11 +1274,6 @@ class TemplatedTypeNode(CBaseTypeNode):
                 self.positional_args,
                 self.keyword_args,
                 base_type.buffer_defaults)
-
-            if sys.version_info[0] < 3:
-                # Py 2.x enforces byte strings as keyword arguments ...
-                options = {name.encode('ASCII'): value
-                           for name, value in options.items()}
 
             self.type = PyrexTypes.BufferType(base_type, **options)
             if has_np_pythran(env) and is_pythran_buffer(self.type):
@@ -6221,7 +6210,7 @@ class SingleAssignmentNode(AssignmentNode):
                     if node.type.is_array and node.type.size:
                         stop_node = ExprNodes.IntNode(
                             self.pos, value=str(node.type.size),
-                            constant_result=(node.type.size if isinstance(node.type.size, _py_int_types)
+                            constant_result=(node.type.size if isinstance(node.type.size, int)
                                              else ExprNodes.constant_value_not_set))
                     else:
                         error(self.pos, "C array iteration requires known end index")
@@ -6247,7 +6236,7 @@ class SingleAssignmentNode(AssignmentNode):
 
             elif node.type.is_array:
                 slice_size = node.type.size
-                if not isinstance(slice_size, _py_int_types):
+                if not isinstance(slice_size, int):
                     return  # might still work when coercing to Python
             else:
                 return

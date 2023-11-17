@@ -11,7 +11,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
-               re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
+               re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
 
