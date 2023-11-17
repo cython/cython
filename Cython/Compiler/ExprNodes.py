@@ -1561,13 +1561,6 @@ def _analyse_name_as_type(name, pos, env):
     global_entry = global_scope.lookup(name)
     if global_entry and global_entry.is_type:
         type = global_entry.type
-        if (not env.in_c_type_context
-                and type is Builtin.int_type
-                and global_scope.context.language_level == 2):
-            # While we still support Python2 this needs to be downgraded
-            # to a generic Python object to include both int and long.
-            # With language_level > 3, we keep the type but also accept 'long' in Py2.
-            type = py_object_type
         if type and (type.is_pyobject or env.in_c_type_context):
             return type
         ctype = ctype or type
