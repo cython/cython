@@ -12,12 +12,9 @@ import cython
 # that it isn't a module global name
 from typing import Dict, List, TypeVar, Optional, Generic, Tuple
 
-try:
-    import typing
-    from typing import Set as _SET_
-    from typing import ClassVar
-except ImportError:
-    pass  # this should allow Cython to interpret the directives even when the module doesn't exist
+import typing
+from typing import Set as _SET_
+from typing import ClassVar
 
 
 var = 1  # type: annotation

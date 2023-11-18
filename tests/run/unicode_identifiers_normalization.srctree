@@ -25,7 +25,6 @@ setup(
 
 ######### build_tests.py ########
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 import unicodedata
 
 # a few pairs of unicode strings that should be equivalent after normalization

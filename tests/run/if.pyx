@@ -48,10 +48,7 @@ def h(a, b):
         x = 3
     return x
 
-try:
-    import __builtin__  as builtins
-except ImportError:
-    import builtins
+import builtins
 
 def i(a, b):
     """

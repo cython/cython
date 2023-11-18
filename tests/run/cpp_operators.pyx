@@ -1,8 +1,6 @@
 # mode: run
 # tag: cpp, werror
 
-from __future__ import division
-
 from cython cimport typeof
 
 cimport cython.operator

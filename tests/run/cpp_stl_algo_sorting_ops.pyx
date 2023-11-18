@@ -1,8 +1,6 @@
 # mode: run
 # tag: cpp, werror, cpp11, no-cpp-locals
 
-from __future__ import print_function
-
 from libcpp cimport bool
 from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort, partial_sort_copy, stable_sort
 from libcpp.algorithm cimport nth_element

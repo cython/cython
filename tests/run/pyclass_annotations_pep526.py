@@ -6,10 +6,8 @@ from __future__ import annotations
 
 import sys
 
-try:
-    from typing import ClassVar
-except ImportError:  # Py<=3.5
-    ClassVar = {int: int}
+from typing import ClassVar
+
 
 class NotAStr:
     pass

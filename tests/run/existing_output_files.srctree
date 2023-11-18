@@ -2,8 +2,6 @@ PYTHON test.py
 
 ######## test.py ########
 
-from __future__ import print_function
-
 import os.path
 from Cython.Utils import is_cython_generated_file
 from Cython.Compiler.Errors import CompileError

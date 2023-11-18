@@ -4,10 +4,7 @@
 import sys
 import functools
 import cython
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 cdef int func_implicit(int a, int b):
     raise RuntimeError

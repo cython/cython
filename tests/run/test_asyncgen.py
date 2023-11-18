@@ -2,8 +2,6 @@
 # mode: run
 # tag: pep525, asyncfor, await
 
-from __future__ import generator_stop
-
 import os
 import sys
 #import inspect
@@ -19,20 +17,7 @@ import contextlib
 
 ZERO = 0
 
-try:
-    import asyncio
-except ImportError:
-    try:
-        from unittest import skip
-    except ImportError:
-        def requires_asyncio(c):
-            return None
-    else:
-        requires_asyncio = skip("tests require asyncio")
-    asyncio = None
-else:
-    def requires_asyncio(c):
-        return c
+import asyncio
 
 
 def not_pypy(f):
@@ -41,84 +26,16 @@ def not_pypy(f):
         return skip("cannot run on PyPy due to to finalizer")(f)
     return f
 
-try:
-    from types import coroutine as types_coroutine
-except ImportError:
-    def types_coroutine(func):
-        from functools import wraps
-        wrapped = wraps(func)
+from types import coroutine as types_coroutine
 
-        # copied from types.py in Py3.6
-        class _GeneratorWrapper(object):
-            # TODO: Implement this in C.
-            def __init__(self, gen):
-                self.__wrapped = gen
-                self.__isgen = hasattr(gen, 'gi_running')
-                self.__name__ = getattr(gen, '__name__', None)
-                self.__qualname__ = getattr(gen, '__qualname__', None)
-
-            def send(self, val):
-                return self.__wrapped.send(val)
-
-            def throw(self, tp, *rest):
-                return self.__wrapped.throw(tp, *rest)
-
-            def close(self):
-                return self.__wrapped.close()
-
-            @property
-            def gi_code(self):
-                return self.__wrapped.gi_code
-
-            @property
-            def gi_frame(self):
-                return self.__wrapped.gi_frame
-
-            @property
-            def gi_running(self):
-                return self.__wrapped.gi_running
-
-            @property
-            def gi_yieldfrom(self):
-                return self.__wrapped.gi_yieldfrom
-
-            cr_code = gi_code
-            cr_frame = gi_frame
-            cr_running = gi_running
-            cr_await = gi_yieldfrom
-
-            def __next__(self):
-                return next(self.__wrapped)
-            next = __next__
-
-            def __iter__(self):
-                if self.__isgen:
-                    return self.__wrapped
-                return self
-
-            __await__ = __iter__
-
-        @wrapped
-        def call(*args, **kwargs):
-            return wrapped(_GeneratorWrapper(func(*args, **kwargs)))
-
-        return call
-
-try:
-    from inspect import isawaitable as inspect_isawaitable
-except ImportError:
-    def inspect_isawaitable(o):
-        return hasattr(o, '__await__')
+from inspect import isawaitable as inspect_isawaitable
 
 
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Compiler.Errors import CompileError
     from Cython.Shadow import inline
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
@@ -497,7 +414,6 @@ class AsyncGenTest(unittest.TestCase):
         self.assertTrue(inspect_isawaitable(g.aclose()))
 
 
-@requires_asyncio
 class AsyncGenAsyncioTest(unittest.TestCase):
 
     def setUp(self):

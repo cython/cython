@@ -1,8 +1,6 @@
 # mode: run
 # tag: warnings
 
-from __future__ import print_function
-
 cimport cython
 
 

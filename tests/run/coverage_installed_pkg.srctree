@@ -50,8 +50,6 @@ from .mul import test_mul
 
 
 ######## ext_src/ext_pkg/mul.py ########
-from __future__ import absolute_import
-
 
 def test_mul(a, b):
      return a * b

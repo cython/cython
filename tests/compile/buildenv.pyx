@@ -2,8 +2,6 @@
 Non-test that prints debug information about the current build environment.
 """
 
-from __future__ import print_function
-
 import os
 import sys
 from distutils import sysconfig

@@ -1,7 +1,5 @@
 # mode: run
-# tag: genexpr, py3, py2
-
-from __future__ import print_function
+# tag: genexpr, py3
 
 # Tests that function arguments to generator expressions are
 # evaluated in the correct order (even after optimization)

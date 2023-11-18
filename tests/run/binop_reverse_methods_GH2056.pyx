@@ -1,8 +1,5 @@
 cimport cython
 
-import sys
-IS_PYTHON2 = sys.version_info[0] == 2
-
 __doc__ = ""
 
 
@@ -258,28 +255,10 @@ class PyVersionDependent:
     >>> i
     44
     """
-    def __div__(self, other):
-        assert IS_PYTHON2
-        return 5
-
-    def __rdiv__(self, other):
-        assert IS_PYTHON2
-        return 2
-
-    def __idiv__(self, other):
-        assert IS_PYTHON2
-        return 4
-
-    def __truediv__(self, other):
-        assert not IS_PYTHON2
-        return 5
-
     def __rtruediv__(self, other):
-        assert not IS_PYTHON2
         return 2
 
     def __itruediv__(self, other):
-        assert not IS_PYTHON2
         return 4
 
     def __floordiv__(self, other):

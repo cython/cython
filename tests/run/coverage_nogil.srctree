@@ -59,11 +59,7 @@ def call(int a, int b):          # 16
 ######## coverage_test.py ########
 
 import os.path
-try:
-    # io.StringIO in Py2.x cannot handle str ...
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from coverage import coverage
 

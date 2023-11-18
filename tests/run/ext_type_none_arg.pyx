@@ -1,10 +1,7 @@
 
 cimport cython
-try:
-    import typing
-    from typing import Optional
-except ImportError:
-    pass  # Cython can still identify the use of "typing" even if the module doesn't exist
+import typing
+from typing import Optional
 
 
 ### extension types

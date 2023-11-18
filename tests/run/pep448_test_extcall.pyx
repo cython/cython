@@ -1,8 +1,6 @@
 # mode: run
 # tag: pep448
 
-from __future__ import print_function
-
 __doc__ = """
 >>> def f(*, w): pass
 >>> try: errors_call_no_args(f)
@@ -37,11 +35,7 @@ def sortdict(d):
 
 # We're going the use these types for extra testing
 
-try:
-    from collections import UserList, UserDict
-except ImportError:
-    from UserList import UserList
-    from UserDict import UserDict
+from collections import UserList, UserDict
 
 
 # We're defining four helper functions

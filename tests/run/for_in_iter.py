@@ -3,12 +3,8 @@
 
 import sys
 import cython
+from builtins import next
 
-try:
-    from builtins import next
-except ImportError:
-    def next(it):
-        return it.next()
 
 def for_in_pyiter_pass(it):
     """

@@ -111,11 +111,7 @@ assert isinstance(async_def.wait3(), Coroutine)
 ######## import_asyncio.pyx ########
 # cython: binding=True
 
-try:
-    from types import coroutine as types_coroutine
-except ImportError:
-    types_coroutine = lambda f:f
-
+from types import coroutine as types_coroutine
 import asyncio
 
 @types_coroutine
@@ -131,11 +127,7 @@ def wait3():
 ######## from_asyncio_import.pyx ########
 # cython: binding=True
 
-try:
-    from types import coroutine as types_coroutine
-except ImportError:
-    types_coroutine = lambda f:f
-
+from types import coroutine as types_coroutine
 from asyncio import sleep
 
 @types_coroutine

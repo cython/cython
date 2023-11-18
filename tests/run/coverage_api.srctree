@@ -119,11 +119,7 @@ def main_func(int x):                            # 11
 
 import re
 import os.path
-try:
-    # io.StringIO in Py2.x cannot handle str ...
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from coverage import coverage
 

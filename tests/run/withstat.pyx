@@ -1,7 +1,5 @@
 # mode: run
 
-from __future__ import with_statement
-
 def typename(t):
     name = type(t).__name__
     return u"<type '%s'>" % name

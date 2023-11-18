@@ -11,22 +11,13 @@ Cython.Compiler.Scanning.trace_scanner = 1
 
 setup(ext_modules=cythonize("*.pyx"))
 
-try:
-    from importlib.util import spec_from_file_location, module_from_spec
-except ImportError:
-    # Py<=3.4
-    # Try to import from the current directory.
-    import os, sys
-    sys.path.insert(0, os.getcwd())
-    import simple
-else:
-    # Py3.5+
-    import glob
-    ext_files = glob.glob("simple*.so") + glob.glob("simple*.pyd")
-    assert ext_files
-    spec = spec_from_file_location('simple', ext_files[0])
-    simple = module_from_spec(spec)
-    spec.loader.exec_module(simple)
+from importlib.util import spec_from_file_location, module_from_spec
+import glob
+ext_files = glob.glob("simple*.so") + glob.glob("simple*.pyd")
+assert ext_files
+spec = spec_from_file_location('simple', ext_files[0])
+simple = module_from_spec(spec)
+spec.loader.exec_module(simple)
 
 
 assert simple.test() == 123

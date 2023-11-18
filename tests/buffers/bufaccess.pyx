@@ -7,8 +7,6 @@
 # what we want to test is what is passed into the flags argument.
 #
 
-from __future__ import unicode_literals
-
 from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR
 cimport cython

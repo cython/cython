@@ -11,63 +11,20 @@ import re
 import gc
 import sys
 import copy
-#import types
 import pickle
 import os.path
 import inspect
 import unittest
 import warnings
 import contextlib
+import asyncio
 
 from Cython.Compiler import Errors
 
 
-try:
-    from types import coroutine as types_coroutine
-except ImportError:
-    # duck typed types_coroutine() decorator copied from types.py in Py3.5
-    class types_coroutine(object):
-        def __init__(self, gen):
-            self._gen = gen
+from types import coroutine as types_coroutine
 
-        class _GeneratorWrapper(object):
-            def __init__(self, gen):
-                self.__wrapped__ = gen
-                self.send = gen.send
-                self.throw = gen.throw
-                self.close = gen.close
-                self.__name__ = getattr(gen, '__name__', None)
-                self.__qualname__ = getattr(gen, '__qualname__', None)
-            @property
-            def gi_code(self):
-                return self.__wrapped__.gi_code
-            @property
-            def gi_frame(self):
-                return self.__wrapped__.gi_frame
-            @property
-            def gi_running(self):
-                return self.__wrapped__.gi_running
-            cr_code = gi_code
-            cr_frame = gi_frame
-            cr_running = gi_running
-            def __next__(self):
-                return next(self.__wrapped__)
-            def __iter__(self):
-                return self.__wrapped__
-            __await__ = __iter__
-
-        def __call__(self, *args, **kwargs):
-            return self._GeneratorWrapper(self._gen(*args, **kwargs))
-
-try:
-    from sys import getrefcount
-except ImportError:
-    from cpython.ref cimport PyObject
-    def getrefcount(obj):
-        gc.collect()
-        # PyPy needs to execute a bytecode to run the finalizers
-        exec('', {}, {})
-        return (<PyObject*>obj).ob_refcnt
+from sys import getrefcount
 
 
 def no_pypy(f):
@@ -79,10 +36,7 @@ def no_pypy(f):
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Shadow import inline
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
@@ -157,11 +111,7 @@ def silence_coro_gc():
 
 @contextlib.contextmanager
 def captured_stderr():
-    try:
-        # StringIO.StringIO() also accepts str in Py2, io.StringIO() does not
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     orig_stderr = sys.stderr
     try:
@@ -2413,7 +2363,6 @@ class CoroutineTest(unittest.TestCase):
 class CoroAsyncIOCompatTest(unittest.TestCase):
 
     def test_asyncio_1(self):
-        import asyncio
 
         class MyException(Exception):
             pass
@@ -2465,7 +2414,6 @@ class CoroAsyncIOCompatTest(unittest.TestCase):
         """.strip(), ns, ns)
         call = ns['call']
 
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -2590,10 +2538,6 @@ if True:
     SysSetCoroWrapperTest = None
     CAPITest = None
 
-try:
-    import asyncio
-except ImportError:
-    CoroAsyncIOCompatTest = None
 
 if __name__=="__main__":
     unittest.main()

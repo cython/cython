@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 __doc__ = u"""
     >>> u == 'test'
     True

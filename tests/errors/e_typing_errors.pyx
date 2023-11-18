@@ -1,11 +1,7 @@
 # mode: error
 
 import cython
-
-try:
-    from typing import Optional, ClassVar
-except ImportError:
-    pass
+from typing import Optional, ClassVar
 
 
 # not OK
