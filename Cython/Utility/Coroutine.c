@@ -529,7 +529,7 @@ static PyObject *__Pyx_CoroutineInternalCallable_call(
     // It should be called with 0 args.
     // We just assert this because it shouldn't be possible for a user to get here
     assert(!kwargs);
-    assert(!PyTuple_GetSize(args) == 0);
+    assert(!PyTuple_Size(args) == 0);
     gen->is_running = 1;
     result = gen->body(gen, self_->tstate, self_->value);
     gen->is_running = 0;
