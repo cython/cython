@@ -1318,10 +1318,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         {{else}}
             double result;
             {{zerodiv_check('b', 'float')}}
-            // copied from floatobject.c in Py3.5:
-            PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
             result = ((double)a) {{c_op}} (double)b;
-            PyFPE_END_PROTECT(result)
             return PyFloat_FromDouble(result);
         {{endif}}
     }
