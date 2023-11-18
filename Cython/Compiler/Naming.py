@@ -194,4 +194,5 @@ used_types_and_macros = [
     ('__pyx_IterableCoroutineType', '__Pyx_IterableCoroutine_USED'),
     ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
     ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
+    ('__pyx_CoroutineInternalCallableType', '__Pyx_CoroutineInternalCallable_USED'),
 ]

@@ -3088,7 +3088,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_unicode, code.error_goto_if_null(Naming.empty_unicode, self.pos)))
 
-        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
+        for ext_type in ('CyFunction', 'FusedFunction',
+                         'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration', 'CoroutineInternalCallable'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
             code.putln("#endif")

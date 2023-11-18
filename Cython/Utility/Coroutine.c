@@ -340,6 +340,13 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
 struct __pyx_CoroutineObject;
 typedef PyObject *(*__pyx_coroutine_body_t)(struct __pyx_CoroutineObject *, PyThreadState *, PyObject *);
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+    #define __Pyx_CoroutineInternalCallable_USED
+    struct __pyx_CoroutineInternalCallable;
+
+    static int __pyx_CoroutineInternalCallable_init(PyObject *module); /*proto*/
+#endif
+
 #if CYTHON_USE_EXC_INFO_STACK
 // See  https://bugs.python.org/issue25612
 #define __Pyx_ExcInfoStruct  _PyErr_StackItem
@@ -356,7 +363,12 @@ typedef struct __pyx_CoroutineObject {
     PyObject_HEAD
     __pyx_coroutine_body_t body;
     PyObject *closure;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_ExcInfoStruct gi_exc_state;
+#else
+    PyObject *wrapper_send;
+    struct __pyx_CoroutineInternalCallable *internal_callable;
+#endif
     PyObject *gi_weakreflist;
     PyObject *classobj;
     PyObject *yieldfrom;
@@ -369,6 +381,18 @@ typedef struct __pyx_CoroutineObject {
     // using T_BOOL for property below requires char value
     char is_running;
 } __pyx_CoroutineObject;
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+typedef struct __pyx_CoroutineInternalCallable {
+    PyObject_HEAD
+    __pyx_CoroutineObject *gen; // unowned reference
+    PyThreadState *tstate; // unowned reference
+    PyObject *value; // unowned reference
+} __pyx_CoroutineInternalCallable;
+
+static __pyx_CoroutineInternalCallable* __pyx_Create_CoroutineInternalCallable(
+    __pyx_CoroutineObject *gen); /* proto */
+#endif
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
     PyTypeObject *type, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
@@ -385,6 +409,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self); /*proto*/
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
 // macros for exception state swapping instead of inline functions to make use of the local thread state context
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #if CYTHON_USE_EXC_INFO_STACK
 #define __Pyx_Coroutine_SwapException(self)
 #define __Pyx_Coroutine_ResetAndClearException(self)  __Pyx_Coroutine_ExceptionClear(&(self)->gi_exc_state)
@@ -398,6 +423,10 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
     (self)->gi_exc_state.exc_type = (self)->gi_exc_state.exc_value = (self)->gi_exc_state.exc_traceback = NULL; \
     }
 #endif
+#else
+#define __Pyx_Coroutine_SwapException(self)
+#define __Pyx_Coroutine_ResetAndClearException(self)
+#endif
 
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
@@ -407,7 +436,9 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
     __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, pvalue)
 #endif
 static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state); /*proto*/
+#endif
 
 
 //////////////////// Coroutine.proto ////////////////////
@@ -466,6 +497,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #include <frameobject.h>
 #if PY_VERSION_HEX >= 0x030b00a6
   #ifndef Py_BUILD_CORE
@@ -473,6 +505,82 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
   #endif
   #include "internal/pycore_frame.h"
 #endif
+#else // CYTHON_COMPILING_IN_LIMITED_API
+// Rough outline of the limited API workaround mechanism:
+// In the Limited API it isn't possible to do the swapping of frame "back" pointers
+// and exception states needed. Therefore instead we:
+//  1. create a Python generator using eval and "send" to that instead
+//  2. create an "InternalCallable" type that is called with 0 arguments and
+//     returns the result of gen->body(...).
+//  3. The Python generator simply calls the InternalCallable.
+//  4. The Python generator also handles the frames as necessary.
+
+static PyObject *__Pyx_CoroutineInternalCallable_call(
+        PyObject *self, PyObject *args, PyObject *kwargs) {
+    PyObject *result;
+    __pyx_CoroutineInternalCallable *self_ = (__pyx_CoroutineInternalCallable*)self;
+    __pyx_CoroutineObject *gen = self_->gen;
+    if (unlikely(!gen || !self_->tstate || !self_->value)) {
+        // We get here if it's somehow leaked to a user who has somehow decided to call it.
+        // Just set an exception and return
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    // It should be called with 0 args.
+    // We just assert this because it shouldn't be possible for a user to get here
+    assert(!kwargs);
+    assert(!PyTuple_GetSize(args) == 0);
+    gen->is_running = 1;
+    result = gen->body(gen, self_->tstate, self_->value);
+    gen->is_running = 0;
+    // clear temporary internal state (just in case it's called twice from elsewhere)
+    self_->tstate = NULL;
+    self_->value = NULL;
+    if (!result && !PyErr_Occurred()) {
+        // While we don't currently do this optimization, it's reasonable for body
+        // to skip setting StopIteration. In this case we should manually raise it.
+        PyErr_SetNone(PyExc_StopIteration);
+    }
+    return result;
+}
+
+static PyType_Slot __pyx_CoroutineInternalCallableType_slots[] = {
+    {Py_tp_call, (void *)__Pyx_CoroutineInternalCallable_call},
+    {0, NULL}
+};
+
+static PyType_Spec __pyx_CoroutineInternalCallableType_spec = {
+    __PYX_TYPE_MODULE_PREFIX "_coroutine_internal_callable",
+    sizeof(__pyx_CoroutineInternalCallable),
+    0,
+    Py_TPFLAGS_DEFAULT
+    #if __Pyx_LIMITED_API_VERSION_HEX >= 0x030A0000
+        // We make it uncreatable where convenient. It doesn't really matter though
+        // because there isn't much a user can do with it.
+        | Py_TPFLAGS_DISALLOW_INSTANTIATION
+    #endif
+       , /*tp_flags*/
+    __pyx_CoroutineInternalCallableType_slots
+};
+
+static int __pyx_CoroutineInternalCallable_init(PyObject *module) {
+    __pyx_CoroutineInternalCallableType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineInternalCallableType_spec, NULL);
+    if (!__pyx_CoroutineInternalCallableType) {
+        return -1;
+    }
+    return 0;
+}
+
+static __pyx_CoroutineInternalCallable* __pyx_Create_CoroutineInternalCallable(
+    __pyx_CoroutineObject *gen) {
+        __pyx_CoroutineInternalCallable *ic = PyObject_New(
+            __pyx_CoroutineInternalCallable, __pyx_CoroutineInternalCallableType);
+        if (likely(ic)) {
+            ic->gen = gen; // Note - unowned reference so this type doesn't have to participate in reference counting
+        }
+        return ic;
+    }
+#endif // CYTHON_COMPILING_IN_LIMITED_API
 
 #define __Pyx_Coroutine_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
 
@@ -504,19 +612,33 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             value = Py_None;
         }
         else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
+            #if !CYTHON_COMPILING_IN_LIMITED_API
             value = ((PyStopIterationObject *)ev)->value;
+            #else
+            value = PyObject_GetAttrString(ev, "value");
+            if (!value) goto limited_api_failure;
+            #endif
             Py_INCREF(value);
             Py_DECREF(ev);
         }
         // PyErr_SetObject() and friends put the value directly into ev
         else if (unlikely(PyTuple_Check(ev))) {
             // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
-            if (PyTuple_GET_SIZE(ev) >= 1) {
+#if CYTHON_ASSUME_SAFE_MACROS
+            Py_ssize_t size = PyTuple_GET_SIZE(ev);
+#else
+            Py_ssize_t size = PyTuple_Size(ev);
+            if (size < 0) goto limited_api_failure;
+#endif
+            if (size >= 1) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
                 value = PyTuple_GET_ITEM(ev, 0);
                 Py_INCREF(value);
-#else
+#elif CYTHON_ASSUME_SAFE_MACROS
                 value = PySequence_ITEM(ev, 0);
+#else
+                value = PySequence_GetItem(ev, 0);
+                if (!value) goto limited_api_failure;
 #endif
             } else {
                 Py_INCREF(Py_None);
@@ -548,11 +670,26 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     }
     Py_XDECREF(tb);
     Py_DECREF(et);
+#if !CYTHON_COMPILING_IN_LIMITED_API
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
+#else
+    value = PyObject_GetAttrString(ev, "value");
+#endif
     Py_DECREF(ev);
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (!value) return -1;
+#endif
     *pvalue = value;
     return 0;
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+  limited_api_failure:
+    Py_XDECREF(et);
+    Py_XDECREF(tb);
+    Py_XDECREF(ev);
+    return -1;
+#endif
 }
 
 static CYTHON_INLINE
@@ -663,6 +800,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     tstate = __Pyx_PyThreadState_Current;
 #endif
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
     // Traceback/Frame rules pre-Py3.7:
     // - on entry, save external exception state in self->gi_exc_state, restore it on exit
     // - on exit, keep internally generated exceptions in self->gi_exc_state, clear everything else
@@ -742,10 +880,41 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     // Cut off the exception frame chain so that we can reconnect it on re-entry above.
     __Pyx_Coroutine_ResetFrameBackpointer(exc_state);
 #endif
+#else // CYTHON_COMPILING_IN_LIMITED_API
+    // See above the definition of the __pyx_CoroutineInternalCallableType_spec for
+    // an explanation of this particular workaround!
+    self->internal_callable->tstate = tstate;
+    self->internal_callable->value = value;
+    {
+        PyObject *wrapper_send = self->wrapper_send;
+        // In the event that the generator finishes, we don't want wrapper_send
+        // to be destroyed while it's actually running.
+        Py_INCREF(wrapper_send);
+        retval = PyObject_CallFunctionObjArgs(wrapper_send, value, NULL);
+        Py_DECREF(wrapper_send);
+        // internal_callable tstate and value are returned to NULL by internal_callable
+    }
+    if (!retval) {
+        PyObject *tp, *val, *tb;
+        PyErr_Fetch(&tp, &val, &tb);
+        if (tb) {
+            // Strip the last layer out of the traceback to hide the internal wrapper function.
+            // If this fails we'll just live with the leaked information
+            PyObject *tb_next = PyObject_GetAttrString(tb, "tb_next");
+            if (tb_next) {
+                Py_DECREF(tb);
+                tb = tb_next;
+            }
+        }
+        PyErr_Restore(tp, val, tb);
+    }
+    (void)exc_state;
+#endif
 
     return retval;
 }
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state) {
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
@@ -774,6 +943,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
     }
 #endif
 }
+#endif
 
 static CYTHON_INLINE
 PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
@@ -852,6 +1022,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
     PyObject *yf = gen->yieldfrom;
     if (unlikely(gen->is_running))
         return __Pyx_Coroutine_AlreadyRunningError(gen);
+
     if (yf) {
         PyObject *ret;
         // FIXME: does this really need an INCREF() ?
@@ -961,6 +1132,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
     PyObject *yf = gen->yieldfrom;
     if (unlikely(gen->is_running))
         return __Pyx_Coroutine_AlreadyRunningError(gen);
+
     if (yf) {
         PyObject *ret;
         // FIXME: does this really need an INCREF() ?
@@ -1006,7 +1178,6 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
 
     if (unlikely(gen->is_running))
         return __Pyx_Coroutine_AlreadyRunningError(gen);
-
     if (yf) {
         Py_INCREF(yf);
         err = __Pyx_Coroutine_CloseIter(gen, yf);
@@ -1139,7 +1310,13 @@ static int __Pyx_Coroutine_traverse(__pyx_CoroutineObject *gen, visitproc visit,
     Py_VISIT(gen->closure);
     Py_VISIT(gen->classobj);
     Py_VISIT(gen->yieldfrom);
+#if !CYTHON_COMPILING_IN_LIMITED_API
     return __Pyx_Coroutine_traverse_excstate(&gen->gi_exc_state, visit, arg);
+#else
+    Py_VISIT(gen->wrapper_send);
+    // Internal callable is barely ref counted so not worth visiting
+    return 0;
+#endif
 }
 
 static int __Pyx_Coroutine_clear(PyObject *self) {
@@ -1148,7 +1325,14 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
     Py_CLEAR(gen->closure);
     Py_CLEAR(gen->classobj);
     Py_CLEAR(gen->yieldfrom);
+#if !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_Coroutine_ExceptionClear(&gen->gi_exc_state);
+#else
+    if (gen->internal_callable)
+        gen->internal_callable->gen = NULL; // deregister ourself so if a reference survives, it won't work
+    Py_CLEAR(gen->wrapper_send);
+    Py_CLEAR(gen->internal_callable);
+#endif
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(self)) {
         Py_CLEAR(((__pyx_PyAsyncGenObject*)gen)->ag_finalizer);
@@ -1170,12 +1354,18 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
         PyObject_ClearWeakRefs(self);
 
     if (gen->resume_label >= 0) {
+#if !CYTHON_USE_TP_FINALIZE
+        destructor del;
+#endif
         // Generator is paused or unstarted, so we need to close
         PyObject_GC_Track(self);
 #if CYTHON_USE_TP_FINALIZE
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
 #else
-        Py_TYPE(gen)->tp_del(self);
+        del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
+        if (del) {
+            del(self);
+        }
         if (unlikely(Py_REFCNT(self) > 0))
 #endif
         {
@@ -1197,6 +1387,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     __Pyx_PyHeapTypeObject_GC_Del(gen);
 }
 
+#if !(CYTHON_USE_TYPE_SPECS && !CYTHON_USE_TP_FINALIZE)
 static void __Pyx_Coroutine_del(PyObject *self) {
     PyObject *error_type, *error_value, *error_traceback;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
@@ -1275,9 +1466,13 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     // close() resurrected it!  Make it look like the original Py_DECREF
     // never happened.
     {
+#if !CYTHON_COMPILING_IN_LIMITED_API
         Py_ssize_t refcnt = Py_REFCNT(self);
         _Py_NewReference(self);
         __Pyx_SET_REFCNT(self, refcnt);
+#else
+        #error "__Pyx_Coroutine_del with Limited API and without CYTHON_USE_TP_FINALIZE should never be compiled"
+#endif
     }
 #if CYTHON_COMPILING_IN_CPYTHON
     assert(PyType_IS_GC(Py_TYPE(self)) &&
@@ -1298,6 +1493,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #endif
 #endif
 }
+#endif
 
 static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, void *context)
@@ -1352,6 +1548,7 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, void 
 static PyObject *
 __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
 {
+#if !CYTHON_COMPILING_IN_LIMITED_API
     PyObject *frame = self->gi_frame;
     CYTHON_UNUSED_VAR(context);
     if (!frame) {
@@ -1372,16 +1569,62 @@ __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
     }
     Py_INCREF(frame);
     return frame;
+#else
+    // In the limited API there probably isn't much we can usefully do to get a frame
+    Py_RETURN_NONE;
+#endif
 }
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
             PyTypeObject* type, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
+    __pyx_CoroutineObject *init_result;
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
     if (unlikely(!gen))
         return NULL;
-    return __Pyx__Coroutine_NewInit(gen, body, code, closure, name, qualname, module_name);
+    init_result = __Pyx__Coroutine_NewInit(gen, body, code, closure, name, qualname, module_name);
+    if (unlikely(!init_result)) {
+        Py_DECREF(gen);
+    }
+    return init_result;
 }
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__pyx_Cached_GeneratorWrapper = NULL;
+
+static PyObject *__pyx_Fetch_GeneratorWrapper(void) {
+    if (!__pyx_Cached_GeneratorWrapper) {
+        PyObject *globals=NULL;
+        PyObject *compiled, *eval_result;
+        globals = PyDict_New();
+        if (unlikely(!globals)) return NULL;
+
+        compiled = Py_CompileString(
+            CSTRING("""\
+def internal_generator_wrapper(callable):
+    while True:
+        try:
+            yield callable()
+        except StopIteration:
+            return
+            """),
+            "cython_internal_generator_wrapper",
+            Py_file_input
+        );
+        if (unlikely(!compiled)) goto bad;
+        eval_result = PyEval_EvalCode(compiled, globals, globals);
+        Py_DECREF(compiled);
+        if (unlikely(!eval_result)) goto bad;
+        Py_DECREF(eval_result);
+        __pyx_Cached_GeneratorWrapper = PyDict_GetItemString(globals, "internal_generator_wrapper");
+        Py_XINCREF(__pyx_Cached_GeneratorWrapper);
+
+        bad:
+        Py_DECREF(globals);
+    }
+    return __pyx_Cached_GeneratorWrapper;
+}
+#endif
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
             __pyx_CoroutineObject *gen, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
@@ -1393,6 +1636,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     gen->resume_label = 0;
     gen->classobj = NULL;
     gen->yieldfrom = NULL;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     #if PY_VERSION_HEX >= 0x030B00a4
     gen->gi_exc_state.exc_value = NULL;
     #else
@@ -1403,6 +1647,23 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 #if CYTHON_USE_EXC_INFO_STACK
     gen->gi_exc_state.previous_item = NULL;
 #endif
+#else // CYTHON_COMPILING_IN_LIMITED_API
+    {
+        PyObject *wrapper, *called_wrapper;
+
+        gen->internal_callable = __pyx_Create_CoroutineInternalCallable(gen);
+        if (unlikely(!gen->internal_callable)) return NULL;
+
+        wrapper = __pyx_Fetch_GeneratorWrapper();
+        if (unlikely(!wrapper)) return NULL;
+        called_wrapper = PyObject_CallFunctionObjArgs(wrapper, gen->internal_callable, NULL);
+        Py_DECREF(wrapper);
+        if (unlikely(!called_wrapper)) return NULL;
+        gen->wrapper_send = PyObject_GetAttrString(called_wrapper, "send");
+        Py_DECREF(called_wrapper);
+        if (unlikely(!gen->wrapper_send)) return NULL;
+    }
+#endif // CYTHON_COMPILING_IN_LIMITED_API
     gen->gi_weakreflist = NULL;
     Py_XINCREF(qualname);
     gen->gi_qualname = qualname;
@@ -1767,7 +2028,6 @@ static int __pyx_Coroutine_init(PyObject *module) {
 #endif
     if (unlikely(!__pyx_CoroutineType))
         return -1;
-
 #ifdef __Pyx_IterableCoroutine_USED
     if (unlikely(__pyx_IterableCoroutine_init(module) == -1))
         return -1;
