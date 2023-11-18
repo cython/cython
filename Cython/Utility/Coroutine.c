@@ -683,7 +683,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     *pvalue = value;
     return 0;
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if !CYTHON_ASSUME_SAFE_MACROS
   limited_api_failure:
     Py_XDECREF(et);
     Py_XDECREF(tb);
