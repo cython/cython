@@ -554,7 +554,7 @@ static PyType_Spec __pyx_CoroutineInternalCallableType_spec = {
     sizeof(__pyx_CoroutineInternalCallable),
     0,
     Py_TPFLAGS_DEFAULT
-    #if __Pyx_LIMITED_API_VERSION_HEX >= 0x030A0000
+    #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
         // We make it uncreatable where convenient. It doesn't really matter though
         // because there isn't much a user can do with it.
         | Py_TPFLAGS_DISALLOW_INSTANTIATION
@@ -1595,8 +1595,17 @@ static PyObject *__pyx_Cached_GeneratorWrapper = NULL;
 static PyObject *__pyx_Fetch_GeneratorWrapper(void) {
     if (!__pyx_Cached_GeneratorWrapper) {
         PyObject *globals=NULL;
-        PyObject *compiled, *eval_result;
-        globals = PyDict_New();
+        PyObject *compiled, *eval_result, *builtins;
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+        // On Python >= 3.10 the builtins are always available
+        // when evaluating, so we can save the effort of copying them.
+        builtins = PyDict_New();
+#else
+        builtins = PyEval_GetBuiltins(); // borrowed
+        if (unlikely(!builtins)) return NULL;
+        globals = PyDict_Copy(builtins);
+#endif
         if (unlikely(!globals)) return NULL;
 
         compiled = Py_CompileString(
