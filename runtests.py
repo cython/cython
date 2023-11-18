@@ -2400,7 +2400,7 @@ def main():
     parser.add_option("-k", dest="only_pattern",
                       help="a regex pattern for selecting doctests and test functions in the test modules")
     parser.add_option("-3", dest="language_level",
-                      action="store_const", const=3, default=2,
+                      action="store_const", const=3, default=3,
                       help="set language level to Python 3 (useful for running the CPython regression tests)'")
     parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
                       help="write test results in XML to directory DIR")
