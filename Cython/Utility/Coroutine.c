@@ -1597,16 +1597,17 @@ static PyObject *__pyx_Fetch_GeneratorWrapper(void) {
         PyObject *globals=NULL;
         PyObject *compiled, *eval_result, *builtins;
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+        globals = PyDict_New();
+        if (unlikely(!globals)) return NULL;
+#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
         // On Python >= 3.10 the builtins are always available
-        // when evaluating, so we can save the effort of copying them.
-        builtins = PyDict_New();
-#else
+        // when evaluating, so we can save a bit of effort setting them up.
         builtins = PyEval_GetBuiltins(); // borrowed
         if (unlikely(!builtins)) return NULL;
-        globals = PyDict_Copy(builtins);
+        if (unlikely(PyDict_SetItemString(globals, "__builtins__", builtins)<0))
+            goto bad;
 #endif
-        if (unlikely(!globals)) return NULL;
+        
 
         compiled = Py_CompileString(
             CSTRING("""\
