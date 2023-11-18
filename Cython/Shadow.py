@@ -1,17 +1,12 @@
 # cython.* namespace for pure mode.
-from __future__ import absolute_import
 
-__version__ = "3.0.0a10"
-
-try:
-    from __builtin__ import basestring
-except ImportError:
-    basestring = str
+# Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
+__version__ = "3.1.0a0"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
 
-class _ArrayType(object):
+class _ArrayType:
 
     is_array = True
     subtypes = ['dtype']
@@ -94,7 +89,7 @@ def test_assert_path_exists(*paths):
 def test_fail_if_path_exists(*paths):
     return _empty_decorator
 
-class _EmptyDecoratorAndManager(object):
+class _EmptyDecoratorAndManager:
     def __call__(self, x):
         return x
     def __enter__(self):
@@ -102,33 +97,46 @@ class _EmptyDecoratorAndManager(object):
     def __exit__(self, exc_type, exc_value, traceback):
         pass
 
-class _Optimization(object):
+class _Optimization:
     pass
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    embedsignature = cdivision = cdivision_warnings = \
-    always_allows_keywords = profile = linetrace = infer_types = \
-    unraisable_tracebacks = freelist = \
+annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
+    nonecheck = embedsignature = cdivision = cdivision_warnings = \
+    always_allow_keywords = profile = linetrace = infer_types = \
+    unraisable_tracebacks = freelist = auto_pickle = cpow = trashcan = \
+    auto_cpdef = c_api_binop_methods = \
+    allow_none_for_extension_args = callspec = show_performance_hints = \
+    cpp_locals = py2_import = iterable_coroutine = remove_unreachable = \
         lambda _: _EmptyDecoratorAndManager()
+
+# Note that fast_getattr is untested and undocumented!
+fast_getattr = lambda _: _EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
 
-overflowcheck.fold = optimize.use_switch = \
+
+embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = \
+    ufunc = _empty_decorator
 
 binding = lambda _: _empty_decorator
+
+class warn:
+    undeclared = unreachable = maybe_uninitialized = unused = \
+        unused_arg = unused_result = \
+            lambda _: _EmptyDecoratorAndManager()
 
 
 _cython_inline = None
 def inline(f, *args, **kwds):
-    if isinstance(f, basestring):
+    if isinstance(f, str):
         global _cython_inline
         if _cython_inline is None:
             from Cython.Build.Inline import cython_inline as _cython_inline
@@ -198,7 +206,7 @@ def declare(t=None, value=_Unspecified, **kwds):
     else:
         return None
 
-class _nogil(object):
+class _nogil:
     """Support for 'with nogil' statement and @nogil decorator.
     """
     def __call__(self, x):
@@ -215,6 +223,7 @@ class _nogil(object):
 
 nogil = _nogil()
 gil = _nogil()
+with_gil = _nogil()  # Actually not a context manager, but compilation will give the right error.
 del _nogil
 
 
@@ -273,7 +282,7 @@ class ArrayType(PointerType):
         if value is None:
             self._items = [None] * self._n
         else:
-            super(ArrayType, self).__init__(value)
+            super().__init__(value)
 
 
 class StructType(CythonType):
@@ -385,7 +394,7 @@ class typedef(CythonType):
     __getitem__ = index_type
 
 class _FusedType(CythonType):
-    pass
+    __getitem__ = index_type
 
 
 def fused_type(*args):
@@ -415,10 +424,7 @@ def _specialized_from_args(signatures, args, kwargs):
 
 
 py_int = typedef(int, "int")
-try:
-    py_long = typedef(long, "long")
-except NameError:  # Py3
-    py_long = typedef(int, "long")
+py_long = typedef(int, "long")  # for legacy Py2 code only
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
 
@@ -464,11 +470,7 @@ to_repr = {
 
 gs = globals()
 
-# note: cannot simply name the unicode type here as 2to3 gets in the way and replaces it by str
-try:
-    import __builtin__ as builtins
-except ImportError:  # Py3
-    import builtins
+import builtins
 
 gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
 del builtins
@@ -503,7 +505,7 @@ integral = floating = numeric = _FusedType()
 
 type_ordering = [py_int, py_long, py_float, py_complex]
 
-class CythonDotParallel(object):
+class CythonDotParallel:
     """
     The cython.parallel module.
     """
@@ -525,7 +527,7 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
-class CythonDotImportedFromElsewhere(object):
+class CythonDotImportedFromElsewhere:
     """
     cython.dataclasses just shadows the standard library modules of the same name
     """
@@ -549,8 +551,7 @@ class CythonDotImportedFromElsewhere(object):
         sys.modules['cython.%s' % self.__name__] = mod
         return getattr(mod, attr)
 
-
-class CythonCImports(object):
+class CythonCImports:
     """
     Simplistic module mock to make cimports sort-of work in Python code.
     """
@@ -563,7 +564,12 @@ class CythonCImports(object):
     def __getattr__(self, item):
         if item.startswith('__') and item.endswith('__'):
             raise AttributeError(item)
-        return __import__(item)
+        try:
+            return __import__(item)
+        except ImportError:
+            ex = AttributeError(item)
+            ex.__cause__ = None
+            raise ex
 
 
 import math, sys

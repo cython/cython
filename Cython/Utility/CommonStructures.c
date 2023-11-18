@@ -5,10 +5,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 /////////////// FetchSharedCythonModule ////////////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
-    PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
-    if (unlikely(!abi_module)) return NULL;
-    Py_INCREF(abi_module);
-    return abi_module;
+    return __Pyx_PyImport_AddModuleRef(__PYX_ABI_MODULE_NAME);
 }
 
 /////////////// FetchCommonType.proto ///////////////
@@ -121,7 +118,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
     // We pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     cached_type = __Pyx_PyType_FromModuleAndSpec(abi_module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
     if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;

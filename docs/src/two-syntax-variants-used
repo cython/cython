@@ -16,3 +16,7 @@
       .. code-block:: python
 
           import cython
+          
+      If you use the pure Python syntax we strongly recommend you use a recent
+      Cython 3 release, since significant improvements have been made here
+      compared to the 0.29.x releases.

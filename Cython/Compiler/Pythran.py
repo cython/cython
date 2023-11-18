@@ -1,7 +1,3 @@
-# cython: language_level=3
-
-from __future__ import absolute_import
-
 from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
 
 import cython
@@ -108,7 +104,7 @@ def _index_code(idx):
         else:
             func = "slice"
         return "pythonic::types::%s(%s)" % (
-            func, ",".join((v.pythran_result() for v in values)))
+            func, ",".join(v.pythran_result() for v in values))
     elif idx.type.is_int:
         return to_pythran(idx)
     elif idx.type.is_pythran_expr:
@@ -150,7 +146,7 @@ def pythran_functor(func):
     return "pythonic::numpy::%s::%s" % (submodules, func[-1])
 
 def pythran_func_type(func, args):
-    args = ",".join(("std::declval<%s>()" % pythran_type(a.type) for a in args))
+    args = ",".join("std::declval<%s>()" % pythran_type(a.type) for a in args)
     return "decltype(%s{}(%s))" % (pythran_functor(func), args)
 
 

@@ -6,7 +6,7 @@ narr = np.arange(27, dtype=np.dtype("i")).reshape((3, 3, 3))
 cdef int [:, :, :] narr_view = narr
 
 # Memoryview on a C array
-cdef int carr[3][3][3]
+cdef int[3][3][3] carr
 cdef int [:, :, :] carr_view = carr
 
 # Memoryview on a Cython array
@@ -42,6 +42,13 @@ cpdef int sum3d(int[:, :, :] arr) nogil:
             for k in range(K):
                 total += arr[i, j, k]
     return total
+
+
+
+
+
+
+
 
 # A function accepting a memoryview knows how to use a NumPy array,
 # a C array, a Cython array...

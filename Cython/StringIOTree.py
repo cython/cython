@@ -1,5 +1,3 @@
-# cython: auto_pickle=False
-
 r"""
 Implements a buffer with insertion points. When you know you need to
 "get back" to a place and write more later, simply call insertion_point()
@@ -35,16 +33,11 @@ EXAMPLE:
 ['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
 """
 
-from __future__ import absolute_import  #, unicode_literals
 
-try:
-    # Prefer cStringIO since io.StringIO() does not support writing 'str' in Py2.
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 
-class StringIOTree(object):
+class StringIOTree:
     """
     See module docs.
     """
@@ -56,6 +49,11 @@ class StringIOTree(object):
         self.stream = stream
         self.write = stream.write
         self.markers = []
+
+    def empty(self):
+        if self.stream.tell():
+            return False
+        return all([child.empty() for child in self.prepended_children]) if self.prepended_children else True
 
     def getvalue(self):
         content = []
@@ -87,6 +85,12 @@ class StringIOTree(object):
             self.markers = []
             self.stream = StringIO()
             self.write = self.stream.write
+
+    def reset(self):
+        self.prepended_children = []
+        self.markers = []
+        self.stream = StringIO()
+        self.write = self.stream.write
 
     def insert(self, iotree):
         """

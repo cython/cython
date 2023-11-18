@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import hashlib
 import inspect
 import os
@@ -11,63 +9,45 @@ from distutils.command.build_ext import build_ext
 
 import Cython
 from ..Compiler.Main import Context
-from ..Compiler.Options import default_options
+from ..Compiler.Options import (default_options, CompilationOptions,
+    get_directive_defaults)
 
 from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
-from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
 from ..Compiler import Pipeline
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
+import importlib.util
+from importlib.machinery import ExtensionFileLoader
 
-IS_PY3 = sys.version_info >= (3,)
-
-# A utility function to convert user-supplied ASCII strings to unicode.
-if not IS_PY3:
-    def to_unicode(s):
-        if isinstance(s, bytes):
-            return s.decode('ascii')
-        else:
-            return s
-else:
-    to_unicode = lambda x: x
-
-
-if sys.version_info < (3, 5):
-    import imp
-    def load_dynamic(name, module_path):
-        return imp.load_dynamic(name, module_path)
-else:
-    import importlib.util as _importlib_util
-    def load_dynamic(name, module_path):
-        spec = _importlib_util.spec_from_file_location(name, module_path)
-        module = _importlib_util.module_from_spec(spec)
-        # sys.modules[name] = module
-        spec.loader.exec_module(module)
-        return module
+def load_dynamic(name, path):
+    spec = importlib.util.spec_from_file_location(name, loader=ExtensionFileLoader(name, path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
-        CythonTransform.__init__(self, None)
+        super(EnvTransform, self).__init__(context=None)
         self.unbound = set()
     def visit_NameNode(self, node):
         if not self.current_env().lookup(node.name):
             self.unbound.add(node.name)
         return node
     def __call__(self, node):
-        super(UnboundSymbols, self).__call__(node)
+        super().__call__(node)
         return self.unbound
 
 
 @cached_function
 def unbound_symbols(code, context=None):
-    code = to_unicode(code)
     if context is None:
-        context = Context([], default_options)
+        context = Context([], get_directive_defaults(),
+                          options=CompilationOptions(default_options))
     from ..Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
     tree = parse_from_strings('(tree fragment)', code)
     for phase in Pipeline.create_pipeline(context, 'pyx'):
@@ -76,10 +56,7 @@ def unbound_symbols(code, context=None):
         tree = phase(tree)
         if isinstance(phase, AnalyseDeclarationsTransform):
             break
-    try:
-        import builtins
-    except ImportError:
-        import __builtin__ as builtins
+    import builtins
     return tuple(UnboundSymbols()(tree) - set(dir(builtins)))
 
 
@@ -128,7 +105,11 @@ def _get_build_extension():
 
 @cached_function
 def _create_context(cython_include_dirs):
-    return Context(list(cython_include_dirs), default_options)
+    return Context(
+        list(cython_include_dirs),
+        get_directive_defaults(),
+        options=CompilationOptions(default_options)
+    )
 
 
 _cython_inline_cache = {}
@@ -154,7 +135,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 
 def _inline_key(orig_code, arg_sigs, language_level):
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    return hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+    return hashlib.sha1(str(key).encode('utf-8')).hexdigest()
 
 
 def cython_inline(code, get_type=unsafe_type,
@@ -168,7 +149,7 @@ def cython_inline(code, get_type=unsafe_type,
 
     cython_compiler_directives = dict(cython_compiler_directives) if cython_compiler_directives else {}
     if language_level is None and 'language_level' not in cython_compiler_directives:
-        language_level = '3str'
+        language_level = '3'
     if language_level is not None:
         cython_compiler_directives['language_level'] = language_level
 
@@ -187,7 +168,6 @@ def cython_inline(code, get_type=unsafe_type,
             return invoke(*arg_list)
 
     orig_code = code
-    code = to_unicode(code)
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     if locals is None:
@@ -223,6 +203,7 @@ def cython_inline(code, get_type=unsafe_type,
             build_extension = _get_build_extension()
             cython_inline.so_ext = build_extension.get_ext_filename('')
 
+        lib_dir = os.path.abspath(lib_dir)
         module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
         if not os.path.exists(lib_dir):
@@ -280,7 +261,11 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = load_dynamic(module_name, module_path)
+        if sys.platform == 'win32' and sys.version_info >= (3, 8):
+            with os.add_dll_directory(os.path.abspath(lib_dir)):
+                module = load_dynamic(module_name, module_path)
+        else:
+            module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]
@@ -341,7 +326,7 @@ def get_body(source):
 
 # Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
-class RuntimeCompiledFunction(object):
+class RuntimeCompiledFunction:
 
     def __init__(self, f):
         self._f = f
@@ -349,7 +334,4 @@ class RuntimeCompiledFunction(object):
 
     def __call__(self, *args, **kwds):
         all = inspect.getcallargs(self._f, *args, **kwds)
-        if IS_PY3:
-            return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
-        else:
-            return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
+        return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)

@@ -90,5 +90,3 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a new tuple object containing the contents of list;
     # equivalent to "tuple(list)".
-
-

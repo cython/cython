@@ -5,11 +5,13 @@
 Uses TreeFragment to test invalid syntax.
 """
 
-from __future__ import absolute_import
+
+import ast
+import textwrap
 
 from ...TestUtils import CythonTest
-from ..Errors import CompileError
 from .. import ExprNodes
+from ..Errors import CompileError
 
 # Copied from CPython's test_grammar.py
 VALID_UNDERSCORE_LITERALS = [
@@ -103,6 +105,39 @@ INVALID_UNDERSCORE_LITERALS = [
 ]
 
 
+INVALID_ELLIPSIS = [
+    (". . .", 2, 0),
+    (". ..", 2, 0),
+    (".. .", 2, 0),
+    (". ...", 2, 0),
+    (". ... .", 2, 0),
+    (".. ... .", 2, 0),
+    (". ... ..", 2, 0),
+    ("""
+    (
+        .
+        ..
+    )
+    """, 3, 4),
+    ("""
+    [
+        ..
+        .,
+        None
+    ]
+    """, 3, 4),
+    ("""
+    {
+        None,
+        .
+        .
+
+        .
+    }
+    """, 4, 4)
+]
+
+
 class TestGrammar(CythonTest):
 
     def test_invalid_number_literals(self):
@@ -110,7 +145,7 @@ class TestGrammar(CythonTest):
             for expression in ['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']:
                 code = 'x = ' + expression % literal
                 try:
-                    self.fragment(u'''\
+                    self.fragment('''\
                     # cython: language_level=3
                     ''' + code)
                 except CompileError as exc:
@@ -122,7 +157,7 @@ class TestGrammar(CythonTest):
         for literal in VALID_UNDERSCORE_LITERALS:
             for i, expression in enumerate(['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']):
                 code = 'x = ' + expression % literal
-                node = self.fragment(u'''\
+                node = self.fragment('''\
                     # cython: language_level=3
                     ''' + code).root
                 assert node is not None
@@ -141,6 +176,25 @@ class TestGrammar(CythonTest):
                     assert isinstance(literal_node, ExprNodes.FloatNode), (literal, literal_node)
                 else:
                     assert isinstance(literal_node, ExprNodes.IntNode), (literal, literal_node)
+
+    def test_invalid_ellipsis(self):
+        ERR = ":{0}:{1}: Expected an identifier or literal"
+        for code, line, col in INVALID_ELLIPSIS:
+            try:
+                ast.parse(textwrap.dedent(code))
+            except SyntaxError as exc:
+                assert True
+            else:
+                assert False, "Invalid Python code '%s' failed to raise an exception" % code
+
+            try:
+                self.fragment('''\
+                # cython: language_level=3
+                ''' + code)
+            except CompileError as exc:
+                assert ERR.format(line, col) in str(exc), str(exc)
+            else:
+                assert False, "Invalid Cython code '%s' failed to raise an exception" % code
 
 
 if __name__ == "__main__":

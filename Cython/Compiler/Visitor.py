@@ -1,12 +1,9 @@
 # cython: infer_types=True
-# cython: language_level=3
-# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework
 #
 
-from __future__ import absolute_import, print_function
 
 import sys
 import inspect
@@ -22,15 +19,10 @@ from . import Future
 import cython
 
 
-cython.declare(_PRINTABLE=tuple)
-
-if sys.version_info[0] >= 3:
-    _PRINTABLE = (bytes, str, int, float)
-else:
-    _PRINTABLE = (str, unicode, long, int, float)
+_PRINTABLE = cython.declare(tuple, (bytes, str, int, float, complex))
 
 
-class TreeVisitor(object):
+class TreeVisitor:
     """
     Base class for writing visitors for a Cython tree, contains utilities for
     recursing such trees using visitors. Each node is
@@ -74,13 +66,13 @@ class TreeVisitor(object):
     out 0
     """
     def __init__(self):
-        super(TreeVisitor, self).__init__()
+        super().__init__()
         self.dispatch_table = {}
         self.access_path = []
 
     def dump_node(self, node):
         ignored = list(node.child_attrs or []) + [
-            u'child_attrs', u'pos', u'gil_message', u'cpp_message', u'subexprs']
+            'child_attrs', 'pos', 'gil_message', 'cpp_message', 'subexprs']
         values = []
         pos = getattr(node, 'pos', None)
         if pos:
@@ -88,7 +80,7 @@ class TreeVisitor(object):
             if source:
                 import os.path
                 source = os.path.basename(source.get_description())
-            values.append(u'%s:%s:%s' % (source, pos[1], pos[2]))
+            values.append('%s:%s:%s' % (source, pos[1], pos[2]))
         attribute_names = dir(node)
         for attr in attribute_names:
             if attr in ignored:
@@ -102,13 +94,13 @@ class TreeVisitor(object):
             if value is None or value == 0:
                 continue
             elif isinstance(value, list):
-                value = u'[...]/%d' % len(value)
+                value = '[...]/%d' % len(value)
             elif not isinstance(value, _PRINTABLE):
                 continue
             else:
                 value = repr(value)
-            values.append(u'%s = %s' % (attr, value))
-        return u'%s(%s)' % (node.__class__.__name__, u',\n    '.join(values))
+            values.append('%s = %s' % (attr, value))
+        return '%s(%s)' % (node.__class__.__name__, ',\n    '.join(values))
 
     def _find_node_path(self, stacktrace):
         import os.path
@@ -116,7 +108,7 @@ class TreeVisitor(object):
         nodes = []
         while hasattr(stacktrace, 'tb_frame'):
             frame = stacktrace.tb_frame
-            node = frame.f_locals.get(u'self')
+            node = frame.f_locals.get('self')
             if isinstance(node, Nodes.Node):
                 code = frame.f_code
                 method_name = code.co_name
@@ -135,30 +127,30 @@ class TreeVisitor(object):
                 index = ''
             else:
                 node = node[index]
-                index = u'[%d]' % index
-            trace.append(u'%s.%s%s = %s' % (
+                index = '[%d]' % index
+            trace.append('%s.%s%s = %s' % (
                 parent.__class__.__name__, attribute, index,
                 self.dump_node(node)))
         stacktrace, called_nodes = self._find_node_path(sys.exc_info()[2])
         last_node = child
         for node, method_name, pos in called_nodes:
             last_node = node
-            trace.append(u"File '%s', line %d, in %s: %s" % (
+            trace.append("File '%s', line %d, in %s: %s" % (
                 pos[0], pos[1], method_name, self.dump_node(node)))
         raise Errors.CompilerCrash(
             getattr(last_node, 'pos', None), self.__class__.__name__,
-            u'\n'.join(trace), e, stacktrace)
+            '\n'.join(trace), e, stacktrace)
 
     @cython.final
     def find_handler(self, obj):
         # to resolve, try entire hierarchy
         cls = type(obj)
-        pattern = "visit_%s"
         mro = inspect.getmro(cls)
         for mro_cls in mro:
-            handler_method = getattr(self, pattern % mro_cls.__name__, None)
+            handler_method = getattr(self, "visit_" + mro_cls.__name__, None)
             if handler_method is not None:
                 return handler_method
+
         print(type(self), cls)
         if self.access_path:
             print(self.access_path)
@@ -302,14 +294,14 @@ class CythonTransform(VisitorTransform):
      - Tracks directives in effect in self.current_directives
     """
     def __init__(self, context):
-        super(CythonTransform, self).__init__()
+        super().__init__()
         self.context = context
 
     def __call__(self, node):
-        from . import ModuleNode
-        if isinstance(node, ModuleNode.ModuleNode):
+        from .ModuleNode import ModuleNode
+        if isinstance(node, ModuleNode):
             self.current_directives = node.directives
-        return super(CythonTransform, self).__call__(node)
+        return super().__call__(node)
 
     def visit_CompilerDirectivesNode(self, node):
         old = self.current_directives
@@ -362,7 +354,7 @@ class EnvTransform(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.enter_scope(root, root.scope)
-        return super(EnvTransform, self).__call__(root)
+        return super().__call__(root)
 
     def current_env(self):
         return self.env_stack[-1][1]
@@ -380,12 +372,14 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
-        outer_attrs = node.outer_attrs
-        self.visitchildren(node, attrs=outer_attrs)
+        self.visit_func_outer_attrs(node)
         self.enter_scope(node, node.local_scope)
-        self.visitchildren(node, attrs=None, exclude=outer_attrs)
+        self.visitchildren(node, attrs=None, exclude=node.outer_attrs)
         self.exit_scope()
         return node
+
+    def visit_func_outer_attrs(self, node):
+        self.visitchildren(node, attrs=node.outer_attrs)
 
     def visit_GeneratorBodyDefNode(self, node):
         self._process_children(node)
@@ -425,7 +419,7 @@ class EnvTransform(CythonTransform):
         return node
 
 
-class NodeRefCleanupMixin(object):
+class NodeRefCleanupMixin:
     """
     Clean up references to nodes that were replaced.
 
@@ -436,7 +430,7 @@ class NodeRefCleanupMixin(object):
     and by ordering the "child_attrs" of nodes appropriately.
     """
     def __init__(self, *args):
-        super(NodeRefCleanupMixin, self).__init__(*args)
+        super().__init__(*args)
         self._replacements = {}
 
     def visit_CloneNode(self, node):
@@ -592,7 +586,7 @@ class MethodDispatcherTransform(EnvTransform):
             # Python 2 and 3
             return None
 
-        call_type = has_kwargs and 'general' or 'simple'
+        call_type = 'general' if has_kwargs else 'simple'
         handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
             handler = getattr(self, '_handle_any_%s' % match_name, None)
@@ -719,7 +713,7 @@ class RecursiveNodeReplacer(VisitorTransform):
     another node.
     """
     def __init__(self, orig_node, new_node):
-        super(RecursiveNodeReplacer, self).__init__()
+        super().__init__()
         self.orig_node, self.new_node = orig_node, new_node
 
     def visit_CloneNode(self, node):
@@ -746,7 +740,7 @@ class NodeFinder(TreeVisitor):
     Find out if a node appears in a subtree.
     """
     def __init__(self, node):
-        super(NodeFinder, self).__init__()
+        super().__init__()
         self.node = node
         self.found = False
 

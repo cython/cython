@@ -127,8 +127,8 @@ cdef class ContainsNonPyFields:
     """
     mystruct: S = cython.dataclasses.field(compare=False)
     mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
-    memview: int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
-                                 compare=False)
+    memview: cython.int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
+                                        compare=False)
 
     def __dealloc__(self):
         free(self.mystruct_ptr)
@@ -154,8 +154,8 @@ cdef class InitClassVars:
     True
     """
     a: cython.int = 0
-    b1: InitVar[double] = 1.0
-    b2: py_dataclasses.InitVar[double] = 1.0
+    b1: InitVar[cython.double] = 1.0
+    b2: py_dataclasses.InitVar[cython.double] = 1.0
     c1: ClassVar[float] = 2.0
     c2: typing.ClassVar[float] = 2.0
     cdef InitVar[cython.int] d1
@@ -206,7 +206,7 @@ cdef class TestVisibility:
     """
     cdef double a
     a = 1.0
-    b: double = 2.0
+    b: cython.double = 2.0
     cdef public double c
     c = 3.0
     cdef public object d
@@ -222,30 +222,62 @@ cdef class TestFrozen:
     Traceback (most recent call last):
     AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
-    a: double = 2.0
+    a: cython.double = 2.0
 
-import sys
-if sys.version_info >= (3, 7):
-    __doc__ = """
-    >>> from dataclasses import Field, is_dataclass, fields
+def get_dataclass_initvar():
+    return py_dataclasses.InitVar
 
-    # It uses the types from the standard library where available
-    >>> all(isinstance(v, Field) for v in BasicDataclass.__dataclass_fields__.values())
-    True
 
-    # check out Cython dataclasses are close enough to convince it
-    >>> is_dataclass(BasicDataclass)
-    True
-    >>> is_dataclass(BasicDataclass(1.5))
-    True
-    >>> is_dataclass(InheritsFromDataclass)
-    True
-    >>> is_dataclass(NotADataclass)
-    False
-    >>> is_dataclass(InheritsFromNotADataclass)
-    True
-    >>> [ f.name for f in fields(BasicDataclass)]
-    ['a', 'b', 'c', 'd']
-    >>> [ f.name for f in fields(InitClassVars)]
-    ['a']
+@dataclass(kw_only=True)
+cdef class TestKwOnly:
     """
+    >>> inst = TestKwOnly(a=3, b=2)
+    >>> inst.a
+    3.0
+    >>> inst.b
+    2
+    >>> inst = TestKwOnly(b=2)
+    >>> inst.a
+    2.0
+    >>> inst.b
+    2
+    >>> fail = TestKwOnly(3, 2)
+    Traceback (most recent call last):
+    TypeError: __init__() takes exactly 0 positional arguments (2 given)
+    >>> fail = TestKwOnly(a=3)
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    >>> fail = TestKwOnly()
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    """
+
+    a: cython.double = 2.0
+    b: cython.long
+
+
+__doc__ = """
+>>> from dataclasses import Field, is_dataclass, fields, InitVar
+
+# It uses the types from the standard library where available
+>>> all(isinstance(v, Field) for v in BasicDataclass.__dataclass_fields__.values())
+True
+
+# check out Cython dataclasses are close enough to convince it
+>>> is_dataclass(BasicDataclass)
+True
+>>> is_dataclass(BasicDataclass(1.5))
+True
+>>> is_dataclass(InheritsFromDataclass)
+True
+>>> is_dataclass(NotADataclass)
+False
+>>> is_dataclass(InheritsFromNotADataclass)
+True
+>>> [ f.name for f in fields(BasicDataclass)]
+['a', 'b', 'c', 'd']
+>>> [ f.name for f in fields(InitClassVars)]
+['a']
+>>> get_dataclass_initvar() == InitVar
+True
+"""
