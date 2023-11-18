@@ -2,7 +2,6 @@
 #   Module parse tree node
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
@@ -192,9 +191,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not Options.docstrings:
             env.doc = self.doc = None
         elif Options.embed_pos_in_docstring:
-            env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
+            env.doc = EncodedString('File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
             if self.doc is not None:
-                env.doc = EncodedString(env.doc + u'\n' + self.doc)
+                env.doc = EncodedString(env.doc + '\n' + self.doc)
                 env.doc.encoding = self.doc.encoding
         else:
             env.doc = self.doc
@@ -561,10 +560,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         coverage_xml_filename = Options.annotate_coverage_xml or options.annotate_coverage_xml
         if coverage_xml_filename and os.path.exists(coverage_xml_filename):
-            try:
-                import xml.etree.cElementTree as ET
-            except ImportError:
-                import xml.etree.ElementTree as ET
+            import xml.etree.ElementTree as ET
             coverage_xml = ET.parse(coverage_xml_filename).getroot()
             for el in coverage_xml.iter():
                 el.tail = None  # save some memory
@@ -1983,7 +1979,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
-            # Note: shouldn't this call __Pyx_ReleaseBuffer ??
+            # Note: shouldn't this call PyBuffer_Release ??
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
@@ -2712,7 +2708,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                    '{%s, %s, %s, %s, 0},' % (
                         entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
@@ -3101,12 +3097,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.directives['np_pythran']:
             code.put_error_if_neg(self.pos, "_import_array()")
 
-        code.putln("/*--- Threads initialization code ---*/")
-        code.putln("#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0 "
-                   "&& defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
-        code.putln("PyEval_InitThreads();")
-        code.putln("#endif")
-
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitConstants()")
         code.putln("stringtab_initialized = 1;")
@@ -3257,7 +3247,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         function_code = orig_code.insertion_point()
         function_code.putln("")
 
-        class ModInitSubfunction(object):
+        class ModInitSubfunction:
             def __init__(self, code_type):
                 cname = '_'.join(code_type.lower().split())
                 assert re.match("^[a-z0-9_]+$", cname)
@@ -3474,7 +3464,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             name.encode("ascii")
             return None  # workaround is not needed
         except UnicodeEncodeError:
-            return "PyInitU" + (u"_"+name).encode('punycode').replace(b'-', b'_').decode('ascii')
+            return "PyInitU" + ("_"+name).encode('punycode').replace(b'-', b'_').decode('ascii')
 
     def mod_init_func_cname(self, prefix, env):
         # from PEP483
@@ -3622,7 +3612,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
         code.putln(
-            '%s = __Pyx_PyImport_AddModuleRef((const char *) "cython_runtime"); %s' % (
+            '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
         code.putln(
@@ -3937,7 +3927,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             meth_entry.func_cname))
 
 
-class ModuleImportGenerator(object):
+class ModuleImportGenerator:
     """
     Helper to generate module import while importing external types.
     This is used to avoid excessive re-imports of external modules when multiple types are looked up.

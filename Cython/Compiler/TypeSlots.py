@@ -3,7 +3,6 @@
 #   and associated know-how.
 #
 
-from __future__ import absolute_import
 
 from . import Naming
 from . import PyrexTypes
@@ -17,7 +16,7 @@ invisible = ['__cinit__', '__dealloc__', '__richcmp__',
 richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
 
 
-class Signature(object):
+class Signature:
     #  Method slot signature descriptor.
     #
     #  has_dummy_arg      boolean
@@ -77,8 +76,7 @@ class Signature(object):
         # and are not looked up in here
     }
 
-    type_to_format_map = dict(
-        (type_, format_) for format_, type_ in format_map.items())
+    type_to_format_map = {type_: format_ for format_, type_ in format_map.items()}
 
     error_value_map = {
         'O': "NULL",
@@ -218,7 +216,7 @@ class Signature(object):
             return "VARARGS"
 
 
-class SlotDescriptor(object):
+class SlotDescriptor:
     #  Abstract base class for type slot descriptors.
     #
     #  slot_name    string           Member name of the slot in the type object
@@ -717,7 +715,8 @@ class DictOffsetSlot(SlotDescriptor):
     def slot_code(self, scope):
         dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
-            if getattr(dict_entry.type, 'cname', None) != 'PyDict_Type':
+            from . import Builtin
+            if dict_entry.type is not Builtin.dict_type:
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
                 return "0"
             type = scope.parent_type
@@ -917,7 +916,7 @@ PyNumberMethods_Py2only_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PY
 #
 #------------------------------------------------------------------------------------------
 
-class SlotTable(object):
+class SlotTable:
     def __init__(self, old_binops):
         # The following dictionary maps __xxx__ method names to slot descriptors.
         method_name_to_slot = {}

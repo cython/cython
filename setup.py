@@ -166,7 +166,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     from Cython.Distutils.build_ext import build_ext
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
-        language_level=2,
+        language_level=3,
+        auto_pickle=False,
         binding=False,
         always_allow_keywords=False,
         autotestdict=False,
@@ -208,7 +209,7 @@ if compile_cython_itself:
 setup_args.update(setuptools_extra_args)
 
 
-def dev_status(version):
+def dev_status(version: str):
     if 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
@@ -263,13 +264,18 @@ def run_build():
         This makes Cython the ideal language for writing glue code for external
         C/C++ libraries, and for fast C modules that speed up the execution of
         Python code.
-
+        
+        The newest Cython release can always be downloaded from https://cython.org/. 
+        Unpack the tarball or zip file, enter the directory, and then run::
+        
+            pip install .
+            
         Note that for one-time builds, e.g. for CI/testing, on platforms that are not
         covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
         that we provide is not used, it is substantially faster than a full source build
         to install an uncompiled (slower) version of Cython with::
 
-            pip install Cython --install-option="--no-cython-compile"
+            NO_CYTHON_COMPILE=true pip install .
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
         """),

@@ -178,13 +178,15 @@ def unary_operators():
     cdef some_class obj
     assert typeof(~obj) == "Python object", typeof(~obj)
     a = int(1)
-    assert typeof(a) == "Python object", typeof(a)
+    assert typeof(a) == "int object", typeof(a)
     b = not int(3)
     assert typeof(b) == "bint", typeof(b)
     c = +int(3)
-    assert typeof(c) == "Python object", typeof(c)
+    assert typeof(c) == "int object", typeof(c)
     d = -int(5)
-    assert typeof(d) == "Python object", typeof(d)
+    assert typeof(d) == "int object", typeof(d)
+    e = ~int(5)
+    assert typeof(e) == "int object", typeof(e)
 
 
 def builtin_type_operations():

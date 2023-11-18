@@ -5,7 +5,6 @@
 from __future__ import print_function
 
 import cython
-import sys
 
 
 def test_qualname():
@@ -27,12 +26,8 @@ def test_builtin_qualname():
     list.append
     len
     """
-    if sys.version_info >= (3, 3):
-        print([1, 2, 3].append.__qualname__)
-        print(len.__qualname__)
-    else:
-        print('list.append')
-        print('len')
+    print([1, 2, 3].append.__qualname__)
+    print(len.__qualname__)
 
 
 def test_nested_qualname():

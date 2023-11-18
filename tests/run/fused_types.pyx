@@ -34,7 +34,7 @@ def test_pure():
     >>> test_pure()
     10
     """
-    mytype = pure_cython.typedef(pure_cython.fused_type(int, long, complex))
+    mytype = pure_cython.typedef(pure_cython.fused_type(int, complex))
     print(mytype(10))
 
 

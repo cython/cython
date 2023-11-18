@@ -57,10 +57,5 @@ def test_in_with(x):
     >>> test_in_with(b"abc")
     98
     """
-    if sys.version_info[0] < 3:
-        # Python 2 doesn't support memoryviews as context-managers
-        # so just skip the test
-        print(98)
-        return
     with memoryview(x) as xv:
         print(xv[1])

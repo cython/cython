@@ -1,4 +1,3 @@
-# cython: auto_pickle=False
 """
 Plex - Transition Maps
 
@@ -8,7 +7,7 @@ This version represents state sets directly as dicts for speed.
 maxint = 2**31-1  # sentinel value
 
 
-class TransitionMap(object):
+class TransitionMap:
     """
     A TransitionMap maps an input event to a set of states.
     An input event is one of: a range of character codes,

@@ -33,7 +33,7 @@ u1 = bs1
 s1 = bs1
 
 # errors:
-cdef char* c_f1   = u"abc"
+cdef char* c_f1   = u"\N{SNOWMAN}"  # not bytes compatible
 cdef char* c_f2   = u1
 cdef char* c_f3   = s1
 
