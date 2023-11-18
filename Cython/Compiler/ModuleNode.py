@@ -26,7 +26,7 @@ from . import TypeSlots
 from . import PyrexTypes
 from . import Pythran
 
-from .Errors import error, warning, CompileError
+from .Errors import error, warning, CompileError, format_position
 from .PyrexTypes import py_object_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
@@ -2628,6 +2628,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
             code.putln("{0, 0, 0, 0}")
             code.putln("};")
+
+            if weakref_entry:
+                position = format_position(weakref_entry.pos)
+                weakref_warn_mesage = (
+                    f"{position}: __weakref__ is unsupported in Limited API in Python <3.9")
+                # Note: Limited API rather than USE_TYPE_SPECS - we work round the issue
+                # with USE_TYPE_SPECS outside the limited API
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000")
+                code.putln("#if defined(__GNUC__) || defined(__clang__)")
+                code.putln(f'#warning "{weakref_warn_mesage}"')
+                code.putln("#elif defined(_MSC_VER)")
+                code.putln(f'#pragma message("{weakref_warn_mesage}")')
+                code.putln("#endif")
+                code.putln("#endif")
+
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.get_slot_table(code.globalstate.directives):
