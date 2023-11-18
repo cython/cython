@@ -2632,7 +2632,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if weakref_entry:
                 position = format_position(weakref_entry.pos)
                 weakref_warn_mesage = (
-                    f"{position}: __weakref__ is unsupported in Limited API in Python <3.9")
+                    f"{position}: __weakref__ is unsupported in the Limited API when "
+                    "running on Python <3.9.")
                 # Note: Limited API rather than USE_TYPE_SPECS - we work round the issue
                 # with USE_TYPE_SPECS outside the limited API
                 code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000")
