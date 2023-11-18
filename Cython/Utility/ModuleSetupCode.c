@@ -1221,6 +1221,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 /////////////// IncludeStructmemberH.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 #include <structmember.h>
 

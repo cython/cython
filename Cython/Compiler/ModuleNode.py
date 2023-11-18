@@ -2604,16 +2604,39 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             buffer_slot.generate_substructure(scope, code)
             code.putln("#endif")
 
-        code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
-        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
-            slot.generate_spec(scope, code)
-        code.putln("{0, 0},")
-        code.putln("};")
-
         if ext_type.typedef_flag:
             objstruct = ext_type.objstruct_cname
         else:
             objstruct = "struct %s" % ext_type.objstruct_cname
+
+        weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
+        if weakref_entry and weakref_entry.is_inherited:
+            weakref_entry = None  # only generate it for the defining class
+        generate_members = bool(weakref_entry)
+        if generate_members:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("IncludeStructmemberH", "ModuleSetupCode.c"))
+            code.putln("static PyMemberDef %s_members[] = {" % ext_type.typeobj_cname)
+            code.putln("#if !CYTHON_USE_TYPE_SLOTS")
+            if weakref_entry:
+                # Note that unlike the assignment of tp_weaklistoffset in the type-ready code
+                # used in the non-limited API case, this doesn't preserve the weaklistoffset
+                # from base classes.
+                # Practically that doesn't matter, but it isn't exactly the identical.
+                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), READONLY},'
+                           % (objstruct, weakref_entry.cname))
+            code.putln("#endif")
+            code.putln("{0, 0, 0, 0}")
+            code.putln("};")
+
+        code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
+            slot.generate_spec(scope, code)
+        if generate_members:
+            code.putln("{Py_tp_members, (void*)%s_members}," % ext_type.typeobj_cname)
+        code.putln("{0, 0},")
+        code.putln("};")
+
         classname = scope.class_name.as_c_string_literal()
         code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
