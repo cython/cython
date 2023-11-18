@@ -5161,6 +5161,36 @@ def widest_numeric_type(type1, type2):
     return widest_type
 
 
+
+def result_type_of_builtin_operation(builtin_type, type2):
+    """
+    Try to find a suitable (C) result type for a binary operation with a known builtin type.
+    """
+    if builtin_type.name == 'float':
+        if type2.is_numeric:
+            return widest_numeric_type(c_double_type, type2)
+        elif type2.is_builtin_type and type2.name == 'int':
+            return c_double_type
+        elif type2.is_builtin_type and type2.name == 'complex':
+            return type2
+    elif builtin_type.name == 'int':
+        if type2.is_int:
+            return builtin_type
+        elif type2.is_float or type2.is_builtin_type and type2.name == 'float':
+            return c_double_type
+        elif type2.is_builtin_type and type2.name == 'complex':
+            return type2
+    elif builtin_type.name == 'complex':
+        if type2.is_complex:
+            return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
+        elif type2.is_numeric:
+            return CComplexType(widest_numeric_type(c_double_type, type2))
+        elif type2.is_builtin_type and type2.name in ('int', 'float', 'complex'):
+            return CComplexType(c_double_type)
+
+    return None
+
+
 def numeric_type_fits(small_type, large_type):
     return widest_numeric_type(small_type, large_type) == large_type
 
@@ -5213,13 +5243,14 @@ def spanning_type(type1, type2):
         return py_object_type
     return span_type
 
+
 def _spanning_type(type1, type2):
     if type1.is_numeric and type2.is_numeric:
         return widest_numeric_type(type1, type2)
-    elif type1.is_builtin_type and type1.name == 'float' and type2.is_numeric:
-        return widest_numeric_type(c_double_type, type2)
-    elif type2.is_builtin_type and type2.name == 'float' and type1.is_numeric:
-        return widest_numeric_type(type1, c_double_type)
+    elif type1.is_builtin_type:
+        return result_type_of_builtin_operation(type1, type2) or py_object_type
+    elif type2.is_builtin_type:
+        return result_type_of_builtin_operation(type2, type1) or py_object_type
     elif type1.is_extension_type and type2.is_extension_type:
         return widest_extension_type(type1, type2)
     elif type1.is_pyobject or type2.is_pyobject:

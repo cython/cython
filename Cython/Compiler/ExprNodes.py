@@ -11840,6 +11840,12 @@ class NumBinopNode(BinopNode):
         else:
             return None
 
+    def infer_builtin_types_operation(self, type1, type2):
+        if type1.is_builtin_type:
+            return PyrexTypes.result_type_of_builtin_operation(type1, type2)
+        else:
+            return PyrexTypes.result_type_of_builtin_operation(type2, type1)
+
     def may_be_none(self):
         if self.type and self.type.is_builtin_type:
             # if we know the result type, we know the operation, so it can't be None
@@ -11961,7 +11967,7 @@ class AddNode(NumBinopNode):
         if type1 in string_types and type2 in string_types:
             return string_types[max(string_types.index(type1),
                                     string_types.index(type2))]
-        return None
+        return super().infer_builtin_types_operation(type1, type2)
 
     def compute_c_result_type(self, type1, type2):
         #print "AddNode.compute_c_result_type:", type1, self.operator, type2 ###
@@ -12098,7 +12104,7 @@ class MulNode(NumBinopNode):
             return type2
         if type2.is_int:
             return type1
-        return None
+        return super().infer_builtin_types_operation(type1, type2)
 
 
 class MatMultNode(NumBinopNode):
@@ -12106,6 +12112,10 @@ class MatMultNode(NumBinopNode):
 
     def is_py_operation_types(self, type1, type2):
         return True
+
+    def infer_builtin_types_operation(self, type1, type2):
+        # We really don't know anything about this operation.
+        return None
 
     def generate_evaluation_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("MatrixMultiply", "ObjectHandling.c"))
@@ -12158,6 +12168,16 @@ class DivNode(NumBinopNode):
         return self.result_type(
             self.operand1.infer_type(env),
             self.operand2.infer_type(env), env)
+
+    def infer_builtin_types_operation(self, type1, type2):
+        result_type = super().infer_builtin_types_operation(type1, type2)
+        if result_type is not None and self.operator == '/' and (self.truedivision or self.ctruedivision):
+            # Result of truedivision is not an integer
+            if result_type is Builtin.int_type:
+                return Builtin.float_type
+            elif result_type.is_int:
+                return PyrexTypes.widest_numeric_type(PyrexTypes.c_double_type, result_type)
+        return result_type
 
     def analyse_operation(self, env):
         self._check_truedivision(env)
@@ -12330,7 +12350,7 @@ class ModNode(DivNode):
                 return None   # RHS might implement '% operator differently in Py3
             else:
                 return basestring_type  # either str or unicode, can't tell
-        return None
+        return super().infer_builtin_types_operation(type1, type2)
 
     def zero_division_message(self):
         if self.type.is_int:
@@ -12415,6 +12435,10 @@ class PowNode(NumBinopNode):
     def analyse_types(self, env):
         self._check_cpow(env)
         return super().analyse_types(env)
+
+    def infer_builtin_types_operation(self, type1, type2):
+        # TODO
+        return None
 
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
