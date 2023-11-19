@@ -1026,8 +1026,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   // a little hacky, but it does work in the limited API .
   // (It doesn't work on PyPy but that probably isn't a bug.)
   #define __Pyx_SetItemOnTypeDict(tp, k, v) PyObject_GenericSetAttr((PyObject*)tp, k, v)
+  #define __Pyx_DelItemOnTypeDict(tp, k) PyObject_GenericSetAttr((PyObject*)tp, k, NULL)
 #else
   #define __Pyx_SetItemOnTypeDict(tp, k, v) PyDict_SetItem(tp->tp_dict, k, v)
+  #define __Pyx_DelItemOnTypeDict(tp, k, v) PyDict_DelItem(tp->tp_dict, k)
 #endif
 
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
