@@ -1894,13 +1894,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
+                # We we're using the module state then always go through the
+                # type heirarchy, because our access to the module state may
+                # have been lost (at least for the limited API version of
+                # using module state).
                 base_cname = base_type.typeptr_cname
+                code.putln("#if !CYTHON_USE_MODULE_STATE")
                 code.putln(
                     f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
-                code.putln(
-                    "e = ((likely(%s)) ? ((traverse) ? traverse(o, v, a) : 0) : "
-                    "__Pyx_call_next_tp_traverse(o, v, a, %s)); if (e) return e;" % (
-                        base_cname, slot_func))
+                code.putln("e = 0;")
+                code.putln("if (likely(%s)) {" % base_cname)
+                code.putln("if (traverse) { e = traverse(o, v, a); }")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{ e = __Pyx_call_next_tp_traverse(o, v, a, %s); }" % slot_func)
+                code.putln("if (e) return e;")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
             code.putln("}")
@@ -1964,11 +1972,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
+                # We we're using the module state then always go through the
+                # type heirarchy, because our access to the module state may
+                # have been lost (at least for the limited API version of
+                # using module state).
                 base_cname = base_type.typeptr_cname
+                code.putln("#if !CYTHON_USE_MODULE_STATE")
                 code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")
-                code.putln(
-                    "if (likely(%s)) { if (clear) clear(o); } else __Pyx_call_next_tp_clear(o, %s);" % (
-                        base_cname, slot_func))
+                code.putln("if (likely(%s)) {" % base_cname)
+                code.putln("if (clear) clear(o);")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("{ __Pyx_call_next_tp_clear(o, %s); }" % slot_func)
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpClear", "ExtensionTypes.c"))
             code.putln("}")
