@@ -8784,13 +8784,6 @@ utility_code_for_cimports = {
     'cython.view'           : cython_view_utility_code,
 }
 
-utility_code_for_imports = {
-    # utility code used when special modules are imported.
-    # TODO: Consider a generic user-level mechanism for importing
-    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Coroutine.c"),
-    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
-}
-
 def cimport_numpy_check(node, code):
     # shared code between CImportStatNode and FromCImportStatNode
     # check to ensure that import_array is called
