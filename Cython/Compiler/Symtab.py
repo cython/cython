@@ -1187,6 +1187,9 @@ class BuiltinScope(Scope):
                 str_is_str = language_level in (None, 2)
             if not str_is_str:
                 name = 'unicode'
+        if name == 'long' and language_level == 2:
+            # Keep recognising 'long' in legacy Py2 code but map it to 'int'.
+            name = 'int'
         return Scope.lookup(self, name)
 
     def declare_builtin(self, name, pos):

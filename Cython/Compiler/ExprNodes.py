@@ -29,7 +29,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode
+from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, typecast, error_type, \
     unspecified_type
@@ -37,7 +37,7 @@ from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
     unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
-    slice_type, long_type, sequence_types as builtin_sequence_types, memoryview_type,
+    slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
 from . import Symtab
@@ -1718,13 +1718,23 @@ class UnicodeNode(ConstNode):
             int_value = ord(self.value)
             return IntNode(self.pos, type=dst_type, value=str(int_value),
                            constant_result=int_value)
+        elif dst_type.is_pyunicode_ptr:
+            return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif not dst_type.is_pyobject:
-            if dst_type.is_string and self.bytes_value is not None:
-                # special case: '-3' enforced unicode literal used in a
-                # C char* context
-                return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-            if dst_type.is_pyunicode_ptr:
-                return UnicodeNode(self.pos, value=self.value, type=dst_type)
+            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int:
+                # Allow using '-3' enforced unicode literals in a C char/char* context.
+                if self.bytes_value is not None:
+                    return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
+                if env.directives['c_string_encoding']:
+                    try:
+                        byte_string = self.value.encode(env.directives['c_string_encoding'])
+                    except (UnicodeEncodeError, LookupError):
+                        pass
+                    else:
+                        return BytesNode(self.pos, value=byte_string).coerce_to(dst_type, env)
+                if self.value.isascii():
+                    return BytesNode(self.pos, value=StringEncoding.BytesLiteral(self.value.encode('ascii'))
+                                     ).coerce_to(dst_type, env)
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
@@ -1735,9 +1745,6 @@ class UnicodeNode(ConstNode):
 
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
-            ## or (len(self.value) == 2
-            ##     and (0xD800 <= self.value[0] <= 0xDBFF)
-            ##     and (0xDC00 <= self.value[1] <= 0xDFFF))
 
     def coerce_to_boolean(self, env):
         bool_value = bool(self.value)
@@ -2100,17 +2107,17 @@ class NameNode(AtomicExprNode):
         if type:
             return type
 
-        entry = self.entry if self.entry else env.lookup(self.name)
-
-        # Processing the entry if it exists.
-        if entry:
-            if not entry.is_type and entry.known_standard_library_import:
-                entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
-            if entry.is_type:
-                type = entry.type
-                if type.is_pyobject and type.equivalent_type:
-                    type = type.equivalent_type
-                return type
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
+        if entry and not entry.is_type and entry.known_standard_library_import:
+            entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
+        if entry and entry.is_type:
+            # Infer equivalent C types instead of Python types when possible.
+            type = entry.type
+            if type.is_pyobject and type.equivalent_type:
+                type = type.equivalent_type
+            return type
 
         if self.name == 'object':
             # This is normally parsed as "simple C type", but not if we don't parse C types.
@@ -2118,7 +2125,7 @@ class NameNode(AtomicExprNode):
 
         # Try to give a helpful warning when users write plain C type names.
         if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
-            warning(self.pos, "Found C type '%s' in a Python annotation. Did you mean to use 'cython.%s'?" % (self.name, self.name))
+            warning(self.pos, "Found C type name '%s' in a Python annotation. Did you mean to use 'cython.%s'?" % (self.name, self.name))
 
         return None
 
@@ -2769,11 +2776,6 @@ class ImportNode(ExprNode):
                 self.module_name.py_result(),
                 self.name_list.py_result() if self.name_list else '0',
                 self.level)
-
-        if self.level <= 0 and module_name in utility_code_for_imports:
-            helper_func, code_name, code_file = utility_code_for_imports[module_name]
-            code.globalstate.use_utility_code(UtilityCode.load_cached(code_name, code_file))
-            import_code = '%s(%s)' % (helper_func, import_code)
 
         code.putln("%s = %s; %s" % (
             self.result(),
@@ -10551,7 +10553,7 @@ class UnopNode(ExprNode):
         return self.infer_unop_type(env, operand_type)
 
     def infer_unop_type(self, env, operand_type):
-        if operand_type.is_pyobject:
+        if operand_type.is_pyobject and not operand_type.is_builtin_type:
             return py_object_type
         else:
             return operand_type
@@ -12014,10 +12016,10 @@ class MulNode(NumBinopNode):
     def calculate_is_sequence_mul(self):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if type1 is long_type or type1.is_int:
+        if type1 is Builtin.int_type or type1.is_int:
             # normalise to (X * int)
             type1, type2 = type2, type1
-        if type2 is long_type or type2.is_int:
+        if type2 is Builtin.int_type or type2.is_int:
             if type1.is_string or type1.is_ctuple:
                 return True
             if self.is_builtin_seqmul_type(type1):
@@ -14079,6 +14081,13 @@ class CoerceFromPyTypeNode(CoercionNode):
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,
                         "Obtaining '%s' from externally modifiable global Python value" % result_type,
+                        level=1)
+            if self.type.is_pyunicode_ptr:
+                warning(arg.pos,
+                        "Py_UNICODE* has been removed in Python 3.12. This conversion to a "
+                        "Py_UNICODE* will no longer compile in the latest Python versions. "
+                        "Use Python C API functions like PyUnicode_AsWideCharString if you "
+                        "need to obtain a wchar_t* on Windows (and free the string manually after use).",
                         level=1)
 
     def analyse_types(self, env):

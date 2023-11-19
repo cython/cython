@@ -27,7 +27,7 @@ class StringParseContext(Main.Context):
             include_directories = []
         if compiler_directives is None:
             compiler_directives = {}
-        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level='3str')
+        Main.Context.__init__(self, include_directories, compiler_directives, cpp=cpp, language_level='3')
         self.module_name = name
 
     def find_module(self, module_name, from_module=None, pos=None, need_pxd=1, absolute_fallback=True, relative_import=False):

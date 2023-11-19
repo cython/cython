@@ -152,8 +152,8 @@ Environment variables:
                       help='use Python 2 syntax mode by default')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
                       help='use Python 3 syntax mode by default')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
-                      help='use Python 3 syntax mode by default')
+    parser.add_argument('--3str', dest='language_level', action='store_const', const=3,
+                      help='use Python 3 syntax mode by default (deprecated alias for -3)')
     parser.add_argument('-+', '--cplus', dest='language', action='store_const', const='c++', default=None,
                         help='Compile as C++ rather than C')
     parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
