@@ -1795,9 +1795,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); "
-                           "else __Pyx_call_next_tp_dealloc(o, %s);" % (
-                               base_cname, base_cname, slot_func_cname))
+                # If we're using the module state then always go through the
+                # type hierarchy, because our access to the module state may
+                # have been lost (at least for the limited API version of
+                # using module state).
+                code.putln("#if !CYTHON_USE_MODULE_STATE")
+                code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); else" % (
+                    base_cname, base_cname))
+                code.putln("#endif")
+                code.putln("__Pyx_call_next_tp_dealloc(o, %s);" % slot_func_cname)
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
         else:
@@ -1894,8 +1900,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                # We we're using the module state then always go through the
-                # type heirarchy, because our access to the module state may
+                # If we're using the module state then always go through the
+                # type hierarchy, because our access to the module state may
                 # have been lost (at least for the limited API version of
                 # using module state).
                 base_cname = base_type.typeptr_cname
@@ -1972,8 +1978,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
-                # We we're using the module state then always go through the
-                # type heirarchy, because our access to the module state may
+                # If we're using the module state then always go through the
+                # type hierarchy, because our access to the module state may
                 # have been lost (at least for the limited API version of
                 # using module state).
                 base_cname = base_type.typeptr_cname
