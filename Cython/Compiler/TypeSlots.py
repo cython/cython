@@ -1096,7 +1096,7 @@ class SlotTable:
             EmptySlot("tp_weaklist"),
             EmptySlot("tp_del"),
             EmptySlot("tp_version_tag"),
-            SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1",
+            SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="CYTHON_USE_TP_FINALIZE",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
