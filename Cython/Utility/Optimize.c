@@ -407,7 +407,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
     } else if (PyList_CheckExact(iter_obj)) {
         Py_ssize_t pos = *ppos, iter_size;
         #if CYTHON_ASSUME_SAFE_MACROS
-        siiter_sizeze = PyList_GET_SIZE(iter_obj);
+        iter_size = PyList_GET_SIZE(iter_obj);
         #else
         iter_size = PyList_Size(iter_obj);
         if (unlikely(iter_size < 0)) return -1;
