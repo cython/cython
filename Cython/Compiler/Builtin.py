@@ -193,6 +193,10 @@ builtin_function_table = [
     #('map',       "",     "",      ""),
     #('max',       "",     "",      ""),
     #('min',       "",     "",      ""),
+    BuiltinFunction('next',       "O",    "O",     "__Pyx_PyIter_Next",
+                    utility_code = iter_next_utility_code),   # not available in Py2 => implemented here
+    BuiltinFunction('next',      "OO",    "O",     "__Pyx_PyIter_Next2",
+                    utility_code = iter_next_utility_code),  # not available in Py2 => implemented here
     #('oct',       "",     "",      ""),
     #('open',       "ss",   "O",     "PyFile_FromString"),   # not in Py3
 ] + [
