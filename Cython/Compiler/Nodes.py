@@ -4928,12 +4928,12 @@ class OverrideCheckNode(StatNode):
         else:
             code.putln("else if (unlikely(")
             code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
-            code.putln(f"(Py_TYPE({self_arg})->tp_dictoffset != 0)")
+            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0)")
             code.putln("#else")
             dict_str_const = code.get_py_string_const(EncodedString("__dict__"))
             code.putln(f'PyObject_HasAttr({self_arg}, {dict_str_const})')
             code.putln("#endif")
-            code.putln(" || __Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
+            code.putln(" || unlikely(__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE))))) {" % (
                 self_arg))
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
