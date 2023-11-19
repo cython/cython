@@ -1230,7 +1230,13 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 //@requires: CythonFunctionShared
 
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
-    Py_ssize_t i, count = PyList_GET_SIZE(cyfunctions);
+    Py_ssize_t i, count;
+#if CYTHON_ASSUME_SAFE_MACROS
+    count = PyList_GET_SIZE(cyfunctions);
+#else
+    count = PyList_Size(cyfunctions);
+    if (count < 0) return -1;
+#endif
 
     for (i = 0; i < count; i++) {
         __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *)
