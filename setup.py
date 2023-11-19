@@ -264,12 +264,12 @@ def run_build():
         This makes Cython the ideal language for writing glue code for external
         C/C++ libraries, and for fast C modules that speed up the execution of
         Python code.
-
-        The newest Cython release can always be downloaded from https://cython.org/.
+        
+        The newest Cython release can always be downloaded from https://cython.org/. 
         Unpack the tarball or zip file, enter the directory, and then run::
-
+        
             pip install .
-
+            
         Note that for one-time builds, e.g. for CI/testing, on platforms that are not
         covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
         that we provide is not used, it is substantially faster than a full source build
