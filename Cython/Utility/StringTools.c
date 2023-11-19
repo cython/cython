@@ -75,7 +75,7 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 
 //////////////////// PyUCS4InUnicode ////////////////////
 
-#if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
+#if (PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE)) && !CYTHON_COMPILING_IN_LIMITED_API)
 
 #if PY_VERSION_HEX < 0x03090000
 #define __Pyx_PyUnicode_AS_UNICODE(op) PyUnicode_AS_UNICODE(op)
@@ -113,6 +113,14 @@ static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t 
 #endif
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Note that from Python 3.7, the indices of FindChar account for wraparound so no
+    // need to check the length
+    Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, -1, 1);
+    if (idx == -1) return 0;  // not found
+    else if (unlikely(idx < 0)) return -1; // error
+    else return 1; // found
+#else
     const int kind = PyUnicode_KIND(unicode);
     #ifdef PyUnicode_WCHAR_KIND
     if (likely(kind != PyUnicode_WCHAR_KIND))
@@ -143,6 +151,7 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
             character);
 
     }
+#endif
 #endif
 }
 
@@ -550,12 +559,18 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytearray(
 
 /////////////// PyUnicode_Substring.proto ///////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop);
+#else
+// In the limited API since 3.7
+#define __Pyx_PyUnicode_Substring(text, start, stop) PyUnicode_Substring(text, start, stop)
+#endif
 
 /////////////// PyUnicode_Substring ///////////////
 //@substitute: naming
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
@@ -577,6 +592,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
 }
+#endif
 
 
 /////////////// py_unicode_istitle.proto ///////////////

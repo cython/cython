@@ -361,8 +361,20 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
             }
             Py_INCREF(key);
             Py_INCREF(value);
+            #if CYTHON_ASSUME_SAFE_MACROS
             PyTuple_SET_ITEM(tuple, 0, key);
             PyTuple_SET_ITEM(tuple, 1, value);
+            #else
+            if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
+                Py_DECREF(value); // we haven't set this yet
+                Py_DECREF(tuple);
+                return -1;
+            }
+            if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
+                Py_DECREF(tuple);
+                return -1;
+            }
+            #endif
             *pitem = tuple;
         } else {
             if (pkey) {
@@ -376,16 +388,38 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         }
         return 1;
     } else if (PyTuple_CheckExact(iter_obj)) {
-        Py_ssize_t pos = *ppos;
-        if (unlikely(pos >= PyTuple_GET_SIZE(iter_obj))) return 0;
+        Py_ssize_t pos = *ppos, iter_size;
+        #if CYTHON_ASSUME_SAFE_MACROS
+        iter_size = PyTuple_GET_SIZE(iter_obj);
+        #else
+        iter_size = PyTuple_Size(iter_obj);
+        if (unlikely(iter_size < 0)) return -1;
+        #endif
+        if (unlikely(pos >= iter_size)) return 0;
         *ppos = pos + 1;
+        #if CYTHON_ASSUME_SAFE_MACROS
         next_item = PyTuple_GET_ITEM(iter_obj, pos);
+        #else
+        next_item = PyTuple_GetItem(iter_obj, pos);
+        if (unlikely(!next_item)) return -1;
+        #endif
         Py_INCREF(next_item);
     } else if (PyList_CheckExact(iter_obj)) {
-        Py_ssize_t pos = *ppos;
-        if (unlikely(pos >= PyList_GET_SIZE(iter_obj))) return 0;
+        Py_ssize_t pos = *ppos, iter_size;
+        #if CYTHON_ASSUME_SAFE_MACROS
+        siiter_sizeze = PyList_GET_SIZE(iter_obj);
+        #else
+        iter_size = PyList_Size(iter_obj);
+        if (unlikely(iter_size < 0)) return -1;
+        #endif
+        if (unlikely(pos >= iter_size)) return 0;
         *ppos = pos + 1;
+        #if CYTHON_ASSUME_SAFE_MACROS
         next_item = PyList_GET_ITEM(iter_obj, pos);
+        #else
+        next_item = PyList_GetItem(iter_obj, pos);
+        if (unlikely(!next_item)) return -1;
+        #endif
         Py_INCREF(next_item);
     } else
 #endif

@@ -331,15 +331,33 @@ static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 static long __Pyx__PyObject_Ord(PyObject* c) {
     Py_ssize_t size;
     if (PyBytes_Check(c)) {
+        #if CYTHON_ASSUME_SAFE_MACROS
         size = PyBytes_GET_SIZE(c);
         if (likely(size == 1)) {
             return (unsigned char) PyBytes_AS_STRING(c)[0];
         }
-#if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
+        #else
+        size = PyBytes_Size(c);
+        if (unlikely(size) < 0) return -1;
+        else if (likely(size==1)) {
+            char *data = PyBytes_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
+        }
+        #endif
     } else if (PyByteArray_Check(c)) {
+#if CYTHON_ASSUME_SAFE_MACROS
         size = PyByteArray_GET_SIZE(c);
         if (likely(size == 1)) {
             return (unsigned char) PyByteArray_AS_STRING(c)[0];
+        }
+#else
+        size = PyByteArray_Size(c);
+        if (unlikely(size<0)) return -1;
+        else if (likely(size == 1)) {
+            char *data = PyByteArray_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
         }
 #endif
     } else {
@@ -475,8 +493,22 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x031000A1))
             return result;
+        {
+            Py_ssize_t size;
+            #if CYTHON_ASSUME_SAFE_MACROS
+            size = PySet_GET_SIZE(result);
+            #else
+            size = PySet_Size(result);
+            if (size < 0) {
+                Py_DECREF(result);
+                return NULL;
+            }
+            #endif
+            if (likely(size))
+                return result;
+        }
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
