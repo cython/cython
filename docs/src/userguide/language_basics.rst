@@ -288,7 +288,7 @@ Types
 
 The Cython language uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
-``long long`` as well as their ``/unsigned`` versions,
+``long long`` as well as their ``unsigned`` versions,
 e.g. ``unsigned int`` (``cython.uint`` in Python code):
 
 
