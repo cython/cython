@@ -1755,7 +1755,6 @@ class UnicodeNode(ConstNode):
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            # In Python 3, all strings are Unicode
             self.result_code = code.get_py_string_const(self.value)
         else:
             self.result_code = code.get_pyunicode_ptr_const(self.value)
@@ -1768,7 +1767,7 @@ class UnicodeNode(ConstNode):
 
 
 class StringNode(PyConstNode):
-    # In Python 3.x, all strings are Unicode.
+    # An unprefixed string literal.
     #
     # value          String literal
     # is_identifier  boolean
@@ -1778,7 +1777,6 @@ class StringNode(PyConstNode):
     is_identifier = None
 
     def calculate_constant_result(self):
-        # The value is already in the correct format (Unicode).
         self.constant_result = self.value
 
     def analyse_as_type(self, env):
@@ -2097,13 +2095,11 @@ class NameNode(AtomicExprNode):
 
     def analyse_as_type(self, env):
         type = None
-        # Determine the type based on attributes or context.
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
         elif env.in_c_type_context:
             type = PyrexTypes.parse_basic_type(self.name)
 
-        # If a type has been determined, return it.
         if type:
             return type
 
