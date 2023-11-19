@@ -3,12 +3,11 @@
 # tag: cyfunction, closures
 
 cimport cython
-import sys
+
 
 def get_defaults(func):
-    if sys.version_info >= (2, 6, 0):
-        return func.__defaults__
-    return func.func_defaults
+    return func.__defaults__
+
 
 def test_defaults_none():
     """

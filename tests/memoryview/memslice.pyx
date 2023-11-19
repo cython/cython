@@ -18,10 +18,7 @@ from functools import wraps
 import gc
 import sys
 
-if sys.version_info[0] < 3:
-    import __builtin__ as builtins
-else:
-    import builtins
+import builtins
 
 try:
     from Cython.Tests.this_module_does_not_exist import *
@@ -1081,9 +1078,12 @@ def printbuf_object(object[:] buf, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])  # , writable=False)
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
@@ -1728,7 +1728,7 @@ def test_oob():
     print a[:, 20]
 
 
-cdef int nogil_oob(int[:, :] a) nogil except 0:
+cdef int nogil_oob(int[:, :] a) except 0 nogil:
     a[100, 9:]
     return 1
 
@@ -1772,7 +1772,7 @@ def test_nogil_oob2():
         a[100, 9:]
 
 @cython.boundscheck(False)
-cdef int cdef_nogil(int[:, :] a) nogil except 0:
+cdef int cdef_nogil(int[:, :] a) except 0 nogil:
     cdef int i, j
     cdef int[:, :] b = a[::-1, 3:10:2]
     for i in range(b.shape[0]):
@@ -1927,16 +1927,6 @@ cdef test_structs_with_arr(FusedStruct array[10]):
             myslice1[i].ints[j] = i
         for j in range(3):
             myslice1[i].chars[j] = 97 + j
-
-    if (2, 7) <= sys.version_info[:2] < (3, 3):
-        size1 = <Py_ssize_t>sizeof(FusedStruct)
-        size2 = len(builtins.memoryview(myslice1)[0])
-        assert size1 == size2, (size1, size2, builtins.memoryview(myslice1).format)
-
-        myslice2 = builtins.memoryview(myslice1)
-        for i in range(10):
-            assert myslice2[i].ints[i] == myslice1[i].ints[i]
-            assert myslice2[i].chars[i] == myslice1[i].chars[i]
 
     myslice3 = <object> myslice1
     myslice4 = myslice1

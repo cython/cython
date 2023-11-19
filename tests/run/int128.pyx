@@ -1,3 +1,4 @@
+# mode: run
 
 cdef extern from *:
     ctypedef long long int128_t "__int128_t"
@@ -60,7 +61,16 @@ def unsigned_conversion(x):
     340282366920938463463374607431768211455
     >>> bigint(unsigned_conversion(2**128))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    OverflowError: ... too big to convert
+    OverflowError: ... to convert...
+    >>> bigint(unsigned_conversion(2**128+1))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ... to convert...
+    >>> bigint(unsigned_conversion(2**129-1))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ... to convert...
+    >>> bigint(unsigned_conversion(2**129))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ... to convert...
     """
     cdef uint128_t n = x
     return n
@@ -108,12 +118,23 @@ def signed_conversion(x):
     170141183460469231731687303715884105727
     >>> bigint(signed_conversion(2**127))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    OverflowError: ... too big to convert
+    OverflowError: ... to convert...
+    >>> bigint(signed_conversion(-2**127+1))
+    -170141183460469231731687303715884105727
     >>> bigint(signed_conversion(-2**127))
     -170141183460469231731687303715884105728
     >>> bigint(signed_conversion(-2**127-1))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    OverflowError: ... too big to convert
+    OverflowError: ... to convert...
+    >>> bigint(signed_conversion(-2**127-2))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ... to convert...
+    >>> bigint(signed_conversion(-2**128+1))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ... to convert...
+    >>> bigint(signed_conversion(-2**128))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    OverflowError: ... to convert...
     """
     cdef int128_t n = x
     return n

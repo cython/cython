@@ -8,13 +8,6 @@ import types
 import decimal
 import unittest
 
-import sys
-IS_PY2 = sys.version_info[0] < 3
-if IS_PY2:
-    # Define `ascii` as `repr` for Python2 as it functions
-    # the same way in that version.
-    ascii = repr
-
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
@@ -53,17 +46,6 @@ class TestCase(CythonTest):
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
                     init_thread()  # reset error status
-
-    if IS_PY2:
-        def assertEqual(self, first, second, msg=None):
-            # strip u'' string prefixes in Py2
-            if first != second and isinstance(first, unicode):
-                stripped_first = first.replace(u"u'", u"'").replace(u'u"', u'"')
-                if stripped_first == second:
-                    first = second
-                elif u'\\' in stripped_first and stripped_first.encode('utf8').decode('unicode_escape') == second:
-                    first = second
-            super(TestCase, self).assertEqual(first, second, msg)
 
     def test__format__lookup(self):
         # Make sure __format__ is looked up on the type, not the instance.
@@ -754,8 +736,7 @@ non-important content
     def test_lambda(self):
         x = 5
         self.assertEqual(f'{(lambda y:x*y)("8")!r}', "'88888'")
-        if not IS_PY2:
-            self.assertEqual(f'{(lambda y:x*y)("8")!r:10}', "'88888'   ")
+        self.assertEqual(f'{(lambda y:x*y)("8")!r:10}', "'88888'   ")
         self.assertEqual(f'{(lambda y:x*y)("8"):10}', "88888     ")
 
         # lambda doesn't work without parens, because the colon
@@ -1084,7 +1065,7 @@ non-important content
 
     def test_errors(self):
         # see issue 26287
-        exc = ValueError if sys.version_info < (3, 4) else TypeError
+        exc = TypeError
         self.assertAllRaise(exc, 'unsupported',
                             [r"f'{(lambda: 0):x}'",
                              r"f'{(0,):x}'",
@@ -1149,8 +1130,7 @@ non-important content
         self.assertEqual(f'{tenπ=:.2f}', 'tenπ=31.40')
 
         # Also test with Unicode in non-identifiers.
-        if not IS_PY2:  # unicode representation looks different right now - not sure if that's a good thing
-            self.assertEqual(f'{"Σ"=}', '"Σ"=\'Σ\'')
+        self.assertEqual(f'{"Σ"=}', '"Σ"=\'Σ\'')
 
         # Make sure nested fstrings still work.
         self.assertEqual(f'{f"{3.1415=:.1f}":*^20}', '*****3.1415=3.1*****')
@@ -1158,8 +1138,7 @@ non-important content
         # Make sure text before and after an expression with = works
         # correctly.
         pi = 'π'
-        if not IS_PY2:  # unicode representation looks different right now - not sure if that's a good thing
-            self.assertEqual(f'alpha α {pi=} ω omega', u"alpha α pi='π' ω omega")
+        self.assertEqual(f'alpha α {pi=} ω omega', u"alpha α pi='π' ω omega")
 
         # Check multi-line expressions.
         self.assertEqual(f'''{

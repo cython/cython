@@ -40,20 +40,17 @@ cdef class Cls(object):
 
 
 _ERRORS = """
-13:42: typing.Optional[...] cannot be applied to non-Python type int
-13:66: typing.Optional[...] cannot be applied to non-Python type double
-13:93: typing.Optional[...] cannot be applied to non-Python type float
-14:42: typing.Optional[...] cannot be applied to non-Python type double complex
-14:70: typing.Optional[...] cannot be applied to non-Python type long
-14:95: typing.Optional[...] cannot be applied to non-Python type long long
-24:30: typing.Optional[...] cannot be applied to non-Python type int
-24:47: typing.Optional[...] cannot be applied to non-Python type float
-24:87: typing.Optional[...] cannot be applied to non-Python type long
+13:42: typing.Optional[...] cannot be applied to type int
+13:66: typing.Optional[...] cannot be applied to type double
+13:93: typing.Optional[...] cannot be applied to type float
+14:42: typing.Optional[...] cannot be applied to type double complex
+14:70: typing.Optional[...] cannot be applied to type long
+14:95: typing.Optional[...] cannot be applied to type long long
+24:30: typing.Optional[...] cannot be applied to type int
+24:47: typing.Optional[...] cannot be applied to type float
+24:87: typing.Optional[...] cannot be applied to type long
 
-20:30: typing.Optional[...] cannot be applied to non-Python type MyStruct
+20:30: typing.Optional[...] cannot be applied to type MyStruct
 
 28:20: Modifier 'typing.ClassVar' is not allowed here.
-
-# FIXME: this should be ok :-?
-33:52: typing.Optional[...] cannot be applied to non-Python type double[:]
 """

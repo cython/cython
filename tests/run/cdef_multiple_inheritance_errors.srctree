@@ -87,9 +87,5 @@ try:
 except TypeError as msg:
     assert str(msg) == "extension type 'nodict.X' has no __dict__ slot, but base type 'Py' has: either add 'cdef dict __dict__' to the extension type or add '__slots__ = [...]' to the base type"
 
-try:
-    # This should work on Python 3 but fail on Python 2
-    import oldstyle
-    assert sys.version_info[0] >= 3, "oldstyle"
-except TypeError as msg:
-    assert str(msg) == "base class 'OldStyle' is an old-style class"
+# old-style classes are regular classes in Py3, so this should just work:
+import oldstyle

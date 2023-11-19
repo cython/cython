@@ -12,7 +12,7 @@ Using Parallelism
     ../two-syntax-variants-used
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the GIL must be released
+module. To use this kind of parallelism, the :term:`GIL<Global Interpreter Lock or GIL>` must be released
 (see :ref:`Releasing the GIL <nogil>`).
 It currently supports OpenMP, but later on more backends might be supported.
 
@@ -187,7 +187,7 @@ enable OpenMP.  For gcc this can be done as follows in a ``setup.py``:
 
         .. literalinclude:: ../../examples/userguide/parallelism/setup_pyx.py
 
-For Microsoft Visual C++ compiler, use ``'/openmp'`` instead of ``'-fopenmp'``.
+For the Microsoft Visual C++ compiler, use ``'/openmp'`` instead of ``'-fopenmp'`` for the ``'extra_compile_args'`` option. Don't add any OpenMP flags to the ``'extra_link_args'`` option.
 
 
 Breaking out of loops

@@ -17,6 +17,10 @@ __doc__ = u"""
   3
   >>> i.HERE
   1
+  >>> i_called_directly(4)
+  3
+  >>> i_called_directly.HERE
+  1
 """
 
 class wrap:
@@ -61,6 +65,35 @@ a = A()
 @a.decorate
 def i(x):
     return x - 1
+
+@A().decorate
+def i_called_directly(x):
+    # PEP 614 means this now works
+    return x - 1
+
+list_of_decorators = [decorate, decorate2]
+
+@list_of_decorators[0]
+def test_index_from_decorator_list0(a, b):
+    """
+    PEP 614 means this now works
+    >>> test_index_from_decorator_list0(1, 2)
+    4
+    >>> test_index_from_decorator_list0.HERE
+    1
+    """
+    return a+b+1
+
+@list_of_decorators[1](1,2)
+def test_index_from_decorator_list1(a, b):
+    """
+    PEP 614 means this now works
+    >>> test_index_from_decorator_list1(1, 2)
+    4
+    >>> test_index_from_decorator_list1.HERE
+    1
+    """
+    return a+b+1
 
 def append_to_list_decorator(lst):
     def do_append_to_list_dec(func):

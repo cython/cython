@@ -48,6 +48,27 @@ def list_times_cint(n: cython.int):
 
 @cython.test_fail_if_path_exists("//MulNode")
 @cython.test_assert_path_exists("//TupleNode[@mult_factor]")
+def const_times_tuple(v: cython.int):
+    """
+    >>> const_times_tuple(4)
+    ()
+    (None, None)
+    (4, 4)
+    (1, 2, 3, 1, 2, 3)
+    """
+    a = 2 * ()
+    b = 2 * (None,)
+    c = 2 * (v,)
+    d = 2 * (1, 2, 3)
+
+    print(a)
+    print(b)
+    print(c)
+    print(d)
+
+
+@cython.test_fail_if_path_exists("//MulNode")
+@cython.test_assert_path_exists("//TupleNode[@mult_factor]")
 def cint_times_tuple(n: cython.int):
     """
     >>> cint_times_tuple(3)

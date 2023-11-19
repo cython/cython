@@ -1,0 +1,23 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; assert a.a == 5"
+
+######## setup.py ########
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(
+    name="My hello app",
+    ext_modules=cythonize("a.pyx", include_path=['include']),
+)
+
+######## a.pyx ########
+
+from test.ext cimport bar
+
+a = bar()
+
+######## include/test.ext.pxd ########
+
+cdef inline int bar():
+    return 5

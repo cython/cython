@@ -2,7 +2,6 @@
 #   Cython - Command Line Parsing
 #
 
-from __future__ import absolute_import
 
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
@@ -122,9 +121,8 @@ def create_cython_argparser():
                       help='Compile based on Python-2 syntax and code semantics.')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
                       help='Compile based on Python-3 syntax and code semantics.')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
-                      help='Compile based on Python-3 syntax and code semantics without '
-                           'assuming unicode by default for string literals under Python 2.')
+    parser.add_argument('--3str', dest='language_level', action='store_const', const='3',
+                      help='Compile based on Python-3 syntax and code semantics (same as -3 since Cython 3.1).')
     parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
                       help='Change some compile time errors to runtime errors to '
                            'improve Python compatibility')
@@ -209,6 +207,14 @@ def parse_command_line_raw(parser, args):
 def parse_command_line(args):
     parser = create_cython_argparser()
     arguments, sources = parse_command_line_raw(parser, args)
+
+    work_dir = getattr(arguments, 'working_path', '')
+    for source in sources:
+        if work_dir and not os.path.isabs(source):
+            source = os.path.join(work_dir, source)
+        if not os.path.exists(source):
+            import errno
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), source)
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():

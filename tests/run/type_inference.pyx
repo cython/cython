@@ -178,13 +178,15 @@ def unary_operators():
     cdef some_class obj
     assert typeof(~obj) == "Python object", typeof(~obj)
     a = int(1)
-    assert typeof(a) == "Python object", typeof(a)
+    assert typeof(a) == "int object", typeof(a)
     b = not int(3)
     assert typeof(b) == "bint", typeof(b)
     c = +int(3)
-    assert typeof(c) == "Python object", typeof(c)
+    assert typeof(c) == "int object", typeof(c)
     d = -int(5)
-    assert typeof(d) == "Python object", typeof(d)
+    assert typeof(d) == "int object", typeof(d)
+    e = ~int(5)
+    assert typeof(e) == "int object", typeof(e)
 
 
 def builtin_type_operations():
@@ -242,7 +244,7 @@ def c_functions():
     >>> c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 def builtin_functions():
@@ -531,13 +533,19 @@ def safe_only():
     cdef int c_int = 1
     assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
+    # float can be inferred
+    cdef float fl = 5.0
+    from_fl = fl
+    assert typeof(from_fl) == "float", typeof(from_fl)
+
+
 @infer_types(None)
 def safe_c_functions():
     """
     >>> safe_c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 @infer_types(None)
