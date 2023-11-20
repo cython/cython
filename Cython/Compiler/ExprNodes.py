@@ -13,8 +13,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object, _py_int_types=object,
-               IS_PYTHON3=cython.bint)
+               builtin_sequence_types=object)
 
 import re
 import sys
