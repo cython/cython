@@ -12144,16 +12144,13 @@ class DivNode(NumBinopNode):
         op1 = self.operand1.constant_result
         op2 = self.operand2.constant_result
         func = self.find_compile_time_binary_operator(op1, op2)
-        self.constant_result = func(
-            self.operand1.constant_result,
-            self.operand2.constant_result)
+        self.constant_result = func(op1, op2)
 
     def compile_time_value(self, denv):
         operand1 = self.operand1.compile_time_value(denv)
         operand2 = self.operand2.compile_time_value(denv)
+        func = self.find_compile_time_binary_operator(operand1, operand2)
         try:
-            func = self.find_compile_time_binary_operator(
-                operand1, operand2)
             return func(operand1, operand2)
         except Exception as e:
             self.compile_time_value_error(e)
@@ -12172,12 +12169,16 @@ class DivNode(NumBinopNode):
 
     def infer_builtin_types_operation(self, type1, type2):
         result_type = super().infer_builtin_types_operation(type1, type2)
-        if result_type is not None and self.operator == '/' and (self.truedivision or self.ctruedivision):
-            # Result of truedivision is not an integer
-            if result_type is Builtin.int_type:
-                return Builtin.float_type
-            elif result_type.is_int:
-                return PyrexTypes.widest_numeric_type(PyrexTypes.c_double_type, result_type)
+        if result_type is not None and self.operator == '/':
+            if self.truedivision or self.ctruedivision:
+                # Result of truedivision is not an integer
+                if result_type is Builtin.int_type:
+                    return PyrexTypes.c_double_type
+                elif result_type.is_int:
+                    return PyrexTypes.widest_numeric_type(PyrexTypes.c_double_type, result_type)
+            elif result_type is Builtin.int_type or result_type.is_int:
+                # Cannot infer 'int' since the result might be a 'float' in Python 3
+                result_type = None
         return result_type
 
     def analyse_operation(self, env):
