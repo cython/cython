@@ -12040,6 +12040,10 @@ class MulNode(NumBinopNode):
                 return self.analyse_sequence_mul(env, operand1, operand2)
             elif operand2.is_sequence_constructor and operand2.mult_factor is None:
                 return self.analyse_sequence_mul(env, operand2, operand1)
+            elif operand1.type in builtin_sequence_types:
+                self.operand2 = operand2.coerce_to_index(env)
+            elif operand2.type in builtin_sequence_types:
+                self.operand1 = operand1.coerce_to_index(env)
 
         self.analyse_operation(env)
         return self
@@ -12064,7 +12068,7 @@ class MulNode(NumBinopNode):
     def analyse_sequence_mul(self, env, seq, mult):
         assert seq.mult_factor is None
         seq = seq.coerce_to_pyobject(env)
-        seq.mult_factor = mult
+        seq.mult_factor = mult.coerce_to_index(env)
         return seq.analyse_types(env)
 
     def coerce_operands_to_pyobjects(self, env):
