@@ -5161,28 +5161,26 @@ def widest_numeric_type(type1, type2):
     return widest_type
 
 
-
 def result_type_of_builtin_operation(builtin_type, type2):
     """
     Try to find a suitable (C) result type for a binary operation with a known builtin type.
     """
-    assert builtin_type != type2
     if builtin_type.name == 'float':
         if type2.is_numeric:
             return widest_numeric_type(c_double_type, type2)
-        elif type2.is_builtin_type and type2.name == 'int':
+        elif type2.is_builtin_type and type2.name in ('int', 'float'):
             return c_double_type
         elif type2.is_builtin_type and type2.name == 'complex':
             return type2
     elif builtin_type.name == 'int':
-        if type2.is_int:
+        if type2 == builtin_type or type2.is_int:
             return builtin_type
         elif type2.is_float or type2.is_builtin_type and type2.name == 'float':
             return c_double_type
         elif type2.is_builtin_type and type2.name == 'complex':
             return type2
     elif builtin_type.name == 'complex':
-        if type2.is_complex:
+        if type2 == builtin_type or type2.is_complex:
             return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
         elif type2.is_numeric:
             return CComplexType(widest_numeric_type(c_double_type, type2))
