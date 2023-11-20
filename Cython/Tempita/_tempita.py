@@ -1,5 +1,3 @@
-# cython: language_level=3str
-
 """
 A small templating language
 

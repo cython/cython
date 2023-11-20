@@ -652,6 +652,18 @@ efficient character switching code, e.g. in unicode parsers.
 Windows and wide character APIs
 -------------------------------
 
+.. Warning::
+
+    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
+    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
+    portable between different platforms and Python versions.
+
+    Support for the ``Py_UNICODE`` C-API has been removed in CPython 3.12.
+    Code that uses it will no longer compile in recent CPython releases.
+    Since version 3.3, CPython provides a flexible internal representation of
+    unicode strings (:pep:`393`), that makes all :c:type:`Py_UNICODE` related
+    APIs deprecated and inefficient.
+
 Windows system APIs natively support Unicode in the form of
 zero-terminated UTF-16 encoded :c:type:`wchar_t*` strings, so called
 "wide strings".
@@ -685,16 +697,6 @@ Here is an example of how one would call a Unicode API on Windows::
 
     title = u"Windows Interop Demo - Python %d.%d.%d" % sys.version_info[:3]
     MessageBoxW(NULL, u"Hello Cython \u263a", title, 0)
-
-.. Warning::
-
-    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
-    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
-    portable between different platforms and Python versions.
-
-    CPython 3.3 has moved to a flexible internal representation of
-    unicode strings (:pep:`393`), making all :c:type:`Py_UNICODE` related
-    APIs deprecated and inefficient.
 
 One consequence of CPython 3.3 changes is that :py:func:`len` of
 :obj:`unicode` strings is always measured in *code points* ("characters"),

@@ -1,4 +1,3 @@
-# cython: language_level=3str
 # cython: auto_pickle=True
 
 

@@ -5,12 +5,12 @@
 
 import cython
 
-cython.declare(sys=object, os=object, copy=object,
+cython.declare(os=object, copy=object, chain=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               error_type=object, _py_int_types=object)
+               error_type=object)
 
 import copy
 from itertools import chain
@@ -31,9 +31,6 @@ from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
 from ..Utils import add_metaclass, str_to_number
-
-
-_py_int_types = int
 
 
 IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
@@ -6213,7 +6210,7 @@ class SingleAssignmentNode(AssignmentNode):
                     if node.type.is_array and node.type.size:
                         stop_node = ExprNodes.IntNode(
                             self.pos, value=str(node.type.size),
-                            constant_result=(node.type.size if isinstance(node.type.size, _py_int_types)
+                            constant_result=(node.type.size if isinstance(node.type.size, int)
                                              else ExprNodes.constant_value_not_set))
                     else:
                         error(self.pos, "C array iteration requires known end index")
@@ -6239,7 +6236,7 @@ class SingleAssignmentNode(AssignmentNode):
 
             elif node.type.is_array:
                 slice_size = node.type.size
-                if not isinstance(slice_size, _py_int_types):
+                if not isinstance(slice_size, int):
                     return  # might still work when coercing to Python
             else:
                 return
@@ -8785,13 +8782,6 @@ utility_code_for_cimports = {
     'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
-}
-
-utility_code_for_imports = {
-    # utility code used when special modules are imported.
-    # TODO: Consider a generic user-level mechanism for importing
-    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Coroutine.c"),
-    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
 }
 
 def cimport_numpy_check(node, code):

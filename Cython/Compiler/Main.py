@@ -101,10 +101,8 @@ class Context:
             level = 3
         else:
             level = int(level)
-            if level >= 3:
-                future_directives.add(unicode_literals)
         if level >= 3:
-            future_directives.update([print_function, absolute_import, division, generator_stop])
+            future_directives.update([unicode_literals, print_function, absolute_import, division, generator_stop])
         self.language_level = level
         self.future_directives = future_directives
         if level >= 3:

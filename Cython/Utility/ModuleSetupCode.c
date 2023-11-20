@@ -243,7 +243,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
 
-#elif defined(PY_NOGIL)
+#elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
@@ -1184,8 +1184,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #define PyInt_Type                   PyLong_Type
 #define PyInt_Check(op)              PyLong_Check(op)
 #define PyInt_CheckExact(op)         PyLong_CheckExact(op)
-#define __Pyx_Py3Int_Check(op)       PyLong_Check(op)
-#define __Pyx_Py3Int_CheckExact(op)  PyLong_CheckExact(op)
 #define PyInt_FromString             PyLong_FromString
 #define PyInt_FromUnicode            PyLong_FromUnicode
 #define PyInt_FromLong               PyLong_FromLong

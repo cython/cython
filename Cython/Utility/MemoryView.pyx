@@ -1,6 +1,6 @@
 #################### View.MemoryView ####################
 
-# cython: language_level=3str
+# cython: language_level=3
 # cython: binding=False
 
 # This utility provides cython.array and cython.view.memoryview

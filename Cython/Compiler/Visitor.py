@@ -1,6 +1,4 @@
 # cython: infer_types=True
-# cython: language_level=3str
-# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework
@@ -21,9 +19,7 @@ from . import Future
 import cython
 
 
-cython.declare(_PRINTABLE=tuple)
-
-_PRINTABLE = (bytes, str, int, float)
+_PRINTABLE = cython.declare(tuple, (bytes, str, int, float, complex))
 
 
 class TreeVisitor:
