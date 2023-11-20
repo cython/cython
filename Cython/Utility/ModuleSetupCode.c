@@ -243,7 +243,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
 
-#elif defined(PY_NOGIL)
+#elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
