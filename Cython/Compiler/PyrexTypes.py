@@ -5166,6 +5166,7 @@ def result_type_of_builtin_operation(builtin_type, type2):
     """
     Try to find a suitable (C) result type for a binary operation with a known builtin type.
     """
+    assert builtin_type != type2
     if builtin_type.name == 'float':
         if type2.is_numeric:
             return widest_numeric_type(c_double_type, type2)
