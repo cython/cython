@@ -1121,12 +1121,9 @@ class ExprNode(Node):
             error(self.pos, "Type '%s' not acceptable as a boolean" % type)
             return self
 
-    def coerce_to_integer(self, env):
-        # If not already some C integer type, coerce to longint.
-        if self.type.is_int:
-            return self
-        else:
-            return self.coerce_to(PyrexTypes.c_long_type, env)
+    def coerce_to_index(self, env):
+        # If not already some C integer type, coerce to Py_ssize_t.
+        return self if self.type.is_int else self.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
 
     def coerce_to_temp(self, env):
         #  Ensure that the result is in a temporary.
@@ -5832,11 +5829,11 @@ class SliceIntNode(SliceNode):
         self.step = self.step.analyse_types(env)
 
         if not self.start.is_none:
-            self.start = self.start.coerce_to_integer(env)
+            self.start = self.start.coerce_to_index(env)
         if not self.stop.is_none:
-            self.stop = self.stop.coerce_to_integer(env)
+            self.stop = self.stop.coerce_to_index(env)
         if not self.step.is_none:
-            self.step = self.step.coerce_to_integer(env)
+            self.step = self.step.coerce_to_index(env)
 
         if self.start.is_literal and self.stop.is_literal and self.step.is_literal:
             self.is_literal = True
@@ -12881,21 +12878,21 @@ class CondExprNode(ExprNode):
             self.type_error()
         return self
 
-    def coerce_to_integer(self, env):
+    def coerce_to_index(self, env):
         if not self.true_val.type.is_int:
-            self.true_val = self.true_val.coerce_to_integer(env)
+            self.true_val = self.true_val.coerce_to_index(env)
         if not self.false_val.type.is_int:
-            self.false_val = self.false_val.coerce_to_integer(env)
+            self.false_val = self.false_val.coerce_to_index(env)
         self.result_ctype = None
         out = self.analyse_result_type(env)
         if not out.type.is_int:
             # fall back to ordinary coercion since we haven't ended as the correct type
             if out is self:
-                out = super(CondExprNode, out).coerce_to_integer(env)
+                out = super(CondExprNode, out).coerce_to_index(env)
             else:
                 # I believe `analyse_result_type` always returns a CondExprNode but
                 # handle the opposite case just in case
-                out = out.coerce_to_integer(env)
+                out = out.coerce_to_index(env)
         return out
 
     def coerce_to(self, dst_type, env):
@@ -14057,12 +14054,8 @@ class CoerceToPyTypeNode(CoercionNode):
         else:
             return CoerceToBooleanNode(self, env)
 
-    def coerce_to_integer(self, env):
-        # If not already some C integer type, coerce to longint.
-        if self.arg.type.is_int:
-            return self.arg
-        else:
-            return self.arg.coerce_to(PyrexTypes.c_long_type, env)
+    def coerce_to_index(self, env):
+        return self.arg.coerce_to_index(env)
 
     def analyse_types(self, env):
         # The arg is always already analysed
