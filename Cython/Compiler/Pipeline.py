@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import itertools
 from time import time
 
@@ -350,7 +348,7 @@ _pipeline_entry_points = {}
 try:
     from threading import local as _threadlocal
 except ImportError:
-    class _threadlocal(object): pass
+    class _threadlocal: pass
 
 threadlocal = _threadlocal()
 

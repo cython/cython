@@ -1,6 +1,6 @@
 #################### View.MemoryView ####################
 
-# cython: language_level=3str
+# cython: language_level=3
 # cython: binding=False
 
 # This utility provides cython.array and cython.view.memoryview
@@ -97,10 +97,7 @@ cdef extern from "<stdlib.h>":
 # the sequence abstract base class
 cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
 try:
-    if __import__("sys").version_info >= (3, 3):
-        __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
-    else:
-        __pyx_collections_abc_Sequence = __import__("collections").Sequence
+    __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
 except:
     # it isn't a big problem if this fails
     __pyx_collections_abc_Sequence = None

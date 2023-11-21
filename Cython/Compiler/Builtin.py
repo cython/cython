@@ -2,7 +2,6 @@
 #   Builtin Definitions
 #
 
-from __future__ import absolute_import
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
@@ -27,7 +26,7 @@ builtin_utility_code = {
 
 # mapping from builtins to their C-level equivalents
 
-class _BuiltinOverride(object):
+class _BuiltinOverride:
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
                  utility_code=None, sig=None, func_type=None,
                  is_strict_signature=False, builtin_return_type=None,
@@ -52,7 +51,7 @@ class _BuiltinOverride(object):
         return func_type
 
 
-class BuiltinAttribute(object):
+class BuiltinAttribute:
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
@@ -91,7 +90,7 @@ class BuiltinMethod(_BuiltinOverride):
             self.py_name, method_type, self.cname, utility_code=self.utility_code)
 
 
-class BuiltinProperty(object):
+class BuiltinProperty:
     # read only for now
     def __init__(self, py_name, property_type, call_cname,
                  exception_value=None, exception_check=None, utility_code=None):
@@ -131,14 +130,14 @@ builtin_function_table = [
                         ],
                     is_strict_signature = True, nogil=True)),
     ] + list(
-        BuiltinFunction('abs',        None,    None,   "/*abs_{0}*/".format(t.specialization_name()),
+        BuiltinFunction('abs',        None,    None,   "/*abs_{}*/".format(t.specialization_name()),
                     func_type = PyrexTypes.CFuncType(
                         t,
                         [PyrexTypes.CFuncTypeArg("arg", t, None)],
                         is_strict_signature = True, nogil=True))
                             for t in (PyrexTypes.c_uint_type, PyrexTypes.c_ulong_type, PyrexTypes.c_ulonglong_type)
              ) + list(
-        BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(t.funcsuffix),
+        BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{}".format(t.funcsuffix),
                     func_type = PyrexTypes.CFuncType(
                         t.real_type, [
                             PyrexTypes.CFuncTypeArg("arg", t, None)
@@ -156,7 +155,7 @@ builtin_function_table = [
     #('bin',       "",     "",      ""),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
                     utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
-    #('chr',       "",     "",      ""),
+    BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
@@ -280,8 +279,7 @@ builtin_types_table = [
 # resulting in unintuitive runtime behavior and segfaults.
 #    ("bool",   "&PyBool_Type",     []),
 
-    ("int",     "&PyInt_Type",     []),
-    ("long",    "&PyLong_Type",    []),
+    ("int",     "&PyLong_Type",     []),
     ("float",   "&PyFloat_Type",   []),
 
     ("complex", "&PyComplex_Type", [BuiltinAttribute('cval', field_type_name = 'Py_complex'),
@@ -406,11 +404,9 @@ builtin_types_table = [
 types_that_construct_their_instance = frozenset({
     # some builtin types do not always return an instance of
     # themselves - these do:
-    'type', 'bool', 'long', 'float', 'complex',
-    'bytes', 'unicode', 'bytearray',
+    'type', 'bool', 'int', 'float', 'complex',
+    'bytes', 'unicode', 'bytearray', 'str',
     'tuple', 'list', 'dict', 'set', 'frozenset',
-    # 'str',             # only in Py3.x
-    # 'file',            # only in Py2.x
     'memoryview'
 })
 
@@ -496,7 +492,7 @@ def init_builtins():
 
     global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
     global bytes_type, str_type, unicode_type, basestring_type, bytearray_type
-    global float_type, int_type, long_type, bool_type, complex_type
+    global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
     global sequence_types
     type_type  = builtin_scope.lookup('type').type
@@ -516,7 +512,6 @@ def init_builtins():
 
     float_type = builtin_scope.lookup('float').type
     int_type = builtin_scope.lookup('int').type
-    long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 

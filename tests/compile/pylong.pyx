@@ -15,7 +15,7 @@ cdef extern from "Python.h":
 #        int ob_size            # not in Py3k
         unsigned int *ob_digit
 
-def test(temp = long(0)):
+def test(temp = int(0)):
     cdef _longobject *l
     l = <_longobject *> temp
     #print sizeof(l.ob_size)    # not in Py3k
