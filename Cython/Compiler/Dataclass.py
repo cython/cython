@@ -549,7 +549,7 @@ def generate_cmp_code(code, op, funcname, node, fields):
 
     code.add_code_lines([
         "def %s(self, other):" % funcname,
-        "    if not isinstance(other, %s):" % node.class_name,
+        "    if other.__class__ is not self.__class__:"
         "        return NotImplemented",
         #
         "    cdef %s other_cast" % node.class_name,
@@ -567,17 +567,19 @@ def generate_cmp_code(code, op, funcname, node, fields):
     #    generating the code. Plus, do we want to convert C structs to dicts and
     #    compare them that way (I think not, but it might be in demand)?
     checks = []
-    for name in names:
-        checks.append("(self.%s %s other_cast.%s)" % (
-            name, op, name))
+    op_without_equals = op.replace('=', '')
 
-    if checks:
-        code.add_code_line("    return " + " and ".join(checks))
+    for name in names:
+        if op != '==':
+            # tuple comparison rules - early elements take precedence
+            code.add_code_line("    if self.%s %s other_cast.%s: return True" % (
+                name, op_without_equals, name))
+        code.add_code_line("    if self.%s != other_cast.%s: return False" % (
+            name, name))
+    if "=" in op:
+        code.add_code_line("    return True")  # "() == ()" is True
     else:
-        if "=" in op:
-            code.add_code_line("    return True")  # "() == ()" is True
-        else:
-            code.add_code_line("    return False")
+        code.add_code_line("    return False")
 
 
 def generate_eq_code(code, eq, node, fields):
