@@ -296,7 +296,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
                   order=False, unsafe_hash=False,
-                  frozen=False, kw_only=False)
+                  frozen=False, kw_only=False, match_args=True)
     if dataclass_args is not None:
         if dataclass_args[0]:
             error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
@@ -327,7 +327,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
           for k, v in kwargs.items() ] +
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
            ExprNodes.BoolNode(node.pos, value=v))
-          for k, v in [('kw_only', kw_only), ('match_args', False),
+          for k, v in [('kw_only', kw_only),
                        ('slots', False), ('weakref_slot', False)]
         ])
     dataclass_params = make_dataclass_call_helper(
@@ -344,6 +344,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
     code = TemplateCode()
     generate_init_code(code, kwargs['init'], node, fields, kw_only)
+    generate_match_args(code, kwargs['match_args'], node, fields, kw_only)
     generate_repr_code(code, kwargs['repr'], node, fields)
     generate_eq_code(code, kwargs['eq'], node, fields)
     generate_order_code(code, kwargs['order'], node, fields)
@@ -464,6 +465,25 @@ def generate_init_code(code, init, node, fields, kw_only):
 
     args = ", ".join(args)
     function_start_point.add_code_line("def __init__(%s):" % args)
+
+
+def generate_match_args(code, match_args, node, fields, global_kw_only):
+    """
+    Generates a tuple containing what would be the positional args to __init__
+
+    Note that this is generated even if the user overrides init
+    """
+    if not match_args or node.scope.lookup_here("__match_args__"):
+        return
+    positional_arg_names = []
+    for field_name, field in fields.items():
+        # TODO hasattr and global_kw_only can be removed once full kw_only support is added
+        field_is_kw_only = global_kw_only or (
+            hasattr(field, 'kw_only') and field.kw_only.value
+        )
+        if not field_is_kw_only:
+            positional_arg_names.append(field_name)
+    code.add_code_line("__match_args__ = %s" % str(tuple(positional_arg_names)))
 
 
 def generate_repr_code(code, repr, node, fields):
