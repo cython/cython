@@ -149,8 +149,6 @@ skip_tests = frozenset(
             "TestCase",
             "test_dataclasses_qualnames",
         ),  # doesn't define __setattr__ and just relies on Cython to enforce readonly properties
-        ("TestCase", "test_compare_subclasses"),  # wrong comparison
-        ("TestCase", "test_simple_compare"),  # wrong comparison
         (
             "TestCase",
             "test_field_named_self",
