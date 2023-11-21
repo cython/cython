@@ -66,6 +66,34 @@ class C_TestCase_test_1_field_compare:
 
 @dataclass
 @cclass
+class C0_TestCase_test_simple_compare:
+    x: int
+    y: int
+
+@dataclass(order=False)
+@cclass
+class C1_TestCase_test_simple_compare:
+    x: int
+    y: int
+
+@dataclass(order=True)
+@cclass
+class C_TestCase_test_simple_compare:
+    x: int
+    y: int
+
+@dataclass
+@cclass
+class B_TestCase_test_compare_subclasses:
+    i: int
+
+@dataclass
+@cclass
+class C_TestCase_test_compare_subclasses(B_TestCase_test_compare_subclasses):
+    pass
+
+@dataclass
+@cclass
 class C_TestCase_test_field_no_default:
     x: int = field()
 
@@ -648,7 +676,7 @@ class TestCase(unittest.TestCase):
         for cls in [C0, C1]:
             with self.subTest(cls=cls):
                 self.assertEqual(cls(), cls())
-                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                for idx, fn in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
                     with self.subTest(idx=idx):
                         with self.assertRaises(TypeError):
                             fn(cls(), cls())
@@ -663,7 +691,7 @@ class TestCase(unittest.TestCase):
             with self.subTest(cls=cls):
                 self.assertEqual(cls(1), cls(1))
                 self.assertNotEqual(cls(0), cls(1))
-                for (idx, fn) in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                for idx, fn in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
                     with self.subTest(idx=idx):
                         with self.assertRaises(TypeError):
                             fn(cls(0), cls(0))
@@ -674,6 +702,45 @@ class TestCase(unittest.TestCase):
         self.assertGreater(C(1), C(0))
         self.assertGreaterEqual(C(1), C(0))
         self.assertGreaterEqual(C(1), C(1))
+
+    def test_simple_compare(self):
+        C0 = C0_TestCase_test_simple_compare
+        C1 = C1_TestCase_test_simple_compare
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(0, 0), cls(0, 0))
+                self.assertEqual(cls(1, 2), cls(1, 2))
+                self.assertNotEqual(cls(1, 0), cls(0, 0))
+                self.assertNotEqual(cls(1, 0), cls(1, 1))
+                for idx, fn in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaises(TypeError):
+                            fn(cls(0, 0), cls(0, 0))
+        C = C_TestCase_test_simple_compare
+        for idx, fn in enumerate([lambda a, b: a == b, lambda a, b: a <= b, lambda a, b: a >= b]):
+            with self.subTest(idx=idx):
+                self.assertTrue(fn(C(0, 0), C(0, 0)))
+        for idx, fn in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a != b]):
+            with self.subTest(idx=idx):
+                self.assertTrue(fn(C(0, 0), C(0, 1)))
+                self.assertTrue(fn(C(0, 1), C(1, 0)))
+                self.assertTrue(fn(C(1, 0), C(1, 1)))
+        for idx, fn in enumerate([lambda a, b: a > b, lambda a, b: a >= b, lambda a, b: a != b]):
+            with self.subTest(idx=idx):
+                self.assertTrue(fn(C(0, 1), C(0, 0)))
+                self.assertTrue(fn(C(1, 0), C(0, 1)))
+                self.assertTrue(fn(C(1, 1), C(1, 0)))
+
+    def test_compare_subclasses(self):
+        B = B_TestCase_test_compare_subclasses
+        C = C_TestCase_test_compare_subclasses
+        for idx, (fn, expected) in enumerate([(lambda a, b: a == b, False), (lambda a, b: a != b, True)]):
+            with self.subTest(idx=idx):
+                self.assertEqual(fn(B(0), C(0)), expected)
+        for idx, fn in enumerate([lambda a, b: a < b, lambda a, b: a <= b, lambda a, b: a > b, lambda a, b: a >= b]):
+            with self.subTest(idx=idx):
+                with self.assertRaises(TypeError):
+                    fn(B(0), C(0))
 
     def test_field_no_default(self):
         C = C_TestCase_test_field_no_default
@@ -716,7 +783,7 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(Point3D(2017, 6, 3), Date(2017, 6, 3))
         self.assertNotEqual(Point3D(1, 2, 3), (1, 2, 3))
         with self.assertRaises(TypeError):
-            (x, y, z) = Point3D(4, 5, 6)
+            x, y, z = Point3D(4, 5, 6)
         Point3Dv1 = Point3Dv1_TestCase_test_not_other_dataclass
         self.assertNotEqual(Point3D(0, 0, 0), Point3Dv1())
 
