@@ -455,7 +455,7 @@ def generate_init_code(code, init, node, fields):
                 ph_name = default_factory_placeholder
             else:
                 ph_name = code.new_placeholder(fields, field.default)  # 'default' should be a node
-            assignment = u" = %s" % ph_name
+            assignment = " = %s" % ph_name
         elif seen_default and not field.kw_only.value and field.init.value:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
@@ -463,7 +463,7 @@ def generate_init_code(code, init, node, fields):
             return
 
         if field.kw_only.value and not seen_first_kw_only:
-            args.append(u"*")
+            args.append("*")
             seen_first_kw_only = True
 
         if field.init.value:
