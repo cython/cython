@@ -69,9 +69,6 @@ skip_tests = frozenset(
         ("TestCase", "test_missing_default"),  # MISSING
         ("TestCase", "test_missing_repr"),  # MISSING
         ("TestSlots",),  # __slots__ isn't understood
-        # will be enabled as part of enhanced kwonly introspection PR
-        ("TestKeywordArgs", "test_field_marked_as_kwonly"),
-        ("TestKeywordArgs", "test_match_args"),
         (
             "TestCase",
             "test_class_var_frozen",
