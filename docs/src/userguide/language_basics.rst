@@ -344,6 +344,9 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
    * - ``Py_hash_t``
      - ``cython.Py_hash_t``
 
+.. note::
+   Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
+
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
