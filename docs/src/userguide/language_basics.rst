@@ -117,18 +117,20 @@ the declaration in most cases:
                 f: cython.float = 2.5
                 g: cython.int[4] = [1, 2, 3, 4]
                 h: cython.p_float = cython.address(f)
+                c: cython.doublecomplex = 2 + 3j
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int a_global_variable
+            cdef int a_global_variable = 42
 
             def func():
                 cdef int i = 10, j, k
                 cdef float f = 2.5
                 cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
+                cdef double complex c = 2 + 3j
 
 .. note::
 
@@ -293,55 +295,54 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
 
 
 .. list-table:: Numeric Types
-   :widths: 25 25 25
+   :widths: 25 25
    :header-rows: 1
 
-   * - C type
-     - Cython type
+   * - Cython type
      - Pure Python type
 
+   * - ``bint``
+     - ``cython.bint``
    * - ``char``
-     - ``char``
      - ``cython.char``
    * - ``signed char``
-     - ``signed char``
      - ``cython.schar``
    * - ``unsigned char``
-     - ``unsigned char``
      - ``cython.uchar``
    * - ``short``
-     - ``short``
      - ``cython.short``
    * - ``unsigned short``
-     - ``unsigned short``
      - ``cython.ushort``
    * - ``int``
-     - ``int``
      - ``cython.int``
    * - ``unsigned int``
-     - ``unsigned int``
      - ``cython.uint``
    * - ``long``
-     - ``long``
      - ``cython.long``
    * - ``unsigned long``
-     - ``unsigned long``
      - ``cython.ulong``
    * - ``long long``
-     - ``long long``
      - ``cython.longlong``
    * - ``unsigned long long``
-     - ``unsigned long long``
      - ``cython.ulonglong``
    * - ``float``
-     - ``float``
      - ``cython.float``
    * - ``double``
-     - ``double``
      - ``cython.double``
    * - ``long double``
-     - ``long double``
      - ``cython.longdouble``
+   * - ``float complex``
+     - ``cython.floatcomplex``
+   * - ``double complex``
+     - ``cython.doublecomplex``
+   * - ``long double complex``
+     - ``cython.longdoublecomplex``
+   * - ``size_t``
+     - ``cython.size_t``
+   * - ``Py_ssize_t``
+     - ``cython.Py_ssize_t``
+   * - ``Py_hash_t``
+     - ``cython.Py_hash_t``
 
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
