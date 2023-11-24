@@ -5850,7 +5850,15 @@ class CallNode(ExprNode):
 
     def infer_type(self, env):
         # TODO(robertwb): Reduce redundancy with analyse_types.
+        method_obj_type = None
         function = self.function
+        if function.is_attribute:
+            method_obj_type = function.obj.infer_type(env)
+            if method_obj_type.is_builtin_type:
+                result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+                if result_type is not py_object_type:
+                    return result_type
+
         func_type = function.infer_type(env)
         if isinstance(function, NewExprNode):
             # note: needs call to infer_type() above

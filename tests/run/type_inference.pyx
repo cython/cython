@@ -270,6 +270,35 @@ def builtin_type_methods():
     append(1)
     assert l == [1], str(l)
 
+    u = u'abc def'
+    split = u.split()
+    assert typeof(split) == 'list object', typeof(split)
+
+    str_result1 = u.upper()
+    assert typeof(str_result1) == 'unicode object', typeof(str_result1)
+    str_result2 = u.upper().lower()
+    assert typeof(str_result2) == 'unicode object', typeof(str_result2)
+    str_result3 = u.upper().lower().strip()
+    assert typeof(str_result3) == 'unicode object', typeof(str_result3)
+    str_result4 = u.upper().lower().strip().lstrip()
+    assert typeof(str_result4) == 'unicode object', typeof(str_result4)
+    str_result5 = u.upper().lower().strip().lstrip().rstrip()
+    assert typeof(str_result5) == 'unicode object', typeof(str_result5)
+    str_result6 = u.upper().lower().strip().lstrip().rstrip().center(20)
+    assert typeof(str_result6) == 'unicode object', typeof(str_result6)
+    str_result7 = u.upper().lower().strip().lstrip().rstrip().center(20).format()
+    assert typeof(str_result7) == 'unicode object', typeof(str_result7)
+    str_result8 = u.upper().lower().strip().lstrip().rstrip().center(20).format().expandtabs(4)
+    assert typeof(str_result8) == 'unicode object', typeof(str_result8)
+    str_result9 = u.upper().lower().strip().lstrip().rstrip().center(20).format().expandtabs(4).swapcase()
+    assert typeof(str_result9) == 'unicode object', typeof(str_result9)
+
+    predicate1 = u.isupper()
+    assert typeof(predicate1) == 'bint', typeof(predicate1)
+    predicate2 = u.istitle()
+    assert typeof(predicate2) == 'bint', typeof(predicate2)
+
+
 cdef int cfunc(int x):
     return x+1
 
