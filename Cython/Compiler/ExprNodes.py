@@ -3881,10 +3881,11 @@ class IndexNode(_IndexingBaseNode):
         if base_type:
             if base_type.is_string:
                 return False
+            if base_type in (unicode_type, bytes_type, str_type, bytearray_type, basestring_type):
+                return False
             if isinstance(self.index, SliceNode):
                 # slicing!
-                if base_type in (bytes_type, bytearray_type, str_type, unicode_type,
-                                 basestring_type, list_type, tuple_type):
+                if base_type.is_builtin_type:
                     return False
         return ExprNode.may_be_none(self)
 
