@@ -573,9 +573,8 @@ def safe_only():
     div_res = pyint_val / 7
     assert typeof(div_res) == ("double" if IS_LANGUAGE_LEVEL_3 else "Python object"), typeof(div_res)
 
-    # we special-case inference to type str
     s = "abc"
-    assert typeof(s) == ("unicode object" if IS_LANGUAGE_LEVEL_3 else "Python object"), (typeof(s), str_type)
+    assert typeof(s) == str_type, (typeof(s), str_type)
     cdef str t = "def"
     assert typeof(t) == str_type, (typeof(t), str_type)
 
