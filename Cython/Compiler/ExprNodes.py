@@ -1763,7 +1763,26 @@ class UnicodeNode(ConstNode):
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            self.result_code = code.get_py_string_const(self.value)
+            if StringEncoding.string_contains_lone_surrogates(self.value):
+                # lone (unpaired) surrogates are not really portable and cannot be
+                # decoded by the UTF-8 codec in Py3.3+
+                self.result_code = code.get_py_const(py_object_type, 'ustring')
+                data_cname = code.get_string_const(
+                    StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
+                const_code = code.get_cached_constants_writer(self.result_code)
+                if const_code is None:
+                    return  # already initialised
+                const_code.mark_pos(self.pos)
+                const_code.putln(
+                    "%s = PyUnicode_DecodeUnicodeEscape(%s, sizeof(%s) - 1, NULL); %s" % (
+                        self.result_code,
+                        data_cname,
+                        data_cname,
+                        const_code.error_goto_if_null(self.result_code, self.pos)))
+                const_code.put_error_if_neg(
+                    self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
+            else:
+                self.result_code = code.get_py_string_const(self.value)
         else:
             self.result_code = code.get_pyunicode_ptr_const(self.value)
 
