@@ -1165,7 +1165,11 @@ important to least important:
     rather than "static types".  Practically this does not change a lot from a user
     point of view, but it is needed to implement Limited API support.
     
-There are a further list of macros which turn off various optimizations or language
+``CYTHON_EXTERN_C``
+    Slightly different to the other macros, this controls how ``cdef public``
+    functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
+    
+There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
 version of Python you are building a module for so do not be tempted to use them
 to try to enable extra optimizations - supported optimizations are enabled by
