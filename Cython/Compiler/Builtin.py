@@ -565,6 +565,7 @@ def find_return_type_of_builtin_method(builtin_type, method_name):
         if method_name in methods:
             return_type_name = methods[method_name]
             if '[' in return_type_name:
+                # TODO: Keep the "[...]" part when we add support for generics.
                 return_type_name = return_type_name.partition('[')[0]
             if return_type_name == 'T':
                 return builtin_type
