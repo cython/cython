@@ -14,7 +14,7 @@ class TestBuiltinReturnTypes(unittest.TestCase):
         look_up_methods = sys.version_info >= (3,10)
 
         for type_name, methods in inferred_method_return_types.items():
-            py_type = getattr(builtins, type_name)
+            py_type = getattr(builtins, type_name if type_name != 'unicode' else 'str')
 
             for method_name, return_type_name in methods.items():
                 builtin_type = builtin_scope.lookup(type_name).type

@@ -11961,8 +11961,8 @@ class AddNode(NumBinopNode):
 
     def infer_builtin_types_operation(self, type1, type2):
         # b'abc' + 'abc' raises an exception in Py3,
-        # so we can safely infer the Py2 type for bytes here
-        string_types = (bytes_type, bytearray_type, str_type, basestring_type, unicode_type)
+        # so we can safely infer a mix here.
+        string_types = (bytes_type, bytearray_type, basestring_type, str_type, unicode_type)
         if type1 in string_types and type2 in string_types:
             return string_types[max(string_types.index(type1),
                                     string_types.index(type2))]
@@ -12335,25 +12335,11 @@ class ModNode(DivNode):
                 or NumBinopNode.is_py_operation_types(self, type1, type2))
 
     def infer_builtin_types_operation(self, type1, type2):
-        # b'%s' % xyz  raises an exception in Py3<3.5, so it's safe to infer the type for Py2 and later Py3's.
-        if type1 is unicode_type:
-            # None + xyz  may be implemented by RHS
-            if type2.is_builtin_type or not self.operand1.may_be_none():
+        # b'%s' % xyz  raises an exception in Py3<3.5, so it's safe to infer the type for later Py3's.
+        if type1 in (unicode_type, bytes_type, str_type, basestring_type):
+            # 'None % xyz' may be implemented by the RHS, but everything else will do string formatting.
+            if type2.is_builtin_type or not type2.is_pyobject or not self.operand1.may_be_none():
                 return type1
-        elif type1 in (bytes_type, str_type, basestring_type):
-            if type2 is unicode_type:
-                return type2
-            elif type2.is_numeric:
-                return type1
-            elif self.operand1.is_string_literal:
-                if type1 is str_type or type1 is bytes_type:
-                    if set(_find_formatting_types(self.operand1.value)) <= _safe_bytes_formats:
-                        return type1
-                return basestring_type
-            elif type1 is bytes_type and not type2.is_builtin_type:
-                return None   # RHS might implement '% operator differently in Py3
-            else:
-                return basestring_type  # either str or unicode, can't tell
         return super().infer_builtin_types_operation(type1, type2)
 
     def zero_division_message(self):

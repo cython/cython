@@ -302,8 +302,7 @@ builtin_types_table = [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
-    ("str",     "&PyString_Type",  [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
-                                                  builtin_return_type='basestring',
+    ("str",     "&PyString_Type",  [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyString_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
@@ -433,7 +432,7 @@ inferred_method_return_types = {
         index='Py_ssize_t',
         count='Py_ssize_t',
     ),
-    'str': dict(
+    'unicode': dict(
         capitalize='T',
         casefold='T',
         center='T',
@@ -483,12 +482,12 @@ inferred_method_return_types = {
         zfill='T',
     ),
     'bytes': dict(
-        hex='str',
+        hex='unicode',
         fromhex='T',  # classmethod
         count='Py_ssize_t',
         removeprefix='T',
         removesuffix='T',
-        decode='str',
+        decode='unicode',
         endswith='bint',
         find='Py_ssize_t',
         index='Py_ssize_t',
@@ -531,7 +530,7 @@ inferred_method_return_types = {
     ),
     'memoryview': dict(
         tobytes='bytes',
-        hex='str',
+        hex='unicode',
         tolist='list',
         toreadonly='T',
         cast='T',
@@ -556,7 +555,7 @@ inferred_method_return_types = {
 
 inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
-inferred_method_return_types['unicode'] = inferred_method_return_types['str']
+inferred_method_return_types['str'] = inferred_method_return_types['unicode']
 
 
 def find_return_type_of_builtin_method(builtin_type, method_name):
