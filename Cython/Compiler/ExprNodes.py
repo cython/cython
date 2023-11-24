@@ -5850,8 +5850,6 @@ class CallNode(ExprNode):
     may_return_none = None
 
     def infer_type(self, env):
-        # TODO(robertwb): Reduce redundancy with analyse_types.
-        method_obj_type = None
         function = self.function
         if function.is_attribute:
             method_obj_type = function.obj.infer_type(env)
@@ -5860,6 +5858,7 @@ class CallNode(ExprNode):
                 if result_type is not py_object_type:
                     return result_type
 
+        # TODO(robertwb): Reduce redundancy with analyse_types.
         func_type = function.infer_type(env)
         if isinstance(function, NewExprNode):
             # note: needs call to infer_type() above
@@ -5951,8 +5950,8 @@ class CallNode(ExprNode):
             self.may_return_none = result_type is py_object_type
             if result_type.is_pyobject:
                 self.type = result_type
-            elif result_type is PyrexTypes.c_bint_type:
-                self.type = Builtin.bool_type
+            elif result_type.equivalent_type:
+                self.type = result_type.equivalent_type
             else:
                 self.type = py_object_type
         else:
