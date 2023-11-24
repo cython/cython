@@ -878,18 +878,21 @@ bad:
     return NULL;
 #else
     // non-CPython fallback
-    PyObject *result, *value_tuple = PyTuple_New(value_count);
     Py_ssize_t i;
+    PyObject *result = NULL;
+    PyObject *value_tuple = PyTuple_New(value_count);
     if (unlikely(!value_tuple)) return NULL;
     CYTHON_UNUSED_VAR(max_char);
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {
-        PyTuple_SET_ITEM(value_tuple, i, values[i]);
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) < 0)) goto bad;
         Py_INCREF(values[i]);
     }
 
     result = PyUnicode_Join($empty_unicode, value_tuple);
+
+bad:
     Py_DECREF(value_tuple);
     return result;
 #endif
