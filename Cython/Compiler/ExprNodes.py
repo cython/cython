@@ -1746,36 +1746,25 @@ class UnicodeNode(ConstNode):
         bool_value = bool(self.value)
         return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
 
+    def estimate_max_charval(self):
+        # most strings will be ASCII
+        if self.value.isascii():
+            return 127
+        # ... or at least Latin-1
+        try:
+            self.value.encode('iso8859-1')
+            return 255
+        except UnicodeEncodeError:
+            pass
+        # not ISO8859-1 => check BMP limit
+        return 65535 if ord(max(self.value)) <= 65535 else 1114111
+
     def contains_surrogates(self):
         return StringEncoding.string_contains_surrogates(self.value)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            # FIXME: this should go away entirely!
-            # Since string_contains_lone_surrogates() returns False for surrogate pairs in Py2/UCS2,
-            # Py2 can generate different code from Py3 here.  Let's hope we get away with claiming that
-            # the processing of surrogate pairs in code was always ambiguous and lead to different results
-            # on P16/32bit Unicode platforms.
-            if StringEncoding.string_contains_lone_surrogates(self.value):
-                # lone (unpaired) surrogates are not really portable and cannot be
-                # decoded by the UTF-8 codec in Py3.3
-                self.result_code = code.get_py_const(py_object_type, 'ustring')
-                data_cname = code.get_string_const(
-                    StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
-                const_code = code.get_cached_constants_writer(self.result_code)
-                if const_code is None:
-                    return  # already initialised
-                const_code.mark_pos(self.pos)
-                const_code.putln(
-                    "%s = PyUnicode_DecodeUnicodeEscape(%s, sizeof(%s) - 1, NULL); %s" % (
-                        self.result_code,
-                        data_cname,
-                        data_cname,
-                        const_code.error_goto_if_null(self.result_code, self.pos)))
-                const_code.put_error_if_neg(
-                    self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
-            else:
-                self.result_code = code.get_py_string_const(self.value)
+            self.result_code = code.get_py_string_const(self.value)
         else:
             self.result_code = code.get_pyunicode_ptr_const(self.value)
 
@@ -3581,79 +3570,68 @@ class JoinedStrNode(ExprNode):
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
         num_items = len(self.values)
-        list_var = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        ulength_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-        max_char_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ucs4_type, manage_ref=False)
+        use_stack_memory = num_items < 32
 
-        code.putln('%s = PyTuple_New(%s); %s' % (
-            list_var,
-            num_items,
-            code.error_goto_if_null(list_var, self.pos)))
-        code.put_gotref(list_var, py_object_type)
-        code.putln("%s = 0;" % ulength_var)
-        code.putln("%s = 127;" % max_char_var)  # at least ASCII character range
+        unknown_nodes = set()
+        max_char_value = 127
+        for node in self.values:
+            if isinstance(node, UnicodeNode):
+                max_char_value = max(max_char_value, node.estimate_max_charval())
+            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+                # formatted C numbers are always ASCII
+                pass
+            else:
+                unknown_nodes.add(node)
+
+        length_parts = []
+        charval_parts = [str(max_char_value)]
+        for node in self.values:
+            node.generate_evaluation_code(code)
+
+            if isinstance(node, UnicodeNode):
+                length_parts.append(str(len(node.value)))
+            else:
+                length_parts.append("__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result())
+                if node in unknown_nodes:
+                    charval_parts.append("__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result())
+
+        if use_stack_memory:
+            values_array = code.funcstate.allocate_temp(
+                PyrexTypes.c_array_type(PyrexTypes.py_object_type, num_items), manage_ref=False)
+        else:
+            values_array = code.funcstate.allocate_temp(
+                PyrexTypes.CPtrType(PyrexTypes.py_object_type), manage_ref=False)
+            code.putln("%s = PyMem_Calloc(%d, sizeof(PyObject*));" % (values_array, num_items))
+            code.putln("if (unlikely(!%s)) {" % values_array)
+            code.putln("PyErr_NoMemory(); %s" % code.error_goto(self.pos))
+            code.putln("}")
 
         for i, node in enumerate(self.values):
-            node.generate_evaluation_code(code)
-            node.make_owned_reference(code)
-
-            ulength = "__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result()
-            max_char_value = "__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result()
-            is_ascii = False
-            if isinstance(node, UnicodeNode):
-                try:
-                    # most strings will be ASCII or at least Latin-1
-                    node.value.encode('iso8859-1')
-                    max_char_value = '255'
-                    node.value.encode('us-ascii')
-                    is_ascii = True
-                except UnicodeEncodeError:
-                    if max_char_value != '255':
-                        # not ISO8859-1 => check BMP limit
-                        max_char = max(map(ord, node.value))
-                        if max_char < 0xD800:
-                            # BMP-only, no surrogate pairs used
-                            max_char_value = '65535'
-                            ulength = str(len(node.value))
-                        elif max_char >= 65536:
-                            # clearly outside of BMP, and not on a 16-bit Unicode system
-                            max_char_value = '1114111'
-                            ulength = str(len(node.value))
-                        else:
-                            # not really worth implementing a check for surrogate pairs here
-                            # drawback: C code can differ when generating on Py2 with 2-byte Unicode
-                            pass
-                else:
-                    ulength = str(len(node.value))
-            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
-                is_ascii = True  # formatted C numbers are always ASCII
-
-            if not is_ascii:
-                code.putln("%s = (%s > %s) ? %s : %s;" % (
-                    max_char_var, max_char_value, max_char_var, max_char_value, max_char_var))
-            code.putln("%s += %s;" % (ulength_var, ulength))
-
-            node.generate_giveref(code)
-            code.putln('PyTuple_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
-            node.generate_post_assignment_code(code)
-            node.free_temps(code)
+            code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
         code.globalstate.use_utility_code(UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
-        code.putln('%s = __Pyx_PyUnicode_Join(%s, %d, %s, %s); %s' % (
+        code.putln('%s = __Pyx_PyUnicode_Join(%s, %d, %s, %s);' % (
             self.result(),
-            list_var,
+            values_array,
             num_items,
-            ulength_var,
-            max_char_var,
-            code.error_goto_if_null(self.py_result(), self.pos)))
+            ' + '.join(length_parts),
+            # or-ing isn't entirely correct here since it can produce values > 1114111,
+            # but we crop that in __Pyx_PyUnicode_Join().
+            ' | '.join(charval_parts),
+        ))
+
+        if not use_stack_memory:
+            code.putln("PyMem_Free(%s);" % values_array)
+        code.funcstate.release_temp(values_array)
+
+        code.putln(code.error_goto_if_null(self.py_result(), self.pos))
         self.generate_gotref(code)
 
-        code.put_decref_clear(list_var, py_object_type)
-        code.funcstate.release_temp(list_var)
-        code.funcstate.release_temp(ulength_var)
-        code.funcstate.release_temp(max_char_var)
+        for node in self.values:
+            node.generate_disposal_code(code)
+            node.free_temps(code)
 
 
 class FormattedValueNode(ExprNode):
@@ -8161,14 +8139,17 @@ class SequenceNode(ExprNode):
         none_check = "likely(%s != Py_None)" % rhs.py_result()
         if rhs.type is list_type:
             sequence_types = ['List']
+            get_size_func = "__Pyx_PyList_GET_SIZE"
             if rhs.may_be_none():
                 sequence_type_test = none_check
         elif rhs.type is tuple_type:
             sequence_types = ['Tuple']
+            get_size_func = "__Pyx_PyTuple_GET_SIZE"
             if rhs.may_be_none():
                 sequence_type_test = none_check
         else:
             sequence_types = ['Tuple', 'List']
+            get_size_func = "__Pyx_PySequence_SIZE"
             tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
             list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
             sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
@@ -8177,7 +8158,7 @@ class SequenceNode(ExprNode):
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
         # list/tuple => check size
-        code.putln("Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);")
+        code.putln("Py_ssize_t size = %s(sequence);" % get_size_func)
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c"))
