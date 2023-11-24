@@ -394,12 +394,12 @@ class IterationTransform(Visitor.EnvTransform):
     PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_char_ptr_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
+            ], exception_value="NULL")
 
     PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
+            ], exception_value="-1")
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
@@ -412,16 +412,17 @@ class IterationTransform(Visitor.EnvTransform):
             slice_node.as_none_safe_node("'NoneType' is not iterable"))
 
         slice_base_node = ExprNodes.PythonCapiCallNode(
-            slice_node.pos, "PyBytes_AS_STRING",
+            slice_node.pos, "__Pyx_PyBytes_AsWritableString",
             self.PyBytes_AS_STRING_func_type,
             args = [unpack_temp_node],
-            is_temp = 0,
+            is_temp = 1,
+            # TypeConversions utility code is always included
             )
         len_node = ExprNodes.PythonCapiCallNode(
-            slice_node.pos, "PyBytes_GET_SIZE",
+            slice_node.pos, "__Pyx_PyBytes_GET_SIZE",
             self.PyBytes_GET_SIZE_func_type,
             args = [unpack_temp_node],
-            is_temp = 0,
+            is_temp = 1,
             )
 
         return UtilNodes.LetNode(

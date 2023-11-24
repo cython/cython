@@ -99,9 +99,9 @@ static int __Pyx_unpack_tuple2_generic(
 static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
         PyObject* tuple, PyObject** pvalue1, PyObject** pvalue2, int decref_tuple) {
     PyObject *value1 = NULL, *value2 = NULL;
-#if CYTHON_COMPILING_IN_PYPY
-    value1 = PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
-    value2 = PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+    value1 = __Pyx_PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
+    value2 = __Pyx_PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
 #else
     value1 = PyTuple_GET_ITEM(tuple, 0);  Py_INCREF(value1);
     value2 = PyTuple_GET_ITEM(tuple, 1);  Py_INCREF(value2);
@@ -113,7 +113,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     *pvalue1 = value1;
     *pvalue2 = value2;
     return 0;
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 bad:
     Py_XDECREF(value1);
     Py_XDECREF(value2);
@@ -874,7 +874,7 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
 #else
-        PyObject *base = PySequence_ITEM(bases, 0);
+        PyObject *base = __Pyx_PySequence_ITEM(bases, 0);
 #endif
         metatype = Py_TYPE(base);
         metaclass = __Pyx_CalculateMetaclass(metatype, bases);
@@ -966,13 +966,29 @@ static PyObject*
 __Pyx_PEP560_update_bases(PyObject *bases)
 {
     Py_ssize_t i, j, size_bases;
-    PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
+    PyObject *base = NULL, *meth, *new_base, *result, *new_bases = NULL;
     /*assert(PyTuple_Check(bases));*/
 
+#if CYTHON_ASSUME_SAFE_MACROS
     size_bases = PyTuple_GET_SIZE(bases);
+#else
+    size_bases = PyTuple_Size(bases);
+    if (size_bases < 0) return NULL;
+#endif
     for (i = 0; i < size_bases; i++) {
         // original code in CPython: base  = args[i];
-        base  = PyTuple_GET_ITEM(bases, i);
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_CLEAR(base);
+#endif
+#if CYTHON_ASSUME_SAFE_MACROS
+        base = PyTuple_GET_ITEM(bases, i);
+#else
+        base = PyTuple_GetItem(bases, i);
+        if (!base) goto error;
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_INCREF(base);
+#endif
         if (PyType_Check(base)) {
             if (new_bases) {
                 // If we already have made a replacement, then we append every normal base,
@@ -1016,12 +1032,26 @@ __Pyx_PEP560_update_bases(PyObject *bases)
             }
             for (j = 0; j < i; j++) {
                 // original code in CPython: base = args[j];
-                base = PyTuple_GET_ITEM(bases, j);
-                PyList_SET_ITEM(new_bases, j, base);
-                Py_INCREF(base);
+                // We use a different name here to keep refcounting separate from base
+                PyObject *base_from_list;
+#if CYTHON_ASSUME_SAFE_MACROS
+                base_from_list = PyTuple_GET_ITEM(bases, j);
+                PyList_SET_ITEM(new_bases, j, base_from_list);
+                Py_INCREF(base_from_list);
+#else
+                base_from_list = PyTuple_GetItem(bases, j);
+                if (!base_from_list) goto error;
+                Py_INCREF(base_from_list);
+                if (PyList_SetItem(new_bases, j, base_from_list) < 0) goto error;
+#endif
             }
         }
+#if CYTHON_ASSUME_SAFE_MACROS
         j = PyList_GET_SIZE(new_bases);
+#else
+        j = PyList_Size(new_bases);
+        if (j < 0) goto error;
+#endif
         if (PyList_SetSlice(new_bases, j, j, new_base) < 0) {
             goto error;
         }
@@ -1034,10 +1064,16 @@ __Pyx_PEP560_update_bases(PyObject *bases)
     }
     result = PyList_AsTuple(new_bases);
     Py_DECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return result;
 
 error:
     Py_XDECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return NULL;
 }
 
@@ -1276,7 +1312,18 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #ifdef __Pyx_CyFunction_USED
     int ret;
     if (__Pyx_CyFunction_Check(value)) {
-        PyObject *staticnew = PyStaticMethod_New(value);
+        PyObject *staticnew;
+#if !CYTHON_COMPILING_IN_LIMITED_API
+        staticnew = PyStaticMethod_New(value);
+#else
+        PyObject *builtins, *staticmethod;
+        builtins = PyEval_GetBuiltins(); // borrowed
+        if (!builtins) return -1;
+        staticmethod = PyObject_GetAttrString(builtins, "staticmethod");
+        if (!staticmethod) return -1;
+        staticnew = PyObject_CallFunctionObjArgs(staticmethod, value, NULL);
+        Py_DECREF(staticmethod);
+#endif
         if (unlikely(!staticnew)) return -1;
         ret = __Pyx_SetNameInClass(ns, name, staticnew);
         Py_DECREF(staticnew);

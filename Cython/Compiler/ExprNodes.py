@@ -8191,7 +8191,7 @@ class SequenceNode(ExprNode):
         # in non-CPython, use the PySequence protocol (which can fail)
         if not use_loop:
             for i, item in enumerate(self.unpacked_items):
-                code.putln("%s = PySequence_ITEM(sequence, %d); %s" % (
+                code.putln("%s = __Pyx_PySequence_ITEM(sequence, %d); %s" % (
                     item.result(), i,
                     code.error_goto_if_null(item.result(), self.pos)))
                 code.put_gotref(item.result(), item.type)
@@ -8202,7 +8202,7 @@ class SequenceNode(ExprNode):
                 len(self.unpacked_items),
                 ','.join(['&%s' % item.result() for item in self.unpacked_items])))
             code.putln("for (i=0; i < %s; i++) {" % len(self.unpacked_items))
-            code.putln("PyObject* item = PySequence_ITEM(sequence, i); %s" % (
+            code.putln("PyObject* item = __Pyx_PySequence_ITEM(sequence, i); %s" % (
                 code.error_goto_if_null('item', self.pos)))
             code.put_gotref('item', py_object_type)
             code.putln("*(temps[i]) = item;")
@@ -8359,7 +8359,7 @@ class SequenceNode(ExprNode):
                 # resize the list the hard way
                 code.putln("((PyVarObject*)%s)->ob_size--;" % target_list)
                 code.putln('#else')
-                code.putln("%s = PySequence_ITEM(%s, %s-%d); " % (
+                code.putln("%s = __Pyx_PySequence_ITEM(%s, %s-%d); " % (
                     item.py_result(), target_list, length_temp, i+1))
                 code.putln('#endif')
                 item.generate_gotref(code)
