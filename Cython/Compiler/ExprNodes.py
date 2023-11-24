@@ -5945,6 +5945,16 @@ class CallNode(ExprNode):
             self.type = function.type_entry.type
             self.result_ctype = py_object_type
             self.may_return_none = False
+        elif function.is_attribute and function.obj.type.is_builtin_type:
+            method_obj_type = function.obj.type
+            result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+            self.may_return_none = result_type is py_object_type
+            if result_type.is_pyobject:
+                self.type = result_type
+            elif result_type is PyrexTypes.c_bint_type:
+                self.type = Builtin.bool_type
+            else:
+                self.type = py_object_type
         else:
             self.type = py_object_type
 
