@@ -3619,7 +3619,7 @@ class JoinedStrNode(ExprNode):
         else:
             values_array = code.funcstate.allocate_temp(
                 PyrexTypes.CPtrType(PyrexTypes.py_object_type), manage_ref=False)
-            code.putln("%s = PyMem_Calloc(%d, sizeof(PyObject*));" % (values_array, num_items))
+            code.putln("%s = (PyObject **) PyMem_Calloc(%d, sizeof(PyObject*));" % (values_array, num_items))
             code.putln("if (unlikely(!%s)) {" % values_array)
             code.putln("PyErr_NoMemory(); %s" % code.error_goto(self.pos))
             code.putln("}")
