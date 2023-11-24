@@ -343,6 +343,8 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
      - ``cython.Py_ssize_t``
    * - ``Py_hash_t``
      - ``cython.Py_hash_t``
+   * - ``Py_UCS4``
+     - ``cython.Py_UCS4``
 
 .. note::
    Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
