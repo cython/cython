@@ -8167,14 +8167,17 @@ class SequenceNode(ExprNode):
         none_check = "likely(%s != Py_None)" % rhs.py_result()
         if rhs.type is list_type:
             sequence_types = ['List']
+            get_size_func = "__Pyx_PyList_GET_SIZE"
             if rhs.may_be_none():
                 sequence_type_test = none_check
         elif rhs.type is tuple_type:
             sequence_types = ['Tuple']
+            get_size_func = "__Pyx_PyTuple_GET_SIZE"
             if rhs.may_be_none():
                 sequence_type_test = none_check
         else:
             sequence_types = ['Tuple', 'List']
+            get_size_func = "__Pyx_PySequence_SIZE"
             tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
             list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
             sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
@@ -8183,7 +8186,7 @@ class SequenceNode(ExprNode):
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
         # list/tuple => check size
-        code.putln("Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);")
+        code.putln("Py_ssize_t size = %s(sequence);" % get_size_func)
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c"))
