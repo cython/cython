@@ -1747,17 +1747,16 @@ class UnicodeNode(ConstNode):
         return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
 
     def estimate_max_charval(self):
-        # most strings will be ASCII
+        # Most strings will probably be ASCII.
         if self.value.isascii():
             return 127
-        # ... or at least Latin-1
-        try:
-            self.value.encode('iso8859-1')
+        max_charval = ord(max(self.value))
+        if max_charval <= 255:
             return 255
-        except UnicodeEncodeError:
-            pass
-        # not ISO8859-1 => check BMP limit
-        return 65535 if ord(max(self.value)) <= 65535 else 1114111
+        elif max_charval <= 65535:
+            return 65535
+        else:
+            return 1114111
 
     def contains_surrogates(self):
         return StringEncoding.string_contains_surrogates(self.value)
