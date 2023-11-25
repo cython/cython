@@ -10,8 +10,8 @@ Working with NumPy
           They should be preferred to the syntax presented in this page.
           See :ref:`Cython for NumPy users <numpy_tutorial>`.
           
-.. NOTE:: There is currently no way to usefully specify Numpy arrays as
-          in Python-style annotations and we do not currently plan to add one.
+.. NOTE:: There is currently no way to usefully specify Numpy arrays using
+          Python-style annotations and we do not currently plan to add one.
           If you want to use annotation typing then we recommend using
           typed memoryviews instead.
 
