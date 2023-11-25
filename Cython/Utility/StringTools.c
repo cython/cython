@@ -75,84 +75,13 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 
 //////////////////// PyUCS4InUnicode ////////////////////
 
-#if (PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE)) && !CYTHON_COMPILING_IN_LIMITED_API)
-
-#if PY_VERSION_HEX < 0x03090000
-#define __Pyx_PyUnicode_AS_UNICODE(op) PyUnicode_AS_UNICODE(op)
-#define __Pyx_PyUnicode_GET_SIZE(op) PyUnicode_GET_SIZE(op)
-#else
-// Avoid calling deprecated C-API functions in Py3.9+ that PEP-623 schedules for removal in Py3.12.
-// https://www.python.org/dev/peps/pep-0623/
-#define __Pyx_PyUnicode_AS_UNICODE(op) (((PyASCIIObject *)(op))->wstr)
-#define __Pyx_PyUnicode_GET_SIZE(op) ((PyCompactUnicodeObject *)(op))->wstr_length
-#endif
-
-#if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
-static int __Pyx_PyUnicodeBufferContainsUCS4_SP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
-    /* handle surrogate pairs for Py_UNICODE buffers in 16bit Unicode builds */
-    Py_UNICODE high_val, low_val;
-    Py_UNICODE* pos;
-    high_val = (Py_UNICODE) (0xD800 | (((character - 0x10000) >> 10) & ((1<<10)-1)));
-    low_val  = (Py_UNICODE) (0xDC00 | ( (character - 0x10000)        & ((1<<10)-1)));
-    for (pos=buffer; pos < buffer+length-1; pos++) {
-        if (unlikely((high_val == pos[0]) & (low_val == pos[1]))) return 1;
-    }
-    return 0;
-}
-#endif
-
-static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
-    Py_UNICODE uchar;
-    Py_UNICODE* pos;
-    uchar = (Py_UNICODE) character;
-    for (pos=buffer; pos < buffer+length; pos++) {
-        if (unlikely(uchar == pos[0])) return 1;
-    }
-    return 0;
-}
-#endif
-
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-#if CYTHON_COMPILING_IN_LIMITED_API
-    // Note that from Python 3.7, the indices of FindChar account for wraparound so no
-    // need to check the length
-    Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, -1, 1);
+    // Note that from Python 3.7, the indices of FindChar are adjusted to match the bounds
+    // so need to check the length
+    Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, PY_SSIZE_T_MAX, 1);
     if (unlikely(idx == -2)) return -1;
     // >= 0: found the index, == -1: not found
     return idx >= 0;
-#else
-    const int kind = PyUnicode_KIND(unicode);
-    #ifdef PyUnicode_WCHAR_KIND
-    if (likely(kind != PyUnicode_WCHAR_KIND))
-    #endif
-    {
-        Py_ssize_t i;
-        const void* udata = PyUnicode_DATA(unicode);
-        const Py_ssize_t length = PyUnicode_GET_LENGTH(unicode);
-        for (i=0; i < length; i++) {
-            if (unlikely(character == PyUnicode_READ(kind, udata, i))) return 1;
-        }
-        return 0;
-    }
-
-#if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
-#if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
-    if ((sizeof(Py_UNICODE) == 2) && unlikely(character > 65535)) {
-        return __Pyx_PyUnicodeBufferContainsUCS4_SP(
-            __Pyx_PyUnicode_AS_UNICODE(unicode),
-            __Pyx_PyUnicode_GET_SIZE(unicode),
-            character);
-    } else
-#endif
-    {
-        return __Pyx_PyUnicodeBufferContainsUCS4_BMP(
-            __Pyx_PyUnicode_AS_UNICODE(unicode),
-            __Pyx_PyUnicode_GET_SIZE(unicode),
-            character);
-
-    }
-#endif
-#endif
 }
 
 

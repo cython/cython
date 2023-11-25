@@ -87,17 +87,8 @@ static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected) {
 
 /////////////// UnpackTuple2.proto ///////////////
 
-#if CYTHON_ASSUME_SAFE_MACROS
-#define __Pyx_unpack_tuple2(tuple, value1, value2, is_tuple, has_known_size, decref_tuple) \
-    (likely(is_tuple || PyTuple_Check(tuple)) ? \
-        (likely(has_known_size || PyTuple_GET_SIZE(tuple) == 2) ? \
-            __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple) : \
-            (__Pyx_UnpackTupleError(tuple, 2), -1)) : \
-        __Pyx_unpack_tuple2_generic(tuple, value1, value2, has_known_size, decref_tuple))
-#else
 static CYTHON_INLINE int __Pyx_unpack_tuple2(
     PyObject* tuple, PyObject** value1, PyObject** value2, int is_tuple, int has_known_size, int decref_tuple);
-#endif
 
 static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     PyObject* tuple, PyObject** value1, PyObject** value2, int decref_tuple);
@@ -109,7 +100,6 @@ static int __Pyx_unpack_tuple2_generic(
 //@requires: UnpackTupleError
 //@requires: RaiseNeedMoreValuesToUnpack
 
-#if !CYTHON_ASSUME_SAFE_MACROS
 static CYTHON_INLINE int __Pyx_unpack_tuple2(
         PyObject* tuple, PyObject** value1, PyObject** value2, int is_tuple, int has_known_size, int decref_tuple) {
     if (likely(is_tuple || PyTuple_Check(tuple))) {
@@ -117,10 +107,13 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(
         if (has_known_size) {
             return __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple);
         }
+    #if CYTHON_ASSUME_SAFE_MACROS
+        size = PyTuple_GET_SIZE(tuple);
+    #else
         size = PyTuple_Size(tuple);
-        if (unlikely(size < 0)) {
-            return -1;
-        } else if (likely(size == 2)) {
+        if (unlikely(size < 0)) return -1;
+    #endif
+        if (likely(size == 2)) {
             return __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple);
         }
         __Pyx_UnpackTupleError(tuple, 2);
@@ -129,7 +122,6 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(
         return __Pyx_unpack_tuple2_generic(tuple, value1, value2, has_known_size, decref_tuple);
     }
 }
-#endif
 
 static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
         PyObject* tuple, PyObject** pvalue1, PyObject** pvalue2, int decref_tuple) {

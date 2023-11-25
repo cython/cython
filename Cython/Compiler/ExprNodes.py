@@ -14194,9 +14194,8 @@ class CoerceToBooleanNode(CoercionNode):
             checks = ["(%s != Py_None)" % self.arg.py_result()] if self.arg.may_be_none() else []
             checks.append("(%s(%s) != 0)" % (test_func, self.arg.py_result()))
             code.putln("%s = %s;" % (self.result(), '&&'.join(checks)))
-            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-            code.putln(code.error_goto_if_neg(self.result(), self.pos))
-            code.putln("#endif")
+            code.putln(code.error_goto_if(
+                "if ((!CYTHON_ASSUME_SAFE_MACROS) && %s < 0)" % self.result(), self.pos))
         else:
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
