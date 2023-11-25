@@ -1133,14 +1133,14 @@ would be set using ``extra_compile_args`` in `setup.py` (for example
 other ways like using the ``CFLAGS`` environmental variable.
 
 These macros are set automatically by Cython to sensible default values unless
-you chose to explicitly override them, so they are a tool for advanced users and most users
-can happily ignore them.  Not all combinations of macros are compatible or tested, and
-some change the default of other macros.  They are list below in rough order from most 
-important to least important:
+you chose to explicitly override them, so they are a tool that most users
+can happily ignore.  Not all combinations of macros are compatible or tested, and
+some change the default value of other macros.  They are listed below in rough order from
+most important to least important:
 
 ``CYTHON_LIMITED_API``
-    Turns on Cython's experimental Limited API support, meaning that one compiled binary
-    can be used across many Python interpreter versions (at the cost of some performance).
+    Turns on Cython's experimental Limited API support, meaning that one compiled module
+    can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  If you use this macro
     you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
@@ -1148,17 +1148,17 @@ important to least important:
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
     Uses multi-phase module initialization as described in PEP489.  This improves
-    compatibility, especially when running the initial import of the code when it
+    Python compatibility, especially when running the initial import of the code when it
     makes attributes such as ``__file__`` available.  It is therefore on by default
     where supported.
 
 ``CYTHON_USE_MODULE_STATE``
-    Stores module data on a struct associated with the module object rather than at a
-    global C level.  The advantage is that it should be possible to import the
+    Stores module data on a struct associated with the module object rather than as
+    C global variables.  The advantage is that it should be possible to import the
     same module more than once (e.g. in different sub-interpreters).  At the moment
     this is experimental and not all data has been moved.  It also requires that
-    ``CYTHON_PEP489_MULTI_PHASE_INIT`` is off - this is planned to change in the
-    future.
+    ``CYTHON_PEP489_MULTI_PHASE_INIT`` is off - we plan to remove this limitation
+    in the future.
 
 ``CYTHON_USE_TYPE_SPECS``
     Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
@@ -1171,8 +1171,8 @@ important to least important:
     
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
-version of Python you are building a module for so do not be tempted to use them
-to try to enable extra optimizations - supported optimizations are enabled by
+version of Python you are compiling for so there is no need to use them
+to try to enable extra optimizations - all supported optimizations are enabled by
 default.  These are mostly relevant if you're tying to get Cython working in a
 new and unsupported Python interpreter where you will typically want to set
 them to 0 to *disable* optimizations.  They are listed below for completeness but
@@ -1216,8 +1216,8 @@ hidden by default since most users will be uninterested in changing them.
         ``CYTHON_UNPACK_METHODS``
             Tries to speed up method calls at the cost of code-size.  Linked to
             the ``optimize.unpack_method_calls`` compiler directive - this macro
-            simply allows the compiler directive to work on versions of Python
-            that support it.
+            is used to selectively enable the compiler directive only on versions
+            of Python that support it.
             
         ``CYTHON_METH_FASTCALL``/``CYTHON_FAST_PYCALL``
             These are used internally to incrementally enable the vectorcall calling
