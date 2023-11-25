@@ -61,9 +61,9 @@ static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
 #endif
         if (size < index) {
             __Pyx_RaiseNeedMoreValuesError(size);
-            return;
+        } else {
+            __Pyx_RaiseTooManyValuesError(index);
         }
-      __Pyx_RaiseTooManyValuesError(index);
     }
 }
 

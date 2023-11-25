@@ -338,12 +338,12 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
         }
         #else
         size = PyBytes_Size(c);
-        if (unlikely(size) < 0) return -1;
-        else if (likely(size==1)) {
+        if (likely(size == 1)) {
             char *data = PyBytes_AsString(c);
             if (unlikely(!data)) return -1;
             return (unsigned char) data[0];
         }
+        else if (unlikely(size < 0)) return -1;
         #endif
     } else if (PyByteArray_Check(c)) {
 #if CYTHON_ASSUME_SAFE_MACROS
@@ -353,12 +353,12 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
         }
 #else
         size = PyByteArray_Size(c);
-        if (unlikely(size<0)) return -1;
-        else if (likely(size == 1)) {
+        if (likely(size == 1)) {
             char *data = PyByteArray_AsString(c);
             if (unlikely(!data)) return -1;
             return (unsigned char) data[0];
         }
+        else if (unlikely(size < 0)) return -1;
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
@@ -501,7 +501,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
             size = PySet_GET_SIZE(result);
             #else
             size = PySet_Size(result);
-            if (size < 0) {
+            if (unlikely(size < 0)) {
                 Py_DECREF(result);
                 return NULL;
             }

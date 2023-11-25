@@ -117,9 +117,9 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
     // Note that from Python 3.7, the indices of FindChar account for wraparound so no
     // need to check the length
     Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, -1, 1);
-    if (idx == -1) return 0;  // not found
-    else if (unlikely(idx < 0)) return -1; // error
-    else return 1; // found
+    if (unlikely(idx == -2)) return -1;
+    // >= 0: found the index, == -1: not found
+    return idx >= 0;
 #else
     const int kind = PyUnicode_KIND(unicode);
     #ifdef PyUnicode_WCHAR_KIND

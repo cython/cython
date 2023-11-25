@@ -583,11 +583,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
     if (length < 0) return (Py_UCS4)-1;
    #endif
    if (likely(length == 1)) {
-    #if CYTHON_ASSUME_SAFE_MACROS
-       return PyUnicode_READ_CHAR(x, 0);
-     #else
-        return PyUnicode_ReadChar(x, 0);
-     #endif
+       return __Pyx_PyUnicode_READ_CHAR(x, 0);
    }
    PyErr_Format(PyExc_ValueError,
                 "only single character unicode strings can be converted to Py_UCS4, "
