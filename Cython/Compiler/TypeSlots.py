@@ -794,18 +794,18 @@ def get_slot_code_by_name(scope, slot_name):
     slot = get_slot_by_name(slot_name, scope.directives)
     return slot.slot_code(scope)
 
-def is_reverse_number_slot(name):
+def is_binop_number_slot(name):
     """
-    Tries to identify __radd__ and friends (so the METH_COEXIST flag can be applied).
+    Tries to identify __add__/__radd__ and friends (so the METH_COEXIST flag can be applied).
 
     There's no great consequence if it inadvertently identifies a few other methods
     so just use a simple rule rather than an exact list.
     """
-    if name.startswith("__r") and name.endswith("__"):
-        forward_name = name.replace("r", "", 1)
-        for meth in get_slot_table(None).PyNumberMethods:
-            if hasattr(meth, "right_slot"):
-                return True
+    slot_table = get_slot_table(None)
+        
+    for meth in get_slot_table(None).PyNumberMethods:
+        if meth.is_binop and name in meth.user_methods:
+            return True
     return False
 
 
