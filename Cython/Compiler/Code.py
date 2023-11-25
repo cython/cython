@@ -2330,7 +2330,7 @@ class CCodeWriter:
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
-            # Unlike most special functions, binop numberic operator slots are actually generated here
+            # Unlike most special functions, binop numeric operator slots are actually generated here
             # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
             # so a bit of extra logic is needed
             slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
