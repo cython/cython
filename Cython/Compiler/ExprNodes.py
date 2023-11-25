@@ -3886,6 +3886,8 @@ class IndexNode(_IndexingBaseNode):
             if isinstance(self.index, SliceNode):
                 # slicing!
                 if base_type.is_builtin_type:
+                    # It seems that none of the builtin types can return None for "__getitem__[slice]".
+                    # Slices are not hashable, and thus cannot be used as key in dicts, for example.
                     return False
         return ExprNode.may_be_none(self)
 
