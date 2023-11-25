@@ -779,17 +779,16 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
         void* base_vtable;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         basei = PyTuple_GET_ITEM(bases, i);
-#else
-    #if !CYTHON_AVOID_BORROWED_REFS
+#elif !CYTHON_AVOID_BORROWED_REFS
         basei = PyTuple_GetItem(bases, i);
-    #else
+        if (unlikely(!basei)) goto other_failure;
+#else
         basei = PySequence_Item(bases, i);
-    #endif
         if (unlikely(!basei)) goto other_failure;
 #endif
         base_vtable = __Pyx_GetVtable((PyTypeObject*)basei);
 #if CYTHON_AVOID_BORROWED_REFS
-        Py_DECREF(base_vtable);
+        Py_DECREF(basei);
 #endif
         if (base_vtable != NULL) {
             int j;
@@ -819,12 +818,11 @@ bad:
         tp_base_name = __Pyx_PyType_GetName(tp_base);
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
-#else
-    #if !CYTHON_AVOID_BORROWED_REFS
+#elif !CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PyTuple_GetItem(bases, i);
-    #else
+        if (unlikely(!basei)) goto really_bad;
+#else
         basei = (PyTypeObject*)PySequence_Item(bases, i);
-    #endif
         if (unlikely(!basei)) goto really_bad;
 #endif
         base_name = __Pyx_PyType_GetName(basei);

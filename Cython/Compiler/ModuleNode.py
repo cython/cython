@@ -1887,14 +1887,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
-            code.putln("{")
             if static_call:
                 code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
             elif base_type.is_builtin_type:
                 base_cname = base_type.typeptr_cname
+                code.putln("{")
                 code.putln(
                     f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
                 code.putln("if (!traverse); else { e = traverse(o,v,a); if (e) return e; }")
+                code.putln("}")
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1906,10 +1907,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # using module state).
                 base_cname = base_type.typeptr_cname
                 code.putln("#if !CYTHON_USE_MODULE_STATE")
-                code.putln(
-                    f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
                 code.putln("e = 0;")
                 code.putln("if (likely(%s)) {" % base_cname)
+                code.putln(
+                    f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
                 code.putln("if (traverse) { e = traverse(o, v, a); }")
                 code.putln("} else")
                 code.putln("#endif")
@@ -1917,7 +1918,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("if (e) return e;")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
-            code.putln("}")
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
@@ -1966,13 +1966,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
-            code.putln("{")
             if static_call:
                 code.putln("%s(o);" % static_call)
             elif base_type.is_builtin_type:
                 base_cname = base_type.typeptr_cname
+                code.putln("{")
                 code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")
                 code.putln("if (!clear); else clear(o);")
+                code.putln("}")
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1984,15 +1985,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # using module state).
                 base_cname = base_type.typeptr_cname
                 code.putln("#if !CYTHON_USE_MODULE_STATE")
-                code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")
                 code.putln("if (likely(%s)) {" % base_cname)
+                code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")
                 code.putln("if (clear) clear(o);")
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{ __Pyx_call_next_tp_clear(o, %s); }" % slot_func)
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpClear", "ExtensionTypes.c"))
-            code.putln("}")
 
         if Options.clear_to_none:
             for entry in py_attrs:
