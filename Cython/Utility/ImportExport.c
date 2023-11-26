@@ -768,7 +768,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     // resolution isn't possible and we must reject it just as when the
     // instance struct is so extended.  (It would be good to also do this
     // check when a multiple-base class is created in pure Python as well.)
-#if CYTHON_ASSUME_SAME_MACROS
+#if !CYTHON_COMPILING_IN_LIMITED_API
     size = PyTuple_GET_SIZE(bases);
 #else
     size = PyTuple_Size(bases);
@@ -783,7 +783,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
         basei = PyTuple_GetItem(bases, i);
         if (unlikely(!basei)) goto other_failure;
 #else
-        basei = PySequence_Item(bases, i);
+        basei = PySequence_GetItem(bases, i);
         if (unlikely(!basei)) goto other_failure;
 #endif
         base_vtable = __Pyx_GetVtable((PyTypeObject*)basei);
@@ -822,7 +822,7 @@ bad:
         basei = (PyTypeObject*)PyTuple_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
 #else
-        basei = (PyTypeObject*)PySequence_Item(bases, i);
+        basei = (PyTypeObject*)PySequence_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
 #endif
         base_name = __Pyx_PyType_GetName(basei);

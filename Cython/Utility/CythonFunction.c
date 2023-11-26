@@ -1231,7 +1231,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
     Py_ssize_t i, count;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if !CYTHON_COMPILING_IN_LIMITED_API
     count = PyList_GET_SIZE(cyfunctions);
 #else
     count = PyList_Size(cyfunctions);
