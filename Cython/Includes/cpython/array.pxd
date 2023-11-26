@@ -49,11 +49,11 @@
 
 cdef extern from *:
     """
-    #if CYTHON_COMPILING_IN_PYPY
+    #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
     #ifdef _MSC_VER
-    #pragma message ("This module uses CPython specific internals of 'array.array', which are not available in PyPy.")
+    #pragma message ("This module uses CPython specific internals of 'array.array', which are not available in PyPy or the limited API.")
     #else
-    #warning This module uses CPython specific internals of 'array.array', which are not available in PyPy.
+    #warning This module uses CPython specific internals of 'array.array', which are not available in PyPy or the limited API.
     #endif
     #endif
     """

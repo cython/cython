@@ -1099,7 +1099,8 @@ Where:
 - ``object_struct_name`` is the name to assume for the type's C struct.
 - ``type_object_name`` is the name to assume for the type's statically
   declared type object.
-- ``cs_option`` is ``warn`` (the default), ``error``, or ``ignore`` and is only
+- ``cs_option`` is ``warn`` (the default), ``error``, ``ignore``, ``opaque``,
+  or ``opaque_in_limited_api`` and is only
   used for external extension types.  If ``error``, the ``sizeof(object_struct)``
   that was found at compile time must match the type's runtime ``tp_basicsize``
   exactly, otherwise the module import will fail with an error.  If ``warn``
@@ -1108,6 +1109,11 @@ Where:
   module, and that the external module's developers extended the object in a
   backward-compatible fashion (only adding new fields to the end of the object).
   If ``warn``, a warning will be emitted in this case.
+  If ``opaque`` then no check is done, but it is not possible to use the
+  class as anything other than an opaque pointer type. ``opaque_in_limited_api``
+  is mainly for internal use for implementing Cython's own wrappings of Python's
+  C API but skips the check when compiled in the limited API (but also blocks
+  most uses of the type's internals).
 
 The clauses can be written in any order.
 

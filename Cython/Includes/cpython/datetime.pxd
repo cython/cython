@@ -1,6 +1,8 @@
 from cpython.object cimport PyObject
 from cpython.version cimport PY_VERSION_HEX
 
+import cython as _cython
+
 cdef extern from "Python.h":
     ctypedef struct PyTypeObject:
         pass
@@ -67,97 +69,118 @@ cdef extern from "datetime.h":
     #endif
     """
 
-    ctypedef extern class datetime.date[object PyDateTime_Date]:
+    ctypedef extern class datetime.date[object PyDateTime_Date, check_size opaque]:
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int year(self):
             return PyDateTime_GET_YEAR(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int month(self):
             return PyDateTime_GET_MONTH(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int day(self):
             return PyDateTime_GET_DAY(self)
 
-    ctypedef extern class datetime.time[object PyDateTime_Time]:
+    ctypedef extern class datetime.time[object PyDateTime_Time, check_size opaque]:
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int hour(self):
             return PyDateTime_TIME_GET_HOUR(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int minute(self):
             return PyDateTime_TIME_GET_MINUTE(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int second(self):
             return PyDateTime_TIME_GET_SECOND(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int microsecond(self):
             return PyDateTime_TIME_GET_MICROSECOND(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline object tzinfo(self):
             return <object>PyDateTime_TIME_GET_TZINFO(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int fold(self):
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_TIME_GET_FOLD(self)
 
-    ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
+    ctypedef extern class datetime.datetime[object PyDateTime_DateTime, check_size opaque]:
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int year(self):
             return PyDateTime_GET_YEAR(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int month(self):
             return PyDateTime_GET_MONTH(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int day(self):
             return PyDateTime_GET_DAY(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int hour(self):
             return PyDateTime_DATE_GET_HOUR(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int minute(self):
             return PyDateTime_DATE_GET_MINUTE(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int second(self):
             return PyDateTime_DATE_GET_SECOND(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int microsecond(self):
             return PyDateTime_DATE_GET_MICROSECOND(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline object tzinfo(self):
             return <object>PyDateTime_DATE_GET_TZINFO(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int fold(self):
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_DATE_GET_FOLD(self)
 
-    ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
+    ctypedef extern class datetime.timedelta[object PyDateTime_Delta, check_size opaque]:
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int day(self):
             return PyDateTime_DELTA_GET_DAYS(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int second(self):
             return PyDateTime_DELTA_GET_SECONDS(self)
 
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline int microsecond(self):
             return PyDateTime_DELTA_GET_MICROSECONDS(self)
 
-    ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
+    ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo, check_size opaque]:
         pass
 
     ctypedef struct PyDateTime_Date:
@@ -279,41 +302,49 @@ cdef extern from "datetime.h":
 
 # Datetime C API initialization function.
 # You have to call it before any usage of DateTime CAPI functions.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline void import_datetime():
     PyDateTime_IMPORT
 
 # Create date object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline date date_new(int year, int month, int day):
     return PyDateTimeAPI.Date_FromDate(year, month, day, PyDateTimeAPI.DateType)
 
 # Create time object using DateTime CAPI factory function
 # Note, there are no range checks for any of the arguments.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline time time_new(int hour, int minute, int second, int microsecond, object tz, int fold=0):
     return __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold)
 
 # Create datetime object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline datetime datetime_new(int year, int month, int day, int hour, int minute, int second, int microsecond, object tz, int fold=0):
     return __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold)
 
 # Create timedelta object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline timedelta timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
 # Create timedelta object using DateTime CAPI factory function.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline object timezone_new(object offset, object name=None):
     if PY_VERSION_HEX < 0x030700b1:
         raise RuntimeError('Time zones are not available from the C-API.')
     return __Pyx_TimeZone_FromOffsetAndName(offset, <PyObject*>name if name is not None else NULL)
 
 # Create datetime object using DB API constructor.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline datetime datetime_from_timestamp(timestamp, tz=None):
     return PyDateTimeAPI.DateTime_FromTimestamp(
         <PyObject*>PyDateTimeAPI.DateTimeType, (timestamp, tz) if tz is not None else (timestamp,), NULL)
 
 # Create date object using DB API constructor.
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline date date_from_timestamp(timestamp):
     return PyDateTimeAPI.Date_FromTimestamp(<PyObject*>PyDateTimeAPI.DateType, (timestamp,))
 
@@ -323,97 +354,120 @@ cdef inline date date_from_timestamp(timestamp):
 # If you would change time/date/datetime/timedelta object you need to recreate.
 
 # Get UTC singleton
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline object get_utc():
     if PY_VERSION_HEX < 0x030700b1:
         raise RuntimeError('Time zones are not available from the C-API.')
     return <object>__Pyx_TimeZone_UTC
 
 # Get tzinfo of time
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline object time_tzinfo(object o):
     return <object>PyDateTime_TIME_GET_TZINFO(o)
 
 # Get tzinfo of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline object datetime_tzinfo(object o):
     return <object>PyDateTime_DATE_GET_TZINFO(o)
 
 # Get year of date
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int date_year(object o):
     return PyDateTime_GET_YEAR(o)
 
 # Get month of date
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int date_month(object o):
     return PyDateTime_GET_MONTH(o)
 
 # Get day of date
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int date_day(object o):
     return PyDateTime_GET_DAY(o)
 
 # Get year of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_year(object o):
     return PyDateTime_GET_YEAR(o)
 
 # Get month of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_month(object o):
     return PyDateTime_GET_MONTH(o)
 
 # Get day of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_day(object o):
     return PyDateTime_GET_DAY(o)
 
 # Get hour of time
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int time_hour(object o):
     return PyDateTime_TIME_GET_HOUR(o)
 
 # Get minute of time
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int time_minute(object o):
     return PyDateTime_TIME_GET_MINUTE(o)
 
 # Get second of time
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int time_second(object o):
     return PyDateTime_TIME_GET_SECOND(o)
 
 # Get microsecond of time
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int time_microsecond(object o):
     return PyDateTime_TIME_GET_MICROSECOND(o)
 
 # Get fold of time
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int time_fold(object o):
     # For Python < 3.6 this returns 0 no matter what
     return PyDateTime_TIME_GET_FOLD(o)
 
 # Get hour of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_hour(object o):
     return PyDateTime_DATE_GET_HOUR(o)
 
 # Get minute of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_minute(object o):
     return PyDateTime_DATE_GET_MINUTE(o)
 
 # Get second of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_second(object o):
     return PyDateTime_DATE_GET_SECOND(o)
 
 # Get microsecond of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_microsecond(object o):
     return PyDateTime_DATE_GET_MICROSECOND(o)
 
 # Get fold of datetime
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int datetime_fold(object o):
     # For Python < 3.6 this returns 0 no matter what
     return PyDateTime_DATE_GET_FOLD(o)
 
 # Get days of timedelta
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int timedelta_days(object o):
     return (<PyDateTime_Delta*>o).days
 
 # Get seconds of timedelta
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int timedelta_seconds(object o):
     return (<PyDateTime_Delta*>o).seconds
 
 # Get microseconds of timedelta
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline int timedelta_microseconds(object o):
     return (<PyDateTime_Delta*>o).microseconds
 
+@_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
 cdef inline double total_seconds(timedelta obj):
     # Mirrors the "timedelta.total_seconds()" method.
     # Note that this implementation is not guaranteed to give *exactly* the same
