@@ -6,7 +6,7 @@
 
 from . import Naming
 from . import PyrexTypes
-from .Errors import error
+from .Errors import error, warn_once
 
 import copy
 
@@ -381,6 +381,9 @@ class MethodSlot(SlotDescriptor):
         for method_name in self.alternatives:
             entry = scope.lookup_here(method_name)
             if entry and entry.is_special and entry.func_cname:
+                warn_once(entry.pos,
+                          f"{method_name} was removed in Python 3; use {self.method_name} instead",
+                          2)
                 return entry.func_cname
         return "0"
 
@@ -917,7 +920,8 @@ class SlotTable:
             MethodSlot(unaryfunc, "nb_negative", "__neg__", method_name_to_slot),
             MethodSlot(unaryfunc, "nb_positive", "__pos__", method_name_to_slot),
             MethodSlot(unaryfunc, "nb_absolute", "__abs__", method_name_to_slot),
-            MethodSlot(inquiry, "nb_bool", "__bool__", method_name_to_slot),
+            MethodSlot(inquiry, "nb_bool", "__bool__", method_name_to_slot,
+                       fallback="__nonzero__"),
             MethodSlot(unaryfunc, "nb_invert", "__invert__", method_name_to_slot),
             BinopSlot(bf, "nb_lshift", "__lshift__", method_name_to_slot),
             BinopSlot(bf, "nb_rshift", "__rshift__", method_name_to_slot),
@@ -1084,6 +1088,15 @@ class SlotTable:
         MethodSlot(descrgetfunc, "", "__get__", method_name_to_slot)
         MethodSlot(descrsetfunc, "", "__set__", method_name_to_slot)
         MethodSlot(descrdelfunc, "", "__delete__", method_name_to_slot)
+
+        #-------------------------------------------------------------------------
+        #
+        # Legacy "fallback" Py2 slots. Don't appear in the generated slot table,
+        # but match the "fallback" argument of a slot that does
+        #
+        #-------------------------------------------------------------------------
+        MethodSlot(inquiry, "", "__nonzero__", method_name_to_slot)
+        MethodSlot(unaryfunc, "", "__long__", method_name_to_slot)
 
     def get_special_method_signature(self, name):
         #  Given a method name, if it is a special method,
