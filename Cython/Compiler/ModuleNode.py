@@ -3863,7 +3863,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put(' %s, ' % type_name)
 
         if type.check_size == "opaque":
-            code.put('0, 0,')
+            code.put('1, 1,')
         elif sizeof_objstruct != objstruct or type.check_size == "opaque_in_limited_api":
             if not condition:
                 code.putln("")  # start in new line
@@ -3872,7 +3872,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 objstruct, Naming.cyversion, objstruct))
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
             if type.check_size == "opaque_in_limited_api":
-                code.putln('0, 0,')
+                code.putln('1, 1,')
             else:
                 code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
                     objstruct, Naming.cyversion, objstruct))
