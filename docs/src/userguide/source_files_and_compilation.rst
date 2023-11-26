@@ -1184,14 +1184,15 @@ hidden by default since most users will be uninterested in changing them.
     .. tab:: Show
         
         ``CYTHON_USE_TYPE_SLOTS``
-            If enabled Cython will directly access members of the ``PyTypeObject``
+            If enabled, Cython will directly access members of the ``PyTypeObject``
             struct.
             
         ``CYTHON_USE_PYTYPE_LOOKUP``
-            More efficient access into properties of C classes.
+            Use the internal `_PyType_Lookup()` function for more efficient access
+            to properties of C classes.
             
         ``CYTHON_USE_ASYNC_SLOTS``
-            Support for the ``tp_as_async`` attribute on type objects.
+            Support the ``tp_as_async`` attribute on type objects.
             
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
@@ -1208,13 +1209,14 @@ hidden by default since most users will be uninterested in changing them.
             (where it is enabled by default).
             
         ``CYTHON_ASSUME_SAFE_MACROS``
-            Using some C API macros that increase performance by skipping error checking.
+            Use some C-API macros that increase performance by skipping error checking,
+            which may not be safe on all Python implementations (e.g. PyPy).
             
         ``CYTHON_FAST_GIL``
             On some Python versions this speeds up getting/releasing the GIL.
             
         ``CYTHON_UNPACK_METHODS``
-            Tries to speed up method calls at the cost of code-size.  Linked to
+            Try to speed up method calls at the cost of code-size.  Linked to
             the ``optimize.unpack_method_calls`` compiler directive - this macro
             is used to selectively enable the compiler directive only on versions
             of Python that support it.
@@ -1224,18 +1226,19 @@ hidden by default since most users will be uninterested in changing them.
             mechanism on older Python versions (<3.8).
             
         ``CYTHON_PEP487_INIT_SUBCLASS``
-            Enables PEP487 behaviour.
+            Enable `PEP-487 <https://peps.python.org/pep-0487/>`_ ``__init_subclass__`` behaviour.
             
         ``CYTHON_USE_TP_FINALIZE``
-            Uses the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
-            as described in PEP 442.
+            Use the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
+            as described in `PEP-442 <https://peps.python.org/pep-0442/>`_.
             
         ``CYTHON_USE_DICT_VERSIONS``
-            Tries to optimize attribute lookup by using versioned dictionaries
+            Try to optimize attribute lookup by using versioned dictionaries
             where supported.
             
         ``CYTHON_USE_EXC_INFO_STACK``
-            Uses an internal structure to track exception state.
+            Use an internal structure to track exception state,
+            used in CPython 3.7 and later.
             
         ``CYTHON_UPDATE_DESCRIPTOR_DOC``
-            Attempts to provide docstrings for special methods.
+            Attempt to provide docstrings also for special (double underscore) methods.
