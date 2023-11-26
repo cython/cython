@@ -498,6 +498,8 @@ file consists of the full dotted name of the module, e.g. a module called
     the resulting ``.so`` file like a dynamic library.
     Beware that this is not portable, so it should be avoided.
 
+.. _CYTHON_EXTERN_C:
+    
 C++ public declarations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
