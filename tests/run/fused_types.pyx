@@ -24,12 +24,13 @@ fused_type3 = cython.fused_type(int, double)
 fused_composite = cython.fused_type(fused_type2, fused_type3)
 just_float = cython.fused_type(float)
 
+
 def test_pure():
     """
     >>> test_pure()
     10
     """
-    mytype = pure_cython.typedef(pure_cython.fused_type(int, long, complex))
+    mytype = pure_cython.typedef(pure_cython.fused_type(int, complex))
     print(mytype(10))
 
 

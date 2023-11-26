@@ -1123,3 +1123,122 @@ argument to ``cythonize``::
 This will override the default directives as specified in the ``compiler_directives`` dictionary.
 Note that explicit per-file or local directives as explained above take precedence over the
 values passed to ``cythonize``.
+
+C macro defines
+===============
+
+Cython has a number of C macros that can be used to control compilation. Typically, these
+would be set using ``extra_compile_args`` in `setup.py` (for example
+``extra_compile_args=['-DCYTHON_USE_TYPE_SPECS=1']``), however they can also be set in
+other ways like using the ``CFLAGS`` environmental variable.
+
+These macros are set automatically by Cython to sensible default values unless
+you chose to explicitly override them, so they are a tool that most users
+can happily ignore.  Not all combinations of macros are compatible or tested, and
+some change the default value of other macros.  They are listed below in rough order from
+most important to least important:
+
+``CYTHON_LIMITED_API``
+    Turns on Cython's experimental Limited API support, meaning that one compiled module
+    can be used by many Python interpreter versions (at the cost of some performance).
+    At this stage many features do not work in the Limited API.  If you use this macro
+    you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
+    minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
+    Python 3.7 upwards.
+
+``CYTHON_PEP489_MULTI_PHASE_INIT``
+    Uses multi-phase module initialization as described in PEP489.  This improves
+    Python compatibility, especially when running the initial import of the code when it
+    makes attributes such as ``__file__`` available.  It is therefore on by default
+    where supported.
+
+``CYTHON_USE_MODULE_STATE``
+    Stores module data on a struct associated with the module object rather than as
+    C global variables.  The advantage is that it should be possible to import the
+    same module more than once (e.g. in different sub-interpreters).  At the moment
+    this is experimental and not all data has been moved.  It also requires that
+    ``CYTHON_PEP489_MULTI_PHASE_INIT`` is off - we plan to remove this limitation
+    in the future.
+
+``CYTHON_USE_TYPE_SPECS``
+    Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
+    rather than "static types".  Practically this does not change a lot from a user
+    point of view, but it is needed to implement Limited API support.
+    
+``CYTHON_EXTERN_C``
+    Slightly different to the other macros, this controls how ``cdef public``
+    functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
+    
+There is a further list of macros which turn off various optimizations or language
+features.  Under normal circumstance Cython enables these automatically based on the
+version of Python you are compiling for so there is no need to use them
+to try to enable extra optimizations - all supported optimizations are enabled by
+default.  These are mostly relevant if you're tying to get Cython working in a
+new and unsupported Python interpreter where you will typically want to set
+them to 0 to *disable* optimizations.  They are listed below for completeness but
+hidden by default since most users will be uninterested in changing them.
+
+.. tabs::
+    .. tab:: Hide
+    
+    .. tab:: Show
+        
+        ``CYTHON_USE_TYPE_SLOTS``
+            If enabled, Cython will directly access members of the ``PyTypeObject``
+            struct.
+            
+        ``CYTHON_USE_PYTYPE_LOOKUP``
+            Use the internal `_PyType_Lookup()` function for more efficient access
+            to properties of C classes.
+            
+        ``CYTHON_USE_ASYNC_SLOTS``
+            Support the ``tp_as_async`` attribute on type objects.
+            
+        ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
+            Enable optimizations based on direct access into the internals of Python
+            ``int``/``list``/``unicode`` objects respectively.
+            
+        ``CYTHON_USE_UNICODE_WRITER``
+            Use a faster (but internal) mechanism for building unicode strings, for
+            example in f-strings.
+            
+        ``CYTHON_AVOID_BORROWED_REFS``
+            Avoid using "borrowed references" and ensure that Cython always holds
+            a reference to objects it manipulates.  Most useful for
+            non-reference-counted implementations of Python, like PyPy
+            (where it is enabled by default).
+            
+        ``CYTHON_ASSUME_SAFE_MACROS``
+            Use some C-API macros that increase performance by skipping error checking,
+            which may not be safe on all Python implementations (e.g. PyPy).
+            
+        ``CYTHON_FAST_GIL``
+            On some Python versions this speeds up getting/releasing the GIL.
+            
+        ``CYTHON_UNPACK_METHODS``
+            Try to speed up method calls at the cost of code-size.  Linked to
+            the ``optimize.unpack_method_calls`` compiler directive - this macro
+            is used to selectively enable the compiler directive only on versions
+            of Python that support it.
+            
+        ``CYTHON_METH_FASTCALL``/``CYTHON_FAST_PYCALL``
+            These are used internally to incrementally enable the vectorcall calling
+            mechanism on older Python versions (<3.8).
+            
+        ``CYTHON_PEP487_INIT_SUBCLASS``
+            Enable `PEP-487 <https://peps.python.org/pep-0487/>`_ ``__init_subclass__`` behaviour.
+            
+        ``CYTHON_USE_TP_FINALIZE``
+            Use the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
+            as described in `PEP-442 <https://peps.python.org/pep-0442/>`_.
+            
+        ``CYTHON_USE_DICT_VERSIONS``
+            Try to optimize attribute lookup by using versioned dictionaries
+            where supported.
+            
+        ``CYTHON_USE_EXC_INFO_STACK``
+            Use an internal structure to track exception state,
+            used in CPython 3.7 and later.
+            
+        ``CYTHON_UPDATE_DESCRIPTOR_DOC``
+            Attempt to provide docstrings also for special (double underscore) methods.

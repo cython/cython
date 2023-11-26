@@ -89,9 +89,6 @@ __doc__ = u"""
     >>> Li = Long().__int__
     >>> Li()
     Long __long__
-"""
-if sys.version_info >= (2,5):
-    __doc__ += u"""\
     >>> vs0 = VerySpecial(0)
     VS __init__ 0
     >>> vs0_index = vs0.__index__

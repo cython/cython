@@ -54,7 +54,7 @@ class TestInline(CythonTest):
         self.assertEqual(foo(7), 49)
 
     def test_class_ref(self):
-        class Type(object):
+        class Type:
             pass
         tp = inline("Type")['Type']
         self.assertEqual(tp, Type)

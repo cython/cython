@@ -46,7 +46,6 @@ declarative code lines that do not contribute executable code, and such (missing
 can then be marked as excluded from coverage analysis.
 """
 
-from __future__ import absolute_import
 
 import re
 import os.path
@@ -343,7 +342,7 @@ class CythonModuleTracer(FileTracer):
     Find the Python/Cython source file for a Cython module.
     """
     def __init__(self, module_file, py_file, c_file, c_files_map, file_path_map):
-        super(CythonModuleTracer, self).__init__()
+        super().__init__()
         self.module_file = module_file
         self.py_file = py_file
         self.c_file = c_file
@@ -381,7 +380,7 @@ class CythonModuleReporter(FileReporter):
     Provide detailed trace information for one source file to coverage.py.
     """
     def __init__(self, c_file, source_file, rel_file_path, code, excluded_lines):
-        super(CythonModuleReporter, self).__init__(source_file)
+        super().__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code

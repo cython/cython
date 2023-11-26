@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import os
 import shutil
 import tempfile
@@ -16,13 +14,9 @@ except ImportError:
     parallel_compiles = 0
 
 
-class _FakePool(object):
+class _FakePool:
     def map_async(self, func, args):
-        try:
-            from itertools import imap
-        except ImportError:
-            imap=map
-        for _ in imap(func, args):
+        for _ in map(func, args):
             pass
 
     def close(self):
@@ -158,8 +152,8 @@ Environment variables:
                       help='use Python 2 syntax mode by default')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
                       help='use Python 3 syntax mode by default')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
-                      help='use Python 3 syntax mode by default')
+    parser.add_argument('--3str', dest='language_level', action='store_const', const=3,
+                      help='use Python 3 syntax mode by default (deprecated alias for -3)')
     parser.add_argument('-+', '--cplus', dest='language', action='store_const', const='c++', default=None,
                         help='Compile as C++ rather than C')
     parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',

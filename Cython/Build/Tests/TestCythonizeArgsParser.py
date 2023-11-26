@@ -9,10 +9,7 @@ from Cython.Compiler.Tests.Utils import backup_Options, restore_Options, check_g
 from unittest import TestCase
 
 import sys
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
+from io import StringIO
 
 
 class TestCythonizeArgsParser(TestCase):
@@ -90,20 +87,20 @@ class TestCythonizeArgsParser(TestCase):
             options, args =  self.parse_args(['-X', 'cdivision'])
 
     def test_directives_types(self):
-        directives = {
-                'auto_pickle': True,
-                'c_string_type': 'bytearray',
-                'c_string_type': 'bytes',
-                'c_string_type': 'str',
-                'c_string_type': 'bytearray',
-                'c_string_type': 'unicode',
-                'c_string_encoding' : 'ascii',
-                'language_level' : 2,
-                'language_level' : 3,
-                'language_level' : '3str',
-                'set_initial_path' : 'my_initial_path',
-        }
-        for key, value in directives.items():
+        directives = [
+            ('auto_pickle', True),
+            ('c_string_type', 'bytearray'),
+            ('c_string_type', 'bytes'),
+            ('c_string_type', 'str'),
+            ('c_string_type', 'bytearray'),
+            ('c_string_type', 'unicode'),
+            ('c_string_encoding', 'ascii'),
+            ('language_level', '2'),
+            ('language_level', '3'),
+            #('language_level', '3str'),
+            ('set_initial_path', 'my_initial_path'),
+        ]
+        for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
             options, args =  self.parse_args(['-X', cmd])
             self.assertFalse(args)
@@ -111,14 +108,14 @@ class TestCythonizeArgsParser(TestCase):
             self.assertEqual(options.directives[key], value, msg = "Error for option: "+cmd)
 
     def test_directives_wrong(self):
-        directives = {
-                'auto_pickle': 42,        # for bool type
-                'auto_pickle': 'NONONO',  # for bool type
-                'c_string_type': 'bites',
-                #'c_string_encoding' : 'a',
-                #'language_level' : 4,
-        }
-        for key, value in directives.items():
+        directives = [
+            ('auto_pickle', 42),        # for bool type
+            ('auto_pickle', 'NONONO'),  # for bool type
+            ('c_string_type', 'bites'),
+            #('c_string_encoding', 'a'),
+            #('language_level', 4),
+        ]
+        for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
             with self.assertRaises(ValueError, msg = "Error for option: "+cmd) as context:
                 options, args =  self.parse_args(['-X', cmd])
@@ -240,7 +237,7 @@ class TestCythonizeArgsParser(TestCase):
         options, args =  self.parse_args(['--3str'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['language_level']))
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.language_level, 3)
 
     def test_annotate_short(self):
         options, args =  self.parse_args(['-a'])
@@ -271,7 +268,7 @@ class TestCythonizeArgsParser(TestCase):
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['annotate', 'language_level']))
         self.assertEqual(options.annotate, 'default')
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.language_level, 3)
 
     def test_exclude_short(self):
         options, args =  self.parse_args(['-x', '*.pyx'])

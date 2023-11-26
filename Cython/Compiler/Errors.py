@@ -2,12 +2,7 @@
 #   Errors
 #
 
-from __future__ import absolute_import
-
-try:
-    from __builtin__ import basestring as any_string_type
-except ImportError:
-    any_string_type = (bytes, str)
+any_string_type = (bytes, str)
 
 import sys
 from contextlib import contextmanager
@@ -15,7 +10,7 @@ from contextlib import contextmanager
 try:
     from threading import local as _threadlocal
 except ImportError:
-    class _threadlocal(object): pass
+    class _threadlocal: pass
 
 threadlocal = _threadlocal()
 
@@ -42,29 +37,29 @@ def context(position):
         F = source.get_lines()
     except UnicodeDecodeError:
         # file has an encoding problem
-        s = u"[unprintable code]\n"
+        s = "[unprintable code]\n"
     else:
-        s = u''.join(F[max(0, position[1]-6):position[1]])
-        s = u'...\n%s%s^\n' % (s, u' '*(position[2]))
-    s = u'%s\n%s%s\n' % (u'-'*60, s, u'-'*60)
+        s = ''.join(F[max(0, position[1]-6):position[1]])
+        s = '...\n%s%s^\n' % (s, ' '*(position[2]))
+    s = '%s\n%s%s\n' % ('-'*60, s, '-'*60)
     return s
 
 def format_position(position):
     if position:
-        return u"%s:%d:%d: " % (position[0].get_error_description(),
+        return "%s:%d:%d: " % (position[0].get_error_description(),
                                 position[1], position[2])
-    return u''
+    return ''
 
 def format_error(message, position):
     if position:
         pos_str = format_position(position)
         cont = context(position)
-        message = u'\nError compiling Cython file:\n%s\n%s%s' % (cont, pos_str, message or u'')
+        message = '\nError compiling Cython file:\n%s\n%s%s' % (cont, pos_str, message or '')
     return message
 
 class CompileError(PyrexError):
 
-    def __init__(self, position = None, message = u""):
+    def __init__(self, position = None, message = ""):
         self.position = position
         self.message_only = message
         self.formatted_message = format_error(message, position)
@@ -88,7 +83,7 @@ class InternalError(Exception):
 
     def __init__(self, message):
         self.message_only = message
-        Exception.__init__(self, u"Internal compiler error: %s"
+        Exception.__init__(self, "Internal compiler error: %s"
             % message)
 
 class AbortError(Exception):
@@ -96,27 +91,27 @@ class AbortError(Exception):
 
     def __init__(self, message):
         self.message_only = message
-        Exception.__init__(self, u"Abort error: %s" % message)
+        Exception.__init__(self, "Abort error: %s" % message)
 
 class CompilerCrash(CompileError):
     # raised when an unexpected exception occurs in a transform
     def __init__(self, pos, context, message, cause, stacktrace=None):
         if message:
-            message = u'\n' + message
+            message = '\n' + message
         else:
-            message = u'\n'
+            message = '\n'
         self.message_only = message
         if context:
-            message = u"Compiler crash in %s%s" % (context, message)
+            message = "Compiler crash in %s%s" % (context, message)
         if stacktrace:
             import traceback
             message += (
-                u'\n\nCompiler crash traceback from this point on:\n' +
-                u''.join(traceback.format_tb(stacktrace)))
+                '\n\nCompiler crash traceback from this point on:\n' +
+                ''.join(traceback.format_tb(stacktrace)))
         if cause:
             if not stacktrace:
-                message += u'\n'
-            message += u'%s: %s' % (cause.__class__.__name__, cause)
+                message += '\n'
+            message += '%s: %s' % (cause.__class__.__name__, cause)
         CompileError.__init__(self, pos, message)
         # Python Exception subclass pickling is broken,
         # see https://bugs.python.org/issue1692335
@@ -153,11 +148,11 @@ def report_error(err, use_stack=True):
         # See Main.py for why dual reporting occurs. Quick fix for now.
         if err.reported: return
         err.reported = True
-        try: line = u"%s\n" % err
+        try: line = "%s\n" % err
         except UnicodeEncodeError:
             # Python <= 2.5 does this for non-ASCII Unicode exceptions
             line = format_error(getattr(err, 'message_only', "[unprintable exception message]"),
-                                getattr(err, 'position', None)) + u'\n'
+                                getattr(err, 'position', None)) + '\n'
         listing_file = threadlocal.cython_errors_listing_file
         if listing_file:
             try: listing_file.write(line)
@@ -209,7 +204,7 @@ def message(position, message, level=1):
     if level < LEVEL:
         return
     warn = CompileWarning(position, message)
-    line = u"note: %s\n" % warn
+    line = "note: %s\n" % warn
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)
@@ -225,7 +220,7 @@ def warning(position, message, level=0):
     if Options.warning_errors and position:
         return error(position, message)
     warn = CompileWarning(position, message)
-    line = u"warning: %s\n" % warn
+    line = "warning: %s\n" % warn
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)
@@ -242,7 +237,7 @@ def warn_once(position, message, level=0):
     if message in warn_once_seen:
         return
     warn = CompileWarning(position, message)
-    line = u"warning: %s\n" % warn
+    line = "warning: %s\n" % warn
     listing_file = threadlocal.cython_errors_listing_file
     if listing_file:
         _write_file_encode(listing_file, line)

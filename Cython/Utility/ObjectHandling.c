@@ -99,9 +99,9 @@ static int __Pyx_unpack_tuple2_generic(
 static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
         PyObject* tuple, PyObject** pvalue1, PyObject** pvalue2, int decref_tuple) {
     PyObject *value1 = NULL, *value2 = NULL;
-#if CYTHON_COMPILING_IN_PYPY
-    value1 = PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
-    value2 = PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+    value1 = __Pyx_PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
+    value2 = __Pyx_PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
 #else
     value1 = PyTuple_GET_ITEM(tuple, 0);  Py_INCREF(value1);
     value2 = PyTuple_GET_ITEM(tuple, 1);  Py_INCREF(value2);
@@ -113,7 +113,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     *pvalue1 = value1;
     *pvalue2 = value2;
     return 0;
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 bad:
     Py_XDECREF(value1);
     Py_XDECREF(value2);
@@ -327,7 +327,7 @@ static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
 
 /////////////// DictGetItem.proto ///////////////
 
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 
 #define __Pyx_PyObject_Dict_GetItem(obj, name) \
@@ -341,7 +341,7 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 
 /////////////// DictGetItem ///////////////
 
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
     value = PyDict_GetItemWithError(d, key);
@@ -637,60 +637,13 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         int has_cstart, int has_cstop, int wraparound) {
     __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
-    PyMappingMethods* mp;
-#if PY_MAJOR_VERSION < 3
-    PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
-    if (likely(ms && ms->sq_{{if access == 'Set'}}ass_{{endif}}slice)) {
-        if (!has_cstart) {
-            if (_py_start && (*_py_start != Py_None)) {
-                cstart = __Pyx_PyIndex_AsSsize_t(*_py_start);
-                if ((cstart == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-            } else
-                cstart = 0;
-        }
-        if (!has_cstop) {
-            if (_py_stop && (*_py_stop != Py_None)) {
-                cstop = __Pyx_PyIndex_AsSsize_t(*_py_stop);
-                if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-            } else
-                cstop = PY_SSIZE_T_MAX;
-        }
-        if (wraparound && unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
-            Py_ssize_t l = ms->sq_length(obj);
-            if (likely(l >= 0)) {
-                if (cstop < 0) {
-                    cstop += l;
-                    if (cstop < 0) cstop = 0;
-                }
-                if (cstart < 0) {
-                    cstart += l;
-                    if (cstart < 0) cstart = 0;
-                }
-            } else {
-                // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                    goto bad;
-                PyErr_Clear();
-            }
-        }
-{{if access == 'Get'}}
-        return ms->sq_slice(obj, cstart, cstop);
-{{else}}
-        return ms->sq_ass_slice(obj, cstart, cstop, value);
-{{endif}}
-    }
-#else
+    PyMappingMethods* mp = Py_TYPE(obj)->tp_as_mapping;
     CYTHON_UNUSED_VAR(wraparound);
-#endif
-
-    mp = Py_TYPE(obj)->tp_as_mapping;
 {{if access == 'Get'}}
     if (likely(mp && mp->mp_subscript))
 {{else}}
     if (likely(mp && mp->mp_ass_subscript))
 {{endif}}
-#else
-    CYTHON_UNUSED_VAR(wraparound);
 #endif
     {
         {{if access == 'Get'}}PyObject*{{else}}int{{endif}} result;
@@ -879,10 +832,6 @@ static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bas
         if (!tmp) return NULL;
 #endif
         tmptype = Py_TYPE(tmp);
-#if PY_MAJOR_VERSION < 3
-        if (tmptype == &PyClass_Type)
-            continue;
-#endif
         if (!metaclass) {
             metaclass = tmptype;
             continue;
@@ -902,11 +851,7 @@ static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bas
         return NULL;
     }
     if (!metaclass) {
-#if PY_MAJOR_VERSION < 3
-        metaclass = &PyClass_Type;
-#else
         metaclass = &PyType_Type;
-#endif
     }
     // make owned reference
     Py_INCREF((PyObject*) metaclass);
@@ -929,35 +874,16 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
 #else
-        PyObject *base = PySequence_ITEM(bases, 0);
+        PyObject *base = __Pyx_PySequence_ITEM(bases, 0);
 #endif
-#if PY_MAJOR_VERSION < 3
-        PyObject* basetype = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
-        if (basetype) {
-            metatype = (PyType_Check(basetype)) ? ((PyTypeObject*) basetype) : NULL;
-        } else {
-            PyErr_Clear();
-            metatype = Py_TYPE(base);
-            basetype = (PyObject*) metatype;
-            Py_INCREF(basetype);
-        }
-#else
         metatype = Py_TYPE(base);
-#endif
         metaclass = __Pyx_CalculateMetaclass(metatype, bases);
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_DECREF(base);
 #endif
-#if PY_MAJOR_VERSION < 3
-        Py_DECREF(basetype);
-#endif
     } else {
         // no bases => use default metaclass
-#if PY_MAJOR_VERSION < 3
-        metaclass = (PyObject *) &PyClass_Type;
-#else
         metaclass = (PyObject *) &PyType_Type;
-#endif
         Py_INCREF(metaclass);
     }
     return metaclass;
@@ -1005,12 +931,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 
     if (unlikely(PyDict_SetItem(dict, PYIDENT("__module__"), modname) < 0))
         return NULL;
-#if PY_VERSION_HEX >= 0x03030000
     if (unlikely(PyDict_SetItem(dict, PYIDENT("__qualname__"), qualname) < 0))
         return NULL;
-#else
-    CYTHON_MAYBE_UNUSED_VAR(qualname);
-#endif
 
     /* Python2 __metaclass__ */
     metaclass = __Pyx_PyDict_GetItemStr(dict, PYIDENT("__metaclass__"));
@@ -1044,13 +966,29 @@ static PyObject*
 __Pyx_PEP560_update_bases(PyObject *bases)
 {
     Py_ssize_t i, j, size_bases;
-    PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
+    PyObject *base = NULL, *meth, *new_base, *result, *new_bases = NULL;
     /*assert(PyTuple_Check(bases));*/
 
+#if CYTHON_ASSUME_SAFE_MACROS
     size_bases = PyTuple_GET_SIZE(bases);
+#else
+    size_bases = PyTuple_Size(bases);
+    if (size_bases < 0) return NULL;
+#endif
     for (i = 0; i < size_bases; i++) {
         // original code in CPython: base  = args[i];
-        base  = PyTuple_GET_ITEM(bases, i);
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_CLEAR(base);
+#endif
+#if CYTHON_ASSUME_SAFE_MACROS
+        base = PyTuple_GET_ITEM(bases, i);
+#else
+        base = PyTuple_GetItem(bases, i);
+        if (!base) goto error;
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_INCREF(base);
+#endif
         if (PyType_Check(base)) {
             if (new_bases) {
                 // If we already have made a replacement, then we append every normal base,
@@ -1094,12 +1032,26 @@ __Pyx_PEP560_update_bases(PyObject *bases)
             }
             for (j = 0; j < i; j++) {
                 // original code in CPython: base = args[j];
-                base = PyTuple_GET_ITEM(bases, j);
-                PyList_SET_ITEM(new_bases, j, base);
-                Py_INCREF(base);
+                // We use a different name here to keep refcounting separate from base
+                PyObject *base_from_list;
+#if CYTHON_ASSUME_SAFE_MACROS
+                base_from_list = PyTuple_GET_ITEM(bases, j);
+                PyList_SET_ITEM(new_bases, j, base_from_list);
+                Py_INCREF(base_from_list);
+#else
+                base_from_list = PyTuple_GetItem(bases, j);
+                if (!base_from_list) goto error;
+                Py_INCREF(base_from_list);
+                if (PyList_SetItem(new_bases, j, base_from_list) < 0) goto error;
+#endif
             }
         }
+#if CYTHON_ASSUME_SAFE_MACROS
         j = PyList_GET_SIZE(new_bases);
+#else
+        j = PyList_Size(new_bases);
+        if (j < 0) goto error;
+#endif
         if (PyList_SetSlice(new_bases, j, j, new_base) < 0) {
             goto error;
         }
@@ -1112,10 +1064,16 @@ __Pyx_PEP560_update_bases(PyObject *bases)
     }
     result = PyList_AsTuple(new_bases);
     Py_DECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return result;
 
 error:
     Py_XDECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return NULL;
 }
 
@@ -1134,7 +1092,6 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 //@requires: PyObjectCall2Args
 //@requires: PyObjectLookupSpecial
 // only in fallback code:
-//@requires: GetBuiltinName
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
@@ -1159,169 +1116,13 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
 
     /* Required here to emulate assignment order */
     if (unlikely(PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0)) goto bad;
-#if PY_VERSION_HEX >= 0x03030000
     if (unlikely(PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0)) goto bad;
-#else
-    CYTHON_MAYBE_UNUSED_VAR(qualname);
-#endif
     if (unlikely(doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0)) goto bad;
     return ns;
 bad:
     Py_DECREF(ns);
     return NULL;
 }
-
-#if PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
-// https://www.python.org/dev/peps/pep-0487/
-static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
-    PyTypeObject *type = (PyTypeObject*) type_obj;
-    PyObject *names_to_set, *key, *value, *set_name, *tmp;
-    Py_ssize_t i = 0;
-
-#if CYTHON_USE_TYPE_SLOTS
-    names_to_set = PyDict_Copy(type->tp_dict);
-#else
-    {
-        PyObject *d = PyObject_GetAttr(type_obj, PYIDENT("__dict__"));
-        names_to_set = NULL;
-        if (likely(d)) {
-            // d may not be a dict, e.g. PyDictProxy in PyPy2.
-            PyObject *names_to_set = PyDict_New();
-            int ret = likely(names_to_set) ? PyDict_Update(names_to_set, d) : -1;
-            Py_DECREF(d);
-            if (unlikely(ret < 0))
-                Py_CLEAR(names_to_set);
-        }
-    }
-#endif
-    if (unlikely(names_to_set == NULL))
-        goto bad;
-
-    while (PyDict_Next(names_to_set, &i, &key, &value)) {
-        set_name = __Pyx_PyObject_LookupSpecialNoError(value, PYIDENT("__set_name__"));
-        if (unlikely(set_name != NULL)) {
-            tmp = __Pyx_PyObject_Call2Args(set_name, type_obj, key);
-            Py_DECREF(set_name);
-            if (unlikely(tmp == NULL)) {
-                __Pyx_TypeName value_type_name =
-                    __Pyx_PyType_GetName(Py_TYPE(value));
-                __Pyx_TypeName type_name = __Pyx_PyType_GetName(type);
-                PyErr_Format(PyExc_RuntimeError,
-#if PY_MAJOR_VERSION >= 3
-                    "Error calling __set_name__ on '" __Pyx_FMT_TYPENAME "' instance %R " "in '" __Pyx_FMT_TYPENAME "'",
-                    value_type_name, key, type_name);
-#else
-                    "Error calling __set_name__ on '" __Pyx_FMT_TYPENAME "' instance %.100s in '" __Pyx_FMT_TYPENAME "'",
-                    value_type_name,
-                    PyString_Check(key) ? PyString_AS_STRING(key) : "?",
-                    type_name);
-#endif
-                goto bad;
-            } else {
-                Py_DECREF(tmp);
-            }
-        }
-        else if (unlikely(PyErr_Occurred())) {
-            goto bad;
-        }
-    }
-
-    Py_DECREF(names_to_set);
-    return 0;
-bad:
-    Py_XDECREF(names_to_set);
-    return -1;
-}
-
-static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-// Stripped-down version of "super(type_obj, type_obj).__init_subclass__(**mkw)" in CPython 3.8.
-    PyTypeObject *type = (PyTypeObject*) type_obj;
-    PyObject *mro = type->tp_mro;
-    Py_ssize_t i, nbases;
-    if (unlikely(!mro)) goto done;
-
-    // avoid "unused" warning
-    (void) &__Pyx_GetBuiltinName;
-
-    Py_INCREF(mro);
-    nbases = PyTuple_GET_SIZE(mro);
-
-    // Skip over the type itself and 'object'.
-    assert(PyTuple_GET_ITEM(mro, 0) == type_obj);
-    for (i = 1; i < nbases-1; i++) {
-        PyObject *base, *dict, *meth;
-        base = PyTuple_GET_ITEM(mro, i);
-        dict = ((PyTypeObject *)base)->tp_dict;
-        meth = __Pyx_PyDict_GetItemStrWithError(dict, PYIDENT("__init_subclass__"));
-        if (unlikely(meth)) {
-            descrgetfunc f = Py_TYPE(meth)->tp_descr_get;
-            PyObject *res;
-            Py_INCREF(meth);
-            if (likely(f)) {
-                res = f(meth, NULL, type_obj);
-                Py_DECREF(meth);
-                if (unlikely(!res)) goto bad;
-                meth = res;
-            }
-            res = __Pyx_PyObject_FastCallDict(meth, NULL, 0, mkw);
-            Py_DECREF(meth);
-            if (unlikely(!res)) goto bad;
-            Py_DECREF(res);
-            goto done;
-        } else if (unlikely(PyErr_Occurred())) {
-            goto bad;
-        }
-    }
-
-done:
-    Py_XDECREF(mro);
-    return type_obj;
-
-bad:
-    Py_XDECREF(mro);
-    Py_DECREF(type_obj);
-    return NULL;
-
-// CYTHON_USE_TYPE_SLOTS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-#else
-// Generic fallback: "super(type_obj, type_obj).__init_subclass__(**mkw)", as used in CPython 3.8.
-    PyObject *super_type, *super, *func, *res;
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
-    super_type = __Pyx_GetBuiltinName(PYIDENT("super"));
-#else
-    super_type = (PyObject*) &PySuper_Type;
-    // avoid "unused" warning
-    (void) &__Pyx_GetBuiltinName;
-#endif
-    super = likely(super_type) ? __Pyx_PyObject_Call2Args(super_type, type_obj, type_obj) : NULL;
-#if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
-    Py_XDECREF(super_type);
-#endif
-    if (unlikely(!super)) {
-        Py_CLEAR(type_obj);
-        goto done;
-    }
-    func = __Pyx_PyObject_GetAttrStrNoError(super, PYIDENT("__init_subclass__"));
-    Py_DECREF(super);
-    if (likely(!func)) {
-        if (unlikely(PyErr_Occurred()))
-            Py_CLEAR(type_obj);
-        goto done;
-    }
-    res = __Pyx_PyObject_FastCallDict(func, NULL, 0, mkw);
-    Py_DECREF(func);
-    if (unlikely(!res))
-        Py_CLEAR(type_obj);
-    Py_XDECREF(res);
-done:
-    return type_obj;
-#endif
-}
-
-// PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
-#endif
 
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
                                       PyObject *dict, PyObject *mkw,
@@ -1347,28 +1148,8 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
             return NULL;
         owned_metaclass = metaclass;
     }
-    result = __Pyx_PyObject_FastCallDict(metaclass, margs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET,
-#if PY_VERSION_HEX < 0x030600A4
-        // Before PEP-487, type(a,b,c) did not accept any keyword arguments, so guard at least against that case.
-        (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw
-#else
-        mkw
-#endif
-    );
+    result = __Pyx_PyObject_FastCallDict(metaclass, margs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, mkw);
     Py_XDECREF(owned_metaclass);
-
-#if PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
-    if (likely(result) && likely(PyType_Check(result))) {
-        if (unlikely(__Pyx_SetNamesPEP487(result) < 0)) {
-            Py_CLEAR(result);
-        } else {
-            result = __Pyx_InitSubclassPEP487(result, mkw);
-        }
-    }
-#else
-    // avoid "unused" warning
-    (void) &__Pyx_GetBuiltinName;
-#endif
     return result;
 }
 
@@ -1399,7 +1180,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 /////////////// CallableCheck.proto ///////////////
 
-#if CYTHON_USE_TYPE_SLOTS && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_TYPE_SLOTS
 #define __Pyx_PyCallable_Check(obj)   (Py_TYPE(obj)->tp_call != NULL)
 #else
 #define __Pyx_PyCallable_Check(obj)   PyCallable_Check(obj)
@@ -1468,11 +1249,7 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     PyObject* result = __Pyx_PyObject_GetAttrStrNoError($builtins_cname, name);
     if (unlikely(!result) && !PyErr_Occurred()) {
         PyErr_Format(PyExc_NameError,
-#if PY_MAJOR_VERSION >= 3
             "name '%U' is not defined", name);
-#else
-            "name '%.200s' is not defined", PyString_AS_STRING(name));
-#endif
     }
     return result;
 }
@@ -1510,7 +1287,7 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
 
 /////////////// SetNameInClass.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
 // Identifier names are always interned and have a pre-calculated hash value.
 #define __Pyx_SetNameInClass(ns, name, value) \
     (likely(PyDict_CheckExact(ns)) ? _PyDict_SetItem_KnownHash(ns, name, value, ((PyASCIIObject *) name)->hash) : PyObject_SetItem(ns, name, value))
@@ -1535,7 +1312,18 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #ifdef __Pyx_CyFunction_USED
     int ret;
     if (__Pyx_CyFunction_Check(value)) {
-        PyObject *staticnew = PyStaticMethod_New(value);
+        PyObject *staticnew;
+#if !CYTHON_COMPILING_IN_LIMITED_API
+        staticnew = PyStaticMethod_New(value);
+#else
+        PyObject *builtins, *staticmethod;
+        builtins = PyEval_GetBuiltins(); // borrowed
+        if (!builtins) return -1;
+        staticmethod = PyObject_GetAttrString(builtins, "staticmethod");
+        if (!staticmethod) return -1;
+        staticnew = PyObject_CallFunctionObjArgs(staticmethod, value, NULL);
+        Py_DECREF(staticmethod);
+#endif
         if (unlikely(!staticnew)) return -1;
         ret = __Pyx_SetNameInClass(ns, name, staticnew);
         Py_DECREF(staticnew);
@@ -1584,7 +1372,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     PyObject *result;
 // FIXME: clean up the macro guard order here: limited API first, then borrowed refs, then cpython
 #if !CYTHON_AVOID_BORROWED_REFS
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     // Identifier names are always interned and have a pre-calculated hash value.
     result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
     __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
@@ -1628,11 +1416,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *, PyObject *); /*proto*/
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
 #if CYTHON_USE_TYPE_SLOTS
-#if PY_MAJOR_VERSION >= 3
     if (likely(PyUnicode_Check(n)))
-#else
-    if (likely(PyString_Check(n)))
-#endif
         return __Pyx_PyObject_GetAttrStr(o, n);
 #endif
     return PyObject_GetAttr(o, n);
@@ -1660,10 +1444,6 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_LookupSpecial(PyObject* obj, PyOb
 static CYTHON_INLINE PyObject* __Pyx__PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name, int with_error) {
     PyObject *res;
     PyTypeObject *tp = Py_TYPE(obj);
-#if PY_MAJOR_VERSION < 3
-    if (unlikely(PyInstance_Check(obj)))
-        return with_error ? __Pyx_PyObject_GetAttrStr(obj, attr_name) : __Pyx_PyObject_GetAttrStrNoError(obj, attr_name);
-#endif
     // adapted from CPython's special_lookup() in ceval.c
     res = _PyType_Lookup(tp, attr_name);
     if (likely(res)) {
@@ -1683,88 +1463,13 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_LookupSpecial(PyObject* obj, PyOb
 
 /////////////// PyObject_GenericGetAttrNoDict.proto ///////////////
 
-// Setting "tp_getattro" to anything but "PyObject_GenericGetAttr" disables fast method calls in Py3.7.
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
-static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name);
-#else
-// No-args macro to allow function pointer assignment.
+// TODO: remove
 #define __Pyx_PyObject_GenericGetAttrNoDict PyObject_GenericGetAttr
-#endif
-
-/////////////// PyObject_GenericGetAttrNoDict ///////////////
-
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
-
-static PyObject *__Pyx_RaiseGenericGetAttributeError(PyTypeObject *tp, PyObject *attr_name) {
-    __Pyx_TypeName type_name = __Pyx_PyType_GetName(tp);
-    PyErr_Format(PyExc_AttributeError,
-#if PY_MAJOR_VERSION >= 3
-                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
-                 type_name, attr_name);
-#else
-                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%.400s'",
-                 type_name, PyString_AS_STRING(attr_name));
-#endif
-    __Pyx_DECREF_TypeName(type_name);
-    return NULL;
-}
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name) {
-    // Copied and adapted from _PyObject_GenericGetAttrWithDict() in CPython 3.6/3.7.
-    // To be used in the "tp_getattro" slot of extension types that have no instance dict and cannot be subclassed.
-    PyObject *descr;
-    PyTypeObject *tp = Py_TYPE(obj);
-
-    if (unlikely(!PyString_Check(attr_name))) {
-        return PyObject_GenericGetAttr(obj, attr_name);
-    }
-
-    assert(!tp->tp_dictoffset);
-    descr = _PyType_Lookup(tp, attr_name);
-    if (unlikely(!descr)) {
-        return __Pyx_RaiseGenericGetAttributeError(tp, attr_name);
-    }
-
-    Py_INCREF(descr);
-
-    #if PY_MAJOR_VERSION < 3
-    if (likely(PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_HAVE_CLASS)))
-    #endif
-    {
-        descrgetfunc f = Py_TYPE(descr)->tp_descr_get;
-        // Optimise for the non-descriptor case because it is faster.
-        if (unlikely(f)) {
-            PyObject *res = f(descr, obj, (PyObject *)tp);
-            Py_DECREF(descr);
-            return res;
-        }
-    }
-    return descr;
-}
-#endif
-
 
 /////////////// PyObject_GenericGetAttr.proto ///////////////
 
-// Setting "tp_getattro" to anything but "PyObject_GenericGetAttr" disables fast method calls in Py3.7.
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
-static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_name);
-#else
-// No-args macro to allow function pointer assignment.
+// TODO: remove
 #define __Pyx_PyObject_GenericGetAttr PyObject_GenericGetAttr
-#endif
-
-/////////////// PyObject_GenericGetAttr ///////////////
-//@requires: PyObject_GenericGetAttrNoDict
-
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
-static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_name) {
-    if (unlikely(Py_TYPE(obj)->tp_dictoffset)) {
-        return PyObject_GenericGetAttr(obj, attr_name);
-    }
-    return __Pyx_PyObject_GenericGetAttrNoDict(obj, attr_name);
-}
-#endif
 
 
 /////////////// PyObjectGetAttrStrNoError.proto ///////////////
@@ -1792,7 +1497,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
     (void) PyObject_GetOptionalAttr(obj, attr_name, &result);
     return result;
 #else
-#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS && PY_VERSION_HEX >= 0x030700B1
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS
     // _PyObject_GenericGetAttrWithDict() in CPython 3.7+ can avoid raising the AttributeError.
     // See https://bugs.python.org/issue32544
     PyTypeObject* tp = Py_TYPE(obj);
@@ -1824,10 +1529,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject
     PyTypeObject* tp = Py_TYPE(obj);
     if (likely(tp->tp_getattro))
         return tp->tp_getattro(obj, attr_name);
-#if PY_MAJOR_VERSION < 3
-    if (likely(tp->tp_getattr))
-        return tp->tp_getattr(obj, PyString_AS_STRING(attr_name));
-#endif
     return PyObject_GetAttr(obj, attr_name);
 }
 #endif
@@ -1850,10 +1551,6 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
     PyTypeObject* tp = Py_TYPE(obj);
     if (likely(tp->tp_setattro))
         return tp->tp_setattro(obj, attr_name, value);
-#if PY_MAJOR_VERSION < 3
-    if (likely(tp->tp_setattr))
-        return tp->tp_setattr(obj, PyString_AS_STRING(attr_name), value);
-#endif
     return PyObject_SetAttr(obj, attr_name, value);
 }
 #endif
@@ -1892,19 +1589,12 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         Py_INCREF(descr);
 #if defined(Py_TPFLAGS_METHOD_DESCRIPTOR) && Py_TPFLAGS_METHOD_DESCRIPTOR
         if (__Pyx_PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
-#elif PY_MAJOR_VERSION >= 3
+#else
         // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
         #ifdef __Pyx_CyFunction_USED
         if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
         #else
         if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type)))
-        #endif
-#else
-        // "PyMethodDescr_Type" is not part of the C-API in Py2.
-        #ifdef __Pyx_CyFunction_USED
-        if (likely(PyFunction_Check(descr) || __Pyx_CyFunction_Check(descr)))
-        #else
-        if (likely(PyFunction_Check(descr)))
         #endif
 #endif
         {
@@ -1950,13 +1640,8 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 
     type_name = __Pyx_PyType_GetName(tp);
     PyErr_Format(PyExc_AttributeError,
-#if PY_MAJOR_VERSION >= 3
                  "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
                  type_name, name);
-#else
-                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%.400s'",
-                 type_name, PyString_AS_STRING(name));
-#endif
     __Pyx_DECREF_TypeName(type_name);
     return 0;
 
@@ -2022,14 +1707,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     target->method = method;
 // FIXME: use functionality from CythonFunction.c/ClassMethod
 #if CYTHON_COMPILING_IN_CPYTHON
-    #if PY_MAJOR_VERSION >= 3
     if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
-    #else
-    // method descriptor type isn't exported in Py2.x, cannot easily check the type there.
-    // Therefore, reverse the check to the most likely alternative
-    // (which is returned for class methods)
-    if (likely(!__Pyx_CyOrPyCFunction_Check(method)))
-    #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
         target->func = descr->d_method->ml_meth;
@@ -2078,11 +1756,9 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  \
     (likely((cfunc)->func) ? \
         (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
-         (PY_VERSION_HEX >= 0x030600B1 && likely((cfunc)->flag == METH_FASTCALL) ? \
-            (PY_VERSION_HEX >= 0x030700A0 ? \
-                (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &$empty_tuple, 0) : \
-                (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &$empty_tuple, 0, NULL)) : \
-          (PY_VERSION_HEX >= 0x030700A0 && (cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
+         (likely((cfunc)->flag == METH_FASTCALL) ? \
+            (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &$empty_tuple, 0) : \
+          ((cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
             (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &$empty_tuple, 0, NULL) : \
             (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, $empty_tuple, NULL)) : \
                ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, $empty_tuple) : \
@@ -2133,16 +1809,11 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
 static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg) {
     if (likely(cfunc->func)) {
         int flag = cfunc->flag;
-        // Not using #ifdefs for PY_VERSION_HEX to avoid C compiler warnings about unused functions.
         if (flag == METH_O) {
             return (*(cfunc->func))(self, arg);
-        } else if ((PY_VERSION_HEX >= 0x030600B1) && flag == METH_FASTCALL) {
-            #if PY_VERSION_HEX >= 0x030700A0
-                return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &arg, 1);
-            #else
-                return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &arg, 1, NULL);
-            #endif
-        } else if ((PY_VERSION_HEX >= 0x030700A0) && flag == (METH_FASTCALL | METH_KEYWORDS)) {
+        } else if (flag == METH_FASTCALL) {
+            return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &arg, 1);
+        } else if (flag == (METH_FASTCALL | METH_KEYWORDS)) {
             return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &arg, 1, NULL);
         }
     }
@@ -2187,7 +1858,7 @@ bad:
 
 static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg1, PyObject* arg2); /*proto*/
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030600B1
+#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *cfunc, PyObject *self, PyObject *arg1, PyObject *arg2); /*proto*/
 #else
 #define __Pyx_CallUnboundCMethod2(cfunc, self, arg1, arg2)  __Pyx__CallUnboundCMethod2(cfunc, self, arg1, arg2)
@@ -2197,21 +1868,15 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
 //@requires: UnpackUnboundCMethod
 //@requires: PyObjectCall
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030600B1
+#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *cfunc, PyObject *self, PyObject *arg1, PyObject *arg2) {
     if (likely(cfunc->func)) {
         PyObject *args[2] = {arg1, arg2};
         if (cfunc->flag == METH_FASTCALL) {
-            #if PY_VERSION_HEX >= 0x030700A0
             return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, args, 2);
-            #else
-            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, 2, NULL);
-            #endif
         }
-        #if PY_VERSION_HEX >= 0x030700A0
         if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
             return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, 2, NULL);
-        #endif
     }
     return __Pyx__CallUnboundCMethod2(cfunc, self, arg1, arg2);
 }
@@ -2310,11 +1975,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
             return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
         }
     }
-    #if PY_VERSION_HEX >= 0x030700A1
     if (!kwargs && __Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
         return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
     }
-    #endif
     #endif
     #if CYTHON_FAST_PYCALL
     if (PyFunction_Check(func)) {
@@ -2443,13 +2106,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
 
     if (unlikely(!call))
         return PyObject_Call(func, arg, kw);
-    #if PY_MAJOR_VERSION < 3
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
-        return NULL;
-    #else
     if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
         return NULL;
-    #endif
     result = (*call)(func, arg, kw);
     Py_LeaveRecursiveCall();
     if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
@@ -2477,13 +2135,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
     cfunc = __Pyx_CyOrPyCFunction_GET_FUNCTION(func);
     self = __Pyx_CyOrPyCFunction_GET_SELF(func);
 
-    #if PY_MAJOR_VERSION < 3
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
-        return NULL;
-    #else
     if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
         return NULL;
-    #endif
     result = cfunc(self, arg);
     Py_LeaveRecursiveCall();
     if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
@@ -2601,12 +2254,8 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
     PyObject *globals = PyFunction_GET_GLOBALS(func);
     PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
     PyObject *closure;
-#if PY_MAJOR_VERSION >= 3
     PyObject *kwdefs;
-    //#if PY_VERSION_HEX >= 0x03050000
     //PyObject *name, *qualname;
-    //#endif
-#endif
     PyObject *kwtuple, **k;
     PyObject **d;
     Py_ssize_t nd;
@@ -2616,20 +2265,12 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
     assert(kwargs == NULL || PyDict_Check(kwargs));
     nk = kwargs ? PyDict_Size(kwargs) : 0;
 
-    #if PY_MAJOR_VERSION < 3
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object"))) {
-        return NULL;
-    }
-    #else
     if (unlikely(Py_EnterRecursiveCall(" while calling a Python object"))) {
         return NULL;
     }
-    #endif
 
     if (
-#if PY_MAJOR_VERSION >= 3
             co->co_kwonlyargcount == 0 &&
-#endif
             likely(kwargs == NULL || nk == 0) &&
             co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
         /* Fast paths */
@@ -2670,13 +2311,9 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
     }
 
     closure = PyFunction_GET_CLOSURE(func);
-#if PY_MAJOR_VERSION >= 3
     kwdefs = PyFunction_GET_KW_DEFAULTS(func);
-    //#if PY_VERSION_HEX >= 0x03050000
     //name = ((PyFunctionObject *)func) -> func_name;
     //qualname = ((PyFunctionObject *)func) -> func_qualname;
-    //#endif
-#endif
 
     if (argdefs != NULL) {
         d = &PyTuple_GET_ITEM(argdefs, 0);
@@ -2687,24 +2324,15 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
         nd = 0;
     }
 
-    //#if PY_VERSION_HEX >= 0x03050000
     //return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
     //                                args, nargs,
     //                                NULL, 0,
     //                                d, nd, kwdefs,
     //                                closure, name, qualname);
-    //#elif PY_MAJOR_VERSION >= 3
-#if PY_MAJOR_VERSION >= 3
     result = PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
                                args, (int)nargs,
                                k, (int)nk,
                                d, (int)nd, kwdefs, closure);
-#else
-    result = PyEval_EvalCodeEx(co, globals, (PyObject *)NULL,
-                               args, (int)nargs,
-                               k, (int)nk,
-                               d, (int)nd, closure);
-#endif
     Py_XDECREF(kwtuple);
 
 done:
@@ -2829,84 +2457,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
 
 /////////////// MatrixMultiply.proto ///////////////
 
-#if PY_VERSION_HEX >= 0x03050000
-  #define __Pyx_PyNumber_MatrixMultiply(x,y)         PyNumber_MatrixMultiply(x,y)
-  #define __Pyx_PyNumber_InPlaceMatrixMultiply(x,y)  PyNumber_InPlaceMatrixMultiply(x,y)
-#else
-#define __Pyx_PyNumber_MatrixMultiply(x,y)         __Pyx__PyNumber_MatrixMultiply(x, y, "@")
-static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name);
-static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
-#endif
-
-/////////////// MatrixMultiply ///////////////
-//@requires: PyObjectGetAttrStrNoError
-//@requires: PyObjectCallOneArg
-//@requires: PyObjectCall2Args
-
-#if PY_VERSION_HEX < 0x03050000
-static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg) {
-    // NOTE: eats the method reference
-    PyObject *result = NULL;
-#if CYTHON_UNPACK_METHODS
-    if (likely(PyMethod_Check(method))) {
-        PyObject *self = PyMethod_GET_SELF(method);
-        if (likely(self)) {
-            PyObject *function = PyMethod_GET_FUNCTION(method);
-            result = __Pyx_PyObject_Call2Args(function, self, arg);
-            goto done;
-        }
-    }
-#endif
-    result = __Pyx_PyObject_CallOneArg(method, arg);
-done:
-    Py_DECREF(method);
-    return result;
-}
-
-#define __Pyx_TryMatrixMethod(x, y, py_method_name) {                     \
-    PyObject *func = __Pyx_PyObject_GetAttrStrNoError(x, py_method_name); \
-    if (func) {                                                         \
-        PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, y);    \
-        if (result != Py_NotImplemented)                                \
-            return result;                                              \
-        Py_DECREF(result);                                              \
-    } else if (unlikely(PyErr_Occurred())) {                            \
-        return NULL;                                                    \
-    }                                                                   \
-}
-
-static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name) {
-    __Pyx_TypeName x_type_name;
-    __Pyx_TypeName y_type_name;
-    int right_is_subtype = PyObject_IsSubclass((PyObject*)Py_TYPE(y), (PyObject*)Py_TYPE(x));
-    if (unlikely(right_is_subtype == -1))
-        return NULL;
-    if (right_is_subtype) {
-        // to allow subtypes to override parent behaviour, try reversed operation first
-        // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
-        __Pyx_TryMatrixMethod(y, x, PYIDENT("__rmatmul__"))
-    }
-    __Pyx_TryMatrixMethod(x, y, PYIDENT("__matmul__"))
-    if (!right_is_subtype) {
-        __Pyx_TryMatrixMethod(y, x, PYIDENT("__rmatmul__"))
-    }
-    x_type_name = __Pyx_PyType_GetName(Py_TYPE(x));
-    y_type_name = __Pyx_PyType_GetName(Py_TYPE(y));
-    PyErr_Format(PyExc_TypeError,
-        "unsupported operand type(s) for %.2s: '" __Pyx_FMT_TYPENAME "' and '"
-        __Pyx_FMT_TYPENAME "'", op_name, x_type_name, y_type_name);
-    __Pyx_DECREF_TypeName(x_type_name);
-    __Pyx_DECREF_TypeName(y_type_name);
-    return NULL;
-}
-
-static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) {
-    __Pyx_TryMatrixMethod(x, y, PYIDENT("__imatmul__"))
-    return __Pyx__PyNumber_MatrixMultiply(x, y, "@=");
-}
-
-#undef __Pyx_TryMatrixMethod
-#endif
+// TODO: remove
+#define __Pyx_PyNumber_MatrixMultiply(x,y)         PyNumber_MatrixMultiply(x,y)
+#define __Pyx_PyNumber_InPlaceMatrixMultiply(x,y)  PyNumber_InPlaceMatrixMultiply(x,y)
 
 
 /////////////// PyDictVersioning.proto ///////////////
@@ -2986,7 +2539,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
     Py_DECREF(methodType);
     return result;
 }
-#elif PY_MAJOR_VERSION >= 3
+#else
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
 static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ) {
@@ -2995,22 +2548,17 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
         return __Pyx_NewRef(func);
     return PyMethod_New(func, self);
 }
-#else
-    #define __Pyx_PyMethod_New PyMethod_New
 #endif
 
 ///////////// PyMethodNew2Arg.proto /////////////
 
+// TODO: remove
 // Another wrapping of PyMethod_New that matches the Python3 signature
-#if PY_MAJOR_VERSION >= 3
 #define __Pyx_PyMethod_New2Arg PyMethod_New
-#else
-#define __Pyx_PyMethod_New2Arg(func, self) PyMethod_New(func, self, (PyObject*)Py_TYPE(self))
-#endif
 
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
-# if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+# if CYTHON_COMPILING_IN_CPYTHON
 // __Pyx_PyUnicode_ConcatInPlace may modify the first argument 'left'
 // However, unlike `PyUnicode_Append` it will never NULL it.
 // It behaves like a regular function - returns a new reference and NULL on error
@@ -3036,7 +2584,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 /////////////// UnicodeConcatInPlace ////////////////
 //@substitute: naming
 
-# if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+# if CYTHON_COMPILING_IN_CPYTHON
 // copied directly from unicode_object.c "unicode_modifiable
 // removing _PyUnicode_HASH since it's a macro we don't have
 //  - this is OK because trying PyUnicode_Resize on a non-modifyable
@@ -3120,14 +2668,10 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
 ////////////// StrConcatInPlace.proto ///////////////////////
 //@requires: UnicodeConcatInPlace
 
-#if PY_MAJOR_VERSION >= 3
-    // allow access to the more efficient versions where we know str_type is unicode
-    #define __Pyx_PyStr_Concat __Pyx_PyUnicode_Concat
-    #define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
-#else
-    #define __Pyx_PyStr_Concat PyNumber_Add
-    #define __Pyx_PyStr_ConcatInPlace PyNumber_InPlaceAdd
-#endif
+// allow access to the more efficient versions where we know str_type is unicode
+#define __Pyx_PyStr_Concat __Pyx_PyUnicode_Concat
+#define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
+
 #define __Pyx_PyStr_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
@@ -3238,13 +2782,9 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);/*proto*
 
 // Don't inline the function, it should really never be called in production
 static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
-    #ifdef WITH_THREAD
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    #endif
     __Pyx_RaiseUnboundLocalError(varname);
-    #ifdef WITH_THREAD
     PyGILState_Release(gilstate);
-    #endif
 }
 
 //////////////// RaiseCppGlobalNameError.proto ///////////////////////
