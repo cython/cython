@@ -377,6 +377,12 @@ class MethodSlot(SlotDescriptor):
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
         if entry and entry.is_special and entry.func_cname:
+            for method_name in self.alternatives:
+                alt_entry = scope.lookup_here(method_name)
+                if alt_entry:
+                    warn_once(alt_entry.pos,
+                              f"{method_name} was removed in Python 3; ignoring it and using {self.method_name} instead",
+                              2)
             return entry.func_cname
         for method_name in self.alternatives:
             entry = scope.lookup_here(method_name)
