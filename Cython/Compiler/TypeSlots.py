@@ -802,7 +802,6 @@ def is_binop_number_slot(name):
     so just use a simple rule rather than an exact list.
     """
     slot_table = get_slot_table(None)
-        
     for meth in get_slot_table(None).PyNumberMethods:
         if meth.is_binop and name in meth.user_methods:
             return True
