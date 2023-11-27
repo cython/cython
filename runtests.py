@@ -2001,8 +2001,9 @@ class EndToEndTest(unittest.TestCase):
         out = []
         err = []
         for command_no, command in enumerate(self.commands, 1):
-            with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
-                                 'etoe-build' if 'setup.py' in command else 'etoe-run'):
+            time_category = 'etoe-build' if (
+                'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
+            with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
                 if self.capture:
                     p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
                     _out, _err = p.communicate()
