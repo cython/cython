@@ -1862,9 +1862,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
+        
+        needs_type_traverse = not base_type
+        # we don't know statically if we need to traverse the type
+        maybe_needs_type_traverse = False
 
-        if base_type or py_attrs:
-            code.putln("int e;")
+        code.putln("int e;")
 
         if py_attrs or py_buffers:
             self.generate_self_cast(scope, code)
@@ -1874,6 +1877,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
             if static_call:
                 code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
+                # No need to call type traverse - base class will do it
             elif base_type.is_builtin_type:
                 base_cname = base_type.typeptr_cname
                 code.putln("{")
@@ -1881,6 +1885,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
                 code.putln("if (!traverse); else { e = traverse(o,v,a); if (e) return e; }")
                 code.putln("}")
+                maybe_needs_type_traverse = True
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1903,6 +1908,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("if (e) return e;")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
+                maybe_needs_type_traverse = True
+        if needs_type_traverse or maybe_needs_type_traverse:
+            code.putln("{")
+            code.putln(f"e = __Pyx_call_type_traverse(o, {int(not maybe_needs_type_traverse)}, v, a);")
+            code.putln("if (e) return e;")
+            code.putln("}")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CallTypeTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
