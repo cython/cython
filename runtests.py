@@ -2048,24 +2048,13 @@ class EndToEndTest(unittest.TestCase):
                     break
         os.chdir(self.old_dir)
 
-    def _try_decode(self, content):
-        if not isinstance(content, bytes):
-            return content
-        try:
-            return content.decode()
-        except UnicodeDecodeError:
-            return content.decode('iso-8859-1')
-
     def runTest(self):
         self.success = False
         old_path = os.environ.get('PYTHONPATH')
-        env = dict(os.environ)
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env['PYTHONPATH'] = new_path
-        if not env.get("PYTHONIOENCODING"):
-            env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
+        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8')
         cmd = []
         out = []
         err = []
@@ -2081,21 +2070,21 @@ class EndToEndTest(unittest.TestCase):
                     _out, _err = b'', b''
                     res = p
             cmd.append(command)
-            out.append(_out)
-            err.append(_err)
+            out.append(_out.decode('utf-8'))
+            err.append(_err.decode('utf-8'))
 
             if res == 0 and b'REFNANNY: ' in _out:
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
-                        self.shard_num, c, self._try_decode(o), self._try_decode(e)))
+                        self.shard_num, c, o, e))
                 sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
                     self.name,
                     '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
-                    ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
+                    ' '.join(command), out[-1], err[-1]))
         self.success = True
 
 
