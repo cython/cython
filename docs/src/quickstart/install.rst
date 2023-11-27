@@ -47,8 +47,9 @@ The simplest way of installing Cython is by using ``pip``::
   pip install Cython[setuptools]
 
 .. Note::
-   When cython is used only to generate .c files, setuptools optional dependency can be omitted.
-   This is useful mainly when alternative build system like meson is used.
+   If cython is used only to generate .c files, the optional dependency on setuptools
+   can be omitted (i.e. just ``pip install Cython``).
+   This is useful mainly when an alternative build system like meson is used.
 
 On platforms that are covered by one of the binary wheel packages provided on PyPI,
 this will install an accelerated wheel which contains some Cython compiled modules.
