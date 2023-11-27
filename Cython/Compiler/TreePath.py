@@ -11,11 +11,6 @@ import re
 import operator
 import sys
 
-if sys.version_info[0] >= 3:
-    _unicode = str
-else:
-    _unicode = unicode
-
 path_tokenizer = re.compile(
     r"("
     r"'[^']*'|\"[^\"]*\"|"
@@ -168,7 +163,7 @@ def handle_attribute(next, token):
                     continue
                 if attr_value == value:
                     yield attr_value
-                elif (isinstance(attr_value, bytes) and isinstance(value, _unicode) and
+                elif (isinstance(attr_value, bytes) and isinstance(value, str) and
                         attr_value == value.encode()):
                     # allow a bytes-to-string comparison too
                     yield attr_value

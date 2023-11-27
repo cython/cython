@@ -259,7 +259,7 @@ def bytes_join(bytes s, *args):
     babab
     """
     result = s.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 
@@ -275,7 +275,7 @@ def literal_join(*args):
     b|b|b|b
     """
     result = b'|'.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 def fromhex(bytes b):

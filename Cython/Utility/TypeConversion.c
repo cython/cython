@@ -60,12 +60,21 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyStr_FromString        __Pyx_PyUnicode_FromString
 #define __Pyx_PyStr_FromStringAndSize __Pyx_PyUnicode_FromStringAndSize
 
-#define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AS_STRING(s))
-#define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AS_STRING(s))
-#define __Pyx_PyBytes_AsWritableUString(s)    ((unsigned char*) PyBytes_AS_STRING(s))
-#define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
-#define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
-#define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
+#if CYTHON_ASSUME_SAFE_MACROS
+    #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyBytes_AsWritableUString(s)    ((unsigned char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
+#else
+    #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AsString(s))
+    #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AsString(s))
+    #define __Pyx_PyBytes_AsWritableUString(s)    ((unsigned char*) PyBytes_AsString(s))
+    #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AsString(s))
+    #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AsString(s))
+    #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AsString(s))
+#endif
 #define __Pyx_PyObject_AsWritableString(s)    ((char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsWritableSString(s)    ((signed char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsWritableUString(s)    ((unsigned char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
@@ -539,7 +548,7 @@ static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
         PyObject *item;
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result->f%s" % ix}}
-        item = PySequence_ITEM(o, {{ix}});  if (unlikely(!item)) goto bad;
+        item = __Pyx_PySequence_ITEM(o, {{ix}});  if (unlikely(!item)) goto bad;
         {{attr}} = {{component.from_py_function}}(item);
         Py_DECREF(item);
         if ({{component.error_condition(attr)}}) goto bad;

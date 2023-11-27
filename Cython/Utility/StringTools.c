@@ -640,7 +640,7 @@ static int __Pyx_PyUnicode_TailmatchTuple(PyObject* s, PyObject* substrings,
         result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substrings, i),
                                      start, end, direction);
 #else
-        PyObject* sub = PySequence_ITEM(substrings, i);
+        PyObject* sub = __Pyx_PySequence_ITEM(substrings, i);
         if (unlikely(!sub)) return -1;
         result = PyUnicode_Tailmatch(s, sub, start, end, direction);
         Py_DECREF(sub);
@@ -728,7 +728,7 @@ static int __Pyx_PyBytes_TailmatchTuple(PyObject* self, PyObject* substrings,
         result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substrings, i),
                                                start, end, direction);
 #else
-        PyObject* sub = PySequence_ITEM(substrings, i);
+        PyObject* sub = __Pyx_PySequence_ITEM(substrings, i);
         if (unlikely(!sub)) return -1;
         result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
         Py_DECREF(sub);
@@ -812,14 +812,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 
 /////////////// JoinPyUnicode.proto ///////////////
 
-static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_count, Py_ssize_t result_ulength,
+static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
                                       Py_UCS4 max_char);
 
 /////////////// JoinPyUnicode ///////////////
 //@requires: IncludeStringH
 //@substitute: naming
 
-static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_count, Py_ssize_t result_ulength,
+static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
                                       Py_UCS4 max_char) {
 #if CYTHON_USE_UNICODE_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     PyObject *result_uval;
@@ -827,6 +827,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
     Py_ssize_t i, char_pos;
     void *result_udata;
 
+    if (max_char > 1114111) max_char = 1114111;
     result_uval = PyUnicode_New(result_ulength, max_char);
     if (unlikely(!result_uval)) return NULL;
     result_ukind = (max_char <= 255) ? PyUnicode_1BYTE_KIND : (max_char <= 65535) ? PyUnicode_2BYTE_KIND : PyUnicode_4BYTE_KIND;
@@ -834,12 +835,15 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
     result_udata = PyUnicode_DATA(result_uval);
     assert(kind_shift == 2 || kind_shift == 1 || kind_shift == 0);
 
+    if (unlikely((PY_SSIZE_T_MAX >> kind_shift) - result_ulength < 0))
+        goto overflow;
+
     char_pos = 0;
     for (i=0; i < value_count; i++) {
         int ukind;
         Py_ssize_t ulength;
         void *udata;
-        PyObject *uval = PyTuple_GET_ITEM(value_tuple, i);
+        PyObject *uval = values[i];
         if (unlikely(__Pyx_PyUnicode_READY(uval)))
             goto bad;
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
@@ -874,10 +878,23 @@ bad:
     return NULL;
 #else
     // non-CPython fallback
+    Py_ssize_t i;
+    PyObject *result = NULL;
+    PyObject *value_tuple = PyTuple_New(value_count);
+    if (unlikely(!value_tuple)) return NULL;
     CYTHON_UNUSED_VAR(max_char);
     CYTHON_UNUSED_VAR(result_ulength);
-    CYTHON_UNUSED_VAR(value_count);
-    return PyUnicode_Join($empty_unicode, value_tuple);
+
+    for (i=0; i<value_count; i++) {
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) < 0)) goto bad;
+        Py_INCREF(values[i]);
+    }
+
+    result = PyUnicode_Join($empty_unicode, value_tuple);
+
+bad:
+    Py_DECREF(value_tuple);
+    return result;
 #endif
 }
 

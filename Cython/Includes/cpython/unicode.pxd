@@ -1,3 +1,4 @@
+from libc.stddef cimport wchar_t
 
 cdef extern from *:
     ctypedef unsigned char Py_UCS1  # uint8_t
@@ -180,14 +181,33 @@ cdef extern from *:
     # following functions. Support is optimized if Python's own
     # Py_UNICODE type is identical to the system's wchar_t.
 
-    #ctypedef int wchar_t
-
     # Create a Unicode object from the wchar_t buffer w of the given
     # size. Return NULL on failure.
-    #PyObject* PyUnicode_FromWideChar(wchar_t *w, Py_ssize_t size)
+    object PyUnicode_FromWideChar(wchar_t *w, Py_ssize_t size)
 
-    #Py_ssize_t PyUnicode_AsWideChar(object o, wchar_t *w, Py_ssize_t size)
+    # Copy the Unicode object contents into the wchar_t buffer w.
+    # At most size wchar_t characters are copied (excluding a possibly
+    # trailing null termination character). Return the number of wchar_t
+    # characters copied or -1 in case of an error. Note that the
+    # esulting wchar_t* string may or may not be null-terminated.
+    # It is the responsibility of the caller to make sure that the wchar_t*
+    # string is null-terminated in case this is required by the application.
+    # Also, note that the wchar_t* string might contain null characters,
+    # which would cause the string to be truncated when used with most C functions.
+    Py_ssize_t PyUnicode_AsWideChar(object o, wchar_t *w, Py_ssize_t size)
 
+    # Convert the Unicode object to a wide character string. The output
+    # string always ends with a null character. If size is not NULL,
+    # write the number of wide characters (excluding the trailing null
+    # termination character) into *size. Note that the resulting wchar_t
+    # string might contain null characters, which would cause the string
+    # to be truncated when used with most C functions. If size is NULL and
+    # the wchar_t* string contains null characters a ValueError is raised.
+
+    # Returns a buffer allocated by PyMem_New (use PyMem_Free() to free it)
+    # on success. On error, returns NULL and *size is undefined. Raises a
+    # MemoryError if memory allocation is failed.
+    wchar_t *PyUnicode_AsWideCharString(object o, Py_ssize_t *size)
 
 # Unicode Methods
 

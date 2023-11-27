@@ -64,6 +64,8 @@ except RuntimeError:
 else:
     assert False  # should have raised
 
+assert limited.add_one(2) == 3
+
 
 ##################### limited.pyx #############################
 
@@ -90,6 +92,9 @@ def lsum(values):
         for value in reversed(<tuple>values):
             result += value
     return result
+    
+def add_one(value):
+    return value + 1
 
 @cython.binding(False)
 def raises():

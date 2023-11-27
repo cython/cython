@@ -215,7 +215,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
     // avoid C compiler warning about unused utility functions
     if ((1));
 #else
-    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
+    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyLong_CheckExact(key)) {
         /* these presumably have safe hash functions */
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
@@ -1318,10 +1318,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         {{else}}
             double result;
             {{zerodiv_check('b', 'float')}}
-            // copied from floatobject.c in Py3.5:
-            PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
             result = ((double)a) {{c_op}} (double)b;
-            PyFPE_END_PROTECT(result)
             return PyFloat_FromDouble(result);
         {{endif}}
     }
@@ -1461,8 +1458,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             {{return_false}};
         }
     {{else}}
-        // copied from floatobject.c in Py3.5:
-        PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
         {{if c_op == '%'}}
         result = fmod(a, b);
         if (result)
@@ -1472,7 +1467,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         {{else}}
         result = a {{c_op}} b;
         {{endif}}
-        PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
     {{endif}}
 }

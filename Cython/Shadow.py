@@ -424,10 +424,7 @@ def _specialized_from_args(signatures, args, kwargs):
 
 
 py_int = typedef(int, "int")
-try:
-    py_long = typedef(long, "long")
-except NameError:  # Py3
-    py_long = typedef(int, "long")
+py_long = typedef(int, "long")  # for legacy Py2 code only
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
 
