@@ -389,7 +389,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         return 1;
     } else if (PyTuple_CheckExact(iter_obj)) {
         Py_ssize_t pos = *ppos, iter_size;
-        #if CYTHON_ASSUME_SAFE_MACROS
+        #if !CYTHON_COMPILING_IN_LIMIED_API
         iter_size = PyTuple_GET_SIZE(iter_obj);
         #else
         iter_size = PyTuple_Size(iter_obj);
@@ -406,7 +406,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         Py_INCREF(next_item);
     } else if (PyList_CheckExact(iter_obj)) {
         Py_ssize_t pos = *ppos, iter_size;
-        #if CYTHON_ASSUME_SAFE_MACROS
+        #if !CYTHON_COMPILING_IN_LIMITED_API
         iter_size = PyList_GET_SIZE(iter_obj);
         #else
         iter_size = PyList_Size(iter_obj);

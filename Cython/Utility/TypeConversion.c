@@ -576,7 +576,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject*);
 
 static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
     Py_ssize_t length;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if !CYTHON_COMPILING_IN_LIMITED_API
     length = PyUnicode_GET_LENGTH(x);
 #else
     length = PyUnicode_GetLength(x);
