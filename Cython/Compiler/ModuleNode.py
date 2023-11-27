@@ -2959,6 +2959,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         header3 = EncodedString(header3)
+        # Optimise for small code size as the module init function is only executed once.
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
