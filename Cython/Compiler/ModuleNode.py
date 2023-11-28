@@ -300,17 +300,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_main.putln("/* WARNING: the interface of the module init function changed in CPython 3.5. */")
             h_code_main.putln("/* It now returns a PyModuleDef instance instead of a PyModule instance. */")
             h_code_main.putln("")
-            h_code_main.putln("#if PY_MAJOR_VERSION < 3")
-            if env.module_name.isascii():
-                py2_mod_name = env.module_name
-            else:
-                py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf-8")
-                h_code_main.putln('#error "Unicode module names are not supported in Python 2";')
-            h_code_main.putln("PyMODINIT_FUNC init%s(void);" % py2_mod_name)
-            h_code_main.putln("#else")
             py3_mod_func_name = self.mod_init_func_cname('PyInit', env)
-            warning_string = EncodedString('Use PyImport_AppendInittab("%s", %s) instead of calling %s directly.' % (
-                py2_mod_name, py3_mod_func_name, py3_mod_func_name))
+            warning_string = EncodedString('Use PyImport_AppendInittab(%s, %s) instead of calling %s directly.' % (
+                env.module_name.as_c_string_literal(), py3_mod_func_name, py3_mod_func_name))
             h_code_main.putln('/* WARNING: %s from Python 3.5 */' % warning_string.rstrip('.'))
             h_code_main.putln("PyMODINIT_FUNC %s(void);" % py3_mod_func_name)
             h_code_main.putln("")
@@ -332,7 +324,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Function call is converted to warning macro; uncalled (pointer) is not
             h_code_main.putln('#define %s() __PYX_WARN_IF_%s_INIT_CALLED(%s())' % (
                 py3_mod_func_name, py3_mod_func_name, py3_mod_func_name))
-            h_code_main.putln('#endif')
             h_code_main.putln('#endif')
 
             h_code_end.putln("")
@@ -1777,13 +1768,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if base_type.scope.needs_gc():
                         code.putln("PyObject_GC_Track(o);")
                 else:
-                    code.putln("#if PY_MAJOR_VERSION < 3")
-                    # Py2 lacks guarantees that the type pointer is still valid if we dealloc the object
-                    # at system exit time.  Thus, we need an extra NULL check.
-                    code.putln("if (!(%s) || PyType_IS_GC(%s)) PyObject_GC_Track(o);" % (base_cname, base_cname))
-                    code.putln("#else")
                     code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
-                    code.putln("#endif")
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
@@ -2971,28 +2956,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
-        if env.module_name.isascii():
-            py2_mod_name = env.module_name
-            fail_compilation_in_py2 = False
-        else:
-            fail_compilation_in_py2 = True
-            # at this point py2_mod_name is largely a placeholder and the value doesn't matter
-            py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf8")
 
-        header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % py2_mod_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         header3 = EncodedString(header3)
-        code.putln("#if PY_MAJOR_VERSION < 3")
         # Optimise for small code size as the module init function is only executed once.
-        code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
-        if fail_compilation_in_py2:
-            code.putln('#error "Unicode module names are not supported in Python 2";')
-        if self.scope.is_package:
-            code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
-            code.putln("__Pyx_PyMODINIT_FUNC init__init__(void) { init%s(); }" % py2_mod_name)
-            code.putln("#endif")
-        code.putln(header2)
-        code.putln("#else")
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
@@ -3025,8 +2992,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489
 
-        code.putln("#endif")  # Py3
-
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
         code.putln('int stringtab_initialized = 0;')
@@ -3058,8 +3023,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    env.module_name.as_c_string_literal()[1:-1])
         code.putln("return -1;")
         code.putln("}")
-        code.putln("#elif PY_MAJOR_VERSION >= 3")
-        # Hack: enforce single initialisation also on reimports under different names on Python 3 (with PEP 3121/489).
+        code.putln("#else")
+        # Hack: enforce single initialisation also on reimports under different names (with PEP 3121/489).
         code.putln("if (%s) return __Pyx_NewRef(%s);" % (
             Naming.module_cname,
             Naming.module_cname,
