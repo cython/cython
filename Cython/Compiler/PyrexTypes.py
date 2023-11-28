@@ -5460,16 +5460,30 @@ def cap_length(s, max_prefix=63, max_len=1024):
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False):
-    on_what = "on '%s' " % function_name if function_name else ""
+def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False, is_call=False):
+    if function_name:
+        if is_call:
+            on_what = "after calling '%s' " % function_name
+        else:
+            on_what = "on '%s' " % function_name
+    else:
+        if is_call:
+            on_what = "after function call"
+        else:
+            on_what =''
     msg = (
         "Exception check %swill always require the GIL to be acquired."
     ) % on_what
-    solutions = ["Declare the function as 'noexcept' if you control the definition and "
-                                "you're sure you don't want the function to raise exceptions."]
+    the_function = ("'%s'" % function_name) if function_name else "the function"
+    if is_call and not function_name:
+        the_function = the_function + " you are calling"
+    solutions = ["Declare %s as 'noexcept' if you control the definition and "
+                 "you're sure you don't want the function to raise exceptions."
+                                % the_function]
     if void_return:
         solutions.append(
-            "Use an 'int' return type on the function to allow an error code to be returned.")
+            "Use an 'int' return type on %s to allow an error code to be returned." %
+            the_function)
     if len(solutions) == 1:
         msg = "%s %s" % (msg, solutions[0])
     else:
