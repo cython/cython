@@ -3592,7 +3592,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
             module_temp, Naming.pymoduledef_cname))
         code.putln("%s = 0; /* transfer ownership from %s to %s pseudovariable */" % (
-            module_temp, module_temp, env.module_name
+            module_temp, module_temp, env.module_name.as_c_string_literal()
         ))
         # At this stage the module likely has a refcount of 2 - one owned by the list
         # inside PyState_AddModule and one owned by "__pyx_m" (and returned from this
