@@ -800,7 +800,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
 
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
     if (index < 0) {
-        Py_ssize_t size = __Pyx_PyBytes_GET_SIZE(bytes)
+        Py_ssize_t size = __Pyx_PyBytes_GET_SIZE(bytes);
         #if !CYTHON_ASSUME_SAFE_SIZE
         if (unlikely(size == -1)) return (char) -1;
         #endif
