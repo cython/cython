@@ -1421,7 +1421,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
         PyObject *list;
         int i;
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(n == -1)) return -1;
+        if (unlikely(n == -1)) return NULL;
         #endif
 
         list = PyList_New(n);
