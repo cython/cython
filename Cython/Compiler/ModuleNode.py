@@ -1957,7 +1957,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 base_cname = base_type.typeptr_cname
                 code.putln("{")
                 code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")
-                code.putln("if (!clear); else clear(o);")
+                code.putln("if (clear) clear(o);")
                 code.putln("}")
             else:
                 # This is an externally defined type.  Calling through the
