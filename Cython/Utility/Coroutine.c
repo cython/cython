@@ -513,7 +513,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
             Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(ev);
             #if !CYTHON_ASSUME_SAFE_SIZE
-            if (unlikely(tuple_size == -1)) {
+            if (unlikely(tuple_size < 0)) {
                 Py_XDECREF(tb);
                 Py_DECREF(ev);
                 Py_DECREF(et);
