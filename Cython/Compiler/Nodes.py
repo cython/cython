@@ -3868,7 +3868,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
-            code.putln("#if CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
             code.putln("#else")

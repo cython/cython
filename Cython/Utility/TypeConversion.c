@@ -507,7 +507,7 @@ static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject *);
 
 /////////////// FromPyCTupleUtility ///////////////
 
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
 static void __Pyx_tuple_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result->f%s" % ix}}
@@ -562,7 +562,7 @@ bad:
 static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject * o) {
     {{struct_type_decl}} result;
 
-    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (likely(PyTuple_Check(o) && PyTuple_GET_SIZE(o) == {{size}})) {
         __Pyx_tuple_{{funcname}}(o, &result);
     } else if (likely(PyList_Check(o) && PyList_GET_SIZE(o) == {{size}})) {

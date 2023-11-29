@@ -764,7 +764,7 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         return (*(PyCFunctionWithKeywords)(void*)meth)(self, arg, kw);
     case METH_NOARGS:
         if (likely(kw == NULL || PyDict_Size(kw) == 0)) {
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
             size = PyTuple_GET_SIZE(arg);
 #else
             size = PyTuple_Size(arg);
@@ -789,7 +789,7 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         break;
     case METH_O:
         if (likely(kw == NULL || PyDict_Size(kw) == 0)) {
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
             size = PyTuple_GET_SIZE(arg);
 #else
             size = PyTuple_Size(arg);
@@ -863,7 +863,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
     if (vc) {
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
         return __Pyx_PyVectorcall_FastCallDict(func, vc, &PyTuple_GET_ITEM(args, 0), (size_t)PyTuple_GET_SIZE(args), kw);
 #else
         // avoid unused function warning
@@ -878,11 +878,11 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
         PyObject *new_args;
         PyObject *self;
 
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
         argc = PyTuple_GET_SIZE(args);
 #else
         argc = PyTuple_Size(args);
-        if (unlikely(!argc) < 0) return NULL;
+        if (unlikely(argc < 0)) return NULL;
 #endif
         new_args = PyTuple_GetSlice(args, 1, argc);
 
@@ -924,7 +924,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionO
         }
         ret = 1;
     }
-    if (unlikely(kwnames) && unlikely(PyTuple_GET_SIZE(kwnames))) {
+    if (unlikely(kwnames) && unlikely(__Pyx_PyTuple_GET_SIZE(kwnames))) {
         PyErr_Format(PyExc_TypeError,
                      "%.200s() takes no keyword arguments", ((PyCFunctionObject*)cyfunc)->m_ml->ml_name);
         return -1;
@@ -1230,7 +1230,10 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 //@requires: CythonFunctionShared
 
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
-    Py_ssize_t i, count = PyList_GET_SIZE(cyfunctions);
+    Py_ssize_t i, count = __Pyx_PyList_GET_SIZE(cyfunctions);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(count == -1)) return -1;
+    #endif
 
     for (i = 0; i < count; i++) {
         __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *)
@@ -1414,10 +1417,14 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
     }
 
     if (PyTuple_Check(idx)) {
-        Py_ssize_t n = PyTuple_GET_SIZE(idx);
-        PyObject *list = PyList_New(n);
+        Py_ssize_t n = __Pyx_PyTuple_GET_SIZE(idx);
+        PyObject *list;
         int i;
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(n == -1)) return NULL;
+        #endif
 
+        list = PyList_New(n);
         if (unlikely(!list))
             return NULL;
 
@@ -1493,11 +1500,14 @@ static PyObject *
 __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 {
     __pyx_FusedFunctionObject *binding_func = (__pyx_FusedFunctionObject *) func;
-    Py_ssize_t argc = PyTuple_GET_SIZE(args);
+    Py_ssize_t argc = __Pyx_PyTuple_GET_SIZE(args);
     PyObject *new_args = NULL;
     __pyx_FusedFunctionObject *new_func = NULL;
     PyObject *result = NULL;
     int is_staticmethod = binding_func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD;
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(argc == -1)) return NULL;
+    #endif
 
     if (binding_func->self) {
         // Bound method call, put 'self' in the args tuple

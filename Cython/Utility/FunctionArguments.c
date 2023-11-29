@@ -137,7 +137,7 @@ static int __Pyx_CheckKeywordStrings(
 #else
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         Py_ssize_t kwsize;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
         kwsize = PyTuple_GET_SIZE(kw);
 #else
         kwsize = PyTuple_Size(kw);
@@ -240,7 +240,7 @@ static int __Pyx_ParseOptionalKeywords(
 
         if (kwds_is_tuple) {
             Py_ssize_t size;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
             size = PyTuple_GET_SIZE(kwds);
 #else
             size = PyTuple_Size(kwds);
