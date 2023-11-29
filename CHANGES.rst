@@ -11,7 +11,7 @@ Other changes
 * Support for Python 2.7 - 3.6 was removed.
 
 
-3.0.6 (2023-??-??)
+3.0.6 (2023-11-26)
 ==================
 
 Features added
@@ -19,8 +19,23 @@ Features added
 
 * Fused def function dispatch is a bit faster.
 
+* Declarations for the ``wchar`` PyUnicode API were added.
+  (Github issue :issue:`5836`)
+
+* The Python "nogil" fork is now also detected with the new ``Py_GIL_DISABLED`` macro.
+  Patch by Hugo van Kemenade   (Github issue :issue:`583652`)
+
 Bugs fixed
 ----------
+
+* Comparing dataclasses could give different results than Python.
+  (Github issue :issue:`5857`)
+
+* ``float(std::string)`` generated invalid C code.
+  (Github issue :issue:`5818`)
+
+* Using ``cpdef`` functions with ``cimport_from_pyx`` failed.
+  (Github issue :issue:`5795`)
 
 * A crash was fixed when string-formatting a Python value fails.
   (Github issue :issue:`5787`)
@@ -32,11 +47,20 @@ Bugs fixed
 * A C compiler warning was resolved.
   (Github issue :issue:`5794`)
 
+* Complex numbers failed to compile in MSVC with C11.
+  Patch by Lysandros Nikolaou.  (Github issue :issue:`5809`)
+
 * Some issues with the Limited API and with PyPy were resolved.
   (Github issues :issue:`5695`, :issue:`5696`)
 
 * A C++ issue in Python 3.13 was resolved.
   (Github issue :issue:`5790`)
+
+* Several directives are now also available (as no-ops) in Python code.
+  (Github issue :issue:`5803`)
+
+* An error message was corrected.
+  Patch by Mads Ynddal.  (Github issue :issue:`5805`)
 
 
 3.0.5 (2023-10-31)

@@ -544,14 +544,7 @@ def aggressive_spanning_type(types, might_overflow, scope):
 def safe_spanning_type(types, might_overflow, scope):
     result_type = simply_type(reduce(find_spanning_type, types))
     if result_type.is_pyobject:
-        # In theory, any specific Python type is always safe to
-        # infer. However, inferring str can cause some existing code
-        # to break, since we are also now much more strict about
-        # coercion from str to char *. See trac #553.
-        if result_type.name == 'str':
-            return py_object_type
-        else:
-            return result_type
+        return result_type
     elif (result_type is PyrexTypes.c_double_type or
             result_type is PyrexTypes.c_float_type):
         # Python's float type is just a C double, so it's safe to use
