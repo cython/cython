@@ -518,13 +518,16 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
         // PyErr_SetObject() and friends put the value directly into ev
         else if (unlikely(PyTuple_Check(ev))) {
             // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
-#if !CYTHON_COMPILING_IN_LIMITED_API
-            Py_ssize_t size = PyTuple_GET_SIZE(ev);
-#else
-            Py_ssize_t size = PyTuple_Size(ev);
-            if (size < 0) goto limited_api_failure;
-#endif
-            if (size >= 1) {
+            Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(ev);
+            #if !CYTHON_ASSUME_SAFE_SIZE
+            if (unlikely(tuple_size == -1)) {
+                Py_XDECREF(tb);
+                Py_DECREF(ev);
+                Py_DECREF(et);
+                return -1;
+            }
+            #endif
+            if (tuple_size >= 1) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
                 value = PyTuple_GET_ITEM(ev, 0);
                 Py_INCREF(value);

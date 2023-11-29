@@ -22,7 +22,7 @@ from __future__ import unicode_literals
 
 from Cython.Build import cythonize
 
-files = ["mymoð.pyx", "from_cy.pyx"]
+files = ["mymoð.pyx", "from_cy.pyx", "测试.py" ]
 
 modules = cythonize(files)
 
@@ -46,6 +46,11 @@ cdef struct S:
     int x
     
 cdef public api void cdef_func() # just to test generation of headers
+
+############ 测试.py #############
+
+def g():
+    return 1
     
 ############ from_py.py #########
 
@@ -53,12 +58,15 @@ cdef public api void cdef_func() # just to test generation of headers
 
 import mymoð
 from mymoð import f
+import 测试
 
 __doc__ = """
 >>> mymoð.f()
 True
 >>> f()
 True
+>>> 测试.g()
+1
 """
 
 ######### from_cy.pyx ##########
@@ -68,6 +76,7 @@ True
 import mymoð
 
 from mymoð import f
+import 测试
 
 cimport pxd_moð
 from pxd_moð cimport S
@@ -79,6 +88,14 @@ def test_imported():
     True
     """
     return mymoð.f() and f() # True and True
+    
+    
+def test_imported2():
+    """
+    >>> test_imported2()
+    1
+    """
+    return 测试.g()
 
 
 def test_cimported():

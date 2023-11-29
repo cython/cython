@@ -113,11 +113,11 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     // structure), we need to check that none of the base classes sets
     // it either.
     Py_ssize_t i, n;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
     n = PyTuple_GET_SIZE(bases);
 #else
     n = PyTuple_Size(bases);
-    if (n < 0) return -1;
+    if (unlikely(n == -1)) return -1;
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
