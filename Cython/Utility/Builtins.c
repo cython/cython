@@ -491,11 +491,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((__PYX_LIMITED_VERSION_HEX < 0x030A00A1)
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A00A1)
 #if CYTHON_COMPILING_IN_LIMITED_API
-            && __Pyx_get_runtime_version() < 0x030A00A1
+            || __Pyx_get_runtime_version() >= 0x030A00A1
 #endif
             )
+            return result;
         {
             Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
             if (likely(size))
