@@ -8,10 +8,17 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 
 static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts_tuple, Py_ssize_t count) {
     PyObject *partial_name = NULL, *slice = NULL, *sep = NULL;
+    Py_ssize_t size;
     if (unlikely(PyErr_Occurred())) {
         PyErr_Clear();
     }
-    if (likely(PyTuple_GET_SIZE(parts_tuple) == count)) {
+#if CYTHON_ASSUME_SAFE_SIZE
+    size = PyTuple_GET_SIZE(parts_tuple);
+#else
+    size = PyTuple_Size(parts_tuple);
+    if (size < 0) goto bad;
+#endif
+    if (likely(size == count)) {
         partial_name = name;
     } else {
         slice = PySequence_GetSlice(parts_tuple, 0, count);
@@ -50,13 +57,19 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
     Py_ssize_t i, nparts;
+#if CYTHON_ASSUME_SAFE_SIZE
     nparts = PyTuple_GET_SIZE(parts_tuple);
+#else
+    nparts = PyTuple_Size(parts_tuple);
+    if (nparts < 0) return NULL;
+#endif
     for (i=1; i < nparts && module; i++) {
         PyObject *part, *submodule;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         part = PyTuple_GET_ITEM(parts_tuple, i);
 #else
-        part = PySequence_ITEM(parts_tuple, i);
+        part = __Pyx_PySequence_ITEM(parts_tuple, i);
+        if (!part) return NULL;
 #endif
         submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
         // We stop if the attribute isn't found, i.e. if submodule is NULL here.

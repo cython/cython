@@ -58,6 +58,7 @@ skip_tests = frozenset(
         ("TestCase", "test_class_attrs"),
         ("TestCase", "test_hash_field_rules"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
+        ("TestMatchArgs", "test_explicit_match_args"),
         # Currently unsupported
         # =====================
         (
@@ -68,7 +69,6 @@ skip_tests = frozenset(
         ("TestCase", "test_missing_default"),  # MISSING
         ("TestCase", "test_missing_repr"),  # MISSING
         ("TestSlots",),  # __slots__ isn't understood
-        ("TestMatchArgs",),
         ("TestKeywordArgs", "test_field_marked_as_kwonly"),
         ("TestKeywordArgs", "test_match_args"),
         ("TestKeywordArgs", "test_KW_ONLY"),
@@ -149,8 +149,6 @@ skip_tests = frozenset(
             "TestCase",
             "test_dataclasses_qualnames",
         ),  # doesn't define __setattr__ and just relies on Cython to enforce readonly properties
-        ("TestCase", "test_compare_subclasses"),  # wrong comparison
-        ("TestCase", "test_simple_compare"),  # wrong comparison
         (
             "TestCase",
             "test_field_named_self",

@@ -117,18 +117,20 @@ the declaration in most cases:
                 f: cython.float = 2.5
                 g: cython.int[4] = [1, 2, 3, 4]
                 h: cython.p_float = cython.address(f)
+                c: cython.doublecomplex = 2 + 3j
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int a_global_variable
+            cdef int a_global_variable = 42
 
             def func():
                 cdef int i = 10, j, k
                 cdef float f = 2.5
                 cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
+                cdef double complex c = 2 + 3j
 
 .. note::
 
@@ -289,7 +291,64 @@ Types
 The Cython language uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
 ``long long`` as well as their ``unsigned`` versions,
-e.g. ``unsigned int`` (``cython.uint`` in Python code).
+e.g. ``unsigned int`` (``cython.uint`` in Python code):
+
+
+.. list-table:: Numeric Types
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Cython type
+     - Pure Python type
+
+   * - ``bint``
+     - ``cython.bint``
+   * - ``char``
+     - ``cython.char``
+   * - ``signed char``
+     - ``cython.schar``
+   * - ``unsigned char``
+     - ``cython.uchar``
+   * - ``short``
+     - ``cython.short``
+   * - ``unsigned short``
+     - ``cython.ushort``
+   * - ``int``
+     - ``cython.int``
+   * - ``unsigned int``
+     - ``cython.uint``
+   * - ``long``
+     - ``cython.long``
+   * - ``unsigned long``
+     - ``cython.ulong``
+   * - ``long long``
+     - ``cython.longlong``
+   * - ``unsigned long long``
+     - ``cython.ulonglong``
+   * - ``float``
+     - ``cython.float``
+   * - ``double``
+     - ``cython.double``
+   * - ``long double``
+     - ``cython.longdouble``
+   * - ``float complex``
+     - ``cython.floatcomplex``
+   * - ``double complex``
+     - ``cython.doublecomplex``
+   * - ``long double complex``
+     - ``cython.longdoublecomplex``
+   * - ``size_t``
+     - ``cython.size_t``
+   * - ``Py_ssize_t``
+     - ``cython.Py_ssize_t``
+   * - ``Py_hash_t``
+     - ``cython.Py_hash_t``
+   * - ``Py_UCS4``
+     - ``cython.Py_UCS4``
+
+.. note::
+   Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
+
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
@@ -299,7 +358,6 @@ they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure pyt
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
 a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
 e.g. ``cython.pointer(cython.int)``.
-
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.

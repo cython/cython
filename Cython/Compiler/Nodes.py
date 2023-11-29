@@ -3868,7 +3868,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
-            code.putln("#if CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
             code.putln("#else")
@@ -8782,13 +8782,6 @@ utility_code_for_cimports = {
     'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
-}
-
-utility_code_for_imports = {
-    # utility code used when special modules are imported.
-    # TODO: Consider a generic user-level mechanism for importing
-    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Coroutine.c"),
-    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
 }
 
 def cimport_numpy_check(node, code):

@@ -94,7 +94,7 @@ static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 #define __Pyx_PyObject_Pop(L) (likely(PyList_CheckExact(L)) ? \
     __Pyx_PyList_Pop(L) : __Pyx__PyObject_Pop(L))
@@ -114,7 +114,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
     /* Check that both the size is positive and no reallocation shrinking needs to be done. */
     if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
@@ -131,7 +131,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
 static PyObject* __Pyx__PyObject_PopNewIndex(PyObject* L, PyObject* py_ix); /*proto*/
 static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix); /*proto*/
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t ix); /*proto*/
 
 #define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
@@ -171,7 +171,7 @@ static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix) {
     return __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
 }
 
-#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
 static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t ix) {
     Py_ssize_t size = PyList_GET_SIZE(L);
     if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
@@ -388,14 +388,12 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         }
         return 1;
     } else if (PyTuple_CheckExact(iter_obj)) {
-        Py_ssize_t pos = *ppos, iter_size;
-        #if !CYTHON_COMPILING_IN_LIMIED_API
-        iter_size = PyTuple_GET_SIZE(iter_obj);
-        #else
-        iter_size = PyTuple_Size(iter_obj);
-        if (unlikely(iter_size < 0)) return -1;
+        Py_ssize_t pos = *ppos;
+        Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(iter_obj);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(tuple_size == -1)) return -1;
         #endif
-        if (unlikely(pos >= iter_size)) return 0;
+        if (unlikely(pos >= tuple_size)) return 0;
         *ppos = pos + 1;
         #if CYTHON_ASSUME_SAFE_MACROS
         next_item = PyTuple_GET_ITEM(iter_obj, pos);
@@ -405,14 +403,12 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         #endif
         Py_INCREF(next_item);
     } else if (PyList_CheckExact(iter_obj)) {
-        Py_ssize_t pos = *ppos, iter_size;
-        #if !CYTHON_COMPILING_IN_LIMITED_API
-        iter_size = PyList_GET_SIZE(iter_obj);
-        #else
-        iter_size = PyList_Size(iter_obj);
-        if (unlikely(iter_size < 0)) return -1;
+        Py_ssize_t pos = *ppos;
+        Py_ssize_t list_size = __Pyx_PyList_GET_SIZE(iter_obj);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(list_size == -1)) return -1;
         #endif
-        if (unlikely(pos >= iter_size)) return 0;
+        if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
         #if CYTHON_ASSUME_SAFE_MACROS
         next_item = PyList_GET_ITEM(iter_obj, pos);
@@ -829,7 +825,7 @@ static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize
 static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
     char* as_c_string;
     Py_ssize_t size;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
     as_c_string = PyBytes_AS_STRING(obj);
     size = PyBytes_GET_SIZE(obj);
 #else
@@ -842,7 +838,7 @@ static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
 static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
     char* as_c_string;
     Py_ssize_t size;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
     as_c_string = PyByteArray_AS_STRING(obj);
     size = PyByteArray_GET_SIZE(obj);
 #else
@@ -1352,10 +1348,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         {{else}}
             double result;
             {{zerodiv_check('b', 'float')}}
-            // copied from floatobject.c in Py3.5:
-            PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
             result = ((double)a) {{c_op}} (double)b;
-            PyFPE_END_PROTECT(result)
             return PyFloat_FromDouble(result);
         {{endif}}
     }
@@ -1495,8 +1488,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             {{return_false}};
         }
     {{else}}
-        // copied from floatobject.c in Py3.5:
-        PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
         {{if c_op == '%'}}
         result = fmod(a, b);
         if (result)
@@ -1506,7 +1497,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         {{else}}
         result = a {{c_op}} b;
         {{endif}}
-        PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
     {{endif}}
 }

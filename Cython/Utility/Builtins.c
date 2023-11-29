@@ -331,33 +331,31 @@ static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 static long __Pyx__PyObject_Ord(PyObject* c) {
     Py_ssize_t size;
     if (PyBytes_Check(c)) {
-        #if CYTHON_ASSUME_SAFE_MACROS
-        size = PyBytes_GET_SIZE(c);
+        size = __Pyx_PyBytes_GET_SIZE(c);
         if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             return (unsigned char) PyBytes_AS_STRING(c)[0];
-        }
-        #else
-        size = PyBytes_Size(c);
-        if (likely(size == 1)) {
+#else
             char *data = PyBytes_AsString(c);
             if (unlikely(!data)) return -1;
             return (unsigned char) data[0];
+#endif
         }
+#if CYTHON_ASSUME_SAFE_SIZE        
         else if (unlikely(size < 0)) return -1;
-        #endif
+#endif
     } else if (PyByteArray_Check(c)) {
+        size = __Pyx_PyByteArray_GET_SIZE(c);
+        if (likely(size == 1)) {
 #if CYTHON_ASSUME_SAFE_MACROS
-        size = PyByteArray_GET_SIZE(c);
-        if (likely(size == 1)) {
             return (unsigned char) PyByteArray_AS_STRING(c)[0];
-        }
 #else
-        size = PyByteArray_Size(c);
-        if (likely(size == 1)) {
             char *data = PyByteArray_AsString(c);
             if (unlikely(!data)) return -1;
             return (unsigned char) data[0];
+#endif
         }
+#if CYTHON_ASSUME_SAFE_SIZE
         else if (unlikely(size < 0)) return -1;
 #endif
     } else {
@@ -493,21 +491,21 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((__PYX_LIMITED_VERSION_HEX >= 0x031000A1))
-            return result;
+        if ((__PYX_LIMITED_VERSION_HEX < 0x030A00A1)
+#if CYTHON_COMPILING_IN_LIMITED_API
+            && __Pyx_get_runtime_version() < 0x030A00A1
+#endif
+            )
         {
-            Py_ssize_t size;
-            #if CYTHON_ASSUME_SAFE_MACROS
-            size = PySet_GET_SIZE(result);
-            #else
-            size = PySet_Size(result);
+            Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
+            if (likely(size))
+                return result;
+#if !CYTHON_ASSUME_SAFE_SIZE
             if (unlikely(size < 0)) {
                 Py_DECREF(result);
                 return NULL;
             }
-            #endif
-            if (likely(size))
-                return result;
+#endif
         }
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
@@ -532,7 +530,11 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
     #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     if (PyAnySet_Check(it)) {
-        if (PySet_GET_SIZE(it) == 0)
+        Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(size == -1)) return -1;
+        #endif
+        if (size == 0)
             return 0;
         // fast and safe case: CPython will update our result set and return it
         retval = PySet_Type.tp_as_number->nb_inplace_or(set, it);
