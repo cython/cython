@@ -750,14 +750,16 @@ def get_known_standard_library_module_scope(module_name):
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)
-        indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
-        initvar_string = EncodedString("InitVar")
-        entry = mod.declare_type(initvar_string, indexed_type, pos = None)
-        var_entry = Entry(initvar_string, None, PyrexTypes.py_object_type)
-        var_entry.is_pyglobal = True
-        var_entry.scope = mod
-        entry.as_variable = var_entry
-        entry.known_standard_library_import = "%s.InitVar" % module_name
+        for name in ['InitVar', 'KW_ONLY']:
+            name = EncodedString(name)
+            # KW_ONLY isn't actually indexable, but it works OK to allow it to be
+            indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses."+name))
+            entry = mod.declare_type(name, indexed_type, pos = None)
+            var_entry = Entry(name, None, PyrexTypes.py_object_type)
+            var_entry.is_pyglobal = True
+            var_entry.scope = mod
+            entry.as_variable = var_entry
+            entry.known_standard_library_import = "%s.%s" % (module_name, name)
         for name in ["dataclass", "field"]:
             mod.declare_var(EncodedString(name), PyrexTypes.py_object_type, pos=None)
         _known_module_scopes[module_name] = mod

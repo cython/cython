@@ -23,7 +23,7 @@ import operator
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
-    CannotSpecialize, performance_hint)
+    CannotSpecialize, performance_hint, warn_once)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -705,6 +705,9 @@ class ExprNode(Node):
         # extension type or builtin type, return its type, else None.
         return None
 
+    def analyse_pytyping_modifiers(self, env):
+        return []
+
     def analyse_types(self, env):
         self.not_implemented("analyse_types")
 
@@ -1031,7 +1034,7 @@ class ExprNode(Node):
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
                 #        Python conversion and becomes useless. That sems backwards and inefficient.
                 #        We should not need a PyTypeTestNode after a previous conversion above.
-                if not src.type.subtype_of(dst_type):
+                if not src.type.subtype_of(dst_type)  and src_type != dst_type:
                     src = PyTypeTestNode(src, dst_type, env)
         elif is_pythran_expr(dst_type) and is_pythran_supported_type(src.type):
             # We let the compiler decide whether this is valid
@@ -2165,6 +2168,13 @@ class NameNode(AtomicExprNode):
             if entry.type.is_extension_type or entry.type.is_builtin_type:
                 return entry.type
         return None
+
+    def analyse_pytyping_modifiers(self, env):
+        modifiers = []
+        modifier_type = self.analyse_as_type(env)
+        if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+            modifiers.append(modifier_type.modifier_name)
+        return modifiers
 
     def analyse_target_declaration(self, env):
         return self._analyse_target_declaration(env, is_assignment_expression=False)
@@ -7422,6 +7432,13 @@ class AttributeNode(ExprNode):
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
+
+    def analyse_pytyping_modifiers(self, env):
+        modifiers = []
+        modifier_type = self.analyse_as_type(env)
+        if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+            modifiers.append(modifier_type.modifier_name)
+        return modifiers
 
     def _create_unbound_cmethod_entry(self, type, entry, env):
         # Create a temporary entry describing the unbound C method in `entry`
@@ -14628,7 +14645,7 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            modifiers = annotation.analyse_pytyping_modifiers(env)
 
         return modifiers, arg_type
 

@@ -3,6 +3,10 @@ from dataclasses import (
     dataclass, field,
     fields, FrozenInstanceError, InitVar, is_dataclass, asdict, astuple, replace
 )
+try:
+    from dataclasses import KW_ONLY
+except ImportError:
+    pass  # version dependent
 import unittest
 from unittest.mock import Mock
 import pickle

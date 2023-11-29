@@ -674,6 +674,119 @@ class A_TestMatchArgs_test_match_args_argument:
 class B_TestMatchArgs_test_match_args_argument(A_TestMatchArgs_test_match_args_argument):
     b: int
 
+@dataclass(kw_only=True)
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly:
+    a: int
+
+@dataclass(kw_only=True)
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly_:
+    a: int = field(kw_only=True)
+
+@dataclass(kw_only=True)
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly__:
+    a: int = field(kw_only=False)
+
+@dataclass(kw_only=False)
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly___:
+    a: int
+
+@dataclass(kw_only=False)
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly____:
+    a: int = field(kw_only=True)
+
+@dataclass(kw_only=False)
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly_____:
+    a: int = field(kw_only=False)
+
+@dataclass
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly______:
+    a: int
+
+@dataclass
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly_______:
+    a: int = field(kw_only=True)
+
+@dataclass
+@cclass
+class A_TestKeywordArgs_test_field_marked_as_kwonly________:
+    a: int = field(kw_only=False)
+
+@dataclass(kw_only=True)
+@cclass
+class C_TestKeywordArgs_test_match_args:
+    a: int
+
+@dataclass
+@cclass
+class C_TestKeywordArgs_test_match_args_:
+    a: int
+    b: int = field(kw_only=True)
+
+@dataclass
+@cclass
+class A_TestKeywordArgs_test_KW_ONLY:
+    a: int
+    _: KW_ONLY
+    b: int
+    c: int
+
+@dataclass(kw_only=True)
+@cclass
+class B_TestKeywordArgs_test_KW_ONLY:
+    a: int
+    _: KW_ONLY
+    b: int
+    c: int
+
+@dataclass
+@cclass
+class C_TestKeywordArgs_test_KW_ONLY:
+    a: int
+    _: KW_ONLY
+    b: int
+    c: int = field(kw_only=False)
+
+@dataclass
+@cclass
+class A_TestKeywordArgs_test_KW_ONLY_as_string:
+    a: int
+    _: 'dataclasses.KW_ONLY'
+    b: int
+    c: int
+
+@dataclass
+@cclass
+class A_TestKeywordArgs_test_post_init:
+    a: int
+    _: KW_ONLY
+    b: InitVar[int]
+    c: int
+    d: InitVar[int]
+
+    def __post_init__(self, b, d):
+        raise CustomError(f'b={b!r} d={d!r}')
+
+@dataclass
+@cclass
+class B_TestKeywordArgs_test_post_init:
+    a: int
+    _: KW_ONLY
+    b: InitVar[int]
+    c: int
+    d: InitVar[int]
+
+    def __post_init__(self, b, d):
+        self.a = b
+        self.c = d
+
 class CustomError(Exception):
     pass
 
@@ -1308,6 +1421,76 @@ class TestMatchArgs(unittest.TestCase):
         self.assertEqual(B.__match_args__, ('a', 'z'))
 
 class TestKeywordArgs(unittest.TestCase):
-    pass
+
+    @skip_on_versions_below((3, 10))
+    def test_field_marked_as_kwonly(self):
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly
+        self.assertTrue(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly_
+        self.assertTrue(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly__
+        self.assertFalse(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly___
+        self.assertFalse(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly____
+        self.assertTrue(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly_____
+        self.assertFalse(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly______
+        self.assertFalse(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly_______
+        self.assertTrue(fields(A)[0].kw_only)
+        A = A_TestKeywordArgs_test_field_marked_as_kwonly________
+        self.assertFalse(fields(A)[0].kw_only)
+
+    def test_match_args(self):
+        C = C_TestKeywordArgs_test_match_args
+        self.assertEqual(C(a=42).__match_args__, ())
+        C = C_TestKeywordArgs_test_match_args_
+        self.assertEqual(C(42, b=10).__match_args__, ('a',))
+
+    def test_KW_ONLY(self):
+        A = A_TestKeywordArgs_test_KW_ONLY
+        A(3, c=5, b=4)
+        msg = 'takes 2 positional arguments but 4 were given'
+        with self.assertRaises(TypeError):
+            A(3, 4, 5)
+        B = B_TestKeywordArgs_test_KW_ONLY
+        B(a=3, b=4, c=5)
+        msg = 'takes 1 positional argument but 4 were given'
+        with self.assertRaises(TypeError):
+            B(3, 4, 5)
+        C = C_TestKeywordArgs_test_KW_ONLY
+        c = C(1, 2, b=3)
+        self.assertEqual(c.a, 1)
+        self.assertEqual(c.b, 3)
+        self.assertEqual(c.c, 2)
+        c = C(1, b=3, c=2)
+        self.assertEqual(c.a, 1)
+        self.assertEqual(c.b, 3)
+        self.assertEqual(c.c, 2)
+        c = C(1, b=3, c=2)
+        self.assertEqual(c.a, 1)
+        self.assertEqual(c.b, 3)
+        self.assertEqual(c.c, 2)
+        c = C(c=2, b=3, a=1)
+        self.assertEqual(c.a, 1)
+        self.assertEqual(c.b, 3)
+        self.assertEqual(c.c, 2)
+
+    def test_KW_ONLY_as_string(self):
+        A = A_TestKeywordArgs_test_KW_ONLY_as_string
+        A(3, c=5, b=4)
+        msg = 'takes 2 positional arguments but 4 were given'
+        with self.assertRaises(TypeError):
+            A(3, 4, 5)
+
+    def test_post_init(self):
+        A = A_TestKeywordArgs_test_post_init
+        with self.assertRaises(CustomError):
+            A(1, c=2, b=3, d=4)
+        B = B_TestKeywordArgs_test_post_init
+        b = B(1, c=2, b=3, d=4)
+        self.assertEqual(asdict(b), {'a': 3, 'c': 4})
 if __name__ == '__main__':
     unittest.main()

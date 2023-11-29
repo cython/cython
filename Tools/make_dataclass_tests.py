@@ -69,11 +69,6 @@ skip_tests = frozenset(
         ("TestCase", "test_missing_default"),  # MISSING
         ("TestCase", "test_missing_repr"),  # MISSING
         ("TestSlots",),  # __slots__ isn't understood
-        ("TestKeywordArgs", "test_field_marked_as_kwonly"),
-        ("TestKeywordArgs", "test_match_args"),
-        ("TestKeywordArgs", "test_KW_ONLY"),
-        ("TestKeywordArgs", "test_KW_ONLY_as_string"),
-        ("TestKeywordArgs", "test_post_init"),
         (
             "TestCase",
             "test_class_var_frozen",
@@ -186,6 +181,10 @@ version_specific_skips = {
         3,
         10,
     ),  # needs language support for | operator on types
+    ("TestKeywordArgs", "test_field_marked_as_kwonly"): (
+        3,
+        10,
+    ),  # Field attribute not available for inspection
 }
 
 class DataclassInDecorators(ast.NodeVisitor):
@@ -403,7 +402,9 @@ class ExtractDataclassesToTopLevel(ast.NodeTransformer):
         # string annotations are forward declarations but the string will be wrong
         # (because we're renaming the class)
         if (isinstance(node.annotation, ast.Constant) and
-                isinstance(node.annotation.value, str)):
+                isinstance(node.annotation.value, str) and
+                # except KW_ONLY which is a special test
+                not node.annotation.value == "dataclasses.KW_ONLY"):
             # although it'd be good to resolve these declarations, for the
             # sake of the tests they only need to be "object"
             node.annotation = ast.Name(id="object", ctx=ast.Load)
