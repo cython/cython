@@ -70,7 +70,7 @@ for src, dst in zip(sys.argv[1:], sys.argv[1+n//2:]):
             if not file.startswith(os.path.basename(src_file_name)):
                 continue
             file_dot_split = file.split(".")
-            if len(file_dot_split) >= 2 and file_dot_split[-1].startswith("cpython-"):
+            if len(file_dot_split) >= 2 and ".".join(file_dot_split[:-2]) == src_file_name:
                 potential_src_file_name = os.path.join(dir, file_name)
                 try:
                     os.rename(potential_src_file_name, dst)
