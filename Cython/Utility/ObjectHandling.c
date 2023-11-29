@@ -105,7 +105,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(
         if (has_known_size) {
             return __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple);
         }
-    #if CYTHON_ASSUME_SAFE_MACROS
+    #if CYTHON_ASSUME_SAFE_SIZE
         size = PyTuple_GET_SIZE(tuple);
     #else
         size = PyTuple_Size(tuple);
