@@ -5468,7 +5468,7 @@ def write_noexcept_performance_hint(pos, env, function_name=None, void_return=Fa
             on_what = "on '%s' " % function_name
     else:
         if is_call:
-            on_what = "after function call"
+            on_what = "after function call "
         else:
             on_what =''
     msg = (
