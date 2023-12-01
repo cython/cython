@@ -247,7 +247,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
   #undef CYTHON_USE_FREELISTS
-  #define CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 0
 
 #elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
