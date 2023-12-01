@@ -53,17 +53,15 @@ static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
     if (t == Py_None) {
       __Pyx_RaiseNoneNotIterableError();
     } else {
-#if CYTHON_ASSUME_SAFE_MACROS
-        Py_ssize_t size = PyTuple_GET_SIZE(t);
-#else
-        Py_ssize_t size = PyTuple_Size(t);
-        if (unlikely(size < 0)) return;
-#endif
-        if (size < index) {
-            __Pyx_RaiseNeedMoreValuesError(size);
-        } else {
-            __Pyx_RaiseTooManyValuesError(index);
-        }
+      Py_ssize_t size = __Pyx_PyTuple_GET_SIZE(t);
+ #if !CYTHON_ASSUME_SAFE_SIZE
+      if (unlikely(size < 0)) return;
+ #endif
+      if (size < index) {
+        __Pyx_RaiseNeedMoreValuesError(size);
+      } else {
+        __Pyx_RaiseTooManyValuesError(index);
+      }
     }
 }
 
@@ -107,7 +105,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(
         if (has_known_size) {
             return __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple);
         }
-    #if CYTHON_ASSUME_SAFE_MACROS
+    #if CYTHON_ASSUME_SAFE_SIZE
         size = PyTuple_GET_SIZE(tuple);
     #else
         size = PyTuple_Size(tuple);
@@ -126,9 +124,9 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(
 static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
         PyObject* tuple, PyObject** pvalue1, PyObject** pvalue2, int decref_tuple) {
     PyObject *value1 = NULL, *value2 = NULL;
-#if CYTHON_COMPILING_IN_PYPY
-    value1 = PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
-    value2 = PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+    value1 = __Pyx_PySequence_ITEM(tuple, 0);  if (unlikely(!value1)) goto bad;
+    value2 = __Pyx_PySequence_ITEM(tuple, 1);  if (unlikely(!value2)) goto bad;
 #else
     value1 = PyTuple_GET_ITEM(tuple, 0);  Py_INCREF(value1);
     value2 = PyTuple_GET_ITEM(tuple, 1);  Py_INCREF(value2);
@@ -140,7 +138,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     *pvalue1 = value1;
     *pvalue2 = value2;
     return 0;
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 bad:
     Py_XDECREF(value1);
     Py_XDECREF(value2);
@@ -431,7 +429,7 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               CYTHON_NCP_UNUSED int wraparound,
                                                               CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
         wrapped_i += Py{{type}}_GET_SIZE(o);
@@ -451,7 +449,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
                                                      CYTHON_NCP_UNUSED int wraparound,
                                                      CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
@@ -527,7 +525,7 @@ static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
                                                CYTHON_NCP_UNUSED int wraparound, CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
         if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
@@ -844,7 +842,7 @@ static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bas
 
 static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases) {
     Py_ssize_t i, nbases;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
     nbases = PyTuple_GET_SIZE(bases);
 #else
     nbases = PyTuple_Size(bases);
@@ -896,12 +894,19 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases); /*proto*/
 
 static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     PyObject *metaclass;
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+    #if CYTHON_ASSUME_SAFE_SIZE
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0)
+    #else
+    Py_ssize_t tuple_size = PyTuple_Check(bases) ? PyTuple_GetSize(bases) : 0;
+    if (unlikely(tuple_size == -1)) return NULL;
+    if (tuple_size > 0)
+    #endif
+    {
         PyTypeObject *metatype;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
 #else
-        PyObject *base = PySequence_ITEM(bases, 0);
+        PyObject *base = __Pyx_PySequence_ITEM(bases, 0);
 #endif
         metatype = Py_TYPE(base);
         metaclass = __Pyx_CalculateMetaclass(metatype, bases);
@@ -993,13 +998,29 @@ static PyObject*
 __Pyx_PEP560_update_bases(PyObject *bases)
 {
     Py_ssize_t i, j, size_bases;
-    PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
+    PyObject *base = NULL, *meth, *new_base, *result, *new_bases = NULL;
     /*assert(PyTuple_Check(bases));*/
 
+#if CYTHON_ASSUME_SAFE_SIZE
     size_bases = PyTuple_GET_SIZE(bases);
+#else
+    size_bases = PyTuple_Size(bases);
+    if (size_bases < 0) return NULL;
+#endif
     for (i = 0; i < size_bases; i++) {
         // original code in CPython: base  = args[i];
-        base  = PyTuple_GET_ITEM(bases, i);
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_CLEAR(base);
+#endif
+#if CYTHON_ASSUME_SAFE_MACROS
+        base = PyTuple_GET_ITEM(bases, i);
+#else
+        base = PyTuple_GetItem(bases, i);
+        if (!base) goto error;
+#endif
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_INCREF(base);
+#endif
         if (PyType_Check(base)) {
             if (new_bases) {
                 // If we already have made a replacement, then we append every normal base,
@@ -1043,12 +1064,26 @@ __Pyx_PEP560_update_bases(PyObject *bases)
             }
             for (j = 0; j < i; j++) {
                 // original code in CPython: base = args[j];
-                base = PyTuple_GET_ITEM(bases, j);
-                PyList_SET_ITEM(new_bases, j, base);
-                Py_INCREF(base);
+                // We use a different name here to keep refcounting separate from base
+                PyObject *base_from_list;
+#if CYTHON_ASSUME_SAFE_MACROS
+                base_from_list = PyTuple_GET_ITEM(bases, j);
+                PyList_SET_ITEM(new_bases, j, base_from_list);
+                Py_INCREF(base_from_list);
+#else
+                base_from_list = PyTuple_GetItem(bases, j);
+                if (!base_from_list) goto error;
+                Py_INCREF(base_from_list);
+                if (PyList_SetItem(new_bases, j, base_from_list) < 0) goto error;
+#endif
             }
         }
+#if CYTHON_ASSUME_SAFE_SIZE
         j = PyList_GET_SIZE(new_bases);
+#else
+        j = PyList_Size(new_bases);
+        if (j < 0) goto error;
+#endif
         if (PyList_SetSlice(new_bases, j, j, new_base) < 0) {
             goto error;
         }
@@ -1061,10 +1096,16 @@ __Pyx_PEP560_update_bases(PyObject *bases)
     }
     result = PyList_AsTuple(new_bases);
     Py_DECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return result;
 
 error:
     Py_XDECREF(new_bases);
+#if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(base);
+#endif
     return NULL;
 }
 
@@ -1303,7 +1344,18 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #ifdef __Pyx_CyFunction_USED
     int ret;
     if (__Pyx_CyFunction_Check(value)) {
-        PyObject *staticnew = PyStaticMethod_New(value);
+        PyObject *staticnew;
+#if !CYTHON_COMPILING_IN_LIMITED_API
+        staticnew = PyStaticMethod_New(value);
+#else
+        PyObject *builtins, *staticmethod;
+        builtins = PyEval_GetBuiltins(); // borrowed
+        if (!builtins) return -1;
+        staticmethod = PyObject_GetAttrString(builtins, "staticmethod");
+        if (!staticmethod) return -1;
+        staticnew = PyObject_CallFunctionObjArgs(staticmethod, value, NULL);
+        Py_DECREF(staticmethod);
+#endif
         if (unlikely(!staticnew)) return -1;
         ret = __Pyx_SetNameInClass(ns, name, staticnew);
         Py_DECREF(staticnew);

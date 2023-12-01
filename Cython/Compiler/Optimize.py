@@ -394,12 +394,12 @@ class IterationTransform(Visitor.EnvTransform):
     PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_char_ptr_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
+            ], exception_value="NULL")
 
     PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ])
+            ], exception_value="-1")
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
@@ -412,16 +412,17 @@ class IterationTransform(Visitor.EnvTransform):
             slice_node.as_none_safe_node("'NoneType' is not iterable"))
 
         slice_base_node = ExprNodes.PythonCapiCallNode(
-            slice_node.pos, "PyBytes_AS_STRING",
+            slice_node.pos, "__Pyx_PyBytes_AsWritableString",
             self.PyBytes_AS_STRING_func_type,
             args = [unpack_temp_node],
-            is_temp = 0,
+            is_temp = 1,
+            # TypeConversions utility code is always included
             )
         len_node = ExprNodes.PythonCapiCallNode(
-            slice_node.pos, "PyBytes_GET_SIZE",
+            slice_node.pos, "__Pyx_PyBytes_GET_SIZE",
             self.PyBytes_GET_SIZE_func_type,
             args = [unpack_temp_node],
-            is_temp = 0,
+            is_temp = 1,
             )
 
         return UtilNodes.LetNode(
@@ -818,10 +819,10 @@ class IterationTransform(Visitor.EnvTransform):
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
                                        constant_result=0)
-            bound2 = args[0].coerce_to_integer(self.current_env())
+            bound2 = args[0].coerce_to_index(self.current_env())
         else:
-            bound1 = args[0].coerce_to_integer(self.current_env())
-            bound2 = args[1].coerce_to_integer(self.current_env())
+            bound1 = args[0].coerce_to_index(self.current_env())
+            bound2 = args[1].coerce_to_index(self.current_env())
 
         relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
 
@@ -855,7 +856,7 @@ class IterationTransform(Visitor.EnvTransform):
             step_value = -step_value
         step.value = str(step_value)
         step.constant_result = step_value
-        step = step.coerce_to_integer(self.current_env())
+        step = step.coerce_to_index(self.current_env())
 
         if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
