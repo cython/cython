@@ -1541,10 +1541,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     slot_func)
         code.putln("")
         if freelist_size:
+            code.putln("#if PYTHON_COMPILING_IN_CPYTHON")
             code.putln("static %s[%d];" % (
                 scope.parent_type.declaration_code(freelist_name),
                 freelist_size))
             code.putln("static int %s = 0;" % freecount_name)
+            code.putln("#endif")
             code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
@@ -3407,6 +3409,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 scope = cclass_type.scope
                 freelist_name = scope.mangle_internal(Naming.freelist_name)
                 freecount_name = scope.mangle_internal(Naming.freecount_name)
+                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')  # freelists are only used here
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -3418,6 +3421,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("if (tp_free) tp_free(o);")
                 code.putln("#endif")
                 code.putln("}")
+                code.putln('#endif')  # CYTHON_COMPILING_IN_CPYTHON
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
 #                                  PyrexTypes.py_object_type,
