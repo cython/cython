@@ -850,7 +850,9 @@ really_bad: // bad has failed!
 #endif
     __Pyx_DECREF_TypeName(tp_base_name);
     __Pyx_DECREF_TypeName(base_name);
+#if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
+#endif
     free(base_vtables);
     return -1;
 }
