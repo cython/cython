@@ -488,23 +488,22 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytearray(
 
 /////////////// PyUnicode_Substring.proto ///////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop);
-#else
-// In the limited API since 3.7
-#define __Pyx_PyUnicode_Substring(text, start, stop) PyUnicode_Substring(text, start, stop)
-#endif
 
 /////////////// PyUnicode_Substring ///////////////
 //@substitute: naming
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
+#if CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(__Pyx_PyUnicode_READY(text) == -1)) return NULL;
+#endif
     length = __Pyx_PyUnicode_GET_LENGTH(text);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(length < 0)) return NULL;
+#endif
     if (start < 0) {
         start += length;
         if (start < 0)
@@ -518,10 +517,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         return __Pyx_NewRef($empty_unicode);
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
+#if !CYTHON_COMPILING_IN_LIMITED_API
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
-}
+#else
+    return PyUnicode_Substring(text, start, stop);
 #endif
+}
 
 
 /////////////// py_unicode_istitle.proto ///////////////
