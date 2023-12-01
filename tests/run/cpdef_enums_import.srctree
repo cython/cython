@@ -8,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize(["enums.pyx", "no_enums.pyx"]),
+  ext_modules = cythonize(["enums.pyx", "enums2.pyx", "no_enums.pyx"]),
 )
 
 ######## enums.pyx ########
@@ -28,6 +28,14 @@ cpdef enum NamedEnumType:
 
 cpdef foo()
 
+######## enums2.pyx ############
+
+######## enums2.pxd ############
+
+# Note - same name as enums.pxd but shouldn't conflict
+cpdef enum NamedEnumType:
+    Value = 1
+
 ######## enums_without_pyx.pxd #####
 
 cpdef enum EnumTypeNotInPyx:
@@ -37,6 +45,7 @@ cpdef enum EnumTypeNotInPyx:
 
 from enums cimport *
 from enums_without_pyx cimport *
+import enums2
 
 def get_named_enum_value():
     return NamedEnumType.NamedEnumValue
@@ -45,10 +54,16 @@ def get_named_without_pyx():
     # This'll generate a warning but return a c int
     return EnumTypeNotInPyx.AnotherEnumValue
 
+def get_from_enums2():
+    # This should not generate conflicting "to py" functions with the other
+    # identically named enum
+    return enums2.NamedEnumType.Value
+
 ######## import_enums_test.py ########
 
 # We can import enums with a star import.
 from enums import *
+import enums2
 
 print(dir())
 assert 'BAR' in dir() and 'FOO' in dir()
@@ -64,3 +79,5 @@ assert no_enums.get_named_enum_value() == NamedEnumType.NamedEnumValue
 # In this case the enum isn't accessible from Python (by design)
 # but the conversion to Python goes through a reasonable fallback
 assert no_enums.get_named_without_pyx() == 500
+
+assert no_enums.get_from_enums2() == enums2.NamedEnumType.Value
