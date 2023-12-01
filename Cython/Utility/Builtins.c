@@ -49,12 +49,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
 
 static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     PyObject* s = 0;
     char *code = 0;
+#endif
 
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
-    } else if (unlikely(!PyDict_Check(globals))) {
+    }
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    // In Limited API we just use exec builtin which already has this
+    else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
             __Pyx_PyType_GetName(Py_TYPE(globals));
         PyErr_Format(PyExc_TypeError,
@@ -63,10 +68,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         __Pyx_DECREF_TypeName(globals_type_name);
         goto bad;
     }
+#endif
     if (!locals || locals == Py_None) {
         locals = globals;
     }
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
     if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
         if (unlikely(PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0))
             goto bad;
@@ -115,6 +122,19 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 bad:
     Py_XDECREF(s);
     return 0;
+#else // CYTHON_COMPILING_IN_LIMITED_API
+    {
+        // For the limited API we just defer to the actual builtin
+        // (after setting up globals and locals) - there's too much we can't do otherwise
+        PyObject *builtins, *exec;
+        builtins = PyEval_GetBuiltins();
+        if (!builtins) return NULL;
+        exec = PyDict_GetItemString(builtins, "exec");
+        if (!exec) return NULL;
+        result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
+        return result;
+    }
+#endif
 }
 
 //////////////////// GetAttr3.proto ////////////////////
