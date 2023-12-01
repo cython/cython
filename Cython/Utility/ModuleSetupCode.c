@@ -114,6 +114,8 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #undef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 0
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -175,6 +177,8 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #undef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 0
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
@@ -242,6 +246,8 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #undef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS
 
 #elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -290,6 +296,12 @@
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
   #define CYTHON_USE_EXC_INFO_STACK 0
+  #ifndef CYTHON_USE_FREELISTS
+  // TODO - we could probably enable CYTHON_USE_FREELISTS by default in future since
+  // this is just a variant of cpython now, but we'd need to be very careful to make
+  // them thread safe. Since it will probably work, let the user decide.
+  #define CYTHON_USE_FREELISTS 0
+  #endif
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -377,6 +389,9 @@
   #endif
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
+  #endif
+  #ifndef CYTHON_USE_FREELISTS
+    #define CYTHON_USE_FREELISTS 1
   #endif
 #endif
 
