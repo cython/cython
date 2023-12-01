@@ -1541,7 +1541,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     slot_func)
         code.putln("")
         if freelist_size:
-            code.putln("#if PYTHON_COMPILING_IN_CPYTHON")
+            code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
             code.putln("static %s[%d];" % (
                 scope.parent_type.declaration_code(freelist_name),
                 freelist_size))
