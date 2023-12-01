@@ -578,6 +578,10 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 (likely(PyFloat_CheckExact(obj)) ? PyFloat_AS_DOUBLE(obj) : \
  likely(PyInt_CheckExact(obj)) ? \
  PyFloat_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
+#elif !CYTHON_ASSUME_SAFE_MACROS
+#define __Pyx_PyObject_AsDouble(obj) \
+(likely(PyFloat_CheckExact(obj) || PyInt_CheckExact(obj)) ? \
+ PyFloat_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #else
 #define __Pyx_PyObject_AsDouble(obj) \
 ((likely(PyFloat_CheckExact(obj))) ?  PyFloat_AS_DOUBLE(obj) : \
@@ -621,7 +625,11 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         }
 #endif
         if (likely(float_value)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             double value = PyFloat_AS_DOUBLE(float_value);
+#else
+            double value = PyFloat_AsDouble(float_value);
+#endif
             Py_DECREF(float_value);
             return value;
         }
@@ -1079,7 +1087,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
 #if CYTHON_COMPILING_IN_LIMITED_API
-        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
+        double {{ival}} = PyFloat_AsDouble({{pyval}});
 #else
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
 #endif
@@ -1305,7 +1313,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
 #if CYTHON_COMPILING_IN_LIMITED_API
-        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
+        double {{ival}} = PyFloat_AsDouble({{pyval}});
 #else
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
 #endif
@@ -1385,7 +1393,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-        {{fval}} = __pyx_PyFloat_AsDouble({{pyval}});
+        {{fval}} = PyFloat_AsDouble({{pyval}});
 #else
         {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
 #endif
