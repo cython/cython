@@ -526,11 +526,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         return __Pyx_NewRef($empty_unicode);
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // PyUnicode_Substring() does not support negative indexing but is otherwise fine to use.
+    return PyUnicode_Substring(text, start, stop);
+#else
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
-#else
-    return PyUnicode_Substring(text, start, stop);
 #endif
 }
 

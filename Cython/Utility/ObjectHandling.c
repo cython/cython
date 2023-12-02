@@ -105,16 +105,14 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(
         if (has_known_size) {
             return __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple);
         }
-    #if CYTHON_ASSUME_SAFE_SIZE
-        size = PyTuple_GET_SIZE(tuple);
-    #else
-        size = PyTuple_Size(tuple);
-        if (unlikely(size < 0)) return -1;
-    #endif
+        size = __Pyx_PyTuple_GET_SIZE(tuple);
         if (likely(size == 2)) {
             return __Pyx_unpack_tuple2_exact(tuple, value1, value2, decref_tuple);
         }
-        __Pyx_UnpackTupleError(tuple, 2);
+        if (size >= 0) {
+            // "size == -1" indicates an error already.
+            __Pyx_UnpackTupleError(tuple, 2);
+        }
         return -1;
     } else {
         return __Pyx_unpack_tuple2_generic(tuple, value1, value2, has_known_size, decref_tuple);
