@@ -580,7 +580,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     *pvalue = value;
     return 0;
 
-#if !CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
   limited_api_failure:
     Py_XDECREF(et);
     Py_XDECREF(tb);
@@ -1213,17 +1213,14 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
         PyObject_ClearWeakRefs(self);
 
     if (gen->resume_label >= 0) {
-#if !CYTHON_USE_TP_FINALIZE
-        destructor del;
-#endif
         // Generator is paused or unstarted, so we need to close
         PyObject_GC_Track(self);
 #if CYTHON_USE_TP_FINALIZE
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
 #else
-        del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
-        if (del) {
-            del(self);
+        {
+            destructor del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
+            if (del) del(self);
         }
         if (unlikely(Py_REFCNT(self) > 0))
 #endif
