@@ -1,6 +1,4 @@
-from __future__ import print_function
-
-
+ 
 cdef class A:
 
     cdef foo(self):

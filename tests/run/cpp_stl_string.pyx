@@ -448,6 +448,21 @@ def test_swap():
     assert s1 == s_asdg and s2 == s_asdf
 
 
+def test_float_parsing(bstring):
+    """
+    >>> test_float_parsing(b'0.5')
+    0.5
+    >>> try: test_float_parsing(b'xxx')
+    ... except ValueError: pass
+    ... else: print("NOT RAISED!")
+    >>> try: test_float_parsing(b'')
+    ... except ValueError: pass
+    ... else: print("NOT RAISED!")
+    """
+    cdef string s = bstring
+    return float(s)
+
+
 _WARNINGS = """
 21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
 """

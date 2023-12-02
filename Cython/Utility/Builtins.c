@@ -328,13 +328,13 @@ static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 static long __Pyx__PyObject_Ord(PyObject* c) {
     Py_ssize_t size;
     if (PyBytes_Check(c)) {
-        size = PyBytes_GET_SIZE(c);
+        size = __Pyx_PyBytes_GET_SIZE(c);
         if (likely(size == 1)) {
             return (unsigned char) PyBytes_AS_STRING(c)[0];
         }
 #if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     } else if (PyByteArray_Check(c)) {
-        size = PyByteArray_GET_SIZE(c);
+        size = __Pyx_PyByteArray_GET_SIZE(c);
         if (likely(size == 1)) {
             return (unsigned char) PyByteArray_AS_STRING(c)[0];
         }
@@ -471,7 +471,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
+        if ((PY_VERSION_HEX >= 0x030A00A1) || likely(__Pyx_PySet_GET_SIZE(result)))
             return result;
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
@@ -496,7 +496,11 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
     #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     if (PyAnySet_Check(it)) {
-        if (PySet_GET_SIZE(it) == 0)
+        Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(size == -1)) return -1;
+        #endif
+        if (size == 0)
             return 0;
         // fast and safe case: CPython will update our result set and return it
         retval = PySet_Type.tp_as_number->nb_inplace_or(set, it);

@@ -2,17 +2,10 @@
 #   Cython - Command Line Parsing
 #
 
-from __future__ import absolute_import
 
-import sys
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
-
-
-if sys.version_info < (3, 3):
-    # TODO: This workaround can be removed in Cython 3.1
-    FileNotFoundError = IOError
 
 
 class ParseDirectivesAction(Action):
@@ -128,9 +121,8 @@ def create_cython_argparser():
                       help='Compile based on Python-2 syntax and code semantics.')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
                       help='Compile based on Python-3 syntax and code semantics.')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
-                      help='Compile based on Python-3 syntax and code semantics without '
-                           'assuming unicode by default for string literals under Python 2.')
+    parser.add_argument('--3str', dest='language_level', action='store_const', const='3',
+                      help='Compile based on Python-3 syntax and code semantics (same as -3 since Cython 3.1).')
     parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
                       help='Change some compile time errors to runtime errors to '
                            'improve Python compatibility')

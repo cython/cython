@@ -88,6 +88,8 @@
   #define CYTHON_AVOID_BORROWED_REFS 1
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
+  #undef CYTHON_ASSUME_SAFE_SIZE
+  #define CYTHON_ASSUME_SAFE_SIZE 0
   #undef CYTHON_UNPACK_METHODS
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
@@ -144,6 +146,9 @@
   #define CYTHON_AVOID_BORROWED_REFS 1
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
+  #ifndef CYTHON_ASSUME_SAFE_SIZE
+    #define CYTHON_ASSUME_SAFE_SIZE 1
+  #endif
   #undef CYTHON_UNPACK_METHODS
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
@@ -214,6 +219,8 @@
   #endif
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
+  #undef CYTHON_ASSUME_SAFE_SIZE
+  #define CYTHON_ASSUME_SAFE_SIZE 0
   #undef CYTHON_UNPACK_METHODS
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
@@ -243,7 +250,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
 
-#elif defined(PY_NOGIL)
+#elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
@@ -272,6 +279,9 @@
   #endif
   #ifndef CYTHON_ASSUME_SAFE_MACROS
     #define CYTHON_ASSUME_SAFE_MACROS 1
+  #endif
+  #ifndef CYTHON_ASSUME_SAFE_SIZE
+    #define CYTHON_ASSUME_SAFE_SIZE 1
   #endif
   #ifndef CYTHON_UNPACK_METHODS
     #define CYTHON_UNPACK_METHODS 1
@@ -334,6 +344,10 @@
   // CYTHON_ASSUME_SAFE_MACROS - Assume that macro calls do not fail and do not raise exceptions.
   #ifndef CYTHON_ASSUME_SAFE_MACROS
     #define CYTHON_ASSUME_SAFE_MACROS 1
+  #endif
+  // CYTHON_ASSUME_SAFE_SIZE - Assume that Py*_GET_SIZE() calls do not fail and do not raise exceptions.
+  #ifndef CYTHON_ASSUME_SAFE_SIZE
+    #define CYTHON_ASSUME_SAFE_SIZE 1
   #endif
   #ifndef CYTHON_UNPACK_METHODS
     #define CYTHON_UNPACK_METHODS 1
@@ -1026,8 +1040,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   // a little hacky, but it does work in the limited API .
   // (It doesn't work on PyPy but that probably isn't a bug.)
   #define __Pyx_SetItemOnTypeDict(tp, k, v) PyObject_GenericSetAttr((PyObject*)tp, k, v)
+  #define __Pyx_DelItemOnTypeDict(tp, k) PyObject_GenericSetAttr((PyObject*)tp, k, NULL)
 #else
-  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyDict_SetItem(tp->tp_dict, k, v)
+  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyDict_SetItem(((PyTypeObject*)(tp))->tp_dict, k, v)
+  #define __Pyx_DelItemOnTypeDict(tp, k) PyDict_DelItem(((PyTypeObject*)(tp))->tp_dict, k)
 #endif
 
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
@@ -1150,18 +1166,22 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
   #define __Pyx_PyTuple_SET_ITEM(o, i, v) (PyTuple_SET_ITEM(o, i, v), (0))
   #define __Pyx_PyList_SET_ITEM(o, i, v) (PyList_SET_ITEM(o, i, v), (0))
+#else
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
+  // NOTE: might fail with exception => check for -1
+  #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
+  // NOTE: this doesn't leak a reference to whatever is at o[i]
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
+  #define __Pyx_PyList_SET_ITEM(o, i, v) PyList_SetItem(o, i, v)
+#endif
+
+#if CYTHON_ASSUME_SAFE_SIZE
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_GET_SIZE(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_GET_SIZE(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_GET_SIZE(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_GET_SIZE(o)
 #else
-  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
-  // NOTE: might fail with exception => check for -1
-  #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
-  // Note that this doesn't leak a reference to whatever's at o[i]
-  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
-  #define __Pyx_PyList_SET_ITEM(o, i, v) PyList_SetItem(o, i, v)
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_Size(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_Size(o)
@@ -1184,8 +1204,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #define PyInt_Type                   PyLong_Type
 #define PyInt_Check(op)              PyLong_Check(op)
 #define PyInt_CheckExact(op)         PyLong_CheckExact(op)
-#define __Pyx_Py3Int_Check(op)       PyLong_Check(op)
-#define __Pyx_Py3Int_CheckExact(op)  PyLong_CheckExact(op)
 #define PyInt_FromString             PyLong_FromString
 #define PyInt_FromUnicode            PyLong_FromUnicode
 #define PyInt_FromLong               PyLong_FromLong
@@ -1724,7 +1742,6 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNanny = NULL;
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname); /*proto*/
   #define __Pyx_RefNannyDeclarations void *__pyx_refnanny = NULL;
-#ifdef WITH_THREAD
   #define __Pyx_RefNannySetupContext(name, acquire_gil) \
           if (acquire_gil) { \
               PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
@@ -1738,11 +1755,6 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
               __Pyx_RefNannyFinishContext(); \
               PyGILState_Release(__pyx_gilstate_save); \
           }
-#else
-  #define __Pyx_RefNannySetupContext(name, acquire_gil) \
-          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), (__LINE__), (__FILE__))
-  #define __Pyx_RefNannyFinishContextNogil() __Pyx_RefNannyFinishContext()
-#endif
   #define __Pyx_RefNannyFinishContextNogil() { \
               PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
               __Pyx_RefNannyFinishContext(); \
@@ -1909,9 +1921,7 @@ bad:
 #endif
 
 /////////////// FastGil.init ///////////////
-#ifdef WITH_THREAD
 __Pyx_FastGilFuncInit();
-#endif
 
 /////////////// NoFastGil.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -1949,17 +1959,15 @@ static void __Pyx_FastGilFuncInit(void);
 #define __Pyx_FastGIL_Remember __Pyx_FastGilFuncs.FastGIL_Remember
 #define __Pyx_FastGIL_Forget __Pyx_FastGilFuncs.FastGIL_Forget
 
-#ifdef WITH_THREAD
-  #ifndef CYTHON_THREAD_LOCAL
-    #if defined(__cplusplus) && __cplusplus >= 201103L
-      #define CYTHON_THREAD_LOCAL thread_local
-    #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112
-      #define CYTHON_THREAD_LOCAL _Thread_local
-    #elif defined(__GNUC__)
-      #define CYTHON_THREAD_LOCAL __thread
-    #elif defined(_MSC_VER)
-      #define CYTHON_THREAD_LOCAL __declspec(thread)
-    #endif
+#ifndef CYTHON_THREAD_LOCAL
+  #if defined(__cplusplus) && __cplusplus >= 201103L
+    #define CYTHON_THREAD_LOCAL thread_local
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112
+    #define CYTHON_THREAD_LOCAL _Thread_local
+  #elif defined(__GNUC__)
+    #define CYTHON_THREAD_LOCAL __thread
+  #elif defined(_MSC_VER)
+    #define CYTHON_THREAD_LOCAL __declspec(thread)
   #endif
 #endif
 

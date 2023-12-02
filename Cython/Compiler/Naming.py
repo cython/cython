@@ -13,7 +13,7 @@ cyversion = __version__.replace('.', '_')
 
 codewriter_temp_prefix = pyrex_prefix + "t_"
 
-temp_prefix       = u"__cyt_"
+temp_prefix       = "__cyt_"
 
 pyunicode_identifier_prefix = pyrex_prefix + 'U'
 

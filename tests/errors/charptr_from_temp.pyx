@@ -59,8 +59,11 @@ _ERRORS = """
 #23:5: Storing unsafe C derivative of temporary Python reference
 #23:15: Casting temporary Python object to non-numeric non-Python type
 26:8: Storing unsafe C derivative of temporary Python reference
+38:8: Py_UNICODE* has been removed in Python 3.12. This conversion to a Py_UNICODE* will no longer compile in the latest Python versions. Use Python C API functions like PyUnicode_AsWideCharString if you need to obtain a wchar_t* on Windows (and free the string manually after use).
 41:8: Obtaining 'Py_UNICODE *' from externally modifiable global Python value
+41:8: Py_UNICODE* has been removed in Python 3.12. This conversion to a Py_UNICODE* will no longer compile in the latest Python versions. Use Python C API functions like PyUnicode_AsWideCharString if you need to obtain a wchar_t* on Windows (and free the string manually after use).
 44:10: Storing unsafe C derivative of temporary Python reference
+44:10: Py_UNICODE* has been removed in Python 3.12. This conversion to a Py_UNICODE* will no longer compile in the latest Python versions. Use Python C API functions like PyUnicode_AsWideCharString if you need to obtain a wchar_t* on Windows (and free the string manually after use).
 52:7: Storing unsafe C derivative of temporary Python reference
 52:7: Unsafe C derivative of temporary Python reference used in conditional expression
 """

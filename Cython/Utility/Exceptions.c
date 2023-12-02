@@ -53,13 +53,9 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
 /////////////// ErrOccurredWithGIL ///////////////
 static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
   int err;
-  #ifdef WITH_THREAD
   PyGILState_STATE _save = PyGILState_Ensure();
-  #endif
   err = !!PyErr_Occurred();
-  #ifdef WITH_THREAD
   PyGILState_Release(_save);
-  #endif
   return err;
 }
 
@@ -732,13 +728,11 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_PyThreadState_declare
-#ifdef WITH_THREAD
     PyGILState_STATE state;
     if (nogil)
         state = PyGILState_Ensure();
     /* arbitrary, to suppress warning */
     else state = (PyGILState_STATE)0;
-#endif
     CYTHON_UNUSED_VAR(clineno);
     CYTHON_UNUSED_VAR(lineno);
     CYTHON_UNUSED_VAR(filename);
@@ -761,10 +755,8 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         PyErr_WriteUnraisable(ctx);
         Py_DECREF(ctx);
     }
-#ifdef WITH_THREAD
     if (nogil)
         PyGILState_Release(state);
-#endif
 }
 
 /////////////// CLineInTraceback.proto ///////////////

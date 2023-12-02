@@ -3,7 +3,6 @@
 #   and associated know-how.
 #
 
-from __future__ import absolute_import
 
 from . import Naming
 from . import PyrexTypes
@@ -17,7 +16,7 @@ invisible = ['__cinit__', '__dealloc__', '__richcmp__',
 richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
 
 
-class Signature(object):
+class Signature:
     #  Method slot signature descriptor.
     #
     #  has_dummy_arg      boolean
@@ -77,8 +76,7 @@ class Signature(object):
         # and are not looked up in here
     }
 
-    type_to_format_map = dict(
-        (type_, format_) for format_, type_ in format_map.items())
+    type_to_format_map = {type_: format_ for format_, type_ in format_map.items()}
 
     error_value_map = {
         'O': "NULL",
@@ -218,7 +216,7 @@ class Signature(object):
             return "VARARGS"
 
 
-class SlotDescriptor(object):
+class SlotDescriptor:
     #  Abstract base class for type slot descriptors.
     #
     #  slot_name    string           Member name of the slot in the type object
@@ -274,7 +272,13 @@ class SlotDescriptor(object):
                 preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
+        if self.used_ifdef:
+            # different from preprocessor guard - this defines if we *want* to define it,
+            # rather than if the slot exists
+            code.putln(f"#if {self.used_ifdef}")
         code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
+        if self.used_ifdef:
+            code.putln("#endif")
         if preprocessor_guard:
             code.putln("#endif")
 
@@ -922,7 +926,7 @@ PyNumberMethods_Py2only_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PY
 #
 #------------------------------------------------------------------------------------------
 
-class SlotTable(object):
+class SlotTable:
     def __init__(self, old_binops):
         # The following dictionary maps __xxx__ method names to slot descriptors.
         method_name_to_slot = {}
@@ -1102,7 +1106,7 @@ class SlotTable(object):
             EmptySlot("tp_weaklist"),
             EmptySlot("tp_del"),
             EmptySlot("tp_version_tag"),
-            SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1",
+            SyntheticSlot("tp_finalize", ["__del__"], "0",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
