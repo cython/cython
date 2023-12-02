@@ -366,11 +366,13 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
             PyTuple_SET_ITEM(tuple, 1, value);
             #else
             if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
-                Py_DECREF(value); // we haven't set this yet
+                // decref value; PyTuple_SetItem decrefs key on failure
+                Py_DECREF(value);
                 Py_DECREF(tuple);
                 return -1;
             }
             if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
+                // PyTuple_SetItem decrefs value on failure
                 Py_DECREF(tuple);
                 return -1;
             }
