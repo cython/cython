@@ -1862,7 +1862,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
-        
+
         needs_type_traverse = not base_type
         # we don't know statically if we need to traverse the type
         maybe_needs_type_traverse = False
