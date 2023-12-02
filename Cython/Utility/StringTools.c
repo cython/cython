@@ -199,7 +199,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         #if !CYTHON_COMPILING_IN_LIMITED_API
         if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
             return -1;
-        #edndif
+        #endif
         length = __Pyx_PyUnicode_GET_LENGTH(s1);
         #if !CYTHON_ASSUME_SAFE_SIZE
         if (unlikely(length < 0)) return -1;
