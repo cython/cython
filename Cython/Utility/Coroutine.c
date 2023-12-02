@@ -728,8 +728,6 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
         #if PY_VERSION_HEX >= 0x030B00a4 && !CYTHON_COMPILING_IN_CPYTHON
         // owned reference!
         exc_tb = PyException_GetTraceback(exc_state->exc_value);
-        #elif CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
-        PyObject *
         #elif PY_VERSION_HEX >= 0x030B00a4
         exc_tb = ((PyBaseExceptionObject*) exc_state->exc_value)->traceback;
         #else
