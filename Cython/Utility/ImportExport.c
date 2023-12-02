@@ -781,23 +781,23 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     // resolution isn't possible and we must reject it just as when the
     // instance struct is so extended.  (It would be good to also do this
     // check when a multiple-base class is created in pure Python as well.)
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    size = PyTuple_GET_SIZE(bases);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
     size = PyTuple_Size(bases);
     if (size < 0) goto other_failure;
+#else
+    size = PyTuple_GET_SIZE(bases);
 #endif
     for (i = 1; i < size; i++) {
         PyObject *basei;
         void* base_vtable;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        basei = PyTuple_GET_ITEM(bases, i);
-#elif !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_AVOID_BORROWED_REFS
+        basei = PySequence_GetItem(bases, i);
+        if (unlikely(!basei)) goto other_failure;
+#elif !CYTHON_ASSUME_SAFE_MACROS
         basei = PyTuple_GetItem(bases, i);
         if (unlikely(!basei)) goto other_failure;
 #else
-        basei = PySequence_GetItem(bases, i);
-        if (unlikely(!basei)) goto other_failure;
+        basei = PyTuple_GET_ITEM(bases, i);
 #endif
         base_vtable = __Pyx_GetVtable((PyTypeObject*)basei);
 #if CYTHON_AVOID_BORROWED_REFS
@@ -829,14 +829,14 @@ bad:
         PyTypeObject* basei = NULL;
         PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
         tp_base_name = __Pyx_PyType_GetName(tp_base);
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
-#elif !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_AVOID_BORROWED_REFS
+        basei = (PyTypeObject*)PySequence_GetItem(bases, i);
+        if (unlikely(!basei)) goto really_bad;
+#elif !CYTHON_ASSUME_SAFE_MACROS
         basei = (PyTypeObject*)PyTuple_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
 #else
-        basei = (PyTypeObject*)PySequence_GetItem(bases, i);
-        if (unlikely(!basei)) goto really_bad;
+        basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
 #endif
         base_name = __Pyx_PyType_GetName(basei);
 #if CYTHON_AVOID_BORROWED_REFS
@@ -845,12 +845,12 @@ bad:
     }    
     PyErr_Format(PyExc_TypeError,
         "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 really_bad: // bad has failed!
 #endif
     __Pyx_DECREF_TypeName(tp_base_name);
     __Pyx_DECREF_TypeName(base_name);
-#if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
 #endif
     free(base_vtables);
