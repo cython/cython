@@ -193,13 +193,22 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     s1_is_unicode = PyUnicode_CheckExact(s1);
     s2_is_unicode = PyUnicode_CheckExact(s2);
     if (s1_is_unicode & s2_is_unicode) {
-        Py_ssize_t length;
+        Py_ssize_t length, length2;
         int kind;
         void *data1, *data2;
+        #if !CYTHON_COMPILING_IN_LIMITED_API
         if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
             return -1;
+        #edndif
         length = __Pyx_PyUnicode_GET_LENGTH(s1);
-        if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(length < 0)) return -1;
+        #endif
+        length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(length2 < 0)) return -1;
+        #endif
+        if (length != length2) {
             goto return_ne;
         }
 #if CYTHON_USE_UNICODE_INTERNALS
@@ -568,8 +577,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
+    #if !CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(__Pyx_PyUnicode_READY(text) == -1)) return NULL;
+    #endif
     length = __Pyx_PyUnicode_GET_LENGTH(text);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length < 0)) return NULL;
+    #endif
     if (start < 0) {
         start += length;
         if (start < 0)
@@ -874,9 +888,14 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         Py_ssize_t ulength;
         void *udata;
         PyObject *uval = values[i];
+        #if !CYTHON_COMPILING_IN_LIMITED_API
         if (unlikely(__Pyx_PyUnicode_READY(uval)))
             goto bad;
+        #endif
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(ulength < 0)) goto bad;
+        #endif
         if (unlikely(!ulength))
             continue;
         if (unlikely((PY_SSIZE_T_MAX >> kind_shift) - ulength < char_pos))
