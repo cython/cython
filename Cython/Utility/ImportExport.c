@@ -291,13 +291,18 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
                 PyErr_Clear();
             break;
         }
-        if (skip_leading_underscores &&
-            likely(PyUnicode_Check(name)) &&
-            likely(__Pyx_PyUnicode_GET_LENGTH(name)) &&
-            __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
-        {
-            Py_DECREF(name);
-            continue;
+        if (skip_leading_underscores && likely(PyUnicode_Check(name))) {
+            Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(name);
+            #if !CYTHON_ASSUME_SAFE_SIZE
+            if (unlikely(length < 0)) {
+                Py_DECREF(name);
+                return -1;
+            }
+            #endif
+            if (likely(length) && __Pyx_PyUnicode_READ_CHAR(name, 0) == '_') {
+                Py_DECREF(name);
+                continue;
+            }
         }
         value = PyObject_GetAttr(v, name);
         if (value == NULL)

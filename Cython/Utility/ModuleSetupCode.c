@@ -1061,7 +1061,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyUnicode_READY(op)       (0)
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetLength(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111U)
   #define __Pyx_PyUnicode_KIND(u)         ((void)u, (0))
@@ -1079,7 +1078,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
                                                 0 : _PyUnicode_Ready((PyObject *)(op)))
   #endif
 
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   PyUnicode_MAX_CHAR_VALUE(u)
   #define __Pyx_PyUnicode_KIND(u)         ((int)PyUnicode_KIND(u))
@@ -1181,12 +1179,15 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PySet_GET_SIZE(o) PySet_GET_SIZE(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_GET_SIZE(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_GET_SIZE(o)
+  #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GET_LENGTH(o)
 #else
+  // These all need exception checks for -1.
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_Size(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_Size(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_Size(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
+  #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
 #endif
 
 #if PY_VERSION_HEX >= 0x030d00A1
