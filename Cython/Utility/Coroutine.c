@@ -506,13 +506,13 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             value = Py_None;
         }
         else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
-            #if !CYTHON_COMPILING_IN_LIMITED_API
-            value = ((PyStopIterationObject *)ev)->value;
-            #else
+            #if CYTHON_COMPILING_IN_LIMITED_API
             value = PyObject_GetAttrString(ev, "value");
-            if (!value) goto limited_api_failure;
-            #endif
+            if (unlikely(!value)) goto limited_api_failure;
+            #else
+            value = ((PyStopIterationObject *)ev)->value;
             Py_INCREF(value);
+            #endif
             Py_DECREF(ev);
         }
         // PyErr_SetObject() and friends put the value directly into ev
@@ -567,15 +567,15 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     }
     Py_XDECREF(tb);
     Py_DECREF(et);
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_GetAttrString(ev, "value");
+#else
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
-#else
-    value = PyObject_GetAttrString(ev, "value");
 #endif
     Py_DECREF(ev);
 #if CYTHON_COMPILING_IN_LIMITED_API
-    if (!value) return -1;
+    if (unlikely(!value)) return -1;
 #endif
     *pvalue = value;
     return 0;
@@ -1325,7 +1325,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
         _Py_NewReference(self);
         __Pyx_SET_REFCNT(self, refcnt);
 #else
-        #error "__Pyx_Coroutine_del with Limited API and without CYTHON_USE_TP_FINALIZE should never be compiled"
+        #error __Pyx_Coroutine_del with Limited API and without CYTHON_USE_TP_FINALIZE should never be compiled
 #endif
     }
 #if CYTHON_COMPILING_IN_CPYTHON
