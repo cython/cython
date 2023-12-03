@@ -3624,6 +3624,7 @@ class JoinedStrNode(ExprNode):
             if isinstance(node, UnicodeNode):
                 length_parts.append(str(len(node.value)))
             else:
+                # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
                 length_parts.append("__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result())
                 if node in unknown_nodes:
                     charval_parts.append("__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result())

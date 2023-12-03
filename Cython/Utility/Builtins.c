@@ -498,7 +498,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     if (PyAnySet_Check(it)) {
         Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(size == -1)) return -1;
+        if (unlikely(size < 0)) return -1;
         #endif
         if (size == 0)
             return 0;

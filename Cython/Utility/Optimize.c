@@ -379,7 +379,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         Py_ssize_t pos = *ppos;
         Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(iter_obj);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(tuple_size == -1)) return -1;
+        if (unlikely(tuple_size < 0)) return -1;
         #endif
         if (unlikely(pos >= tuple_size)) return 0;
         *ppos = pos + 1;
@@ -394,7 +394,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         Py_ssize_t pos = *ppos;
         Py_ssize_t list_size = __Pyx_PyList_GET_SIZE(iter_obj);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(list_size == -1)) return -1;
+        if (unlikely(list_size < 0)) return -1;
         #endif
         if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
