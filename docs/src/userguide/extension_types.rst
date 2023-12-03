@@ -658,6 +658,8 @@ definition, for example,::
         # attributes and methods
 
 
+.. _freelist:
+        
 Fast instantiation
 ===================
 
