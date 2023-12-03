@@ -401,7 +401,7 @@ def skip_on_win_py3_12_0(func):
     if sys.version_info == (3, 12, 0) and sys.platform == "win32":
         # This test is mysteriously failing on the CI only. Disable
         # it for now and hope that the next minor release fixes it.
-        return
+        return None
     return func
 
 
