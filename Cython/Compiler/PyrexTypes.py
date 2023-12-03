@@ -2377,7 +2377,7 @@ class CFloatType(CNumericType):
 
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
-    from_py_function = "__pyx_PyFloat_AsDouble"
+    from_py_function = "__Pyx_PyFloat_AsDouble"
 
     exception_value = -1
 
@@ -2385,7 +2385,7 @@ class CFloatType(CNumericType):
         CNumericType.__init__(self, rank, 1)
         self.math_h_modifier = math_h_modifier
         if rank == RANK_FLOAT:
-            self.from_py_function = "__pyx_PyFloat_AsFloat"
+            self.from_py_function = "__Pyx_PyFloat_AsFloat"
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
