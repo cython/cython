@@ -578,13 +578,9 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 (likely(PyFloat_CheckExact(obj)) ? PyFloat_AS_DOUBLE(obj) : \
  likely(PyInt_CheckExact(obj)) ? \
  PyFloat_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
-#elif !CYTHON_ASSUME_SAFE_MACROS
-#define __Pyx_PyObject_AsDouble(obj) \
-(likely(PyFloat_CheckExact(obj) || PyInt_CheckExact(obj)) ? \
- PyFloat_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #else
 #define __Pyx_PyObject_AsDouble(obj) \
-((likely(PyFloat_CheckExact(obj))) ?  PyFloat_AS_DOUBLE(obj) : \
+((likely(PyFloat_CheckExact(obj))) ?  __pyx_PyFloat_AS_DOUBLE(obj) : \
  likely(PyLong_CheckExact(obj)) ? \
  PyLong_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #endif
