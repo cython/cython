@@ -249,7 +249,7 @@ def warn_once(position, message, level=0):
     echo_file = threadlocal.cython_errors_echo_file
     if echo_file:
         _write_file_encode(echo_file, line)
-    warn_once_seen[message] = True
+    warn_once_seen.add(message)
     return warn
 
 
