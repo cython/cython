@@ -895,8 +895,8 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     #if CYTHON_ASSUME_SAFE_SIZE
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0)
     #else
-    Py_ssize_t tuple_size = PyTuple_Check(bases) ? PyTuple_GetSize(bases) : 0;
-    if (unlikely(tuple_size == -1)) return NULL;
+    Py_ssize_t tuple_size = PyTuple_Check(bases) ? PyTuple_Size(bases) : 0;
+    if (unlikely(tuple_size < 0)) return NULL;
     if (tuple_size > 0)
     #endif
     {

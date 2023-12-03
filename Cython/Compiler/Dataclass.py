@@ -419,7 +419,8 @@ def generate_init_code(code, init, node, fields, kw_only):
             annotation = ""
         assignment = ''
         if field.default is not MISSING or field.default_factory is not MISSING:
-            seen_default = True
+            if field.init.value:
+                seen_default = True
             if field.default_factory is not MISSING:
                 ph_name = default_factory_placeholder
             else:

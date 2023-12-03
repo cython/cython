@@ -642,10 +642,14 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     const long maxval = 1114111;
   #endif
     if (PyUnicode_Check(x)) {
-        if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
-            PyErr_Format(PyExc_ValueError,
-                         "only single character unicode strings can be converted to Py_UNICODE, "
-                         "got length %" CYTHON_FORMAT_SSIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
+        Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
+        if (unlikely(length != 1)) {
+            // -1 indicates an error.
+            if (length >= 0) {
+                PyErr_Format(PyExc_ValueError,
+                             "only single character unicode strings can be converted to Py_UNICODE, "
+                             "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
+            }
             return (Py_UNICODE)-1;
         }
         ival = PyUnicode_READ_CHAR(x, 0);

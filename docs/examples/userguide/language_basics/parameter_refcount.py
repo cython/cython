@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from cython.cimports.cpython.ref import PyObject
 
 import sys
