@@ -1245,5 +1245,5 @@ hidden by default since most users will be uninterested in changing them.
             
         ``CYTHON_USE_FREELISTS``
             Enable the use of freelists on extension types with
-            :ref:`the cython.freelist decorator<freelist>`.
+            :ref:`the @cython.freelist decorator<freelist>`.
             
