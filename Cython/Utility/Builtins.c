@@ -499,7 +499,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
             return result;
         {
             Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
-            if (likely(size))
+            if (likely(size > 0))
                 return result;
 #if !CYTHON_ASSUME_SAFE_SIZE
             if (unlikely(size < 0)) {
