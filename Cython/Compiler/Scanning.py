@@ -1,9 +1,8 @@
-# cython: infer_types=True, language_level=3, auto_pickle=False
+# cython: infer_types=True
 #
 #   Cython Scanner
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
@@ -55,7 +54,7 @@ pyx_reserved_words = py_reserved_words + [
 
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer=None):
         self.entries = {}
@@ -89,10 +88,7 @@ def initial_compile_time_env():
     names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    try:
-        import __builtin__ as builtins
-    except ImportError:
-        import builtins
+    import builtins
 
     names = (
         'False', 'True',
@@ -126,11 +122,12 @@ def initial_compile_time_env():
 
 #------------------------------------------------------------------
 
-class SourceDescriptor(object):
+class SourceDescriptor:
     """
     A SourceDescriptor should be considered immutable.
     """
     filename = None
+    in_utility_code = False
 
     _file_type = 'pyx'
 
@@ -310,10 +307,11 @@ class PyrexScanner(Scanner):
 
         if filename.is_python_file():
             self.in_python_file = True
-            self.keywords = set(py_reserved_words)
+            keywords = py_reserved_words
         else:
             self.in_python_file = False
-            self.keywords = set(pyx_reserved_words)
+            keywords = pyx_reserved_words
+        self.keywords = {keyword: keyword for keyword in keywords}
 
         self.async_enabled = 0
 
@@ -448,12 +446,12 @@ class PyrexScanner(Scanner):
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
-                if systring == u'print' and print_function in self.context.future_directives:
-                    self.keywords.discard('print')
-                elif systring == u'exec' and self.context.language_level >= 3:
-                    self.keywords.discard('exec')
+                if systring == 'print' and print_function in self.context.future_directives:
+                    self.keywords.pop('print', None)
+                elif systring == 'exec' and self.context.language_level >= 3:
+                    self.keywords.pop('exec', None)
                 else:
-                    sy = systring
+                    sy = self.keywords[systring]  # intern
             systring = self.context.intern_ustring(systring)
         if self.put_back_on_failure is not None:
             self.put_back_on_failure.append((sy, systring, self.position()))
@@ -540,15 +538,15 @@ class PyrexScanner(Scanner):
     def enter_async(self):
         self.async_enabled += 1
         if self.async_enabled == 1:
-            self.keywords.add('async')
-            self.keywords.add('await')
+            self.keywords['async'] = 'async'
+            self.keywords['await'] = 'await'
 
     def exit_async(self):
         assert self.async_enabled > 0
         self.async_enabled -= 1
         if not self.async_enabled:
-            self.keywords.discard('await')
-            self.keywords.discard('async')
+            del self.keywords['await']
+            del self.keywords['async']
             if self.sy in ('async', 'await'):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 

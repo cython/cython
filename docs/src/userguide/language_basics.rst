@@ -75,7 +75,7 @@ define global C variables.
                 j: cython.int
                 k: cython.int
                 f: cython.float
-                g: cython.int[42]
+                g: cython.float[42]
                 h: cython.p_float
 
                 i = j = 5
@@ -88,7 +88,10 @@ define global C variables.
 
             def func():
                 cdef int i, j, k
-                cdef float f, g[42], *h
+                cdef float f
+                cdef float[42] g
+                cdef float *h
+                # cdef float f, g[42], *h  # mix of pointers, arrays and values in a single line is deprecated
 
                 i = j = 5
 
@@ -114,20 +117,20 @@ the declaration in most cases:
                 f: cython.float = 2.5
                 g: cython.int[4] = [1, 2, 3, 4]
                 h: cython.p_float = cython.address(f)
+                c: cython.doublecomplex = 2 + 3j
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int a_global_variable
+            cdef int a_global_variable = 42
 
             def func():
                 cdef int i = 10, j, k
                 cdef float f = 2.5
-                # cdef float g[4] = [1,2,3,4]  # currently not supported
-                cdef float *g = [1, 2, 3, 4]
+                cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
-
+                cdef double complex c = 2 + 3j
 
 .. note::
 
@@ -152,6 +155,55 @@ the declaration in most cases:
 
                 ctypedef int* IntPtr
 
+C Arrays
+--------
+
+C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def func():
+                g: cython.float[42]
+                f: cython.int[5][5][5]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def func():
+                cdef float[42] g
+                cdef int[5][5][5] f
+
+.. note::
+
+    Cython syntax currently supports two ways to declare an array:
+
+    .. code-block:: cython
+
+        cdef int arr1[4], arr2[4]  # C style array declaration
+        cdef int[4] arr1, arr2     # Java style array declaration
+
+    Both of them generate the same C code, but the Java style is more
+    consistent with :ref:`memoryviews` and :ref:`fusedtypes`. The C style
+    declaration is soft-deprecated and it's recommended to use Java style
+    declaration instead.
+
+    The soft-deprecated C style array declaration doesn't support
+    initialization.
+
+    .. code-block:: cython
+
+        cdef int g[4] = [1, 2, 3, 4]  # error
+
+        cdef int[4] g = [1, 2, 3, 4]  # OK
+
+        cdef int g[4]        # OK but not recommended
+        g = [1, 2, 3, 4]
+
 .. _structs:
 
 Structs, Unions, Enums
@@ -174,8 +226,8 @@ Structs can be declared as ``cdef packed struct``, which has
 the same effect as the C directive ``#pragma pack(1)``::
 
     cdef packed struct StructArray:
-        int spam[4]
-        signed char eggs[5]
+        int[4] spam
+        signed char[5] eggs
 
 .. note::
     This declaration removes the empty
@@ -239,7 +291,64 @@ Types
 The Cython language uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
 ``long long`` as well as their ``unsigned`` versions,
-e.g. ``unsigned int`` (``cython.uint`` in Python code).
+e.g. ``unsigned int`` (``cython.uint`` in Python code):
+
+
+.. list-table:: Numeric Types
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Cython type
+     - Pure Python type
+
+   * - ``bint``
+     - ``cython.bint``
+   * - ``char``
+     - ``cython.char``
+   * - ``signed char``
+     - ``cython.schar``
+   * - ``unsigned char``
+     - ``cython.uchar``
+   * - ``short``
+     - ``cython.short``
+   * - ``unsigned short``
+     - ``cython.ushort``
+   * - ``int``
+     - ``cython.int``
+   * - ``unsigned int``
+     - ``cython.uint``
+   * - ``long``
+     - ``cython.long``
+   * - ``unsigned long``
+     - ``cython.ulong``
+   * - ``long long``
+     - ``cython.longlong``
+   * - ``unsigned long long``
+     - ``cython.ulonglong``
+   * - ``float``
+     - ``cython.float``
+   * - ``double``
+     - ``cython.double``
+   * - ``long double``
+     - ``cython.longdouble``
+   * - ``float complex``
+     - ``cython.floatcomplex``
+   * - ``double complex``
+     - ``cython.doublecomplex``
+   * - ``long double complex``
+     - ``cython.longdoublecomplex``
+   * - ``size_t``
+     - ``cython.size_t``
+   * - ``Py_ssize_t``
+     - ``cython.Py_ssize_t``
+   * - ``Py_hash_t``
+     - ``cython.Py_hash_t``
+   * - ``Py_UCS4``
+     - ``cython.Py_UCS4``
+
+.. note::
+   Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
+
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
 values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
@@ -249,7 +358,6 @@ they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure pyt
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
 a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
 e.g. ``cython.pointer(cython.int)``.
-
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
@@ -298,7 +406,7 @@ A ``ctuple`` is assembled from any valid C types. For example
         .. code-block:: python
 
             def main():
-                bar: (cython.double, cython.int)
+                bar: tuple[cython.double, cython.int]
 
     .. group-tab:: Cython
 
@@ -446,7 +554,7 @@ using normal C declaration syntax. For example,
         .. code-block:: python
 
             @cython.cfunc
-            def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
+            def chips(t: tuple[cython.long, cython.long, cython.double]) -> tuple[cython.int, cython.float]:
                 ...
 
     .. group-tab:: Cython
@@ -880,6 +988,15 @@ Some things to note:
   which return Python objects. Remember that a function with no declared
   return type implicitly returns a Python object. (Exceptions on such
   functions are implicitly propagated by returning ``NULL``.)
+  
+* There's a known performance pitfall when combining ``nogil`` and 
+  ``except *`` \ ``@cython.exceptval(check=True)``.
+  In this case Cython must always briefly re-acquire the GIL after a function
+  call to check if an exception has been raised.  This can commonly happen with a
+  function returning nothing (C ``void``).  Simple workarounds are to mark the
+  function as ``noexcept`` if you're certain that exceptions cannot be thrown, or
+  to change the return type to ``int`` and just let Cython use the return value
+  as an error flag (by default, ``-1`` triggers the exception check).
 
 
 .. _checking_return_values_of_non_cython_functions:
@@ -974,7 +1091,7 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | C array                    | iterable           | list [#2]_       |
 +----------------------------+--------------------+------------------+
-| struct,                    |                    | dict [#1]_       |
+| struct,                    |                    | dict [#1]_ [#4]_ |
 | union                      |                    |                  |
 +----------------------------+--------------------+------------------+
 
@@ -989,6 +1106,10 @@ possibilities.
 .. [#2] Other than signed/unsigned char[].
    The conversion will fail if the length of C array is not known at compile time,
    and when using a slice of a C array.
+   
+.. [#4] The automatic conversion of a struct to a ``dict`` (and vice
+   versa) does have some potential pitfalls detailed
+   :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
 
 
 Caveats when using a Python string in a C context
@@ -1451,15 +1572,23 @@ of functions or class bodies.
 Conditional Compilation
 =======================
 
-Some features are available for conditional compilation and compile-time
+Some language features are available for conditional compilation and compile-time
 constants within a Cython source file.
 
 .. note::
 
+    This feature has been deprecated and should not be used in new code.
+    It is very foreign to the Python language and also behaves
+    differently from the C preprocessor.  It is often misunderstood by users.
+    For the current deprecation status, see https://github.com/cython/cython/issues/4310.
+    For alternatives, see :ref:`deprecated_DEF_IF`.
+
+.. note::
+
     This feature has very little use cases.  Specifically, it is not a good
-    way to adapt code to platform and environment.  Use code generation or
-    (preferably) C compile time adaptation for this.  See, for example,
-    :ref:`verbatim_c`.
+    way to adapt code to platform and environment.  Use runtime conditions,
+    conditional Python imports, or C compile time adaptation for this.
+    See, for example, :ref:`verbatim_c` or :ref:`resolve-conflicts`.
 
 .. note::
 
@@ -1480,8 +1609,19 @@ The right-hand side of the ``DEF`` must be a valid compile-time expression.
 Such expressions are made up of literal values and names defined using ``DEF``
 statements, combined using any of the Python expression syntax.
 
+.. note::
+    Cython does not intend to copy literal compile-time values 1:1 into the generated code.
+    Instead, these values are internally represented and calculated as plain Python
+    values and use Python's ``repr()`` when a serialisation is needed.  This means
+    that values defined using ``DEF`` may lose precision or change their type
+    depending on the calculation rules of the Python environment where Cython parses and
+    translates the source code.  Specifically, using ``DEF`` to define high-precision
+    floating point constants may not give the intended result and may generate different
+    C values in different Python versions.
+
 The following compile-time names are predefined, corresponding to the values
-returned by :func:`os.uname`.
+returned by :func:`os.uname`.  As noted above, they are not considered good ways
+to adapt code to different platforms and are mostly provided for legacy reasons.
 
     UNAME_SYSNAME, UNAME_NODENAME, UNAME_RELEASE,
     UNAME_VERSION, UNAME_MACHINE
@@ -1511,16 +1651,16 @@ Conditional Statements
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
-directive in C.::
+directive in C.
 
-    IF UNAME_SYSNAME == "Windows":
-        include "icky_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Darwin":
-        include "nice_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Linux":
-        include "penguin_definitions.pxi"
+::
+
+    IF ARRAY_SIZE > 64:
+        include "large_arrays.pxi"
+    ELIF ARRAY_SIZE > 16:
+        include "medium_arrays.pxi"
     ELSE:
-        include "other_definitions.pxi"
+        include "small_arrays.pxi"
 
 The ``ELIF`` and ``ELSE`` clauses are optional. An ``IF`` statement can appear
 anywhere that a normal statement or declaration can appear, and it can contain

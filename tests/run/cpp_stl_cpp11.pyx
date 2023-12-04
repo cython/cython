@@ -12,6 +12,20 @@ from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.set cimport set
 from libcpp.deque cimport deque
+from libcpp.functional cimport reference_wrapper
+
+
+def test_reference_wrapper():
+    """
+    >>> test_reference_wrapper()
+    'pass'
+    """
+    cdef:
+        int x = 1
+        vector[reference_wrapper[int]] ref_wrap_vector
+    ref_wrap_vector.push_back(reference_wrapper[int](x))
+    assert ref_wrap_vector[0].get() == 1
+    return "pass"
 
 
 def test_vector_functionality():

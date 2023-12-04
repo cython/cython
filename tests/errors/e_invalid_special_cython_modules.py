@@ -15,6 +15,8 @@ import cython.paralel
 import cython.parrallel
 
 import cython.dataclass
+import cython.floating
+import cython.cfunc
 
 # ok
 from cython.cimports.libc import math
@@ -39,4 +41,6 @@ _ERRORS = """
 14:7: 'cython.paralel' is not a valid cython.* module. Did you mean 'cython.parallel' ?
 15:7: 'cython.parrallel' is not a valid cython.* module. Did you mean 'cython.parallel' ?
 17:7: 'cython.dataclass' is not a valid cython.* module. Did you mean 'cython.dataclasses' ?
+18:7: 'cython.floating' is not a valid cython.* module. Instead, use 'import cython' and then 'cython.floating'.
+19:7: 'cython.cfunc' is not a valid cython.* module. Instead, use 'import cython' and then 'cython.cfunc'.
 """

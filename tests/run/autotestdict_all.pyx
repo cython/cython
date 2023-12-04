@@ -29,11 +29,11 @@ cdeffunc() # make sure it's being used
 
 def all_tests_run():
     assert sorted(log) == sorted([u'cdef', u'cdef class', u'class', u'cdef class cmethod'] + (
-        (1 if sys.version_info < (3, 4) else 2) * [u'cdef class method', u'class method', u'cpdef', u'cpdef class method', u'def'])), sorted(log)
+        2 * [u'cdef class method', u'class method', u'cpdef', u'cpdef class method', u'def'])), sorted(log)
 
 def add_log(s):
     log.append(unicode(s))
-    if len(log) == len(__test__) + (1 if sys.version_info < (3, 4) else 6):
+    if len(log) == len(__test__) + 6:
         # Final per-function doctest executed
         all_tests_run()
 

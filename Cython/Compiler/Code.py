@@ -1,10 +1,7 @@
-# cython: language_level=3str
-# cython: auto_pickle=False
 #
 #   Code output module
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
@@ -32,11 +29,6 @@ from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 
-try:
-    from __builtin__ import basestring
-except ImportError:
-    from builtins import str as basestring
-
 
 non_portable_builtins_map = {
     # builtins that have different names in different Python versions
@@ -51,7 +43,7 @@ ctypedef_builtins_map = {
     # types of builtins in "ctypedef class" statements which we don't
     # import either because the names conflict with C types or because
     # the type simply is not exposed.
-    'py_int'             : '&PyInt_Type',
+    'py_int'             : '&PyLong_Type',
     'py_long'            : '&PyLong_Type',
     'py_float'           : '&PyFloat_Type',
     'wrapper_descriptor' : '&PyWrapperDescr_Type',
@@ -111,7 +103,7 @@ modifier_output_mapper = {
 }.get
 
 
-class IncludeCode(object):
+class IncludeCode:
     """
     An include file and/or verbatim C code to be included in the
     generated sources.
@@ -144,10 +136,10 @@ class IncludeCode(object):
 
         if include:
             if include[0] == '<' and include[-1] == '>':
-                self.pieces[0] = u'#include {0}'.format(include)
+                self.pieces[0] = '#include {}'.format(include)
                 late = False  # system include is never late
             else:
-                self.pieces[0] = u'#include "{0}"'.format(include)
+                self.pieces[0] = '#include "{}"'.format(include)
 
         if verbatim:
             self.pieces[self.order] = verbatim
@@ -216,7 +208,7 @@ def read_utilities_from_utility_dir(path):
 # by default, read utilities from the utility directory.
 read_utilities_hook = read_utilities_from_utility_dir
 
-class UtilityCodeBase(object):
+class UtilityCodeBase:
     """
     Support for loading utility code from a file.
 
@@ -237,7 +229,7 @@ class UtilityCodeBase(object):
         [definitions]
 
         ##### MyUtility #####
-        #@subsitute: tempita
+        #@substitute: tempita
 
         [requires tempita substitution
          - context can't be specified here though so only
@@ -296,7 +288,7 @@ class UtilityCodeBase(object):
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
             strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
-            rstrip = StringEncoding._unicode.rstrip
+            rstrip = str.rstrip
         else:
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
@@ -499,12 +491,12 @@ class UtilityCode(UtilityCodeBase):
         return s % context
 
     def specialize(self, pyrex_type=None, **data):
-        # Dicts aren't hashable...
         name = self.name
         if pyrex_type is not None:
             data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
             name = "%s[%s]" % (name, data['type_name'])
+        # Dicts aren't hashable...
         key = tuple(sorted(data.items()))
         try:
             return self._cache[key]
@@ -556,6 +548,7 @@ class UtilityCode(UtilityCodeBase):
 
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
+            type_cname = '&%s' % type_cname
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
             assert len(args) < 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
             return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
@@ -610,16 +603,18 @@ class UtilityCode(UtilityCodeBase):
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
-            if isinstance(self.init, basestring):
+            if isinstance(self.init, str):
                 writer.put(self.format_code(self.init))
             else:
                 self.init(writer, output.module_pos)
+            # 'init' code can end with an 'if' statement for an error condition like:
+            # if (check_ok()) ; else
             writer.putln(writer.error_goto_if_PyErr(output.module_pos))
             writer.putln()
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             writer.putln("/* %s.cleanup */" % self.name)
-            if isinstance(self.cleanup, basestring):
+            if isinstance(self.cleanup, str):
                 writer.put_or_include(
                     self.format_code(self.cleanup),
                     '%s_cleanup' % self.name)
@@ -648,7 +643,7 @@ class TempitaUtilityCode(UtilityCode):
         proto = sub_tempita(proto, context, file, name)
         impl = sub_tempita(impl, context, file, name)
         init = sub_tempita(init, context, file, name)
-        super(TempitaUtilityCode, self).__init__(
+        super().__init__(
             proto, impl, init=init, name=name, file=file, **kwargs)
 
     @classmethod
@@ -688,7 +683,7 @@ class LazyUtilityCode(UtilityCodeBase):
         globalstate.use_utility_code(utility)
 
 
-class FunctionState(object):
+class FunctionState:
     # return_label     string          function return point label
     # error_label      string          error catch point label
     # error_without_exception  boolean Can go to the error label without an exception (e.g. __next__ can return NULL)
@@ -742,6 +737,8 @@ class FunctionState(object):
 
         self.error_without_exception = False
 
+        self.needs_refnanny = False
+
     # safety checks
 
     def validate_exit(self):
@@ -772,9 +769,9 @@ class FunctionState(object):
         self.yield_labels.append(num_and_label)
         return num_and_label
 
-    def new_error_label(self):
+    def new_error_label(self, prefix=""):
         old_err_lbl = self.error_label
-        self.error_label = self.new_label('error')
+        self.error_label = self.new_label(prefix + 'error')
         return old_err_lbl
 
     def get_loop_labels(self):
@@ -786,11 +783,11 @@ class FunctionState(object):
         (self.continue_label,
          self.break_label) = labels
 
-    def new_loop_labels(self):
+    def new_loop_labels(self, prefix=""):
         old_labels = self.get_loop_labels()
         self.set_loop_labels(
-            (self.new_label("continue"),
-             self.new_label("break")))
+            (self.new_label(prefix + "continue"),
+             self.new_label(prefix + "break")))
         return old_labels
 
     def get_all_labels(self):
@@ -954,7 +951,7 @@ class FunctionState(object):
         self.closure_temps = ClosureTempAllocator(scope)
 
 
-class NumConst(object):
+class NumConst:
     """Global info about a Python number constant held by GlobalState.
 
     cname       string
@@ -970,7 +967,7 @@ class NumConst(object):
         self.value_code = value_code or value
 
 
-class PyObjectConst(object):
+class PyObjectConst:
     """Global info about a generic constant held by GlobalState.
     """
     # cname       string
@@ -983,12 +980,12 @@ class PyObjectConst(object):
 
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
                replace_identifier=object, find_alphanums=object)
-possible_unicode_identifier = re.compile(br"(?![0-9])\w+$".decode('ascii'), re.U).match
-possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
+possible_unicode_identifier = re.compile(r"(?![0-9])\w+$", re.U).match
+possible_bytes_identifier = re.compile(br"(?![0-9])\w+$").match
 replace_identifier = re.compile(r'[^a-zA-Z0-9_]+').sub
 find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
 
-class StringConst(object):
+class StringConst:
     """Global info about a C string constant held by GlobalState.
     """
     # cname            string
@@ -1067,7 +1064,7 @@ class StringConst(object):
         self.py_strings[key] = py_string
         return py_string
 
-class PyStringConst(object):
+class PyStringConst:
     """Global info about a Python string constant held by GlobalState.
     """
     # cname       string
@@ -1090,7 +1087,7 @@ class PyStringConst(object):
         return self.cname < other.cname
 
 
-class GlobalState(object):
+class GlobalState:
     # filename_table   {string : int}  for finding filename table indexes
     # filename_list    [string]        filenames in filename table order
     # input_file_contents dict         contents (=list of lines) of any file that was used as input
@@ -1350,8 +1347,11 @@ class GlobalState(object):
                 return const
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
-        if cleanup_level is not None \
-                and cleanup_level <= Options.generate_cleanup_code:
+        if (cleanup_level is not None
+                and cleanup_level <= Options.generate_cleanup_code
+                # Note that this function is used for all argument defaults
+                # which aren't just Python objects
+                and type.needs_refcounting):
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         if dedup_key is not None:
@@ -1420,23 +1420,33 @@ class GlobalState(object):
         value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
-    def new_num_const_cname(self, value, py_type):
+    def unique_const_cname(self, format_str):  # type: (str) -> str
+        used = self.const_cnames_used
+        cname = value = format_str.format(sep='', counter='')
+        while cname in used:
+            counter = used[value] = used[value] + 1
+            cname = format_str.format(sep='_', counter=counter)
+        used[cname] = 1
+        return cname
+
+    def new_num_const_cname(self, value, py_type):  # type: (str, str) -> str
         if py_type == 'long':
             value += 'L'
             py_type = 'int'
         prefix = Naming.interned_prefixes[py_type]
-        cname = "%s%s" % (prefix, value)
-        cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
+
+        value = value.replace('.', '_').replace('+', '_').replace('-', 'neg_')
+        if len(value) > 42:
+            # update tests/run/large_integer_T5290.py in case the amount is changed
+            cname = self.unique_const_cname(
+                prefix + "large{counter}_" + value[:18] + "_xxx_" + value[-18:])
+        else:
+            cname = "%s%s" % (prefix, value)
         return cname
 
     def new_const_cname(self, prefix='', value=''):
         value = replace_identifier('_', value)[:32].strip('_')
-        used = self.const_cnames_used
-        name_suffix = value
-        while name_suffix in used:
-            counter = used[value] = used[value] + 1
-            name_suffix = '%s_%d' % (value, counter)
-        used[name_suffix] = 1
+        name_suffix = self.unique_const_cname(value + "{sep}{counter}")
         if prefix:
             prefix = Naming.interned_prefixes[prefix]
         else:
@@ -1508,6 +1518,11 @@ class GlobalState(object):
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
             self.parts['module_state_defines'].putln(
                 "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            if not c.type.needs_refcounting:
+                # Note that py_constants is used for all argument defaults
+                # which aren't necessarily PyObjects, so aren't appropriate
+                # to clear.
+                continue
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
@@ -1526,7 +1541,7 @@ class GlobalState(object):
             decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
                 cname))
             # split type reference storage as it might not be static
-            init.putln('%s.type = (PyObject*)&%s;' % (
+            init.putln('%s.type = (PyObject*)%s;' % (
                 cname, type_cname))
             # method name string isn't static in limited api
             init.putln('%s.method_name = &%s;' % (
@@ -1643,9 +1658,9 @@ class GlobalState(object):
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
-                function = 'PyLong_FromString((char *)"%s", 0, 0)'
+                function = 'PyLong_FromString("%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString((char *)"%s", 0, 0)'
+                function = 'PyInt_FromString("%s", 0, 0)'
             elif len(value.lstrip('-')) > 4:
                 function = "PyInt_FromLong(%sL)"
             else:
@@ -1691,16 +1706,16 @@ class GlobalState(object):
         source_file = source_desc.get_lines(encoding='ASCII',
                                             error_handling='ignore')
         try:
-            F = [u' * ' + line.rstrip().replace(
-                    u'*/', u'*[inserted by cython to avoid comment closer]/'
+            F = [' * ' + line.rstrip().replace(
+                    '*/', '*[inserted by cython to avoid comment closer]/'
                     ).replace(
-                    u'/*', u'/[inserted by cython to avoid comment start]*'
+                    '/*', '/[inserted by cython to avoid comment start]*'
                     )
                  for line in source_file]
         finally:
             if hasattr(source_file, 'close'):
                 source_file.close()
-        if not F: F.append(u'')
+        if not F: F.append('')
         self.input_file_contents[source_desc] = F
         return F
 
@@ -1740,7 +1755,7 @@ def funccontext_property(func):
     return property(get, set)
 
 
-class CCodeConfig(object):
+class CCodeConfig:
     # emit_linenums       boolean         write #line pragmas?
     # emit_code_comments  boolean         copy the original code into C comments?
     # c_line_in_traceback boolean         append the c file and line number to the traceback for exceptions?
@@ -1751,7 +1766,7 @@ class CCodeConfig(object):
         self.c_line_in_traceback = c_line_in_traceback
 
 
-class CCodeWriter(object):
+class CCodeWriter:
     """
     Utility class to output C code.
 
@@ -1883,13 +1898,37 @@ class CCodeWriter(object):
     @funccontext_property
     def yield_labels(self): pass
 
+    def label_interceptor(self, new_labels, orig_labels, skip_to_label=None, pos=None, trace=True):
+        """
+        Helper for generating multiple label interceptor code blocks.
+
+        @param new_labels: the new labels that should be intercepted
+        @param orig_labels: the original labels that we should dispatch to after the interception
+        @param skip_to_label: a label to skip to before starting the code blocks
+        @param pos: the node position to mark for each interceptor block
+        @param trace: add a trace line for the pos marker or not
+        """
+        for label, orig_label in zip(new_labels, orig_labels):
+            if not self.label_used(label):
+                continue
+            if skip_to_label:
+                # jump over the whole interception block
+                self.put_goto(skip_to_label)
+                skip_to_label = None
+
+            if pos is not None:
+                self.mark_pos(pos, trace=trace)
+            self.put_label(label)
+            yield (label, orig_label)
+            self.put_goto(orig_label)
+
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
-    def new_error_label(self):         return self.funcstate.new_error_label()
+    def new_error_label(self, *args):  return self.funcstate.new_error_label(*args)
     def new_yield_label(self, *args):  return self.funcstate.new_yield_label(*args)
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
-    def new_loop_labels(self):         return self.funcstate.new_loop_labels()
+    def new_loop_labels(self, *args):  return self.funcstate.new_loop_labels(*args)
     def get_all_labels(self):          return self.funcstate.get_all_labels()
     def set_all_labels(self, labels):  return self.funcstate.set_all_labels(labels)
     def all_new_labels(self):          return self.funcstate.all_new_labels()
@@ -1979,9 +2018,9 @@ class CCodeWriter(object):
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.globalstate.commented_file_contents(source_desc)
         lines = contents[max(0, line-3):line]  # line numbers start at 1
-        lines[-1] += u'             # <<<<<<<<<<<<<<'
+        lines[-1] += '             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
-        return u'"%s":%d\n%s\n' % (source_desc.get_escaped_description(), line, u'\n'.join(lines))
+        return '"%s":%d\n%s\n' % (source_desc.get_escaped_description(), line, '\n'.join(lines))
 
     def put_safe(self, code):
         # put code, but ignore {}
@@ -2340,13 +2379,11 @@ class CCodeWriter(object):
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.use_fast_gil_utility_code()
-        self.putln("#ifdef WITH_THREAD")
         if not variable:
             variable = '__pyx_gilstate_save'
             if declare_gilstate:
                 self.put("PyGILState_STATE ")
         self.putln("%s = __Pyx_PyGILState_Ensure();" % variable)
-        self.putln("#endif")
 
     def put_release_ensured_gil(self, variable=None):
         """
@@ -2355,9 +2392,7 @@ class CCodeWriter(object):
         self.use_fast_gil_utility_code()
         if not variable:
             variable = '__pyx_gilstate_save'
-        self.putln("#ifdef WITH_THREAD")
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
-        self.putln("#endif")
 
     def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
@@ -2365,7 +2400,6 @@ class CCodeWriter(object):
         by a previous `put_release_gil`
         """
         self.use_fast_gil_utility_code()
-        self.putln("#ifdef WITH_THREAD")
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
@@ -2374,12 +2408,10 @@ class CCodeWriter(object):
         self.putln("Py_BLOCK_THREADS")
         if unknown_gil_state:
             self.putln("}")
-        self.putln("#endif")
 
     def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
-        self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save;")
         self.putln("_save = NULL;")
         if unknown_gil_state:
@@ -2392,12 +2424,9 @@ class CCodeWriter(object):
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
-        self.putln("#endif")
 
     def declare_gilstate(self):
-        self.putln("#ifdef WITH_THREAD")
         self.putln("PyGILState_STATE __pyx_gilstate_save;")
-        self.putln("#endif")
 
     # error handling
 
@@ -2567,7 +2596,7 @@ class CCodeWriter(object):
         self.putln("#endif")
 
 
-class PyrexCodeWriter(object):
+class PyrexCodeWriter:
     # f                file      output file
     # level            int       indentation level
 
@@ -2584,7 +2613,8 @@ class PyrexCodeWriter(object):
     def dedent(self):
         self.level -= 1
 
-class PyxCodeWriter(object):
+
+class PyxCodeWriter:
     """
     Can be used for writing out some Cython code.
     """
@@ -2592,6 +2622,7 @@ class PyxCodeWriter(object):
     def __init__(self, buffer=None, indent_level=0, context=None, encoding='ascii'):
         self.buffer = buffer or StringIOTree()
         self.level = indent_level
+        self.original_level = indent_level
         self.context = context
         self.encoding = encoding
 
@@ -2612,6 +2643,9 @@ class PyxCodeWriter(object):
         self.indent()
         yield
         self.dedent()
+
+    def empty(self):
+        return self.buffer.empty()
 
     def getvalue(self):
         result = self.buffer.getvalue()
@@ -2638,14 +2672,19 @@ class PyxCodeWriter(object):
             self._putln(line)
 
     def insertion_point(self):
-        return PyxCodeWriter(self.buffer.insertion_point(), self.level,
-                             self.context)
+        return type(self)(self.buffer.insertion_point(), self.level, self.context)
+
+    def reset(self):
+        # resets the buffer so that nothing gets written. Most useful
+        # for abandoning all work in a specific insertion point
+        self.buffer.reset()
+        self.level = self.original_level
 
     def named_insertion_point(self, name):
         setattr(self, name, self.insertion_point())
 
 
-class ClosureTempAllocator(object):
+class ClosureTempAllocator:
     def __init__(self, klass):
         self.klass = klass
         self.temps_allocated = {}
