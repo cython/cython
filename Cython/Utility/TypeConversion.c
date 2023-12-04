@@ -586,15 +586,16 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject*);
 /////////////// UnicodeAsUCS4 ///////////////
 
 static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
-   Py_ssize_t length;
-   length = PyUnicode_GET_LENGTH(x);
-   if (likely(length == 1)) {
-       return PyUnicode_READ_CHAR(x, 0);
-   }
-   PyErr_Format(PyExc_ValueError,
-                "only single character unicode strings can be converted to Py_UCS4, "
-                "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
-   return (Py_UCS4)-1;
+    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
+    if (likely(length == 1)) {
+        return __Pyx_PyUnicode_READ_CHAR(x, 0);
+    } else if (likely(length >= 0)) {
+        // "length == -1" indicates an error already.
+        PyErr_Format(PyExc_ValueError,
+                     "only single character unicode strings can be converted to Py_UCS4, "
+                     "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
+    }
+    return (Py_UCS4)-1;
 }
 
 

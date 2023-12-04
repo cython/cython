@@ -353,14 +353,30 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     if (PyBytes_Check(c)) {
         size = __Pyx_PyBytes_GET_SIZE(c);
         if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             return (unsigned char) PyBytes_AS_STRING(c)[0];
+#else
+            char *data = PyBytes_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
+#endif
         }
-#if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
+#if !CYTHON_ASSUME_SAFE_SIZE        
+        else if (unlikely(size < 0)) return -1;
+#endif
     } else if (PyByteArray_Check(c)) {
         size = __Pyx_PyByteArray_GET_SIZE(c);
         if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             return (unsigned char) PyByteArray_AS_STRING(c)[0];
+#else
+            char *data = PyByteArray_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
+#endif
         }
+#if !CYTHON_ASSUME_SAFE_SIZE
+        else if (unlikely(size < 0)) return -1;
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
@@ -495,8 +511,23 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((PY_VERSION_HEX >= 0x030A00A1) || likely(__Pyx_PySet_GET_SIZE(result)))
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A00A1)
+#if CYTHON_COMPILING_IN_LIMITED_API
+            || __Pyx_get_runtime_version() >= 0x030A00A1
+#endif
+            )
             return result;
+        {
+            Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
+            if (likely(size > 0))
+                return result;
+#if !CYTHON_ASSUME_SAFE_SIZE
+            if (unlikely(size < 0)) {
+                Py_DECREF(result);
+                return NULL;
+            }
+#endif
+        }
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
         Py_DECREF(result);

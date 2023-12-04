@@ -361,8 +361,22 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
             }
             Py_INCREF(key);
             Py_INCREF(value);
+            #if CYTHON_ASSUME_SAFE_MACROS
             PyTuple_SET_ITEM(tuple, 0, key);
             PyTuple_SET_ITEM(tuple, 1, value);
+            #else
+            if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
+                // decref value; PyTuple_SetItem decrefs key on failure
+                Py_DECREF(value);
+                Py_DECREF(tuple);
+                return -1;
+            }
+            if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
+                // PyTuple_SetItem decrefs value on failure
+                Py_DECREF(tuple);
+                return -1;
+            }
+            #endif
             *pitem = tuple;
         } else {
             if (pkey) {
