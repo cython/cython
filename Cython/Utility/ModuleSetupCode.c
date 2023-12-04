@@ -301,7 +301,7 @@
   #undef CYTHON_FAST_GIL
   #define CYTHON_FAST_GIL 0
   #ifndef CYTHON_METH_FASTCALL
-    #define CYTHON_METH_FASTCALL 1
+    #define CYTHON_METH_FASTCALL 0
   #endif
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
