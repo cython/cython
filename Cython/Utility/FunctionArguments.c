@@ -137,7 +137,7 @@ static int __Pyx_CheckKeywordStrings(
 #else
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         Py_ssize_t kwsize;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
         kwsize = PyTuple_GET_SIZE(kw);
 #else
         kwsize = PyTuple_Size(kw);
@@ -240,7 +240,7 @@ static int __Pyx_ParseOptionalKeywords(
 
         if (kwds_is_tuple) {
             Py_ssize_t size;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
             size = PyTuple_GET_SIZE(kwds);
 #else
             size = PyTuple_Size(kwds);
@@ -295,10 +295,9 @@ static int __Pyx_ParseOptionalKeywords(
         if (likely(PyUnicode_Check(key))) {
             while (*name) {
                 int cmp = (
-                #if !CYTHON_COMPILING_IN_PYPY
-                    (__Pyx_PyUnicode_GET_LENGTH(**name) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
+                #if CYTHON_ASSUME_SAFE_SIZE
+                    (PyUnicode_GET_LENGTH(**name) != PyUnicode_GET_LENGTH(key)) ? 1 :
                 #endif
-                    // In Py2, we may need to convert the argument name from str to unicode for comparison.
                     PyUnicode_Compare(**name, key)
                 );
                 if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
@@ -317,8 +316,8 @@ static int __Pyx_ParseOptionalKeywords(
                 PyObject*** argname = argnames;
                 while (argname != first_kw_arg) {
                     int cmp = (**argname == key) ? 0 :
-                    #if !CYTHON_COMPILING_IN_PYPY
-                        (__Pyx_PyUnicode_GET_LENGTH(**argname) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
+                    #if CYTHON_ASSUME_SAFE_SIZE
+                        (PyUnicode_GET_LENGTH(**argname) != PyUnicode_GET_LENGTH(key)) ? 1 :
                     #endif
                         // need to convert argument name from bytes to unicode for comparison
                         PyUnicode_Compare(**argname, key);
@@ -446,7 +445,7 @@ bad:
     #define __Pyx_NumKwargs_FASTCALL(kwds) PyTuple_GET_SIZE(kwds)
     #define __Pyx_KwValues_FASTCALL(args, nargs) ((args) + (nargs))
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+  #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
     CYTHON_UNUSED static PyObject *__Pyx_KwargsAsDict_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues);/*proto*/
   #else
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)

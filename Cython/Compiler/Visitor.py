@@ -1,12 +1,9 @@
 # cython: infer_types=True
-# cython: language_level=3str
-# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework
 #
 
-from __future__ import absolute_import, print_function
 
 import sys
 import inspect
@@ -22,15 +19,10 @@ from . import Future
 import cython
 
 
-cython.declare(_PRINTABLE=tuple)
-
-if sys.version_info[0] >= 3:
-    _PRINTABLE = (bytes, str, int, float)
-else:
-    _PRINTABLE = (str, unicode, long, int, float)
+_PRINTABLE = cython.declare(tuple, (bytes, str, int, float, complex))
 
 
-class TreeVisitor(object):
+class TreeVisitor:
     """
     Base class for writing visitors for a Cython tree, contains utilities for
     recursing such trees using visitors. Each node is
@@ -74,7 +66,7 @@ class TreeVisitor(object):
     out 0
     """
     def __init__(self):
-        super(TreeVisitor, self).__init__()
+        super().__init__()
         self.dispatch_table = {}
         self.access_path = []
 
@@ -88,7 +80,7 @@ class TreeVisitor(object):
             if source:
                 import os.path
                 source = os.path.basename(source.get_description())
-            values.append(u'%s:%s:%s' % (source, pos[1], pos[2]))
+            values.append('%s:%s:%s' % (source, pos[1], pos[2]))
         attribute_names = dir(node)
         for attr in attribute_names:
             if attr in ignored:
@@ -102,13 +94,13 @@ class TreeVisitor(object):
             if value is None or value == 0:
                 continue
             elif isinstance(value, list):
-                value = u'[...]/%d' % len(value)
+                value = '[...]/%d' % len(value)
             elif not isinstance(value, _PRINTABLE):
                 continue
             else:
                 value = repr(value)
-            values.append(u'%s = %s' % (attr, value))
-        return u'%s(%s)' % (node.__class__.__name__, u',\n    '.join(values))
+            values.append('%s = %s' % (attr, value))
+        return '%s(%s)' % (node.__class__.__name__, ',\n    '.join(values))
 
     def _find_node_path(self, stacktrace):
         import os.path
@@ -135,19 +127,19 @@ class TreeVisitor(object):
                 index = ''
             else:
                 node = node[index]
-                index = u'[%d]' % index
-            trace.append(u'%s.%s%s = %s' % (
+                index = '[%d]' % index
+            trace.append('%s.%s%s = %s' % (
                 parent.__class__.__name__, attribute, index,
                 self.dump_node(node)))
         stacktrace, called_nodes = self._find_node_path(sys.exc_info()[2])
         last_node = child
         for node, method_name, pos in called_nodes:
             last_node = node
-            trace.append(u"File '%s', line %d, in %s: %s" % (
+            trace.append("File '%s', line %d, in %s: %s" % (
                 pos[0], pos[1], method_name, self.dump_node(node)))
         raise Errors.CompilerCrash(
             getattr(last_node, 'pos', None), self.__class__.__name__,
-            u'\n'.join(trace), e, stacktrace)
+            '\n'.join(trace), e, stacktrace)
 
     @cython.final
     def find_handler(self, obj):
@@ -302,14 +294,14 @@ class CythonTransform(VisitorTransform):
      - Tracks directives in effect in self.current_directives
     """
     def __init__(self, context):
-        super(CythonTransform, self).__init__()
+        super().__init__()
         self.context = context
 
     def __call__(self, node):
         from .ModuleNode import ModuleNode
         if isinstance(node, ModuleNode):
             self.current_directives = node.directives
-        return super(CythonTransform, self).__call__(node)
+        return super().__call__(node)
 
     def visit_CompilerDirectivesNode(self, node):
         old = self.current_directives
@@ -362,7 +354,7 @@ class EnvTransform(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.enter_scope(root, root.scope)
-        return super(EnvTransform, self).__call__(root)
+        return super().__call__(root)
 
     def current_env(self):
         return self.env_stack[-1][1]
@@ -427,7 +419,7 @@ class EnvTransform(CythonTransform):
         return node
 
 
-class NodeRefCleanupMixin(object):
+class NodeRefCleanupMixin:
     """
     Clean up references to nodes that were replaced.
 
@@ -438,7 +430,7 @@ class NodeRefCleanupMixin(object):
     and by ordering the "child_attrs" of nodes appropriately.
     """
     def __init__(self, *args):
-        super(NodeRefCleanupMixin, self).__init__(*args)
+        super().__init__(*args)
         self._replacements = {}
 
     def visit_CloneNode(self, node):
@@ -721,7 +713,7 @@ class RecursiveNodeReplacer(VisitorTransform):
     another node.
     """
     def __init__(self, orig_node, new_node):
-        super(RecursiveNodeReplacer, self).__init__()
+        super().__init__()
         self.orig_node, self.new_node = orig_node, new_node
 
     def visit_CloneNode(self, node):
@@ -748,7 +740,7 @@ class NodeFinder(TreeVisitor):
     Find out if a node appears in a subtree.
     """
     def __init__(self, node):
-        super(NodeFinder, self).__init__()
+        super().__init__()
         self.node = node
         self.found = False
 

@@ -98,7 +98,7 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
 static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject *kwds, PyObject *new_kwds, PyObject *args_list, int is_kwonly) {
     Py_ssize_t size, i;
     size = PySequence_Size(args_list);
-    if (size == -1) return -1;
+    if (unlikely(size < 0)) return -1;
 
     for (i=0; i<size; ++i) {
         PyObject *key, *value;
