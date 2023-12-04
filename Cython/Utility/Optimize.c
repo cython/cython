@@ -361,8 +361,22 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
             }
             Py_INCREF(key);
             Py_INCREF(value);
+            #if CYTHON_ASSUME_SAFE_MACROS
             PyTuple_SET_ITEM(tuple, 0, key);
             PyTuple_SET_ITEM(tuple, 1, value);
+            #else
+            if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
+                // decref value; PyTuple_SetItem decrefs key on failure
+                Py_DECREF(value);
+                Py_DECREF(tuple);
+                return -1;
+            }
+            if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
+                // PyTuple_SetItem decrefs value on failure
+                Py_DECREF(tuple);
+                return -1;
+            }
+            #endif
             *pitem = tuple;
         } else {
             if (pkey) {
@@ -598,7 +612,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
  PyFloat_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #else
 #define __Pyx_PyObject_AsDouble(obj) \
-((likely(PyFloat_CheckExact(obj))) ?  PyFloat_AS_DOUBLE(obj) : \
+((likely(PyFloat_CheckExact(obj))) ?  __Pyx_PyFloat_AS_DOUBLE(obj) : \
  likely(PyLong_CheckExact(obj)) ? \
  PyLong_AsDouble(obj) : __Pyx__PyObject_AsDouble(obj))
 #endif
@@ -639,7 +653,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         }
 #endif
         if (likely(float_value)) {
-            double value = PyFloat_AS_DOUBLE(float_value);
+            double value = __Pyx_PyFloat_AS_DOUBLE(float_value);
             Py_DECREF(float_value);
             return value;
         }
@@ -845,11 +859,7 @@ static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
 static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
     PyObject *float_value = PyFloat_FromString(obj);
     if (likely(float_value)) {
-#if CYTHON_ASSUME_SAFE_MACROS
-        double value = PyFloat_AS_DOUBLE(float_value);
-#else
-        double value = PyFloat_AsDouble(float_value);
-#endif
+        double value = __Pyx_PyFloat_AS_DOUBLE(float_value);
         Py_DECREF(float_value);
         return value;
     }
@@ -1096,11 +1106,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-#if CYTHON_COMPILING_IN_LIMITED_API
-        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
-#else
-        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
-#endif
+        double {{ival}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{return_compare('(double)a', '(double)b', c_op)}}
     }
 
@@ -1322,11 +1328,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
     {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-#if CYTHON_COMPILING_IN_LIMITED_API
-        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
-#else
-        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
-#endif
+        double {{ival}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{if op in ('Eq', 'Ne')}}
             if ((double)a {{c_op}} (double)b) {
                 {{return_true}};
@@ -1402,11 +1404,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
     {{endif}}
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
-#if CYTHON_COMPILING_IN_LIMITED_API
-        {{fval}} = __pyx_PyFloat_AsDouble({{pyval}});
-#else
-        {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
-#endif
+        {{fval}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
         {{zerodiv_check(fval)}}
     } else
 
