@@ -22,7 +22,7 @@ from distutils.core import setup, Extension
 
 setup(
   ext_modules = cythonize(Extension("*", ["*.pyx"],
-                                    extra_compile_args=["-DCYTHON_LARGE_FUNCTION_POINTERS=1"])),
+                                    extra_compile_args=["-D__Pyx_TEST_large_func_pointers=1"])),
 )
 
 ######## other.pxd ########
