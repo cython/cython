@@ -4,23 +4,23 @@ import sys
 
 if sys.version_info[0] == 3:
     if sys.version_info[1] == 4:
-        from .libpython34 import *
+        from .vendored.libpython34 import *
     elif sys.version_info[1] == 5:
-        from .libpython35 import *
+        from .vendored.libpython35 import *
     elif sys.version_info[1] == 6:
-        from .libpython36 import *
+        from .vendored.libpython36 import *
     elif sys.version_info[1] == 7:
-        from .libpython37 import *
+        from .vendored.libpython37 import *
     elif sys.version_info[1] == 8:
-        from .libpython38 import *
+        from .vendored.libpython38 import *
     elif sys.version_info[1] == 9:
-        from .libpython39 import *
+        from .vendored.libpython39 import *
     elif sys.version_info[1] == 10:
-        from .libpython310 import *
+        from .vendored.libpython310 import *
     elif sys.version_info[1] == 1:
-        from .libpython311 import *
+        from .vendored.libpython311 import *
     elif sys.version_info[1] >= 12:
-        from .libpython312 import *
+        from .vendored.libpython312 import *
 else:
     raise RuntimeError("cython debugger only works in 3.x series")
 
