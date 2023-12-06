@@ -1182,11 +1182,11 @@ static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule,
 
 static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name) {
     void *data = PyCapsule_GetPointer(capsule, name);
-    __Pyx_generic_func_pointer result;
-    if (sizeof(__Pyx_generic_func_pointer) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+    __Pyx_generic_func_pointer funcptr;
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
         result = *((__Pyx_generic_func_pointer*)data);
     } else {
-        memcpy((void*)&result, (void*)&data, sizeof(result));
+        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
     }
-    return result;
+    return funcptr;
 }
