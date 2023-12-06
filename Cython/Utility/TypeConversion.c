@@ -1184,7 +1184,7 @@ static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule,
     void *data = PyCapsule_GetPointer(capsule, name);
     __Pyx_generic_func_pointer funcptr;
     if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
-        result = *((__Pyx_generic_func_pointer*)data);
+        funcptr = *((__Pyx_generic_func_pointer*)data);
     } else {
         memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
     }
