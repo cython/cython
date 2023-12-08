@@ -2889,7 +2889,12 @@ class CFuncType(CType):
         if self.is_overridable:
             arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
-            arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
+            if self.op_arg_struct:
+                arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
+            else:
+                # op_arg_struct may not be initialized at this point if this class is being used
+                # to prepare a Python error message or similar.  In this case, just omit the args.
+                assert for_display
         if self.has_varargs:
             arg_decl_list.append("...")
         arg_decl_code = ", ".join(arg_decl_list)

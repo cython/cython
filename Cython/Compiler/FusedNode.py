@@ -190,12 +190,11 @@ class FusedCFuncDefNode(StatListNode):
                 break
 
         # replace old entry with new entries
-        try:
+        if self.node.entry in env.cfunc_entries:
             cindex = env.cfunc_entries.index(self.node.entry)
-        except ValueError:
-            env.cfunc_entries.extend(new_cfunc_entries)
-        else:
             env.cfunc_entries[cindex:cindex+1] = new_cfunc_entries
+        else:
+            env.cfunc_entries.extend(new_cfunc_entries)
 
         if orig_py_func:
             self.py_func = self.make_fused_cpdef(orig_py_func, env,
