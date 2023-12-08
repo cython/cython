@@ -209,3 +209,16 @@ def test_defaults():
     >>> mutable_default(3,[])
     [3]
     """
+
+cdef class C:
+    cpdef object has_default_struct(self, cython.floating x, a=None):
+        return x, a
+
+# https://github.com/cython/cython/issues/5588
+# On some Python versions this was causing a compiler crash
+def test_call_has_default_struct(C c, double x):
+    """
+    >>> test_call_has_default_struct(C(), 5.)
+    (5.0, None)
+    """
+    return c.has_default_struct(x)
