@@ -5073,7 +5073,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         else:
             # optimise simple Python methods calls
-            if ExprNodes.PyMethodCallNode.can_be_used_for_posargs(node.arg_tuple):
+            if ExprNodes.PyMethodCallNode.can_be_used_for_posargs(node.arg_tuple, has_kwargs=False):
                 # simple call, now exclude calls to objects that are definitely not methods
                 if ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
                     if (node.self and function.is_attribute and
@@ -5090,7 +5090,10 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         Replace likely Python method calls by a specialised PyMethodCallNode.
         """
         self.visitchildren(node)
-        if not ExprNodes.PyMethodCallNode.can_be_used_for_posargs(node.positional_args):
+        has_kwargs = bool(node.keyword_args)
+        kwds_is_dict_node = isinstance(node.keyword_args, ExprNodes.DictNode)
+        if not ExprNodes.PyMethodCallNode.can_be_used_for_posargs(
+                node.positional_args, has_kwargs=has_kwargs, kwds_is_dict_node=kwds_is_dict_node):
             return node
         function = node.function
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
