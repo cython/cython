@@ -5055,31 +5055,6 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                 if not self.in_loop and self.current_env().is_module_scope
                 else "optimize.unpack_method_calls"))
 
-    def _check_positional_args_for_method_call(self, positional_args):
-        # Do the positional args imply we can substitute a PyMethodCallNode
-        return isinstance(positional_args, ExprNodes.TupleNode) and not (
-            positional_args.mult_factor or (positional_args.is_literal and len(positional_args.args) > 1))
-
-    def _check_function_may_be_method_call(self, function):
-        may_be_a_method = True
-        if function.type is Builtin.type_type:
-            may_be_a_method = False
-        elif function.is_attribute:
-            if function.entry and function.entry.type.is_cfunction:
-                # optimised builtin method
-                may_be_a_method = False
-        elif function.is_name:
-            entry = function.entry
-            if entry.is_builtin or entry.type.is_cfunction:
-                may_be_a_method = False
-            elif entry.cf_assignments:
-                # local functions/classes are definitely not methods
-                non_method_nodes = (ExprNodes.PyCFunctionNode, ExprNodes.ClassNode, ExprNodes.Py3ClassNode)
-                may_be_a_method = any(
-                    assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
-                    for assignment in entry.cf_assignments)
-        return may_be_a_method
-
     def visit_SimpleCallNode(self, node):
         """
         Replace generic calls to isinstance(x, type) by a more efficient type check.
@@ -5098,9 +5073,9 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         else:
             # optimise simple Python methods calls
-            if self._check_positional_args_for_method_call(node.arg_tuple):
+            if ExprNodes.PyMethodCallNode.can_be_used_for_posargs(node.arg_tuple):
                 # simple call, now exclude calls to objects that are definitely not methods
-                if self._check_function_may_be_method_call(function):
+                if ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
                     if (node.self and function.is_attribute and
                             isinstance(function.obj, ExprNodes.CloneNode) and function.obj.arg is node.self):
                         # function self object was moved into a CloneNode => undo
@@ -5115,10 +5090,10 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         Replace likely Python method calls by a specialised PyMethodCallNode.
         """
         self.visitchildren(node)
-        if not self._check_positional_args_for_method_call(node.positional_args):
+        if not ExprNodes.PyMethodCallNode.can_be_used_for_posargs(node.positional_args):
             return node
         function = node.function
-        if not self._check_function_may_be_method_call(function):
+        if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
             return node
 
         node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(

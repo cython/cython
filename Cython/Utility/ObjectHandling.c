@@ -2080,11 +2080,7 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
 static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     (void)__Pyx_PyObject_FastCallDict;
 
-#if CYTHON_ASSUME_SAFE_MACROS
-    PyTuple_SET_ITEM(builder, n, key);
-#else
-    if (unlikely(PyTuple_SetItem(builder, n, key))) return -1;
-#endif
+    if (unlikely(__Pyx_PyTuple_SET_ITEM(builder, n, key))) return -1;
     Py_INCREF(key);
     args[n] = value;
     return 0;

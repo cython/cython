@@ -5986,8 +5986,7 @@ class CallNode(ExprNode):
 
     def function_type(self):
         # Return the type of the function being called, coercing a function
-        # pointer to a function if necessary. If the function has fused
-        # arguments, return the specific type.
+        # pointer to a function if necessary.
         func_type = self.function.type
 
         if func_type.is_ptr:
@@ -6531,7 +6530,7 @@ class PyMethodCallNode(CallNode):
     #
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
-    # kwdict      ExprNode or Node  keyword dictionary (if present)
+    # kwdict      ExprNode or None  keyword dictionary (if present)
     # unpack      bool
 
     subexprs = ['function', 'arg_tuple', 'kwdict']
@@ -6598,9 +6597,8 @@ class PyMethodCallNode(CallNode):
             code.putln("#if CYTHON_UNPACK_METHODS")
             code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
             code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
-            # the following is always true in Py3 (kept only for safety),
-            # but is false for unbound methods in Py2
-            code.putln("if (likely(%s)) {" % self_arg)
+            # the result of PyMethod_GET_SELF is always true in Py3.
+            code.putln(f"assert({self_arg});")
             code.putln("PyObject* function = PyMethod_GET_FUNCTION(%s);" % function)
             code.put_incref(self_arg, py_object_type)
             code.put_incref("function", py_object_type)
@@ -6608,10 +6606,10 @@ class PyMethodCallNode(CallNode):
             code.put_decref_set(function, py_object_type, "function")
             code.putln("%s = 1;" % arg_offset_cname)
             code.putln("}")
-            code.putln("}")
             code.putln("#endif")  # CYTHON_UNPACK_METHODS
             # TODO may need to deal with unused variables in the #else case
 
+        kwnames_temp = None
         if use_kwnames:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectVectorCallKwBuilder", "ObjectHandling.c"))
@@ -6705,6 +6703,40 @@ class PyMethodCallNode(CallNode):
             code.put_decref_clear(function, py_object_type)
             code.funcstate.release_temp(function)
         code.putln("}")
+
+    @staticmethod
+    def can_be_used_for_posargs(positional_args):
+        """
+        Test whether the positional args given are compatible with
+        being translated into a PyMethodCallNode
+        """
+        return isinstance(positional_args, TupleNode) and not (
+            positional_args.mult_factor or (positional_args.is_literal and len(positional_args.args) > 1))
+
+    @staticmethod
+    def can_be_used_for_function(function):
+        """
+        Test whether the function passed is suitable to be translated
+        into a PyMethodCallNode
+        """
+        may_be_a_method = True
+        if function.type is Builtin.type_type:
+            may_be_a_method = False
+        elif function.is_attribute:
+            if function.entry and function.entry.type.is_cfunction:
+                # optimised builtin method
+                may_be_a_method = False
+        elif function.is_name:
+            entry = function.entry
+            if entry.is_builtin or entry.type.is_cfunction:
+                may_be_a_method = False
+            elif entry.cf_assignments:
+                # local functions/classes are definitely not methods
+                non_method_nodes = (PyCFunctionNode, ClassNode, Py3ClassNode)
+                may_be_a_method = any(
+                    assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
+                    for assignment in entry.cf_assignments)
+        return may_be_a_method
 
 
 class InlinedDefNodeCallNode(CallNode):
