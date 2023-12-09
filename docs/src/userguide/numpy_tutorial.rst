@@ -108,8 +108,11 @@ then execute :
 
 This will install the newest Cython into SAGE.
 
+Compilation
+===========
+
 Manual compilation
-====================
+------------------
 
 As it is always important to know what is going on, I'll describe the manual
 method here. First Cython is run:
@@ -142,6 +145,62 @@ in your Cython code.
 
 This creates :file:`yourmod.so` in the same directory, which is importable by
 Python by using a normal ``import yourmod`` statement.
+
+
+Compilation using setuptools
+----------------------------
+
+Setuptools allows us to create setup.py file to automate both compilation of Cython files and generated C files.::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+    import numpy
+
+    extensions = [
+        Extension("*", ["*.pyx"],
+            library_dirs=[numpy.get_include()]),
+    ]
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
+
+Path to NumPy headers is passed to C compiler via ``library_dirs=[numpy.get_include()])`` parameter.
+
+.. note::
+
+    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
+    you have to add the path to NumPy include files. You need to add this path only
+    if you use ``cimport numpy``.
+
+Despite this, you may still get warnings like the following from the compiler,
+because Cython is not disabling the usage of the old deprecated Numpy API::
+
+   .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
+
+In Cython 3.0, you can get rid of this warning by defining the C macro
+``NPY_NO_DEPRECATED_API`` as ``NPY_1_7_API_VERSION``
+in your build, e.g.::
+
+    # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
+or (see below)::
+
+    Extension(
+        ...,
+        define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
+    )
+
+With older Cython releases, setting this macro will fail the C compilation,
+because Cython generates code that uses this deprecated C-API.  However, the
+warning has no negative effects even in recent NumPy versions including 1.18.x.
+You can ignore it until you (or your library's users) switch to a newer NumPy
+version that removes this long deprecated API, in which case you also need to
+use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
+better for your users.
+
+
+
 
 The first Cython program
 ==========================
