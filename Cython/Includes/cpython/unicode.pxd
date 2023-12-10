@@ -398,7 +398,7 @@ cdef extern from *:
 
 
     # As PyUnicode_AsUTF8AndSize(), but does not store the size.
-    const char *PyUnicode_AsUTF8(PyObject *unicode) except NULL
+    const char *PyUnicode_AsUTF8(object unicode) except NULL
 
 # These are the UTF-16 codec APIs:
 
