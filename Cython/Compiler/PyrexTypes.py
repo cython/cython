@@ -4302,7 +4302,7 @@ class EnumMixin:
 
     def create_enum_to_py_utility_code(self, env):
         from .UtilityCode import CythonUtilityCode
-        self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+        self.to_py_function = "__Pyx_Enum_%s_to_py" % type_identifier(self)
         if self.entry.scope != env.global_scope():
             module_name = self.entry.scope.qualified_name
         else:
