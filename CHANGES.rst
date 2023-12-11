@@ -11,6 +11,22 @@ Other changes
 * Support for Python 2.7 - 3.6 was removed.
 
 
+3.0.7 (202?-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Some declarations in ``cpython.unicode`` were fixed and extended.
+  (Github issue :issue:`5902`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`,  :issue:`5588`)
+
+* Source files with non-ASCII file names could crash Cython.
+  (Github issue :issue:`5873`)
+
+
 3.0.6 (2023-11-26)
 ==================
 
@@ -23,7 +39,7 @@ Features added
   (Github issue :issue:`5836`)
 
 * The Python "nogil" fork is now also detected with the new ``Py_GIL_DISABLED`` macro.
-  Patch by Hugo van Kemenade   (Github issue :issue:`583652`)
+  Patch by Hugo van Kemenade.  (Github issue :issue:`5852`)
 
 Bugs fixed
 ----------
