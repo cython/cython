@@ -50,14 +50,14 @@ cimport enums_same_name
 def get_named_enum_value():
     return NamedEnumType.NamedEnumValue
 
-def get_named_without_pyx():
-    # This'll generate a warning but return a c int
-    return EnumTypeNotInPyx.AnotherEnumValue
-
 def get_from_enums_same_name():
     # This should not generate conflicting "to py" functions with the other
     # identically named enum from a different pxd file.
     return enums_same_name.NamedEnumType.Value
+
+def get_named_without_pyx():
+    # This'll generate a warning but return a c int
+    return EnumTypeNotInPyx.AnotherEnumValue
 
 ######## import_enums_test.py ########
 
@@ -80,4 +80,4 @@ assert no_enums.get_named_enum_value() == NamedEnumType.NamedEnumValue
 # but the conversion to Python goes through a reasonable fallback
 assert no_enums.get_named_without_pyx() == 500
 
-assert no_enums.get_from_enums2() == enums_same_name.NamedEnumType.Value
+assert no_enums.get_from_enums_same_name() == enums_same_name.NamedEnumType.Value
