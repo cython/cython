@@ -45,7 +45,7 @@ cpdef enum EnumTypeNotInPyx:
 
 from enums cimport *
 from enums_without_pyx cimport *
-import enums2
+cimport enums2
 
 def get_named_enum_value():
     return NamedEnumType.NamedEnumValue
