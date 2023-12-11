@@ -5,10 +5,63 @@ Cython Changelog
 3.1.0 (202?-??-??)
 ==================
 
+Features added
+--------------
+
+* Integer operations on known ``int`` types are faster.
+  (Github issues :issue:`5785`)
+
+* Many issues with the Limited C-API were resolved.
+  (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
+   :issue:`5885`, :issue:`5886`, :issue:`5888`)
+
+* Dataclasses support the ``match_args`` option.
+  (Github issue :issue:`5381`)
+
+* f-strings are slightly faster.
+  (Github issue :issue:`5866`)
+
+* Most builtin methods now provide their return type for type inference.
+  (Github issue :issue:`5865`)
+
+* ``.isprintable()`` is optimised for Unicode characters.
+  (Github issue :issue:`3277`)
+
+* The parser was updated for Unicode 15.1 (as provided by CPython 3.13a1).
+
+Bugs fixed
+----------
+
+* Dataclasses did not handle default fields without init value correctly.
+  (Github issue :issue:`5858`)
+
+* The ``-a`` option in the IPython magic no longer copies the complete HTML document
+  into the notebook but only a more reasonable content snippet.
+  Patch by Min RK.  (Github issue :issue:`5760`)
+
+* Uselessly referring to C enums (not enum values) as Python objects is now rejected.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`5638`)
+
+* Several C++ warnings about ``char*`` casts were resolved.
+  (Github issues :issue:`5515`, :issue:`5847`)
+
 Other changes
 -------------
 
-* Support for Python 2.7 - 3.6 was removed.
+* Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
+  (Github issue :issue:`2800`)
+
+* ``language_level=3`` is now the default.
+  ``language_level=3str`` has become a legacy alias.
+  (Github issue :issue:`5827`)
+
+* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
+  (Github issue :issue:`4237`)
+
+* Usages of the outdated ``WITH_THREAD`` macro guard were removed.
+  (Github issue :issue:`5812`)
+
+* Includes all fixes as of Cython 3.0.7.
 
 
 3.0.7 (202?-??-??)
