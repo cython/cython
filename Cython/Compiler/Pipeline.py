@@ -212,7 +212,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         _check_c_declarations,
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
-        FindInvalidUseOfFusedTypes(context),
+        FindInvalidUseOfFusedTypes(),
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
