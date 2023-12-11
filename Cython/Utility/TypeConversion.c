@@ -123,11 +123,13 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 
 #if CYTHON_ASSUME_SAFE_MACROS
-#define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
+#define __Pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
+#define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AS_DOUBLE(x)
 #else
-#define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
+#define __Pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
+#define __Pyx_PyFloat_AS_DOUBLE(x) PyFloat_AsDouble(x)
 #endif
-#define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
+#define __Pyx_PyFloat_AsFloat(x) ((float) __Pyx_PyFloat_AsDouble(x))
 
 #define __Pyx_PyNumber_Int(x) (PyLong_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Long(x))
 // __Pyx_PyNumber_Float is now in its own section since it has dependencies (needed to make
@@ -507,7 +509,7 @@ static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject *);
 
 /////////////// FromPyCTupleUtility ///////////////
 
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
 static void __Pyx_tuple_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result->f%s" % ix}}
@@ -562,7 +564,7 @@ bad:
 static CYTHON_INLINE {{struct_type_decl}} {{funcname}}(PyObject * o) {
     {{struct_type_decl}} result;
 
-    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (likely(PyTuple_Check(o) && PyTuple_GET_SIZE(o) == {{size}})) {
         __Pyx_tuple_{{funcname}}(o, &result);
     } else if (likely(PyList_Check(o) && PyList_GET_SIZE(o) == {{size}})) {
@@ -584,15 +586,16 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject*);
 /////////////// UnicodeAsUCS4 ///////////////
 
 static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
-   Py_ssize_t length;
-   length = PyUnicode_GET_LENGTH(x);
-   if (likely(length == 1)) {
-       return PyUnicode_READ_CHAR(x, 0);
-   }
-   PyErr_Format(PyExc_ValueError,
-                "only single character unicode strings can be converted to Py_UCS4, "
-                "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
-   return (Py_UCS4)-1;
+    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
+    if (likely(length == 1)) {
+        return __Pyx_PyUnicode_READ_CHAR(x, 0);
+    } else if (likely(length >= 0)) {
+        // "length == -1" indicates an error already.
+        PyErr_Format(PyExc_ValueError,
+                     "only single character unicode strings can be converted to Py_UCS4, "
+                     "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
+    }
+    return (Py_UCS4)-1;
 }
 
 
@@ -641,10 +644,14 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     const long maxval = 1114111;
   #endif
     if (PyUnicode_Check(x)) {
-        if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
-            PyErr_Format(PyExc_ValueError,
-                         "only single character unicode strings can be converted to Py_UNICODE, "
-                         "got length %" CYTHON_FORMAT_SSIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
+        Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
+        if (unlikely(length != 1)) {
+            // -1 indicates an error.
+            if (length >= 0) {
+                PyErr_Format(PyExc_ValueError,
+                             "only single character unicode strings can be converted to Py_UNICODE, "
+                             "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
+            }
             return (Py_UNICODE)-1;
         }
         ival = PyUnicode_READ_CHAR(x, 0);

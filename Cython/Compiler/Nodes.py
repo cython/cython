@@ -3868,7 +3868,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
-            code.putln("#if CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
             code.putln("#else")
@@ -4926,9 +4926,15 @@ class OverrideCheckNode(StatNode):
         if self.py_func.is_module_scope:
             code.putln("else {")
         else:
-            code.putln("else if (unlikely((Py_TYPE(%s)->tp_dictoffset != 0) || "
-                       "__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
-                self_arg, self_arg))
+            code.putln("else if (")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0)")
+            code.putln("#else")
+            dict_str_const = code.get_py_string_const(EncodedString("__dict__"))
+            code.putln(f'PyObject_HasAttr({self_arg}, {dict_str_const})')
+            code.putln("#endif")
+            code.putln(" || unlikely(__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
+                self_arg))
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.globalstate.use_utility_code(
@@ -5784,12 +5790,9 @@ class CClassDefNode(ClassDefNode):
                     typeptr_cname,
                     type.vtabptr_cname,
                 ))
-                # TODO: find a way to make this work with the Limited API!
-                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
                 code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
-                code.putln("#endif")
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
@@ -5822,9 +5825,7 @@ class CClassDefNode(ClassDefNode):
                 # do so at runtime.
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
-                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
                 code.put_error_if_neg(entry.pos, "__Pyx_setup_reduce((PyObject *) %s)" % typeptr_cname)
-                code.putln("#endif")
 
     def annotate(self, code):
         if self.type_init_args:

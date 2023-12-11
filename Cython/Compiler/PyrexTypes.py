@@ -1438,7 +1438,7 @@ class BuiltinObjectType(PyObjectType):
         return "%s object" % self.name
 
     def __repr__(self):
-        return "<%s>"% self.cname
+        return "<%s>"% self.typeptr_cname
 
     def default_coerced_ctype(self):
         if self.name in ('bytes', 'bytearray'):
@@ -2377,7 +2377,7 @@ class CFloatType(CNumericType):
 
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
-    from_py_function = "__pyx_PyFloat_AsDouble"
+    from_py_function = "__Pyx_PyFloat_AsDouble"
 
     exception_value = -1
 
@@ -2385,7 +2385,7 @@ class CFloatType(CNumericType):
         CNumericType.__init__(self, rank, 1)
         self.math_h_modifier = math_h_modifier
         if rank == RANK_FLOAT:
-            self.from_py_function = "__pyx_PyFloat_AsFloat"
+            self.from_py_function = "__Pyx_PyFloat_AsFloat"
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
@@ -3294,7 +3294,12 @@ class CFuncType(CType):
         if self.is_overridable:
             arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
-            arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
+            if self.op_arg_struct:
+                arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
+            else:
+                # op_arg_struct may not be initialized at this point if this class is being used
+                # to prepare a Python error message or similar.  In this case, just omit the args.
+                assert for_display
         if self.has_varargs:
             arg_decl_list.append("...")
         arg_decl_code = ", ".join(arg_decl_list)
@@ -5460,16 +5465,29 @@ def cap_length(s, max_prefix=63, max_len=1024):
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False):
-    on_what = "on '%s' " % function_name if function_name else ""
+def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False, is_call=False):
+    if function_name:
+        # we need it escaped everywhere we use it
+        function_name = "'%s'" % function_name
+    if is_call:
+        on_what = "after calling %s " % (function_name or 'function')
+    elif function_name:
+        on_what = "on %s " % function_name
+    else:
+        on_what =''
     msg = (
         "Exception check %swill always require the GIL to be acquired."
     ) % on_what
-    solutions = ["Declare the function as 'noexcept' if you control the definition and "
-                                "you're sure you don't want the function to raise exceptions."]
+    the_function = function_name if function_name else "the function"
+    if is_call and not function_name:
+        the_function = the_function + " you are calling"
+    solutions = ["Declare %s as 'noexcept' if you control the definition and "
+                 "you're sure you don't want the function to raise exceptions."
+                                % the_function]
     if void_return:
         solutions.append(
-            "Use an 'int' return type on the function to allow an error code to be returned.")
+            "Use an 'int' return type on %s to allow an error code to be returned." %
+            the_function)
     if len(solutions) == 1:
         msg = "%s %s" % (msg, solutions[0])
     else:

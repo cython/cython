@@ -1212,6 +1212,10 @@ hidden by default since most users will be uninterested in changing them.
             Use some C-API macros that increase performance by skipping error checking,
             which may not be safe on all Python implementations (e.g. PyPy).
             
+        ``CYTHON_ASSUME_SAFE_SIZE``
+            Prefer the ``Py*_GET_SIZE()`` C-API macros / inline-functions for builtin types
+            over their ``Py*_GetSize()`` counterparts if errors are not expected.
+
         ``CYTHON_FAST_GIL``
             On some Python versions this speeds up getting/releasing the GIL.
             
@@ -1242,3 +1246,13 @@ hidden by default since most users will be uninterested in changing them.
             
         ``CYTHON_UPDATE_DESCRIPTOR_DOC``
             Attempt to provide docstrings also for special (double underscore) methods.
+            
+        ``CYTHON_USE_FREELISTS``
+            Enable the use of freelists on extension types with
+            :ref:`the @cython.freelist decorator<freelist>`.
+
+        ``CYTHON_ATOMICS``
+            Enable the use of atomic reference counting (as opposed to locking then
+            reference counting) in Cython typed memoryviews.
+            
+            

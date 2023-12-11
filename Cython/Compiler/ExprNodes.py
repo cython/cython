@@ -3017,7 +3017,7 @@ class IteratorNode(ScopedExprNode):
                 else:
                     len_func = '__Pyx_PyTuple_GET_SIZE'
                 code.putln("%s = %s(%s);" % (self.counter_cname, len_func, self.result()))
-                code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+                code.putln("#if !CYTHON_ASSUME_SAFE_SIZE")
                 code.putln(code.error_goto_if_neg(self.counter_cname, self.pos))
                 code.putln("#endif")
                 code.putln("--%s;" % self.counter_cname)  # len -> last item
@@ -3066,7 +3066,7 @@ class IteratorNode(ScopedExprNode):
         else:
             code.putln("{")
             code.putln("Py_ssize_t %s = %s;" % (Naming.quick_temp_cname, final_size))
-            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("#if !CYTHON_ASSUME_SAFE_SIZE")
             code.putln(code.error_goto_if_neg(Naming.quick_temp_cname, self.pos))
             code.putln("#endif")
             code.putln("if (%s >= %s) break;" % (self.counter_cname, Naming.quick_temp_cname))
@@ -3609,6 +3609,7 @@ class JoinedStrNode(ExprNode):
             if isinstance(node, UnicodeNode):
                 length_parts.append(str(len(node.value)))
             else:
+                # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
                 length_parts.append("__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result())
                 if node in unknown_nodes:
                     charval_parts.append("__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result())
@@ -4764,7 +4765,7 @@ class BufferIndexNode(_IndexingBaseNode):
         if self.in_nogil_context:
             if self.is_buffer_access or self.is_memview_index:
                 if code.globalstate.directives['boundscheck']:
-                    warning(self.pos, "Use boundscheck(False) for faster access", level=1)
+                    performance_hint(self.pos, "Use boundscheck(False) for faster access", code.globalstate)
 
         # Assign indices to temps of at least (s)size_t to allow further index calculations.
         self.index_temps = index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
@@ -6459,9 +6460,11 @@ class SimpleCallNode(CallNode):
                 if exc_check:
                     if nogil:
                         if not exc_checks:
+                            perf_hint_entry = getattr(self.function, "entry", None)
                             PyrexTypes.write_noexcept_performance_hint(
                                 self.pos, code.funcstate.scope,
-                                function_name=None, void_return=self.type.is_void)
+                                function_name=perf_hint_entry.name if perf_hint_entry else None,
+                                void_return=self.type.is_void, is_call=True)
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
@@ -8380,7 +8383,7 @@ class SequenceNode(ExprNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
             length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-            code.putln('%s = PyList_GET_SIZE(%s);' % (length_temp, target_list))
+            code.putln('%s = __Pyx_PyList_GET_SIZE(%s);' % (length_temp, target_list))
             code.putln("if (unlikely(%s < %d)) {" % (length_temp, len(unpacked_fixed_items_right)))
             code.putln("__Pyx_RaiseNeedMoreValuesError(%d+%s); %s" % (
                  len(unpacked_fixed_items_left), length_temp,
@@ -14176,13 +14179,14 @@ class CoerceToBooleanNode(CoercionNode):
 
     type = PyrexTypes.c_bint_type
 
+    # Note that all of these need a check if CYTHON_ASSUME_SAFE_MACROS is false
     _special_builtins = {
-        Builtin.list_type:       'PyList_GET_SIZE',
-        Builtin.tuple_type:      'PyTuple_GET_SIZE',
-        Builtin.set_type:        'PySet_GET_SIZE',
-        Builtin.frozenset_type:  'PySet_GET_SIZE',
-        Builtin.bytes_type:      'PyBytes_GET_SIZE',
-        Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
+        Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
+        Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
+        Builtin.set_type:        '__Pyx_PySet_GET_SIZE',
+        Builtin.frozenset_type:  '__Pyx_PySet_GET_SIZE',
+        Builtin.bytes_type:      '__Pyx_PyBytes_GET_SIZE',
+        Builtin.bytearray_type:  '__Pyx_PyByteArray_GET_SIZE',
         Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
     }
 
@@ -14214,6 +14218,8 @@ class CoerceToBooleanNode(CoercionNode):
             checks = ["(%s != Py_None)" % self.arg.py_result()] if self.arg.may_be_none() else []
             checks.append("(%s(%s) != 0)" % (test_func, self.arg.py_result()))
             code.putln("%s = %s;" % (self.result(), '&&'.join(checks)))
+            code.putln(code.error_goto_if(
+                "((!CYTHON_ASSUME_SAFE_MACROS) && %s < 0)" % self.result(), self.pos))
         else:
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
