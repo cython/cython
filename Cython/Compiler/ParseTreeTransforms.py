@@ -2826,12 +2826,13 @@ class AnalyseExpressionsTransform(CythonTransform):
 
 class FindInvalidUseOfFusedTypes(TreeVisitor):
 
-    def __call__(self, tree, phase=None):
+    def __call__(self, tree):
         self._in_fused_function = False
         self.visit(tree)
         return tree
 
-    visit_Node = TreeVisitor.visitchildren
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_FuncDefNode(self, node):
         outer_status = self._in_fused_function
