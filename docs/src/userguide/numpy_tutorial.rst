@@ -158,14 +158,14 @@ Setuptools allows us to create setup.py file to automate compilation of both Cyt
 
     extensions = [
         Extension("*", ["*.pyx"],
-            library_dirs=[numpy.get_include()]),
+            include_dirs=[numpy.get_include()]),
     ]
     setup(
         name="My hello app",
         ext_modules=cythonize(extensions),
     )
 
-The path to the NumPy headers is passed to the C compiler via the ``library_dirs=[numpy.get_include()])`` parameter.
+The path to the NumPy headers is passed to the C compiler via the ``include_dirs=[numpy.get_include()]`` parameter.
 
 .. note::
 
