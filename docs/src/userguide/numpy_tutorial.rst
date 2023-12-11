@@ -150,7 +150,7 @@ Python by using a normal ``import yourmod`` statement.
 Compilation using setuptools
 ----------------------------
 
-Setuptools allows us to create setup.py file to automate both compilation of Cython files and generated C files.::
+Setuptools allows us to create setup.py file to automate compilation of both Cython files and generated C files.::
 
     from setuptools import Extension, setup
     from Cython.Build import cythonize
@@ -165,7 +165,7 @@ Setuptools allows us to create setup.py file to automate both compilation of Cyt
         ext_modules=cythonize(extensions),
     )
 
-Path to NumPy headers is passed to C compiler via ``library_dirs=[numpy.get_include()])`` parameter.
+The path to the NumPy headers is passed to the C compiler via the ``library_dirs=[numpy.get_include()])`` parameter.
 
 .. note::
 
@@ -193,7 +193,7 @@ or (see below)::
 
 With older Cython releases, setting this macro will fail the C compilation,
 because Cython generates code that uses this deprecated C-API.  However, the
-warning has no negative effects even in recent NumPy versions including 1.18.x.
+warning has no negative effects even in recent NumPy versions.
 You can ignore it until you (or your library's users) switch to a newer NumPy
 version that removes this long deprecated API, in which case you also need to
 use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
