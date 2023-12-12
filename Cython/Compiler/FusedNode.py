@@ -305,7 +305,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _dtype_name(self, dtype):
         name = str(dtype).replace('_', '__').replace(' ', '_')
-        if dtyle.is_typedef:
+        if dtype.is_typedef:
             name = Naming.fused_dtype_prefix + name
         return name
 
