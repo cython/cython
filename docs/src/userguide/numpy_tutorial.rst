@@ -108,6 +108,8 @@ then execute :
 
 This will install the newest Cython into SAGE.
 
+.. _numpy_compilation:
+
 Compilation
 ===========
 

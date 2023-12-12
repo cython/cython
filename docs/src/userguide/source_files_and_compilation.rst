@@ -150,6 +150,10 @@ documentation`_. To compile the extension for use in the current directory use:
 Configuring the C-Build
 ------------------------
 
+.. note::
+
+   More details on building Cython modules that use cimport numpy can be found in the :ref:`Numpy section <numpy_compilation>` of the user guide.
+
 If you have :ref:`Cython include files <include_statement>` or :ref:`Cython definition files <definition_file>` in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
