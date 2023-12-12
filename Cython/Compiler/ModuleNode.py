@@ -3452,19 +3452,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def punycode_module_name(self, prefix, name):
         # adapted from PEP483
-        try:
-            name = '_' + name.encode('ascii').decode('ascii')
-        except UnicodeEncodeError:
+        if name.isascii():
+            name = '_' + name
+        else:
             name = 'U_' + name.encode('punycode').replace(b'-', b'_').decode('ascii')
         return "%s%s" % (prefix, name)
 
     def wrong_punycode_module_name(self, name):
         # to work around a distutils bug by also generating an incorrect symbol...
-        try:
-            name.encode("ascii")
+        if name.isascii():
             return None  # workaround is not needed
-        except UnicodeEncodeError:
-            return "PyInitU" + ("_"+name).encode('punycode').replace(b'-', b'_').decode('ascii')
+        return "PyInitU" + ("_"+name).encode('punycode').replace(b'-', b'_').decode('ascii')
 
     def mod_init_func_cname(self, prefix, env):
         # from PEP483
