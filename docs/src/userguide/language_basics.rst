@@ -1510,6 +1510,7 @@ if the corresponding definition file also defines that type.
     and classes from each other without the Python overhead. To read more about
     what how to do that, you can see :ref:`pxd_files`.
 
+.. _definition_file:
 
 The definition file
 -------------------

@@ -150,7 +150,7 @@ documentation`_. To compile the extension for use in the current directory use:
 Configuring the C-Build
 ------------------------
 
-If you have :ref:`Cython include files <include_statement>` in non-standard places you can pass an
+If you have :ref:`Cython include files <include_statement>` or :ref:`Cython definition files <definition_file>` in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
     from setuptools import setup
