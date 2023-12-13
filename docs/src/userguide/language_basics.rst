@@ -1538,6 +1538,7 @@ wants to  access :keyword:`cdef` attributes and methods, or to inherit from
     presence in a definition file does that. You only need a public
     declaration if you want to make something available to external C code.
 
+.. _include_statement:
 
 The include statement and include files
 ---------------------------------------
