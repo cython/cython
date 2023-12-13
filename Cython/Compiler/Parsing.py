@@ -726,7 +726,7 @@ def p_atom(s):
         s.error("Expected an identifier or literal")
 
 
-def p_atom_string(s):
+def p_atom_string(s: PyrexScanner):
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
@@ -744,7 +744,7 @@ def p_atom_string(s):
         s.error("invalid string kind '%s'" % kind)
 
 
-def p_atom_ident_constants(s):
+def p_atom_ident_constants(s: PyrexScanner):
     """
     Returns None if it isn't a special-cased named constant.
     Only calls s.next() if it successfully matches a named constant.
@@ -766,9 +766,9 @@ def p_atom_ident_constants(s):
     return result
 
 
-def p_int_literal(s):
+def p_int_literal(s: PyrexScanner):
     pos = s.position()
-    value = s.systring
+    value: str = s.systring
     s.next()
     unsigned = ""
     longness = ""
@@ -798,7 +798,7 @@ def p_int_literal(s):
                              longness = longness)
 
 
-def p_name(s, name):
+def p_name(s: PyrexScanner, name):
     pos = s.position()
     if not s.compile_time_expr and name in s.compile_time_env:
         value = s.compile_time_env.lookup_here(name)
@@ -911,7 +911,7 @@ def check_for_non_ascii_characters(string):
     return False
 
 
-def p_string_literal(s, kind_override=None):
+def p_string_literal(s: PyrexScanner, kind_override=None):
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
     # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
     # code byte sequence of the string literal, 'uvalue' is the
@@ -922,7 +922,7 @@ def p_string_literal(s, kind_override=None):
 
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
-    is_python3_source = s.context.language_level >= 3
+    is_python3_source: cython.bint = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
     string_start_pos = (pos[0], pos[1], pos[2] + len(s.systring))
     kind_string = s.systring.rstrip('"\'').lower()
@@ -936,7 +936,7 @@ def p_string_literal(s, kind_override=None):
         if 'u' in kind_string and 'f' in kind_string:
             error(pos, 'String prefixes u and f cannot be combined')
 
-    is_raw = 'r' in kind_string
+    is_raw: cython.bint = 'r' in kind_string
 
     if 'c' in kind_string:
         # this should never happen, since the lexer does not allow combining c
@@ -967,6 +967,7 @@ def p_string_literal(s, kind_override=None):
         else:
             chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
 
+    systr: str
     while 1:
         s.next()
         sy = s.sy
