@@ -18,7 +18,7 @@ cdef class Scanner:
     cdef public Py_ssize_t start_pos
     cdef tuple current_scanner_position_tuple
     cdef public tuple last_token_position_tuple
-    cdef public text
+    cdef public str text
     cdef public initial_state # int?
     cdef public state_name
     cdef public list queue
@@ -34,6 +34,8 @@ cdef class Scanner:
     cdef inline unread(self, token, value, position)
     cdef inline get_current_scan_pos(self)
     cdef inline tuple scan_a_token(self)
+
+    @cython.final
     cdef tuple position(self)  # used frequently by Parsing.py
 
     @cython.final
