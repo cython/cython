@@ -11,14 +11,3 @@ def libc_math_ceil(x):
     [2, 2]
     """
     return [int(n) for n in [ceil(x), math.ceil(x)]]
-
-
-from cython.cimports.Cython.Plex import Actions
-from cython.cimports.Cython.Plex.Actions import Action
-
-def cython_package():
-    """
-    >>> cython_package()
-    ('Action', 'Action')
-    """
-    return (Action.__name__, Actions.Action.__name__)
