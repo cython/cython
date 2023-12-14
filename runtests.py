@@ -1903,6 +1903,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
         if dirname == 'Debugger' and not include_debugger:
             return False
         return dirname not in ("Mac", "Distutils", "Plex", "Tempita")
+
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
         excludelist = ['libcython', 'libpython', 'test_libcython_in_gdb',
@@ -1912,7 +1913,10 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 '#' in filename and not
                 filename.startswith('.') and not
                 filename in excludelist)
+
     import doctest
+    from importlib import import_module
+
     for dirpath, dirnames, filenames in os.walk(path):
         for dir in list(dirnames):
             if not package_matches(dir):
@@ -1931,9 +1935,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 if 'in_gdb' in modulename:
                     # These should only be imported from gdb.
                     continue
-                module = __import__(modulename)
-                for x in modulename.split('.')[1:]:
-                    module = getattr(module, x)
+                module = import_module(modulename)
                 if hasattr(module, "__doc__") or hasattr(module, "__test__"):
                     try:
                         suite.addTest(doctest.DocTestSuite(module))
