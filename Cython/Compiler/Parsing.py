@@ -2759,13 +2759,13 @@ def p_c_base_type(s: PyrexScanner, nonempty: cython.bint = False, templates=None
 
 
 @cython.cfunc
-def p_calling_convention(s: PyrexScanner) -> str:
+def p_calling_convention(s: PyrexScanner):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
         result = s.systring
         s.next()
         return result
     else:
-        return ""
+        return EncodedString("")
 
 
 calling_convention_words = cython.declare(frozenset, frozenset((
