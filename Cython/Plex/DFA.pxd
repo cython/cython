@@ -1,7 +1,6 @@
 cimport cython
 
 from . cimport Machines
-from .Transitions cimport TransitionMap
 
 
 @cython.final

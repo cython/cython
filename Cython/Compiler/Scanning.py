@@ -522,7 +522,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
