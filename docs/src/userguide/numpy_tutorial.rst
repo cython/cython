@@ -202,8 +202,6 @@ use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
 better for your users.
 
 
-
-
 The first Cython program
 ==========================
 

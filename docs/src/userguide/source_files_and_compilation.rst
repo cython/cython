@@ -191,7 +191,7 @@ in one line)::
 
 Some useful options to know about are
 
-* ``include_dirs``- list of directories to search for C/C++ header files (in Unix form for portability)
+* ``include_dirs``- list of directories to search for C/C++ header files (in Unix form for portability),
 * ``libraries`` - list of library names (not filenames or paths) to link against,
 * ``library_dirs`` - list of directories to search for C/C++ libraries at link time.
 
