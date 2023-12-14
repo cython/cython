@@ -3088,7 +3088,7 @@ struct_enum_union = cython.declare(frozenset, frozenset((
 
 
 @cython.cfunc
-def p_sign_and_longness(s: PyrexScanner) -> tuple[cython.int, cython.int]:
+def p_sign_and_longness(s: PyrexScanner) -> tuple:
     signed = 1
     longness = 0
     while s.sy == 'IDENT' and s.systring in sign_and_longness_words:
