@@ -583,6 +583,7 @@ class CythonCImports:
     def __init__(self, module):
         self.__path__ = []
         self.__file__ = None
+        self.__spec__ = None
         self.__name__ = module
         self.__package__ = module
 
