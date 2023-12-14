@@ -1,18 +1,18 @@
 import numpy as np
-
+import cython
 
 DTYPE = np.intc
 
-
-cdef int clip(int a, int min_value, int max_value):
+@cython.cfunc
+def clip(a: cython.int, min_value: cython.int, max_value: cython.int) -> cython.int:
     return min(max(a, min_value), max_value)
 
 
-def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
+def compute(array_1: cython.int[:, :], array_2: cython.int[:, :],
+        a: cython.int, b: cython.int, c: cython.int):
 
-
-    cdef Py_ssize_t x_max = array_1.shape[0]
-    cdef Py_ssize_t y_max = array_1.shape[1]
+    x_max: cython.Py_ssize_t = array_1.shape[0]
+    y_max: cython.Py_ssize_t = array_1.shape[1]
 
     # array_1.shape is now a C array, no it's not possible
     # to compare it simply by using == without a for-loop.
@@ -21,11 +21,11 @@ def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
     assert tuple(array_1.shape) == tuple(array_2.shape)
 
     result = np.zeros((x_max, y_max), dtype=DTYPE)
-    cdef int[:, :] result_view = result
+    result_view: cython.int[:, :] = result
 
-    cdef int tmp
-    cdef Py_ssize_t x, y
-
+    tmp: cython.int
+    x: cython.Py_ssize_t
+    y: cython.Py_ssize_t
 
     for x in range(x_max):
         for y in range(y_max):

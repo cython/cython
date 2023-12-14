@@ -1,26 +1,26 @@
 import numpy as np
-
+import cython
 # We now need to fix a datatype for our arrays. I've used the variable
 # DTYPE for this, which is assigned to the usual NumPy runtime
 # type info object.
 DTYPE = np.intc
 
-# cdef means here that this function is a plain C function (so faster).
+# @cython.cfunc means here that this function is a plain C function (so faster).
 # To get all the benefits, we type the arguments and the return value.
-cdef int clip(int a, int min_value, int max_value):
+@cython.exceptval(check=False)
+@cython.cfunc
+def clip(a: cython.int, min_value: cython.int, max_value: cython.int) -> cython.int:
     return min(max(a, min_value), max_value)
 
 
+def compute(array_1, array_2, a: cython.int, b: cython.int, c: cython.int):
 
-
-def compute(array_1, array_2, int a, int b, int c):
-
-    # The "cdef" keyword is also used within functions to type variables. It
+    # Annotation is also used within functions to type variables. It
     # can only be used at the top indentation level (there are non-trivial
     # problems with allowing them in other places, though we'd love to see
     # good and thought out proposals for it).
-    cdef Py_ssize_t x_max = array_1.shape[0]
-    cdef Py_ssize_t y_max = array_1.shape[1]
+    x_max: cython.Py_ssize_t  = array_1.shape[0]
+    y_max: cython.Py_ssize_t  = array_1.shape[1]
 
     assert array_1.shape == array_2.shape
     assert array_1.dtype == DTYPE
@@ -37,11 +37,11 @@ def compute(array_1, array_2, int a, int b, int c):
     # datatype size, it will simply wrap around like in C, rather than raise
     # an error like in Python.
 
-    cdef int tmp
+    tmp: cython.int
 
-    # Py_ssize_t is the proper C type for Python array indices.
-    cdef Py_ssize_t x, y
-
+    # cython.Py_ssize_t is the proper C type for Python array indices.
+    x: cython.Py_ssize_t
+    y:  cython.Py_ssize_t
 
     for x in range(x_max):
         for y in range(y_max):
