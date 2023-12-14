@@ -23,7 +23,6 @@ from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString
 from .Errors import error, warning, CompileError, InternalError
-from .Code import UtilityCode
 
 
 class SkipDeclarations:
@@ -2825,26 +2824,35 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
 
-class FindInvalidUseOfFusedTypes(CythonTransform):
+class FindInvalidUseOfFusedTypes(TreeVisitor):
+
+    def __call__(self, tree):
+        self._in_fused_function = False
+        self.visit(tree)
+        return tree
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_FuncDefNode(self, node):
-        # Errors related to use in functions with fused args will already
-        # have been detected
-        if not node.has_fused_arguments:
+        outer_status = self._in_fused_function
+        self._in_fused_function = node.has_fused_arguments
+
+        if not self._in_fused_function:
+            # Errors related to use in functions with fused args will already
+            # have been detected.
             if not node.is_generator_body and node.return_type.is_fused:
                 error(node.pos, "Return type is not specified as argument type")
-            else:
-                self.visitchildren(node)
 
-        return node
+        self.visitchildren(node)
+        self._in_fused_function = outer_status
 
     def visit_ExprNode(self, node):
-        if node.type and node.type.is_fused:
+        if not self._in_fused_function and node.type and node.type.is_fused:
             error(node.pos, "Invalid use of fused types, type cannot be specialized")
+            # Errors in subtrees are likely related, so do not recurse.
         else:
             self.visitchildren(node)
-
-        return node
 
 
 class ExpandInplaceOperators(EnvTransform):

@@ -346,9 +346,7 @@ class PyrexScanner(Scanner):
         self.next()
 
     def normalize_ident(self, text):
-        try:
-            text.encode('ascii')  # really just name.isascii but supports Python 2 and 3
-        except UnicodeEncodeError:
+        if not text.isascii():
             text = normalize('NFKC', text)
         self.produce(IDENT, text)
 
