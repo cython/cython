@@ -167,7 +167,6 @@ class Entry:
     borrowed = 0
     init = ""
     annotation = None
-    pep563_annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
