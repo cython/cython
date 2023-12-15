@@ -826,7 +826,7 @@ class MemoryViewSliceType(PyrexType):
                 cfunctype = CFuncType(
                         return_type=c_bint_type,
                         args=[CFuncTypeArg("memviewslice", self, None)],
-                        exception_value="-1",
+                        exception_value=-1,
                 )
 
                 entry = scope.declare_cfunction(cython_name,
@@ -4651,8 +4651,8 @@ class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
 
     is_error = 1
-    exception_value = "0"
-    exception_check    = 0
+    exception_value = 0
+    exception_check = False
     to_py_function = "dummy"
     from_py_function = "dummy"
 
