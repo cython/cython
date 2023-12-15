@@ -6,6 +6,9 @@
 Cython for NumPy users
 **************************
 
+.. include::
+    ../two-syntax-variants-used
+
 This tutorial is aimed at NumPy users who have no experience with Cython at
 all. If you have some knowledge of Cython you may want to skip to the
 ''Efficient indexing'' section.
