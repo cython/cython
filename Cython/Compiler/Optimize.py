@@ -3367,21 +3367,40 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
             ])
 
+    PyDict_Pop_ignore_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ],
+            exception_value=PyrexTypes.c_int_type.exception_value,
+    )
+
     def _handle_simple_method_dict_pop(self, node, function, args, is_unbound_method):
         """Replace dict.pop() by a call to _PyDict_Pop().
         """
+        capi_func = "__Pyx_PyDict_Pop"
+        utility_code_name = 'py_dict_pop'
+        func_type = self.PyDict_Pop_func_type
+
         if len(args) == 2:
             args.append(ExprNodes.NullNode(node.pos))
-        elif len(args) != 3:
+        elif len(args) == 3:
+            if not node.result_is_used:
+                # special case: we can ignore the default value
+                capi_func = "__Pyx_PyDict_Pop_ignore"
+                utility_code_name = 'py_dict_pop_ignore'
+                func_type = self.PyDict_Pop_ignore_func_type
+        else:
             self._error_wrong_arg_count('dict.pop', node, args, "2 or 3")
             return node
 
         return self._substitute_method_call(
             node, function,
-            "__Pyx_PyDict_Pop", self.PyDict_Pop_func_type,
+            capi_func, func_type,
             'pop', is_unbound_method, args,
             may_return_none=True,
-            utility_code=load_c_utility('py_dict_pop'))
+            utility_code=load_c_utility(utility_code_name))
 
     Pyx_BinopInt_func_types = {
         (ctype, ret_type): PyrexTypes.CFuncType(
