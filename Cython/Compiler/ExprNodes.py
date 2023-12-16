@@ -1327,7 +1327,7 @@ class ConstNode(AtomicExprNode):
         pass
 
     @staticmethod
-    def for_type(pos, value, type):
+    def for_type(pos, value, type, constant_result=constant_value_not_set):
         cls = ConstNode
         if type is PyrexTypes.c_null_ptr_type or (
                 (value == "NULL" or value == 0) and type.is_ptr):
@@ -1346,11 +1346,10 @@ class ConstNode(AtomicExprNode):
             cls = UnicodeNode
 
         if cls.type is type:
-            result = cls(pos, value=value)
+            result = cls(pos, value=value, constant_result=constant_result)
         else:
-            result = cls(pos, value=value, type=type)
+            result = cls(pos, value=value, type=type, constant_result=constant_result)
 
-        result.calculate_constant_result()
         return result
 
 

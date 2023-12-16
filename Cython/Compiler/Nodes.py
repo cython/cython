@@ -741,7 +741,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode.for_type(
-                            self.pos, value=str(return_type.exception_value), type=return_type)
+                            self.pos, value=str(return_type.exception_value), type=return_type,
+                            constant_result=return_type.exception_value)
             if self.exception_value is not None:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)
@@ -3120,7 +3121,8 @@ class DefNode(FuncDefNode):
         if exception_value is None and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
             exception_value = ConstNode.for_type(
-                self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type)
+                self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type,
+                constant_result=cfunc_type.exception_value)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,
