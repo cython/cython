@@ -402,7 +402,7 @@ def test_inexact_types(d: dict):
     ...    test_inexact_types(OrderedDict())
     ... except TypeError as e:
     ...    assert ("Cython is deliberately stricter than PEP-484" in e.args[0] or
-    ...               any("Cython is deliberately stricter than PEP-484" in getattr(e, "__notes__", []))), e
+    ...            any("Cython is deliberately stricter than PEP-484" in note for note in getattr(e, "__notes__", []))), e
     ... else:
     ...    assert False
     """
