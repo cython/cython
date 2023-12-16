@@ -316,9 +316,11 @@ class PyrexType(BaseType):
     def assignable_from_resolved_type(self, src_type):
         return self.same_as(src_type)
 
-    def assignment_failure_extra_info(self, src_type):
+    def assignment_failure_extra_info(self, src_type, src_name):
         """Override if you can useful provide extra
-        information about why an assignment didn't work."""
+        information about why an assignment didn't work.
+        
+        src_name may be None in unavailable"""
         return ""
 
     def as_argument_type(self):
@@ -2904,7 +2906,7 @@ class CPtrType(CPointerBaseType):
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
         return 0
 
-    def assignment_failure_extra_info(self, src_type):
+    def assignment_failure_extra_info(self, src_type, src_name):
         if self.base_type.is_cfunction and src_type.is_ptr:
             src_type = src_type.base_type.resolve()
         if self.base_type.is_cfunction and src_type.is_cfunction:
@@ -2915,10 +2917,14 @@ class CPtrType(CPointerBaseType):
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = "Exception values are incompatible."
-                if not self.base_type.exception_check and not self.base_type.exception_value:
-                    msg += " Suggest adding 'noexcept' to type '{}'.".format(src_type)
+                if not self.base_type.exception_check and self.base_type.exception_value is None:
+                    if src_name is None:
+                        src_name = "the value being assigned"
+                    else:
+                        src_name = "'{}'".format(src_name)
+                    msg += " Suggest adding 'noexcept' to the type of {}.".format(src_name)
                 return msg
-        return super().assignment_failure_extra_info(src_type)
+        return super().assignment_failure_extra_info(src_type, src_name)
 
     def specialize(self, values):
         base_type = self.base_type.specialize(values)

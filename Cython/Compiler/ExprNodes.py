@@ -1068,7 +1068,10 @@ class ExprNode(Node):
         return src
 
     def fail_assignment(self, dst_type):
-        extra_diagnostics = dst_type.assignment_failure_extra_info(self.type)
+        src_name = None
+        if hasattr(self, "entry"):
+            src_name = self.entry.name
+        extra_diagnostics = dst_type.assignment_failure_extra_info(self.type, src_name)
         if extra_diagnostics:
             extra_diagnostics = ". " + extra_diagnostics
         error(self.pos, "Cannot assign type '%s' to '%s'%s" % (
