@@ -650,6 +650,12 @@ declare our :func:`clip` function ``nogil``.
         .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_prange.pyx
             :lines: 3-
 
+.. note::
+
+    Currently, Cython is checking whether there was a raised exception after every call of the function ``clip()``. Checking a raised exception requires GIL to be held which causes an overhead (see :issue:`5586` for the details).
+    To avoid acquiring the GIL, the function is declared as ``noexcept`` or ``@cython.exceptval(check=False)``. See the :ref:`error_return_values` section for more details.
+
+
 We can have substantial speed gains for minimal effort:
 
 .. code-block:: ipythonconsole
