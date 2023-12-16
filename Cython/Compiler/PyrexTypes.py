@@ -3158,7 +3158,8 @@ class CFuncType(CType):
         return 1
 
     def _same_exception_value(self, other_exc_value):
-        if self.exception_value == other_exc_value:
+        # Use fallback comparison as strings since we usually read exception values as strings.
+        if self.exception_value == other_exc_value or str(self.exception_value) == str(other_exc_value):
             return 1
         if self.exception_check != '+':
             return 0
