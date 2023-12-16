@@ -611,20 +611,16 @@ class ExprNode(Node):
             e.__class__.__name__, e))
 
     def as_exception_value(self, env):
-        # Return the compile_time_value if possible.
+        # Return the constant Python value if possible.
         # This can be either a Python constant or a string
         # for types that can't be represented by a Python constant
         # (e.g. enums)
-        result = None
-        if self.constant_result is not constant_value_not_set:
+        if self.has_constant_result():
             return self.constant_result
-        if isinstance(result, Symtab.Entry):
-            result = result.cname
-        if result is None:
-            # this isn't the preferred fallback because it can end up with
-            # hard to distinguish between identical types, e.g. -1.0 vs -1
-            # for floats. However, it lets things like NULL and typecasts work
-            result = self.get_constant_c_result_code()
+        # this isn't the preferred fallback because it can end up
+        # hard to distinguish between identical types, e.g. -1.0 vs -1
+        # for floats. However, it lets things like NULL and typecasts work
+        result = self.get_constant_c_result_code()
         if result is not None:
             return result
         error(self.pos, "Exception value must be constant")
