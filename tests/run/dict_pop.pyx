@@ -59,7 +59,7 @@ def dict_pop_ignored(dict d, key):
     >>> dict_pop_ignored(d, 'a')
     >>> d
     {1: 2}
-    >>> dict_pop(d, FailHash())
+    >>> dict_pop_ignored(d, FailHash())
     Traceback (most recent call last):
     TypeError
     >>> d
