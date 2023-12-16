@@ -652,7 +652,9 @@ declare our :func:`clip` function ``nogil``.
 
 .. note::
 
-    Currently, Cython is checking whether there was a raised exception after every call of the function ``clip()``. Checking a raised exception requires GIL to be held which causes an overhead (see :issue:`5586` for the details).
+    Currently, Cython is checking whether there was a raised exception after every call of the function ``clip()``.
+    Checking a raised exception requires the GIL to be held which causes overhead inside a `nogil` loop.
+    The need to check here is a bug with functions returning a fused type (see :issue:`5586` for the details).
     To avoid acquiring the GIL, the function is declared as ``noexcept`` or ``@cython.exceptval(check=False)``. See the :ref:`error_return_values` section for more details.
 
 
