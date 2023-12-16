@@ -616,10 +616,8 @@ class ExprNode(Node):
         # for types that can't be represented by a Python constant
         # (e.g. enums)
         result = None
-        with local_errors(ignore=True):
-            self.calculate_constant_result()
-            if self.constant_result is not constant_value_not_set:
-                return self.constant_result
+        if self.constant_result is not constant_value_not_set:
+            return self.constant_result
         if isinstance(result, Symtab.Entry):
             result = result.cname
         if result is None:
@@ -1355,6 +1353,7 @@ class ConstNode(AtomicExprNode):
             result = cls(pos, value=value)
         else:
             result = cls(pos, value=value, type=type)
+
         result.calculate_constant_result()
         return result
 
