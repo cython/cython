@@ -617,7 +617,9 @@ class ExprNode(Node):
         # (e.g. enums)
         result = None
         with local_errors(ignore=True):
-            result = self.compile_time_value(env)
+            self.calculate_constant_result()
+            if self.constant_result is not constant_value_not_set:
+                return self.constant_result
         if isinstance(result, Symtab.Entry):
             result = result.cname
         if result is None:
@@ -1348,10 +1350,13 @@ class ConstNode(AtomicExprNode):
             cls = BytesNode
         elif type is unicode_type:
             cls = UnicodeNode
+
         if cls.type is type:
-            return cls(pos, value=value)
+            result = cls(pos, value=value)
         else:
-            return cls(pos, value=value, type=type)
+            result = cls(pos, value=value, type=type)
+        result.calculate_constant_result()
+        return result
 
 
 class BoolNode(ConstNode):

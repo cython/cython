@@ -742,7 +742,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode.for_type(
                             self.pos, value=str(return_type.exception_value), type=return_type)
-            if self.exception_value:
+            if self.exception_value is not None:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)
                     exc_val_type = self.exception_value.type
