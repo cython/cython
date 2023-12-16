@@ -1780,7 +1780,9 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 /////////////// CallUnboundCMethod0.proto ///////////////
 //@substitute: naming
 
+CYTHON_UNUSED
 static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self); /*proto*/
+
 #if CYTHON_COMPILING_IN_CPYTHON
 // FASTCALL methods receive "&empty_tuple" as simple "PyObject[0]*"
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  \
@@ -1823,6 +1825,7 @@ bad:
 
 /////////////// CallUnboundCMethod1.proto ///////////////
 
+CYTHON_UNUSED
 static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg);/*proto*/
 
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -1886,6 +1889,7 @@ bad:
 
 /////////////// CallUnboundCMethod2.proto ///////////////
 
+CYTHON_UNUSED
 static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg1, PyObject* arg2); /*proto*/
 
 #if CYTHON_COMPILING_IN_CPYTHON

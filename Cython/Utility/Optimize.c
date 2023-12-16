@@ -263,17 +263,57 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
 /////////////// py_dict_pop ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
-    if ((1)) {
-        return _PyDict_Pop(d, key, default_value);
-    } else
-    // avoid "function unused" warnings
-#endif
+#if PY_VERSION_HEX >= 0x030d00A2
+    PyObject *value;
+    if (PyDict_Pop(d, key, &value) == 0) {
+        if (default_value) {
+            Py_INCREF(default_value);
+        } else {
+            PyErr_SetObject(PyExc_KeyError, key);
+        }
+        value = default_value;
+    }
+    // On error, PyDict_Pop() returns -1 and sets value to NULL (our own exception return value).
+    return value;
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+    return _PyDict_Pop(d, key, default_value);
+#else
     if (default_value) {
         return CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key, default_value);
     } else {
         return CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key);
     }
+#endif
+}
+
+
+/////////////// py_dict_pop_ignore.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+
+/////////////// py_dict_pop_ignore ///////////////
+
+static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyObject *default_value) {
+    // We take the "default_value" as argument to avoid "unused" warnings, but we ignore it here.
+#if PY_VERSION_HEX >= 0x030d00A2
+    int result = PyDict_Pop(d, key, NULL);
+    CYTHON_UNUSED_VAR(default_value);
+    return (unlikely(result == -1)) ? -1 : 0;
+#else
+    PyObject *value;
+    CYTHON_UNUSED_VAR(default_value);
+
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+    value = _PyDict_Pop(d, key, Py_None);
+    #else
+    value = CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key, Py_None);
+    #endif
+
+    if (unlikely(value == NULL))
+        return -1;
+    Py_DECREF(value);
+    return 0;
+#endif
 }
 
 
