@@ -1510,8 +1510,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("PyObject_GC_Track(o);")
                 else:
                     # Need to check type pointer, see comment on dealloc call below.
-                    code.putln("if (unlikely(!%s) || PyType_IS_GC(%s)) PyObject_GC_Track(o);" % (
-                        base_cname, base_cname))
+                    code.putln("if (%sPyType_IS_GC(%s)) PyObject_GC_Track(o);" % (
+                        "" if base_type.is_builtin_type else "unlikely(!%s) || " % base_cname,
+                        base_cname))
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
