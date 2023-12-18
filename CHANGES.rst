@@ -2,14 +2,20 @@
 Cython Changelog
 ================
 
-0.29.37 (2023-11-15)
+0.29.37 (2023-12-18)
 ====================
 
 Bugs fixed
 ----------
 
+* Fix a potential crash while cleaning up subtypes of externally imported extension
+  types when terminating Python.  This was introduced in Cython 0.29.35.
+
 * Fix a ``complex`` related compile error on Windows.
   (Github issue :issue:`5512`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`, :issue:`5588`)
 
 * ``cythonize`` failed to consider the ``CYTHON_FORCE_REGEN`` env variable.
   Patch by Harmen Stoppels.  (Github issue :issue:`5712`)
