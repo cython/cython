@@ -29,12 +29,12 @@ jobs:
         # in all python versions and test failures (builtin_float) in 3.5<
         os: [ubuntu-20.04, macos-11]
         backend: [c, cpp]
-        python-version: ["2.7", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12-dev"]
+        python-version: ["2.7", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
         env: [{}]
 
         include:
           # Temporary - Allow failure on Python 3.12-dev jobs for Cython 0.29.x
-          - python-version: 3.12-dev
+          - python-version: 3.12
             allowed_failure: true
 
           # Ubuntu sub-jobs:
