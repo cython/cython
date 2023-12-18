@@ -2335,12 +2335,21 @@ def runtests(options, cmd_args, coverage=None):
             options.with_refnanny = False
 
     if options.with_refnanny:
-        from pyximport.pyxbuild import pyx_to_dll
-        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                             build_in_temp=True,
-                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        sys.path.insert(0, os.path.split(libpath)[0])
-        CDEFS.append(('CYTHON_REFNANNY', '1'))
+        try:
+            import Cython.Runtime.refnanny
+            CDEFS.append(('CYTHON_REFNANNY', '1'))
+        except ImportError:
+            if sys.version_info < (3, 12):
+                # pyximport requires 'distutils' and 'imp'
+                from pyximport.pyxbuild import pyx_to_dll
+                libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                     build_in_temp=True,
+                                     pyxbuild_dir=os.path.join(WORKDIR, "support"))
+                sys.path.insert(0, os.path.split(libpath)[0])
+                CDEFS.append(('CYTHON_REFNANNY', '1'))
+            else:
+                sys.stderr.write("Disabling refnanny in recent CPython\n")
+                options.with_refnanny = False
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
@@ -2556,7 +2565,10 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("   %s\n" % test)
 
     if options.with_refnanny:
-        import refnanny
+        try:
+            from Cython.Runtime import refnanny
+        except ImportError:
+            import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     result_code = 0 if options.exit_ok else not result.wasSuccessful()
