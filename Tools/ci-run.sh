@@ -31,6 +31,11 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+
+  if [[ $PYTHON_VERSION == "2.7"* ]]; then
+    # make sure we find Python 2.7 before Python 3.x
+    export PATH=/Library/Frameworks/Python.framework/Versions/2.7/bin:$PATH
+  fi
 else
   echo "No setup specified for $OSTYPE"
 fi
