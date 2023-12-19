@@ -10,15 +10,16 @@ Cython specific tests in addition to "test_coroutines_pep492.pyx"
 import sys
 
 
-def run_async(coro):
-    #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
+def run_async(coro, assert_type=True, send_value=None):
+    if assert_type:
+        #assert coro.__class__ is types.GeneratorType
+        assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
 
     buffer = []
     result = None
     while True:
         try:
-            buffer.append(coro.send(None))
+            buffer.append(coro.send(send_value))
         except StopIteration as ex:
             result = ex.value if sys.version_info >= (3, 5) else ex.args[0] if ex.args else None
             break
@@ -60,3 +61,46 @@ async def outer_with_nested(called):
 
     called.append('return inner')
     return inner
+
+# used in "await_in_genexpr_iterator"
+async def h(arg):
+    return [arg, arg+1]
+
+async def await_in_genexpr_iterator():
+    """
+    >>> _, x = run_async(await_in_genexpr_iterator())
+    >>> x
+    [4, 6]
+    """
+    lst = list  # obfuscate from any optimizations cython might try
+    return lst(x*2 for x in await h(2))
+
+def yield_in_genexpr_iterator():
+    """
+    Same test as await_in_genexpr_iterator but with yield.
+    (Possibly in the wrong place, but grouped with related tests)
+
+    >>> g = yield_in_genexpr_iterator()
+    >>> g.send(None)
+    >>> _, x = run_async(g, assert_type=False, send_value=[2, 3])
+    >>> x
+    [4, 6]
+    """
+    lst = list  # obfuscate from any optimizations cython might try
+    return lst(x*2 for x in (yield))
+
+def h_yield_from(arg):
+    yield
+    return [arg, arg+1]
+
+def yield_from_in_genexpr_iterator():
+    """
+    Same test as await_in_genexpr_iterator but with "yield from".
+    (Possibly in the wrong place, but grouped with related tests)
+
+    >>> _, x = run_async(yield_from_in_genexpr_iterator(), assert_type=False)
+    >>> x
+    [4, 6]
+    """
+    lst = list  # obfuscate from any optimizations cython might try
+    return lst(x*2 for x in (yield from h_yield_from(2)))
