@@ -64,11 +64,14 @@ Other changes
 * Includes all fixes as of Cython 3.0.7.
 
 
-3.0.7 (202?-??-??)
+3.0.7 (2023-12-19)
 ==================
 
 Bugs fixed
 ----------
+
+* In the iterator of generator expressions, ``await`` and ``yield`` were not correctly analysed.
+  (Github issue :issue:`5851`)
 
 * ``cpdef`` enums with the same name cimported from different modules could lead to
   invalid C code.
