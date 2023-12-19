@@ -86,6 +86,9 @@ Bugs fixed
 * Source files with non-ASCII file names could crash Cython.
   (Github issue :issue:`5873`)
 
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.37` release.
+
 
 3.0.6 (2023-11-26)
 ==================
