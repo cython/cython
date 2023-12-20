@@ -1,39 +1,39 @@
 # cython: infer_types=True
 import numpy as np
-cimport cython
+import cython
 
-ctypedef fused my_type:
-    int
-    double
-    long long
+my_type = cython.fused_type(cython.int, cython.double, cython.longlong)
 
 
-cdef my_type clip(my_type a, my_type min_value, my_type max_value):
+
+@cython.exceptval(check=False)
+@cython.cfunc
+def clip(a: my_type, min_value: my_type, max_value: my_type) -> my_type:
     return min(max(a, min_value), max_value)
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type b, my_type c):
+def compute(array_1: my_type[:, ::1], array_2: my_type[:, ::1], a: my_type, b: my_type, c: my_type):
 
     x_max = array_1.shape[0]
     y_max = array_1.shape[1]
 
     assert tuple(array_1.shape) == tuple(array_2.shape)
 
-    if my_type is int:
+    if my_type is cython.int:
         dtype = np.intc
-    elif my_type is double:
+    elif my_type is cython.double:
         dtype = np.double
     elif my_type is cython.longlong:
         dtype = np.longlong
 
     result = np.zeros((x_max, y_max), dtype=dtype)
-    cdef my_type[:, ::1] result_view = result
+    result_view: my_type[:, ::1] = result
 
-    cdef my_type tmp
-    cdef Py_ssize_t x, y
-
+    tmp: my_type
+    x: cython.Py_ssize_t
+    y: cython.Py_ssize_t
 
     for x in range(x_max):
         for y in range(y_max):
