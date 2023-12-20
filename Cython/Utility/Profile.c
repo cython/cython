@@ -111,7 +111,6 @@
 
 #endif
 
-  #ifdef WITH_THREAD
   #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
   if (nogil) {                                                                           \
       if (CYTHON_TRACE_NOGIL) {                                                          \
@@ -131,15 +130,6 @@
           if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   }
-  #else
-  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
-  {   PyThreadState* tstate = PyThreadState_GET();                                       \
-      if (__Pyx_IsTracing(tstate, 1, 1)) {                                               \
-          __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, tstate, funcname, srcfile, firstlineno);  \
-          if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
-      }                                                                                  \
-  }
-  #endif
 
   #define __Pyx_TraceException()                                                           \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
@@ -172,7 +162,6 @@
       __Pyx_ErrRestoreInState(tstate, type, value, traceback);
   }
 
-  #ifdef WITH_THREAD
   #define __Pyx_TraceReturn(result, nogil)                                                \
   if (likely(!__Pyx_use_tracing)); else {                                                 \
       if (nogil) {                                                                        \
@@ -192,15 +181,6 @@
           }                                                                               \
       }                                                                                   \
   }
-  #else
-  #define __Pyx_TraceReturn(result, nogil)                                                \
-  if (likely(!__Pyx_use_tracing)); else {                                                 \
-      PyThreadState* tstate = __Pyx_PyThreadState_Current;                                \
-      if (__Pyx_IsTracing(tstate, 0, 0)) {                                                \
-          __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result);          \
-      }                                                                                   \
-  }
-  #endif
 
   static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, PyThreadState* tstate, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
@@ -238,7 +218,6 @@
       return ret;
   }
 
-  #ifdef WITH_THREAD
   #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       if (nogil) {                                                                         \
@@ -261,16 +240,6 @@
           }                                                                                \
       }                                                                                    \
   }
-  #else
-  #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
-  if (likely(!__Pyx_use_tracing)); else {                                                  \
-      PyThreadState* tstate = __Pyx_PyThreadState_Current;                                 \
-      if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
-          int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);              \
-          if (unlikely(ret)) goto_error;                                                   \
-      }                                                                                    \
-  }
-  #endif
 #else
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;
@@ -306,10 +275,6 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             Py_INCREF(Py_None);
             (*frame)->f_trace = Py_None;
         }
-#if PY_VERSION_HEX < 0x030400B1
-    } else {
-        (*frame)->f_tstate = tstate;
-#endif
     }
     __Pyx_PyFrame_SetLineNumber(*frame, firstlineno);
 
@@ -337,46 +302,11 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
 }
 
 static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
-    PyCodeObject *py_code = 0;
-
-#if PY_MAJOR_VERSION >= 3
-    py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
+    PyCodeObject *py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
     // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
     if (likely(py_code)) {
         py_code->co_flags |= CO_OPTIMIZED | CO_NEWLOCALS;
     }
-#else
-    PyObject *py_srcfile = 0;
-    PyObject *py_funcname = 0;
-
-    py_funcname = PyString_FromString(funcname);
-    if (unlikely(!py_funcname)) goto bad;
-    py_srcfile = PyString_FromString(srcfile);
-    if (unlikely(!py_srcfile)) goto bad;
-
-    py_code = PyCode_New(
-        0,                /*int argcount,*/
-        0,                /*int nlocals,*/
-        0,                /*int stacksize,*/
-        // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
-        CO_OPTIMIZED | CO_NEWLOCALS,  /*int flags,*/
-        $empty_bytes,     /*PyObject *code,*/
-        $empty_tuple,     /*PyObject *consts,*/
-        $empty_tuple,     /*PyObject *names,*/
-        $empty_tuple,     /*PyObject *varnames,*/
-        $empty_tuple,     /*PyObject *freevars,*/
-        $empty_tuple,     /*PyObject *cellvars,*/
-        py_srcfile,       /*PyObject *filename,*/
-        py_funcname,      /*PyObject *name,*/
-        firstlineno,      /*int firstlineno,*/
-        $empty_bytes      /*PyObject *lnotab*/
-    );
-
-bad:
-    Py_XDECREF(py_srcfile);
-    Py_XDECREF(py_funcname);
-#endif
-
     return py_code;
 }
 

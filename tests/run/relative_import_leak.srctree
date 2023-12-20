@@ -1,0 +1,63 @@
+PYTHON test_relative_import_leak.py
+
+######## test_relative_import_leak.py ########
+
+import os
+import sys
+from contextlib import contextmanager
+from Cython.Compiler.Errors import CompileError
+from Cython.Build.Dependencies import cythonize
+from io import StringIO
+
+@contextmanager
+def assert_stderr(expected_error):
+    sys.path.append('other')
+    sys.stderr = temp_stderr = StringIO()
+    try:
+        yield
+    except CompileError:
+        assert expected_error in temp_stderr.getvalue(), '"%s" not found in stderr' % expected_error
+    else:
+        assert False, 'The module was imported even when it should not be importable'
+    finally:
+        sys.stderr = sys.__stderr__
+        temp_stderr.close()
+
+pxd_file = os.path.join('pkg', 'bb.pxd')
+
+pyx_file = os.path.join('pkg', 'aa.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
+    cythonize(pyx_file)
+
+pyx_file = os.path.join('pkg', 'ab.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
+    cythonize(pyx_file)
+
+pyx_file = os.path.join('pkg', 'pkg2', 'ac.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
+    cythonize(pyx_file)
+
+pyx_file = os.path.join('pkg', 'pkg2', 'ad.pyx')
+with assert_stderr(pyx_file + ":1:0: '" + pxd_file + "' not found"):
+    cythonize(pyx_file)
+
+######## pkg/__init__.py ########
+
+######## pkg/aa.pyx ########
+from . cimport bb
+
+######## pkg/ab.pyx ########
+from .bb cimport ULong
+
+######## pkg/pkg2/__init__.py ########
+
+######## pkg/pkg2/ac.pyx ########
+from .. cimport bb
+
+######## pkg/pkg2/ad.pyx ########
+from ..bb cimport ULong
+
+######## other/pkg/__init__.py ########
+
+######## other/pkg/bb.pxd ########
+ctypedef unsigned long ULong

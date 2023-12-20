@@ -1,8 +1,8 @@
 cimport cython
 
 cdef extern from *:
-    cdef Py_ssize_t PY_SSIZE_T_MIN
-    cdef Py_ssize_t PY_SSIZE_T_MAX
+    const Py_ssize_t PY_SSIZE_T_MIN
+    const Py_ssize_t PY_SSIZE_T_MAX
 
 SSIZE_T_MAX = PY_SSIZE_T_MAX
 SSIZE_T_MIN = PY_SSIZE_T_MIN
@@ -10,8 +10,6 @@ SSIZE_T_MIN = PY_SSIZE_T_MIN
 
 b_a = b'a'
 b_b = b'b'
-
-import sys
 
 
 @cython.test_assert_path_exists(
@@ -261,7 +259,7 @@ def bytes_join(bytes s, *args):
     babab
     """
     result = s.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 
@@ -277,7 +275,7 @@ def literal_join(*args):
     b|b|b|b
     """
     result = b'|'.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 def fromhex(bytes b):
@@ -286,6 +284,4 @@ def fromhex(bytes b):
     Optimization of bound method calls was breaking classmethods
     >>> fromhex(b"")
     """
-    if sys.version_info[0] > 2:
-        assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'
-    # method doesn't exist on Py2!
+    assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'

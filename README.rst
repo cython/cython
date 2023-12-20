@@ -48,10 +48,6 @@ Contributing:
 Want to contribute to the Cython project?
 Here is some `help to get you started <https://github.com/cython/cython/blob/master/docs/CONTRIBUTING.rst>`_.
 
-We are currently building the next great Cython edition:
-`Cython 3.0 <https://github.com/cython/cython/milestone/58>`_.
-You can help us make the life of Python 3.x users easier.
-
 
 Differences to other Python compilers
 -------------------------------------

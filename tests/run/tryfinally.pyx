@@ -3,7 +3,6 @@
 
 import string
 import sys
-IS_PY3 = sys.version_info[0] >= 3
 
 cimport cython
 
@@ -83,11 +82,10 @@ def except_finally_reraise_new():
     ...         finally:
     ...             raise
     >>> try: py_check()
-    ... except ValueError: assert not IS_PY3
-    ... except TypeError: assert IS_PY3
+    ... except TypeError: pass
     ... else: assert False
     >>> try: except_finally_reraise_new()
-    ... except TypeError: pass  # currently only Py3 semantics implemented
+    ... except TypeError: pass
     ... else: assert False
     """
     try:
@@ -101,15 +99,10 @@ def except_finally_reraise_new():
 
 def finally_exception_check_return():
     """
-    >>> if not IS_PY3:
-    ...     sys.exc_clear()
     >>> def py_check():
     ...     try: raise ValueError()
     ...     finally:
-    ...         if IS_PY3:
-    ...             assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-    ...         else:
-    ...             assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+    ...         assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
     ...         return 1
     >>> py_check()
     1
@@ -119,10 +112,7 @@ def finally_exception_check_return():
     try:
         raise ValueError()
     finally:
-        if IS_PY3:
-            assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-        else:
-            assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+        assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
         return 1
 
 
@@ -135,28 +125,18 @@ cdef void swallow():
 
 def finally_exception_check_swallow():
     """
-    >>> if not IS_PY3:
-    ...     sys.exc_clear()
     >>> def swallow():
     ...     try: raise TypeError()
     ...     except: return
     >>> def py_check():
     ...     try: raise ValueError()
     ...     finally:
-    ...         if IS_PY3:
-    ...             assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-    ...         else:
-    ...             assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+    ...         assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
     ...         swallow()
-    ...         if IS_PY3:
-    ...             assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-    ...         else:
-    ...             assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+    ...         assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
     >>> py_check()
     Traceback (most recent call last):
     ValueError
-    >>> if not IS_PY3:
-    ...     sys.exc_clear()
     >>> finally_exception_check_swallow()
     Traceback (most recent call last):
     ValueError
@@ -164,30 +144,19 @@ def finally_exception_check_swallow():
     try:
         raise ValueError()
     finally:
-        if IS_PY3:
-            assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-        else:
-            assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+        assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
         swallow()
-        if IS_PY3:
-            assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-        else:
-            assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+        assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
 
 
 def finally_exception_break_check():
     """
-    >>> if not IS_PY3:
-    ...     sys.exc_clear()
     >>> def py_check():
     ...     i = None
     ...     for i in range(2):
     ...         try: raise ValueError()
     ...         finally:
-    ...             if IS_PY3:
-    ...                 assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-    ...             else:
-    ...                 assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+    ...             assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
     ...             break
     ...     assert sys.exc_info() == (None, None, None), str(sys.exc_info())
     ...     return i
@@ -201,10 +170,7 @@ def finally_exception_break_check():
         try:
             raise ValueError()
         finally:
-            if IS_PY3:
-                assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-            else:
-                assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+            assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
             break
     assert sys.exc_info() == (None, None, None), str(sys.exc_info())
     return i
@@ -212,8 +178,6 @@ def finally_exception_break_check():
 
 def finally_exception_break_check_with_swallowed_raise():
     """
-    >>> if not IS_PY3:
-    ...     sys.exc_clear()
     >>> def swallow():
     ...     try: raise TypeError()
     ...     except: return
@@ -222,15 +186,9 @@ def finally_exception_break_check_with_swallowed_raise():
     ...     for i in range(2):
     ...         try: raise ValueError()
     ...         finally:
-    ...             if IS_PY3:
-    ...                 assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-    ...             else:
-    ...                 assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+    ...             assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
     ...             swallow()
-    ...             if IS_PY3:
-    ...                 assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-    ...             else:
-    ...                 assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+    ...             assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
     ...             break
     ...     assert sys.exc_info() == (None, None, None), str(sys.exc_info())
     ...     return i
@@ -244,15 +202,9 @@ def finally_exception_break_check_with_swallowed_raise():
         try:
             raise ValueError()
         finally:
-            if IS_PY3:
-                assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-            else:
-                assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+            assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
             swallow()
-            if IS_PY3:
-                assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
-            else:
-                assert sys.exc_info() == (None, None, None), str(sys.exc_info())
+            assert sys.exc_info()[0] == ValueError, str(sys.exc_info())
             break
     assert sys.exc_info() == (None, None, None), str(sys.exc_info())
     return i
