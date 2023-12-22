@@ -32,6 +32,32 @@ def test_parallel():
 
     free(buf)
 
+
+def test_parallel_if(int size):
+    """
+    >>> test_parallel_if(4)
+    >>> test_parallel_if(6)
+    """
+    cdef int maxthreads = openmp.omp_get_max_threads()
+    cdef int *buf = <int *> malloc(sizeof(int) * maxthreads)
+
+    if buf == NULL:
+        raise MemoryError
+
+    with nogil, cython.parallel.parallel(if_=size > 5):
+        buf[threadid()] = threadid()
+        # Recognise threadid() also when it's used in a function argument.
+        # See https://github.com/cython/cython/issues/3594
+        buf[forward(cython.parallel.threadid())] = forward(threadid())
+
+    for i in range(maxthreads):
+        if size > 5:
+            assert buf[i] == i
+        else:
+            assert buf[i] == 0
+
+    free(buf)
+
 cdef int get_num_threads() noexcept with gil:
     print "get_num_threads called"
     return 3

@@ -9079,7 +9079,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                                 construct (replaced by its compile time value)
     """
 
-    child_attrs = ['body', 'num_threads']
+    child_attrs = ['body', 'num_threads', 'if_']
 
     body = None
 
@@ -9090,6 +9090,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     num_threads = None
     chunksize = None
+    _if = None
 
     parallel_exc = (
         Naming.parallel_exc_type,
@@ -9132,9 +9133,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.body.analyse_declarations(env)
 
         self.num_threads = None
+        self.if_ = None
 
         if self.kwargs:
-            # Try to find num_threads and chunksize keyword arguments
+            # Try to find num_threads, if_ and chunksize keyword arguments
             pairs = []
             seen = set()
             for dictitem in self.kwargs.key_value_pairs:
@@ -9144,6 +9146,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 if dictitem.key.value == 'num_threads':
                     if not dictitem.value.is_none:
                         self.num_threads = dictitem.value
+                elif dictitem.key.value == 'if_':
+                    if not dictitem.value.is_none:
+                        self.if_ = dictitem.value
                 elif self.is_prange and dictitem.key.value == 'chunksize':
                     if not dictitem.value.is_none:
                         self.chunksize = dictitem.value
@@ -9169,6 +9174,12 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         if self.num_threads:
             self.num_threads = self.num_threads.analyse_expressions(env)
+
+        if self.if_:
+            if self.is_parallel:
+                self.if_ = self.if_.analyse_expressions(env)
+            else:
+                error(self.pos, "if_ must de declared in the parent parallel section")
 
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
@@ -9779,9 +9790,10 @@ class ParallelWithBlockNode(ParallelStatNode):
     This node represents a 'with cython.parallel.parallel():' block
     """
 
-    valid_keyword_arguments = ['num_threads']
+    valid_keyword_arguments = ['num_threads', 'if_']
 
     num_threads = None
+    if_ = None
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -9793,8 +9805,16 @@ class ParallelWithBlockNode(ParallelStatNode):
         self.declare_closure_privates(code)
         self.setup_parallel_control_flow_block(code)
 
+        if self.if_ is not None:
+            self.if_.generate_evaluation_code(code)
+
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
+
+        # Add if statement, if present
+        if self.if_ is not None:
+            code.put(" if(%s)" % self.if_.result())
+
 
         if self.privates:
             privates = [e.cname for e in self.privates
@@ -9848,7 +9868,7 @@ class ParallelRangeNode(ParallelStatNode):
     nogil = None
     schedule = None
 
-    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize']
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'if_']
 
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
@@ -10035,6 +10055,9 @@ class ParallelRangeNode(ParallelStatNode):
 
             fmt_dict[name] = result
 
+        if self.if_ is not None:
+            self.if_.generate_evaluation_code(code)
+
         fmt_dict['i'] = code.funcstate.allocate_temp(self.index_type, False)
         fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.index_type, False)
 
@@ -10099,6 +10122,11 @@ class ParallelRangeNode(ParallelStatNode):
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
             code.put("#pragma omp parallel")
+
+            # Add if-statements to code
+            if self.if_ is not None:
+                code.put(" if(%s)" % self.if_.result())
+
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.privatization_insertion_point
             code.putln("")
