@@ -866,7 +866,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         PyrexTypes.c_int_type.create_from_py_utility_code(env)
 
         code.put(Nodes.branch_prediction_macros)
+
+        # For C,  taking an address of a variable is enough to make returning it
+        # defined behaviour. For C++ this isn't true, and we genuinely have to
+        # make sure a variable is initialized.
+        code.putln('#if __cplusplus')
+        code.putln('#include <type_traits>')
+        code.putln('template <typename T> void __Pyx_pretend_to_initialize(T* ptr) {')
+        # In C++11 we have enough introspection to work out which types it's actually
+        # necessary to apply this to (non-trivial types will have been initialized by
+        # the definition). Below that just apply it to eveything.
+        code.putln('#if __cplusplus > 201103L')
+        code.putln('if ((std::is_trivially_default_constructible<T>::value))')
+        code.putln('#endif')
+        code.putln('*ptr = T();')
+        code.putln('}')
+        code.putln('#else')
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
+        code.putln('#endif')
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
