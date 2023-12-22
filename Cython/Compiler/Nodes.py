@@ -9090,7 +9090,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     num_threads = None
     chunksize = None
-    _if = None
+    if_ = None
 
     parallel_exc = (
         Naming.parallel_exc_type,
