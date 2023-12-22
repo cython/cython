@@ -8597,6 +8597,8 @@ class TryFinallyStatNode(StatNode):
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+            # although the thread state is already assigned, that can't be trusted after releasing the GIL
+            code.putln("__Pyx_PyThreadState_assign")
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -8623,6 +8625,8 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+            # although the thread state is already assigned, that can't be trusted after releasing the GIL
+            code.putln("__Pyx_PyThreadState_assign")
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
