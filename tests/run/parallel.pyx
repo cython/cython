@@ -73,27 +73,27 @@ def test_num_threads(int size):
 
     print num_threads
 
-    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), if_=size > 5):
+    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), use_threads_if=size > 5):
         p[0] = openmp.omp_get_num_threads()
 
     print num_threads
 
     # Checks that temporary variables are released properly
-    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), if_=check_size(size)):
+    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), use_threads_if=check_size(size)):
         p[0] = openmp.omp_get_num_threads()
 
     print num_threads
 
     cdef int i
     # Checks that temporary variables are released properly
-    for i in prange(1, nogil=True, num_threads=get_num_threads(), if_=check_size(size)):
+    for i in prange(1, nogil=True, num_threads=get_num_threads(), use_threads_if=check_size(size)):
         p[0] = openmp.omp_get_num_threads()
         break
 
     print num_threads
 
     num_threads = 0xbad
-    for i in prange(1, nogil=True, num_threads=get_num_threads(), if_=size > 5):
+    for i in prange(1, nogil=True, num_threads=get_num_threads(), use_threads_if=size > 5):
         p[0] = openmp.omp_get_num_threads()
         break
 

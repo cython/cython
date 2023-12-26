@@ -152,10 +152,10 @@ with nogil, cython.parallel.parallel():
 cdef bint gil_function():
     return True
 
-for i in prange(10, nogil=True, if_=gil_function()):
+for i in prange(10, nogil=True, use_threads_if=gil_function()):
     pass
 
-with nogil, parallel.parallel(if_=gil_function()):
+with nogil, parallel.parallel(use_threads_if=gil_function()):
     pass
 
 def bar():
@@ -164,10 +164,10 @@ def bar():
 
     cdef int i
 
-    for i in prange(10, nogil=True, if_=python_var):
+    for i in prange(10, nogil=True, use_threads_if=python_var):
         pass
 
-    with nogil, parallel.parallel(if_=python_var):
+    with nogil, parallel.parallel(use_threads_if=python_var):
         pass
 
 _ERRORS = u"""
@@ -204,8 +204,8 @@ _ERRORS = u"""
 139:62: Chunksize not valid for the schedule runtime
 145:70: Calling gil-requiring function not allowed without gil
 149:33: Nested parallel with blocks are disallowed
-155:48: Calling gil-requiring function not allowed without gil
-158:46: Calling gil-requiring function not allowed without gil
-167:40: if_ may not be a Python object as we don't have the GIL
-170:38: if_ may not be a Python object as we don't have the GIL
+155:59: Calling gil-requiring function not allowed without gil
+158:57: Calling gil-requiring function not allowed without gil
+167:51: use_threads_if may not be a Python object as we don't have the GIL
+170:49: use_threads_if may not be a Python object as we don't have the GIL
 """
