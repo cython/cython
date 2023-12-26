@@ -10137,7 +10137,6 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             code.put("#pragma omp parallel")
 
-            # Add if-statements to code
             if self.if_ is not None:
                 code.put(" if(%s)" % self.if_.result())
 
