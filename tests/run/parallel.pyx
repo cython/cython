@@ -36,6 +36,9 @@ cdef int get_num_threads() noexcept with gil:
     print "get_num_threads called"
     return 3
 
+cdef bint check_size(int size) nogil:
+    return size > 5
+
 def test_num_threads(int size):
     """
     >>> test_num_threads(6)
@@ -44,7 +47,15 @@ def test_num_threads(int size):
     3
     get_num_threads called
     3
+    get_num_threads called
+    3
+    get_num_threads called
+    3
     >>> test_num_threads(4)
+    1
+    get_num_threads called
+    1
+    get_num_threads called
     1
     get_num_threads called
     1
@@ -67,7 +78,20 @@ def test_num_threads(int size):
 
     print num_threads
 
+    # Checks that temporary variables are released properly
+    with nogil, cython.parallel.parallel(num_threads=get_num_threads(), if_=check_size(size)):
+        p[0] = openmp.omp_get_num_threads()
+
+    print num_threads
+
     cdef int i
+    # Checks that temporary variables are released properly
+    for i in prange(1, nogil=True, num_threads=get_num_threads(), if_=check_size(size)):
+        p[0] = openmp.omp_get_num_threads()
+        break
+
+    print num_threads
+
     num_threads = 0xbad
     for i in prange(1, nogil=True, num_threads=get_num_threads(), if_=size > 5):
         p[0] = openmp.omp_get_num_threads()

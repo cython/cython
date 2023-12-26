@@ -9784,6 +9784,12 @@ class ParallelStatNode(StatNode, ParallelNode):
         if not self.parent:
             code.redef_builtin_expect(self.redef_condition)
 
+    def _parameters_nogil_check(self, env, names, nodes):
+        for name, node in zip(names, nodes):
+            if node is not None and node.type.is_pyobject:
+                error(node.pos, "%s may not be a Python object "
+                                "as we don't have the GIL" % name)
+
 
 class ParallelWithBlockNode(ParallelStatNode):
     """
@@ -9802,11 +9808,12 @@ class ParallelWithBlockNode(ParallelStatNode):
                             "positional arguments")
 
     def generate_execution_code(self, code):
-        self.declare_closure_privates(code)
-        self.setup_parallel_control_flow_block(code)
 
         if self.if_ is not None:
             self.if_.generate_evaluation_code(code)
+
+        self.declare_closure_privates(code)
+        self.setup_parallel_control_flow_block(code)
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
@@ -9842,10 +9849,21 @@ class ParallelWithBlockNode(ParallelStatNode):
         return_ = code.label_used(code.return_label)
 
         self.restore_labels(code)
+
+        # ------ cleanup ------
         self.end_parallel_control_flow_block(code, break_=break_,
                                              continue_=continue_,
                                              return_=return_)
+
+        if self.if_ is not None:
+            self.if_.generate_disposal_code(code)
+            self.if_.free_temps(code)
+
         self.release_closure_privates(code)
+
+    def nogil_check(self, env):
+        names = 'if_',
+        self._parameters_nogil_check(env, ['if_'], [self.if_])
 
 
 class ParallelRangeNode(ParallelStatNode):
@@ -9857,7 +9875,7 @@ class ParallelRangeNode(ParallelStatNode):
     """
 
     child_attrs = ['body', 'target', 'else_clause', 'args', 'num_threads',
-                   'chunksize']
+                   'chunksize', 'if_']
 
     body = target = else_clause = args = None
 
@@ -9982,12 +10000,9 @@ class ParallelRangeNode(ParallelStatNode):
         return node
 
     def nogil_check(self, env):
-        names = 'start', 'stop', 'step', 'target'
-        nodes = self.start, self.stop, self.step, self.target
-        for name, node in zip(names, nodes):
-            if node is not None and node.type.is_pyobject:
-                error(node.pos, "%s may not be a Python object "
-                                "as we don't have the GIL" % name)
+        names = 'start', 'stop', 'step', 'target', 'if_'
+        nodes = self.start, self.stop, self.step, self.target, self.if_
+        self._parameters_nogil_check(env, names, nodes)
 
     def generate_execution_code(self, code):
         """
@@ -10100,7 +10115,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step + (self.chunksize,):
+        for temp in start_stop_step + (self.chunksize, self.if_):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)
