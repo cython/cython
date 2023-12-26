@@ -9818,9 +9818,8 @@ class ParallelWithBlockNode(ParallelStatNode):
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
 
-        # Add if statement, if present
         if self.if_ is not None:
-            code.put(" if(%s)" % self.if_.result())
+            code.put("if(%s) " % self.if_.result())
 
 
         if self.privates:
