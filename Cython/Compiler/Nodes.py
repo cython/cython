@@ -9136,7 +9136,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.use_threads_if = None
 
         if self.kwargs:
-            # Try to find num_threads, if_ and chunksize keyword arguments
+            # Try to find known keyword arguments.
             pairs = []
             seen = set()
             for dictitem in self.kwargs.key_value_pairs:
@@ -9179,7 +9179,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             if self.is_parallel:
                 self.use_threads_if = self.use_threads_if.analyse_expressions(env)
             else:
-                error(self.pos, "if_ must de declared in the parent parallel section")
+                error(self.pos, "'use_threads_if' must de declared in the parent parallel section")
 
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
@@ -9800,7 +9800,7 @@ class ParallelWithBlockNode(ParallelStatNode):
     valid_keyword_arguments = ['num_threads', 'use_threads_if']
 
     num_threads = None
-    if_ = None
+    use_threads_if = None
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -9862,7 +9862,6 @@ class ParallelWithBlockNode(ParallelStatNode):
         self.release_closure_privates(code)
 
     def nogil_check(self, env):
-        names = 'use_threads_if',
         self._parameters_nogil_check(env, ['use_threads_if'], [self.use_threads_if])
 
 
@@ -10071,7 +10070,7 @@ class ParallelRangeNode(ParallelStatNode):
             fmt_dict[name] = result
 
         if self.use_threads_if is not None:
-            x = self.use_threads_if.generate_evaluation_code(code)
+            self.use_threads_if.generate_evaluation_code(code)
 
         fmt_dict['i'] = code.funcstate.allocate_temp(self.index_type, False)
         fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.index_type, False)
