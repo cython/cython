@@ -9083,7 +9083,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                                 construct (replaced by its compile time value)
     """
 
-    child_attrs = ['body', 'num_threads']
+    child_attrs = ['body', 'num_threads', 'threading_condition']
 
     body = None
 
@@ -9094,6 +9094,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     num_threads = None
     chunksize = None
+    threading_condition = None
 
     parallel_exc = (
         Naming.parallel_exc_type,
@@ -9136,9 +9137,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.body.analyse_declarations(env)
 
         self.num_threads = None
+        self.threading_condition = None
 
         if self.kwargs:
-            # Try to find num_threads and chunksize keyword arguments
+            # Try to find known keyword arguments.
             pairs = []
             seen = set()
             for dictitem in self.kwargs.key_value_pairs:
@@ -9148,6 +9150,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 if dictitem.key.value == 'num_threads':
                     if not dictitem.value.is_none:
                         self.num_threads = dictitem.value
+                elif dictitem.key.value == 'use_threads_if':
+                    if not dictitem.value.is_none:
+                        self.threading_condition = dictitem.value
                 elif self.is_prange and dictitem.key.value == 'chunksize':
                     if not dictitem.value.is_none:
                         self.chunksize = dictitem.value
@@ -9173,6 +9178,12 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         if self.num_threads:
             self.num_threads = self.num_threads.analyse_expressions(env)
+
+        if self.threading_condition:
+            if self.is_parallel:
+                self.threading_condition = self.threading_condition.analyse_expressions(env)
+            else:
+                error(self.pos, "'use_threads_if' must de declared in the parent parallel section")
 
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
@@ -9777,15 +9788,23 @@ class ParallelStatNode(StatNode, ParallelNode):
         if not self.parent:
             code.redef_builtin_expect(self.redef_condition)
 
+    def _parameters_nogil_check(self, env, names, nodes):
+        for name, node in zip(names, nodes):
+            if node is not None and node.type.is_pyobject:
+                error(node.pos, "%s may not be a Python object "
+                                "as we don't have the GIL" % name)
+
+
 
 class ParallelWithBlockNode(ParallelStatNode):
     """
     This node represents a 'with cython.parallel.parallel():' block
     """
 
-    valid_keyword_arguments = ['num_threads']
+    valid_keyword_arguments = ['num_threads', 'use_threads_if']
 
     num_threads = None
+    threading_condition = None
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -9794,11 +9813,19 @@ class ParallelWithBlockNode(ParallelStatNode):
                             "positional arguments")
 
     def generate_execution_code(self, code):
+
+        if self.threading_condition is not None:
+            self.threading_condition.generate_evaluation_code(code)
+
         self.declare_closure_privates(code)
         self.setup_parallel_control_flow_block(code)
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
+
+        if self.threading_condition is not None:
+            code.put("if(%s) " % self.threading_condition.result())
+
 
         if self.privates:
             privates = [e.cname for e in self.privates
@@ -9826,10 +9853,20 @@ class ParallelWithBlockNode(ParallelStatNode):
         return_ = code.label_used(code.return_label)
 
         self.restore_labels(code)
+
+        # ------ cleanup ------
         self.end_parallel_control_flow_block(code, break_=break_,
                                              continue_=continue_,
                                              return_=return_)
+
+        if self.threading_condition is not None:
+            self.threading_condition.generate_disposal_code(code)
+            self.threading_condition.free_temps(code)
+
         self.release_closure_privates(code)
+
+    def nogil_check(self, env):
+        self._parameters_nogil_check(env, ['use_threads_if'], [self.threading_condition])
 
 
 class ParallelRangeNode(ParallelStatNode):
@@ -9841,7 +9878,7 @@ class ParallelRangeNode(ParallelStatNode):
     """
 
     child_attrs = ['body', 'target', 'else_clause', 'args', 'num_threads',
-                   'chunksize']
+                   'chunksize', 'threading_condition']
 
     body = target = else_clause = args = None
 
@@ -9852,7 +9889,7 @@ class ParallelRangeNode(ParallelStatNode):
     nogil = None
     schedule = None
 
-    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize']
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
 
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
@@ -9966,12 +10003,9 @@ class ParallelRangeNode(ParallelStatNode):
         return node
 
     def nogil_check(self, env):
-        names = 'start', 'stop', 'step', 'target'
-        nodes = self.start, self.stop, self.step, self.target
-        for name, node in zip(names, nodes):
-            if node is not None and node.type.is_pyobject:
-                error(node.pos, "%s may not be a Python object "
-                                "as we don't have the GIL" % name)
+        names = 'start', 'stop', 'step', 'target', 'use_threads_if'
+        nodes = self.start, self.stop, self.step, self.target, self.threading_condition
+        self._parameters_nogil_check(env, names, nodes)
 
     def generate_execution_code(self, code):
         """
@@ -10039,6 +10073,9 @@ class ParallelRangeNode(ParallelStatNode):
 
             fmt_dict[name] = result
 
+        if self.threading_condition is not None:
+            self.threading_condition.generate_evaluation_code(code)
+
         fmt_dict['i'] = code.funcstate.allocate_temp(self.index_type, False)
         fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.index_type, False)
 
@@ -10081,7 +10118,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step + (self.chunksize,):
+        for temp in start_stop_step + (self.chunksize, self.threading_condition):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)
@@ -10103,6 +10140,10 @@ class ParallelRangeNode(ParallelStatNode):
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
             code.put("#pragma omp parallel")
+
+            if self.threading_condition is not None:
+                code.put(" if(%s)" % self.threading_condition.result())
+
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.privatization_insertion_point
             code.putln("")
