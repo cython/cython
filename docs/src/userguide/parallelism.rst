@@ -53,10 +53,10 @@ It currently supports OpenMP, but later on more backends might be supported.
         If ``nogil`` is true, the loop will be wrapped in a nogil section.
 
     :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
-        is evaluated as ``True``. Otherwise the code is run sequentially. Running
+        is evaluated as true. Otherwise the code is run sequentially. Running
         the loop sequentially can be handy in the cases when the cost of spawning
-        threads is greater than the benefirt of running the loop in parallel
-        (e.g. for small data set).
+        threads is greater than the benefit of running the loop in parallel
+        (e.g. for small data sets).
 
     :param schedule:
         The ``schedule`` is passed to OpenMP and can be one of the following:
@@ -147,7 +147,7 @@ Example with a :term:`typed memoryview<Typed memoryview>` (e.g. a NumPy array)
 
         .. literalinclude:: ../../examples/userguide/parallelism/memoryview_sum.pyx
 
-Example with a conditional parallelism:
+Example with conditional parallelism:
 
 .. tabs::
 
