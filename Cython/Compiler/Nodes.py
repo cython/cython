@@ -878,7 +878,6 @@ class CArgDeclNode(Node):
     # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
-    # type_from_annotation boolean      Was the type deduced from an annotation
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -899,7 +898,6 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
-    type_from_annotation = False
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -1001,8 +999,6 @@ class CArgDeclNode(Node):
             elif not self.or_none and arg_type.can_be_optional():
                 self.not_none = True
 
-        if arg_type:
-            self.type_from_annotation = True
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -2459,18 +2455,13 @@ class FuncDefNode(StatNode, BlockNode):
                 UtilityCode.load_cached("ArgTypeTest", "FunctionArguments.c"))
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.entry.cname
-            exact = 0
-            if arg.type.is_builtin_type and arg.type.require_exact:
-                # 2 is used to indicate that the type is from the annotation
-                # and provide a little extra info on failure.
-                exact = 2 if arg.type_from_annotation else 1
             code.putln(
                 'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, %s, %s))) %s' % (
                     arg_code,
                     typeptr_cname,
                     arg.accept_none,
                     arg.name_cstring,
-                    exact,
+                    arg.type.is_builtin_type and arg.type.require_exact,
                     code.error_goto(arg.pos)))
         else:
             error(arg.pos, "Cannot test type of extern C class without type object name specification")

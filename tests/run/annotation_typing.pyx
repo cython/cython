@@ -390,24 +390,6 @@ def int_alias(a: cython.int, b: cy_i):
     print(cython.typeof(b))
 
 
-def test_inexact_types(d: dict):
-    """
-    >>> test_inexact_types({})  # good
-
-    Check that our custom pep484 warning is in either the error message
-    or the exception notes
-    >>> from collections import OrderedDict
-    >>> try:
-    ...    test_inexact_types(OrderedDict())
-    ... except TypeError as e:
-    ...    assert ("Cython is deliberately stricter than PEP-484" in e.args[0] or
-    ...            any("Cython is deliberately stricter than PEP-484" in note for note in getattr(e, "__notes__", []))), e
-    ... else:
-    ...    assert False
-    """
-    pass
-
-
 _WARNINGS = """
 14:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 14:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
