@@ -461,3 +461,41 @@ cdef class HasBound:
     func = bind_me[float]
 
     func_fused = bind_me
+
+
+ctypedef fused my_dtype:
+    cython.double
+    cython.int
+
+cdef class A:
+    cdef my_dtype f(self, my_dtype x):
+        return x + 10
+
+    def g(self, my_dtype x):
+        return self.f(x)
+
+
+cdef class B(A):
+    cdef my_dtype f(self, my_dtype x):
+        return x + 100
+
+def test_inheritance():
+    """
+    >>> test_inheritance()
+    A 12.2
+    B 102.2
+    A 11
+    B 101
+    """
+
+    cdef double x = 2.2
+
+    a = A()
+    b = B()
+    print 'A', a.g(x)
+    print 'B', b.g(x)
+
+
+    cdef int y = 1
+    print 'A', a.g(y)
+    print 'B', b.g(y)

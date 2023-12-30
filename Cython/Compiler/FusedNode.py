@@ -142,6 +142,7 @@ class FusedCFuncDefNode(StatListNode):
             # Make the types in our CFuncType specific.
             try:
                 type = copied_node.type.specialize(fused_to_specific)
+                entry_type = copied_node.entry.type.specialize(fused_to_specific)
             except CannotSpecialize:
                 # unlike for the argument types, specializing the return type can fail
                 error(copied_node.pos, "Return type is a fused type that cannot "
@@ -164,7 +165,7 @@ class FusedCFuncDefNode(StatListNode):
                 new_cfunc_entries.append(entry)
 
             copied_node.type = type
-            entry.type, type.entry = type, entry
+            entry.type, entry_type.entry = entry_type, entry
 
             entry.used = (entry.used or
                           self.node.entry.defined_in_pxd or
