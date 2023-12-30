@@ -317,10 +317,9 @@ class PyrexType(BaseType):
         return self.same_as(src_type)
 
     def assignment_failure_extra_info(self, src_type, src_name):
-        """Override if you can useful provide extra
-        information about why an assignment didn't work.
-        
-        src_name may be None in unavailable"""
+        """Override if you can provide useful extra information about why an assignment didn't work.
+
+        src_name may be None if unavailable"""
         return ""
 
     def as_argument_type(self):
@@ -2916,13 +2915,13 @@ class CPtrType(CPointerBaseType):
             copied_src_type.exception_value = self.base_type.exception_value
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
-                msg = "Exception values are incompatible."
-                if not self.base_type.exception_check and self.base_type.exception_value is None:
+                msg = " Exception values are incompatible."
+                if not self.base_type.exception_check and not self.base_type.exception_value:
                     if src_name is None:
                         src_name = "the value being assigned"
                     else:
                         src_name = "'{}'".format(src_name)
-                    msg += " Suggest adding 'noexcept' to the type of {}.".format(src_name)
+                    msg += f" Suggest adding 'noexcept' to the type of {src_name}."
                 return msg
         return super().assignment_failure_extra_info(src_type, src_name)
 

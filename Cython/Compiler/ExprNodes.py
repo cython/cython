@@ -1071,11 +1071,14 @@ class ExprNode(Node):
         src_name = None
         if hasattr(self, "entry"):
             src_name = self.entry.name
+        src_resolved = f" (alias of '{self.type.resolve()}')" if self.type.is_typedef else ""
+        dst_resolved = f" (alias of '{dst_type.resolve()}')" if dst_type.is_typedef else ""
         extra_diagnostics = dst_type.assignment_failure_extra_info(self.type, src_name)
-        if extra_diagnostics:
-            extra_diagnostics = ". " + extra_diagnostics
-        error(self.pos, "Cannot assign type '%s' to '%s'%s" % (
-            self.type, dst_type, extra_diagnostics))
+        error(self.pos,
+              f"Cannot assign type '{self.type}'{src_resolved}"
+              f" to '{dst_type}'{dst_resolved}"
+              f"{'.' if extra_diagnostics else ''}{extra_diagnostics}"
+        )
 
     def check_for_coercion_error(self, dst_type, env, fail=False, default=None):
         if fail and not default:

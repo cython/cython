@@ -787,7 +787,6 @@ def p_name(s, name):
 
 
 def wrap_compile_time_constant(pos, value):
-    rep = repr(value)
     if value is None:
         return ExprNodes.NoneNode(pos)
     elif value is Ellipsis:
@@ -795,9 +794,9 @@ def wrap_compile_time_constant(pos, value):
     elif isinstance(value, bool):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):
-        return ExprNodes.IntNode(pos, value=rep, constant_result=value)
+        return ExprNodes.IntNode(pos, value=repr(value), constant_result=value)
     elif isinstance(value, float):
-        return ExprNodes.FloatNode(pos, value=rep, constant_result=value)
+        return ExprNodes.FloatNode(pos, value=repr(value), constant_result=value)
     elif isinstance(value, complex):
         node = ExprNodes.ImagNode(pos, value=repr(value.imag), constant_result=complex(0.0, value.imag))
         if value.real:
@@ -813,13 +812,12 @@ def wrap_compile_time_constant(pos, value):
         bvalue = bytes_literal(value, 'ascii')  # actually: unknown encoding, but BytesLiteral requires one
         return ExprNodes.BytesNode(pos, value=bvalue, constant_result=value)
     elif isinstance(value, tuple):
-        args = [wrap_compile_time_constant(pos, arg)
-                for arg in value]
-        if None not in args:
-            return ExprNodes.TupleNode(pos, args=args)
-        else:
+        args = [wrap_compile_time_constant(pos, arg) for arg in value]
+        if None in args:
             # error already reported
             return None
+        return ExprNodes.TupleNode(pos, args=args)
+
     error(pos, "Invalid type for compile-time constant: %r (type %s)"
                % (value, value.__class__.__name__))
     return None
