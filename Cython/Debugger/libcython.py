@@ -838,9 +838,6 @@ class CyBreak(CythonCommand):
         else:
             all_names = qnames
 
-        if word is None:
-            return all_names
-
         words = text.strip().split()
         if not words or '.' not in words[-1]:
             # complete unqualified
