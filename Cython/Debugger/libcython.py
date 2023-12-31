@@ -826,6 +826,7 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def complete(self, text, word):
+        word = word or ""
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
         names =  [n for n, L in self.cy.functions_by_name.items()
@@ -837,9 +838,6 @@ class CyBreak(CythonCommand):
             all_names = itertools.chain(qnames, names)
         else:
             all_names = qnames
-
-        if word is None:
-            return all_names
 
         words = text.strip().split()
         if not words or '.' not in words[-1]:
