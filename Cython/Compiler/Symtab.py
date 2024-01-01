@@ -2510,7 +2510,6 @@ class CClassScope(ClassScope):
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
-                entry.type = type
                 if entry.is_final_cmethod and entry.is_inherited:
                     error(pos, "Overriding final methods is not allowed")
                 elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
@@ -2531,6 +2530,8 @@ class CClassScope(ClassScope):
                 else:
                     error(pos, "Signature not compatible with previous declaration")
                     error(entry.pos, "Previous declaration is here")
+                # Use correct type for self argument of method
+                entry.type.args[0] = type.args[0]
         else:
             if self.defined:
                 error(pos,
