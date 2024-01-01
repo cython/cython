@@ -492,9 +492,18 @@ bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
-for t in int_types + float_types + complex_types + other_types:
+for t in int_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+        if 'u'+t in gs:
+            gs["%s_u%s" % ('p'*i, t)] = gs['u'+t]._pointer(i)
+            gs["%s_s%s" % ('p'*i, t)] = gs['s'+t]._pointer(i)
+
+for t in float_types + complex_types + other_types:
+    for i in range(1, 4):
+        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+
+del t, i
 
 NULL = gs['p_void'](0)
 
