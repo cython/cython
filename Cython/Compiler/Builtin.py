@@ -395,6 +395,8 @@ def init_builtin_types():
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'StopAsyncIteration':
             objstruct_cname = "PyBaseExceptionObject"
+        elif name == 'str':
+            objstruct_cname = "PyStringObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
         the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname)
