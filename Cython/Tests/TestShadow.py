@@ -63,9 +63,13 @@ class TestShadow(unittest.TestCase):
             for sign in ['', 'u', 's']:
                 name = sign + int_name
 
-                if sign and int_name in ['Py_UNICODE', 'Py_UCS4', 'Py_ssize_t', 'ssize_t', 'size_t']:
-                    self.assertNotIn(name, dir(Shadow))
-                    self.assertNotIn('p_' + name, dir(Shadow))
+                if sign and int_name in ['Py_UNICODE', 'Py_UCS4', 'Py_ssize_t',
+                                         'ssize_t', 'size_t', 'ptrdiff_t',
+                                         'Py_hash_t']:
+                    # ssize_t is legitimate in its own right
+                    if name != 'ssize_t':
+                        self.assertNotIn(name, dir(Shadow))
+                        self.assertNotIn('p_' + name, dir(Shadow))
                     continue
 
                 if not hasattr(Shadow, name):
@@ -82,8 +86,8 @@ class TestShadow(unittest.TestCase):
         # present (because they're obtained by on-the-fly string parsing in `cython_scope.lookup_type`)
         missing_types = []
         for (signed, longness, name), type_ in PyrexTypes.modifiers_and_name_to_type.items():
-            if name in ['ssize_t', 'ptrdiff_t', 'object']:
-                continue  # These probably shouldn't be in Shadow, maybe
+            if name == 'object':
+                continue  # This probably shouldn't be in Shadow
             if not hasattr(Shadow, name):
                 missing_types.append(name)
             for ptr in range(1, 4):
