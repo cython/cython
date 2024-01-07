@@ -195,7 +195,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             end
             ''')
 
-        code = textwrap.dedent('''\
+        code = textwrap.dedent('''
             python
 
             from Cython.Debugger.Tests import test_libcython_in_gdb

@@ -60,7 +60,7 @@ class DebugTestCase(unittest.TestCase):
     """
 
     def __init__(self, name):
-        super().__init__(name)
+        super(DebugTestCase, self).__init__(name)
         self.cy = libcython.cy
         self.module = libcython.cy.cython_namespace['codefile']
         self.spam_func, self.spam_meth = libcython.cy.functions_by_name['spam']
@@ -505,9 +505,7 @@ def _debug(*messages):
 
 
 def run_unittest_in_module(modulename):
-    try:
-        gdb.lookup_type('PyModuleObject')
-    except RuntimeError:
+    if gdb.selected_inferior().progspace.symbol_file is None:
         msg = ("Unable to run tests, Python was not compiled with "
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")
