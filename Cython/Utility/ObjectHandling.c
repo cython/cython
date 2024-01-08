@@ -242,8 +242,8 @@ static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 
 static CYTHON_INLINE int __Pyx_IterFinish(void) {
     __Pyx_PyThreadState_declare
-    __Pyx_PyThreadState_assign
     PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();
+    __Pyx_PyThreadState_assign
     if (unlikely(exc_type)) {
         if (unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
             return -1;
