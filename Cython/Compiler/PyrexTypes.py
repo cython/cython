@@ -5314,14 +5314,14 @@ def simple_c_type(signed, longness, name):
     return modifiers_and_name_to_type.get((signed, longness, name))
 
 def parse_basic_type(name):
-    ptr_match = re.match("p+_", name)
-    if ptr_match:
-        base = parse_basic_type(name[ptr_match.end():])
-        for _ in range(ptr_match.end()-1):
-            base = CPtrType(base)
-        return base
-    if name.endswith('*'):
+    base = None
+    if name.startswith('p_'):
+        base = parse_basic_type(name[2:])
+    elif name.startswith('p'):
+        base = parse_basic_type(name[1:])
+    elif name.endswith('*'):
         base = parse_basic_type(name[:-1])
+    if base:
         return CPtrType(base)
     #
     basic_type = simple_c_type(1, 0, name)
