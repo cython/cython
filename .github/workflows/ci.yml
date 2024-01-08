@@ -62,7 +62,12 @@ jobs:
 
           # Ubuntu sub-jobs:
           # ================
-          # GCC 11 (with latest language standards)
+          # GCC 11 (with broad language standards)
+          - os: ubuntu-20.04
+            python-version: 3.9
+            backend: c
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c89" }
+            extra_hash: "-gcc11-c89"
           - os: ubuntu-20.04
             python-version: 3.9
             backend: c
