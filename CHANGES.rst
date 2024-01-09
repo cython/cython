@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+3.0.8 (2024-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Using ``const`` together with defined fused types could fail to compile.
+  (Github issue :issue:`5230`)
+
+* A "use after free" bug was fixed in parallel sections.
+  (Github issue :issue:`5922`)
+
+* Several types were not available as ``cython.*`` types in pure Python code.
+
+* The generated code is now correct C89 again, removing some C++ style ``//`` comments
+  and C99-style declaration-after-code code ordering.  This is still relevant for some
+  ols C compilers, specifically ones that match old Python 2.7 installations.
+
+
 3.0.7 (2023-12-19)
 ==================
 
