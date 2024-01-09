@@ -710,8 +710,9 @@ class __Pyx_FakeReference {
         PyErr_Fetch(&type, &value, &traceback);
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
-        minor_version = 11; // we don't yet need to distinguish between versions > 11
-        // Note that from 3.13, when we do we can use Py_Version
+        minor_version = 11;
+        // we don't yet need to distinguish between versions > 11
+        // Note that from 3.13, when we do, we can use Py_Version
         #else
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
         if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
@@ -792,7 +793,7 @@ class __Pyx_FakeReference {
     //  1. pass an empty bytes string as exception_table
     //  2. pass name as qualname (TODO this might implementing properly in future)
     PyCodeObject *result;
-    PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  // we don't have access to __pyx_empty_bytes here
+    PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  /* we don't have access to __pyx_empty_bytes here */
     if (!empty_bytes) return NULL;
     result =
       #if PY_VERSION_HEX >= 0x030C0000

@@ -58,7 +58,7 @@ typedef struct {
     // Dynamic default args and annotations
     void *defaults;
     int defaults_pyobjects;
-    size_t defaults_size;  // used by FusedFunction for copying defaults
+    size_t defaults_size;  /* used by FusedFunction for copying defaults */
     int flags;
 
     // Defaults info
