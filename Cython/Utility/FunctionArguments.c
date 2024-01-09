@@ -559,7 +559,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
             return kwvalues[i];
         }
     }
-    return NULL;  // not found (no exception set)
+    return NULL;  /* not found (no exception set) */
 }
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
