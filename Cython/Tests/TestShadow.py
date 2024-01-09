@@ -1,7 +1,7 @@
 import unittest
 
 from Cython import Shadow
-from Cython.Compiler import Options, CythonScope
+from Cython.Compiler import Options, CythonScope, PyrexTypes, Errors
 
 class TestShadow(unittest.TestCase):
     def test_all_directives_in_shadow(self):
@@ -63,7 +63,12 @@ class TestShadow(unittest.TestCase):
             for sign in ['', 'u', 's']:
                 name = sign + int_name
 
-                if sign and int_name in ['Py_UNICODE', 'Py_UCS4', 'Py_ssize_t', 'size_t']:
+                if sign and (
+                        int_name in ['Py_UNICODE', 'Py_UCS4', 'Py_ssize_t',
+                                     'ssize_t', 'ptrdiff_t', 'Py_hash_t'] or
+                        name == "usize_t"):
+                    # size_t is special-cased here a little since ssize_t legitimate
+                    # but usize_t isn't
                     self.assertNotIn(name, dir(Shadow))
                     self.assertNotIn('p_' + name, dir(Shadow))
                     continue
@@ -77,6 +82,33 @@ class TestShadow(unittest.TestCase):
                         missing_types.append(ptr_name)
         self.assertEqual(missing_types, [])
 
-    # TODO - there's a lot of types that are looked up by `cython_scope.lookup_type` that
-    # it's unfortunately hard to get a definite list of to confirm that they're present
-    # (because they're obtained by on-the-fly string parsing)
+    def test_most_types(self):
+        # TODO it's unfortunately hard to get a definite list of types to confirm that they're
+        # present (because they're obtained by on-the-fly string parsing in `cython_scope.lookup_type`)
+
+        cython_scope = CythonScope.create_cython_scope(None)
+        # Set up just enough of "Context" and "Errors" that CythonScope.lookup_type can fail
+        class Context:
+            cpp = False
+            language_level = 3
+            future_directives = []
+        cython_scope.context = Context
+        Errors.init_thread()
+
+        missing_types = []
+        missing_lookups = []
+        for (signed, longness, name), type_ in PyrexTypes.modifiers_and_name_to_type.items():
+            if name == 'object':
+                continue  # This probably shouldn't be in Shadow
+            if not hasattr(Shadow, name):
+                missing_types.append(name)
+            if not cython_scope.lookup_type(name):
+                missing_lookups.append(name)
+            for ptr in range(1, 4):
+                ptr_name = 'p' * ptr + '_' + name
+                if not hasattr(Shadow, ptr_name):
+                    missing_types.append(ptr_name)
+                if not cython_scope.lookup_type(ptr_name):
+                    missing_lookups.append(ptr_name)
+        self.assertEqual(missing_types, [])
+        self.assertEqual(missing_lookups, [])

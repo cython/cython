@@ -5342,6 +5342,8 @@ def parse_basic_type(name):
         signed = 2
     elif name == 'size_t':
         signed = 0
+    elif name == 'ptrdiff_t':
+        signed = 2
     else:
         if name.startswith('u'):
             name = name[1:]
