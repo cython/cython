@@ -451,6 +451,8 @@ int_types = [
     'Py_hash_t',
     'Py_ssize_t',
     'size_t',
+    'ssize_t',
+    'ptrdiff_t',
 ]
 float_types = [
     'longdouble',
@@ -491,7 +493,7 @@ del builtins
 for name in int_types:
     reprname = to_repr(name, name)
     gs[name] = typedef(py_int, reprname)
-    if name not in ('Py_UNICODE', 'Py_UCS4') and not name.endswith('size_t'):
+    if name not in ('Py_UNICODE', 'Py_UCS4', 'Py_hash_t', 'ptrdiff_t') and not name.endswith('size_t'):
         gs['u'+name] = typedef(py_int, "unsigned " + reprname)
         gs['s'+name] = typedef(py_int, "signed " + reprname)
 
