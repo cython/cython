@@ -18,8 +18,14 @@ Features added
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
 
+* Threading in parallel sections can now be disabled with a new ``use_threads_if`` condition.
+  (Github issue :issue:`5919`)
+
 * f-strings are slightly faster.
   (Github issue :issue:`5866`)
+
+* ``dict.pop()`` is faster in some cases.
+  (Github issue :issue:`5911`)
 
 * Most builtin methods now provide their return type for type inference.
   (Github issue :issue:`5865`)
