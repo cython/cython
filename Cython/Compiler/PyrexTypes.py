@@ -5331,36 +5331,34 @@ def parse_basic_type(name):
     if base:
         return CPtrType(base)
     #
+    if name in fixed_sign_int_types:
+        return fixed_sign_int_types[name][1]
     basic_type = simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
     #
-    longness = 0
-    if name in fixed_sign_int_types:
-        signed, _ = fixed_sign_int_types[name]
+    if name.startswith('u'):
+        name = name[1:]
+        signed = 0
+    elif (name.startswith('s') and
+          not name.startswith('short')):
+        name = name[1:]
+        signed = 2
     else:
-        if name.startswith('u'):
-            name = name[1:]
-            signed = 0
-        elif (name.startswith('s') and
-              not name.startswith('short')):
-            name = name[1:]
-            signed = 2
-        else:
-            signed = 1
+        signed = 1
 
-        name_parts = iter(name.split())
-        for modifier in name_parts:
-            if modifier == 'long':
-                longness += 1
-            elif modifier == 'short':
-                longness -= 1
-            else:
-                name = ' '.join([modifier, *name_parts])
-                break
+    # We parse both (cy) 'long long' and (py) 'longlong' style names here.
+    longness = 0
+    while name.startswith(('long', 'short')):
+        if name.startswith('long'):
+            name = name[4:].lstrip()
+            longness += 1
         else:
-            if longness != 0:
-                name = 'int'  # long/short [int]
+            name = name[5:].lstrip()
+            longness -= 1
+    if longness != 0 and not name:
+        name = 'int'  # long/short [int]
+
     return simple_c_type(signed, longness, name)
 
 
