@@ -1083,7 +1083,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
     #else
     py_code = PyCode_NewEmpty(filename, funcname, py_line);
     #endif
-    Py_XDECREF(py_funcname);  // XDECREF since it's only set on Py3 if cline
+    Py_XDECREF(py_funcname);  /* XDECREF since it's only set on Py3 if cline */
     return py_code;
 bad:
     Py_XDECREF(py_funcname);
