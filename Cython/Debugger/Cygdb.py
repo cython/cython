@@ -89,9 +89,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 f.write(textwrap.dedent('''\
                     python
                     import sys
-                    try:
-                        gdb.lookup_type('PyModuleObject')
-                    except RuntimeError:
+                    if gdb.selected_inferior().progspace.symbol_file is None:
                         sys.stderr.write(
                             "''' + interpreter + ''' was not compiled with debug symbols (or it was "
                             "stripped). Some functionality may not work (properly).\\n")

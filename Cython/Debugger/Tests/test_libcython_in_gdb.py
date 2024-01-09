@@ -175,6 +175,12 @@ class TestBreak(DebugTestCase):
         self.lineno_equals(nextline)
         assert step_result.rstrip().endswith(nextline)
 
+    def test_break_completion(self):
+        completer = libcython.cy.break_.complete
+        assert 'spam' in completer("codefile.SomeClass.s", "s")
+        assert 'spam' in completer("codefile.SomeClass.", None)
+        assert 'pam' in completer("codefile.s", None)
+
 
 # I removed this testcase, because it will never work, because
 # gdb.execute(..., to_string=True) does not capture stdout and stderr of python.
