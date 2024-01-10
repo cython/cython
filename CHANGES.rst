@@ -70,7 +70,7 @@ Other changes
 * Includes all fixes as of Cython 3.0.8 (but generates C99 code in some places).
 
 
-3.0.8 (2024-??-??)
+3.0.8 (2024-01-10)
 ==================
 
 Bugs fixed
