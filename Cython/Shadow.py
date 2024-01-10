@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.0.7"
+__version__ = "3.0.8"
 
 try:
     from __builtin__ import basestring
