@@ -5444,21 +5444,21 @@ _escape_special_type_characters = partial(re.compile(
 ).sub, lambda match: _special_type_characters[match.group(1)])
 
 def type_identifier(type, pyrex=False):
-    scope_name = ""
+    scope = None
     decl = type.empty_declaration_code(pyrex=pyrex)
     entry = getattr(type, "entry", None)
     if entry and entry.scope:
-        scope_name = entry.scope.qualified_name
-    return type_identifier_from_declaration(decl, scope_name=scope_name)
+        scope = entry.scope
+    return type_identifier_from_declaration(decl, scope=scope)
 
 _type_identifier_cache = {}
-def type_identifier_from_declaration(decl, scope_name = ""):
-    key = (decl, scope_name)
+def type_identifier_from_declaration(decl, scope = None):
+    key = (decl, scope)
     safe = _type_identifier_cache.get(key)
     if safe is None:
         safe = decl
-        if scope_name:
-            safe = "%s_%s" % (scope_name, safe)
+        if scope:
+            safe = scope.mangle(prefix="", name=safe)
         safe = re.sub(' +', ' ', safe)
         safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
         safe = _escape_special_type_characters(safe)
