@@ -1,5 +1,3 @@
-# cython: language_level=3str
-
 cimport cython
 
 from .Visitor cimport (
@@ -55,10 +53,12 @@ cdef class YieldNodeCollector(TreeVisitor):
     cdef public bint has_return_value
     cdef public bint has_yield
     cdef public bint has_await
+    cdef list excludes
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
+    cdef list excludes
 
 @cython.final
 cdef class CreateClosureClasses(CythonTransform):

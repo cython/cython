@@ -6,3 +6,26 @@ compile.builtinfuncs
 compile.builtinlist
 compile.arrayargs
 compile.arraytoptrarg
+compile.ass2longlong
+compile.assert2
+compile.behnel4
+compile.belchenko
+compile.cargdef
+compile.carrdecl
+compile.cassign
+compile.cast
+compile.cdef
+compile.c_directives
+compile.cenum
+compile.cimport
+compile.classmethargdefault
+compile.cnamespec
+compile.cnumop
+compile.coercetovoidptr
+compile.complex
+compile.const
+compile.cppenum
+# cpp_temp_assignment uses generators/coroutines/similar
+compile.cpp_[^t]
+compile.cpp_template
+compile.ewing

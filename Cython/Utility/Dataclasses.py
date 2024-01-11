@@ -13,14 +13,14 @@ except ImportError:
     # mutable fallback if unavailable
     MappingProxyType = lambda x: x
 
-class _MISSING_TYPE(object):
+class _MISSING_TYPE:
     pass
 MISSING = _MISSING_TYPE()
 
 _DataclassParams = namedtuple('_DataclassParams',
     ["init", "repr", "eq", "order", "unsafe_hash", "frozen",
      "match_args", "kw_only", "slots", "weakref_slot"])
-class Field(object):
+class Field:
     __slots__ = ('name',
                  'type',
                  'default',
@@ -54,16 +54,16 @@ class Field(object):
 
     def __repr__(self):
         return ('Field('
-                'name={0!r},'
-                'type={1!r},'
-                'default={2!r},'
-                'default_factory={3!r},'
-                'init={4!r},'
-                'repr={5!r},'
-                'hash={6!r},'
-                'compare={7!r},'
-                'metadata={8!r},'
-                'kwonly={9!r},'
+                'name={!r},'
+                'type={!r},'
+                'default={!r},'
+                'default_factory={!r},'
+                'init={!r},'
+                'repr={!r},'
+                'hash={!r},'
+                'compare={!r},'
+                'metadata={!r},'
+                'kwonly={!r},'
                 ')'.format(self.name, self.type, self.default,
                            self.default_factory, self.init,
                            self.repr, self.hash, self.compare,

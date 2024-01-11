@@ -2,14 +2,13 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-from __future__ import absolute_import
 
 import os
 
 from .. import Utils
 
 
-class ShouldBeFromDirective(object):
+class ShouldBeFromDirective:
 
     known_directives = []
 
@@ -621,7 +620,7 @@ def parse_compile_time_env(s, current_settings=None):
 # CompilationOptions are constructed from user input and are the `option`
 #  object passed throughout the compilation pipeline.
 
-class CompilationOptions(object):
+class CompilationOptions:
     r"""
     See default_options at the end of this module for a list of all possible
     options and CmdLine.usage and CmdLine.parse_command_line() for their

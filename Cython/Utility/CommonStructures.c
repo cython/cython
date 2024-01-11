@@ -5,7 +5,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 /////////////// FetchSharedCythonModule ////////////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
-    return __Pyx_PyImport_AddModuleRef((char*) __PYX_ABI_MODULE_NAME);
+    return __Pyx_PyImport_AddModuleRef(__PYX_ABI_MODULE_NAME);
 }
 
 /////////////// FetchCommonType.proto ///////////////

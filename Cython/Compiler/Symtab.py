@@ -2,16 +2,12 @@
 #   Symbol Table
 #
 
-from __future__ import absolute_import
 
 import re
 import copy
 import operator
 
-try:
-    import __builtin__ as builtins
-except ImportError:  # Py3
-    import builtins
+import builtins
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError
@@ -47,27 +43,25 @@ def c_safe_identifier(cname):
 def punycodify_name(cname, mangle_with=None):
     # if passed the mangle_with should be a byte string
     # modified from  PEP489
-    try:
-        cname.encode('ascii')
-    except UnicodeEncodeError:
-        cname = cname.encode('punycode').replace(b'-', b'_').decode('ascii')
-        if mangle_with:
-            # sometimes it necessary to mangle unicode names alone where
-            # they'll be inserted directly into C, because the punycode
-            # transformation can turn them into invalid identifiers
-            cname = "%s_%s" % (mangle_with, cname)
-        elif cname.startswith(Naming.pyrex_prefix):
-            # a punycode name could also be a valid ascii variable name so
-            # change the prefix to distinguish
-            cname = cname.replace(Naming.pyrex_prefix,
-                                  Naming.pyunicode_identifier_prefix, 1)
+    if cname.isascii():
+        return cname
+
+    cname = cname.encode('punycode').replace(b'-', b'_').decode('ascii')
+    if mangle_with:
+        # sometimes it necessary to mangle unicode names alone where
+        # they'll be inserted directly into C, because the punycode
+        # transformation can turn them into invalid identifiers
+        cname = "%s_%s" % (mangle_with, cname)
+    elif cname.startswith(Naming.pyrex_prefix):
+        # a punycode name could also be a valid ascii variable name so
+        # change the prefix to distinguish
+        cname = cname.replace(Naming.pyrex_prefix,
+                              Naming.pyunicode_identifier_prefix, 1)
 
     return cname
 
 
-
-
-class BufferAux(object):
+class BufferAux:
     writable_needed = False
 
     def __init__(self, buflocal_nd_var, rcbuf_var):
@@ -78,7 +72,7 @@ class BufferAux(object):
         return "<BufferAux %r>" % self.__dict__
 
 
-class Entry(object):
+class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
     #
     # name             string     Python name of entity
@@ -173,7 +167,6 @@ class Entry(object):
     borrowed = 0
     init = ""
     annotation = None
-    pep563_annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
@@ -327,7 +320,7 @@ class InnerEntry(Entry):
         return self.defining_entry.all_entries()
 
 
-class Scope(object):
+class Scope:
     # name              string             Unqualified name
     # outer_scope       Scope or None      Enclosing scope
     # entries           {string : Entry}   Python name to entry, non-types
@@ -442,7 +435,7 @@ class Scope(object):
                      'cfunc_entries',
                      'c_class_entries'):
             self_entries = getattr(self, attr)
-            names = set(e.name for e in self_entries)
+            names = {e.name for e in self_entries}
             for entry in getattr(other, attr):
                 if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)
@@ -498,8 +491,7 @@ class Scope(object):
     def iter_local_scopes(self):
         yield self
         if self.subscopes:
-            for scope in sorted(self.subscopes, key=operator.attrgetter('scope_prefix')):
-                yield scope
+            yield from sorted(self.subscopes, key=operator.attrgetter('scope_prefix'))
 
     @try_finally_contextmanager
     def new_c_type_context(self, in_c_type_context=None):
@@ -833,8 +825,8 @@ class Scope(object):
 
     def declare_lambda_function(self, lambda_name, pos):
         # Add an entry for an anonymous Python function.
-        func_cname = self.mangle(Naming.lambda_func_prefix + u'funcdef_', lambda_name)
-        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + u'methdef_', lambda_name)
+        func_cname = self.mangle(Naming.lambda_func_prefix + 'funcdef_', lambda_name)
+        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + 'methdef_', lambda_name)
         qualified_name = self.qualify_name(lambda_name)
 
         entry = self.declare(None, func_cname, py_object_type, pos, 'private')
@@ -1192,6 +1184,9 @@ class BuiltinScope(Scope):
                 str_is_str = language_level in (None, 2)
             if not str_is_str:
                 name = 'unicode'
+        if name == 'long' and language_level == 2:
+            # Keep recognising 'long' in legacy Py2 code but map it to 'int'.
+            name = 'int'
         return Scope.lookup(self, name)
 
     def declare_builtin(self, name, pos):
@@ -2545,7 +2540,7 @@ class CClassScope(ClassScope):
         entry.utility_code = utility_code
         type.entry = entry
 
-        if u'inline' in modifiers:
+        if 'inline' in modifiers:
             entry.is_inline_cmethod = True
 
         if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):

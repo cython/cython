@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Symtab import ModuleScope
 from .PyrexTypes import *
 from .UtilityCode import CythonUtilityCode
@@ -14,7 +12,7 @@ class CythonScope(ModuleScope):
     _cythonscope_initialized = False
 
     def __init__(self, context):
-        ModuleScope.__init__(self, u'cython', None, None)
+        ModuleScope.__init__(self, 'cython', None, None)
         self.pxd_file_loaded = True
         self.populate_cython_scope()
         # The Main.Context object
@@ -37,14 +35,14 @@ class CythonScope(ModuleScope):
         if type:
             return type
 
-        return super(CythonScope, self).lookup_type(name)
+        return super().lookup_type(name)
 
     def lookup(self, name):
-        entry = super(CythonScope, self).lookup(name)
+        entry = super().lookup(name)
 
         if entry is None and not self._cythonscope_initialized:
             self.load_cythonscope()
-            entry = super(CythonScope, self).lookup(name)
+            entry = super().lookup(name)
 
         return entry
 
@@ -64,12 +62,12 @@ class CythonScope(ModuleScope):
             # expected to create a submodule here (to protect CythonScope's
             # possible immutability). Hack ourselves out of the situation
             # for now.
-            raise error((StringSourceDescriptor(u"cython", u""), 0, 0),
+            raise error((StringSourceDescriptor("cython", ""), 0, 0),
                   "cython.%s is not available" % module_name)
 
     def lookup_qualified_name(self, qname):
         # ExprNode.as_cython_attribute generates qnames and we untangle it here...
-        name_path = qname.split(u'.')
+        name_path = qname.split('.')
         scope = self
         while len(name_path) > 1:
             scope = scope.lookup_here(name_path[0])
@@ -116,7 +114,7 @@ class CythonScope(ModuleScope):
         #
         # The view sub-scope
         #
-        self.viewscope = viewscope = ModuleScope(u'view', self, None)
+        self.viewscope = viewscope = ModuleScope('view', self, None)
         self.declare_module('view', viewscope, None).as_module = viewscope
         viewscope.is_cython_builtin = True
         viewscope.pxd_file_loaded = True
@@ -139,7 +137,7 @@ class CythonScope(ModuleScope):
         # self.entries["array"] = view_utility_scope.entries.pop("array")
 
         # dataclasses scope
-        dc_str = EncodedString(u'dataclasses')
+        dc_str = EncodedString('dataclasses')
         dataclassesscope = ModuleScope(dc_str, self, context=None)
         self.declare_module(dc_str, dataclassesscope, pos=None).as_module = dataclassesscope
         dataclassesscope.is_cython_builtin = True
@@ -159,7 +157,7 @@ def load_testscope_utility(cy_util_name, **kwargs):
     return CythonUtilityCode.load(cy_util_name, "TestCythonScope.pyx", **kwargs)
 
 
-undecorated_methods_protos = UtilityCode(proto=u"""
+undecorated_methods_protos = UtilityCode(proto="""
     /* These methods are undecorated and have therefore no prototype */
     static PyObject *__pyx_TestClass_cdef_method(
             struct __pyx_TestClass_obj *self, int value);
