@@ -1,7 +1,5 @@
-# cython: language_level=3str
 # cython: auto_pickle=True
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object, Builtin=object,
@@ -22,7 +20,7 @@ from .Errors import error, warning, InternalError
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
     def __init__(self, type, may_be_none=None, pos=None):
-        super(TypedExprNode, self).__init__(pos)
+        super().__init__(pos)
         self.type = type
         self._may_be_none = may_be_none
 
@@ -33,7 +31,7 @@ class TypedExprNode(ExprNodes.ExprNode):
 fake_rhs_expr = TypedExprNode(PyrexTypes.unspecified_type)
 
 
-class ControlBlock(object):
+class ControlBlock:
     """Control flow graph node. Sequence of assignments and name references.
 
        children  set of children nodes
@@ -95,12 +93,12 @@ class ExitBlock(ControlBlock):
         return False
 
 
-class AssignmentList(object):
+class AssignmentList:
     def __init__(self):
         self.stats = []
 
 
-class ControlFlow(object):
+class ControlFlow:
     """Control-flow graph.
 
        entry_point ControlBlock entry point for this graph
@@ -293,14 +291,14 @@ class ControlFlow(object):
                 block.i_output = i_output
 
 
-class LoopDescr(object):
+class LoopDescr:
     def __init__(self, next_block, loop_block):
         self.next_block = next_block
         self.loop_block = loop_block
         self.exceptions = []
 
 
-class ExceptionDescr(object):
+class ExceptionDescr:
     """Exception handling helper.
 
     entry_point   ControlBlock Exception handling entry point
@@ -314,7 +312,7 @@ class ExceptionDescr(object):
         self.finally_exit = finally_exit
 
 
-class NameAssignment(object):
+class NameAssignment:
     def __init__(self, lhs, rhs, entry, rhs_scope=None):
         if lhs.cf_state is None:
             lhs.cf_state = set()
@@ -355,7 +353,7 @@ class StaticAssignment(NameAssignment):
             may_be_none = None  # unknown
         lhs = TypedExprNode(
             entry.type, may_be_none=may_be_none, pos=entry.pos)
-        super(StaticAssignment, self).__init__(lhs, lhs, entry)
+        super().__init__(lhs, lhs, entry)
 
     def infer_type(self):
         return self.entry.type
@@ -384,15 +382,15 @@ class NameDeletion(NameAssignment):
         return inferred_type
 
 
-class Uninitialized(object):
+class Uninitialized:
     """Definitely not initialised yet."""
 
 
-class Unknown(object):
+class Unknown:
     """Coming from outer closure, might be initialised or not."""
 
 
-class NameReference(object):
+class NameReference:
     def __init__(self, node, entry):
         if node.cf_state is None:
             node.cf_state = set()
@@ -428,14 +426,14 @@ class ControlFlowState(list):
             if len(state) == 1:
                 self.is_single = True
         # XXX: Remove fake_rhs_expr
-        super(ControlFlowState, self).__init__(
+        super().__init__(
             [i for i in state if i.rhs is not fake_rhs_expr])
 
     def one(self):
         return self[0]
 
 
-class GVContext(object):
+class GVContext:
     """Graphviz subgraph object."""
 
     def __init__(self):
@@ -476,7 +474,7 @@ class GVContext(object):
         return text.replace('"', '\\"').replace('\n', '\\n')
 
 
-class GV(object):
+class GV:
     """Graphviz DOT renderer."""
 
     def __init__(self, name, flow):
@@ -506,7 +504,7 @@ class GV(object):
         fp.write(' }\n')
 
 
-class MessageCollection(object):
+class MessageCollection:
     """Collect error/warnings messages first then sort"""
     def __init__(self):
         self.messages = set()
@@ -664,7 +662,7 @@ def check_definitions(flow, compiler_directives):
 
 class AssignmentCollector(TreeVisitor):
     def __init__(self):
-        super(AssignmentCollector, self).__init__()
+        super().__init__()
         self.assignments = []
 
     def visit_Node(self):
@@ -709,7 +707,7 @@ class ControlFlowAnalysis(CythonTransform):
 
         if dot_output:
             annotate_defs = self.current_directives['control_flow.dot_annotate_defs']
-            with open(dot_output, 'wt') as fp:
+            with open(dot_output, 'w') as fp:
                 self.gv_ctx.render(fp, 'module', annotate_defs=annotate_defs)
         return node
 

@@ -1,5 +1,3 @@
-# cython: language_level=3
-
 import cython
 
 from ..Plex.Scanners cimport Scanner

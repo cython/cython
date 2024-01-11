@@ -1,6 +1,6 @@
 #################### View.MemoryView ####################
 
-# cython: language_level=3str
+# cython: language_level=3
 # cython: binding=False
 
 # This utility provides cython.array and cython.view.memoryview
@@ -27,8 +27,8 @@ cdef extern from "<string.h>":
 
 cdef extern from *:
     bint __PYX_CYTHON_ATOMICS_ENABLED()
-    int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
-    void __Pyx_ReleaseBuffer(Py_buffer *)
+    int PyObject_GetBuffer(object, Py_buffer *, int) except -1
+    void PyBuffer_Release(Py_buffer *)
 
     ctypedef struct PyObject
     ctypedef Py_ssize_t Py_intptr_t
@@ -97,10 +97,7 @@ cdef extern from "<stdlib.h>":
 # the sequence abstract base class
 cdef object __pyx_collections_abc_Sequence "__pyx_collections_abc_Sequence"
 try:
-    if __import__("sys").version_info >= (3, 3):
-        __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
-    else:
-        __pyx_collections_abc_Sequence = __import__("collections").Sequence
+    __pyx_collections_abc_Sequence = __import__("collections.abc").abc.Sequence
 except:
     # it isn't a big problem if this fails
     __pyx_collections_abc_Sequence = None
@@ -265,7 +262,7 @@ cdef int _allocate_buffer(array self) except -1:
 
 
 @cname("__pyx_array_new")
-cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *c_mode, char *buf):
+cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const char *c_mode, char *buf):
     cdef array result
     cdef str mode = "fortran" if c_mode[0] == b'f' else "c"  # this often comes from a constant C string.
 
@@ -345,7 +342,7 @@ cdef class memoryview:
         self.obj = obj
         self.flags = flags
         if type(self) is memoryview or obj is not None:
-            __Pyx_GetBuffer(obj, &self.view, flags)
+            PyObject_GetBuffer(obj, &self.view, flags)
             if <PyObject *> self.view.obj == NULL:
                 (<__pyx_buffer *> &self.view).obj = Py_None
                 Py_INCREF(Py_None)
@@ -370,7 +367,7 @@ cdef class memoryview:
 
     def __dealloc__(memoryview self):
         if self.obj is not None:
-            __Pyx_ReleaseBuffer(&self.view)
+            PyBuffer_Release(&self.view)
         elif (<__pyx_buffer *> &self.view).obj == Py_None:
             # Undo the incref in __cinit__() above.
             (<__pyx_buffer *> &self.view).obj = NULL

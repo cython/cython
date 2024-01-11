@@ -1,26 +1,18 @@
-# cython: auto_pickle=False
 """
 Python Lexical Analyser
 
 Classes for building NFAs and DFAs
 """
-from __future__ import absolute_import
 
 import cython
 from .Transitions import TransitionMap
 
 maxint = 2**31-1  # sentinel value
 
-if not cython.compiled:
-    try:
-        unichr
-    except NameError:
-        unichr = chr
-
 LOWEST_PRIORITY = -maxint
 
 
-class Machine(object):
+class Machine:
     """A collection of Nodes representing an NFA or DFA."""
     def __init__(self):
         self.states = []  # [Node]
@@ -61,7 +53,7 @@ class Machine(object):
             s.dump(file)
 
 
-class Node(object):
+class Node:
     """A state of an NFA or DFA."""
 
     def __init__(self):
@@ -125,7 +117,7 @@ class Node(object):
         return id(self) & maxint
 
 
-class FastMachine(object):
+class FastMachine:
     """
     FastMachine is a deterministic machine represented in a way that
     allows fast scanning.
@@ -162,7 +154,7 @@ class FastMachine(object):
                 state['else'] = new_state
             elif code1 != maxint:
                 while code0 < code1:
-                    state[unichr(code0)] = new_state
+                    state[chr(code0)] = new_state
                     code0 += 1
         else:
             state[event] = new_state

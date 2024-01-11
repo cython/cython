@@ -2,12 +2,6 @@
 GDB extension that adds Cython support.
 """
 
-from __future__ import print_function
-
-try:
-    input = raw_input
-except NameError:
-    pass
 
 import sys
 import textwrap
@@ -17,32 +11,12 @@ import collections
 
 import gdb
 
-try:  # python 2
-    UNICODE = unicode
-    BYTES = str
-except NameError:  # python 3
-    UNICODE = str
-    BYTES = bytes
-
 try:
     from lxml import etree
     have_lxml = True
 except ImportError:
+    from xml.etree import ElementTree as etree
     have_lxml = False
-    try:
-        # Python 2.5
-        from xml.etree import cElementTree as etree
-    except ImportError:
-        try:
-            # Python 2.5
-            from xml.etree import ElementTree as etree
-        except ImportError:
-            try:
-                # normal cElementTree install
-                import cElementTree as etree
-            except ImportError:
-                # normal ElementTree install
-                import elementtree.ElementTree as etree
 
 try:
     import pygments.lexers
@@ -143,7 +117,7 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
-class CythonModule(object):
+class CythonModule:
     def __init__(self, module_name, filename, c_filename):
         self.name = module_name
         self.filename = filename
@@ -156,7 +130,7 @@ class CythonModule(object):
         self.functions = {}
 
 
-class CythonVariable(object):
+class CythonVariable:
 
     def __init__(self, name, cname, qualified_name, type, lineno):
         self.name = name
@@ -176,7 +150,7 @@ class CythonFunction(CythonVariable):
                  lineno,
                  type=CObject,
                  is_initmodule_function="False"):
-        super(CythonFunction, self).__init__(name,
+        super().__init__(name,
                                              cname,
                                              qualified_name,
                                              type,
@@ -191,7 +165,7 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-class CythonBase(object):
+class CythonBase:
 
     @default_selected_gdb_frame(err=False)
     def is_cython_function(self, frame):
@@ -411,7 +385,7 @@ class CythonBase(object):
         return cur_lineno > cyvar.lineno
 
 
-class SourceFileDescriptor(object):
+class SourceFileDescriptor:
     def __init__(self, filename, lexer, formatter=None):
         self.filename = filename
         self.lexer = lexer
@@ -468,7 +442,7 @@ class SourceFileDescriptor(object):
         try:
             return '\n'.join(
                 self._get_source(start, stop, lex_source, mark_line, lex_entire))
-        except IOError:
+        except OSError:
             raise exc
 
 
@@ -481,7 +455,7 @@ class CyGDBError(gdb.GdbError):
 
     def __init__(self, *args):
         args = args or (self.msg,)
-        super(CyGDBError, self).__init__(*args)
+        super().__init__(*args)
 
 
 class NoCythonFunctionInFrameError(CyGDBError):
@@ -510,7 +484,7 @@ class CythonParameter(gdb.Parameter):
 
     def __init__(self, name, command_class, parameter_class, default=None):
         self.show_doc = self.set_doc = self.__class__.__doc__
-        super(CythonParameter, self).__init__(name, command_class,
+        super().__init__(name, command_class,
                                               parameter_class)
         if default is not None:
             self.value = default
@@ -540,7 +514,7 @@ class TerminalBackground(CythonParameter):
     """
 
 
-class CythonParameters(object):
+class CythonParameters:
     """
     Simple container class that might get more functionality in the distant
     future (mostly to remind us that we're dealing with parameters).
@@ -685,7 +659,7 @@ class CyImport(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, args, from_tty):
-        if isinstance(args, BYTES):
+        if isinstance(args, bytes):
             args = args.decode(_filesystemencoding)
         for arg in string_to_argv(args):
             try:
@@ -833,7 +807,7 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def invoke(self, function_names, from_tty):
-        if isinstance(function_names, BYTES):
+        if isinstance(function_names, bytes):
             function_names = function_names.decode(_filesystemencoding)
         argv = string_to_argv(function_names)
         if function_names.startswith('-p'):
@@ -896,11 +870,11 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
             return self.get_cython_lineno(frame)[1]
-        return super(CythonInfo, self).lineno(frame)
+        return super().lineno(frame)
 
     def get_source_line(self, frame):
         try:
-            line = super(CythonInfo, self).get_source_line(frame)
+            line = super().get_source_line(frame)
         except gdb.GdbError:
             return None
         else:
@@ -908,7 +882,7 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
 
     def exc_info(self, frame):
         if self.is_python_function:
-            return super(CythonInfo, self).exc_info(frame)
+            return super().exc_info(frame)
 
     def runtime_break_functions(self):
         if self.is_cython_function():
@@ -1226,7 +1200,7 @@ class CyGlobals(CyLocals):
                                              max_name_length, '    ')
 
 
-class EvaluateOrExecuteCodeMixin(object):
+class EvaluateOrExecuteCodeMixin:
     """
     Evaluate or execute Python code in a Cython or Python frame. The 'evalcode'
     method evaluations Python code, prints a traceback if an exception went
@@ -1403,7 +1377,7 @@ class CyCValue(CyCName):
         cython_function = self.get_cython_function(frame)
 
         if self.is_initialized(cython_function, cyname):
-            cname = super(CyCValue, self).invoke(cyname, frame=frame)
+            cname = super().invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
         elif cyname in globals_dict:
             return globals_dict[cyname]._gdbval

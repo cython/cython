@@ -46,7 +46,7 @@ The main difference is that you can define attributes using
 
             @cython.cclass
             class Shrubbery:
-                width = declare(cython.int)
+                width = cython.declare(cython.int)
                 height: cython.int
 
     .. group-tab:: Cython
@@ -658,6 +658,8 @@ definition, for example,::
         # attributes and methods
 
 
+.. _freelist:
+        
 Fast instantiation
 ===================
 
@@ -1034,8 +1036,6 @@ objects defined in the Python core or in a non-Cython extension module.
 Here is an example which will let you get at the C-level members of the
 built-in complex object::
 
-    from __future__ import print_function
-
     cdef extern from "complexobject.h":
 
         struct Py_complex:
@@ -1165,7 +1165,7 @@ values. If we write an extension module ``wrapper``::
             cdef:
                 int field0
                 int field1
-                int feild2
+                int field2
 
     def sum(Foo f):
         return f.field0 + f.field1 + f.field2

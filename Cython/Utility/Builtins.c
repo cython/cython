@@ -49,12 +49,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
 
 static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     PyObject* s = 0;
     char *code = 0;
+#endif
 
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
-    } else if (unlikely(!PyDict_Check(globals))) {
+    }
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    // In Limited API we just use exec builtin which already has this
+    else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
             __Pyx_PyType_GetName(Py_TYPE(globals));
         PyErr_Format(PyExc_TypeError,
@@ -63,10 +68,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         __Pyx_DECREF_TypeName(globals_type_name);
         goto bad;
     }
+#endif
     if (!locals || locals == Py_None) {
         locals = globals;
     }
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
     if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
         if (unlikely(PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0))
             goto bad;
@@ -78,7 +85,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-        #if PY_VERSION_HEX < 0x030200B1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030400)
+        #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030400
         result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
         #else
         result = PyEval_EvalCode(o, globals, locals);
@@ -94,11 +101,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             s = PyUnicode_AsUTF8String(o);
             if (unlikely(!s)) goto bad;
             o = s;
-        #if PY_MAJOR_VERSION >= 3
         } else if (unlikely(!PyBytes_Check(o))) {
-        #else
-        } else if (unlikely(!PyString_Check(o))) {
-        #endif
             __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
                 "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
@@ -106,11 +109,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             __Pyx_DECREF_TypeName(o_type_name);
             goto bad;
         }
-        #if PY_MAJOR_VERSION >= 3
         code = PyBytes_AS_STRING(o);
-        #else
-        code = PyString_AS_STRING(o);
-        #endif
         if (PyEval_MergeCompilerFlags(&cf)) {
             result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
         } else {
@@ -123,6 +122,19 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 bad:
     Py_XDECREF(s);
     return 0;
+#else // CYTHON_COMPILING_IN_LIMITED_API
+    {
+        // For the limited API we just defer to the actual builtin
+        // (after setting up globals and locals) - there's too much we can't do otherwise
+        PyObject *builtins, *exec;
+        builtins = PyEval_GetBuiltins();
+        if (!builtins) return NULL;
+        exec = PyDict_GetItemString(builtins, "exec");
+        if (!exec) return NULL;
+        result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
+        return result;
+    }
+#endif
 }
 
 //////////////////// GetAttr3.proto ////////////////////
@@ -135,6 +147,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -144,10 +157,16 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     Py_INCREF(d);
     return d;
 }
+#endif
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r;
-#if CYTHON_USE_TYPE_SLOTS
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+    int res = PyObject_GetOptionalAttr(o, n, &r);
+    // On failure (res == -1), r is set to NULL.
+    return (res != 0) ? r : __Pyx_NewRef(d);
+#else
+  #if CYTHON_USE_TYPE_SLOTS
     if (likely(PyString_Check(n))) {
         r = __Pyx_PyObject_GetAttrStrNoError(o, n);
         if (unlikely(!r) && likely(!PyErr_Occurred())) {
@@ -155,18 +174,24 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
         }
         return r;
     }
-#endif
+  #endif
     r = PyObject_GetAttr(o, n);
     return (likely(r)) ? r : __Pyx_GetAttr3Default(d);
+#endif
 }
 
 //////////////////// HasAttr.proto ////////////////////
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#define __Pyx_HasAttr(o, n)  PyObject_HasAttrWithError(o, n)
+#else
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
+#endif
 
 //////////////////// HasAttr ////////////////////
 //@requires: ObjectHandling.c::GetAttr
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
     if (unlikely(!__Pyx_PyBaseString_Check(n))) {
@@ -183,6 +208,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         return 1;
     }
 }
+#endif
 
 //////////////////// Intern.proto ////////////////////
 
@@ -192,16 +218,12 @@ static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 //@requires: ObjectHandling.c::RaiseUnexpectedTypeError
 
 static PyObject* __Pyx_Intern(PyObject* s) {
-    if (unlikely(!PyString_CheckExact(s))) {
+    if (unlikely(!PyUnicode_CheckExact(s))) {
         __Pyx_RaiseUnexpectedTypeError("str", s);
         return NULL;
     }
     Py_INCREF(s);
-    #if PY_MAJOR_VERSION >= 3
     PyUnicode_InternInPlace(&s);
-    #else
-    PyString_InternInPlace(&s);
-    #endif
     return s;
 }
 
@@ -255,7 +277,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
@@ -320,12 +342,8 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
 //////////////////// object_ord.proto ////////////////////
 //@requires: TypeConversion.c::UnicodeAsUCS4
 
-#if PY_MAJOR_VERSION >= 3
 #define __Pyx_PyObject_Ord(c) \
     (likely(PyUnicode_Check(c)) ? (long)__Pyx_PyUnicode_AsPy_UCS4(c) : __Pyx__PyObject_Ord(c))
-#else
-#define __Pyx_PyObject_Ord(c) __Pyx__PyObject_Ord(c)
-#endif
 static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 
 //////////////////// object_ord ////////////////////
@@ -333,20 +351,32 @@ static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
 static long __Pyx__PyObject_Ord(PyObject* c) {
     Py_ssize_t size;
     if (PyBytes_Check(c)) {
-        size = PyBytes_GET_SIZE(c);
+        size = __Pyx_PyBytes_GET_SIZE(c);
         if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             return (unsigned char) PyBytes_AS_STRING(c)[0];
-        }
-#if PY_MAJOR_VERSION < 3
-    } else if (PyUnicode_Check(c)) {
-        return (long)__Pyx_PyUnicode_AsPy_UCS4(c);
+#else
+            char *data = PyBytes_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
 #endif
-#if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
-    } else if (PyByteArray_Check(c)) {
-        size = PyByteArray_GET_SIZE(c);
-        if (likely(size == 1)) {
-            return (unsigned char) PyByteArray_AS_STRING(c)[0];
         }
+#if !CYTHON_ASSUME_SAFE_SIZE        
+        else if (unlikely(size < 0)) return -1;
+#endif
+    } else if (PyByteArray_Check(c)) {
+        size = __Pyx_PyByteArray_GET_SIZE(c);
+        if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
+            return (unsigned char) PyByteArray_AS_STRING(c)[0];
+#else
+            char *data = PyByteArray_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
+#endif
+        }
+#if !CYTHON_ASSUME_SAFE_SIZE
+        else if (unlikely(size < 0)) return -1;
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
@@ -370,10 +400,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
 //////////////////// py_dict_keys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
-    else
-        return PyDict_Keys(d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
 //////////////////// py_dict_values.proto ////////////////////
@@ -383,10 +410,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
 //////////////////// py_dict_values ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
-    else
-        return PyDict_Values(d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
 //////////////////// py_dict_items.proto ////////////////////
@@ -396,10 +420,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 //////////////////// py_dict_items ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
-    else
-        return PyDict_Items(d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
 }
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
@@ -409,10 +430,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d); /*proto*/
 //////////////////// py_dict_iterkeys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "iterkeys", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
 //////////////////// py_dict_itervalues.proto ////////////////////
@@ -422,10 +440,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d); /*proto*/
 //////////////////// py_dict_itervalues ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "itervalues", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
 //////////////////// py_dict_iteritems.proto ////////////////////
@@ -435,10 +450,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
 //////////////////// py_dict_iteritems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "iteritems", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
 }
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
@@ -448,10 +460,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 //////////////////// py_dict_viewkeys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "viewkeys", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
 }
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
@@ -461,10 +470,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 //////////////////// py_dict_viewvalues ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "viewvalues", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
 }
 
 //////////////////// py_dict_viewitems.proto ////////////////////
@@ -474,10 +480,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 //////////////////// py_dict_viewitems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
-        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
-    else
-        return CALL_UNBOUND_METHOD(PyDict_Type, "viewitems", d);
+    return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
 }
 
 
@@ -508,8 +511,23 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A00A1)
+#if CYTHON_COMPILING_IN_LIMITED_API
+            || __Pyx_get_runtime_version() >= 0x030A00A1
+#endif
+            )
             return result;
+        {
+            Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
+            if (likely(size > 0))
+                return result;
+#if !CYTHON_ASSUME_SAFE_SIZE
+            if (unlikely(size < 0)) {
+                Py_DECREF(result);
+                return NULL;
+            }
+#endif
+        }
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
@@ -533,7 +551,11 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
     #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     if (PyAnySet_Check(it)) {
-        if (PySet_GET_SIZE(it) == 0)
+        Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(size < 0)) return -1;
+        #endif
+        if (size == 0)
             return 0;
         // fast and safe case: CPython will update our result set and return it
         retval = PySet_Type.tp_as_number->nb_inplace_or(set, it);
