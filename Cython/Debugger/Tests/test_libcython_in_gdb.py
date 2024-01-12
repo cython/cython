@@ -511,7 +511,7 @@ def _debug(*messages):
 
 
 def run_unittest_in_module(modulename):
-    if gdb.selected_inferior().progspace.symbol_file is None:
+    if hasattr(gdb.selected_inferior().progspace, "symbol_file"):
         msg = ("Unable to run tests, Python was not compiled with "
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")
