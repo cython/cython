@@ -6544,12 +6544,12 @@ class PyMethodCallNode(CallNode):
         self.function.generate_evaluation_code(code)
         assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
-        use_kwnames = False
+        kwargs_key_value_pairs = None
         for arg in args:
             arg.generate_evaluation_code(code)
         if isinstance(self.kwdict, DictNode):
-            use_kwnames = True
-            for keyvalue in self.kwdict.key_value_pairs:
+            kwargs_key_value_pairs = self.kwdict.key_value_pairs
+            for keyvalue in kwargs_key_value_pairs:
                 keyvalue.generate_evaluation_code(code)
         elif self.kwdict:
             self.kwdict.generate_evaluation_code(code)
@@ -6610,7 +6610,7 @@ class PyMethodCallNode(CallNode):
             # TODO may need to deal with unused variables in the #else case
 
         kwnames_temp = None
-        if use_kwnames:
+        if kwargs_key_value_pairs:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectVectorCallKwBuilder", "ObjectHandling.c"))
             function_caller = "__Pyx_Object_Vectorcall_CallFromBuilder"
@@ -6633,9 +6633,8 @@ class PyMethodCallNode(CallNode):
 
         code.putln("{")
         extra_keyword_args = ""
-        if use_kwnames:
-            extra_keyword_args = ("+ ((CYTHON_VECTORCALL) ? %d : 0)" %
-                len(self.kwdict.key_value_pairs))
+        if kwargs_key_value_pairs:
+            extra_keyword_args = f"+ ((CYTHON_VECTORCALL) ? {len(kwargs_key_value_pairs)} : 0)"
         # To avoid passing an out-of-bounds argument pointer in the no-args case,
         # we need at least two entries, so we pad with NULL and point to that.
         # See https://github.com/cython/cython/issues/5668
@@ -6645,8 +6644,8 @@ class PyMethodCallNode(CallNode):
             self_arg,
             ', '.join(arg.py_result() for arg in args) if args else "NULL",
         ))
-        if use_kwnames:
-            for n, keyvalue in enumerate(self.kwdict.key_value_pairs):
+        if kwargs_key_value_pairs:
+            for n, keyvalue in enumerate(kwargs_key_value_pairs):
                 key_is_str = (
                     (keyvalue.key.type is Builtin.str_type or keyvalue.key.type is Builtin.unicode_type)
                     and not keyvalue.key.may_be_none()
@@ -6662,13 +6661,12 @@ class PyMethodCallNode(CallNode):
                         n
                 ))
 
-        keyword_variable = ""
-        if use_kwnames:
-            keyword_variable = kwnames_temp
+        if kwnames_temp:
+            keyword_variable = f", {kwnames_temp}"
         elif self.kwdict:
-            keyword_variable = self.kwdict.result()
-        if keyword_variable:
-            keyword_variable = ", %s" % keyword_variable
+            keyword_variable = f", {self.kwdict.result()}"
+        else:
+            keyword_variable = ""
         code.putln("%s = %s(%s, __pyx_callargs+1-%s, %d+%s%s);" % (
             self.result(),
             function_caller,
@@ -6684,7 +6682,7 @@ class PyMethodCallNode(CallNode):
         for arg in args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
-        if use_kwnames:
+        if kwargs_key_value_pairs:
             for keyvalue in self.kwdict.key_value_pairs:
                 keyvalue.generate_disposal_code(code)
                 keyvalue.free_temps(code)
