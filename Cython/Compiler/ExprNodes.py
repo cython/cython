@@ -6616,7 +6616,7 @@ class PyMethodCallNode(CallNode):
             function_caller = "__Pyx_Object_Vectorcall_CallFromBuilder"
             kwnames_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln("%s = __Pyx_MakeVectorcallBuilderKwds(%s); %s" % (
-                kwnames_temp, len(self.kwdict.key_value_pairs),
+                kwnames_temp, len(kwargs_key_value_pairs),
                 code.error_goto_if_null(kwnames_temp, self.pos)
             ))
             code.put_gotref(kwnames_temp, py_object_type)
@@ -6683,7 +6683,7 @@ class PyMethodCallNode(CallNode):
             arg.generate_disposal_code(code)
             arg.free_temps(code)
         if kwargs_key_value_pairs:
-            for keyvalue in self.kwdict.key_value_pairs:
+            for keyvalue in kwargs_key_value_pairs:
                 keyvalue.generate_disposal_code(code)
                 keyvalue.free_temps(code)
             code.put_decref_clear(kwnames_temp, py_object_type)
