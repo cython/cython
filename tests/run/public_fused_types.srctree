@@ -222,12 +222,12 @@ s = """\
 import cython as cy
 
 ae(obj.cpdef_method[cy.int, cy.float](10, 10.0), ("int", "float"))
-ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
+# ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
 """
 
 d = {'obj': obj, 'myobj': myobj, 'ae': ae}
 
-# exec(s, d)
+exec(s, d)
 
 # Test def methods
 # ae(obj.def_method(12, 14.9), 26)
