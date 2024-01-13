@@ -1254,7 +1254,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.mark_pos(entry.pos)
         # Generate final methods prototypes
-        type = entry.type
         for method_entry in entry.type.scope.cfunc_entries:
             if not method_entry.is_inherited and method_entry.final_func_cname:
                 declaration = method_entry.type.declaration_code(
