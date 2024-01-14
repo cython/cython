@@ -3,3 +3,4 @@ sphinx-issues==3.0.1
 sphinx-tabs==3.4.0
 Jinja2==3.0.3
 jupyter
+sphinxcontrib-applehelp<=1.0.7  # we don't actually need this directly. However sphinx installs it and 1.0.8 requires sphinx 5
