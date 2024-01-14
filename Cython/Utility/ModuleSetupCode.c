@@ -432,7 +432,16 @@
 #endif
 
 #ifndef CYTHON_VECTORCALL
+#if CYTHON_COMPILING_IN_LIMITED_API
+// Possibly needs a bit of clearing up, however:
+//  the limited API doesn't define CYTHON_FAST_PYCCALL (because that involves
+//  a lot of access to internals) but does define CYTHON_VECTORCALL because
+//  that's available cleanly from Python 3.12. Note that only VectorcallDict isn't
+//  available though.
+#define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+#else
 #define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
+#endif
 #endif
 
 /* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
