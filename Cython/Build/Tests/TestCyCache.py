@@ -5,7 +5,6 @@ import os
 import sys
 import tempfile
 import unittest
-from contextlib import closing
 
 import Cython.Build.Dependencies
 import Cython.Utils
@@ -73,7 +72,7 @@ class TestCyCache(CythonTest):
             f.write('pass')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
-        with closing(gzip.GzipFile(a_cache, 'wb')) as gzipfile:
+        with gzip.GzipFile(a_cache, 'wb') as gzipfile:
             gzipfile.write(b'fake stuff')
         os.unlink(a_c)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
