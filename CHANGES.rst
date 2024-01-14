@@ -13,7 +13,7 @@ Features added
 
 * Many issues with the Limited C-API were resolved.
   (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
-   :issue:`5885`, :issue:`5886`, :issue:`5888`)
+  :issue:`5885`, :issue:`5886`, :issue:`5888`)
 
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
@@ -2186,7 +2186,7 @@ Features added
   both Python and C semantics of enums.
   (Github issue :issue:`2732`)
 
-* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+* `PEP-614`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 
