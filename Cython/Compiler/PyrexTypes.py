@@ -4862,6 +4862,17 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
+fixed_sign_int_types = {
+    "bint":       (1, c_bint_type),
+    "Py_UNICODE": (0, c_py_unicode_type),
+    "Py_UCS4":    (0, c_py_ucs4_type),
+    "Py_hash_t":  (2, c_py_hash_t_type),
+    "Py_ssize_t": (2, c_py_ssize_t_type),
+    "ssize_t":    (2, c_ssize_t_type),
+    "size_t":     (0, c_size_t_type),
+    "ptrdiff_t":  (2, c_ptrdiff_t_type),
+}
+
 modifiers_and_name_to_type = {
     #(signed, longness, name) : type
     (0,  0, "char"): c_uchar_type,
@@ -4896,17 +4907,13 @@ modifiers_and_name_to_type = {
     (1,  0, "void"): c_void_type,
     (1,  0, "Py_tss_t"): c_pytss_t_type,
 
-    (1,  0, "bint"):       c_bint_type,
-    (0,  0, "Py_UNICODE"): c_py_unicode_type,
-    (0,  0, "Py_UCS4"):    c_py_ucs4_type,
-    (2,  0, "Py_hash_t"):  c_py_hash_t_type,
-    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
-    (2,  0, "ssize_t") :   c_ssize_t_type,
-    (0,  0, "size_t") :    c_size_t_type,
-    (2,  0, "ptrdiff_t") : c_ptrdiff_t_type,
-
     (1,  0, "object"): py_object_type,
 }
+
+modifiers_and_name_to_type.update({
+    (signed, 0, name): tp
+    for name, (signed, tp) in fixed_sign_int_types.items()
+})
 
 def is_promotion(src_type, dst_type):
     # It's hard to find a hard definition of promotion, but empirical
@@ -5324,41 +5331,34 @@ def parse_basic_type(name):
     if base:
         return CPtrType(base)
     #
+    if name in fixed_sign_int_types:
+        return fixed_sign_int_types[name][1]
     basic_type = simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
     #
-    signed = 1
-    longness = 0
-    if name == 'Py_UNICODE':
+    if name.startswith('u'):
+        name = name[1:]
         signed = 0
-    elif name == 'Py_UCS4':
-        signed = 0
-    elif name == 'Py_hash_t':
+    elif (name.startswith('s') and
+          not name.startswith('short')):
+        name = name[1:]
         signed = 2
-    elif name == 'Py_ssize_t':
-        signed = 2
-    elif name == 'ssize_t':
-        signed = 2
-    elif name == 'size_t':
-        signed = 0
     else:
-        if name.startswith('u'):
-            name = name[1:]
-            signed = 0
-        elif (name.startswith('s') and
-              not name.startswith('short')):
-            name = name[1:]
-            signed = 2
-        longness = 0
-        while name.startswith('short'):
-            name = name.replace('short', '', 1).strip()
-            longness -= 1
-        while name.startswith('long'):
-            name = name.replace('long', '', 1).strip()
+        signed = 1
+
+    # We parse both (cy) 'long long' and (py) 'longlong' style names here.
+    longness = 0
+    while name.startswith(('long', 'short')):
+        if name.startswith('long'):
+            name = name[4:].lstrip()
             longness += 1
-        if longness != 0 and not name:
-            name = 'int'
+        else:
+            name = name[5:].lstrip()
+            longness -= 1
+    if longness != 0 and not name:
+        name = 'int'  # long/short [int]
+
     return simple_c_type(signed, longness, name)
 
 
