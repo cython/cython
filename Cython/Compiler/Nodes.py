@@ -599,7 +599,17 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            size = self.dimension.get_constant_c_result_code()
+            size = None
+            if self.dimension.type.is_const:
+                if self.dimension.entry.defined_in_pxd:
+                    # Array dimension requires compile-time value.
+                    # cimported const value cannot be used since it is run-time value.
+                    error(self.pos, "Array dimension declared in pxd file")
+                if self.dimension.entry.visibility != 'extern':
+                    size = self.dimension.get_constant_c_result_code().upper() + '_CONST_VALUE'
+            if size is None:
+                size = self.dimension.get_constant_c_result_code()
+
             if size is not None:
                 try:
                     size = int(size)
@@ -6152,6 +6162,20 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
+
+        if self.lhs.is_name and self.lhs.entry.type.is_const:
+            # const variable can be initialised if:
+            # * we are in module scope
+            # * self.lhs was not assigned before
+            # * self.rhs is constant value
+            # * self.rhs is literal or const variable
+            if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
+                if self.rhs.is_literal:
+                    self.lhs.entry.init = self.rhs.value
+                else:
+                    self.lhs.entry.init = self.rhs.result()
+            else:
+                error(self.pos, "Assignment to const '%s'" % self.lhs.name)
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:

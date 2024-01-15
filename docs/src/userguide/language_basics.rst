@@ -426,6 +426,8 @@ If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
 
+.. _type_qualifiers:
+
 Type qualifiers
 ---------------
 
@@ -444,6 +446,14 @@ Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipe
 
     cdef void print_const_pointer_to_const_value(const int * const value):
         print(value[0])
+
+``const`` qualifier supports declaration of global constants::
+
+    cdef const int i = 5
+
+    # constant pointers are defined as pointer to constant value.
+    cdef const char *msg = "Dummy string"
+    msg = "Another dummy string"
 
 .. Note::
 
@@ -1646,6 +1656,11 @@ expression must evaluate to a Python value of type ``int``, ``long``,
 ``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
 
 .. literalinclude:: ../../examples/userguide/language_basics/compile_time.pyx
+
+.. Note::
+
+   Compile-time constants are deprecated. The preffered way for declaring global
+   constants is using global ``const`` variables. See :ref:`type_qualifiers`.
 
 
 Conditional Statements

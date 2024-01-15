@@ -705,6 +705,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_objstruct_predeclaration(entry.type, code)
         vtabslot_entries = set(vtabslot_list)
         ctuple_names = set()
+        for entry in env.var_entries:
+            type = entry.type
+            cname = entry.cname
+            if entry.type.is_const and entry.init is not None:
+                code.putln("#define %s_CONST_VALUE %s" % (entry.cname.upper(), entry.init))
         for module in modules:
             definition = module is env
             type_entries = []
@@ -1393,7 +1398,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put(type.declaration_code(
                     cname, dll_linkage=dll_linkage))
             if init is not None:
-                code.put_safe(" = %s" % init)
+                if type.is_const:
+                    code.put_safe(" = %s_CONST_VALUE" % cname.upper())
+                else:
+                    code.put_safe(" = %s" % init)
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
