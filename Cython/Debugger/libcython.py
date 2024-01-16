@@ -117,6 +117,25 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
+def simple_repr(self, renamed={}, skip=[], state=True):
+    import inspect
+    args = tuple(inspect.signature(self.__init__).parameters)
+    args = tuple(renamed[i] if i in renamed else i for i in args)
+    local = tuple(filter(lambda x: x not in args, vars(self).keys())) \
+        if state else ()
+
+    def equals (prefix, attrs):
+        for i in (j for j in attrs if j not in skip):
+            attr = repr(getattr(self, i))
+            yield prefix + i + " = " + attr.replace("\n", "\n\t\t")
+
+    return "".join((
+            self.__class__.__name__,
+            "(", ",".join(equals("\n\t\t", args)), "\n\t)",
+            *equals("\nself.", local)
+        ))
+
+
 class CythonModule:
     def __init__(self, module_name, filename, c_filename):
         self.name = module_name
@@ -129,6 +148,9 @@ class CythonModule:
         self.lineno_c2cy = {}
         self.functions = {}
 
+    def __repr__(self):
+        return simple_repr(self, {"module_name": "name"}, state=False)
+
 
 class CythonVariable:
 
@@ -138,6 +160,9 @@ class CythonVariable:
         self.qualified_name = qualified_name
         self.type = type
         self.lineno = int(lineno)
+
+    def __repr__(self):
+        return simple_repr(self)
 
 
 class CythonFunction(CythonVariable):
@@ -165,6 +190,25 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
+def frame_str(f):
+    res = str(f) + "\n"
+    for i in filter(lambda x: not x.startswith("__"), dir(f)):
+        val = getattr(f, i)
+        if callable(val):
+            try:
+                val = val()
+            except Exception as e:
+                pass
+
+        if type(val) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
+            val = frame_str(val).rsplit("\n", 1)[0].replace("\n", "\n\t")
+        res += i + ": "
+        if type(val) == int:
+            res += hex(val) + "\n"
+        else:
+            res += str(val) + "\n"
+    return res + "-" * 50
+
 class CythonBase:
 
     @default_selected_gdb_frame(err=False)
@@ -188,7 +232,9 @@ class CythonBase:
 
     @default_selected_gdb_frame()
     def get_c_lineno(self, frame):
-        return frame.find_sal().line
+        sal, fun = frame.find_sal(), frame.function()
+        ccall = sal.symtab.fullname() != fun.symtab.fullname()
+        return fun.line if ccall else sal.line
 
     @default_selected_gdb_frame()
     def get_cython_function(self, frame):
