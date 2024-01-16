@@ -3,6 +3,7 @@ GDB extension that adds Cython support.
 """
 
 
+import os
 import sys
 import textwrap
 import functools
@@ -232,9 +233,12 @@ class CythonBase:
 
     @default_selected_gdb_frame()
     def get_c_lineno(self, frame):
-        sal, fun = frame.find_sal(), frame.function()
-        ccall = sal.symtab.fullname() != fun.symtab.fullname()
-        return fun.line if ccall else sal.line
+        sal = frame.find_sal()
+        fn = self.get_cython_function(frame)
+        cycall = os.path.realpath(sal.symtab.fullname()) == \
+            os.path.realpath(fn.module.c_filename)
+        return sal.line if cycall and sal.line in fn.module.lineno_c2cy else \
+            frame.function().line
 
     @default_selected_gdb_frame()
     def get_cython_function(self, frame):
