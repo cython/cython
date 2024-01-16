@@ -125,7 +125,7 @@ def simple_repr(self, renamed={}, skip=[], state=True):
     local = tuple(filter(lambda x: x not in args, vars(self).keys())) \
         if state else ()
 
-    def equals (prefix, attrs):
+    def equals(prefix, attrs):
         for i in (j for j in attrs if j not in skip):
             attr = repr(getattr(self, i))
             yield prefix + i + " = " + attr.replace("\n", "\n\t\t")
