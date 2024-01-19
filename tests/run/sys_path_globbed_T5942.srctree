@@ -1,16 +1,9 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "from src.glob import mytest; mytest()"
+PYTHON -c "from tglob import mytest; mytest()"
 
-# [Hello-World]*?
-######## pkg/__init__.py ########
+######## __init__.py ########
 
-######## pkg/a_module.pxd ########
-
-######## src/__init__.py ########
-
-######## src/glob.pyx ########
-from pkg cimport a_module
-
+######## tglob.pyx ########
 def mytest():
     assert True
 ######## setup.py ########
@@ -29,8 +22,8 @@ reload(sys)  # Magic
 
 ext_modules = [
     Extension(
-        "src.glob",
-        sources=["src/glob.pyx"],
+        "tglob",
+        sources=["tglob.pyx"],
     )
 ]
 
