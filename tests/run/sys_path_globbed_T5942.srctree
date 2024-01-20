@@ -8,6 +8,7 @@ PYTHON -c "from tglob import mytest; mytest()"
 ######## tglob.pyx ########
 def mytest():
     assert True
+
 ######## setup.py ########
 import sys
 
