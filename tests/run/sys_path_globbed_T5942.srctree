@@ -24,6 +24,6 @@ except ImportError:
 reload(sys)  # Magic
 
 setup(
-    ext_modules=cythonize(["tglob.pyx"], language_level="3"),
+    ext_modules=cythonize(Extension("tglob", sources=["tglob.pyx"]), language_level="3"),
 )
 
