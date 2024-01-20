@@ -1,3 +1,5 @@
+# tag: gh5942
+
 PYTHON setup.py build_ext --inplace
 PYTHON -c "from tglob import mytest; mytest()"
 
