@@ -185,7 +185,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     from . import pyxbuild
     olddir = os.getcwd()
     common = ''
-    if pyxbuild_dir:
+    if pyxbuild_dir and sys.platform == 'win32':
         # Windows concatenates the pyxbuild_dir to the pyxfilename when
         # compiling, and then complains that the filename is too long
         common = os.path.commonprefix([pyxbuild_dir, pyxfilename])
