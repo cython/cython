@@ -190,8 +190,8 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
         # compiling, and then complains that the filename is too long
         common = os.path.commonprefix([pyxbuild_dir, pyxfilename])
     if len(common) > 30:
-        pyxfilename = os.path.relpath(pyxfilename)
-        pyxbuild_dir = os.path.relpath(pyxbuild_dir)
+        pyxfilename = os.path.relpath(pyxfilename, common)
+        pyxbuild_dir = os.path.relpath(pyxbuild_dir, common)
         os.chdir(common)
     try:
         so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
