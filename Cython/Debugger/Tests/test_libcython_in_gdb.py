@@ -177,9 +177,9 @@ class TestBreak(DebugTestCase):
 
     def test_break_completion(self):
         completer = libcython.cy.break_.complete
-        self.assertIn('spam', completer("codefile.SomeClass.s", "s"))
-        self.assertIn('spam', completer("codefile.SomeClass.", None))
-        self.assertIn('pam', completer("codefile.s", None))
+        assert 'spam' in completer("codefile.SomeClass.s", "s")
+        assert 'spam' in completer("codefile.SomeClass.", None)
+        assert 'pam' in completer("codefile.s", None)
 
 
 # I removed this testcase, because it will never work, because
