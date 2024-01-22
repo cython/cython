@@ -25,7 +25,6 @@ import gdb
 from .. import libcython
 from .. import libpython
 from . import TestLibCython as test_libcython
-from ...Utils import add_metaclass
 
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
@@ -52,8 +51,7 @@ class TraceMethodCallMeta(type):
                 setattr(self, func_name, print_on_call_decorator(func))
 
 
-@add_metaclass(TraceMethodCallMeta)
-class DebugTestCase(unittest.TestCase):
+class DebugTestCase(unittest.TestCase, metaclass=TraceMethodCallMeta):
     """
     Base class for test cases. On teardown it kills the inferior and unsets
     all breakpoints.
