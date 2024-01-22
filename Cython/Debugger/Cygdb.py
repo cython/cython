@@ -97,7 +97,7 @@ def make_command_file(path_to_debug_info, prefix_code='',
                     end
                 '''))
 
-            f.write("source .cygdbinit")
+            f.write("source .cygdbinit\n")
     finally:
         f.close()
 
