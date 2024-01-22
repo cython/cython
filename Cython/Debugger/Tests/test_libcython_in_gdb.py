@@ -58,7 +58,7 @@ class DebugTestCase(unittest.TestCase, metaclass=TraceMethodCallMeta):
     """
 
     def __init__(self, name):
-        super(DebugTestCase, self).__init__(name)
+        super().__init__(name)
         self.cy = libcython.cy
         self.module = libcython.cy.cython_namespace['codefile']
         self.spam_func, self.spam_meth = libcython.cy.functions_by_name['spam']
