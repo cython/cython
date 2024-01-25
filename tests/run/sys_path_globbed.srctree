@@ -3,8 +3,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "from tglob import mytest; mytest()"
 
-######## __init__.py ########
-
 ######## tglob.pyx ########
 def mytest():
     assert True
@@ -24,6 +22,6 @@ except ImportError:
 reload(sys)  # Magic
 
 setup(
-    ext_modules=cythonize(Extension("tglob", sources=["tglob.pyx"]), language_level="3"),
+    ext_modules=cythonize(["tglob.pyx"], language_level="3"),
 )
 
