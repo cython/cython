@@ -1068,9 +1068,7 @@ class ExprNode(Node):
         return src
 
     def fail_assignment(self, dst_type):
-        src_name = None
-        if hasattr(self, "entry"):
-            src_name = self.entry.name
+        src_name = self.entry.name if hasattr(self, "entry") else None
         src_resolved = f" (alias of '{self.type.resolve()}')" if self.type.is_typedef else ""
         dst_resolved = f" (alias of '{dst_type.resolve()}')" if dst_type.is_typedef else ""
         extra_diagnostics = dst_type.assignment_failure_extra_info(self.type, src_name)
