@@ -324,7 +324,7 @@ class CythonBase:
         sys.stdout.write('\n')
 
         try:
-            sys.stdout.write('    ' + source_desc.get_source(lineno))
+            sys.stdout.write(f'    {source_desc.get_source(lineno)}\n')
         except gdb.GdbError:
             pass
 
