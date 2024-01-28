@@ -191,8 +191,8 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-def frame_str(f):
-    res = str(f) + "\n"
+def frame_str(frame):
+    res = str(frame) + "\n"
     for attribute, value in vars(frame).items():
         if attribute.startswith("__"):
             continue
