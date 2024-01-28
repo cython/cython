@@ -121,8 +121,9 @@ def simple_repr(self, renamed={}, skip=[], state=True):
     import inspect
     args = tuple(inspect.signature(self.__init__).parameters)
     args = tuple(renamed[i] if i in renamed else i for i in args)
-    local = tuple(filter(lambda x: x not in args, vars(self).keys())) \
-        if state else ()
+    local = ()
+    if state:
+        local = tuple(sorted(arg_name for arg_name in vars(self).keys() if arg_name not in args))
 
     def equals(prefix, attrs):
         for i in (j for j in attrs if j not in skip):
