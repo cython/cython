@@ -119,21 +119,25 @@ def gdb_function_value_to_unicode(function):
 
 def simple_repr(self, renamed={}, skip=[], state=True):
     import inspect
-    args = tuple(inspect.signature(self.__init__).parameters)
-    args = tuple(renamed[i] if i in renamed else i for i in args)
-    local = ()
+    init_arg_names = tuple(inspect.signature(self.__init__).parameters)
+    init_attrs = tuple(renamed.get(arg, arg) for arg in init_arg_names)
+    state_repr = ()
     if state:
-        local = tuple(sorted(arg_name for arg_name in vars(self).keys() if arg_name not in args))
+        instance_only = vars(self).keys()
+        state_only = (attr for attr in instance_only if attr not in init_attrs)
+        state_repr = tuple(sorted(state_only))
 
     def equals(prefix, attrs):
-        for i in (j for j in attrs if j not in skip):
-            attr = repr(getattr(self, i))
-            yield prefix + i + " = " + attr.replace("\n", "\n\t\t")
+        for attr in attrs:
+            if attr in skip:
+                continue
+            param = repr(getattr(self, attr))
+            yield prefix + attr + " = " + param.replace("\n", "\n\t\t")
 
     return "".join([
             self.__class__.__name__,
-            "(", ",".join(equals("\n\t\t", args)), "\n\t)",
-            *equals("\nself.", local)
+            "(", ",".join(equals("\n\t\t", init_attrs)), "\n\t)",
+            *equals("\nself.", state_repr)
         ])
 
 
