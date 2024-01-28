@@ -197,9 +197,10 @@ class CythonFunction(CythonVariable):
 
 def frame_str(frame):
     res = str(frame) + "\n"
-    for attribute, value in sorted(dir(frame).items()):
+    for attribute in sorted(dir(frame)):
         if attribute.startswith("__"):
             continue
+        value = getattr(frame, attribute)
         if callable(value):
             try:
                 value = value()
@@ -790,6 +791,7 @@ class CyBreak(CythonCommand):
 
     name = 'cy break'
     command_class = gdb.COMMAND_BREAKPOINTS
+
 
     def _break_pyx(self, name):
         modulename, _, lineno = name.partition(':')
