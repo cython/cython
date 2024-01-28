@@ -130,11 +130,11 @@ def simple_repr(self, renamed={}, skip=[], state=True):
             attr = repr(getattr(self, i))
             yield prefix + i + " = " + attr.replace("\n", "\n\t\t")
 
-    return "".join((
+    return "".join([
             self.__class__.__name__,
             "(", ",".join(equals("\n\t\t", args)), "\n\t)",
             *equals("\nself.", local)
-        ))
+        ])
 
 
 class CythonModule:
