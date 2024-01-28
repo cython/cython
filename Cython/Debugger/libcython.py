@@ -197,22 +197,23 @@ class CythonFunction(CythonVariable):
 
 def frame_str(frame):
     res = str(frame) + "\n"
-    for attribute, value in vars(frame).items():
+    for attribute, value in sorted(dir(frame).items()):
         if attribute.startswith("__"):
             continue
-        if callable(val):
+        if callable(value):
             try:
-                val = val()
+                value = value()
             except Exception as e:
                 pass
 
-        if type(val) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
-            val = frame_str(val).rsplit("\n", 1)[0].replace("\n", "\n\t")
-        res += i + ": "
-        if type(val) == int:
-            res += hex(val) + "\n"
+        if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
+            # strip last line since it will get added on at the end of the loop
+            value = frame_str(value).strip("\n").replace("\n", "\n\t")
+        res += attribute + ": "
+        if type(value) == int:
+            res += hex(value) + "\n"
         else:
-            res += str(val) + "\n"
+            res += str(value) + "\n"
     return res
 
 class CythonBase:
