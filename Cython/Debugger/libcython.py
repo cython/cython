@@ -192,8 +192,9 @@ class CythonFunction(CythonVariable):
 
 def frame_str(f):
     res = str(f) + "\n"
-    for i in filter(lambda x: not x.startswith("__"), dir(f)):
-        val = getattr(f, i)
+    for attribute, value in vars(frame).items():
+        if attribute.startswith("__"):
+            continue
         if callable(val):
             try:
                 val = val()
