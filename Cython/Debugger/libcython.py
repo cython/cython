@@ -118,6 +118,37 @@ def gdb_function_value_to_unicode(function):
 # Don't rename the parameters of these classes, they come directly from the XML
 
 def simple_repr(self, renamed={}, skip=[], state=True):
+    """prints out all instance variables needed to recreate an object
+
+    Following the python convension for __repr__, this function prints all the
+    information stored in an instance as opposed to its class. The working
+    assumption is that most initialization arguments are stored as a property
+    using the same name.
+
+    The object contents are displayed as the initialization call followed by,
+    optionally, the value of each of the instance's properties in the form:
+    ```
+    ClassName(
+            init_arg_1 = "repr of some example str",
+            ...
+        )
+    self.state_based_property = ...
+    ```
+
+    Function arguments:
+    self        Instance to be represented
+
+    renamed     Dictionary of initialization arguments that are stored under a
+                different property name in the form { argument: property }
+
+    skip        List of instance variables not to be listed as properties.
+                Computed properties are already skipped.
+                Only changes behavior if `state` argument is True (default).
+
+    state       Boolean representing whether properties outside the
+                initialization parameters should be printed (self.prop = ...).
+                Using `False` may make the class more amenable to recursive repr
+    """
     import inspect
     init_arg_names = tuple(inspect.signature(self.__init__).parameters)
     init_attrs = tuple(renamed.get(arg, arg) for arg in init_arg_names)
@@ -195,7 +226,24 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-def frame_str(frame):
+def frame_repr(frame):
+    """Returns a string representing the internal state of a provided GDB frame
+
+    Created to serve as GDB.Frame.__repr__ for debugging purposes. GDB has many
+    layers of abstraction separating the state of the debugger from the
+    corresponding source code. This prints a tree of instance properties,
+    expanding the values for Symtab_and_line, Symbol, and Symtab.
+
+    Most of these properties require computation to determine, meaning much of
+    relevant info is behind a monad. Rather than list which properties are worth
+    printing, we assume that frames are mostly a read-only context and that any
+    function without an argument is idempotent. That is to say, every function
+    is called without arguments and any that don't throw an exception are added
+    to the output.
+
+    Arguments
+    frame       The GDB.Frame instance to be represented as a string
+    """
     res = str(frame) + "\n"
     for attribute in sorted(dir(frame)):
         if attribute.startswith("__"):
@@ -209,7 +257,7 @@ def frame_str(frame):
 
         if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
             # strip last line since it will get added on at the end of the loop
-            value = frame_str(value).strip("\n").replace("\n", "\n\t")
+            value = frame_repr(value).strip("\n").replace("\n", "\n\t")
         res += attribute + ": "
         if type(value) == int:
             res += hex(value) + "\n"
