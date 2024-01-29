@@ -158,16 +158,16 @@ def simple_repr(self, renamed={}, skip=[], state=True):
         state_only = (attr for attr in instance_only if attr not in init_attrs)
         state_repr = tuple(sorted(state_only))
 
-    def equals(prefix, attrs):
-        for attr in attrs:
+    def equals(prefix, attrs, args=None):
+        for attr, arg in zip(attrs, args or attrs):
             if attr in skip:
                 continue
             param = repr(getattr(self, attr))
-            yield prefix + attr + " = " + param.replace("\n", "\n\t\t")
+            yield prefix + arg + " = " + param.replace("\n", "\n\t\t")
 
     return "".join([
-            self.__class__.__name__,
-            "(", ",".join(equals("\n\t\t", init_attrs)), "\n\t)",
+            self.__class__.__qualname__, "(",
+            ",".join(equals("\n\t\t", init_attrs, init_arg_names)), "\n\t)",
             *equals("\nself.", state_repr)
         ])
 
