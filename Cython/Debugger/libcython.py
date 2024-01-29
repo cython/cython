@@ -120,7 +120,7 @@ def gdb_function_value_to_unicode(function):
 def simple_repr(self, renamed={}, skip=[], state=True):
     """prints out all instance variables needed to recreate an object
 
-    Following the python convension for __repr__, this function prints all the
+    Following the python convention for __repr__, this function prints all the
     information stored in an instance as opposed to its class. The working
     assumption is that most initialization arguments are stored as a property
     using the same name.
