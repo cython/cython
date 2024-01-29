@@ -840,7 +840,6 @@ class CyBreak(CythonCommand):
     name = 'cy break'
     command_class = gdb.COMMAND_BREAKPOINTS
 
-
     def _break_pyx(self, name):
         modulename, _, lineno = name.partition(':')
         lineno = int(lineno)

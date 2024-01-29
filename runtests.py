@@ -2575,7 +2575,7 @@ def time_stamper_thread(interval=10):
                 if stop:
                     return
                 sleep(1./4)
-            write('\n#### %s\n' % now())
+            #write('\n#### %s\n' % now())
 
     thread = threading.Thread(target=time_stamper, name='time_stamper')
     thread.daemon = True
