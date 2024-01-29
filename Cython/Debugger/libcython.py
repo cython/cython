@@ -189,10 +189,20 @@ class CythonBase:
 
     @default_selected_gdb_frame()
     def get_c_lineno(self, frame):
+        """
+        If the current frame is a C function called directly from Cython, the
+        symbol table (sal) will give the first line of the C implementation
+        declaring the function instead of caller line that the class has a
+        Cython mapping for. In this case, the frame's function property still
+        gives the calling function instead of the one being stepped into, which
+        can be used to determine the line that has a mapping to Cython source.
+        """
         sal = frame.find_sal()
         fn = self.get_cython_function(frame)
+        # the frame's symtab is only relevant if it's in the function's module
         cycall = os.path.realpath(sal.symtab.fullname()) == \
             os.path.realpath(fn.module.c_filename)
+        # only use the frame's symbol and line if the call has a mapping
         return sal.line if cycall and sal.line in fn.module.lineno_c2cy else \
             frame.function().line
 
