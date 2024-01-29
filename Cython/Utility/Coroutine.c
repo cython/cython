@@ -301,11 +301,8 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 //@requires: Exceptions.c::GetException
 
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
-    PyObject *val, *cur_exc, *new_exc;
-    #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
-    PyObject *exc, *tb;
+    PyObject *exc, *val, *tb, *cur_exc, *new_exc;
     __Pyx_PyThreadState_declare
-    #endif
     #ifdef __Pyx_StopAsyncIteration_USED
     int is_async_stopiteration = 0;
     #endif
@@ -322,15 +319,10 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     }
 
     // Explicitly chain the Stop(Async)Iteration exception to the RuntimeError
-    #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     __Pyx_PyThreadState_assign
     __Pyx_GetException(&exc, &val, &tb);
     Py_XDECREF(exc);
     Py_XDECREF(tb);
-    #else
-    val = PyErr_GetRaisedException();
-    (void)__Pyx__GetException;
-    #endif
     new_exc = PyObject_CallFunction(PyExc_RuntimeError, "s",
         #ifdef __Pyx_StopAsyncIteration_USED
         is_async_stopiteration ? "async generator raised StopAsyncIteration" :
@@ -338,11 +330,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
         #endif
         "generator raised StopIteration");
     PyException_SetCause(new_exc, val); // steals ref to val
-    #if __PYX_LIMITED_VERSION_HEX < 0x030C0000
     PyErr_SetObject(PyExc_RuntimeError, new_exc);
-    #else
-    PyErr_SetRaisedException(new_exc);
-    #endif
 }
 
 
