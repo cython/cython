@@ -4474,23 +4474,24 @@ class IndexNode(_IndexingBaseNode):
             # all handled in self.calculate_result_code()
             return
 
+        base_type = self.base.type
         utility_code = None
         error_value = None
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
-                if self.base.type is list_type:
+                if base_type is list_type:
                     function = "__Pyx_GetItemInt_List"
-                elif self.base.type is tuple_type:
+                elif base_type is tuple_type:
                     function = "__Pyx_GetItemInt_Tuple"
                 else:
                     function = "__Pyx_GetItemInt"
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
-                if self.base.type is dict_type:
+                if base_type is dict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
-                elif self.base.type is py_object_type and self.index.type in (str_type, unicode_type):
+                elif base_type is py_object_type and self.index.type in (str_type, unicode_type):
                     # obj[str] is probably doing a dict lookup
                     function = "__Pyx_PyObject_Dict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
@@ -4499,20 +4500,20 @@ class IndexNode(_IndexingBaseNode):
                     code.globalstate.use_utility_code(
                         TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
                     utility_code = UtilityCode.load_cached("ObjectGetItem", "ObjectHandling.c")
-        elif self.type.is_unicode_char and self.base.type is unicode_type:
+        elif self.type.is_unicode_char and base_type is unicode_type:
             assert self.index.type.is_int
             function = "__Pyx_GetItemInt_Unicode"
             error_value = '(Py_UCS4)-1'
             utility_code = UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c")
-        elif self.base.type is bytearray_type:
+        elif base_type is bytearray_type:
             assert self.index.type.is_int
             assert self.type.is_int
             function = "__Pyx_GetItemInt_ByteArray"
             error_value = '-1'
             utility_code = UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c")
-        elif not (self.base.type.is_cpp_class and self.exception_check):
+        elif not (base_type.is_cpp_class and self.exception_check):
             assert False, "unexpected type %s and base type %s for indexing (%s)" % (
-                self.type, self.base.type, self.pos)
+                self.type, base_type, self.pos)
 
         if utility_code is not None:
             code.globalstate.use_utility_code(utility_code)
@@ -4522,7 +4523,7 @@ class IndexNode(_IndexingBaseNode):
         else:
             index_code = self.index.py_result()
 
-        if self.base.type.is_cpp_class and self.exception_check:
+        if base_type.is_cpp_class and self.exception_check:
             translate_cpp_exception(code, self.pos,
                 "%s = %s[%s];" % (self.result(), self.base.result(),
                                   self.index.result()),
