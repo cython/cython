@@ -75,8 +75,8 @@ Cython understands all Python string type prefixes:
   :PEP:`498` (added in Cython 0.24)
 
 Unprefixed string literals become :obj:`str` objects when compiling
-with language level 2 and :obj:`unicode` objects (i.e. Python 3
-:obj:`str`) with language level 3.
+with language level 2 and :obj:`str` objects
+(i.e. :obj:`unicode`) with language level 3.
 
 
 General notes about C strings
