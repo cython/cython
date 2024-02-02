@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from cpython.version cimport PY_MAJOR_VERSION
 
 

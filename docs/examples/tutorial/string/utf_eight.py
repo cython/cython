@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from cython.cimports.libc.stdlib import free
 
 @cython.cfunc

@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from cython.cimports.cpython.version import PY_MAJOR_VERSION
 
 @cython.cfunc
