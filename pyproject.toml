@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.cibuildwheel]
+build-verbosity = 2
+skip = ["pp*", "cp36*"]
+# test-command = "make test"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "aarch64", "i686"]
+repair-wheel-command = "auditwheel repair --strip -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.linux.environment]
+CFLAGS = "-O3 -g0 -pipe -fPIC -march=core2"
+AR = "gcc-ar"
+NM = "gcc-nm"
+RANLIB = "gcc-ranlib"
+
+[[tool.cibuildwheel.overrides]]
+select = "*aarch64"
+environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib" }
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64", "x86"]
+
+[tool.cibuildwheel.macos]
+# https://cibuildwheel.readthedocs.io/en/stable/faq/#what-to-provide suggests to provide
+# x86_64 and one of universal2 or arm64 wheels.  x86_64 is still required by older pips,
+# so additional arm64 wheels should suffice.
+archs = ["x86_64", "arm64"]

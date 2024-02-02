@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.0 (202?-??-??)
+3.1.0 (2024-??-??)
 ==================
 
 Features added
@@ -13,13 +13,19 @@ Features added
 
 * Many issues with the Limited C-API were resolved.
   (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
-   :issue:`5885`, :issue:`5886`, :issue:`5888`)
+  :issue:`5885`, :issue:`5886`, :issue:`5888`)
 
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
 
+* Threading in parallel sections can now be disabled with a new ``use_threads_if`` condition.
+  (Github issue :issue:`5919`)
+
 * f-strings are slightly faster.
   (Github issue :issue:`5866`)
+
+* ``dict.pop()`` is faster in some cases.
+  (Github issue :issue:`5911`)
 
 * Most builtin methods now provide their return type for type inference.
   (Github issue :issue:`5865`)
@@ -61,7 +67,26 @@ Other changes
 * Usages of the outdated ``WITH_THREAD`` macro guard were removed.
   (Github issue :issue:`5812`)
 
-* Includes all fixes as of Cython 3.0.7.
+* Includes all fixes as of Cython 3.0.8 (but generates C99 code in some places).
+
+
+3.0.8 (2024-01-10)
+==================
+
+Bugs fixed
+----------
+
+* Using ``const`` together with defined fused types could fail to compile.
+  (Github issue :issue:`5230`)
+
+* A "use after free" bug was fixed in parallel sections.
+  (Github issue :issue:`5922`)
+
+* Several types were not available as ``cython.*`` types in pure Python code.
+
+* The generated code is now correct C89 again, removing some C++ style ``//`` comments
+  and C99-style declaration-after-code code ordering.  This is still relevant for some
+  ols C compilers, specifically ones that match old Python 2.7 installations.
 
 
 3.0.7 (2023-12-19)
@@ -2161,7 +2186,7 @@ Features added
   both Python and C semantics of enums.
   (Github issue :issue:`2732`)
 
-* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+* `PEP-614`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 

@@ -432,7 +432,16 @@
 #endif
 
 #ifndef CYTHON_VECTORCALL
+#if CYTHON_COMPILING_IN_LIMITED_API
+// Possibly needs a bit of clearing up, however:
+//  the limited API doesn't define CYTHON_FAST_PYCCALL (because that involves
+//  a lot of access to internals) but does define CYTHON_VECTORCALL because
+//  that's available cleanly from Python 3.12. Note that only VectorcallDict isn't
+//  available though.
+#define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+#else
 #define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
+#endif
 #endif
 
 /* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
@@ -700,7 +709,7 @@ class __Pyx_FakeReference {
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
-        PyObject *version_info; // borrowed
+        PyObject *version_info;  /* borrowed */
         PyObject *py_minor_version = NULL;
         #endif
         long minor_version = 0;
@@ -710,8 +719,9 @@ class __Pyx_FakeReference {
         PyErr_Fetch(&type, &value, &traceback);
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
-        minor_version = 11; // we don't yet need to distinguish between versions > 11
-        // Note that from 3.13, when we do we can use Py_Version
+        minor_version = 11;
+        // we don't yet need to distinguish between versions > 11
+        // Note that from 3.13, when we do, we can use Py_Version
         #else
         if (!(version_info = PySys_GetObject("version_info"))) goto end;
         if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
@@ -792,7 +802,7 @@ class __Pyx_FakeReference {
     //  1. pass an empty bytes string as exception_table
     //  2. pass name as qualname (TODO this might implementing properly in future)
     PyCodeObject *result;
-    PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  // we don't have access to __pyx_empty_bytes here
+    PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  /* we don't have access to __pyx_empty_bytes here */
     if (!empty_bytes) return NULL;
     result =
       #if PY_VERSION_HEX >= 0x030C0000
