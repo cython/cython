@@ -19,7 +19,7 @@ try:
     from __builtin__ import reload
 except ImportError:
     from importlib import reload
-reload(sys)  # Magic
+reload(sys)  # Required to make Python use updated sys.path
 
 setup(
     ext_modules=cythonize(["tglob.pyx"], language_level="3"),
