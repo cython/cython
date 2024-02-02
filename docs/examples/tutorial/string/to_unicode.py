@@ -2,7 +2,7 @@ from cython.cimports.cpython.version import PY_MAJOR_VERSION
 
 @cython.cfunc
 def _text(s) -> str:
-    if type(s) == str:
+    if type(s) is str:
         # Fast path for most common case(s).
         return cython.cast(str, s)
 

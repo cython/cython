@@ -2,7 +2,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 
 cdef str _text(s):
-    if type(s) == str:
+    if type(s) is str:
         # Fast path for most common case(s).
         return <str>s
 
