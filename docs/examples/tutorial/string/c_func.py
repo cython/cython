@@ -18,6 +18,7 @@ def c_call_returning_a_c_string() -> cython.p_char:
 
 
 # this function is defined as a cdef function in the .pxd file, no need for @cython.cfunc
+@cython.cfunc  # DELETE ME (GH#5970)
 def get_a_c_string(c_string_ptr: cython.pp_char,
                    length: cython.pointer(cython.Py_ssize_t)) -> cython.void:
     c_string_ptr[0] = cython.cast(cython.p_char, malloc(
