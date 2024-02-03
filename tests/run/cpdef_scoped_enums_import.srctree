@@ -20,29 +20,33 @@ setup(
               ])
 )
 
+######## cheesedef.hpp #################
+
+namespace Namespace {
+    enum class Cheese {
+        cheddar = 1,
+        camembert = 2
+    };
+}
+
 ######## cheese.pxd ########
 # distutils: language = c++
 # distutils: extra_compile_args = -std=c++11
 
 
-cdef extern from * namespace "Namespace":
-    """
-    namespace Namespace {
-        enum class Cheese {
-            cheddar = 1,
-            camembert = 2
-        };
-    }
-    """
+cdef extern from "cheesedef.hpp" namespace "Namespace":
     cpdef enum class Cheese:
         cheddar
         camembert
+        
+cdef public api void passTheCheese(Cheese c)
 
 ######## cheese.pyx ########
 # distutils: language = c++
 # distutils: extra_compile_args = -std=c++11
 
-pass
+cdef api void passTheCheese(Cheese c):
+    pass
 
 ######## import_scoped_enum_test.pyx ########
 # distutils: language = c++
@@ -64,6 +68,20 @@ cimport cheese
 cdef cheese.Cheese c = cheese.Cheese.cheddar
 assert [cheese.Cheese.cheddar, cheese.Cheese.camembert] == [1, 2]
 cdef cheese.Cheese d = int(1)
+
+######## include_header1.pyx ##########
+
+# This is just a compile-time test - cheese.h should have all the
+# definitions needed to include it (e.g. __PYX_ENUM_CLASS_DECL)
+cdef extern from "cheese_api.h":
+    pass
+    
+######## include_header2.pyx ############
+
+# This is just a compile-time test - cheese.h should have all the
+# definitions needed to include it (e.g. __PYX_ENUM_CLASS_DECL)
+cdef extern from "cheese.h":
+    pass
 
 ######## runner.py ########
 
