@@ -65,6 +65,10 @@ def run_sum_generator_expression(a):
     10
     """
     return sum_generator_expression(a)
+    
+@cython.cfunc
+def gh4388() -> cython.void:
+    pass  # just a compile test
 
 
 def test(module):
@@ -109,6 +113,8 @@ cpdef int func(x, int y, z) except? -1  # argument names should not matter, type
 
 
 cdef int sum_generator_expression(int a)
+
+cdef void gh4388()
 
 ############## b.pxd #######
 
