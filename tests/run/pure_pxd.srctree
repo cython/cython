@@ -8,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-    ext_modules=cythonize("a.py"),
+    ext_modules=cythonize("*.py"),
 )
 
 
@@ -109,3 +109,17 @@ cpdef int func(x, int y, z) except? -1  # argument names should not matter, type
 
 
 cdef int sum_generator_expression(int a)
+
+############## b.pxd #######
+
+# no cimport cython should appear in this file
+# "b" tests https://github.com/cython/cython/issues/5970 alone
+
+cdef void get_a_c_string(Py_ssize_t *length)
+
+############## b.py ########
+
+import cython
+
+def get_a_c_string(length: cython.pointer(cython.Py_ssize_t)) -> cython.void:
+    pass
