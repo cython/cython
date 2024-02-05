@@ -1764,7 +1764,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if needs_gc:
                 # The base class deallocator probably expects this to be tracked,
                 # so undo the untracking above.
-                # Assume that we do not know weather the base class uses GC or not.
+                # Assume that we do not know whether the base class uses GC or not.
                 if base_type.scope and base_type.scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 else:
