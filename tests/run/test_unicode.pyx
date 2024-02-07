@@ -2326,6 +2326,10 @@ class UnicodeTest(CommonTest,
         s = 'abc'
         self.assertIs(s.expandtabs(), s)
 
+    """
+    # Not useful for Cython: struct sizes change between versions
+    # so it's hard to keep reliably up-to-date, and it's largely checking
+    # a CPython implementation detail
     def test_raiseMemError(self):
         if struct.calcsize('P') == 8:
             # 64 bits pointers
@@ -2354,6 +2358,7 @@ class UnicodeTest(CommonTest,
             alloc = lambda: char * maxlen
             self.assertRaises(MemoryError, alloc)
             self.assertRaises(MemoryError, alloc)
+        """
 
     def test_format_subclass(self):
         class S(str):
