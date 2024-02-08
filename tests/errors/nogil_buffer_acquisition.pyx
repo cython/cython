@@ -1,4 +1,5 @@
 # mode: error
+#tag: numpy
 
 cimport numpy as np
 
