@@ -25,7 +25,6 @@ import gdb
 from .. import libcython
 from .. import libpython
 from . import TestLibCython as test_libcython
-from ...Utils import add_metaclass
 
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
@@ -52,8 +51,7 @@ class TraceMethodCallMeta(type):
                 setattr(self, func_name, print_on_call_decorator(func))
 
 
-@add_metaclass(TraceMethodCallMeta)
-class DebugTestCase(unittest.TestCase):
+class DebugTestCase(unittest.TestCase, metaclass=TraceMethodCallMeta):
     """
     Base class for test cases. On teardown it kills the inferior and unsets
     all breakpoints.
@@ -174,6 +172,12 @@ class TestBreak(DebugTestCase):
         step_result = gdb.execute('cy step', to_string=True)
         self.lineno_equals(nextline)
         assert step_result.rstrip().endswith(nextline)
+
+    def test_break_completion(self):
+        completer = libcython.cy.break_.complete
+        self.assertIn('spam', completer("codefile.SomeClass.s", "s"))
+        self.assertIn('spam', completer("codefile.SomeClass.", None))
+        self.assertIn('pam', completer("codefile.s", None))
 
 
 # I removed this testcase, because it will never work, because
@@ -505,9 +509,8 @@ def _debug(*messages):
 
 
 def run_unittest_in_module(modulename):
-    try:
-        gdb.lookup_type('PyModuleObject')
-    except RuntimeError:
+    # Check if the Python executable provides a symbol table.
+    if not hasattr(gdb.selected_inferior().progspace, "symbol_file"):
         msg = ("Unable to run tests, Python was not compiled with "
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")

@@ -228,7 +228,7 @@ If you have some C files that have been wrapped with Cython and you want to
 compile them into your extension, you can define the setuptools ``sources``
 parameter::
 
-    # distutils: sources = helper.c, another_helper.c
+    # distutils: sources = [helper.c, another_helper.c]
 
 Note that these sources are added to the list of sources of the current
 extension module.  Spelling this out in the :file:`setup.py` file looks
