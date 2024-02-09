@@ -27,10 +27,17 @@ cdef func(const int a, const int* b, const (int*) c, const S s, int *const d, in
 
 cdef volatile object v
 
-cdef f(const int *b, const int *c):
+cdef const_warn(const int *b, const int *c):
     cdef int *x = b
     cdef int *y
     cdef int *z
+    y, z = b, c
+    z = y = b
+
+cdef const_ok(const int *b, const int *c):
+    cdef const int *x = b
+    cdef const int *y
+    cdef const int *z
     y, z = b, c
     z = y = b
 
