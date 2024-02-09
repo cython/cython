@@ -6014,12 +6014,12 @@ class AssignmentNode(StatNode):
             warning(self.pos, "Assigning to '{}' from '{}' discards const qualifier".format(lhs.type, rhs.type), level=1)
 
     def _check_const_assignment(self, node):
-        self._warn_on_const_assignment(node.lhs, node.rhs)
+        if isinstance(node, AssignmentNode):
+            self._warn_on_const_assignment(node.lhs, node.rhs)
 
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
-        if isinstance(node, AssignmentNode):
-            self._check_const_assignment(node)
+        self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
@@ -6371,8 +6371,9 @@ class CascadedAssignmentNode(AssignmentNode):
     assignment_overloads = None
 
     def _check_const_assignment(self, node):
-        for lhs in node.lhs_list:
-            self._warn_on_const_assignment(lhs, node.rhs)
+        if isinstance(node, CascadedAssignmentNode):
+            for lhs in node.lhs_list:
+                self._warn_on_const_assignment(lhs, node.rhs)
 
     def analyse_declarations(self, env):
         for lhs in self.lhs_list:
