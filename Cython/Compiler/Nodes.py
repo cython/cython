@@ -6483,7 +6483,7 @@ class ParallelAssignmentNode(AssignmentNode):
                       for stat in self.stats]
 
         for stat in self.stats:
-            self._check_const_assignment(stat)
+            stat._check_const_assignment(stat)
         return self
 
 #    def analyse_expressions(self, env):
