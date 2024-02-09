@@ -58,7 +58,7 @@ _ERRORS = """
 _WARNINGS = """
 31:9: Assigning to 'int *' from 'const int *' discards const qualifier
 34:11: Assigning to 'int *' from 'const int *' discards const qualifier
-34:11: Assigning to 'int *' from 'const int *' discards const qualifier
+34:14: Assigning to 'int *' from 'const int *' discards const qualifier
 35:12: Assigning to 'int *' from 'const int *' discards const qualifier
 35:12: Assigning to 'int *' from 'const int *' discards const qualifier
 """
