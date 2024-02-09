@@ -324,7 +324,7 @@ class CythonBase:
         sys.stdout.write('\n')
 
         try:
-            sys.stdout.write('    ' + source_desc.get_source(lineno))
+            sys.stdout.write(f'    {source_desc.get_source(lineno)}\n')
         except gdb.GdbError:
             pass
 
@@ -826,6 +826,8 @@ class CyBreak(CythonCommand):
 
     @libpython.dont_suppress_errors
     def complete(self, text, word):
+        # https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/python/py-cmd.c;h=7143c1c5f7fdce9316a8c41fc2246bc6a07630d4;hb=HEAD#l140
+        word = word or ""
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
         names =  [n for n, L in self.cy.functions_by_name.items()

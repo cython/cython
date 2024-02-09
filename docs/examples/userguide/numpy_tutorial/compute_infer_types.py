@@ -1,18 +1,18 @@
 # cython: infer_types=True
 import numpy as np
-cimport cython
+import cython
 
 DTYPE = np.intc
 
-
-cdef int clip(int a, int min_value, int max_value):
+@cython.cfunc
+def clip(a: cython.int, min_value: cython.int, max_value: cython.int) -> cython.int:
     return min(max(a, min_value), max_value)
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def compute(int[:, ::1] array_1, int[:, ::1] array_2, int a, int b, int c):
-
+def compute(array_1: cython.int[:, ::1], array_2: cython.int[:, ::1],
+            a: cython.int, b: cython.int, c: cython.int):
 
     x_max = array_1.shape[0]
     y_max = array_1.shape[1]
@@ -20,11 +20,11 @@ def compute(int[:, ::1] array_1, int[:, ::1] array_2, int a, int b, int c):
     assert tuple(array_1.shape) == tuple(array_2.shape)
 
     result = np.zeros((x_max, y_max), dtype=DTYPE)
-    cdef int[:, ::1] result_view = result
+    result_view: cython.int[:, ::1] = result
 
-    cdef int tmp
-    cdef Py_ssize_t x, y
-
+    tmp: cython.int
+    x: cython.Py_ssize_t
+    y: cython.Py_ssize_t
 
     for x in range(x_max):
         for y in range(y_max):

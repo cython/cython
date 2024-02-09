@@ -19,7 +19,7 @@
 // getter functions because we can't forward-declare arrays
 static PyUFuncGenericFunction* {{ufunc_funcs_name}}(void); /* proto */
 static char* {{ufunc_types_name}}(void); /* proto */
-static void* {{ufunc_data_name}}[] = {NULL};  // always null
+static void* {{ufunc_data_name}}[] = {NULL};  /* always null */
 
 /////////////////////// UFuncConsts /////////////////////////
 

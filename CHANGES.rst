@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.0 (202?-??-??)
+3.1.0 (2024-??-??)
 ==================
 
 Features added
@@ -13,13 +13,19 @@ Features added
 
 * Many issues with the Limited C-API were resolved.
   (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
-   :issue:`5885`, :issue:`5886`, :issue:`5888`)
+  :issue:`5885`, :issue:`5886`, :issue:`5888`)
 
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
 
+* Threading in parallel sections can now be disabled with a new ``use_threads_if`` condition.
+  (Github issue :issue:`5919`)
+
 * f-strings are slightly faster.
   (Github issue :issue:`5866`)
+
+* ``dict.pop()`` is faster in some cases.
+  (Github issue :issue:`5911`)
 
 * Most builtin methods now provide their return type for type inference.
   (Github issue :issue:`5865`)
@@ -61,14 +67,40 @@ Other changes
 * Usages of the outdated ``WITH_THREAD`` macro guard were removed.
   (Github issue :issue:`5812`)
 
-* Includes all fixes as of Cython 3.0.7.
+* Includes all fixes as of Cython 3.0.8 (but generates C99 code in some places).
 
 
-3.0.7 (202?-??-??)
+3.0.8 (2024-01-10)
 ==================
 
 Bugs fixed
 ----------
+
+* Using ``const`` together with defined fused types could fail to compile.
+  (Github issue :issue:`5230`)
+
+* A "use after free" bug was fixed in parallel sections.
+  (Github issue :issue:`5922`)
+
+* Several types were not available as ``cython.*`` types in pure Python code.
+
+* The generated code is now correct C89 again, removing some C++ style ``//`` comments
+  and C99-style declaration-after-code code ordering.  This is still relevant for some
+  ols C compilers, specifically ones that match old Python 2.7 installations.
+
+
+3.0.7 (2023-12-19)
+==================
+
+Bugs fixed
+----------
+
+* In the iterator of generator expressions, ``await`` and ``yield`` were not correctly analysed.
+  (Github issue :issue:`5851`)
+
+* ``cpdef`` enums with the same name cimported from different modules could lead to
+  invalid C code.
+  (Github issue :issue:`5887`)
 
 * Some declarations in ``cpython.unicode`` were fixed and extended.
   (Github issue :issue:`5902`)
@@ -78,6 +110,9 @@ Bugs fixed
 
 * Source files with non-ASCII file names could crash Cython.
   (Github issue :issue:`5873`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.37` release.
 
 
 3.0.6 (2023-11-26)
@@ -2151,7 +2186,7 @@ Features added
   both Python and C semantics of enums.
   (Github issue :issue:`2732`)
 
-* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+* `PEP-614`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 
@@ -3395,6 +3430,27 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.37:
+
+0.29.37 (2023-12-18)
+====================
+
+Bugs fixed
+----------
+
+* Fix a potential crash while cleaning up subtypes of externally imported extension
+  types when terminating Python.  This was introduced in Cython 0.29.35.
+
+* Fix a ``complex`` related compile error on Windows.
+  (Github issue :issue:`5512`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`, :issue:`5588`)
+
+* ``cythonize`` failed to consider the ``CYTHON_FORCE_REGEN`` env variable.
+  Patch by Harmen Stoppels.  (Github issue :issue:`5712`)
 
 
 .. _0.29.36:

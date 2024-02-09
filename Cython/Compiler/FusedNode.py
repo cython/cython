@@ -1,7 +1,8 @@
 import copy
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
-               ParseTreeTransforms, StringEncoding, Errors)
+               ParseTreeTransforms, StringEncoding, Errors,
+               Naming)
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
@@ -302,9 +303,10 @@ class FusedCFuncDefNode(StatListNode):
                 """)
 
     def _dtype_name(self, dtype):
+        name = str(dtype).replace('_', '__').replace(' ', '_')
         if dtype.is_typedef:
-            return '___pyx_%s' % dtype
-        return str(dtype).replace(' ', '_')
+            name = Naming.fused_dtype_prefix + name
+        return name
 
     def _dtype_type(self, dtype):
         if dtype.is_typedef:
