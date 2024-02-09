@@ -6018,7 +6018,8 @@ class AssignmentNode(StatNode):
 
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
-        self._check_const_assignment(node)
+        if isinstance(node, AssignmentNode):
+            self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
