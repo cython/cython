@@ -6019,8 +6019,10 @@ class AssignmentNode(StatNode):
     #  to any of the left hand sides.
 
     def _warn_on_const_assignment(self, lhs, rhs):
-        if rhs.type.is_ptr and rhs.type.base_type.is_const and lhs.type.is_ptr and not lhs.type.base_type.is_const:
-            warning(self.pos, "Assigning to '{}' from '{}' discards const qualifier".format(lhs.type, rhs.type), level=1)
+        rhs_t = rhs.type
+        lhs_t = lhs.type
+        if rhs_t.is_ptr and rhs_t.base_type.is_const and lhs_t.is_ptr and not lhs_t.base_type.is_const:
+            warning(self.pos, "Assigning to '{}' from '{}' discards const qualifier".format(lhs_t, rhs_t), level=1)
 
     def _check_const_assignment(self, node):
         if isinstance(node, AssignmentNode):
