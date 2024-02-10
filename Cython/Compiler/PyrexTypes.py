@@ -5429,19 +5429,26 @@ _escape_special_type_characters = partial(re.compile(
 ).sub, lambda match: _special_type_characters[match.group(1)])
 
 def type_identifier(type, pyrex=False):
+    scope = None
     decl = type.empty_declaration_code(pyrex=pyrex)
-    return type_identifier_from_declaration(decl)
+    entry = getattr(type, "entry", None)
+    if entry and entry.scope:
+        scope = entry.scope
+    return type_identifier_from_declaration(decl, scope=scope)
 
 _type_identifier_cache = {}
-def type_identifier_from_declaration(decl):
-    safe = _type_identifier_cache.get(decl)
+def type_identifier_from_declaration(decl, scope = None):
+    key = (decl, scope)
+    safe = _type_identifier_cache.get(key)
     if safe is None:
         safe = decl
+        if scope:
+            safe = scope.mangle(prefix="", name=safe)
         safe = re.sub(' +', ' ', safe)
         safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
         safe = _escape_special_type_characters(safe)
         safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
-        _type_identifier_cache[decl] = safe
+        _type_identifier_cache[key] = safe
     return safe
 
 def cap_length(s, max_prefix=63, max_len=1024):
