@@ -4,8 +4,6 @@
 
 from __future__ import print_function
 
-import io
-
 cimport cython
 #from cpython.memoryview cimport PyMemoryView_GET_BUFFER
 
@@ -69,6 +67,6 @@ def test_returned_type():
     98
     """
     def foo() -> memoryview:
-        return io.BytesIO(b"abc").getbuffer()
+        return bytearray(b"abc")
 
     print(foo()[1])
