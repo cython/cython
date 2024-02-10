@@ -67,6 +67,7 @@ def test_returned_type():
     98
     """
     def foo() -> memoryview:
-        return bytearray(b"abc")
+        rv = memoryview(b"abc")[:]
+        return rv
 
     print(foo()[1])
