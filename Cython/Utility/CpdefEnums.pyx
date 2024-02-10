@@ -128,23 +128,34 @@ __Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
 
 #################### EnumTypeToPy ####################
 
+{{if module_name}}
+cdef object __pyx_imported_enum_{{funcname}} = None
+{{endif}}
+
 @cname("{{funcname}}")
 cdef {{funcname}}({{name}} c_val):
     cdef object __pyx_enum
+{{if module_name}}
+    global __pyx_imported_enum_{{funcname}}
     # There's a complication here: the Python enum wrapping is only generated
     # for enums defined in the same module that they're used in. Therefore, if
     # the enum was cimported from a different module, we try to import it.
     # If that fails we return an int equivalent as the next best option.
-{{if module_name}}
-    try:
-        from {{module_name}} import {{name}} as __pyx_enum
-    except ImportError:
-        import warnings
-        warnings.warn(
-            f"enum class {{name}} not importable from {{module_name}}. "
-            "You are probably using a cpdef enum declared in a .pxd file that "
-            "does not have a .py  or .pyx file.")
+    if __pyx_imported_enum_{{funcname}} is None:
+        try:
+            from {{module_name}} import {{name}} as __pyx_imported_enum_{{funcname}}
+        except ImportError:
+            __pyx_imported_enum_{{funcname}} = False  # False indicates "don't try again"
+            import warnings
+            warnings.warn(
+                f"enum class {{name}} not importable from {{module_name}}. "
+                "You are probably using a cpdef enum declared in a .pxd file that "
+                "does not have a .py  or .pyx file.")
+    if __pyx_imported_enum_{{funcname}} is False:
+        # shortcut - if the import failed there's no point repeating it
+        # (and repeating the warning)
         return <{{underlying_type}}>c_val
+    __pyx_enum = __pyx_imported_enum_{{funcname}}
 {{else}}
     __pyx_enum = {{name}}
 {{endif}}
