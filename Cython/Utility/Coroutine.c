@@ -329,6 +329,10 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
         in_async_gen ? "async generator raised StopIteration" :
         #endif
         "generator raised StopIteration");
+    if (!new_exc) {
+        Py_XDECREF(val);
+        return;
+    }
     PyException_SetCause(new_exc, val); // steals ref to val
     PyErr_SetObject(PyExc_RuntimeError, new_exc);
 }
