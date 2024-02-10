@@ -2348,6 +2348,30 @@ static void __Pyx_FastGilFuncInit(void) {
 
 #endif
 
+///////////////////// PretendToInitialize ////////////////////////
+
+#ifdef __cplusplus
+// In C++ a variable must actually be initialized to make returning
+// it defined behaviour, and there doesn't seem to be a viable compiler trick to
+// avoid that.
+#include <type_traits>
+template <typename T>
+static void __Pyx_pretend_to_initialize(T* ptr) {
+    // In C++11 we have enough introspection to work out which types it's actually
+    // necessary to apply this to (non-trivial types will have been initialized by
+    // the definition). Below C++11 just initialize everything.
+#if __cplusplus > 201103L
+    if ((std::is_trivially_default_constructible<T>::value))
+#endif
+        *ptr = T();
+    (void)ptr;
+}
+#else
+// For C,  taking an address of a variable is enough to make returning it
+// defined behaviour.
+static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }
+#endif
+
 ///////////////////// UtilityCodePragmas /////////////////////////
 
 #ifdef _MSC_VER

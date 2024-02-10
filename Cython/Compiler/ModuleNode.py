@@ -880,7 +880,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         PyrexTypes.c_int_type.create_from_py_utility_code(env)
 
         code.put(Nodes.branch_prediction_macros)
-        code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
+
+        self._put_setup_code(code, "PretendToInitialize")
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
