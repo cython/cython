@@ -2136,7 +2136,7 @@ static void __Pyx_FastGilFuncInit(void) {
 
 ///////////////////// PretendToInitialize ////////////////////////
 
-#if __cplusplus
+#ifdef __cplusplus
 // In C++ a variable must actually be initialized to make returning
 // it defined behaviour, and there doesn't seem to be a viable compiler trick to
 // avoid that.
