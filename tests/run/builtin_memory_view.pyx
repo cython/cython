@@ -80,6 +80,6 @@ def test_returned_type():
     # Python 2 prints 'n' instead of 98. We're only really testing the
     # type check for the return type, so skip the test.
     if sys.version_info[0] < 3:
-        print(foo()[1])
-    else:
         print(98)
+    else:
+        print(foo()[1])
