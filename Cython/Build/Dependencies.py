@@ -308,7 +308,7 @@ class DistutilsInfo:
 
 _FIND_TOKEN = cython.declare(object, re.compile(r"""
     (?P<comment> [#] ) |
-    (?P<braces> [}]+ ) |
+    (?P<brace> [{}] ) |
     (?P<fstring> f )? (?P<quote> '+ | "+ )
 """, re.VERBOSE).search)
 
@@ -420,12 +420,17 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
                     break  # EOF
                 start = charpos
 
-            elif token['braces']:
-                if in_fstring and len(token['braces']) % 2 == 1:
+            elif in_fstring and token['brace']:
+                if token['brace'] == '}':
                     # closing '}' of f-string
                     charpos = end = token.start() + 1
                     new_code.append(code[start:end])  # with '}'
                     break
+                else:
+                    # opening block inside of f-string
+                    end = token.start() + 1
+                    new_code.append(code[start:end])  # with '{'
+                    start = charpos = parse_code(end, in_fstring=True)
 
         return charpos
 

@@ -6,8 +6,7 @@ from ...Utils import open_source_file
 from ..Dependencies import strip_string_literals
 
 
-
-class TestCodeProcessing(unittest.TestCase):
+class TestStripLiterals(unittest.TestCase):
     maxDiff = None
 
     @staticmethod
@@ -98,19 +97,22 @@ class TestCodeProcessing(unittest.TestCase):
 
             (""" f'{{{{{"abc"}}}}}{{}}{{' == '{{abc}}{}{' """,
              """ f'__Pyx_L1_{"__Pyx_L2_"}__Pyx_L3_' == '__Pyx_L4_' """),
+
+            ("f'" + ('{x} ' * 250) + "{x:{width}} '",
+             "f'" + ''.join([f'{{x}}__Pyx_L{n}_' for n in range(1, 251)]) + "{x:{width}}__Pyx_L251_'")
         ]
 
         for code, expected in tests:
             with self.subTest(code=code):
-                strip_equals(code, expected)
+                strip_equals(code, expected)  # plain
             code = code.strip()
             expected = expected.strip()
             with self.subTest(code=code):
-                strip_equals(code, expected)
+                strip_equals(code, expected)  # stripped
             code += "\n"
             expected += "\n"
             with self.subTest(code=code):
-                strip_equals(code, expected)
+                strip_equals(code, expected)  # +EOL
 
         # GH5977: unclosed string literal
         strip_equals(
