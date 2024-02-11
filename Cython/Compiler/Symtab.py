@@ -508,17 +508,58 @@ class Scope:
         If it returns an entry, it makes sense for "declare" to keep using that
         entry and not to declare its own.
 
-        May be overridden (e.g. by cppclass, which allows greater flexibility in
-        redeclaring names than a normal scope)
+        May be overridden (e.g. for builtin scope,
+        which always allows redeclarations)
         """
-        if visibility == 'extern':
-            # Silenced outside of "cdef extern" blocks, until we have a safe way to
-            # prevent pxd-defined cpdef functions from ending up here.
-            warning(pos, "'%s' redeclared " % name, 1 if self.in_cinclude else 0)
-        elif visibility != 'ignore':
-            error(pos, "'%s' redeclared " % name)
-            self.entries[name].already_declared_here()
-        return None
+        entry = None
+        entries = self.entries
+        old_entry = entries[name]
+
+        # Reject redeclared C++ functions only if they have a compatible type signature.
+        cpp_override_allowed = False
+        if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
+            # If we redefine a C++ class method which is either inherited
+            # or automatically generated (base constructor), then it's fine.
+            # Otherwise, we shout.
+            for alt_entry in old_entry.all_alternatives():
+                if type.compatible_signature_with(alt_entry.type):
+                    if name == '<init>' and not type.args:
+                        # Cython pre-declares the no-args constructor - allow later user definitions.
+                        cpp_override_allowed = True
+                    elif alt_entry.is_inherited:
+                        # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
+                        cpp_override_allowed = True
+                    if cpp_override_allowed:
+                        # A compatible signature doesn't mean the exact same signature,
+                        # so we're taking the new signature for the entry.
+                        alt_entry.type = type
+                        alt_entry.is_inherited = False
+                        # Updating the entry attributes which can be modified in the method redefinition.
+                        alt_entry.cname = cname
+                        alt_entry.pos = pos
+                        entry = alt_entry
+                    break
+            else:
+                cpp_override_allowed = True
+
+        if cpp_override_allowed:
+            # C++ function/method overrides with different signatures are ok.
+            pass
+        elif entries[name].is_inherited:
+            # Likewise ignore inherited classes.
+            pass
+        else:
+            if visibility == 'extern':
+                # Silenced outside of "cdef extern" blocks, until we have a safe way to
+                # prevent pxd-defined cpdef functions from ending up here.
+                warning(pos, "'%s' redeclared " % name, 1 if self.in_cinclude else 0)
+            elif visibility != 'ignore':
+                error(pos, "'%s' redeclared " % name)
+                self.entries[name].already_declared_here()
+            return None
+
+        return entry
+
 
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if
@@ -2814,49 +2855,6 @@ class CppClassScope(Scope):
         elif name == "__dealloc__":
             name = "<del>"
         return super(CppClassScope, self).lookup_here(name)
-
-    def handle_already_declared_name(self, name, cname, type, pos, visibility):
-        entry = None
-        entries = self.entries
-        old_entry = entries[name]
-
-        # Reject redeclared C++ functions only if they have a compatible type signature.
-        cpp_override_allowed = False
-        if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
-            # If we redefine a C++ class method which is either inherited
-            # or automatically generated (base constructor), then it's fine.
-            # Otherwise, we shout.
-            for alt_entry in old_entry.all_alternatives():
-                if type.compatible_signature_with(alt_entry.type):
-                    if name == '<init>' and not type.args:
-                        # Cython pre-declares the no-args constructor - allow later user definitions.
-                        cpp_override_allowed = True
-                    elif alt_entry.is_inherited:
-                        # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
-                        cpp_override_allowed = True
-                    if cpp_override_allowed:
-                        # A compatible signature doesn't mean the exact same signature,
-                        # so we're taking the new signature for the entry.
-                        alt_entry.type = type
-                        alt_entry.is_inherited = False
-                        # Updating the entry attributes which can be modified in the method redefinition.
-                        alt_entry.cname = cname
-                        alt_entry.pos = pos
-                        entry = alt_entry
-                    break
-            else:
-                cpp_override_allowed = True
-
-        if cpp_override_allowed:
-            # C++ function/method overrides with different signatures are ok.
-            pass
-        elif entries[name].is_inherited:
-            # Likewise ignore inherited classes.
-            pass
-        else:
-            return super().handle_already_declared_name(name, cname, type, pos, visibility)
-
-        return entry
 
 
 class CppScopedEnumScope(Scope):
