@@ -324,9 +324,7 @@ _FIND_FSTRING_TOKEN = cython.declare(object, re.compile(r"""
 """, re.VERBOSE).search)
 
 
-@cython.locals(single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
-               hash_mark=cython.Py_ssize_t, k=cython.Py_ssize_t)
-def strip_string_literals(code, prefix='__Pyx_L'):
+def strip_string_literals(code, prefix: str = '__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',
     returning the normalized code and a mapping of labels to
