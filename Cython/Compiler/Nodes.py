@@ -6018,8 +6018,19 @@ class AssignmentNode(StatNode):
     #  parallel assignment to be evaluated before assigning
     #  to any of the left hand sides.
 
+    def _warn_on_const_assignment(self, lhs, rhs):
+        rhs_t = rhs.type
+        lhs_t = lhs.type
+        if rhs_t.is_ptr and rhs_t.base_type.is_const and lhs_t.is_ptr and not lhs_t.base_type.is_const:
+            warning(self.pos, "Assigning to '{}' from '{}' discards const qualifier".format(lhs_t, rhs_t), level=1)
+
+    def _check_const_assignment(self, node):
+        if isinstance(node, AssignmentNode):
+            self._warn_on_const_assignment(node.lhs, node.rhs)
+
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
+        self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
@@ -6370,6 +6381,11 @@ class CascadedAssignmentNode(AssignmentNode):
     coerced_values = None
     assignment_overloads = None
 
+    def _check_const_assignment(self, node):
+        if isinstance(node, CascadedAssignmentNode):
+            for lhs in node.lhs_list:
+                self._warn_on_const_assignment(lhs, node.rhs)
+
     def analyse_declarations(self, env):
         for lhs in self.lhs_list:
             lhs.analyse_target_declaration(env)
@@ -6476,6 +6492,9 @@ class ParallelAssignmentNode(AssignmentNode):
     def analyse_expressions(self, env):
         self.stats = [stat.analyse_types(env, use_temp=1)
                       for stat in self.stats]
+
+        for stat in self.stats:
+            stat._check_const_assignment(stat)
         return self
 
 #    def analyse_expressions(self, env):
