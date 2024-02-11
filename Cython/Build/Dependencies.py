@@ -413,9 +413,9 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
                     start = charpos = parse_string(quote, end, is_fstring=token['fstring'])
 
             elif token['comment']:
-                new_code.append(code[start:end+1])
-                charpos = code.find('\n', end+1)
-                new_code.append(new_label(code[end+1 : charpos if charpos != -1 else None]))
+                new_code.append(code[start:end])
+                charpos = code.find('\n', end)
+                new_code.append(new_label(code[end : charpos if charpos != -1 else None]))
                 if charpos == -1:
                     break  # EOF
                 start = charpos
