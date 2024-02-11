@@ -4,6 +4,8 @@
 
 from __future__ import print_function
 
+import sys
+
 cimport cython
 #from cpython.memoryview cimport PyMemoryView_GET_BUFFER
 
