@@ -16,10 +16,7 @@ class UnicodeLiteralBuilder:
         self.chars = []
 
     def append(self, characters):
-        if isinstance(characters, bytes):
-            # this came from a Py2 string literal in the parser code
-            characters = characters.decode("ASCII")
-        assert isinstance(characters, str), str(type(characters))
+        assert isinstance(characters, str), f"Expected str, got {type(characters)}"
         self.chars.append(characters)
 
     if sys.maxunicode == 65535:
@@ -134,16 +131,6 @@ class EncodedString(str):
         else:
             s = bytes_literal(self.byteencode(), self.encoding)
         return s.as_c_string_literal()
-
-    if not hasattr(str, "isascii"):
-        def isascii(self):
-            # not defined for Python3.7+ since the class already has it
-            try:
-                self.encode("ascii")
-            except UnicodeEncodeError:
-                return False
-            else:
-                return True
 
 
 def string_contains_surrogates(ustring):

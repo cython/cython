@@ -871,6 +871,7 @@ class CArgDeclNode(Node):
     # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
+    # type_from_annotation boolean      Was the type deduced from an annotation
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -891,6 +892,7 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+    type_from_annotation = False
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -992,6 +994,8 @@ class CArgDeclNode(Node):
             elif not self.or_none and arg_type.can_be_optional():
                 self.not_none = True
 
+        if arg_type:
+            self.type_from_annotation = True
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -2441,13 +2445,18 @@ class FuncDefNode(StatNode, BlockNode):
                 UtilityCode.load_cached("ArgTypeTest", "FunctionArguments.c"))
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.entry.cname
+            exact = 0
+            if arg.type.is_builtin_type and arg.type.require_exact:
+                # 2 is used to indicate that the type is from the annotation
+                # and provide a little extra info on failure.
+                exact = 2 if arg.type_from_annotation else 1
             code.putln(
                 'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, %s, %s))) %s' % (
                     arg_code,
                     typeptr_cname,
                     arg.accept_none,
                     arg.name_cstring,
-                    arg.type.is_builtin_type and arg.type.require_exact,
+                    exact,
                     code.error_goto(arg.pos)))
         else:
             error(arg.pos, "Cannot test type of extern C class without type object name specification")
@@ -3868,7 +3877,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature_has_generic_args():
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
-            code.putln("#if CYTHON_ASSUME_SAFE_MACROS")
+            code.putln("#if CYTHON_ASSUME_SAFE_SIZE")
             code.putln("%s = PyTuple_GET_SIZE(%s);" % (
                 Naming.nargs_cname, Naming.args_cname))
             code.putln("#else")
@@ -4926,9 +4935,15 @@ class OverrideCheckNode(StatNode):
         if self.py_func.is_module_scope:
             code.putln("else {")
         else:
-            code.putln("else if (unlikely((Py_TYPE(%s)->tp_dictoffset != 0) || "
-                       "__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
-                self_arg, self_arg))
+            code.putln("else if (")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0)")
+            code.putln("#else")
+            dict_str_const = code.get_py_string_const(EncodedString("__dict__"))
+            code.putln(f'PyObject_HasAttr({self_arg}, {dict_str_const})')
+            code.putln("#endif")
+            code.putln(" || unlikely(__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
+                self_arg))
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.globalstate.use_utility_code(
@@ -5688,7 +5703,7 @@ class CClassDefNode(ClassDefNode):
 
             base_type = type.base_type
             while base_type:
-                if base_type.is_external and not base_type.objstruct_cname == "PyTypeObject":
+                if base_type.is_external and base_type.objstruct_cname != "PyTypeObject":
                     # 'type' is special-cased because it is actually based on PyHeapTypeObject
                     # Variable length bases are allowed if the current class doesn't grow
                     code.putln("if (sizeof(%s%s) != sizeof(%s%s)) {" % (
@@ -5784,12 +5799,9 @@ class CClassDefNode(ClassDefNode):
                     typeptr_cname,
                     type.vtabptr_cname,
                 ))
-                # TODO: find a way to make this work with the Limited API!
-                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
                 code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
-                code.putln("#endif")
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
@@ -5822,9 +5834,7 @@ class CClassDefNode(ClassDefNode):
                 # do so at runtime.
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
-                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
                 code.put_error_if_neg(entry.pos, "__Pyx_setup_reduce((PyObject *) %s)" % typeptr_cname)
-                code.putln("#endif")
 
     def annotate(self, code):
         if self.type_init_args:
@@ -6008,8 +6018,19 @@ class AssignmentNode(StatNode):
     #  parallel assignment to be evaluated before assigning
     #  to any of the left hand sides.
 
+    def _warn_on_const_assignment(self, lhs, rhs):
+        rhs_t = rhs.type
+        lhs_t = lhs.type
+        if rhs_t.is_ptr and rhs_t.base_type.is_const and lhs_t.is_ptr and not lhs_t.base_type.is_const:
+            warning(self.pos, "Assigning to '{}' from '{}' discards const qualifier".format(lhs_t, rhs_t), level=1)
+
+    def _check_const_assignment(self, node):
+        if isinstance(node, AssignmentNode):
+            self._warn_on_const_assignment(node.lhs, node.rhs)
+
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
+        self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
@@ -6360,6 +6381,11 @@ class CascadedAssignmentNode(AssignmentNode):
     coerced_values = None
     assignment_overloads = None
 
+    def _check_const_assignment(self, node):
+        if isinstance(node, CascadedAssignmentNode):
+            for lhs in node.lhs_list:
+                self._warn_on_const_assignment(lhs, node.rhs)
+
     def analyse_declarations(self, env):
         for lhs in self.lhs_list:
             lhs.analyse_target_declaration(env)
@@ -6466,6 +6492,9 @@ class ParallelAssignmentNode(AssignmentNode):
     def analyse_expressions(self, env):
         self.stats = [stat.analyse_types(env, use_temp=1)
                       for stat in self.stats]
+
+        for stat in self.stats:
+            stat._check_const_assignment(stat)
         return self
 
 #    def analyse_expressions(self, env):
@@ -8596,6 +8625,8 @@ class TryFinallyStatNode(StatNode):
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+            # although the thread state is already assigned, that can't be trusted after releasing the GIL
+            code.putln("__Pyx_PyThreadState_assign")
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -8622,6 +8653,8 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+            # although the thread state is already assigned, that can't be trusted after releasing the GIL
+            code.putln("__Pyx_PyThreadState_assign")
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -8782,13 +8815,6 @@ utility_code_for_cimports = {
     'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
-}
-
-utility_code_for_imports = {
-    # utility code used when special modules are imported.
-    # TODO: Consider a generic user-level mechanism for importing
-    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Coroutine.c"),
-    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
 }
 
 def cimport_numpy_check(node, code):
@@ -9085,7 +9111,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                                 construct (replaced by its compile time value)
     """
 
-    child_attrs = ['body', 'num_threads']
+    child_attrs = ['body', 'num_threads', 'threading_condition']
 
     body = None
 
@@ -9096,6 +9122,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     num_threads = None
     chunksize = None
+    threading_condition = None
 
     parallel_exc = (
         Naming.parallel_exc_type,
@@ -9138,9 +9165,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.body.analyse_declarations(env)
 
         self.num_threads = None
+        self.threading_condition = None
 
         if self.kwargs:
-            # Try to find num_threads and chunksize keyword arguments
+            # Try to find known keyword arguments.
             pairs = []
             seen = set()
             for dictitem in self.kwargs.key_value_pairs:
@@ -9150,6 +9178,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 if dictitem.key.value == 'num_threads':
                     if not dictitem.value.is_none:
                         self.num_threads = dictitem.value
+                elif dictitem.key.value == 'use_threads_if':
+                    if not dictitem.value.is_none:
+                        self.threading_condition = dictitem.value
                 elif self.is_prange and dictitem.key.value == 'chunksize':
                     if not dictitem.value.is_none:
                         self.chunksize = dictitem.value
@@ -9175,6 +9206,12 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         if self.num_threads:
             self.num_threads = self.num_threads.analyse_expressions(env)
+
+        if self.threading_condition:
+            if self.is_parallel:
+                self.threading_condition = self.threading_condition.analyse_expressions(env)
+            else:
+                error(self.pos, "'use_threads_if' must de declared in the parent parallel section")
 
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
@@ -9779,15 +9816,23 @@ class ParallelStatNode(StatNode, ParallelNode):
         if not self.parent:
             code.redef_builtin_expect(self.redef_condition)
 
+    def _parameters_nogil_check(self, env, names, nodes):
+        for name, node in zip(names, nodes):
+            if node is not None and node.type.is_pyobject:
+                error(node.pos, "%s may not be a Python object "
+                                "as we don't have the GIL" % name)
+
+
 
 class ParallelWithBlockNode(ParallelStatNode):
     """
     This node represents a 'with cython.parallel.parallel():' block
     """
 
-    valid_keyword_arguments = ['num_threads']
+    valid_keyword_arguments = ['num_threads', 'use_threads_if']
 
     num_threads = None
+    threading_condition = None
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -9796,11 +9841,19 @@ class ParallelWithBlockNode(ParallelStatNode):
                             "positional arguments")
 
     def generate_execution_code(self, code):
+
+        if self.threading_condition is not None:
+            self.threading_condition.generate_evaluation_code(code)
+
         self.declare_closure_privates(code)
         self.setup_parallel_control_flow_block(code)
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
+
+        if self.threading_condition is not None:
+            code.put("if(%s) " % self.threading_condition.result())
+
 
         if self.privates:
             privates = [e.cname for e in self.privates
@@ -9828,10 +9881,20 @@ class ParallelWithBlockNode(ParallelStatNode):
         return_ = code.label_used(code.return_label)
 
         self.restore_labels(code)
+
+        # ------ cleanup ------
         self.end_parallel_control_flow_block(code, break_=break_,
                                              continue_=continue_,
                                              return_=return_)
+
+        if self.threading_condition is not None:
+            self.threading_condition.generate_disposal_code(code)
+            self.threading_condition.free_temps(code)
+
         self.release_closure_privates(code)
+
+    def nogil_check(self, env):
+        self._parameters_nogil_check(env, ['use_threads_if'], [self.threading_condition])
 
 
 class ParallelRangeNode(ParallelStatNode):
@@ -9843,7 +9906,7 @@ class ParallelRangeNode(ParallelStatNode):
     """
 
     child_attrs = ['body', 'target', 'else_clause', 'args', 'num_threads',
-                   'chunksize']
+                   'chunksize', 'threading_condition']
 
     body = target = else_clause = args = None
 
@@ -9854,7 +9917,7 @@ class ParallelRangeNode(ParallelStatNode):
     nogil = None
     schedule = None
 
-    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize']
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
 
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
@@ -9968,12 +10031,9 @@ class ParallelRangeNode(ParallelStatNode):
         return node
 
     def nogil_check(self, env):
-        names = 'start', 'stop', 'step', 'target'
-        nodes = self.start, self.stop, self.step, self.target
-        for name, node in zip(names, nodes):
-            if node is not None and node.type.is_pyobject:
-                error(node.pos, "%s may not be a Python object "
-                                "as we don't have the GIL" % name)
+        names = 'start', 'stop', 'step', 'target', 'use_threads_if'
+        nodes = self.start, self.stop, self.step, self.target, self.threading_condition
+        self._parameters_nogil_check(env, names, nodes)
 
     def generate_execution_code(self, code):
         """
@@ -10041,6 +10101,9 @@ class ParallelRangeNode(ParallelStatNode):
 
             fmt_dict[name] = result
 
+        if self.threading_condition is not None:
+            self.threading_condition.generate_evaluation_code(code)
+
         fmt_dict['i'] = code.funcstate.allocate_temp(self.index_type, False)
         fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.index_type, False)
 
@@ -10083,7 +10146,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step + (self.chunksize,):
+        for temp in start_stop_step + (self.chunksize, self.threading_condition):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)
@@ -10105,6 +10168,10 @@ class ParallelRangeNode(ParallelStatNode):
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
             code.put("#pragma omp parallel")
+
+            if self.threading_condition is not None:
+                code.put(" if(%s)" % self.threading_condition.result())
+
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.privatization_insertion_point
             code.putln("")

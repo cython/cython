@@ -23,7 +23,6 @@ from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString
 from .Errors import error, warning, CompileError, InternalError
-from .Code import UtilityCode
 
 
 class SkipDeclarations:
@@ -211,7 +210,7 @@ class PostParse(ScopeTrackingTransform):
     def visit_GeneratorExpressionNode(self, node):
         # unpack a generator expression into the corresponding DefNode
         collector = YieldNodeCollector()
-        collector.visitchildren(node.loop)
+        collector.visitchildren(node.loop, attrs=None, exclude=["iterator"])
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
@@ -2825,26 +2824,35 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
 
-class FindInvalidUseOfFusedTypes(CythonTransform):
+class FindInvalidUseOfFusedTypes(TreeVisitor):
+
+    def __call__(self, tree):
+        self._in_fused_function = False
+        self.visit(tree)
+        return tree
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_FuncDefNode(self, node):
-        # Errors related to use in functions with fused args will already
-        # have been detected
-        if not node.has_fused_arguments:
+        outer_status = self._in_fused_function
+        self._in_fused_function = node.has_fused_arguments
+
+        if not self._in_fused_function:
+            # Errors related to use in functions with fused args will already
+            # have been detected.
             if not node.is_generator_body and node.return_type.is_fused:
                 error(node.pos, "Return type is not specified as argument type")
-            else:
-                self.visitchildren(node)
 
-        return node
+        self.visitchildren(node)
+        self._in_fused_function = outer_status
 
     def visit_ExprNode(self, node):
-        if node.type and node.type.is_fused:
+        if not self._in_fused_function and node.type and node.type.is_fused:
             error(node.pos, "Invalid use of fused types, type cannot be specialized")
+            # Errors in subtrees are likely related, so do not recurse.
         else:
             self.visitchildren(node)
-
-        return node
 
 
 class ExpandInplaceOperators(EnvTransform):
@@ -3145,7 +3153,7 @@ class RemoveUnreachableCode(CythonTransform):
 
 class YieldNodeCollector(TreeVisitor):
 
-    def __init__(self):
+    def __init__(self, excludes=[]):
         super().__init__()
         self.yields = []
         self.returns = []
@@ -3154,9 +3162,11 @@ class YieldNodeCollector(TreeVisitor):
         self.has_return_value = False
         self.has_yield = False
         self.has_await = False
+        self.excludes = excludes
 
     def visit_Node(self, node):
-        self.visitchildren(node)
+        if node not in self.excludes:
+            self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
@@ -3192,7 +3202,11 @@ class YieldNodeCollector(TreeVisitor):
         pass
 
     def visit_GeneratorExpressionNode(self, node):
-        pass
+        # node.loop iterator is evaluated outside the generator expression
+        if isinstance(node.loop, Nodes._ForInStatNode):
+            # Possibly should handle ForFromStatNode
+            # but for now do nothing
+            self.visit(node.loop.iterator)
 
     def visit_CArgDeclNode(self, node):
         # do not look into annotations
@@ -3206,6 +3220,7 @@ class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.needs_closure = False
+        self.excludes = []
         self.visitchildren(node)
         return node
 
@@ -3215,7 +3230,7 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
 
-        collector = YieldNodeCollector()
+        collector = YieldNodeCollector(self.excludes)
         collector.visitchildren(node)
 
         if node.is_async_def:
@@ -3274,7 +3289,11 @@ class MarkClosureVisitor(CythonTransform):
         return node
 
     def visit_GeneratorExpressionNode(self, node):
+        excludes = self.excludes
+        if isinstance(node.loop, Nodes._ForInStatNode):
+            self.excludes = [node.loop.iterator]
         node = self.visit_LambdaNode(node)
+        self.excludes = excludes
         if not isinstance(node.loop, Nodes._ForInStatNode):
             # Possibly should handle ForFromStatNode
             # but for now do nothing

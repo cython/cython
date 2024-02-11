@@ -226,7 +226,7 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr"),  # , builtin_return_type='str'),  # add in Cython 3.1
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='unicode'),
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
@@ -302,8 +302,7 @@ builtin_types_table = [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
-    ("str",     "&PyString_Type",  [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
-                                                  builtin_return_type='basestring',
+    ("str",     "&PyString_Type",  [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyString_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
@@ -409,6 +408,175 @@ types_that_construct_their_instance = frozenset({
     'tuple', 'list', 'dict', 'set', 'frozenset',
     'memoryview'
 })
+
+
+inferred_method_return_types = {
+    'complex': dict(
+        conjugate='complex',
+    ),
+    'int': dict(
+        bit_length='T',
+        bit_count='T',
+        to_bytes='bytes',
+        from_bytes='T',  # classmethod
+        as_integer_ratio='tuple[int,int]',
+        is_integer='bint',
+    ),
+    'float': dict(
+        as_integer_ratio='tuple[int,int]',
+        is_integer='bint',
+        hex='unicode',
+        fromhex='T',  # classmethod
+    ),
+    'list': dict(
+        index='Py_ssize_t',
+        count='Py_ssize_t',
+    ),
+    'unicode': dict(
+        capitalize='T',
+        casefold='T',
+        center='T',
+        count='Py_ssize_t',
+        encode='bytes',
+        endswith='bint',
+        expandtabs='T',
+        find='Py_ssize_t',
+        format='T',
+        format_map='T',
+        index='Py_ssize_t',
+        isalnum='bint',
+        isalpha='bint',
+        isascii='bint',
+        isdecimal='bint',
+        isdigit='bint',
+        isidentifier='bint',
+        islower='bint',
+        isnumeric='bint',
+        isprintable='bint',
+        isspace='bint',
+        istitle='bint',
+        isupper='bint',
+        join='T',
+        ljust='T',
+        lower='T',
+        lstrip='T',
+        maketrans='dict[int,object]',  # staticmethod
+        partition='tuple[T,T,T]',
+        removeprefix='T',
+        removesuffix='T',
+        replace='T',
+        rfind='Py_ssize_t',
+        rindex='Py_ssize_t',
+        rjust='T',
+        rpartition='tuple[T,T,T]',
+        rsplit='list[T]',
+        rstrip='T',
+        split='list[T]',
+        splitlines='list[T]',
+        startswith='bint',
+        strip='T',
+        swapcase='T',
+        title='T',
+        translate='T',
+        upper='T',
+        zfill='T',
+    ),
+    'bytes': dict(
+        hex='unicode',
+        fromhex='T',  # classmethod
+        count='Py_ssize_t',
+        removeprefix='T',
+        removesuffix='T',
+        decode='unicode',
+        endswith='bint',
+        find='Py_ssize_t',
+        index='Py_ssize_t',
+        join='T',
+        maketrans='bytes',  # staticmethod
+        partition='tuple[T,T,T]',
+        replace='T',
+        rfind='Py_ssize_t',
+        rindex='Py_ssize_t',
+        rpartition='tuple[T,T,T]',
+        startswith='bint',
+        translate='T',
+        center='T',
+        ljust='T',
+        lstrip='T',
+        rjust='T',
+        rsplit='list[T]',
+        rstrip='T',
+        split='list[T]',
+        strip='T',
+        capitalize='T',
+        expandtabs='T',
+        isalnum='bint',
+        isalpha='bint',
+        isascii='bint',
+        isdigit='bint',
+        islower='bint',
+        isspace='bint',
+        istitle='bint',
+        isupper='bint',
+        lower='T',
+        splitlines='list[T]',
+        swapcase='T',
+        title='T',
+        upper='T',
+        zfill='T',
+    ),
+    'bytearray': dict(
+        # Inherited from 'bytes' below.
+    ),
+    'memoryview': dict(
+        tobytes='bytes',
+        hex='unicode',
+        tolist='list',
+        toreadonly='T',
+        cast='T',
+    ),
+    'set': dict(
+        isdisjoint='bint',
+        isubset='bint',
+        issuperset='bint',
+        union='T',
+        intersection='T',
+        difference='T',
+        symmetric_difference='T',
+        copy='T',
+    ),
+    'frozenset': dict(
+        # Inherited from 'set' below.
+    ),
+    'dict': dict(
+        copy='T',
+    ),
+}
+
+inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
+inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
+inferred_method_return_types['str'] = inferred_method_return_types['unicode']
+
+
+def find_return_type_of_builtin_method(builtin_type, method_name):
+    type_name = builtin_type.name
+    if type_name in inferred_method_return_types:
+        methods = inferred_method_return_types[type_name]
+        if method_name in methods:
+            return_type_name = methods[method_name]
+            if '[' in return_type_name:
+                # TODO: Keep the "[...]" part when we add support for generics.
+                return_type_name = return_type_name.partition('[')[0]
+            if return_type_name == 'T':
+                return builtin_type
+            if 'T' in return_type_name:
+                return_type_name = return_type_name.replace('T', builtin_type.name)
+            if return_type_name == 'bint':
+                return PyrexTypes.c_bint_type
+            elif return_type_name == 'Py_ssize_t':
+                return PyrexTypes.c_py_ssize_t_type
+            return builtin_scope.lookup(return_type_name).type
+    return PyrexTypes.py_object_type
 
 
 builtin_structs_table = [

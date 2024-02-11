@@ -364,6 +364,11 @@ Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
 an ``int`` annotation to a C integer by default since the behaviour can be
 quite different with respect to overflow and division.
 
+Annotations on global variables are currently ignored.  This is because we expect
+annotation-typed code to be in majority written for Python, and global type annotations
+would turn the Python variable into an internal C variable, thus removing it from the
+module dict.  To declare global variables as typed C variables, use ``@cython.declare()``.
+
 Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
 return types:
 

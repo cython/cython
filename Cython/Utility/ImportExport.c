@@ -8,10 +8,17 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 
 static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts_tuple, Py_ssize_t count) {
     PyObject *partial_name = NULL, *slice = NULL, *sep = NULL;
+    Py_ssize_t size;
     if (unlikely(PyErr_Occurred())) {
         PyErr_Clear();
     }
-    if (likely(PyTuple_GET_SIZE(parts_tuple) == count)) {
+#if CYTHON_ASSUME_SAFE_SIZE
+    size = PyTuple_GET_SIZE(parts_tuple);
+#else
+    size = PyTuple_Size(parts_tuple);
+    if (size < 0) goto bad;
+#endif
+    if (likely(size == count)) {
         partial_name = name;
     } else {
         slice = PySequence_GetSlice(parts_tuple, 0, count);
@@ -50,13 +57,19 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
     Py_ssize_t i, nparts;
+#if CYTHON_ASSUME_SAFE_SIZE
     nparts = PyTuple_GET_SIZE(parts_tuple);
+#else
+    nparts = PyTuple_Size(parts_tuple);
+    if (nparts < 0) return NULL;
+#endif
     for (i=1; i < nparts && module; i++) {
         PyObject *part, *submodule;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         part = PyTuple_GET_ITEM(parts_tuple, i);
 #else
-        part = PySequence_ITEM(parts_tuple, i);
+        part = __Pyx_PySequence_ITEM(parts_tuple, i);
+        if (!part) return NULL;
 #endif
         submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
         // We stop if the attribute isn't found, i.e. if submodule is NULL here.
@@ -278,13 +291,18 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
                 PyErr_Clear();
             break;
         }
-        if (skip_leading_underscores &&
-            likely(PyUnicode_Check(name)) &&
-            likely(__Pyx_PyUnicode_GET_LENGTH(name)) &&
-            __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
-        {
-            Py_DECREF(name);
-            continue;
+        if (skip_leading_underscores && likely(PyUnicode_Check(name))) {
+            Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(name);
+            #if !CYTHON_ASSUME_SAFE_SIZE
+            if (unlikely(length < 0)) {
+                Py_DECREF(name);
+                return -1;
+            }
+            #endif
+            if (likely(length) && __Pyx_PyUnicode_READ_CHAR(name, 0) == '_') {
+                Py_DECREF(name);
+                continue;
+            }
         }
         value = PyObject_GetAttr(v, name);
         if (value == NULL)
@@ -740,27 +758,24 @@ bad:
 /////////////// MergeVTables.proto ///////////////
 //@requires: GetVTable
 
-// TODO: find a way to make this work with the Limited API!
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
-#endif
 
 /////////////// MergeVTables ///////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type) {
-    int i;
+    int i=0;
+    Py_ssize_t size;
     void** base_vtables;
-    __Pyx_TypeName tp_base_name;
-    __Pyx_TypeName base_name;
+    __Pyx_TypeName tp_base_name = NULL;
+    __Pyx_TypeName base_name = NULL;
     void* unknown = (void*)-1;
-    PyObject* bases = type->tp_bases;
+    PyObject* bases = __Pyx_PyType_GetSlot(type, tp_bases, PyObject*);
     int base_depth = 0;
     {
-        PyTypeObject* base = type->tp_base;
+        PyTypeObject* base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
         while (base) {
             base_depth += 1;
-            base = base->tp_base;
+            base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
         }
     }
     base_vtables = (void**) malloc(sizeof(void*) * (size_t)(base_depth + 1));
@@ -771,11 +786,31 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     // resolution isn't possible and we must reject it just as when the
     // instance struct is so extended.  (It would be good to also do this
     // check when a multiple-base class is created in pure Python as well.)
-    for (i = 1; i < PyTuple_GET_SIZE(bases); i++) {
-        void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i)));
+#if CYTHON_COMPILING_IN_LIMITED_API
+    size = PyTuple_Size(bases);
+    if (size < 0) goto other_failure;
+#else
+    size = PyTuple_GET_SIZE(bases);
+#endif
+    for (i = 1; i < size; i++) {
+        PyObject *basei;
+        void* base_vtable;
+#if CYTHON_AVOID_BORROWED_REFS
+        basei = PySequence_GetItem(bases, i);
+        if (unlikely(!basei)) goto other_failure;
+#elif !CYTHON_ASSUME_SAFE_MACROS
+        basei = PyTuple_GetItem(bases, i);
+        if (unlikely(!basei)) goto other_failure;
+#else
+        basei = PyTuple_GET_ITEM(bases, i);
+#endif
+        base_vtable = __Pyx_GetVtable((PyTypeObject*)basei);
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(basei);
+#endif
         if (base_vtable != NULL) {
             int j;
-            PyTypeObject* base = type->tp_base;
+            PyTypeObject* base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
             for (j = 0; j < base_depth; j++) {
                 if (base_vtables[j] == unknown) {
                     base_vtables[j] = __Pyx_GetVtable(base);
@@ -787,7 +822,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
                     // No more potential matching bases (with vtables).
                     goto bad;
                 }
-                base = base->tp_base;
+                base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
             }
         }
     }
@@ -795,16 +830,37 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     free(base_vtables);
     return 0;
 bad:
-    tp_base_name = __Pyx_PyType_GetName(type->tp_base);
-    base_name = __Pyx_PyType_GetName((PyTypeObject*)PyTuple_GET_ITEM(bases, i));
+    {
+        PyTypeObject* basei = NULL;
+        PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+        tp_base_name = __Pyx_PyType_GetName(tp_base);
+#if CYTHON_AVOID_BORROWED_REFS
+        basei = (PyTypeObject*)PySequence_GetItem(bases, i);
+        if (unlikely(!basei)) goto really_bad;
+#elif !CYTHON_ASSUME_SAFE_MACROS
+        basei = (PyTypeObject*)PyTuple_GetItem(bases, i);
+        if (unlikely(!basei)) goto really_bad;
+#else
+        basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
+#endif
+        base_name = __Pyx_PyType_GetName(basei);
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(basei);
+#endif
+    }    
     PyErr_Format(PyExc_TypeError,
         "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
+#if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+really_bad: // bad has failed!
+#endif
     __Pyx_DECREF_TypeName(tp_base_name);
     __Pyx_DECREF_TypeName(base_name);
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+other_failure:
+#endif
     free(base_vtables);
     return -1;
 }
-#endif
 
 
 /////////////// ImportNumPyArray.proto ///////////////
