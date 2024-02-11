@@ -360,13 +360,13 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
             if token['escape']:
                 charpos = end
                 if len(token['escape']) % 2 == 0 and token['escaped_quote'] == quote_type[0]:
-                    # quote is not actually escaped and might be part of a terminator, look at it next
+                    # Quote is not actually escaped and might be part of a terminator, look at it next.
                     charpos -= 1
             elif is_fstring and token['braces']:
-                # formats or brace(s) in fstring
+                # Formats or brace(s) in fstring.
                 charpos = end
                 if len(token['braces']) % 2 == 0:
-                    # normal brace characters in string
+                    # Normal brace characters in string.
                     continue
                 if token['braces'][-1] == '{':
                     if start < end-1:
@@ -374,7 +374,7 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
                     new_code.append('{')
                     start = charpos = parse_code(end, in_fstring=True)
             elif token['quote'].startswith(quote_type):
-                # closing quote found (potentially together with further, unrelated quotes)
+                # Closing quote found (potentially together with further, unrelated quotes).
                 charpos = token.start('quote')
                 if charpos > start:
                     new_code.append(new_label(code[start : charpos]))
@@ -382,7 +382,7 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
                 charpos += len(quote_type)
                 break
             else:
-                # string internal quote(s)
+                # String internal quote(s).
                 charpos = end
 
         return charpos
@@ -403,7 +403,7 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
             if token['quote']:
                 quote = token['quote']
                 if len(quote) >= 6:
-                    # ignore empty tripple-quoted strings: '''''' or """"""
+                    # Ignore empty tripple-quoted strings: '''''' or """"""
                     quote = quote[:len(quote) % 6]
                 if quote and len(quote) != 2:
                     if len(quote) > 3:
@@ -422,12 +422,12 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
 
             elif in_fstring and token['brace']:
                 if token['brace'] == '}':
-                    # closing '}' of f-string
+                    # Closing '}' of f-string.
                     charpos = end = token.start() + 1
                     new_code.append(code[start:end])  # with '}'
                     break
                 else:
-                    # opening block inside of f-string
+                    # Starting a calculated format modifier inside of an f-string format.
                     end = token.start() + 1
                     new_code.append(code[start:end])  # with '{'
                     start = charpos = parse_code(end, in_fstring=True)
