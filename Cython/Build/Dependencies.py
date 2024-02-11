@@ -306,94 +306,132 @@ class DistutilsInfo:
             setattr(extension, key, value)
 
 
-@cython.locals(start=cython.Py_ssize_t, q=cython.Py_ssize_t,
-               single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
-               hash_mark=cython.Py_ssize_t, end=cython.Py_ssize_t,
-               k=cython.Py_ssize_t, counter=cython.Py_ssize_t, quote_len=cython.Py_ssize_t)
+_FIND_TOKEN = cython.declare(object, re.compile(r"""
+    (?P<comment> [#] ) |
+    (?P<braces> [}]+ ) |
+    (?P<fstring> f )? (?P<quote> '+ | "+ )
+""", re.VERBOSE).search)
+
+_FIND_STRING_TOKEN = cython.declare(object, re.compile(r"""
+    (?P<escape> [\\]+ ) (?P<escaped_quote> ['"] ) |
+    (?P<fstring> f )? (?P<quote> '+ | "+ )
+""", re.VERBOSE).search)
+
+_FIND_FSTRING_TOKEN = cython.declare(object, re.compile(r"""
+    (?P<braces> [{]+ | [}]+ ) |
+    (?P<escape> [\\]+ ) (?P<escaped_quote> ['"] ) |
+    (?P<fstring> f )? (?P<quote> '+ | "+ )
+""", re.VERBOSE).search)
+
+
+@cython.locals(single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
+               hash_mark=cython.Py_ssize_t, k=cython.Py_ssize_t)
 def strip_string_literals(code, prefix='__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',
     returning the normalized code and a mapping of labels to
     string literals.
     """
-    new_code = []
-    literals = {}
-    counter = 0
-    start = q = 0
-    in_quote = False
-    hash_mark = single_q = double_q = -1
-    code_len = len(code)
-    quote_type = None
-    quote_len = -1
+    new_code: list = []
+    literals: dict = {}
+    counter: cython.Py_ssize_t = 0
+    find_token = _FIND_TOKEN
 
-    while True:
-        if hash_mark < q:
-            hash_mark = code.find('#', q)
-        if single_q < q:
-            single_q = code.find("'", q)
-        if double_q < q:
-            double_q = code.find('"', q)
-        q = min(single_q, double_q)
-        if q == -1:
-            q = max(single_q, double_q)
+    def new_label(literal) -> str:
+        nonlocal counter
+        counter += 1
+        label = f"{prefix}{counter}_"
+        literals[label] = literal
+        return label
 
-        # We're done.
-        if q == -1 and hash_mark == -1:
-            new_code.append(code[start:])
-            break
+    def parse_string(quote_type: str, start: cython.Py_ssize_t, is_fstring: cython.bint) -> cython.Py_ssize_t:
+        charpos: cython.Py_ssize_t = start
+        end: cython.Py_ssize_t
 
-        # Try to close the quote.
-        elif in_quote:
-            if code[q-1] == '\\':
-                k = 2
-                while q >= k and code[q-k] == '\\':
-                    k += 1
-                if k % 2 == 0:
-                    q += 1
-                    continue
-            if code[q] == quote_type and (
-                    quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
-                counter += 1
-                label = "%s%s_" % (prefix, counter)
-                literals[label] = code[start+quote_len:q]
-                full_quote = code[q:q+quote_len]
-                new_code.append(full_quote)
-                new_code.append(label)
-                new_code.append(full_quote)
-                q += quote_len
-                in_quote = False
-                start = q
-            else:
-                q += 1
+        find_token = _FIND_FSTRING_TOKEN if is_fstring else _FIND_STRING_TOKEN
 
-        # Process comment.
-        elif -1 != hash_mark and (hash_mark < q or q == -1):
-            new_code.append(code[start:hash_mark+1])
-            end = code.find('\n', hash_mark)
-            counter += 1
-            label = "%s%s_" % (prefix, counter)
-            if end == -1:
-                end_or_none = None
-            else:
-                end_or_none = end
-            literals[label] = code[hash_mark+1:end_or_none]
-            new_code.append(label)
-            if end == -1:
+        while charpos != -1:
+            token = find_token(code, charpos)
+            if token is None:
+                # This probably indicates an unclosed string literal, i.e. a broken file.
+                new_code.append(new_label(code[start:]))
+                charpos = -1
                 break
-            start = q = end
+            end = token.end()
 
-        # Open the quote.
-        else:
-            if code_len >= q+3 and (code[q] == code[q+1] == code[q+2]):
-                quote_len = 3
+            if token['escape']:
+                charpos = end
+                if len(token['escape']) % 2 == 0 and token['escaped_quote'] == quote_type[0]:
+                    # quote is not actually escaped and might be part of a terminator, look at it next
+                    charpos -= 1
+            elif is_fstring and token['braces']:
+                # formats or brace(s) in fstring
+                charpos = end
+                if len(token['braces']) % 2 == 0:
+                    # normal brace characters in string
+                    continue
+                if token['braces'][-1] == '{':
+                    if start < end-1:
+                        new_code.append(new_label(code[start : end-1]))
+                    new_code.append('{')
+                    start = charpos = parse_code(end, in_fstring=True)
+            elif token['quote'].startswith(quote_type):
+                # closing quote found (potentially together with further, unrelated quotes)
+                charpos = token.start('quote')
+                if charpos > start:
+                    new_code.append(new_label(code[start : charpos]))
+                new_code.append(quote_type)
+                charpos += len(quote_type)
+                break
             else:
-                quote_len = 1
-            in_quote = True
-            quote_type = code[q]
-            new_code.append(code[start:q])
-            start = q
-            q += quote_len
+                # string internal quote(s)
+                charpos = end
 
+        return charpos
+
+    def parse_code(start: cython.Py_ssize_t, in_fstring: cython.bint = False) -> cython.Py_ssize_t:
+        charpos: cython.Py_ssize_t = start
+        end: cython.Py_ssize_t
+        quote: str
+
+        while charpos != -1:
+            token = find_token(code, charpos)
+            if token is None:
+                new_code.append(code[start:])
+                charpos = -1
+                break
+            charpos = end = token.end()
+
+            if token['quote']:
+                quote = token['quote']
+                if len(quote) >= 6:
+                    # ignore empty tripple-quoted strings: '''''' or """"""
+                    quote = quote[:len(quote) % 6]
+                if quote and len(quote) != 2:
+                    if len(quote) > 3:
+                        end -= len(quote) - 3
+                        quote = quote[:3]
+                    new_code.append(code[start:end])
+                    start = charpos = parse_string(quote, end, is_fstring=token['fstring'])
+
+            elif token['comment']:
+                new_code.append(code[start:end+1])
+                charpos = code.find('\n', end+1)
+                new_code.append(new_label(code[end+1 : charpos if charpos != -1 else None]))
+                if charpos == -1:
+                    break  # EOF
+                start = charpos
+
+            elif token['braces']:
+                if in_fstring and len(token['braces']) % 2 == 1:
+                    # closing '}' of f-string
+                    charpos = end = token.start() + 1
+                    new_code.append(code[start:end])  # with '}'
+                    break
+
+        return charpos
+
+    parse_code(0)
     return "".join(new_code), literals
 
 
