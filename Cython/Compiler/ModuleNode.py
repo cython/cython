@@ -1066,13 +1066,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_cpp_constructor_code(self, arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code):
         if is_implementing:
             code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
-            if py_attrs:
+            needs_gil = py_attrs or (constructor and not constructor.type.nogil)
+            if needs_gil:
                 code.put_ensure_gil()
+            if py_attrs:
                 for attr in py_attrs:
                     code.put_init_var_to_py_none(attr, nanny=False)
             if constructor:
                 code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
-            if py_attrs:
+            if needs_gil:
                 code.put_release_ensured_gil()
             code.putln("}")
         else:
@@ -1103,7 +1105,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if attr.type.is_cfunction and attr.type.is_static_method:
                     code.put("static ")
                 elif attr.name == "<init>":
-                    #constructor = attr
                     constructor = scope.lookup_here("<init>")
                 elif attr.name == "<del>":
                     destructor = attr
