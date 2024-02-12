@@ -324,7 +324,7 @@ _FIND_FSTRING_TOKEN = cython.declare(object, re.compile(r"""
 """, re.VERBOSE).search)
 
 
-def strip_string_literals(code, prefix: str = '__Pyx_L'):
+def strip_string_literals(code: str, prefix: str = '__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',
     returning the normalized code and a mapping of labels to
@@ -335,16 +335,15 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
     counter: cython.Py_ssize_t = 0
     find_token = _FIND_TOKEN
 
-    def new_label(literal) -> str:
+    def append_new_label(literal):
         nonlocal counter
         counter += 1
         label = f"{prefix}{counter}_"
         literals[label] = literal
-        return label
+        new_code.append(label)
 
     def parse_string(quote_type: str, start: cython.Py_ssize_t, is_fstring: cython.bint) -> cython.Py_ssize_t:
         charpos: cython.Py_ssize_t = start
-        end: cython.Py_ssize_t
 
         find_token = _FIND_FSTRING_TOKEN if is_fstring else _FIND_STRING_TOKEN
 
@@ -352,38 +351,35 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
             token = find_token(code, charpos)
             if token is None:
                 # This probably indicates an unclosed string literal, i.e. a broken file.
-                new_code.append(new_label(code[start:]))
+                append_new_label(code[start:])
                 charpos = -1
                 break
-            end = token.end()
+            charpos = token.end()
 
             if token['escape']:
-                charpos = end
                 if len(token['escape']) % 2 == 0 and token['escaped_quote'] == quote_type[0]:
                     # Quote is not actually escaped and might be part of a terminator, look at it next.
                     charpos -= 1
+
             elif is_fstring and token['braces']:
                 # Formats or brace(s) in fstring.
-                charpos = end
                 if len(token['braces']) % 2 == 0:
                     # Normal brace characters in string.
                     continue
                 if token['braces'][-1] == '{':
-                    if start < end-1:
-                        new_code.append(new_label(code[start : end-1]))
+                    if start < charpos-1:
+                        append_new_label(code[start : charpos-1])
                     new_code.append('{')
-                    start = charpos = parse_code(end, in_fstring=True)
+                    start = charpos = parse_code(charpos, in_fstring=True)
+
             elif token['quote'].startswith(quote_type):
                 # Closing quote found (potentially together with further, unrelated quotes).
                 charpos = token.start('quote')
                 if charpos > start:
-                    new_code.append(new_label(code[start : charpos]))
+                    append_new_label(code[start : charpos])
                 new_code.append(quote_type)
                 charpos += len(quote_type)
                 break
-            else:
-                # String internal quote(s).
-                charpos = end
 
         return charpos
 
@@ -415,7 +411,7 @@ def strip_string_literals(code, prefix: str = '__Pyx_L'):
             elif token['comment']:
                 new_code.append(code[start:end])
                 charpos = code.find('\n', end)
-                new_code.append(new_label(code[end : charpos if charpos != -1 else None]))
+                append_new_label(code[end : charpos if charpos != -1 else None])
                 if charpos == -1:
                     break  # EOF
                 start = charpos
