@@ -72,7 +72,7 @@ class TestStripLiterals(unittest.TestCase):
              "abc #__Pyx_L1_"),
             ("'abc#'",
              "'__Pyx_L1_'"),
-            
+
             # special commands
             ("include 'a.pxi' # something here",
              "include '__Pyx_L1_' #__Pyx_L2_"),
@@ -114,12 +114,11 @@ class TestStripLiterals(unittest.TestCase):
             with self.subTest(code=code):
                 strip_equals(code, expected)  # +EOL
 
-        # GH5977: unclosed string literal
+        # GH-5977: unclosed string literal
         strip_equals(
             """ print("Say something: %s' % something) """,
             """ print("__Pyx_L1_"""
         )
-
 
     def _test_all_files(self, base_dir, file_paths):
         _find_leftover_string = re.compile(r"""[^_'"}](['"]+)[^_'"{]""").search
@@ -136,7 +135,6 @@ class TestStripLiterals(unittest.TestCase):
 
                 recovered = self._rebuild_string(stripped, literals)
                 self.assertEqual(code, recovered)
-
 
     def test_strip_string_literals_py_files(self):
         # process all .py files in the Cython package
