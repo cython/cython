@@ -1153,3 +1153,56 @@ raise_neg_overflow:
         "can't convert negative value to {{TYPE}}");
     return ({{TYPE}}) -1;
 }
+
+/////////////// CFuncPtrTypedef.proto ///////////////
+
+typedef void (*__Pyx_generic_func_pointer)(void);
+
+/////////////// CFuncPtrToPy.proto ///////////////
+//@requires: CFuncPtrTypedef
+
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name); /* proto */
+
+/////////////// CFuncPtrToPy ///////////////
+//@requires: StringTools.c::IncludeStringH
+
+static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
+    void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
+    PyMem_Free(ptr);
+}
+
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name) {
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+        // The C standard does not guarantee that a function pointer fits inside a regular pointer
+        // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
+        __Pyx_generic_func_pointer *copy_into = (__Pyx_generic_func_pointer*) PyMem_Malloc(sizeof(funcptr));
+        *copy_into = funcptr;
+        return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
+    } else {
+        // on all other platforms (which is the vast majority, since POSIX require a function pointer
+        // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
+        // Use memcpy copy the data from the function pointer to the void* 
+        // (since just casting is prohibited by standard C, and using unions is prohibited by standard c++)
+        void *copy_into;
+        memcpy((void*)&copy_into, (void*)&funcptr, sizeof(funcptr));
+        return PyCapsule_New(copy_into, name, NULL);
+    }
+}
+
+/////////////// CFuncPtrFromPy.proto ///////////////
+//@requires: CFuncPtrTypedef
+
+static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name); /* proto */
+
+/////////////// CFuncPtrFromPy.proto ///////////////
+
+static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name) {
+    void *data = PyCapsule_GetPointer(capsule, name);
+    __Pyx_generic_func_pointer funcptr;
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+        funcptr = *((__Pyx_generic_func_pointer*)data);
+    } else {
+        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
+    }
+    return funcptr;
+}

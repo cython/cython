@@ -447,6 +447,12 @@
 /* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
 #define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
 
+#if !defined(__Pyx_TEST_large_func_pointers)
+// This can be defined to force an alternate code-path for testing purposes
+// There's no other reason to use it
+#define __Pyx_TEST_large_func_pointers 0
+#endif
+
 #if CYTHON_USE_PYLONG_INTERNALS
   /* These short defines from the PyLong header can easily conflict with other code */
   #undef SHIFT
