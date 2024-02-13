@@ -718,6 +718,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
             error(self.pos, "Exception clause not allowed for function returning Python object")
+        elif return_type.is_pyobject and not self.exception_check and visibility != 'extern':
+            warning(self.pos, "noexcept clause is ignored for function returning Python object", 1)
         else:
             if self.exception_value is None and self.exception_check and self.exception_check != '+':
                 # Use an explicit exception return value to speed up exception checks.
