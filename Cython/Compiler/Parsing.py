@@ -727,6 +727,7 @@ def p_atom(s):
 
 
 def p_atom_string(s):
+    # s.sy == 'BEGIN_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
     if kind == 'c':
@@ -748,9 +749,9 @@ def p_atom_ident_constants(s):
     Returns None if it isn't one special-cased named constants.
     Only calls s.next() if it successfully matches a matches.
     """
+    # s.sy == 'IDENT'
     pos = s.position()
     name = s.systring
-    result = None
     if name == "None":
         result = ExprNodes.NoneNode(pos)
     elif name == "True":
@@ -759,8 +760,9 @@ def p_atom_ident_constants(s):
         result = ExprNodes.BoolNode(pos, value=False)
     elif name == "NULL" and not s.in_python_file:
         result = ExprNodes.NullNode(pos)
-    if result:
-        s.next()
+    else:
+        return None
+    s.next()
     return result
 
 
@@ -2458,7 +2460,7 @@ def p_statement(s, ctx, first_statement = 0):
                 if s.sy == 'IDENT' and s.systring == 'match':
                     # p_match_statement returns None on a "soft" initial failure
                     match_statement = p_match_statement(s, ctx)
-                    if match_statement:
+                    if match_statement is not None:
                         return match_statement
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
@@ -4149,10 +4151,9 @@ def p_pattern(s):
     pos = s.position()
     while True:
         patterns.append(p_closed_pattern(s))
-        if s.sy == "|":
-            s.next()
-        else:
+        if s.sy != "|":
             break
+        s.next()
 
     if len(patterns) > 1:
         pattern = MatchCaseNodes.OrPatternNode(
@@ -4248,10 +4249,10 @@ def p_literal_pattern(s):
         s.next()
         res = ExprNodes.FloatNode(pos, value=value)
 
-    if res and sign == "-":
+    if res is not None and sign == "-":
         res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
-    if res and s.sy in ['+', '-']:
+    if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
         if s.sy != 'IMAG':
@@ -4267,21 +4268,21 @@ def p_literal_pattern(s):
                 operand2=ExprNodes.ImagNode(s.position(), value=value)
             )
 
-    if not res and sy == 'IMAG':
+    if res is None and sy == 'IMAG':
         value = s.systring[:-1]
         s.next()
         res = ExprNodes.ImagNode(pos, value=sign+value)
         if sign == "-":
             res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
-    if res:
+    if res is not None:
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
     if next_must_be_a_number:
         s.error("Expected a number")
     if sy == 'BEGIN_STRING':
         res = p_atom_string(s)
-        # f-strings not being accepted is validated in PostParse
+        # Whether f-strings are suitable is validated in PostParse.
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
     elif sy == 'IDENT':
         # Note that p_atom_ident_constants includes NULL.

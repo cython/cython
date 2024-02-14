@@ -407,6 +407,7 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
         super().__init__()

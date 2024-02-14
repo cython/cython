@@ -24,10 +24,7 @@ class MatchNode(StatNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    (
-                        "%s makes remaining patterns unreachable"
-                        % found_irrefutable_case.pattern.irrefutable_message()
-                    ),
+                    f"{found_irrefutable_case.pattern.irrefutable_message()} makes remaining patterns unreachable"
                 )
                 break
             if case.is_irrefutable():
@@ -92,12 +89,12 @@ class PatternNode(Node):
 
     def update_targets_with_targets(self, targets, other_targets):
         for name in targets.intersection(other_targets):
-            error(self.pos, "multiple assignments to name '%s' in pattern" % name)
+            error(self.pos, f"multiple assignments to name '{name}' in pattern")
         targets.update(other_targets)
 
     def add_target_to_targets(self, targets, target):
         if target in targets:
-            error(self.pos, "multiple assignments to name '%s in pattern" % target)
+            error(self.pos, f"multiple assignments to name '{target}' in pattern")
         targets.add(target)
 
     def get_main_pattern_targets(self):
@@ -186,10 +183,7 @@ class OrPatternNode(PatternNode):
             if found_irrefutable_case:
                 error(
                     found_irrefutable_case.pos,
-                    (
-                        "%s makes remaining patterns unreachable"
-                        % found_irrefutable_case.irrefutable_message()
-                    ),
+                    f"{found_irrefutable_case.irrefutable_message()} makes remaining patterns unreachable"
                 )
                 break
             if alternative.is_irrefutable():

@@ -43,15 +43,6 @@ else:
 #  except for one test that seems misplaced in CPython (which is below)
 
 class TestTracing(unittest.TestCase):
-    if sys.version_info < (3, 4):
-        class SubTestClass(object):
-            def __enter__(self):
-                return self
-            def __exit__(self, exc_type, exc_value, traceback):
-                return
-            def __call__(self, *args):
-                return self
-        subTest = SubTestClass()
 
     def test_parser_deeply_nested_patterns(self):
         # Deeply nested patterns can cause exponential backtracking when parsing.

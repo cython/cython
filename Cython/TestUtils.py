@@ -410,7 +410,7 @@ def py_parse_code(code):
             result = TreeFragment(code, pipeline=[PostParse(context)])
             result = result.substitute()
         if errors:
-            raise errors[0]  # compile error, which should get caught
+            raise errors[0]  # compile error, which should get caught below
         else:
             return result
     except Errors.CompileError as e:
