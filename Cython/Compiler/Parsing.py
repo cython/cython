@@ -4277,8 +4277,6 @@ def p_literal_pattern(s):
         value = s.systring[:-1]
         s.next()
         res = ExprNodes.ImagNode(pos, value=sign+value)
-        if sign == "-":
-            res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
     if res is not None:
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
